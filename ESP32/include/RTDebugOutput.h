@@ -25,15 +25,15 @@ public:
   template <typename T>
   void printValue(String name, T value) {
     if (name.length() > 0) {
-      Serial.print(name); Serial.print(":"); 
+      Serial.print(">"); Serial.print(name); Serial.print(":");
     }
-    Serial.print(value); Serial.print(",");
+    Serial.print(value); Serial.print("\n");
   }
   void printValue(String name, float value) {
     if (name.length() > 0) {
-      Serial.print(name); Serial.print(":"); 
+      Serial.print(">"); Serial.print(name); Serial.print(":"); 
     }
-    Serial.print(value, FLOAT_PRECISION); Serial.print(",");
+    Serial.print(value, FLOAT_PRECISION); Serial.print("\n");
   }
 
   void printData() {
@@ -44,7 +44,6 @@ public:
           for (int i=0; i<NVALS; i++) {
             printValue(_outNames[i], values[i]);
           }
-          Serial.println(" ");
           xSemaphoreGive(semaphore_print);
         }
     }

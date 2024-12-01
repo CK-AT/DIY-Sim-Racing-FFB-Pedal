@@ -86,7 +86,7 @@ float LoadCell_ADS1256::getReadingKg() const {
   adc.waitDRDY();        // wait for DRDY to go low before next register read
 
   // correct bias, assume AWGN --> 3 * sigma is 99.9 %
-  return adc.readCurrentChannel() - ( _zeroPoint + 3.0 * _standardDeviationEstimate );
+  return adc.readCurrentChannel() - ( _zeroPoint );
 }
 
 void LoadCell_ADS1256::setZeroPoint() {

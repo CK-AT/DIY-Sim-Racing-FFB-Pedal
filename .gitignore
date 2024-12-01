@@ -19,3 +19,4 @@ SimHubPlugin/obj/Debug/User.PluginSdkDemo.Properties.Resources.resources
 SimHubPlugin/obj/Release/DiyActivePedal.dll
 SimHubPlugin/obj/Release/DiyActivePedal.pdb
 SimHubPlugin/SettingsControlDemo.xaml.cs
+*.pyc

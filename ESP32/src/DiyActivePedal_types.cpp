@@ -86,18 +86,18 @@ void DAP_config_st::initialiseDefaults() {
   payLoadPedalConfig_.maxGameOutput = 100;
 
   payLoadPedalConfig_.kf_modelNoise = 128;
-  payLoadPedalConfig_.kf_modelOrder = 1;
+  payLoadPedalConfig_.kf_modelOrder = 0;
 
-  payLoadPedalConfig_.debug_flags_0 = 0;
+  payLoadPedalConfig_.debug_flags_0 = 4;
 
-  payLoadPedalConfig_.loadcell_rating = 150;
+  payLoadPedalConfig_.loadcell_rating = 100;
 
   payLoadPedalConfig_.travelAsJoystickOutput_u8 = 0;
 
   payLoadPedalConfig_.invertLoadcellReading_u8 = 0;
 
   payLoadPedalConfig_.invertMotorDirection_u8 = 0;
-  payLoadPedalConfig_.pedal_type=4;
+  payLoadPedalConfig_.pedal_type=0;
   //payLoadPedalConfig_.OTA_flag=0;
   payLoadPedalConfig_.enableReboot_u8=1;
   //payLoadPedalConfig_.Joystick_ESPsync_to_ESP=0;

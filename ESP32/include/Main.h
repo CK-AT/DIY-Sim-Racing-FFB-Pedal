@@ -49,8 +49,8 @@ static const uint32_t STEPS_PER_MOTOR_REVOLUTION = 6400;
 /********************************************************************/
 /*                      Loadcell defines                            */
 /********************************************************************/
-#define LOADCELL_WEIGHT_RATING_KG 300.0
-#define LOADCELL_EXCITATION_V 5.0
+#define LOADCELL_WEIGHT_RATING_KG 200.0
+#define LOADCELL_EXCITATION_V 2.5
 #define LOADCELL_SENSITIVITY_MV_V 2.0
 
 
@@ -151,9 +151,9 @@ static const uint32_t STEPS_PER_MOTOR_REVOLUTION = 6400;
   #define PEDAL_ASSIGNMENT
   #define CFG1 15
   #define CFG2 12
-  #define Using_analog_output
+  //#define Using_analog_output
   //#define Using_I2C_Sync
-  #define ESPNOW_Enable
+  //#define ESPNOW_Enable
   #define ESPNow_ESP32
   #define I2C_slave_address 0x15
   #define BLUETOOTH_GAMEPAD
