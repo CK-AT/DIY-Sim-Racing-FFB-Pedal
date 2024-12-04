@@ -14,7 +14,7 @@ sim.elements.append(DampingMap([-1.1, -1.0, -0.95, 0.95, 1.0, 1.1], [1000.0, 5.0
 sim.elements.append(Friction(1.0))
 
 f_in = Slider(title="f_in", value=-2.2, start=-300.0, end=300.0, step=0.1)
-m_in = Slider(title="f_in", value=0.1, start=0.01, end=10.0, step=0.01)
+m_in = Slider(title="m", value=0.1, start=0.01, end=10.0, step=0.01)
 
 class BL:
     def __init__(self, x_graph, v_graph, a_graph, f_in, m_in) -> None:
@@ -35,7 +35,7 @@ class BL:
             x_vect.append(sim.iterate(0.001, self.f))
             v_vect.append(sim.v)
             a_vect.append(sim.a)
-            self.t += 0.01
+            self.t += 0.001
             t_vect.append(self.t)
 
         self.x_graph.data_source.stream({'x': t_vect, 'y': x_vect})

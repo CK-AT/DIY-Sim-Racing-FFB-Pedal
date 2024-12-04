@@ -145,8 +145,8 @@ static const uint32_t STEPS_PER_MOTOR_REVOLUTION = 6400;
 
   // level shifter is present on this PCB design
   #define SENSORLESS_HOMING true
-  #define ISV57_TXPIN 27 //17
-  #define ISV57_RXPIN 26 // 16
+  #define ISV57_TXPIN 4 //17
+  #define ISV57_RXPIN 5 // 16
   //pedal assignment
   #define PEDAL_ASSIGNMENT
   #define CFG1 15

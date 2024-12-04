@@ -7,8 +7,8 @@ Modbus modbus(Serial1);
 // initialize the communication
 isv57communication::isv57communication()
 {
-  Serial1.begin(38400, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN, true); // Modbus serial
-  modbus.init(MODE);
+  Serial1.begin(115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN, false); // Modbus serial
+  modbus.init(MODE, true);
 }
 
 
@@ -33,11 +33,21 @@ void isv57communication::setupServoStateReading() {
 
 }
 
+void isv57communication::writeTest() {
+
+  
+  // modbus.holdingRegisterWrite(1, 0x0411, 1); //enable
+  modbus.holdingRegisterWrite(1, 0x0100, 600);
+  modbus.holdingRegisterWrite(1, 0x0101, 400);
+  modbus.holdingRegisterWrite(1, 0x0102, 1500);
+
+
+}
 
 void isv57communication::readAllServoParameters() {
-  for (uint16_t reg_sub_add_u16 = 0;  reg_sub_add_u16 < pr_6_00; reg_sub_add_u16++)
+  for (uint16_t reg_sub_add_u16 = 0x0100;  reg_sub_add_u16 < 0x0103; reg_sub_add_u16++)
   {
-    modbus.readParameter(slaveId, pr_0_00 + reg_sub_add_u16);
+    modbus.readParameter(1, reg_sub_add_u16);
   }
 }
 

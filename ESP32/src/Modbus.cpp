@@ -83,7 +83,7 @@ void Modbus::readParameter(uint16_t slaveId_local_u16, uint16_t parameterAdress)
   int16_t regArray[4];
 
   // read the four registers simultaneously
-  if(requestFrom(slaveId_local_u16, 0x03, parameterAdress,  2) > 0)
+  if(requestFrom(slaveId_local_u16, 0x03, parameterAdress,  1) > 0)
   {
     RxRaw(raw2,  len);
     regArray[0] = uint16(0);
@@ -505,6 +505,15 @@ int Modbus::holdingRegisterWrite(int id, int address, uint16_t value)
     crc = this->CheckCRC(txout,6);
     txout[6] = crc ;
     txout[7] = crc >> 8;
+
+    if(log){
+      Serial.print("TX: ");
+       for(int i =0; i < 8; i++)
+            {
+                Serial.printf("%02X ",txout[i] );
+            }
+            Serial.print("\t");
+     }
 	
 	// send signal
 	digitalWrite(mode_,1);
@@ -514,6 +523,60 @@ int Modbus::holdingRegisterWrite(int id, int address, uint16_t value)
     digitalWrite(mode_,0);
     delay(1);
 	
+    uint32_t t = millis();
+    lenRx   = 0;
+    datalen = 0;
+    int ll = 0;
+    int rx;
+    uint8_t found = 0;
+  
+    while((millis() - t) < timeout_){
+       if(this->s->available())
+       {
+        rx = this->s->read();
+        t = millis();
+        
+        if(found == 0)
+        {
+          if(txout[ll] == rx){ll++;}else{ll = 0;}
+          if(ll == 2)
+          { 
+            rawRx[0] = txout[0]; // Slave ID
+            rawRx[1] = txout[1]; // Function code
+            lenRx = 2;
+            found = 1; 
+          }
+        }
+        else if(found == 1)
+        {
+         this->rawRx[lenRx++] =  rx;
+
+         // the receive message looks like this
+         // Byte 1: SalveId e.g. 0x3F
+         // Byte 2: Function code e.g. 0x03
+         // Byte 3: Bytes to read e.g. m=8 to read 4 consecutive registers
+         // Byte 4-(N-2): Register values
+         // Byte N-1: CRC MSB
+         // Byte N: CRC LSB
+
+         // The total message length is thus N = 5+m
+         if(lenRx >= 8) { break; }
+        }
+        
+       }
+        
+
+    }
+
+    if(log){
+        Serial.print("RX: ");
+        for(int i =0; i < lenRx; i++)
+            {
+             Serial.printf("%02X ",rawRx[i] );
+            }
+            Serial.println();
+     }
+
 	
 	return 1;
 	
