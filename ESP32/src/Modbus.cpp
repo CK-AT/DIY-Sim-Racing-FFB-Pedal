@@ -584,3 +584,102 @@ int Modbus::holdingRegisterWrite(int id, int address, uint16_t value)
 	
 	
 }
+
+int Modbus::holdingRegisterWriteI32(int id, int address, int32_t value)
+{
+    int crc ;
+	
+	// form signal
+    txout[0] = id;
+    txout[1] = Write_Multiple_Registers;
+    txout[2] = address >> 8;
+    txout[3] = address;
+    txout[4] = 0;
+    txout[5] = 2;
+    txout[6] = 4;
+    txout[7] = value >> 24;
+    txout[8] = value >> 16;
+    txout[9] = value >> 8;
+    txout[10] = value;
+    crc = this->CheckCRC(txout,11);
+    txout[11] = crc ;
+    txout[12] = crc >> 8;
+
+    if(log){
+      Serial.print("TX: ");
+       for(int i =0; i < 13; i++)
+            {
+                Serial.printf("%02X ",txout[i] );
+            }
+            Serial.print("\t");
+     }
+	
+	// send signal
+	digitalWrite(mode_,1);
+    delay(1);
+    this->s->write(txout,13);
+    this->s->flush();
+    digitalWrite(mode_,0);
+    delay(1);
+	
+    uint32_t t = millis();
+    lenRx   = 0;
+    datalen = 0;
+    int ll = 0;
+    int rx;
+    uint8_t found = 0;
+  
+    while((millis() - t) < timeout_){
+       if(this->s->available())
+       {
+        rx = this->s->read();
+        t = millis();
+        
+        if(found == 0)
+        {
+          if(txout[ll] == rx){ll++;}else{ll = 0;}
+          if(ll == 2)
+          { 
+            rawRx[0] = txout[0]; // Slave ID
+            rawRx[1] = txout[1]; // Function code
+            lenRx = 2;
+            found = 1; 
+          }
+        }
+        else if(found == 1)
+        {
+         this->rawRx[lenRx++] =  rx;
+
+         // the receive message looks like this
+         // Byte 1: SalveId e.g. 0x3F
+         // Byte 2: Function code e.g. 0x03
+         // Byte 3: Bytes to read e.g. m=8 to read 4 consecutive registers
+         // Byte 4-(N-2): Register values
+         // Byte N-1: CRC MSB
+         // Byte N: CRC LSB
+
+         // The total message length is thus N = 5+m
+         if(lenRx >= 8) { break; }
+        }
+        
+       }
+        
+
+    }
+
+    if(log){
+        Serial.print("RX: ");
+        for(int i =0; i < lenRx; i++)
+            {
+             Serial.printf("%02X ",rawRx[i] );
+            }
+            Serial.println();
+     }
+
+	
+	return 1;
+	
+	
+	
+	
+}

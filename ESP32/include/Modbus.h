@@ -29,6 +29,7 @@ private:
     #define Holding_Register    0x03
     #define Input_Register      0x04  
 	#define Write_Holding_Register      0x06
+	#define Write_Multiple_Registers      0x10
     // vector <char> txbuff;
     // vector <char> rxbuff;
     
@@ -56,6 +57,7 @@ public:
     int coilWrite(int id, int address, uint8_t value);
     int holdingRegisterWrite(int address, uint16_t value);
     int holdingRegisterWrite(int id, int address, uint16_t value);
+    int holdingRegisterWriteI32(int id, int address, int32_t value);
     void RxRaw(uint8_t *raw, uint8_t &rlen);
     void TxRaw(uint8_t *raw, uint8_t &rlen);
     //Read multiple coils, discrete inputs, holding registers, or input register values.
