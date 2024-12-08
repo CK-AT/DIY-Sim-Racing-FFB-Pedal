@@ -20,10 +20,9 @@ private:
     HardwareSerial* s ;
     uint8_t rawRx[512];
     int  lenRx = 0;
-    uint8_t dataRx[512];
     int  datalen = 0;
     int  SlaveID = 0x01;
-    uint8_t txout[9] = {0,0,0,0,0,0,0,0,0};
+    uint8_t txout[14] = {};
     #define Coil_Register       0x01
     #define Discret_Register    0x02
     #define Holding_Register    0x03
@@ -43,7 +42,49 @@ public:
 
 
     uint8_t byteRead(int nb);
-    int blockRead(int index);
+    template <typename T>
+    T blockRead(int index)
+    {
+        return  T((rawRx[index*2+3] << 8) | rawRx[index*2+4]);
+    }
+    template <typename T>
+    T holdingRegisterRead(int id, int address)
+    {
+        int block = constrain(sizeof(T) / 2, 1, 2);
+        if(requestFrom(SlaveID, Holding_Register, address, block))
+        {
+            if(block == 2)
+            {
+            return T(blockRead<uint16_t>(0) << 16 | blockRead<uint16_t>(1));
+            }
+            else{
+                return blockRead<T>(0);
+            }
+        }
+        else{
+            return -1;
+        }
+    }
+    template <typename T>
+    T inputRegisterRead(int id, int address, int block)
+    {
+        if(block > 2){block = 2;}
+        if(requestFrom(id, Input_Register,address,block))
+        {
+            if(block == 2)
+            {
+            return T(blockRead<uint16_t>(0) << 16 | blockRead<uint16_t>(1));
+            }
+            else{
+            return blockRead<T>(0);
+            }
+        }
+        else
+        {
+            return -1;
+        }
+    }
+
     int coilRead(int address);                                      //Return 1 byte = 8 bit coil
     int coilRead(int id, int address);
     int discreteInputRead(int address);
@@ -65,7 +106,7 @@ public:
     int requestFrom(int slaveId, int type, int address,int nb);
     //  ~Modbus();
     bool checkAndReplaceParameter(uint16_t slaveId_local_u16, uint16_t parameterAdress, long value);
-    void readParameter(uint16_t slaveId_local_u16, uint16_t parameterAdress);
+    int16_t readParameter(uint16_t slaveId_local_u16, uint16_t parameterAdress);
 
 
     // Read Coil Register       0x01

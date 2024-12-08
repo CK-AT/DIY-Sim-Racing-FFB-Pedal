@@ -32,11 +32,6 @@ uint8_t Modbus::byteRead(int index)
   return rawRx[index+3];
 }
 
-int Modbus::blockRead(int index)
-{
-   return  ((dataRx[index*2] << 8) | dataRx[index*2+1]);
-}
-
 int Modbus::coilRead(int address){
  
     return coilRead(SlaveID,address);
@@ -73,9 +68,7 @@ int Modbus::discreteInputRead(int id, int address)
 
 
 // check target values at register address. If target value was already present, return 0. If target value has to be set, return 1.
-void Modbus::readParameter(uint16_t slaveId_local_u16, uint16_t parameterAdress) {
-
-  bool retValue_b = false;
+int16_t Modbus::readParameter(uint16_t slaveId_local_u16, uint16_t parameterAdress) {
 
   // check if value at address is already target value
   uint8_t raw2[2];
@@ -89,19 +82,10 @@ void Modbus::readParameter(uint16_t slaveId_local_u16, uint16_t parameterAdress)
     regArray[0] = uint16(0);
   }
   
+  Serial.printf("0x%04X: %d\n", parameterAdress, regArray[0]);
+
   // write to public variables
-  int16_t returnValue = regArray[0];
-
-
-
-  // if value is not target value --> overwrite value
-    Serial.print("Parameter address: ");
-    Serial.print(parameterAdress);
-    Serial.print(",    actual:");
-    Serial.println(returnValue);
-
-
-    delay(50);
+  return regArray[0];
 }
 
 
@@ -153,53 +137,10 @@ long Modbus::holdingRegisterRead(int address)
   return holdingRegisterRead(SlaveID, address, 1);
 }
 
-long Modbus::holdingRegisterRead(int id, int address, int block)
-{
-  if(block > 2){block = 2;}
-  if(requestFrom(SlaveID, Holding_Register, address, block))
-  {
-    if(block == 2)
-    {
-      return (blockRead(0) << 16 | blockRead(1));
-    }
-    else{
-      return blockRead(0);
-    }
-  }
-  else{
-    return -1;
-  }
-
-}
-
 long Modbus::inputRegisterRead(int address)
 {
    return inputRegisterRead(SlaveID , address, 1);
 }
-
-long Modbus::inputRegisterRead(int id, int address, int block)
-{
-  if(block > 2){block = 2;}
-  if(requestFrom(id, Input_Register,address,block))
-  {
-    if(block == 2)
-    {
-      return (blockRead(0) << 16 | blockRead(1));
-    }
-    else{
-      return blockRead(0);
-    }
-  }
-  else
-  {
-    return -1;
-  }
-}
-
-
-
-
-
 
 int Modbus::requestFrom(int slaveId, int type, int address, int nb)
 {
