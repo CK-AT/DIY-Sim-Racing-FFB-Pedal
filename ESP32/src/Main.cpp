@@ -3,8 +3,9 @@
 // https://github.com/espressif/arduino-esp32/issues/7779
 
 #define ESTIMATE_LOADCELL_VARIANCE
-#define ISV_COMMUNICATION
+//#define ISV_COMMUNICATION
 //#define PRINT_SERVO_STATES
+#define A6SERVO
 
 #define DEBUG_INFO_0_CYCLE_TIMER 1
 #define DEBUG_INFO_0_STEPPER_POS 2
@@ -18,10 +19,6 @@
 bool resetServoEncoder = true;
 bool isv57LifeSignal_b = false;
 bool isv57_not_live_b=false;
-#ifdef ISV_COMMUNICATION
-  #include "isv57communication.h"
-  int32_t servo_offset_compensation_steps_i32 = 0; 
-#endif
 
 //#define OTA_update
 
@@ -30,6 +27,8 @@ bool isv57_not_live_b=false;
 
 #include "Arduino.h"
 #include "Main.h"
+
+#include "Physics.h"
 
 #ifdef Using_analog_output_ESP32_S3
 #include <Wire.h>
@@ -145,9 +144,6 @@ ForceCurve_Interpolated forceCurve;
 
 TaskHandle_t Task1;
 TaskHandle_t Task2;
-#ifdef ISV_COMMUNICATION
-  isv57communication isv57;
-#endif
 
 static SemaphoreHandle_t semaphore_updateConfig=NULL;
   bool configUpdateAvailable = false;                              // semaphore protected data
@@ -225,11 +221,13 @@ LoadCell_ADS1256* loadcell = NULL;
 /*                                                                                            */
 /**********************************************************************************************/
 
-#include "StepperWithLimits.h"
-StepperWithLimits* stepper = NULL;
+#ifdef A6SERVO
+#include "A6Servo.h"
+#endif
+Servo* stepper = NULL;
 //static const int32_t MIN_STEPS = 5;
 
-#include "StepperMovementStrategy.h"
+// #include "StepperMovementStrategy.h"
 
 bool moveSlowlyToPosition_b = false;
 /**********************************************************************************************/
@@ -251,7 +249,20 @@ char* APhost;
   TaskHandle_t Task6;
 #endif
 
-
+double m = 0.2;
+double x_min = 0.0;
+double x_max = 100.0;
+double v_min = -1000.0;
+double v_max = 1000.0;
+double a_min = -100000.0;
+double a_max = 100000.0;
+Sim sim = Sim(m, x_min, x_max, v_min, v_max, a_min, a_max);
+Spring spring1 = Spring(50.0, 2.0);
+Damper damper1 = Damper(0.2);
+Friction friction1 = Friction(1.0);
+ForceMap force_map1 = ForceMap({0.0, 100.0}, {-100.0, 100.0});
+ForceMap force_map2 = ForceMap({0.0, 10.0, 90.0, 100.0}, {-100.0, 0.0, 0.0, 100.0});
+DampingMap damping_map1 = DampingMap({0.0, 10.0, 90.0, 100.0}, {3.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 3.0});
 
 /**********************************************************************************************/
 /*                                                                                            */
@@ -365,7 +376,9 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
 
 
   bool invMotorDir = dap_config_st.payLoadPedalConfig_.invertMotorDirection_u8 > 0;
-  stepper = new StepperWithLimits(stepPinStepper, dirPinStepper, minPin, maxPin, invMotorDir);
+#ifdef A6SERVO
+  stepper = new A6Servo(stepPinStepper, dirPinStepper, !invMotorDir, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN, false);
+#endif
   loadcell = new LoadCell_ADS1256();
 
   loadcell->setLoadcellRating(dap_config_st.payLoadPedalConfig_.loadcell_rating);
@@ -375,28 +388,16 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
     loadcell->estimateVariance();       // automatically identify sensor noise for KF parameterization
   #endif
 
-  Serial.print("Min Position is "); Serial.println(stepper->getLimitMin());
-  Serial.print("Max Position is "); Serial.println(stepper->getLimitMax());
+  // Serial.print("Min Position is "); Serial.println(stepper->getLimitMin());
+  // Serial.print("Max Position is "); Serial.println(stepper->getLimitMax());
 
 
   // setup Kalman filter
   Serial.print("Given loadcell variance: ");
-  Serial.println(loadcell->getVarianceEstimate());
-  kalman = new KalmanFilter(loadcell->getVarianceEstimate());
-
-  kalman_2nd_order = new KalmanFilter_2nd_order(1);
-  
-
-
-
-
-
-
-
-
-  
-
-  
+  float var_est = loadcell->getVarianceEstimate();
+  Serial.println(var_est);
+  kalman = new KalmanFilter(var_est);
+  kalman_2nd_order = new KalmanFilter_2nd_order(var_est);
 
   // activate parameter update in first cycle
   configUpdateAvailable = true;
@@ -426,41 +427,18 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
     ESP.restart();
   }
 
+  stepper->setup(1000, 5);
+  stepper->enable();
+  delay(100);
 
-#ifdef ISV_COMMUNICATION
-  isv57.readAllServoParameters();
-//  isv57.writeTest();
-#endif
-
+sim.add_element(&spring1);
+spring1.disable();
+sim.add_element(&damper1);
+sim.add_element(&force_map1);
+sim.add_element(&force_map2);
+sim.add_element(&damping_map1);
+sim.add_element(&friction1);
   
-  
-
-
-  disableCore0WDT();
-
-  //create a task that will be executed in the Task2code() function, with priority 1 and executed on core 1
-  xTaskCreatePinnedToCore(
-                    pedalUpdateTask,   /* Task function. */
-                    "pedalUpdateTask",     /* name of task. */
-                    10000,       /* Stack size of task */
-                    //STACK_SIZE_FOR_TASK_1,
-                    NULL,        /* parameter of the task */
-                    1,           /* priority of the task */
-                    &Task1,      /* Task handle to keep track of created task */
-                    1);          /* pin task to core 1 */
-  delay(500);
-
-  xTaskCreatePinnedToCore(
-                    serialCommunicationTask,   
-                    "serialCommunicationTask", 
-                    10000,  
-                    //STACK_SIZE_FOR_TASK_2,    
-                    NULL,      
-                    1,         
-                    &Task2,    
-                    0);     
-  delay(500);
-
 
 
   //Serial.begin(115200);
@@ -608,8 +586,7 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
 
   #endif
 
-  Serial.println("Setup end");
-  
+  Serial.println("Setup end");  
 }
 
 
@@ -623,13 +600,13 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
 void updatePedalCalcParameters()
 {
   dap_calculationVariables_st.updateFromConfig(dap_config_st);
-  dap_calculationVariables_st.updateEndstops(stepper->getLimitMin(), stepper->getLimitMax());
-  stepper->updatePedalMinMaxPos(dap_config_st.payLoadPedalConfig_.pedalStartPosition, dap_config_st.payLoadPedalConfig_.pedalEndPosition);
+  // dap_calculationVariables_st.updateEndstops(stepper->getLimitMin(), stepper->getLimitMax());
+  // stepper->updatePedalMinMaxPos(dap_config_st.payLoadPedalConfig_.pedalStartPosition, dap_config_st.payLoadPedalConfig_.pedalEndPosition);
   //stepper->findMinMaxLimits(dap_config_st.payLoadPedalConfig_.pedalStartPosition, dap_config_st.payLoadPedalConfig_.pedalEndPosition);
   dap_calculationVariables_st.updateStiffness();
 
   // tune the PID settings
-  tunePidValues(dap_config_st);
+  // tunePidValues(dap_config_st);
 
   // equalize pedal config for both tasks
   dap_config_st_local = dap_config_st;
@@ -643,7 +620,34 @@ void updatePedalCalcParameters()
 /*                                                                                            */
 /**********************************************************************************************/
 unsigned long joystick_state_last_update=millis();
+bool init_done = false;
 void loop() {
+  if (!init_done) {
+      xTaskCreatePinnedToCore(
+                        serialCommunicationTask,   
+                        "serialCommunicationTask", 
+                        10000,  
+                        //STACK_SIZE_FOR_TASK_2,    
+                        NULL,      
+                        1,         
+                        &Task2,    
+                        0);     
+
+      Serial.println("serialCommunicationTask created");
+
+      xTaskCreatePinnedToCore(
+                        pedalUpdateTask,   /* Task function. */
+                        "pedalUpdateTask",     /* name of task. */
+                        10000,       /* Stack size of task */
+                        //STACK_SIZE_FOR_TASK_1,
+                        NULL,        /* parameter of the task */
+                        10,          /* priority of the task */
+                        &Task1,      /* Task handle to keep track of created task */
+                        1);          /* pin task to core 1 */
+
+      Serial.println("pedalUpdateTask created");
+      init_done = true;
+  }
   taskYIELD();
   /*
   #ifdef OTA_update
@@ -682,17 +686,8 @@ int64_t timePrevious_pedalUpdateTask_l = 0;
 //void loop()
 void pedalUpdateTask( void * pvParameters )
 {
-
+  unsigned long t0 = micros();
   for(;;){
-
-
-    // measure callback time and continue, when desired period is reached
-    timeNow_pedalUpdateTask_l = millis();
-    int64_t timeDiff_pedalUpdateTask_l = ( timePrevious_pedalUpdateTask_l + REPETITION_INTERVAL_PEDALUPDATE_TASK) - timeNow_pedalUpdateTask_l;
-    uint32_t targetWaitTime_u32 = constrain(timeDiff_pedalUpdateTask_l, 0, REPETITION_INTERVAL_PEDALUPDATE_TASK);
-    delay(targetWaitTime_u32);
-    timePrevious_pedalUpdateTask_l = millis();
-
 
     // system identification mode
     #ifdef ALLOW_SYSTEM_IDENTIFICATION
@@ -703,7 +698,7 @@ void pedalUpdateTask( void * pvParameters )
       }
     #endif
     
-
+    double dt = 0.0;
     // controll cycle time. Delay did not work with the multi tasking, thus this workaround was integrated
     unsigned long now = micros();
     if (now - cycleTimeLastCall < PUT_TARGET_CYCLE_TIME_IN_US) // 100us = 10kHz
@@ -713,17 +708,18 @@ void pedalUpdateTask( void * pvParameters )
     }
     {
       // if target cycle time is reached, update last time
+      dt = (now - cycleTimeLastCall) / 1000.0;
       cycleTimeLastCall = now;
     }
 
     
 
     // print the execution time averaged over multiple cycles
-    if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
-    {
-      static CycleTimer timerPU("PU cycle time");
-      timerPU.Bump();
-    }
+    // if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
+    // {
+    //   static CycleTimer timerPU("PU cycle time");
+    //   timerPU.Bump();
+    // }
       
 
     // if a config update was received over serial, update the variables required for further computation
@@ -776,8 +772,7 @@ void pedalUpdateTask( void * pvParameters )
       stepper->checkLimitsAndResetIfNecessary();
     #endif
 
-
-      // compute pedal oscillation, when ABS is active
+    // compute pedal oscillation, when ABS is active
     float absForceOffset_fl32 = 0.0f;
 
     float absForceOffset = 0;
@@ -819,7 +814,7 @@ void pedalUpdateTask( void * pvParameters )
 
 
     // Convert loadcell reading to pedal force
-    float sledPosition = sledPositionInMM(stepper, dap_config_st);
+    float sledPosition = 0.0; // sledPositionInMM(stepper, dap_config_st);
     float pedalInclineAngleInDeg_fl32 = pedalInclineAngleDeg(sledPosition, dap_config_st);
     float pedalForce_fl32 = convertToPedalForce(loadcellReading, sledPosition, dap_config_st);
     float d_phi_d_x = convertToPedalForceGain(sledPosition, dap_config_st);
@@ -837,14 +832,14 @@ void pedalUpdateTask( void * pvParameters )
     // const velocity model denoising filter
     if (dap_config_st.payLoadPedalConfig_.kf_modelOrder == 0)
     {
-      filteredReading = kalman->filteredValue(pedalForce_fl32, 0, dap_config_st.payLoadPedalConfig_.kf_modelNoise);
+      filteredReading = kalman->filteredValue(loadcellReading, 0, dap_config_st.payLoadPedalConfig_.kf_modelNoise);
       changeVelocity = kalman->changeVelocity();
     }
 
     // const acceleration model denoising filter
     if (dap_config_st.payLoadPedalConfig_.kf_modelOrder == 1)
     {
-      filteredReading = kalman_2nd_order->filteredValue(pedalForce_fl32, 0, dap_config_st.payLoadPedalConfig_.kf_modelNoise);
+      filteredReading = kalman_2nd_order->filteredValue(loadcellReading, 0, dap_config_st.payLoadPedalConfig_.kf_modelNoise);
       changeVelocity = kalman->changeVelocity();
     }
 
@@ -856,27 +851,36 @@ void pedalUpdateTask( void * pvParameters )
       filteredReading = filteredReading_exp_filter;
     }
 
+    // if (stepper->get_homing_state() == Servo::HomingState::Homed) {
+    //   sim.set_x_min(0.0);
+    //   sim.set_x_max(100.0);
+    // } else {
+    //   sim.set_x_min(50.0, true);
+    //   sim.set_x_max(50.0, true);
+    // }
 
-
+    double f_in = filteredReading * 9.81;
+    sim.update(dt, f_in);
 
     //#define DEBUG_FILTER
     if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_LOADCELL_READING) 
     {
       static uint16_t loop_cnt = 0;
-      static RTDebugOutput<int32_t,2> rtDebugFilter({ "raw", "flt"});
+      static RTDebugOutput<double,6> rtDebugFilter({ "raw", "flt", "f", "a", "v", "x"});
       loop_cnt++;
-      if (loop_cnt >= 5) {
+      if (loop_cnt >= 100) {
         loop_cnt = 0;
-        rtDebugFilter.offerData({ int32_t(loadcellReading * 1000), int32_t(filteredReading * 1000)});
+        rtDebugFilter.offerData({ loadcellReading, filteredReading, sim.get_f_sum(), sim.get_a(), sim.get_v(), sim.get_x()});
       }
     }
+    stepper->move_to(sim.get_x());
       
 
 
 
     //Add effect by force
     float effect_force = absForceOffset + _BitePointOscillation.BitePoint_Force_offset + _WSOscillation.WS_Force_offset + CV1.CV_Force_offset + CV2.CV_Force_offset;
-    double stepperPosFraction = stepper->getCurrentPositionFraction();
+    // double stepperPosFraction = stepper->getCurrentPositionFraction();
     int32_t Position_Next = 0;
 
 
@@ -887,12 +891,12 @@ void pedalUpdateTask( void * pvParameters )
     // select control loop algo
     if (dap_config_st.payLoadPedalConfig_.control_strategy_b <= 1)
     {
-      Position_Next = MoveByPidStrategy(filteredReading, stepperPosFraction, stepper, &forceCurve, &dap_calculationVariables_st, &dap_config_st, 0/*effect_force*/, changeVelocity);
+      // Position_Next = MoveByPidStrategy(filteredReading, stepperPosFraction, stepper, &forceCurve, &dap_calculationVariables_st, &dap_config_st, 0/*effect_force*/, changeVelocity);
     }
        
     if (dap_config_st.payLoadPedalConfig_.control_strategy_b == 2) 
     {
-      Position_Next = MoveByForceTargetingStrategy(filteredReading, stepper, &forceCurve, &dap_calculationVariables_st, &dap_config_st, 0/*effect_force*/, changeVelocity, d_phi_d_x, d_x_hor_d_phi);
+      // Position_Next = MoveByForceTargetingStrategy(filteredReading, stepper, &forceCurve, &dap_calculationVariables_st, &dap_config_st, 0/*effect_force*/, changeVelocity, d_phi_d_x, d_x_hor_d_phi);
     }
 
 
@@ -945,12 +949,12 @@ void pedalUpdateTask( void * pvParameters )
     // Move to new position
     if (!moveSlowlyToPosition_b)
     {
-      stepper->moveTo(Position_Next, false);
+      // stepper->moveTo(Position_Next, false);
     }
     else
     {
       moveSlowlyToPosition_b = false;
-      stepper->moveSlowlyToPos(Position_Next);
+      // stepper->moveSlowlyToPos(Position_Next);
     }
     
 
@@ -1042,7 +1046,7 @@ void pedalUpdateTask( void * pvParameters )
         
         // update basic pedal state struct
         dap_state_basic_st.payloadPedalState_Basic_.pedalForce_u16 =  normalizedPedalReading_fl32 * 65535;
-        dap_state_basic_st.payloadPedalState_Basic_.pedalPosition_u16 = constrain(stepperPosFraction, 0, 1) * 65535;
+        // dap_state_basic_st.payloadPedalState_Basic_.pedalPosition_u16 = constrain(stepperPosFraction, 0, 1) * 65535;
         dap_state_basic_st.payloadPedalState_Basic_.joystickOutput_u16 = (float)joystickNormalizedToInt32 / 10000. * 32767.0;//65535;
 
         dap_state_basic_st.payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_STATE_BASIC;
@@ -1070,7 +1074,7 @@ void pedalUpdateTask( void * pvParameters )
         dap_state_extended_st.payloadPedalState_Extended_.forceVel_est_fl32 =  changeVelocity;
 
 
-        dap_state_extended_st.payloadPedalState_Extended_.servoPositionTarget_i16 = stepper->getCurrentPositionFromMin();
+        // dap_state_extended_st.payloadPedalState_Extended_.servoPositionTarget_i16 = stepper->getCurrentPositionFromMin();
         dap_state_extended_st.payLoadHeader_.PedalTag=dap_config_st.payLoadPedalConfig_.pedal_type;
         dap_state_extended_st.payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_STATE_EXTENDED;
         dap_state_extended_st.payLoadHeader_.version = DAP_VERSION_CONFIG;
@@ -1117,12 +1121,12 @@ void serialCommunicationTask( void * pvParameters )
 
   for(;;){
 
-    // measure callback time and continue, when desired period is reached
-    timeNow_serialCommunicationTask_l = millis();
-    int64_t timeDiff_serialCommunicationTask_l = ( timePrevious_serialCommunicationTask_l + REPETITION_INTERVAL_SERIALCOMMUNICATION_TASK) - timeNow_serialCommunicationTask_l;
-    uint32_t targetWaitTime_u32 = constrain(timeDiff_serialCommunicationTask_l, 0, REPETITION_INTERVAL_SERIALCOMMUNICATION_TASK);
-    delay(targetWaitTime_u32);
-    timePrevious_serialCommunicationTask_l = millis();
+    // // measure callback time and continue, when desired period is reached
+    // timeNow_serialCommunicationTask_l = millis();
+    // int64_t timeDiff_serialCommunicationTask_l = ( timePrevious_serialCommunicationTask_l + REPETITION_INTERVAL_SERIALCOMMUNICATION_TASK) - timeNow_serialCommunicationTask_l;
+    // uint32_t targetWaitTime_u32 = constrain(timeDiff_serialCommunicationTask_l, 0, REPETITION_INTERVAL_SERIALCOMMUNICATION_TASK);
+    // delay(targetWaitTime_u32);
+    // timePrevious_serialCommunicationTask_l = millis();
 
 
 
@@ -1138,7 +1142,7 @@ void serialCommunicationTask( void * pvParameters )
 
 
 
-    //delay( SERIAL_COOMUNICATION_TASK_DELAY_IN_MS );
+    delay( SERIAL_COOMUNICATION_TASK_DELAY_IN_MS );
 
    
     { 
@@ -1347,16 +1351,37 @@ void serialCommunicationTask( void * pvParameters )
 
           default:
 
-            // flush the input buffer
-            while (Serial.available()) Serial.read();
-            //Serial.flush();
+            Serial.printf("\nReceived %d bytes: \n", n);
+            char buffer[n];
+            Serial.readBytes(buffer, n);
+            if (buffer[0] == '>') {
+              char *param = strtok(buffer+1, "=");
+              if (param) {
+                Serial.printf("Param: %s\n", param);
+                char *val = strtok(NULL, "=");
+                if (val) {
+                  Serial.printf("Val: %s\n", val);
+                  if (strcmp(param, "m") == 0) {
+                    double val_num = atof(val);
+                    sim.set_m(val_num);
+                    Serial.printf("Simulation mass set to %.3f kg\n", val_num);
+                  } else if (strcmp(param, "debug") == 0) {
+                    int flags = atoi(val);
+                    dap_config_st.payLoadPedalConfig_.debug_flags_0 = flags;
+                    Serial.printf("Debug flags set to %04X", flags);
+                  }
 
-            Serial.println("\nIn byte size: ");
-            Serial.println(n);
-            Serial.println("    Exp config size: ");
-            Serial.println(sizeof(DAP_config_st) );
-            Serial.println("    Exp action size: ");
-            Serial.println(sizeof(DAP_actions_st) );
+                } else {
+                  if (strncmp(param, "home", sizeof("home") - 1) == 0) {
+                    Serial.printf("Homing command received\n");
+                    stepper->home();
+                  } else if (strncmp(param, "restart", sizeof("restart") - 1) == 0) {
+                    Serial.printf("Restarting...\n");
+                    ESP.restart();
+                  }
+                }
+              }
+            }
 
             break;  
 
@@ -1367,33 +1392,33 @@ void serialCommunicationTask( void * pvParameters )
       }
 
 
-      // send pedal state structs
-      // update pedal states
-      printCycleCounter++;
-      DAP_state_basic_st dap_state_basic_st_lcl;
-      DAP_state_extended_st dap_state_extended_st_lcl;
+      // // send pedal state structs
+      // // update pedal states
+      // printCycleCounter++;
+      // DAP_state_basic_st dap_state_basic_st_lcl;
+      // DAP_state_extended_st dap_state_extended_st_lcl;
 
-      if(semaphore_updatePedalStates!=NULL)
-      {
+      // if(semaphore_updatePedalStates!=NULL)
+      // {
         
-        if(xSemaphoreTake(semaphore_updatePedalStates, (TickType_t)1)==pdTRUE) 
-        {
+      //   if(xSemaphoreTake(semaphore_updatePedalStates, (TickType_t)1)==pdTRUE) 
+      //   {
         
-          // UPDATE basic pedal state struct
-          dap_state_basic_st_lcl = dap_state_basic_st;
+      //     // UPDATE basic pedal state struct
+      //     dap_state_basic_st_lcl = dap_state_basic_st;
 
-          // UPDATE extended pedal state struct
-          dap_state_extended_st_lcl = dap_state_extended_st;
+      //     // UPDATE extended pedal state struct
+      //     dap_state_extended_st_lcl = dap_state_extended_st;
             
-          // release semaphore
-          xSemaphoreGive(semaphore_updatePedalStates);
+      //     // release semaphore
+      //     xSemaphoreGive(semaphore_updatePedalStates);
 
-        }
-      }
-      else
-      {
-        semaphore_updatePedalStates = xSemaphoreCreateMutex();
-      }
+      //   }
+      // }
+      // else
+      // {
+      //   semaphore_updatePedalStates = xSemaphoreCreateMutex();
+      // }
 
 
 
@@ -1417,25 +1442,25 @@ void serialCommunicationTask( void * pvParameters )
 
     }
 
-    delay( SERIAL_COOMUNICATION_TASK_DELAY_IN_MS );
-    if(semaphore_updateJoystick!=NULL)
-    {
-      if(xSemaphoreTake(semaphore_updateJoystick, (TickType_t)1)==pdTRUE)
-      {
-         //Serial.print(" 3");
-        joystickNormalizedToInt32_local = joystickNormalizedToInt32;
-        xSemaphoreGive(semaphore_updateJoystick);
-      }
-    }
-    if (IsControllerReady()) 
-    {
-      if(dap_calculationVariables_st.Rudder_status==false)
-      {
-        //general output
-        SetControllerOutputValue(joystickNormalizedToInt32_local);
-      }
-    }
-
+    // delay( SERIAL_COOMUNICATION_TASK_DELAY_IN_MS );
+    // if(semaphore_updateJoystick!=NULL)
+    // {
+    //   if(xSemaphoreTake(semaphore_updateJoystick, (TickType_t)1)==pdTRUE)
+    //   {
+    //      //Serial.print(" 3");
+    //     joystickNormalizedToInt32_local = joystickNormalizedToInt32;
+    //     xSemaphoreGive(semaphore_updateJoystick);
+    //   }
+    // }
+    // if (IsControllerReady()) 
+    // {
+    //   if(dap_calculationVariables_st.Rudder_status==false)
+    //   {
+    //     //general output
+    //     SetControllerOutputValue(joystickNormalizedToInt32_local);
+    //   }
+    // }
+    taskYIELD();
   }
 }
 //OTA multitask
