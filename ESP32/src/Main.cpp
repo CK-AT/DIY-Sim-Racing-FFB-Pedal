@@ -261,8 +261,9 @@ Spring spring1 = Spring(50.0, 2.0);
 Damper damper1 = Damper(0.2);
 Friction friction1 = Friction(1.0);
 ForceMap force_map1 = ForceMap({0.0, 100.0}, {-100.0, 100.0});
+CompoundElement endstops = CompoundElement();
 ForceMap force_map2 = ForceMap({0.0, 10.0, 90.0, 100.0}, {-100.0, 0.0, 0.0, 100.0});
-DampingMap damping_map1 = DampingMap({0.0, 10.0, 90.0, 100.0}, {3.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 3.0});
+DampingMap damping_map1 = DampingMap({0.0, 15.0, 85.0, 100.0}, {3.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 3.0});
 
 /**********************************************************************************************/
 /*                                                                                            */
@@ -432,11 +433,12 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
   delay(100);
 
 sim.add_element(&spring1);
-spring1.disable();
 sim.add_element(&damper1);
 sim.add_element(&force_map1);
-sim.add_element(&force_map2);
-sim.add_element(&damping_map1);
+force_map1.disable();
+endstops.add_element(&force_map2);
+endstops.add_element(&damping_map1);
+sim.add_element(&endstops);
 sim.add_element(&friction1);
   
 
@@ -1351,16 +1353,16 @@ void serialCommunicationTask( void * pvParameters )
 
           default:
 
-            Serial.printf("\nReceived %d bytes: \n", n);
+            // Serial.printf("\nReceived %d bytes: \n", n);
             char buffer[n];
             Serial.readBytes(buffer, n);
             if (buffer[0] == '>') {
               char *param = strtok(buffer+1, "=");
               if (param) {
-                Serial.printf("Param: %s\n", param);
+                // Serial.printf("Param: %s\n", param);
                 char *val = strtok(NULL, "=");
                 if (val) {
-                  Serial.printf("Val: %s\n", val);
+                  // Serial.printf("Val: %s\n", val);
                   if (strcmp(param, "m") == 0) {
                     double val_num = atof(val);
                     sim.set_m(val_num);
@@ -1368,9 +1370,30 @@ void serialCommunicationTask( void * pvParameters )
                   } else if (strcmp(param, "debug") == 0) {
                     int flags = atoi(val);
                     dap_config_st.payLoadPedalConfig_.debug_flags_0 = flags;
-                    Serial.printf("Debug flags set to %04X", flags);
+                    Serial.printf("Debug flags set to %04X\n", flags);
+                  } else if (strcmp(param, "endstops") == 0) {
+                    if (atoi(val)) {
+                      endstops.enable();
+                      Serial.printf("Endstops enabled\n");
+                    } else {
+                      endstops.disable();
+                      Serial.printf("Endstops disabled\n");
+                    }
+                  } else if (strcmp(param, "fric") == 0) {
+                    double val_num = atof(val);
+                    friction1.set_f(val_num);
+                    Serial.printf("Friction set to %.3f N\n", val_num);
+                  } else if (strcmp(param, "spr") == 0) {
+                    double val_num = atof(val);
+                    spring1.set_k(val_num);
+                    Serial.printf("Spring set to %.3f N/mm\n", val_num);
+                  } else if (strcmp(param, "damp") == 0) {
+                    double val_num = atof(val);
+                    damper1.set_k(val_num);
+                    Serial.printf("Damper set to %.3f N/(mm/s)\n", val_num);
+                  } else {
+                    Serial.printf("Unknown param \"%s\"\n", param);
                   }
-
                 } else {
                   if (strncmp(param, "home", sizeof("home") - 1) == 0) {
                     Serial.printf("Homing command received\n");
@@ -1378,6 +1401,8 @@ void serialCommunicationTask( void * pvParameters )
                   } else if (strncmp(param, "restart", sizeof("restart") - 1) == 0) {
                     Serial.printf("Restarting...\n");
                     ESP.restart();
+                  } else {
+                    Serial.printf("Unknown param \"%s\"\n", param);
                   }
                 }
               }
