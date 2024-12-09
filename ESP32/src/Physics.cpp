@@ -24,12 +24,10 @@ void Damper::update(Sim *sim, double &f_sum) {
 
 void Friction::update(Sim *sim, double &f_sum) {
     if (!_enabled) return;
-    if (sim->get_v() > 0.01) {
+    if (sim->get_v() > 0.0) {
         f_sum = f_sum - min(_f, abs(f_sum));
-    } else if (sim->get_v() < 0.01) {
-        f_sum = f_sum + min(_f, abs(f_sum));
     } else {
-        f_sum = 0.0;
+        f_sum = f_sum + min(_f, abs(f_sum));
     }
 }
 

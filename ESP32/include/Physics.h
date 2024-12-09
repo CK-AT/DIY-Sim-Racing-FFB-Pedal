@@ -126,6 +126,10 @@ class Damper : public SimElement {
         Damper(double k) : _k_neg(k), _k_pos(k) {};
         Damper(double k_neg, double k_pos) : _k_neg(k_neg), _k_pos(k_pos) {};
         void update(Sim *sim, double &f_sum);
+        void set_k(double val) {
+            _k_neg = val;
+            _k_pos = val;
+        }
         void set_k_neg(double val) {
             _k_neg = val;
         }
