@@ -11,6 +11,7 @@
   //#define PCB_VERSION 4 // speedcrafter PCB V1.3
   //#define PCB_VERSION 5 // speedcrafter PCB V1.4
   //#define PCB_VERSION 6 // V1 for ESP32 S3
+  //#define PCB_VERSION 12 // V1 for ESP32 S3 with A6 series servo
 #endif
 
 
@@ -365,3 +366,54 @@ static const uint32_t STEPS_PER_MOTOR_REVOLUTION = 6400;
 
   #define SERIAL_COOMUNICATION_TASK_DELAY_IN_MS 5
 #endif
+
+// For CK-AT prototype (ESP32 S3, A6 series servo drive)
+// flash instructions, see https://hutscape.com/tutorials/hello-arduino-esp32s3
+// 1. USB CDC On Boot Enabled
+#if PCB_VERSION == 12
+  // ADC defines
+  #define PIN_DRDY 5//19// 19 --> DRDY
+  #define PIN_SCK 16//16 // 16 -->SCLK
+  #define PIN_MISO 6 // 18 --> DOUT
+  #define PIN_MOSI 7 // 17 --> DIN
+  #define PIN_CS 4//21 // 21 --> CS
+
+  // stepper pins
+  #define dirPinStepper    37//22
+  #define stepPinStepper   38//23
+
+  // A6 series servo drive is used
+  #define A6SERVO
+
+  //analog output pin
+  //#define D_O 25   
+  //MCP4725 SDA SCL
+  #define MCP_SDA 5
+  #define MCP_SCL 4
+  
+  // endstop pins
+  #define minPin 12
+  #define maxPin 13
+  // Pedal assignment pin
+  #define PEDAL_ASSIGNMENT
+  #define CFG1 1
+  #define CFG2 2
+
+  #define EMERGENCY_BUTTON
+  #define ShutdownPin 6
+  // level shifter is present on this PCB design
+  #define SENSORLESS_HOMING true
+  #define ISV57_TXPIN 14//27 //17
+  #define ISV57_RXPIN 13//26 // 16
+
+  //#define Using_analog_output_ESP32_S3
+  //#define ESPNOW_Enable
+  #define ESPNow_S3
+  //#define BLUETOOTH_GAMEPAD
+  #define USB_JOYSTICK
+
+  #define SERIAL_COOMUNICATION_TASK_DELAY_IN_MS 5
+  #define ESPNow_Pairing_function
+  #define Pairing_GPIO 0
+#endif
+
