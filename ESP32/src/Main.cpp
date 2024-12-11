@@ -276,6 +276,8 @@ void setup()
   //Serial.begin(512000);
   //
   
+  SetupController();
+  delay(100);
 
   #if PCB_VERSION == 6
     Serial.setTxTimeoutMs(0);
@@ -288,7 +290,6 @@ void setup()
   Serial.println(" ");
   
   // init controller
-  SetupController();
   delay(3000);
   Serial.println("This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.");
   Serial.println("Please check github repo for more detail: https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal");
@@ -636,6 +637,8 @@ void loop() {
 
       Serial.println("serialCommunicationTask created");
 
+      delay(100);
+
       xTaskCreatePinnedToCore(
                         pedalUpdateTask,   /* Task function. */
                         "pedalUpdateTask",     /* name of task. */
@@ -678,6 +681,8 @@ unsigned long printCycleCounter = 0;
 
 
 uint printCntr = 0;
+double x_curr = 0.0;
+double f_in = 0.0;
 
 
 int64_t timeNow_pedalUpdateTask_l = 0;
@@ -724,50 +729,50 @@ void pedalUpdateTask( void * pvParameters )
       
 
     // if a config update was received over serial, update the variables required for further computation
-    if (configUpdateAvailable == true)
-    {
-      if(semaphore_updateConfig!=NULL)
-      {
+    // if (configUpdateAvailable == true)
+    // {
+    //   if(semaphore_updateConfig!=NULL)
+    //   {
 
-        bool configWasUpdated_b = false;
-        // Take the semaphore and just update the config file, then release the semaphore
-        if(xSemaphoreTake(semaphore_updateConfig, (TickType_t)1)==pdTRUE)
-        {
-          Serial.println("Updating pedal config");
-          configUpdateAvailable = false;
-          dap_config_st = dap_config_st_local;
-          configWasUpdated_b = true;
-          xSemaphoreGive(semaphore_updateConfig);
-        }
+    //     bool configWasUpdated_b = false;
+    //     // Take the semaphore and just update the config file, then release the semaphore
+    //     if(xSemaphoreTake(semaphore_updateConfig, (TickType_t)1)==pdTRUE)
+    //     {
+    //       Serial.println("Updating pedal config");
+    //       configUpdateAvailable = false;
+    //       dap_config_st = dap_config_st_local;
+    //       configWasUpdated_b = true;
+    //       xSemaphoreGive(semaphore_updateConfig);
+    //     }
 
-        // update the calc params
-        if (true == configWasUpdated_b)
-        {
-          Serial.println("Updating the calc params");
-          configWasUpdated_b = false;
+    //     // update the calc params
+    //     if (true == configWasUpdated_b)
+    //     {
+    //       Serial.println("Updating the calc params");
+    //       configWasUpdated_b = false;
 
-          if (true == dap_config_st.payLoadHeader_.storeToEeprom)
-          {
-            dap_config_st.payLoadHeader_.storeToEeprom = false; // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
-            uint16_t crc = checksumCalculator((uint8_t*)(&(dap_config_st.payLoadHeader_)), sizeof(dap_config_st.payLoadHeader_) + sizeof(dap_config_st.payLoadPedalConfig_));
-            dap_config_st.payloadFooter_.checkSum = crc;
-            dap_config_st.storeConfigToEprom(dap_config_st); // store config to EEPROM
-          }
+    //       if (true == dap_config_st.payLoadHeader_.storeToEeprom)
+    //       {
+    //         dap_config_st.payLoadHeader_.storeToEeprom = false; // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
+    //         uint16_t crc = checksumCalculator((uint8_t*)(&(dap_config_st.payLoadHeader_)), sizeof(dap_config_st.payLoadHeader_) + sizeof(dap_config_st.payLoadPedalConfig_));
+    //         dap_config_st.payloadFooter_.checkSum = crc;
+    //         dap_config_st.storeConfigToEprom(dap_config_st); // store config to EEPROM
+    //       }
           
-          updatePedalCalcParameters(); // update the calc parameters
-          moveSlowlyToPosition_b = true;
-        }
+    //       updatePedalCalcParameters(); // update the calc parameters
+    //       moveSlowlyToPosition_b = true;
+    //     }
 
-      }
-      else
-      {
-        semaphore_updateConfig = xSemaphoreCreateMutex();
-        //Serial.println("semaphore_updateConfig == 0");
-      }
-    }
+    //   }
+    //   else
+    //   {
+    //     semaphore_updateConfig = xSemaphoreCreateMutex();
+    //     //Serial.println("semaphore_updateConfig == 0");
+    //   }
+    // }
 
 
-
+/*
     //#define RECALIBRATE_POSITION
     #ifdef RECALIBRATE_POSITION
       stepper->checkLimitsAndResetIfNecessary();
@@ -803,7 +808,7 @@ void pedalUpdateTask( void * pvParameters )
     dap_calculationVariables_st.updateStiffness();
     dap_calculationVariables_st.update_stepperpos(_rudder.offset_filter);
 
-
+*/
     // Get the loadcell reading
     float loadcellReading = loadcell->getReadingKg();
 
@@ -813,7 +818,7 @@ void pedalUpdateTask( void * pvParameters )
       loadcellReading *= -1;
     }
 
-
+/*
     // Convert loadcell reading to pedal force
     float sledPosition = 0.0; // sledPositionInMM(stepper, dap_config_st);
     float pedalInclineAngleInDeg_fl32 = pedalInclineAngleDeg(sledPosition, dap_config_st);
@@ -825,6 +830,7 @@ void pedalUpdateTask( void * pvParameters )
     float d = dap_config_st.payLoadPedalConfig_.lengthPedal_d;
     float d_x_hor_d_phi = -(b+d) * sinf(pedalInclineAngleInDeg_fl32 * DEG_TO_RAD);
 
+*/
     
     // Do the loadcell signal filtering
     float filteredReading = 0;
@@ -843,7 +849,7 @@ void pedalUpdateTask( void * pvParameters )
       filteredReading = kalman_2nd_order->filteredValue(loadcellReading, 0, dap_config_st.payLoadPedalConfig_.kf_modelNoise);
       changeVelocity = kalman->changeVelocity();
     }
-
+/*
     // exponential denoising filter
     if (dap_config_st.payLoadPedalConfig_.kf_modelOrder == 2)
     {
@@ -851,7 +857,7 @@ void pedalUpdateTask( void * pvParameters )
       float filteredReading_exp_filter = filteredReading_exp_filter * alpha_exp_filter + pedalForce_fl32 * (1.0-alpha_exp_filter);
       filteredReading = filteredReading_exp_filter;
     }
-
+*/
     // if (stepper->get_homing_state() == Servo::HomingState::Homed) {
     //   sim.set_x_min(0.0);
     //   sim.set_x_max(100.0);
@@ -860,7 +866,7 @@ void pedalUpdateTask( void * pvParameters )
     //   sim.set_x_max(50.0, true);
     // }
 
-    double f_in = filteredReading * 9.81;
+    f_in = filteredReading * 9.81;
     sim.update(dt, f_in);
 
     //#define DEBUG_FILTER
@@ -875,9 +881,9 @@ void pedalUpdateTask( void * pvParameters )
       }
     }
     stepper->move_to(sim.get_x());
-      
+    x_curr = sim.get_x();
 
-
+/*
 
     //Add effect by force
     float effect_force = absForceOffset + _BitePointOscillation.BitePoint_Force_offset + _WSOscillation.WS_Force_offset + CV1.CV_Force_offset + CV2.CV_Force_offset;
@@ -892,12 +898,12 @@ void pedalUpdateTask( void * pvParameters )
     // select control loop algo
     if (dap_config_st.payLoadPedalConfig_.control_strategy_b <= 1)
     {
-      // Position_Next = MoveByPidStrategy(filteredReading, stepperPosFraction, stepper, &forceCurve, &dap_calculationVariables_st, &dap_config_st, 0/*effect_force*/, changeVelocity);
+      // Position_Next = MoveByPidStrategy(filteredReading, stepperPosFraction, stepper, &forceCurve, &dap_calculationVariables_st, &dap_config_st, 0, changeVelocity);
     }
        
     if (dap_config_st.payLoadPedalConfig_.control_strategy_b == 2) 
     {
-      // Position_Next = MoveByForceTargetingStrategy(filteredReading, stepper, &forceCurve, &dap_calculationVariables_st, &dap_config_st, 0/*effect_force*/, changeVelocity, d_phi_d_x, d_x_hor_d_phi);
+      // Position_Next = MoveByForceTargetingStrategy(filteredReading, stepper, &forceCurve, &dap_calculationVariables_st, &dap_config_st, 0, changeVelocity, d_phi_d_x, d_x_hor_d_phi);
     }
 
 
@@ -967,44 +973,44 @@ void pedalUpdateTask( void * pvParameters )
     
 
     // set joystick value
-    if(semaphore_updateJoystick!=NULL)
-    {
-      if(xSemaphoreTake(semaphore_updateJoystick, (TickType_t)1)==pdTRUE) {
+    // if(semaphore_updateJoystick!=NULL)
+    // {
+    //   if(xSemaphoreTake(semaphore_updateJoystick, (TickType_t)1)==pdTRUE) {
 
         
-        if(dap_calculationVariables_st.Rudder_status&&dap_calculationVariables_st.rudder_brake_status)
-        {
-          if (1 == dap_config_st.payLoadPedalConfig_.travelAsJoystickOutput_u8)
-          {
-            //joystickNormalizedToInt32 = NormalizeControllerOutputValue((Position_Next-dap_calculationVariables_st.stepperPosRange/2), dap_calculationVariables_st.stepperPosMin, dap_calculationVariables_st.stepperPosMin+dap_calculationVariables_st.stepperPosRange/2, dap_config_st.payLoadPedalConfig_.maxGameOutput);
-            joystickNormalizedToInt32 = NormalizeControllerOutputValue((Position_Next-dap_calculationVariables_st.stepperPosRange/2), dap_calculationVariables_st.stepperPosMin, dap_calculationVariables_st.stepperPosMin+dap_calculationVariables_st.stepperPosRange/2, dap_config_st.payLoadPedalConfig_.maxGameOutput);
-            joystickNormalizedToInt32 = constrain(joystickNormalizedToInt32,0,JOYSTICK_MAX_VALUE);
-          }
-          else
-          {
-            //joystickNormalizedToInt32 = NormalizeControllerOutputValue(loadcellReading, dap_calculationVariables_st.Force_Min, dap_calculationVariables_st.Force_Max, dap_config_st.payLoadPedalConfig_.maxGameOutput);
-            joystickNormalizedToInt32 = NormalizeControllerOutputValue((filteredReading), dap_calculationVariables_st.Force_Min, dap_calculationVariables_st.Force_Max, dap_config_st.payLoadPedalConfig_.maxGameOutput);
-          }
-        }
-        else
-        {
-          if (1 == dap_config_st.payLoadPedalConfig_.travelAsJoystickOutput_u8)
-          {
-            joystickNormalizedToInt32 = NormalizeControllerOutputValue(Position_Next, dap_calculationVariables_st.stepperPosMin, dap_calculationVariables_st.stepperPosMax, dap_config_st.payLoadPedalConfig_.maxGameOutput);
-          }
-          else
-          {            
-            joystickNormalizedToInt32 = NormalizeControllerOutputValue(filteredReading, dap_calculationVariables_st.Force_Min, dap_calculationVariables_st.Force_Max, dap_config_st.payLoadPedalConfig_.maxGameOutput);
-          }
-        }
+    //     if(dap_calculationVariables_st.Rudder_status&&dap_calculationVariables_st.rudder_brake_status)
+    //     {
+    //       if (1 == dap_config_st.payLoadPedalConfig_.travelAsJoystickOutput_u8)
+    //       {
+    //         //joystickNormalizedToInt32 = NormalizeControllerOutputValue((Position_Next-dap_calculationVariables_st.stepperPosRange/2), dap_calculationVariables_st.stepperPosMin, dap_calculationVariables_st.stepperPosMin+dap_calculationVariables_st.stepperPosRange/2, dap_config_st.payLoadPedalConfig_.maxGameOutput);
+    //         joystickNormalizedToInt32 = NormalizeControllerOutputValue((Position_Next-dap_calculationVariables_st.stepperPosRange/2), dap_calculationVariables_st.stepperPosMin, dap_calculationVariables_st.stepperPosMin+dap_calculationVariables_st.stepperPosRange/2, dap_config_st.payLoadPedalConfig_.maxGameOutput);
+    //         joystickNormalizedToInt32 = constrain(joystickNormalizedToInt32,0,JOYSTICK_MAX_VALUE);
+    //       }
+    //       else
+    //       {
+    //         //joystickNormalizedToInt32 = NormalizeControllerOutputValue(loadcellReading, dap_calculationVariables_st.Force_Min, dap_calculationVariables_st.Force_Max, dap_config_st.payLoadPedalConfig_.maxGameOutput);
+    //         joystickNormalizedToInt32 = NormalizeControllerOutputValue((filteredReading), dap_calculationVariables_st.Force_Min, dap_calculationVariables_st.Force_Max, dap_config_st.payLoadPedalConfig_.maxGameOutput);
+    //       }
+    //     }
+    //     else
+    //     {
+    //       if (1 == dap_config_st.payLoadPedalConfig_.travelAsJoystickOutput_u8)
+    //       {
+    //         joystickNormalizedToInt32 = NormalizeControllerOutputValue(Position_Next, dap_calculationVariables_st.stepperPosMin, dap_calculationVariables_st.stepperPosMax, dap_config_st.payLoadPedalConfig_.maxGameOutput);
+    //       }
+    //       else
+    //       {            
+    //         joystickNormalizedToInt32 = NormalizeControllerOutputValue(filteredReading, dap_calculationVariables_st.Force_Min, dap_calculationVariables_st.Force_Max, dap_config_st.payLoadPedalConfig_.maxGameOutput);
+    //       }
+    //     }
         
-        xSemaphoreGive(semaphore_updateJoystick);
-      }
-    }
-    else
-    {
-      semaphore_updateJoystick = xSemaphoreCreateMutex();
-    }
+    //     xSemaphoreGive(semaphore_updateJoystick);
+    //   }
+    // }
+    // else
+    // {
+    //   semaphore_updateJoystick = xSemaphoreCreateMutex();
+    // }
 
     // provide joystick output on PIN
     #ifdef Using_analog_output
@@ -1039,58 +1045,58 @@ void pedalUpdateTask( void * pvParameters )
 
     
 
-    // update pedal states
-    if(semaphore_updatePedalStates!=NULL)
-    {
-      if(xSemaphoreTake(semaphore_updatePedalStates, (TickType_t)1)==pdTRUE) 
-      {
+    // // update pedal states
+    // if(semaphore_updatePedalStates!=NULL)
+    // {
+    //   if(xSemaphoreTake(semaphore_updatePedalStates, (TickType_t)1)==pdTRUE) 
+    //   {
         
-        // update basic pedal state struct
-        dap_state_basic_st.payloadPedalState_Basic_.pedalForce_u16 =  normalizedPedalReading_fl32 * 65535;
-        // dap_state_basic_st.payloadPedalState_Basic_.pedalPosition_u16 = constrain(stepperPosFraction, 0, 1) * 65535;
-        dap_state_basic_st.payloadPedalState_Basic_.joystickOutput_u16 = (float)joystickNormalizedToInt32 / 10000. * 32767.0;//65535;
+    //     // update basic pedal state struct
+    //     dap_state_basic_st.payloadPedalState_Basic_.pedalForce_u16 =  normalizedPedalReading_fl32 * 65535;
+    //     // dap_state_basic_st.payloadPedalState_Basic_.pedalPosition_u16 = constrain(stepperPosFraction, 0, 1) * 65535;
+    //     dap_state_basic_st.payloadPedalState_Basic_.joystickOutput_u16 = (float)joystickNormalizedToInt32 / 10000. * 32767.0;//65535;
 
-        dap_state_basic_st.payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_STATE_BASIC;
-        dap_state_basic_st.payLoadHeader_.version = DAP_VERSION_CONFIG;
-        dap_state_basic_st.payloadFooter_.checkSum = checksumCalculator((uint8_t*)(&(dap_state_basic_st.payLoadHeader_)), sizeof(dap_state_basic_st.payLoadHeader_) + sizeof(dap_state_basic_st.payloadPedalState_Basic_));
-        dap_state_basic_st.payLoadHeader_.PedalTag=dap_config_st.payLoadPedalConfig_.pedal_type;
+    //     dap_state_basic_st.payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_STATE_BASIC;
+    //     dap_state_basic_st.payLoadHeader_.version = DAP_VERSION_CONFIG;
+    //     dap_state_basic_st.payloadFooter_.checkSum = checksumCalculator((uint8_t*)(&(dap_state_basic_st.payLoadHeader_)), sizeof(dap_state_basic_st.payLoadHeader_) + sizeof(dap_state_basic_st.payloadPedalState_Basic_));
+    //     dap_state_basic_st.payLoadHeader_.PedalTag=dap_config_st.payLoadPedalConfig_.pedal_type;
         
-        //error code
-        dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=0;
-        // if(ESPNow_error_code!=0)
-        // {
-        //   dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=ESPNow_error_code;
-        //   ESPNow_error_code=0;
-        // }
-        //dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=200;
-        if(isv57_not_live_b)
-        {
-          dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=12;
-          isv57_not_live_b=false;
-        }
-        // update extended struct 
-        dap_state_extended_st.payloadPedalState_Extended_.timeInMs_u32 = millis();
-        dap_state_extended_st.payloadPedalState_Extended_.pedalForce_raw_fl32 =  loadcellReading;
-        dap_state_extended_st.payloadPedalState_Extended_.pedalForce_filtered_fl32 =  filteredReading;
-        dap_state_extended_st.payloadPedalState_Extended_.forceVel_est_fl32 =  changeVelocity;
+    //     //error code
+    //     dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=0;
+    //     // if(ESPNow_error_code!=0)
+    //     // {
+    //     //   dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=ESPNow_error_code;
+    //     //   ESPNow_error_code=0;
+    //     // }
+    //     //dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=200;
+    //     if(isv57_not_live_b)
+    //     {
+    //       dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=12;
+    //       isv57_not_live_b=false;
+    //     }
+    //     // update extended struct 
+    //     dap_state_extended_st.payloadPedalState_Extended_.timeInMs_u32 = millis();
+    //     dap_state_extended_st.payloadPedalState_Extended_.pedalForce_raw_fl32 =  loadcellReading;
+    //     dap_state_extended_st.payloadPedalState_Extended_.pedalForce_filtered_fl32 =  filteredReading;
+    //     dap_state_extended_st.payloadPedalState_Extended_.forceVel_est_fl32 =  changeVelocity;
 
 
-        // dap_state_extended_st.payloadPedalState_Extended_.servoPositionTarget_i16 = stepper->getCurrentPositionFromMin();
-        dap_state_extended_st.payLoadHeader_.PedalTag=dap_config_st.payLoadPedalConfig_.pedal_type;
-        dap_state_extended_st.payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_STATE_EXTENDED;
-        dap_state_extended_st.payLoadHeader_.version = DAP_VERSION_CONFIG;
-        dap_state_extended_st.payloadFooter_.checkSum = checksumCalculator((uint8_t*)(&(dap_state_extended_st.payLoadHeader_)), sizeof(dap_state_extended_st.payLoadHeader_) + sizeof(dap_state_extended_st.payloadPedalState_Extended_));
+    //     // dap_state_extended_st.payloadPedalState_Extended_.servoPositionTarget_i16 = stepper->getCurrentPositionFromMin();
+    //     dap_state_extended_st.payLoadHeader_.PedalTag=dap_config_st.payLoadPedalConfig_.pedal_type;
+    //     dap_state_extended_st.payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_STATE_EXTENDED;
+    //     dap_state_extended_st.payLoadHeader_.version = DAP_VERSION_CONFIG;
+    //     dap_state_extended_st.payloadFooter_.checkSum = checksumCalculator((uint8_t*)(&(dap_state_extended_st.payLoadHeader_)), sizeof(dap_state_extended_st.payLoadHeader_) + sizeof(dap_state_extended_st.payloadPedalState_Extended_));
 
-        // release semaphore
-        xSemaphoreGive(semaphore_updatePedalStates);
-      }
-    }
-    else
-    {
-      semaphore_updatePedalStates = xSemaphoreCreateMutex();
-    }
+    //     // release semaphore
+    //     xSemaphoreGive(semaphore_updatePedalStates);
+    //   }
+    // }
+    // else
+    // {
+    //   semaphore_updatePedalStates = xSemaphoreCreateMutex();
+    // }
     
-
+*/
   }
 }
 
@@ -1484,7 +1490,8 @@ void serialCommunicationTask( void * pvParameters )
     //     SetControllerOutputValue(joystickNormalizedToInt32_local);
     //   }
     // }
-    taskYIELD();
+
+    SetControllerOutputValue_rudder(int32_t(x_curr * 100.0), int32_t(f_in * 10.0));
   }
 }
 //OTA multitask

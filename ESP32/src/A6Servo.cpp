@@ -87,15 +87,22 @@ uint8_t A6Servo::home(void) {
     }
     _stepper_engine->forceStop();
     int32_t pos_endstop = read_position();
-    Serial.printf("Positive endstop found @ %.3f mm, moving to last commanded position @ %.3f mm.\n", double(pos_endstop) / double(_steps_per_mm), _curr_pos);
+    Serial.printf("Positive endstop found @ %.3f mm\n", double(pos_endstop) / double(_steps_per_mm));
     _pos_max = pos_endstop - 2500;
-    for (int i = 0; i < 3; i++) {
-        // workaround (FastNonAccelStepper seems to do less steps than expected for far movements ????)
-        _stepper_engine->moveTo(int32_t(_curr_pos * double(_steps_per_mm)), true);
-    }
+    _stepper_engine->moveTo(_pos_max, true);
     _modbus->holdingRegisterWriteI32(1, 0x0600, 30000); // excessive local position deviation threshold
     write_min_pos(0);
     write_max_pos(_pos_max);
+    Serial.printf("Moving to last commanded position @ %.3f mm.\n", _curr_pos);
+    int32_t target_pos = int32_t(_curr_pos * double(_steps_per_mm));
+    int32_t pos = _stepper_engine->getCurrentPosition();
+    while (abs(target_pos - pos) > 1) {
+        // workaround (FastNonAccelStepper seems to do more steps than expected for far movements ????)
+        _stepper_engine->moveTo(target_pos, true);
+        pos = _stepper_engine->getCurrentPosition();
+        Serial.printf("Moved to %i of %i.\n", pos, target_pos);
+        target_pos = int32_t(_curr_pos * double(_steps_per_mm));
+    }
     _modbus->holdingRegisterWrite(1, 0x1000, 0); // reset homing command
     _homing_state = HomingState::Homed;
     _state = State::Enabled;

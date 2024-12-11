@@ -379,8 +379,8 @@ static const uint32_t STEPS_PER_MOTOR_REVOLUTION = 6400;
   #define PIN_CS 4//21 // 21 --> CS
 
   // stepper pins
-  #define dirPinStepper    37//22
-  #define stepPinStepper   38//23
+  #define dirPinStepper    2//22
+  #define stepPinStepper   1//23
 
   // A6 series servo drive is used
   #define A6SERVO
@@ -388,19 +388,19 @@ static const uint32_t STEPS_PER_MOTOR_REVOLUTION = 6400;
   //analog output pin
   //#define D_O 25   
   //MCP4725 SDA SCL
-  #define MCP_SDA 5
-  #define MCP_SCL 4
+  // #define MCP_SDA 5
+  // #define MCP_SCL 4
   
   // endstop pins
-  #define minPin 12
-  #define maxPin 13
+  // #define minPin 12
+  // #define maxPin 13
   // Pedal assignment pin
-  #define PEDAL_ASSIGNMENT
-  #define CFG1 1
-  #define CFG2 2
+  // #define PEDAL_ASSIGNMENT
+  // #define CFG1 1
+  // #define CFG2 2
 
-  #define EMERGENCY_BUTTON
-  #define ShutdownPin 6
+  // #define EMERGENCY_BUTTON
+  // #define ShutdownPin 6
   // level shifter is present on this PCB design
   #define SENSORLESS_HOMING true
   #define ISV57_TXPIN 14//27 //17

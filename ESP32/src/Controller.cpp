@@ -12,30 +12,29 @@
                    false, false, false,  // X and Y, but no Z Axis
                    false, false, false,  // No Rx, Ry, or Rz
                    false, false,         // No rudder or throttle
-                   false, true, false);  // No accelerator, brake, or steering
+                   true, true, false);  // No accelerator, brake, or steering
   
   void SetupController() {
-    Joystick.setBrakeRange(JOYSTICK_MIN_VALUE, JOYSTICK_MAX_VALUE);
-    delay(100);
-  
-    Joystick.begin();
-
     // rename HID device name, see e.g. https://github.com/schnoog/Joystick_ESP32S2/issues/8
-    //USB.PID(0x8211);
-    //USB.VID(0x303b);
-    //USB.productName("DIY FFB pedal");
-    //USB.manufacturerName("Open source");
-    //USB.begin();
-
+    // USB.PID(0x8211);
+    // USB.VID(0x303b);
+    // USB.productName("DIY FFB pedal");
+    // USB.manufacturerName("Open source");
+    // USB.begin();
+    Joystick.setBrakeRange(JOYSTICK_MIN_VALUE, JOYSTICK_MAX_VALUE);
+    Joystick.setAcceleratorRange(-10000, 10000);
+    Joystick.begin(false);
   }
   bool IsControllerReady() { return true; }
   void SetControllerOutputValue(int32_t value) {
     Joystick.setBrake(value);
+    Joystick.sendState();
   }
   void SetControllerOutputValue_rudder(int32_t value,int32_t value2)
   {
     Joystick.setBrake(value);
     Joystick.setAccelerator(value2);
+    Joystick.sendState();
   }
 
 
