@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <Servo.h>
 #include <FastNonAccelStepper.h>
-#include <Modbus.h>
+#include "ModbusClientRTU.h"
 
 #define MAXIMUM_SPEED 2000000
 
@@ -22,6 +22,26 @@ class A6Servo : public Servo {
             return double(_pos_max) / double(_steps_per_mm * _mm_per_rev);
         }
     private:
+        template <typename T>
+        ModbusMessage write_hold_register(uint16_t addr, T value) {
+            if (sizeof(T) < 2) {
+                return ModbusMessage(1, WRITE_HOLD_REGISTER, addr, int16_t(value));
+            } else if (sizeof(T) == 2) {
+                return ModbusMessage(1, WRITE_HOLD_REGISTER, addr, value);
+            } else {
+                uint16_t data[2] = {(value >> 16) & 0xFFFF, value & 0xFFFF};
+                return ModbusMessage(1, WRITE_MULT_REGISTERS, addr, 2, 4, data);
+            }
+        }
+        template <typename T>
+        ModbusMessage read_hold_register(uint16_t addr) {
+            if (sizeof(T) <= 2) {
+                return ModbusMessage(1, READ_HOLD_REGISTER, addr, 1);
+            } else {
+                return ModbusMessage(1, READ_HOLD_REGISTER, addr, 2);
+            }
+        }
+        void on_response(ModbusMessage msg, uint32_t token);
         int8_t move_to(int32_t position, bool blocking = false);
         void move_to_slow(int32_t position);
         void write_min_pos(int32_t counts);
@@ -32,7 +52,7 @@ class A6Servo : public Servo {
         void set_speed(float rpm);
         int32_t read_position(void);
         FastNonAccelStepper* _stepper_engine;
-        Modbus* _modbus;
+        ModbusClientRTU _modbus;
         uint32_t _steps_per_mm;
         uint32_t _mm_per_rev;
         int32_t _pos_max = 0;
