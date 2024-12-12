@@ -1,5 +1,13 @@
 #include <A6Servo.h>
 
+void A6Servo::periodic_task_func(void) {
+    if (_homing_state == HomingState::Homed && _state == State::Enabled) {
+        if (_curr_pos_valid) {
+            lock_onto_curr_pos();
+        }
+    }
+}
+
 A6Servo::A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareSerial &serial, unsigned long baud, uint32_t config, uint8_t pin_rx, uint8_t pin_tx, uint8_t pin_tx_ena, bool serial_inverted) {
     serial.begin(baud, config, pin_rx, pin_tx, serial_inverted); // Modbus serial
     _modbus = new Modbus(serial);
@@ -21,18 +29,20 @@ void A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev) {
     _modbus->holdingRegisterWriteI32(1, 0x0600, 1000000); // relax excessive local position deviation threshold
     write_trq_limit(5.0);
     set_speed(100.0);
-    // int32_t min_pos = read_min_pos();
-    // if (min_pos == 0) {
-    //     Serial.printf("Negative endstop @ %i, homed already.\n", min_pos);
-    //     _homing_state = HomingState::Homed;
-    //     _stepper_engine->setCurrentPosition(-read_position());
-    //     write_trq_limit(300.0);
-    //     set_speed(6000.0);
-    // } else {
-    //     Serial.printf("Negative endstop @ %i, not homed.\n", min_pos);
-    //     write_trq_limit(5.0);
-    //     set_speed(100.0);
-    // }
+    int32_t min_pos = read_min_pos();
+    if (min_pos == 0) {
+        Serial.printf("Negative endstop @ %i, homed already.\n", min_pos);
+        int32_t pos = _stepper_engine->getCurrentPosition();
+        int32_t target_pos = read_position();
+        Serial.printf("pre: _stepper_engine is @ %i, servo drive is @ %i.\n", pos, target_pos);
+        _stepper_engine->setCurrentPosition(target_pos);
+        pos = _stepper_engine->getCurrentPosition();
+        target_pos = read_position();
+        Serial.printf("post: _stepper_engine is @ %i, servo drive is @ %i.\n", pos, target_pos);
+        _homing_state = HomingState::Homed;
+    } else {
+        Serial.printf("Negative endstop @ %i, not homed.\n", min_pos);
+    }
 }
 
 void A6Servo::enable(void) {
@@ -93,24 +103,30 @@ uint8_t A6Servo::home(void) {
     _modbus->holdingRegisterWriteI32(1, 0x0600, 30000); // excessive local position deviation threshold
     write_min_pos(0);
     write_max_pos(_pos_max);
-    Serial.printf("Moving to last commanded position @ %.3f mm.\n", _curr_pos);
-    int32_t target_pos = int32_t(_curr_pos * double(_steps_per_mm));
-    int32_t pos = _stepper_engine->getCurrentPosition();
-    while (abs(target_pos - pos) > 1) {
-        // workaround (FastNonAccelStepper seems to do more steps than expected for far movements ????)
-        _stepper_engine->moveTo(target_pos, true);
-        pos = _stepper_engine->getCurrentPosition();
-        Serial.printf("Moved to %i of %i.\n", pos, target_pos);
-        target_pos = int32_t(_curr_pos * double(_steps_per_mm));
-    }
     _modbus->holdingRegisterWrite(1, 0x1000, 0); // reset homing command
     _homing_state = HomingState::Homed;
     _state = State::Enabled;
     Serial.printf("Homing done.\n");
-    Serial.printf("Current position: %.3f mm (%i).\n", double(read_position()) / double(_steps_per_mm), _stepper_engine->getCurrentPosition());
+    return 1;
+}
+
+void A6Servo::lock_onto_curr_pos(void) {
+    Serial.printf("Locking onto last commanded position @ %.3f mm.\n", _curr_pos);
+    int32_t target_pos = int32_t(_curr_pos * double(_steps_per_mm));
+    int32_t pos = _stepper_engine->getCurrentPosition();
+    while (abs(target_pos - pos) > 5)
+    {
+        // FastNonAccelStepper does a maximum of 32767 steps at once for now
+        Serial.printf("  Moving to %i from %i...\n", target_pos, pos);
+        _stepper_engine->moveTo(target_pos, true);
+        pos = _stepper_engine->getCurrentPosition();
+        Serial.printf("  Moved to %i of %i.\n", pos, target_pos);
+        target_pos = int32_t(_curr_pos * double(_steps_per_mm));
+    }
+    Serial.printf("Locked in.\n");
     set_speed(6000.0);
     write_trq_limit(300.0);
-    return 1;
+    _homing_state = HomingState::LockedIn;
 }
 
 void A6Servo::write_trq_limit(float limit_percent) {
@@ -151,14 +167,16 @@ int8_t A6Servo::move_to(int32_t position, bool blocking) {
 
 void A6Servo::move_to_slow(double position) {
     _curr_pos = position;
-    if (_state == State::Enabled && _homing_state == HomingState::Homed) {
+    _curr_pos_valid = true;
+    if (_state == State::Enabled && _homing_state == HomingState::LockedIn) {
         move_to_slow(int32_t(position * double(_steps_per_mm)));
     }
 }
 
 int8_t A6Servo::move_to(double position, bool blocking) {
     _curr_pos = position;
-    if (_state == State::Enabled && _homing_state == HomingState::Homed) {
+    _curr_pos_valid = true;
+    if (_state == State::Enabled && _homing_state == HomingState::LockedIn) {
         return move_to(int32_t(position * double(_steps_per_mm)), blocking);
     }
     return 0;

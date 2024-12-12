@@ -6,7 +6,7 @@ class Servo {
             Disabled, Enabled, Homing
         };
         enum class HomingState {
-            HomeUnknown, Homed
+            HomeUnknown, Homed, LockedIn
         };
         virtual void setup(uint32_t steps_per_mm, uint32_t mm_per_rev);
         virtual uint8_t home(void);
@@ -16,6 +16,8 @@ class Servo {
         virtual void move_to_slow(double position);
         virtual double get_min_pos(void);
         virtual double get_max_pos(void);
+        virtual void periodic_task_func(void);
+        virtual void lock_onto_curr_pos(void);
         State get_state(void) {
             return _state;
         }
@@ -24,6 +26,7 @@ class Servo {
         }
     protected:
         double _curr_pos = 0.0;
+        bool _curr_pos_valid = false;
         State _state = State::Disabled;
         HomingState _homing_state = HomingState::HomeUnknown;
 };

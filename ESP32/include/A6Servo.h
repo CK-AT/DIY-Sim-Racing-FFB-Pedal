@@ -21,6 +21,8 @@ class A6Servo : public Servo {
         double get_max_pos(void) {
             return double(_pos_max) / double(_steps_per_mm * _mm_per_rev);
         }
+        void periodic_task_func(void);
+        void lock_onto_curr_pos(void);
     private:
         int8_t move_to(int32_t position, bool blocking = false);
         void move_to_slow(int32_t position);

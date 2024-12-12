@@ -614,6 +614,13 @@ void updatePedalCalcParameters()
   dap_config_st_local = dap_config_st;
 }
 
+void IRAM_ATTR adc_isr( void ) {
+  if (Task1) {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    vTaskNotifyGiveIndexedFromISR( Task1, 0, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+  }
+}
 
 
 /**********************************************************************************************/
@@ -650,6 +657,11 @@ void loop() {
                         1);          /* pin task to core 1 */
 
       Serial.println("pedalUpdateTask created");
+
+      Serial.println("Attaching ISR...");
+      attachInterrupt(PIN_DRDY, &adc_isr, FALLING);
+      Serial.println("ISR attached");
+
       init_done = true;
   }
   taskYIELD();
@@ -669,7 +681,6 @@ void loop() {
 /*                         pedal update task                                                  */
 /*                                                                                            */
 /**********************************************************************************************/
-
 
 //long lastCallTime = micros();
 unsigned long cycleTimeLastCall = micros();
@@ -693,6 +704,8 @@ int64_t timePrevious_pedalUpdateTask_l = 0;
 void pedalUpdateTask( void * pvParameters )
 {
   unsigned long t0 = micros();
+  double dt = 1000.0;
+
   for(;;){
 
     // system identification mode
@@ -704,28 +717,12 @@ void pedalUpdateTask( void * pvParameters )
       }
     #endif
     
-    double dt = 0.0;
-    // controll cycle time. Delay did not work with the multi tasking, thus this workaround was integrated
-    unsigned long now = micros();
-    if (now - cycleTimeLastCall < PUT_TARGET_CYCLE_TIME_IN_US) // 100us = 10kHz
-    {
-      // skip 
-      continue;
-    }
-    {
-      // if target cycle time is reached, update last time
-      dt = (now - cycleTimeLastCall) / 1000.0;
-      cycleTimeLastCall = now;
-    }
-
-    
-
     // print the execution time averaged over multiple cycles
-    // if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
-    // {
-    //   static CycleTimer timerPU("PU cycle time");
-    //   timerPU.Bump();
-    // }
+    if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
+    {
+      static CycleTimer timerPU("PU cycle time");
+      timerPU.Bump();
+    }
       
 
     // if a config update was received over serial, update the variables required for further computation
@@ -809,8 +806,20 @@ void pedalUpdateTask( void * pvParameters )
     dap_calculationVariables_st.update_stepperpos(_rudder.offset_filter);
 
 */
+  uint32_t ulNotificationValue = ulTaskNotifyTakeIndexed( 0, pdTRUE, 1000);
+
+
+    if( ulNotificationValue != 1 ) {
+        continue;
+    }
+    
     // Get the loadcell reading
     float loadcellReading = loadcell->getReadingKg();
+
+    unsigned long now = micros();
+    dt = (now - cycleTimeLastCall) / 1000.0;
+    cycleTimeLastCall = now;
+
 
     // Invert the loadcell reading digitally if desired
     if (dap_config_st.payLoadPedalConfig_.invertLoadcellReading_u8 == 1)
@@ -1125,6 +1134,7 @@ int64_t timePrevious_serialCommunicationTask_l = 0;
 int32_t joystickNormalizedToInt32_local = 0;
 void serialCommunicationTask( void * pvParameters )
 {
+  delay( 1000 );
 
   for(;;){
 
@@ -1150,6 +1160,8 @@ void serialCommunicationTask( void * pvParameters )
 
 
     delay( SERIAL_COOMUNICATION_TASK_DELAY_IN_MS );
+
+   // stepper->periodic_task_func();
 
    
     { 
@@ -1403,6 +1415,10 @@ void serialCommunicationTask( void * pvParameters )
                   if (strncmp(param, "home", sizeof("home") - 1) == 0) {
                     Serial.printf("Homing command received\n");
                     stepper->home();
+                    stepper->lock_onto_curr_pos();
+                  // } else if (strncmp(param, "lock", sizeof("lock") - 1) == 0) {
+                  //   Serial.printf("Locking command received\n");
+                  //   stepper->lock_onto_curr_pos();
                   } else if (strncmp(param, "restart", sizeof("restart") - 1) == 0) {
                     Serial.printf("Restarting...\n");
                     ESP.restart();
