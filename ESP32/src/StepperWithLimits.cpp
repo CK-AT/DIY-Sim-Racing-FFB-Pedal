@@ -290,7 +290,7 @@ void StepperWithLimits::printStates()
   
   int32_t currentStepperAccel = _stepper->getCurrentAcceleration();
 
-  static RTDebugOutput<int32_t, 4> rtDebugFilter({ "Pos", "Vel", "Vel2", "Accel"});
+  static RTDebugOutput<4> rtDebugFilter({ "Pos", "Vel", "Vel2", "Accel"});
   rtDebugFilter.offerData({ currentStepperPos, currentStepperVel, currentStepperVel2, currentStepperAccel});
 }
 

@@ -882,9 +882,9 @@ void pedalUpdateTask( void * pvParameters )
     if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_LOADCELL_READING) 
     {
       static uint16_t loop_cnt = 0;
-      static RTDebugOutput<double,6> rtDebugFilter({ "raw", "flt", "f", "a", "v", "x"});
+      static RTDebugOutput<6> rtDebugFilter({ "raw", "flt", "f", "a", "v", "x"});
       loop_cnt++;
-      if (loop_cnt >= 100) {
+      if (loop_cnt >= 10) {
         loop_cnt = 0;
         rtDebugFilter.offerData({ loadcellReading, filteredReading, sim.get_f_sum(), sim.get_a(), sim.get_v(), sim.get_x()});
       }
@@ -1130,6 +1130,7 @@ void pedalUpdateTask( void * pvParameters )
 int64_t timeNow_serialCommunicationTask_l = 0;
 int64_t timePrevious_serialCommunicationTask_l = 0;
 #define REPETITION_INTERVAL_SERIALCOMMUNICATION_TASK (int64_t)10
+RTDebugOutputService debugOutput = RTDebugOutputService();
 
 int32_t joystickNormalizedToInt32_local = 0;
 void serialCommunicationTask( void * pvParameters )
@@ -1508,6 +1509,7 @@ void serialCommunicationTask( void * pvParameters )
     // }
 
     SetControllerOutputValue_rudder(int32_t(x_curr * 100.0), int32_t(f_in * 10.0));
+    debugOutput.pump(2);
   }
 }
 //OTA multitask

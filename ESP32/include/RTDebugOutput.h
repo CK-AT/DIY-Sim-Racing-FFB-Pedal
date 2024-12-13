@@ -1,39 +1,60 @@
 #pragma once
-
 #include <array>
+#include <Arduino.h>
 
+typedef struct {
+  uint32_t t;
+  String *name;
+  double value;
+} RTDebugSample;
 
-template <typename TVALUE, int NVALS, int FLOAT_PRECISION=6>
+extern QueueHandle_t _queue_data;
+
+template <int NVALS, int FLOAT_PRECISION=6>
 class RTDebugOutput {
-private:
-  std::array<String,NVALS> _outNames;
-  
-public:
-  RTDebugOutput(std::array<String,NVALS> outNames = {})
-    : _outNames(outNames) { }
+  private:
+    std::array<String,NVALS> _outNames;
+    
+  public:
+    RTDebugOutput(std::array<String,NVALS> outNames = {})
+      : _outNames(outNames)
+    { }
 
-  void offerData(std::array<TVALUE,NVALS> values) {
-    printData(values);
-  }
-  
+    void offerData(std::array<double,NVALS> values) {
+        if (!_queue_data) return;
+        RTDebugSample sample;
+        sample.t = millis();
+        for (int i=0; i<NVALS; i++) {
+          sample.name = &(_outNames[i]);
+          sample.value = values[i];
+          xQueueSend(_queue_data, &sample, /*xTicksToWait=*/0);
+        }
+    }
+};
 
-  template <typename T>
-  void printValue(String name, T value) {
-    if (name.length() > 0) {
-      Serial.print(">"); Serial.print(name); Serial.print(":");
+class RTDebugOutputService {
+  public:
+    RTDebugOutputService(bool own_task=false)
+    {
+      _queue_data = xQueueCreate(20, sizeof(RTDebugSample));
+      if (own_task) {
+        xTaskCreatePinnedToCore(this->debugOutputTask, "debugOutputTask", 5000, this, 1, NULL, 0);
+      }
     }
-    Serial.print(value); Serial.print("\n");
-  }
-  void printValue(String name, float value) {
-    if (name.length() > 0) {
-      Serial.print(">"); Serial.print(name); Serial.print(":"); 
-    }
-    Serial.print(value, FLOAT_PRECISION); Serial.print("\n");
-  }
 
-  void printData(std::array<TVALUE,NVALS> &values) {
-    for (int i=0; i<NVALS; i++) {
-      printValue(_outNames[i], values[i]);
+    void pump(int max_samples, int timeout=0) {
+      RTDebugSample sample;
+      while (max_samples && (pdTRUE == xQueueReceive(_queue_data, &sample, /*xTicksToWait=*/timeout))) {
+          Serial.printf(">%s:%i:%.6f\n", *sample.name, sample.t, sample.value);
+          max_samples--;
+      }
     }
-  }
+
+  private:
+    static void debugOutputTask(void* pvParameters) {
+      RTDebugOutputService* debugOutput = (RTDebugOutputService*) pvParameters;
+      for (;;) {
+        debugOutput->pump(1000, 1000);
+      }
+    }
 };
