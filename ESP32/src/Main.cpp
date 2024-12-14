@@ -718,10 +718,10 @@ void pedalUpdateTask( void * pvParameters )
     #endif
     
     // print the execution time averaged over multiple cycles
+    static CycleTimer timerPU("PU cycle time");
     if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
     {
-      static CycleTimer timerPU("PU cycle time");
-      timerPU.Bump();
+      timerPU.BumpStart();
     }
       
 
@@ -1106,6 +1106,10 @@ void pedalUpdateTask( void * pvParameters )
     // }
     
 */
+    if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
+    {
+      timerPU.BumpEnd();
+    }
   }
 }
 
@@ -1149,10 +1153,10 @@ void serialCommunicationTask( void * pvParameters )
 
 
     // average cycle time averaged over multiple cycles 
+    static CycleTimer timerSC("SC cycle time");
     if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
     {
-      static CycleTimer timerSC("SC cycle time");
-      timerSC.Bump();
+      timerSC.BumpStart();
     }
 
     uint16_t crc;
@@ -1510,6 +1514,11 @@ void serialCommunicationTask( void * pvParameters )
 
     SetControllerOutputValue_rudder(int32_t(x_curr * 100.0), int32_t(f_in * 10.0));
     debugOutput.pump(2);
+    if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
+    {
+      timerSC.BumpEnd();
+    }
+
   }
 }
 //OTA multitask
