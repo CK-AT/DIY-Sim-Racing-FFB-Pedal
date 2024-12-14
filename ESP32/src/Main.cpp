@@ -113,6 +113,7 @@ DAP_ESPPairing_st dap_esppairing_lcl;//sending
 
 
 #include "RTDebugOutput.h"
+#include "LogOutput.h"
 
 
 /**********************************************************************************************/
@@ -1135,6 +1136,7 @@ int64_t timeNow_serialCommunicationTask_l = 0;
 int64_t timePrevious_serialCommunicationTask_l = 0;
 #define REPETITION_INTERVAL_SERIALCOMMUNICATION_TASK (int64_t)10
 RTDebugOutputService debugOutput = RTDebugOutputService();
+LogOutputService logOutput = LogOutputService();
 
 int32_t joystickNormalizedToInt32_local = 0;
 void serialCommunicationTask( void * pvParameters )
@@ -1514,6 +1516,8 @@ void serialCommunicationTask( void * pvParameters )
 
     SetControllerOutputValue_rudder(int32_t(x_curr * 100.0), int32_t(f_in * 10.0));
     debugOutput.pump(2);
+    logOutput.pump(5);
+
     if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
     {
       timerSC.BumpEnd();
