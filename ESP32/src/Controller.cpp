@@ -8,7 +8,7 @@
   #include <Joystick_ESP32S2.h>
   
   Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD,
-                   0, 0,                 // Button Count, Hat Switch Count
+                   1, 0,                 // Button Count, Hat Switch Count
                    false, false, false,  // X and Y, but no Z Axis
                    false, false, false,  // No Rx, Ry, or Rz
                    false, false,         // No rudder or throttle

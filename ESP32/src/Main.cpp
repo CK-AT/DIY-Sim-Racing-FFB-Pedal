@@ -659,13 +659,15 @@ void loop() {
 
       Serial.println("pedalUpdateTask created");
 
+      enableCore1WDT();
+
       Serial.println("Attaching ISR...");
       attachInterrupt(PIN_DRDY, &adc_isr, FALLING);
       Serial.println("ISR attached");
 
       init_done = true;
   }
-  taskYIELD();
+  delay(10);
   /*
   #ifdef OTA_update
   server.handleClient();
@@ -718,6 +720,10 @@ void pedalUpdateTask( void * pvParameters )
       }
     #endif
     
+    if( ulTaskNotifyTakeIndexed( 0, pdTRUE, 10) == 0 ) {
+        continue;
+    }
+
     // print the execution time averaged over multiple cycles
     static CycleTimer timerPU("PU cycle time");
     if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
@@ -807,12 +813,6 @@ void pedalUpdateTask( void * pvParameters )
     dap_calculationVariables_st.update_stepperpos(_rudder.offset_filter);
 
 */
-  uint32_t ulNotificationValue = ulTaskNotifyTakeIndexed( 0, pdTRUE, 1000);
-
-
-    if( ulNotificationValue != 1 ) {
-        continue;
-    }
     
     // Get the loadcell reading
     float loadcellReading = loadcell->getReadingKg();
@@ -1422,7 +1422,6 @@ void serialCommunicationTask( void * pvParameters )
                   if (strncmp(param, "home", sizeof("home") - 1) == 0) {
                     Serial.printf("Homing command received\n");
                     stepper->home();
-                    stepper->lock_onto_curr_pos();
                   // } else if (strncmp(param, "lock", sizeof("lock") - 1) == 0) {
                   //   Serial.printf("Locking command received\n");
                   //   stepper->lock_onto_curr_pos();
