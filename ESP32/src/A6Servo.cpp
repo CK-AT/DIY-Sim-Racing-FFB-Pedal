@@ -143,15 +143,36 @@ void A6Servo::write_max_pos(int32_t counts) {
 }
 
 float A6Servo::get_speed(void) {
-    return float(_modbus->holdingRegisterRead<int16_t>(1, 0x4001));
+    for (int8_t i = 0; i < 3; i++) {
+        int16_t val;
+        if (!_modbus->holdingRegisterRead<int16_t>(1, 0x4001, val)) {
+            return float(val);
+        }
+    }
+    LogOutput::printf("A6Servo::get_speed() failed after 3 retries!\n");
+    return NAN;
 }
 
 int32_t A6Servo::read_min_pos(void) {
-    return _modbus->holdingRegisterRead<int32_t>(1, 0x060A);
+    for (int8_t i = 0; i < 3; i++) {
+        int32_t val;
+        if (!_modbus->holdingRegisterRead<int32_t>(1, 0x060A, val)) {
+            return val;
+        }
+    }
+    LogOutput::printf("A6Servo::read_min_pos() failed after 3 retries!\n");
+    return 0;
 }
 
 int32_t A6Servo::read_max_pos(void) {
-    return _modbus->holdingRegisterRead<int32_t>(1, 0x0608);
+    for (int8_t i = 0; i < 3; i++) {
+        int32_t val;
+        if (!_modbus->holdingRegisterRead<int32_t>(1, 0x0608, val)) {
+            return val;
+        }
+    }
+    LogOutput::printf("A6Servo::read_max_pos() failed after 3 retries!\n");
+    return 0;
 }
 
 void A6Servo::move_to_slow(int32_t position) {
@@ -187,6 +208,13 @@ void A6Servo::set_speed(float rpm) {
 }
 
 int32_t A6Servo::read_position(void) {
-    return _modbus->holdingRegisterRead<int32_t>(1, 0x4016);
+    for (int8_t i = 0; i < 3; i++) {
+        int32_t val;
+        if (!_modbus->holdingRegisterRead<int32_t>(1, 0x4016, val)) {
+            return val;
+        }
+    }
+    LogOutput::printf("A6Servo::read_position() failed after 3 retries!\n");
+    return 0;
 }
 

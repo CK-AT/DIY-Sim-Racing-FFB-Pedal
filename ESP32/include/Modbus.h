@@ -48,18 +48,19 @@ public:
         return  T((rawRx[index*2+3] << 8) | rawRx[index*2+4]);
     }
     template <typename T>
-    T holdingRegisterRead(int id, int address)
+    int32_t holdingRegisterRead(int id, int address, T &value)
     {
         int block = constrain(sizeof(T) / 2, 1, 2);
-        if(requestFrom(SlaveID, Holding_Register, address, block))
+        if(requestFrom(SlaveID, Holding_Register, address, block) > 0)
         {
             if(block == 2)
             {
-            return T(blockRead<uint16_t>(0) << 16 | blockRead<uint16_t>(1));
+            value = T(blockRead<uint16_t>(0) << 16 | blockRead<uint16_t>(1));
             }
             else{
-                return blockRead<T>(0);
+                value = blockRead<T>(0);
             }
+            return 0;
         }
         else{
             return -1;

@@ -218,6 +218,8 @@ int Modbus::requestFrom(int slaveId, int type, int address, int nb)
          if(lenRx >= rawRx[2] + 5) { break; }
         }
         
+       } else {
+        delay(2);
        }
         
 
@@ -504,6 +506,8 @@ int Modbus::holdingRegisterWrite(int id, int address, uint16_t value)
          if(lenRx >= 8) { break; }
         }
         
+       } else {
+        delay(2);
        }
         
 
@@ -519,7 +523,33 @@ int Modbus::holdingRegisterWrite(int id, int address, uint16_t value)
      }
 
 	
-	return 1;
+    if(lenRx > 2){
+        int crc1 = rawRx[lenRx - 1] <<8 | rawRx[lenRx - 2];
+        int crc2 = CheckCRC(rawRx, lenRx - 2);
+        //Serial.printf("CRC1: %04X CRC2: %04X\n",crc1, crc2);
+
+
+        /*Serial.print("CRC1: ");
+        Serial.print(crc1);
+        Serial.print(",   CRC2: ");
+        Serial.print(crc2);
+        Serial.println();*/
+
+         if(crc1 == crc2)
+          {
+            datalen = rawRx[2];
+            /*Serial.print("Datalen: ");
+            Serial.print(datalen);
+            Serial.println();*/
+            return datalen;
+          }
+          else
+          { 
+            return -1; 
+          }
+    }else{
+        return -1;
+    }
 	
 	
 	
@@ -603,6 +633,8 @@ int Modbus::holdingRegisterWriteI32(int id, int address, int32_t value)
          if(lenRx >= 8) { break; }
         }
         
+       } else {
+        delay(2);
        }
         
 
@@ -618,7 +650,33 @@ int Modbus::holdingRegisterWriteI32(int id, int address, int32_t value)
      }
 
 	
-	return 1;
+    if(lenRx > 2){
+        int crc1 = rawRx[lenRx - 1] <<8 | rawRx[lenRx - 2];
+        int crc2 = CheckCRC(rawRx, lenRx - 2);
+        //Serial.printf("CRC1: %04X CRC2: %04X\n",crc1, crc2);
+
+
+        /*Serial.print("CRC1: ");
+        Serial.print(crc1);
+        Serial.print(",   CRC2: ");
+        Serial.print(crc2);
+        Serial.println();*/
+
+         if(crc1 == crc2)
+          {
+            datalen = rawRx[2];
+            /*Serial.print("Datalen: ");
+            Serial.print(datalen);
+            Serial.println();*/
+            return datalen;
+          }
+          else
+          { 
+            return -1; 
+          }
+    }else{
+        return -1;
+    }
 	
 	
 	
