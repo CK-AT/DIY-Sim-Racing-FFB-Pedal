@@ -4,6 +4,7 @@
 
 typedef struct {
   uint32_t t;
+  String *name_prefix;
   String *name;
   double value;
 } RTDebugSample;
@@ -14,16 +15,18 @@ template <int NVALS, int FLOAT_PRECISION=6>
 class RTDebugOutput {
   private:
     std::array<String,NVALS> _outNames;
+    String _namePrefix;
     
   public:
-    RTDebugOutput(std::array<String,NVALS> outNames = {})
-      : _outNames(outNames)
+    RTDebugOutput(std::array<String,NVALS> outNames = {}, String namePrefix = "")
+      : _outNames(outNames), _namePrefix(namePrefix)
     { }
 
     void offerData(std::array<double,NVALS> values) {
         if (!_queue_data) return;
         RTDebugSample sample;
         sample.t = millis();
+        sample.name_prefix = &_namePrefix;
         for (int i=0; i<NVALS; i++) {
           sample.name = &(_outNames[i]);
           sample.value = values[i];
@@ -45,7 +48,7 @@ class RTDebugOutputService {
     void pump(int max_samples, int timeout=0) {
       RTDebugSample sample;
       while (max_samples && (pdTRUE == xQueueReceive(_queue_data, &sample, /*xTicksToWait=*/timeout))) {
-          Serial.printf(">%s:%i:%.6f\n", *sample.name, sample.t, sample.value);
+          Serial.printf(">%s%s:%i:%.6f\n", *sample.name_prefix, *sample.name, sample.t, sample.value);
           max_samples--;
       }
     }
