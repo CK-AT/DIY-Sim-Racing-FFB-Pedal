@@ -6,7 +6,7 @@ class Servo {
             Disabled, Enabled, Homing
         };
         enum class HomingState {
-            HomeUnknown, Homed, LockedIn
+            HomeUnknown, Pending, Homed, LockedIn, LockingError
         };
         virtual void setup(uint32_t steps_per_mm, uint32_t mm_per_rev);
         virtual uint8_t home(void);

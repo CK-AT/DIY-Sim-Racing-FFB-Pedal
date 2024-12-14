@@ -23,6 +23,7 @@ class A6Servo : public Servo {
         }
         void periodic_task_func(void);
         void lock_onto_curr_pos(void);
+
     private:
         int8_t move_to(int32_t position, bool blocking = false);
         void move_to_slow(int32_t position);
@@ -33,9 +34,19 @@ class A6Servo : public Servo {
         float get_speed(void);
         void set_speed(float rpm);
         int32_t read_position(void);
+        void do_homing(void);
+        int32_t get_target_pos();
         FastNonAccelStepper* _stepper_engine;
         Modbus* _modbus;
         uint32_t _steps_per_mm;
         uint32_t _mm_per_rev;
         int32_t _pos_max = 0;
+        static void task_func(void* pvParameters) {
+            A6Servo* servo = (A6Servo*) pvParameters;
+            delay(1000);
+            for (;;) {
+                servo->periodic_task_func();
+                delay(100);
+            }
+        }
 };
