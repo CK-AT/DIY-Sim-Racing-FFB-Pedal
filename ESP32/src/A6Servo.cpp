@@ -167,6 +167,9 @@ void A6Servo::write_max_pos(int32_t counts) {
 float A6Servo::get_speed(void) {
     int16_t value = 0;
     auto resp = read_hold_register<int16_t>(0x4001, value);
+    if (resp != Modbus::Error::SUCCESS) {
+        return NAN;
+    }
     return float(value);
 }
 
