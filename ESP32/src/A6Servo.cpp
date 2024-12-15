@@ -11,10 +11,16 @@ void A6Servo::periodic_task_func(void) {
     }
 }
 
+void A6Servo::on_response(ModbusMessage msg, uint32_t token) {
+    
+}
+
 A6Servo::A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareSerial &serial, unsigned long baud, uint32_t config, uint8_t pin_rx, uint8_t pin_tx, uint8_t pin_tx_ena, bool serial_inverted) {
+    RTUutils::prepareHardwareSerial(serial);
     serial.begin(baud, config, pin_rx, pin_tx, serial_inverted); // Modbus serial
-    _modbus = new Modbus(serial);
-    _modbus->init(pin_tx_ena, false);
+    _modbus.onResponseHandler(std::bind(&A6Servo::on_response, this, std::placeholders::_1, std::placeholders::_2));
+    _modbus.setTimeout(10);
+    _modbus.begin(serial, 0);
     _stepper_engine = new FastNonAccelStepper(pin_step, pin_dir, dir_inverted); 
     _stepper_engine->setMaxSpeed(MAXIMUM_SPEED);
 }
@@ -24,12 +30,12 @@ void A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev) {
     _mm_per_rev = mm_per_rev;
     disable();
     delay(100);
-    _modbus->holdingRegisterWriteI32(1, 0x0122, 10); // 1.0ms LPF on position input
+    write_hold_register<int32_t>(0x0122, 10); // 1.0ms LPF on position input
 
-    _modbus->holdingRegisterWriteI32(1, 0x0304, steps_per_mm * mm_per_rev); // gear ratio denominator (steps_per_rev)
-    _modbus->holdingRegisterWriteI32(1, 0x0306, 131072); // gear ratio numerator (encoder counts per rev)
-    _modbus->holdingRegisterWrite(1, 0x0607, 2); // limit active after homing
-    _modbus->holdingRegisterWriteI32(1, 0x0600, 1000000); // relax excessive local position deviation threshold
+    write_hold_register<int32_t>(0x0304, steps_per_mm * mm_per_rev); // gear ratio denominator (steps_per_rev)
+    write_hold_register<int32_t>(0x0306, 131072); // gear ratio numerator (encoder counts per rev)
+    write_hold_register<int16_t>(0x0607, 2); // limit active after homing
+    write_hold_register<uint32_t>(0x0600, 1000000); // relax excessive local position deviation threshold
     write_trq_limit(5.0);
     set_speed(100.0);
     int32_t min_pos = read_min_pos();
@@ -45,13 +51,17 @@ void A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev) {
 }
 
 void A6Servo::enable(void) {
-    _modbus->holdingRegisterWrite(1, 0x0411, 1); // enable
-    _state = State::Enabled;
+    auto resp = write_hold_register<int16_t>(0x0411, 1); // enable
+    if (resp == Modbus::Error::SUCCESS) {
+        _state = State::Enabled;
+    }
 }
 
 void A6Servo::disable(void) {
-    _state = State::Disabled;
-    _modbus->holdingRegisterWrite(1, 0x0411, 0); // enable
+    auto resp = write_hold_register<int16_t>(0x0411, 0); // disable
+    if (resp == Modbus::Error::SUCCESS) {
+        _state = State::Disabled;
+    }
 }
 
 uint8_t A6Servo::home(void) {
@@ -68,10 +78,10 @@ void A6Servo::do_homing(void) {
     write_max_pos(20000000);
     write_trq_limit(5.0);
     set_speed(100.0);
-    _modbus->holdingRegisterWriteI32(1, 0x0600, 1000000); // excessive local position deviation threshold
-    _modbus->holdingRegisterWrite(1, 0x1000, 0); // homing off
+    write_hold_register<uint32_t>(0x0600, 1000000); // relax excessive local position deviation threshold
+    write_hold_register<int16_t>(0x1000, 0); // homing off
     delay(100);
-    _modbus->holdingRegisterWrite(1, 0x1000, 1); // homing on
+    write_hold_register<int16_t>(0x1000, 1); // homing on
     LogOutput::printf("Waiting for negative endstop...\n");
     int num_zero_spd = 0;
     float speed;
@@ -106,7 +116,7 @@ void A6Servo::do_homing(void) {
     _stepper_engine->moveTo(_pos_max, true);
     write_min_pos(0);
     write_max_pos(_pos_max);
-    _modbus->holdingRegisterWrite(1, 0x1000, 0); // reset homing command
+    write_hold_register<int16_t>(0x1000, 0); // reset homing command
     _homing_state = HomingState::Homed;
     _state = State::Enabled;
     LogOutput::printf("Homing done.\n");
@@ -126,7 +136,7 @@ void A6Servo::lock_onto_curr_pos(void) {
     }
     if (is_locked) {
         LogOutput::printf("Locked in.\n");
-        _modbus->holdingRegisterWriteI32(1, 0x0600, 30000); // tighten excessive local position deviation threshold
+        write_hold_register<uint32_t>(0x0600, 30000); // tighten excessive local position deviation threshold
         set_speed(6000.0);
         write_trq_limit(300.0);
         _homing_state = HomingState::LockedIn;
@@ -142,49 +152,34 @@ int32_t A6Servo::get_target_pos()
 }
 
 void A6Servo::write_trq_limit(float limit_percent) {
-    _modbus->holdingRegisterWrite(1, 0x0343, uint16_t(limit_percent * 10.0)); // negative limit (0.1%/LSB)
-    _modbus->holdingRegisterWrite(1, 0x0344, uint16_t(limit_percent * 10.0)); // positive limit (0.1%/LSB)
+    write_hold_register<uint16_t>(0x0343, uint16_t(limit_percent * 10.0)); // negative limit (0.1%/LSB)
+    write_hold_register<uint16_t>(0x0344, uint16_t(limit_percent * 10.0)); // positive limit (0.1%/LSB)
 }
 
 void A6Servo::write_min_pos(int32_t counts) {
-    _modbus->holdingRegisterWriteI32(1, 0x060A, counts); // negative position limit
+    write_hold_register<uint32_t>(0x060A, counts); // negative position limit
 }
 
 void A6Servo::write_max_pos(int32_t counts) {
-    _modbus->holdingRegisterWriteI32(1, 0x0608, counts); // positive position limit
+    write_hold_register<uint32_t>(0x0608, counts); // positive position limit
 }
 
 float A6Servo::get_speed(void) {
-    for (int8_t i = 0; i < 3; i++) {
-        int16_t val;
-        if (!_modbus->holdingRegisterRead<int16_t>(1, 0x4001, val)) {
-            return float(val);
-        }
-    }
-    LogOutput::printf("A6Servo::get_speed() failed after 3 retries!\n");
-    return NAN;
+    int16_t value = 0;
+    auto resp = read_hold_register<int16_t>(0x4001, value);
+    return float(value);
 }
 
 int32_t A6Servo::read_min_pos(void) {
-    for (int8_t i = 0; i < 3; i++) {
-        int32_t val;
-        if (!_modbus->holdingRegisterRead<int32_t>(1, 0x060A, val)) {
-            return val;
-        }
-    }
-    LogOutput::printf("A6Servo::read_min_pos() failed after 3 retries!\n");
-    return 0;
+    int32_t value;
+    auto resp = read_hold_register<int32_t>(0x060A, value);
+    return value;
 }
 
 int32_t A6Servo::read_max_pos(void) {
-    for (int8_t i = 0; i < 3; i++) {
-        int32_t val;
-        if (!_modbus->holdingRegisterRead<int32_t>(1, 0x0608, val)) {
-            return val;
-        }
-    }
-    LogOutput::printf("A6Servo::read_max_pos() failed after 3 retries!\n");
-    return 0;
+    int32_t value;
+    auto resp = read_hold_register<int32_t>(0x0608, value);
+    return value;
 }
 
 void A6Servo::move_to_slow(int32_t position) {
@@ -220,13 +215,8 @@ void A6Servo::set_speed(float rpm) {
 }
 
 int32_t A6Servo::read_position(void) {
-    for (int8_t i = 0; i < 3; i++) {
-        int32_t val;
-        if (!_modbus->holdingRegisterRead<int32_t>(1, 0x4016, val)) {
-            return val;
-        }
-    }
-    LogOutput::printf("A6Servo::read_position() failed after 3 retries!\n");
-    return 0;
+    int32_t value;
+    auto resp = read_hold_register<int32_t>(0x4016, value);
+    return value;
 }
 

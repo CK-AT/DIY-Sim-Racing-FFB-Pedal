@@ -1,7 +1,8 @@
 #include <Arduino.h>
 #include <Servo.h>
 #include <FastNonAccelStepper.h>
-#include <Modbus.h>
+#include "ModbusClientRTU.h"
+#include <LogOutput.h>
 
 #define MAXIMUM_SPEED 2000000
 
@@ -25,6 +26,49 @@ class A6Servo : public Servo {
         void lock_onto_curr_pos(void);
 
     private:
+        template <typename T>
+        Modbus::Error write_hold_register(uint16_t addr, T value) {
+            ModbusMessage request;
+            if (sizeof(T) < 2) {
+                request = ModbusMessage(1, WRITE_HOLD_REGISTER, addr, int16_t(value));
+            } else if (sizeof(T) == 2) {
+                request = ModbusMessage(1, WRITE_HOLD_REGISTER, addr, value);
+            } else {
+                uint16_t data[2] = {uint16_t((value >> 16) & 0xFFFF), uint16_t(value & 0xFFFF)};
+                request = ModbusMessage(1, WRITE_MULT_REGISTERS, addr, 2, 4, data);
+            }
+            ModbusMessage response;
+            uint8_t retries = 3;
+            while (retries) {
+                response = _modbus.syncRequest(request, 0);
+                if (response.getError() == Modbus::Error::SUCCESS) return Modbus::Error::SUCCESS;
+                retries--;
+            }
+            LogOutput::printf("write_hold_register(0x%04X) failed after 3 retries!", addr);
+            return response.getError();
+        }
+        template <typename T>
+        Modbus::Error read_hold_register(uint16_t addr, T &value) {
+            ModbusMessage request;
+            if (sizeof(T) <= 2) {
+                request = ModbusMessage(1, READ_HOLD_REGISTER, addr, 1);
+            } else {
+                request = ModbusMessage(1, READ_HOLD_REGISTER, addr, 2);
+            }
+            ModbusMessage response;
+            uint8_t retries = 3;
+            while (retries) {
+                response = _modbus.syncRequest(request, 0);
+                if (response.getError() == Modbus::Error::SUCCESS) {
+                    response.get(3, value);
+                    return Modbus::Error::SUCCESS;
+                }
+                retries--;
+            }
+            LogOutput::printf("read_hold_register(0x%04X) failed after 3 retries!", addr);
+            return response.getError();
+        }
+        void on_response(ModbusMessage msg, uint32_t token);
         int8_t move_to(int32_t position, bool blocking = false);
         void move_to_slow(int32_t position);
         void write_min_pos(int32_t counts);
@@ -37,7 +81,7 @@ class A6Servo : public Servo {
         void do_homing(void);
         int32_t get_target_pos();
         FastNonAccelStepper* _stepper_engine;
-        Modbus* _modbus;
+        ModbusClientRTU _modbus;
         uint32_t _steps_per_mm;
         uint32_t _mm_per_rev;
         int32_t _pos_max = 0;
