@@ -8,11 +8,11 @@ class Servo {
         enum class HomingState {
             HomeUnknown, Pending, Homed, LockedIn, LockingError
         };
-        virtual void setup(uint32_t steps_per_mm, uint32_t mm_per_rev);
-        virtual uint8_t home(void);
-        virtual void enable(void);
-        virtual void disable(void);
-        virtual int8_t move_to(double position, bool blocking = false);
+        virtual bool setup(uint32_t steps_per_mm, uint32_t mm_per_rev);
+        virtual bool home(void);
+        virtual bool enable(void);
+        virtual bool disable(void);
+        virtual bool move_to(double position, bool blocking = false);
         virtual void move_to_slow(double position);
         virtual double get_min_pos(void);
         virtual double get_max_pos(void);

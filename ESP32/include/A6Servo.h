@@ -9,12 +9,12 @@
 class A6Servo : public Servo {
     public:
         A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareSerial &serial, unsigned long baud, uint32_t config, uint8_t pin_rx, uint8_t pin_tx, uint8_t pin_tx_ena, bool serial_inverted = false);
-        void setup(uint32_t steps_per_mm, uint32_t mm_per_rev);
-        uint8_t home(void);
-        void enable(void);
-        void disable(void);
+        bool setup(uint32_t steps_per_mm, uint32_t mm_per_rev);
+        bool home(void);
+        bool enable(void);
+        bool disable(void);
         void write_trq_limit(float limit_percent);
-        int8_t move_to(double position, bool blocking = false);
+        bool move_to(double position, bool blocking = false);
         void move_to_slow(double position);
         double get_min_pos(void) {
             return 0.0;
@@ -44,7 +44,7 @@ class A6Servo : public Servo {
                 if (response.getError() == Modbus::Error::SUCCESS) return Modbus::Error::SUCCESS;
                 retries--;
             }
-            LogOutput::printf("write_hold_register(0x%04X) failed after 3 retries!", addr);
+            LogOutput::printf("write_hold_register(0x%04X) failed after 3 retries!\n", addr);
             return response.getError();
         }
         template <typename T>
@@ -65,11 +65,11 @@ class A6Servo : public Servo {
                 }
                 retries--;
             }
-            LogOutput::printf("read_hold_register(0x%04X) failed after 3 retries!", addr);
+            LogOutput::printf("read_hold_register(0x%04X) failed after 3 retries!\n", addr);
             return response.getError();
         }
         void on_response(ModbusMessage msg, uint32_t token);
-        int8_t move_to(int32_t position, bool blocking = false);
+        bool move_to(int32_t position, bool blocking = false);
         void move_to_slow(int32_t position);
         void write_min_pos(int32_t counts);
         void write_max_pos(int32_t counts);

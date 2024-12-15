@@ -25,13 +25,14 @@ A6Servo::A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareS
     _stepper_engine->setMaxSpeed(MAXIMUM_SPEED);
 }
 
-void A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev) {
+bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev) {
     _steps_per_mm = steps_per_mm;
     _mm_per_rev = mm_per_rev;
-    disable();
+    if (!disable()) {
+        return false;
+    }
     delay(100);
     write_hold_register<int32_t>(0x0122, 10); // 1.0ms LPF on position input
-
     write_hold_register<int32_t>(0x0304, steps_per_mm * mm_per_rev); // gear ratio denominator (steps_per_rev)
     write_hold_register<int32_t>(0x0306, 131072); // gear ratio numerator (encoder counts per rev)
     write_hold_register<int16_t>(0x0607, 2); // limit active after homing
@@ -41,33 +42,38 @@ void A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev) {
     int32_t min_pos = read_min_pos();
     if (min_pos == 0) {
         _pos_max = read_max_pos();
-        Serial.printf("Negative endstop @ %i, positive endstop @ %i, homed already.\n", min_pos, _pos_max);
+        LogOutput::printf("Negative endstop @ %i, positive endstop @ %i, homed already.\n", min_pos, _pos_max);
         _stepper_engine->setCurrentPosition(read_position());
         _homing_state = HomingState::Homed;
     } else {
-        Serial.printf("Negative endstop @ %i, not homed.\n", min_pos);
+        LogOutput::printf("Negative endstop @ %i, not homed.\n", min_pos);
     }
     xTaskCreatePinnedToCore(this->task_func, "A6ServoTask", 5000, this, 1, NULL, 0);
+    return true;
 }
 
-void A6Servo::enable(void) {
+bool A6Servo::enable(void) {
     auto resp = write_hold_register<int16_t>(0x0411, 1); // enable
     if (resp == Modbus::Error::SUCCESS) {
         _state = State::Enabled;
+        return true;
     }
+    return false;
 }
 
-void A6Servo::disable(void) {
+bool A6Servo::disable(void) {
     auto resp = write_hold_register<int16_t>(0x0411, 0); // disable
     if (resp == Modbus::Error::SUCCESS) {
         _state = State::Disabled;
+        return true;
     }
+    return false;
 }
 
-uint8_t A6Servo::home(void) {
-    if (_state != State::Enabled) return 0;
+bool A6Servo::home(void) {
+    if (_state != State::Enabled) return false;
     _homing_state = HomingState::Pending;
-    return 1;
+    return true;
 }
 
 void A6Servo::do_homing(void) {
@@ -191,9 +197,9 @@ void A6Servo::move_to_slow(int32_t position) {
     set_speed(6000.0);
 }
 
-int8_t A6Servo::move_to(int32_t position, bool blocking) {
+bool A6Servo::move_to(int32_t position, bool blocking) {
     _stepper_engine->moveTo(constrain(position, 0, _pos_max), blocking);
-    return 1;
+    return true;
 }
 
 void A6Servo::move_to_slow(double position) {
@@ -204,13 +210,13 @@ void A6Servo::move_to_slow(double position) {
     }
 }
 
-int8_t A6Servo::move_to(double position, bool blocking) {
+bool A6Servo::move_to(double position, bool blocking) {
     _curr_pos = position;
     _curr_pos_valid = true;
     if (_state == State::Enabled && _homing_state == HomingState::LockedIn) {
         return move_to(int32_t(position * double(_steps_per_mm)), blocking);
     }
-    return 0;
+    return false;
 }
 
 void A6Servo::set_speed(float rpm) {
