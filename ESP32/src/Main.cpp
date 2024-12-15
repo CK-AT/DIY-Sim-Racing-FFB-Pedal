@@ -142,8 +142,8 @@ ForceCurve_Interpolated forceCurve;
 #define STACK_SIZE_FOR_TASK_2 0.2 * (configTOTAL_HEAP_SIZE / 4)
 
 
-TaskHandle_t Task1;
-TaskHandle_t Task2;
+TaskHandle_t PedalTask;
+TaskHandle_t SerialCommTask;
 
 static SemaphoreHandle_t semaphore_updateConfig=NULL;
   bool configUpdateAvailable = false;                              // semaphore protected data
@@ -264,6 +264,14 @@ ForceMap force_map1 = ForceMap({0.0, 100.0}, {-100.0, 100.0});
 CompoundElement endstops = CompoundElement();
 ForceMap force_map2 = ForceMap({0.0, 10.0, 90.0, 100.0}, {-100.0, 0.0, 0.0, 100.0});
 DampingMap damping_map1 = DampingMap({0.0, 15.0, 85.0, 100.0}, {3.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 3.0});
+
+void IRAM_ATTR adc_isr( void ) {
+  if (PedalTask) {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    vTaskNotifyGiveFromISR( PedalTask, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+  }
+}
 
 /**********************************************************************************************/
 /*                                                                                            */
@@ -429,9 +437,27 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
     ESP.restart();
   }
 
-  stepper->setup(1000, 5);
-  stepper->enable();
+  // start serialCommunicationTask before initializing the stepper (it uses LogOutput)
+  xTaskCreatePinnedToCore(
+                    serialCommunicationTask,   
+                    "serialCommunicationTask", 
+                    10000,  
+                    //STACK_SIZE_FOR_TASK_2,    
+                    NULL,      
+                    1,         
+                    &SerialCommTask,    
+                    0);     
+
+  Serial.println("serialCommunicationTask created");
+
   delay(100);
+
+  if (!stepper->setup(1000, 5)) {
+    LogOutput::printf("Failed to initialize the servo (check power and connections).\n");
+  } else {
+    stepper->enable();
+    delay(100);
+  }
 
 sim.add_element(&spring1);
 sim.add_element(&damper1);
@@ -580,16 +606,28 @@ sim.add_element(&friction1);
                         &Task6,    
                         0);     
     delay(500);
-  }
-    
-      
-    
-
-    
+  } 
 
   #endif
 
-  Serial.println("Setup end");  
+  xTaskCreatePinnedToCore(
+                    pedalUpdateTask,   /* Task function. */
+                    "pedalUpdateTask",     /* name of task. */
+                    10000,       /* Stack size of task */
+                    //STACK_SIZE_FOR_TASK_1,
+                    NULL,        /* parameter of the task */
+                    10,          /* priority of the task */
+                    &PedalTask,      /* Task handle to keep track of created task */
+                    1);          /* pin task to core 1 */
+
+  LogOutput::printf("pedalUpdateTask created\n");
+
+  enableCore1WDT();
+
+  attachInterrupt(PIN_DRDY, &adc_isr, FALLING);
+  LogOutput::printf("ADC DRDY ISR attached\n");
+
+  LogOutput::printf("Setup end\n");  
 }
 
 
@@ -615,58 +653,13 @@ void updatePedalCalcParameters()
   dap_config_st_local = dap_config_st;
 }
 
-void IRAM_ATTR adc_isr( void ) {
-  if (Task1) {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    vTaskNotifyGiveIndexedFromISR( Task1, 0, &xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-  }
-}
-
-
 /**********************************************************************************************/
 /*                                                                                            */
 /*                         Main function                                                      */
 /*                                                                                            */
 /**********************************************************************************************/
 unsigned long joystick_state_last_update=millis();
-bool init_done = false;
 void loop() {
-  if (!init_done) {
-      xTaskCreatePinnedToCore(
-                        serialCommunicationTask,   
-                        "serialCommunicationTask", 
-                        10000,  
-                        //STACK_SIZE_FOR_TASK_2,    
-                        NULL,      
-                        1,         
-                        &Task2,    
-                        0);     
-
-      Serial.println("serialCommunicationTask created");
-
-      delay(100);
-
-      xTaskCreatePinnedToCore(
-                        pedalUpdateTask,   /* Task function. */
-                        "pedalUpdateTask",     /* name of task. */
-                        10000,       /* Stack size of task */
-                        //STACK_SIZE_FOR_TASK_1,
-                        NULL,        /* parameter of the task */
-                        10,          /* priority of the task */
-                        &Task1,      /* Task handle to keep track of created task */
-                        1);          /* pin task to core 1 */
-
-      Serial.println("pedalUpdateTask created");
-
-      enableCore1WDT();
-
-      Serial.println("Attaching ISR...");
-      attachInterrupt(PIN_DRDY, &adc_isr, FALLING);
-      Serial.println("ISR attached");
-
-      init_done = true;
-  }
   delay(10);
   /*
   #ifdef OTA_update
@@ -674,8 +667,6 @@ void loop() {
   //delay(1);
   #endif
   */
-  
-  
 }
 
 
@@ -720,7 +711,7 @@ void pedalUpdateTask( void * pvParameters )
       }
     #endif
     
-    if( ulTaskNotifyTakeIndexed( 0, pdTRUE, 10) == 0 ) {
+    if( ulTaskNotifyTake(pdTRUE, 10) == 0 ) {
         continue;
     }
 
@@ -1141,8 +1132,6 @@ LogOutputService logOutput = LogOutputService();
 int32_t joystickNormalizedToInt32_local = 0;
 void serialCommunicationTask( void * pvParameters )
 {
-  delay( 1000 );
-
   for(;;){
 
     // // measure callback time and continue, when desired period is reached
