@@ -146,7 +146,6 @@ TaskHandle_t PedalTask;
 TaskHandle_t SerialCommTask;
 
 static SemaphoreHandle_t semaphore_updateConfig=NULL;
-  bool configUpdateAvailable = false;                              // semaphore protected data
   DAP_config_st dap_config_st_local;
 
 static SemaphoreHandle_t semaphore_updateJoystick=NULL;
@@ -258,7 +257,7 @@ double a_min = -100000.0;
 double a_max = 100000.0;
 Sim sim = Sim(m, x_min, x_max, v_min, v_max, a_min, a_max);
 Spring spring1 = Spring(50.0, 2.0);
-Damper damper1 = Damper(0.2);
+Damper damper1 = Damper(0.01);
 Friction friction1 = Friction(1.0);
 ForceMap force_map1 = ForceMap({0.0, 100.0}, {-100.0, 100.0});
 CompoundElement endstops = CompoundElement();
@@ -272,6 +271,8 @@ void IRAM_ATTR adc_isr( void ) {
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
 }
+
+void update_config(void);
 
 /**********************************************************************************************/
 /*                                                                                            */
@@ -409,11 +410,6 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
   kalman = new KalmanFilter(var_est);
   kalman_2nd_order = new KalmanFilter_2nd_order(var_est);
 
-  // activate parameter update in first cycle
-  configUpdateAvailable = true;
-  // equalize pedal config for both tasks
-  dap_config_st_local = dap_config_st;
-
 
 
 
@@ -424,6 +420,11 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
   semaphore_resetServoPos = xSemaphoreCreateMutex();
   semaphore_updatePedalStates = xSemaphoreCreateMutex();
   delay(10);
+
+  // activate parameter update in first cycle
+  // update_config();
+  // equalize pedal config for both tasks
+  dap_config_st_local = dap_config_st;
 
 
   if(semaphore_updateJoystick==NULL)
@@ -466,6 +467,7 @@ force_map1.disable();
 endstops.add_element(&force_map2);
 endstops.add_element(&damping_map1);
 sim.add_element(&endstops);
+sim.add_element(&absOscillation);
 sim.add_element(&friction1);
   
 
@@ -697,7 +699,6 @@ int64_t timePrevious_pedalUpdateTask_l = 0;
 //void loop()
 void pedalUpdateTask( void * pvParameters )
 {
-  unsigned long t0 = micros();
   double dt = 1000.0;
 
   for(;;){
@@ -721,51 +722,6 @@ void pedalUpdateTask( void * pvParameters )
     {
       timerPU.BumpStart();
     }
-      
-
-    // if a config update was received over serial, update the variables required for further computation
-    // if (configUpdateAvailable == true)
-    // {
-    //   if(semaphore_updateConfig!=NULL)
-    //   {
-
-    //     bool configWasUpdated_b = false;
-    //     // Take the semaphore and just update the config file, then release the semaphore
-    //     if(xSemaphoreTake(semaphore_updateConfig, (TickType_t)1)==pdTRUE)
-    //     {
-    //       Serial.println("Updating pedal config");
-    //       configUpdateAvailable = false;
-    //       dap_config_st = dap_config_st_local;
-    //       configWasUpdated_b = true;
-    //       xSemaphoreGive(semaphore_updateConfig);
-    //     }
-
-    //     // update the calc params
-    //     if (true == configWasUpdated_b)
-    //     {
-    //       Serial.println("Updating the calc params");
-    //       configWasUpdated_b = false;
-
-    //       if (true == dap_config_st.payLoadHeader_.storeToEeprom)
-    //       {
-    //         dap_config_st.payLoadHeader_.storeToEeprom = false; // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
-    //         uint16_t crc = checksumCalculator((uint8_t*)(&(dap_config_st.payLoadHeader_)), sizeof(dap_config_st.payLoadHeader_) + sizeof(dap_config_st.payLoadPedalConfig_));
-    //         dap_config_st.payloadFooter_.checkSum = crc;
-    //         dap_config_st.storeConfigToEprom(dap_config_st); // store config to EEPROM
-    //       }
-          
-    //       updatePedalCalcParameters(); // update the calc parameters
-    //       moveSlowlyToPosition_b = true;
-    //     }
-
-    //   }
-    //   else
-    //   {
-    //     semaphore_updateConfig = xSemaphoreCreateMutex();
-    //     //Serial.println("semaphore_updateConfig == 0");
-    //   }
-    // }
-
 
 /*
     //#define RECALIBRATE_POSITION
@@ -775,7 +731,7 @@ void pedalUpdateTask( void * pvParameters )
 
     // compute pedal oscillation, when ABS is active
     float absForceOffset_fl32 = 0.0f;
-
+*/
     float absForceOffset = 0;
     float absPosOffset = 0;
     dap_calculationVariables_st.Default_pos();
@@ -792,7 +748,7 @@ void pedalUpdateTask( void * pvParameters )
       _rudder.offset_calculate(&dap_calculationVariables_st);
       //_rudder.force_offset_calculate(&dap_calculationVariables_st);
     #endif
-
+/*
     //update max force with G force effect
     movingAverageFilter.dataPointsCount = dap_config_st.payLoadPedalConfig_.G_window;
     movingAverageFilter_roadimpact.dataPointsCount = dap_config_st.payLoadPedalConfig_.Road_window;
@@ -1107,7 +1063,24 @@ void pedalUpdateTask( void * pvParameters )
 
   
 
+void update_config(void) {
+  Serial.println("Updating pedal config");
+  dap_config_st = dap_config_st_local;
 
+  Serial.println("Updating the calc params");
+
+  dap_config_st.payLoadHeader_.storeToEeprom = false; // TODO: remove this line to re-enable storing to EEPROM
+
+  if (true == dap_config_st.payLoadHeader_.storeToEeprom)
+  {
+    dap_config_st.payLoadHeader_.storeToEeprom = false; // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
+    uint16_t crc = checksumCalculator((uint8_t*)(&(dap_config_st.payLoadHeader_)), sizeof(dap_config_st.payLoadHeader_) + sizeof(dap_config_st.payLoadPedalConfig_));
+    dap_config_st.payloadFooter_.checkSum = crc;
+    dap_config_st.storeConfigToEprom(dap_config_st); // store config to EEPROM
+  }
+  
+  updatePedalCalcParameters(); // update the calc parameters
+}
 
 
 
@@ -1213,8 +1186,7 @@ void serialCommunicationTask( void * pvParameters )
                   // if checks are successfull, overwrite global configuration struct
                   if (structChecker == true)
                   {
-                    Serial.println("Updating pedal config");
-                    configUpdateAvailable = true;          
+                    update_config();          
                   }
                   xSemaphoreGive(semaphore_updateConfig);
                 }

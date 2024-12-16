@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 // define the payload revision
-#define DAP_VERSION_CONFIG 141
+#define DAP_VERSION_CONFIG 142
 
 // define the payload types
 #define DAP_PAYLOAD_TYPE_CONFIG 100
@@ -188,7 +188,7 @@ struct payloadPedalConfig {
   //OTA flag
   //uint8_t OTA_flag;
 
-  uint8_t enableReboot_u8;
+  uint8_t stepLossFunctionFlags_u8;
   //joystick out flag
   //uint8_t Joystick_ESPsync_to_ESP;
   
@@ -280,13 +280,15 @@ struct DAP_calculationVariables_st
   float WS_freq;
   bool Rudder_status;
   uint8_t pedal_type;
-  uint16_t sync_pedal_position;
-  uint16_t current_pedal_position;
+  uint32_t sync_pedal_position;
+  uint32_t current_pedal_position;
   float current_pedal_position_ratio;
   float Sync_pedal_position_ratio;
   bool rudder_brake_status;
   long stepperPosMin_default;
+  long stepperPosMax_default;
   float stepperPosRange_default;
+  uint32_t stepsPerMotorRevolution;
 
   void updateFromConfig(DAP_config_st& config_st);
   void updateEndstops(long newMinEndstop, long newMaxEndstop);
@@ -295,5 +297,6 @@ struct DAP_calculationVariables_st
   void reset_maxforce();
   void StepperPos_setback();
   void Default_pos();
-  void update_stepperpos(long newMinstop);
+  void update_stepperMinpos(long newMinstop);
+  void update_stepperMaxpos(long newMaxstop);
 };

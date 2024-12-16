@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DiyActivePedal_types.h"
+#include "Physics.h"
 
 
 static const long ABS_ACTIVE_TIME_PER_TRIGGER_MILLIS = 100;
@@ -10,11 +11,12 @@ static const long WS_ACTIVE_TIME_PER_TRIGGER_MILLIS = 100;
 static const long CV_ACTIVE_TIME_PER_TRIGGER_MILLIS = 100;
 static int RPM_VALUE_LAST = 0;
 
-class ABSOscillation {
+class ABSOscillation : public SimElement {
 private:
   long _timeLastTriggerMillis;
   long _absTimeMillis;
   long _lastCallTimeMillis = 0;
+  double f_curr;
 
 public:
   ABSOscillation()
@@ -26,6 +28,10 @@ public:
     _timeLastTriggerMillis = millis();
   }
   
+  void update(Sim *sim, double &f_sum) {
+    if (!_enabled) return;
+    f_sum += f_curr;
+  }
   void forceOffset(DAP_calculationVariables_st* calcVars_st, uint8_t absPattern, uint8_t absForceOrTarvelBit, float * absForceOffset, float * absPosOffset) {
 
 
@@ -37,6 +43,7 @@ public:
     {
       _absTimeMillis = 0;
       absForceOffset = 0;
+      f_curr = 0;
     }
     else
     {
@@ -75,6 +82,8 @@ public:
           break;
       }
       
+      f_curr = absForceOffset_local;
+
       switch (absForceOrTarvelBit) {
         case 0:
           *absForceOffset = absForceOffset_local;
