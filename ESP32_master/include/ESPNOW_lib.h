@@ -24,6 +24,7 @@ bool ESPNow_update= false;
 bool ESPNow_no_device=false;
 bool update_basic_state=false;
 bool update_extend_state=false;
+bool pedal_OTA_action_b=false;
 uint16_t Joystick_value[]={0,0,0};
 bool ESPNow_request_config_b[3]={false,false,false};
 bool ESPNow_error_b=false;
@@ -146,7 +147,7 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
     if(data_len==sizeof(myData))
     {
       memcpy(&myData, data, sizeof(myData));
-      pedal_status=myData.pedal_status;
+      
       //#ifdef ACTIVATE_JOYSTICK_OUTPUT
       // normalize controller output
       int32_t joystickNormalizedToInt32 = NormalizeControllerOutputValue(myData.controllerValue_i32, 0, 10000, 100); 
@@ -161,6 +162,7 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
       {
         pedal_brake_value=joystickNormalizedToInt32;
         Joystick_value[1]=myData.controllerValue_i32;
+        pedal_status=myData.pedal_status;//control pedal status only by brake
         //joystick_update=true;
       }
       if(mac_addr[5]==Gas_mac[5])
@@ -248,16 +250,18 @@ void ESPNow_initialize()
     Serial.println("[L]Initializing ESPNow, please wait"); 
     WiFi.macAddress(esp_Mac); 
     Serial.printf("[L]Device Mac: %02X:%02X:%02X:%02X:%02X:%02X\n", esp_Mac[0], esp_Mac[1], esp_Mac[2], esp_Mac[3], esp_Mac[4], esp_Mac[5]);
+    
     //Serial.print("Current MAC Address:  ");  
     //Serial.println(WiFi.macAddress());
     #ifndef ESPNow_Pairing_function
+      Serial.println("Overwriting Mac address.......");
       esp_wifi_set_mac(WIFI_IF_STA, &esp_Host[0]);
       delay(300);
-      Serial.print("Modified MAC Address:  ");  
+      Serial.print("[L]Modified MAC Address:  ");  
       Serial.println(WiFi.macAddress());
     #endif
     ESPNow.init();
-    Serial.println("Wait for ESPNOW");
+    Serial.println("[L]Waiting for ESPNOW");
     delay(3000);
     #ifdef Using_Board_ESP32
     esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_MCS0_LGI);
@@ -294,15 +298,30 @@ void ESPNow_initialize()
       {
         if(i==0)
         {
-          memcpy(&Clu_mac,&_ESP_pairing_reg.Pair_mac[i],6);
+          if(MacCheck(_ESP_pairing_reg.Pair_mac[0],_ESP_pairing_reg.Pair_mac[1])||MacCheck(_ESP_pairing_reg.Pair_mac[0],_ESP_pairing_reg.Pair_mac[2]))
+          {
+            Serial.println("[L]Clutch mac address is same with others, no clutch reading will apply");
+          }
+          else
+          {
+            memcpy(&Clu_mac,&_ESP_pairing_reg.Pair_mac[i],6);
+          }
+          
         }
         if(i==1)
         {
-          memcpy(&Brk_mac,&_ESP_pairing_reg.Pair_mac[i],6);
+          memcpy(&Brk_mac,&_ESP_pairing_reg.Pair_mac[i],6);          
         }
         if(i==2)
         {
-          memcpy(&Gas_mac,&_ESP_pairing_reg.Pair_mac[i],6);
+          if(MacCheck(_ESP_pairing_reg.Pair_mac[1],_ESP_pairing_reg.Pair_mac[2]))
+          {
+            Serial.println("[L]Throttle mac address is same with Brake, no Throttle reading will apply");
+          }
+          else
+          {
+            memcpy(&Gas_mac,&_ESP_pairing_reg.Pair_mac[i],6);
+          }          
         }        
         if(i==3)
         {
@@ -312,7 +331,7 @@ void ESPNow_initialize()
     }
     #endif
     
-    Serial.printf("BRK Mac: %02X:%02X:%02X:%02X:%02X:%02X\n", Brk_mac[0], Brk_mac[1], Brk_mac[2], Brk_mac[3], Brk_mac[4], Brk_mac[5]);
+    Serial.printf("[L]BRK Mac: %02X:%02X:%02X:%02X:%02X:%02X\n", Brk_mac[0], Brk_mac[1], Brk_mac[2], Brk_mac[3], Brk_mac[4], Brk_mac[5]);
     if(ESPNow.add_peer(Brk_mac)== ESP_OK)
     {
       ESPNOW_status=true;

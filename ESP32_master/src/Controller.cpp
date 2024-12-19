@@ -9,18 +9,18 @@
   //#include <Joystick_ESP32S2.h>
   #include <Joystick_ESP32S2.h>
   Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD,
-                   0, 0,                 // Button Count, Hat Switch Count
+                   1, 0,                 // Button Count, Hat Switch Count
                    true, true, true,  // X and Y, but no Z Axis
                    true, true, true,  // No Rx, Ry, or Rz
-                   false, false,         // No rudder or throttle
+                   true, true,         // No rudder or throttle
                    false, false, false);  // No accelerator, brake, or steering
   
   void SetupController() {
-    	USB.PID(0x8213);
-      USB.VID(0x3035);
-      USB.productName("DIY_FFB_PEDAL_JOYSTICK");
-      USB.manufacturerName("OPENSOURCE");
-      USB.begin();
+    	// USB.PID(0x8213);
+      // USB.VID(0x3035);
+      // USB.productName("DIY_FFB_PEDAL_JOYSTICK");
+      // USB.manufacturerName("OPENSOURCE");
+      // USB.begin();
     Joystick.setRxAxisRange(JOYSTICK_MIN_VALUE, JOYSTICK_MAX_VALUE);
     Joystick.setRyAxisRange(JOYSTICK_MIN_VALUE, JOYSTICK_MAX_VALUE);
     Joystick.setRzAxisRange(JOYSTICK_MIN_VALUE, JOYSTICK_MAX_VALUE);

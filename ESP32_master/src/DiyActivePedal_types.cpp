@@ -1,5 +1,6 @@
 #include "DiyActivePedal_types.h"
 #include "Arduino.h"
+#include "LogOutput.h"
 
 #include "PedalGeometry.h"
 //#include "StepperWithLimits.h"
@@ -99,7 +100,7 @@ void DAP_config_st::initialiseDefaults() {
   payLoadPedalConfig_.invertMotorDirection_u8 = 0;
   payLoadPedalConfig_.pedal_type=4;
   //payLoadPedalConfig_.OTA_flag=0;
-  payLoadPedalConfig_.enableReboot_u8=1;
+  payLoadPedalConfig_.stepLossFunctionFlags_u8=0b11;
   //payLoadPedalConfig_.Joystick_ESPsync_to_ESP=0;
 }
 
@@ -111,7 +112,7 @@ void DAP_config_st::storeConfigToEprom(DAP_config_st& config_st)
 
   EEPROM.put(EEPROM_OFFSET, config_st); 
   EEPROM.commit();
-  Serial.println("Successfully stored config in EPROM");
+  LogOutput::printf("Successfully stored config in EPROM");
 }
 
 void DAP_config_st::loadConfigFromEprom(DAP_config_st& config_st)

@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 // define the payload revision
-#define DAP_VERSION_CONFIG 141
+#define DAP_VERSION_CONFIG 142
 
 // define the payload types
 #define DAP_PAYLOAD_TYPE_CONFIG 100
@@ -67,7 +67,7 @@ struct payloadPedalState_Extended {
 struct payloadBridgeState {
   uint8_t Pedal_RSSI;
   uint8_t Pedal_availability[3];
-  uint8_t Bridge_action;//0=none, 1=enable pairing
+  uint8_t Bridge_action;//0=none, 1=enable pairing 2=Restart 3=download mode 
 };
 
 struct payloadPedalConfig {
@@ -185,7 +185,7 @@ struct payloadPedalConfig {
   //OTA flag
   //uint8_t OTA_flag;
 
-  uint8_t enableReboot_u8;
+  uint8_t stepLossFunctionFlags_u8;
   //joystick out flag
   //uint8_t Joystick_ESPsync_to_ESP;
 };

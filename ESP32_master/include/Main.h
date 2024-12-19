@@ -1,5 +1,4 @@
 #pragma once
-
 //#include <ADS1256.h>
 
 /********************************************************************/
@@ -101,12 +100,62 @@
   //#define BLUETOOTH_GAMEPAD
   //#define USB_JOYSTICK
   #define SERIAL_COOMUNICATION_TASK_DELAY_IN_MS 1
-  #define ESPNow_Pairing_function
+  //#define ESPNow_Pairing_function
   #define deviceID 98
   #define Pairing_GPIO 0
 #endif
 
+// V3 version of dev PCB for ESP32 S3
+// flash instructions, see https://hutscape.com/tutorials/hello-arduino-esp32s3
+// 1. ESP32S3 Dev Module
+// 2. USB CDC On Boot Enabled
+#if PCB_VERSION == 5
+  // ADC defines
+  #define PIN_DRDY 15//19// 19 --> DRDY
+  #define PIN_RST  6 // X --> X
+  #define PIN_SCK 16//16 // 16 -->SCLK
+  #define PIN_MISO 18 // 18 --> DOUT
+  #define PIN_MOSI 17 // 17 --> DIN
+  #define PIN_CS 7//21 // 21 --> CS
 
+  // stepper pins
+  #define dirPinStepper    37//22
+  #define stepPinStepper   38//23
+
+  //analog output pin
+  //#define D_O 25   
+  //MCP4725 SDA SCL
+  #define MCP_SDA 4
+  #define MCP_SCL 5
+  
+  // endstop pins
+  #define minPin 12
+  #define maxPin 13
+
+  // level shifter is present on this PCB design
+  #define SENSORLESS_HOMING true
+  #define ISV57_TXPIN 10//27 //17
+  #define ISV57_RXPIN 9//26 // 16
+  #define ESPNOW_Enable
+  #define Using_Board_ESP32S3
+  //#define Using_MCP4728
+  //#define Using_analog_output_ESP32_S3
+
+  //#define BLUETOOTH_GAMEPAD
+  #define USB_JOYSTICK
+  #define USING_LED
+  #define LED_ENABLE_WAVESHARE
+  #define LED_GPIO 38
+  #define Pairing_GPIO 13
+  #define SERIAL_COOMUNICATION_TASK_DELAY_IN_MS 5
+  //#define ESPNow_Pairing_function
+  #define deviceID 99
+  #define Fanatec_comunication
+  #define Fanatec_serial_RX 18
+  #define Fanatec_serial_TX 17
+  #define Fanatec_plug 16
+  #define OTA_Update
+#endif
 
 
 
@@ -148,12 +197,14 @@
 
   //#define BLUETOOTH_GAMEPAD
   #define USB_JOYSTICK
+  #define USING_LED
   #define LED_ENABLE_WAVESHARE
   #define LED_GPIO 38
-  #define Pairing_GPIO 0
+  #define Pairing_GPIO 12
   #define SERIAL_COOMUNICATION_TASK_DELAY_IN_MS 5
-  #define ESPNow_Pairing_function
+  //#define ESPNow_Pairing_function
   #define deviceID 99
+  #define OTA_Update
 #endif
 
 #if PCB_VERSION == 7
@@ -190,11 +241,13 @@
 
   //#define BLUETOOTH_GAMEPAD
   #define USB_JOYSTICK
-  #define LED_ENABLE_WAVESHARE
-  #define LED_GPIO 12
-  #define Pairing_GPIO 34
+  #define USING_LED
+  #define LED_ENABLE_DONGLE
+  #define LED_GPIO 39
+  #define Pairing_GPIO 0
   #define SERIAL_COOMUNICATION_TASK_DELAY_IN_MS 5
-  #define ESPNow_Pairing_function
+  //#define ESPNow_Pairing_function
   #define deviceID 99
+  #define OTA_Update
 #endif
 
