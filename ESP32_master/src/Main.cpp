@@ -360,28 +360,25 @@ void setup()
       error = MCP4728_I2C.endTransmission();
       if (error == 0)
       {
-        Serial.print("I2C device found at address");
-        Serial.print(i2c_address[index_address]);
-        Serial.println("  !");
+        LogOutput::printf("I2C device found at address %i !\n", i2c_address[index_address]);
         found_address=index_address;
         break;
         
       }
       else
       {
-        Serial.print("try address");
-        Serial.println(i2c_address[index_address]);
+        LogOutput::printf("try address %i", i2c_address[index_address]);
       }
     }
     
     if(mcp.begin(i2c_address[found_address], &MCP4728_I2C)==false)
     {
-      Serial.println("Couldn't find MCP4728, will not have analog output");
+      LogOutput::printf("Couldn't find MCP4728, will not have analog output\n");
       MCP_status=false;
     }
     else
     {
-      Serial.println("MCP4728 founded");
+      LogOutput::printf("MCP4728 found\n");
       MCP_status=true;
       //MCP.begin();
     }
@@ -433,9 +430,9 @@ void setup()
     // Set connection callback
     fanatec.onConnected([](bool connected) {        
       if (connected) {
-        Serial.println("[L] FANATEC Connected to Wheelbase.");
+        LogOutput::printf("[L] FANATEC Connected to Wheelbase.\n");
       } else {
-        Serial.println("[L] FANATEC Disconnected from Wheelbase.");
+        LogOutput::printf("[L] FANATEC Disconnected from Wheelbase.\n");
       }
     });
     delay(2000);
@@ -507,7 +504,7 @@ void ESPNOW_SyncTask( void * pvParameters )
     #ifdef ESPNow_Pairing_function
       if(digitalRead(Pairing_GPIO)==LOW||software_pairing_action_b)
       {
-        Serial.println("[L]Bridge Pairing.....");
+        LogOutput::printf("[L]Bridge Pairing.....\n");
         delay(1000);
         Pairing_state_start=millis();
         Pairing_state_last_sending=millis();
@@ -541,7 +538,7 @@ void ESPNOW_SyncTask( void * pvParameters )
         //timeout check
         if(now-Pairing_state_start>Pairing_timeout)
         {
-          Serial.println("[L]Bridge Pairing timeout!");
+          LogOutput::printf("[L]Bridge Pairing timeout!\n");
           ESPNow_pairing_action_b=false;
           LED_Status=0;
           if(UpdatePairingToEeprom)
@@ -557,16 +554,11 @@ void ESPNOW_SyncTask( void * pvParameters )
             {
               if(ESP_pairing_reg_local.Pair_status[i]==1)
               {                
-                Serial.print("[L]#");
-                Serial.print(i);
-                Serial.print("Pair: ");
-                Serial.print(ESP_pairing_reg_local.Pair_status[i]);
-                Serial.printf(" Mac: %02X:%02X:%02X:%02X:%02X:%02X", ESP_pairing_reg_local.Pair_mac[i][0], ESP_pairing_reg_local.Pair_mac[i][1], ESP_pairing_reg_local.Pair_mac[i][2], ESP_pairing_reg_local.Pair_mac[i][3], ESP_pairing_reg_local.Pair_mac[i][4], ESP_pairing_reg_local.Pair_mac[i][5]);
-                Serial.println("");
+                LogOutput::printf("[L]#%iPair: %i Mac: %02X:%02X:%02X:%02X:%02X:%02X\n", i, ESP_pairing_reg_local.Pair_status[i], ESP_pairing_reg_local.Pair_mac[i][0], ESP_pairing_reg_local.Pair_mac[i][1], ESP_pairing_reg_local.Pair_mac[i][2], ESP_pairing_reg_local.Pair_mac[i][3], ESP_pairing_reg_local.Pair_mac[i][4], ESP_pairing_reg_local.Pair_mac[i][5]);
               }
-              Serial.println("");
+              LogOutput::printf("\n");
             }
-            Serial.println("");
+            LogOutput::printf("\n");
             //adding peer
             /*
             for(int i=0; i<4;i++)
@@ -587,7 +579,7 @@ void ESPNOW_SyncTask( void * pvParameters )
                   memcpy(&Brk_mac,&_ESP_pairing_reg.Pair_mac[i],6);
                   delay(300);
                   ESPNow.add_peer(Brk_mac);
-                  //Serial.printf("[L]Mac: %02X:%02X:%02X:%02X:%02X:%02X\n", Brk_mac[0], Brk_mac[1], Brk_mac[2], Brk_mac[3], Brk_mac[4], Brk_mac[5]);
+                  //LogOutput::printf("[L]Mac: %02X:%02X:%02X:%02X:%02X:%02X\n", Brk_mac[0], Brk_mac[1], Brk_mac[2], Brk_mac[3], Brk_mac[4], Brk_mac[5]);
 
                 }
                 if(i==2)
@@ -619,7 +611,7 @@ void ESPNOW_SyncTask( void * pvParameters )
         if(dap_bridge_state_st.payloadBridgeState_.Pedal_availability[0]==1)
         {
           ESPNow.send_message(Clu_mac,(uint8_t *) &dap_config_st,sizeof(dap_config_st));
-          Serial.println("[L]Clutch config sent");
+          LogOutput::printf("[L]Clutch config sent\n");
           configUpdateAvailable=false;
         }
       }
@@ -628,7 +620,7 @@ void ESPNOW_SyncTask( void * pvParameters )
         if(dap_bridge_state_st.payloadBridgeState_.Pedal_availability[1]==1)
         {
           ESPNow.send_message(Brk_mac,(uint8_t *) &dap_config_st,sizeof(dap_config_st));
-          Serial.println("[L]BRK config sent");
+          LogOutput::printf("[L]BRK config sent\n");
           configUpdateAvailable=false;
         }
 
@@ -638,7 +630,7 @@ void ESPNOW_SyncTask( void * pvParameters )
         if(dap_bridge_state_st.payloadBridgeState_.Pedal_availability[2]==1)
         {
           ESPNow.send_message(Gas_mac,(uint8_t *) &dap_config_st,sizeof(dap_config_st));
-          Serial.println("[L]Throttle config sent");
+          LogOutput::printf("[L]Throttle config sent\n");
           configUpdateAvailable=false;
         }
 
@@ -653,22 +645,22 @@ void ESPNOW_SyncTask( void * pvParameters )
       if(dap_actions_st.payLoadHeader_.PedalTag==0 && dap_bridge_state_st.payloadBridgeState_.Pedal_availability[0]==1)
       {
         ESPNow.send_message(Clu_mac,(uint8_t *) &dap_actions_st,sizeof(dap_actions_st));
-        //Serial.println("BRK sent");
+        //LogOutput::printf("BRK sent\n");
       }
       if(dap_actions_st.payLoadHeader_.PedalTag==1 && dap_bridge_state_st.payloadBridgeState_.Pedal_availability[1]==1)
       {
         ESPNow.send_message(Brk_mac,(uint8_t *) &dap_actions_st,sizeof(dap_actions_st));
-        //Serial.println("BRK sent");
+        //LogOutput::printf("BRK sent\n");
       }
                   
       if(dap_actions_st.payLoadHeader_.PedalTag==2 && dap_bridge_state_st.payloadBridgeState_.Pedal_availability[2]==1)
       {
         ESPNow.send_message(Gas_mac,(uint8_t *) &dap_actions_st,sizeof(dap_actions_st));
-        //Serial.println("GAS sent");
+        //LogOutput::printf("GAS sent\n");
       }
       
       //ESPNow.send_message(broadcast_mac,(uint8_t *) &dap_actions_st,sizeof(dap_actions_st));
-      //Serial.println("Broadcast sent");
+      //LogOutput::printf("Broadcast sent\n");
       dap_action_update=false;
     }
     //forward the basic wifi info for pedals
@@ -678,15 +670,15 @@ void ESPNOW_SyncTask( void * pvParameters )
       {
         case 0:
           ESPNow.send_message(Clu_mac,(uint8_t *) &_basic_wifi_info,sizeof(Basic_WIfi_info));
-          Serial.println("[L]Forward to Clutch");
+          LogOutput::printf("[L]Forward to Clutch\n");
         break;
         case 1:
           ESPNow.send_message(Brk_mac,(uint8_t *) &_basic_wifi_info,sizeof(Basic_WIfi_info));
-          Serial.println("[L]Forward to Brake");
+          LogOutput::printf("[L]Forward to Brake\n");
         break;
         case 2:
           ESPNow.send_message(Gas_mac,(uint8_t *) &_basic_wifi_info,sizeof(Basic_WIfi_info));
-          Serial.println("[L]Forward to Throttle");
+          LogOutput::printf("[L]Forward to Throttle\n");
         break;
       }
       pedal_OTA_action_b=false;
@@ -1234,7 +1226,7 @@ void OTATask( void * pvParameters )
         if(message_out_b)
         {
           message_out_b=false;
-          Serial1.println("[L]OTA enable flag on");
+          LogOutput::printf("[L]OTA enable flag on\n");
         }
         if(OTA_status)
         {
@@ -1243,8 +1235,8 @@ void OTATask( void * pvParameters )
         }
         else
         {
-          Serial.println("[L]de-initialize espnow");
-          Serial.println("[L]wait...");
+          LogOutput::printf("[L]de-initialize espnow\n");
+          LogOutput::printf("[L]wait...\n");
           esp_err_t result= esp_now_deinit();
           ESPNow_initial_status=false;
           ESPNOW_status=false;
@@ -1265,19 +1257,19 @@ void OTATask( void * pvParameters )
             if(_basic_wifi_info.wifi_action==1)
             {
               Version_tag="0.0.0";
-              Serial.println("Force update");
+              LogOutput::printf("Force update\n");
             }
             switch (_basic_wifi_info.mode_select)
             {
               case 1:
-                Serial.printf("[L]Flashing to latest Main, checking %s to see if an update is available...\n", JSON_URL_main);
+                LogOutput::printf("[L]Flashing to latest Main, checking %s to see if an update is available...\n", JSON_URL_main);
                 ret = ota.CheckForOTAUpdate(JSON_URL_main, Version_tag);
-                Serial.printf("[L]CheckForOTAUpdate returned %d (%s)\n\n", ret, errtext(ret));
+                LogOutput::printf("[L]CheckForOTAUpdate returned %d (%s)\n\n", ret, errtext(ret));
                 break;
               case 2:
-                Serial.printf("[L]Flashing to latest Dev, checking %s to see if an update is available...\n", JSON_URL_dev);
+                LogOutput::printf("[L]Flashing to latest Dev, checking %s to see if an update is available...\n", JSON_URL_dev);
                 ret = ota.CheckForOTAUpdate(JSON_URL_dev, Version_tag);
-                Serial.printf("[L]CheckForOTAUpdate returned %d (%s)\n\n", ret, errtext(ret));
+                LogOutput::printf("[L]CheckForOTAUpdate returned %d (%s)\n\n", ret, errtext(ret));
                 break;
               default:
               break;
@@ -1296,8 +1288,7 @@ void OTATask( void * pvParameters )
       if( otaTask_stackSizeIdx_u32 == 1000)
       {
         UBaseType_t stackHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-        Serial.print("StackSize (OTA): ");
-        Serial.println(stackHighWaterMark);
+        LogOutput::printf("StackSize (OTA): %i\n", stackHighWaterMark);
         otaTask_stackSizeIdx_u32 = 0;
       }
       otaTask_stackSizeIdx_u32++;

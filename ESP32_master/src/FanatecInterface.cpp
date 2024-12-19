@@ -1,6 +1,7 @@
 // FanatecInterface.cpp
 
 #include "FanatecInterface.h"
+#include "LogOutput.h"
 
 // Constructor
 FanatecInterface::FanatecInterface(int rxPin, int txPin, int plugPin)
@@ -157,31 +158,19 @@ void FanatecInterface::performCommunicationSteps() {
         if (rxIndex == steps[i].rxLength && memcmp(rxBuffer, steps[i].rxData, rxIndex) == 0) {
             // Expected data received, send response
             _serial->write(steps[i].txData, steps[i].txLength);
-            Serial.print("[L] ");
-            Serial.print("FANATEC Send Data step ");
-            Serial.print(i);
-            Serial.print(": ");
+            LogOutput::printf("[L] FANATEC Send Data step %i: ", i);
             for (size_t j = 0; j < rxIndex; j++) {
-                Serial.print("0x");
-                Serial.print(rxBuffer[j], HEX);
-                Serial.print(" ");
+                LogOutput::printf("0x%02X ", rxBuffer[j]);
             }
-            Serial.println();
+            LogOutput::printf("\n");
             i++; // Move to next step
         } else {
             if (rxIndex > 0) {
-                Serial.print("[L] ");
-                Serial.print("FANATEC Received data in step ");
-                Serial.print(i);
-                Serial.print(": ");
+                LogOutput::printf("[L] FANATEC Received data in step %i: ", i);
                 for (size_t j = 0; j < rxIndex; j++) {
-                    Serial.print("0x");
-                    Serial.print(rxBuffer[j], HEX);
-                    Serial.print(" ");
+                    LogOutput::printf("0x%02X ", rxBuffer[j]);
                 }
-                Serial.print(" rxIndex ");
-                Serial.print(rxIndex);
-                Serial.println(" failed. Restarting from step 0.");
+                LogOutput::printf("rxIndex %i failed. Restarting from step 0.\n", rxIndex);
             }
             // Failure, restart from step 0
             i = 0;

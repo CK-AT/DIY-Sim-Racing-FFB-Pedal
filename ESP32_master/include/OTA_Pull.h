@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <ESP32OTAPull.h>
 #include <esp_wifi.h>
+#include "LogOutput.h"
 
 #define JSON_URL_dev   "https://raw.githubusercontent.com/gilphilbert/pedal-flasher/main/json/dev/Version_Bridge.json"
 #define JSON_URL_main "https://raw.githubusercontent.com/gilphilbert/pedal-flasher/main/json/main/Version_Bridge.json"
@@ -44,10 +45,7 @@ char* PASS;
 
 void wifi_initialized(char* Wifi_SSID, char* Wifi_PASS)
 {
-    Serial.print("[L]SSID: ");
-    Serial.print(Wifi_SSID);
-    Serial.print(" PASS: ");
-    Serial.println(Wifi_PASS);
+    LogOutput::printf("[L]SSID: %s PASS: %s\n", Wifi_SSID, Wifi_PASS);
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     delay(100);
@@ -55,19 +53,15 @@ void wifi_initialized(char* Wifi_SSID, char* Wifi_PASS)
     WiFi.begin(Wifi_SSID, Wifi_PASS);
 
     // Display connection progress
-    Serial.print("[L]Connecting to WiFi:");
-    Serial.print(WiFi.SSID());
-	Serial.print(" ");
+    LogOutput::printf("[L]Connecting to WiFi: %s ", WiFi.SSID());
     // Wait until WiFi is connected
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
-        Serial.print(".");
+        LogOutput::printf(".");
   }
   
   // Print confirmation message when WiFi is connected
-  Serial.println("WiFi connected");
-  Serial.print("[L]WiFi RSSI: ");
-  Serial.println(WiFi.RSSI());
+  LogOutput::printf("WiFi connected\n[L]WiFi RSSI: WiFi.RSSI()\n");
 
 }
 void OTAcallback(int offset, int totallength);
@@ -127,12 +121,5 @@ void DisplayInfo()
 
 void OTAcallback(int offset, int totallength)
 {
-	Serial.print("[L]Updating: ");
-    Serial.print(offset);
-    Serial.print(" of ");
-    Serial.print(totallength);
-    Serial.print("(");
-    Serial.print(100 * offset / totallength);
-    Serial.println("%)");
-    
+	LogOutput::printf("[L]Updating: %i of %i (%i %%)\n", offset, totallength, 100 * offset / totallength);
 }
