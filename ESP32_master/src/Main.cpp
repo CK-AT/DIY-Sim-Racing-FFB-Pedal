@@ -91,7 +91,6 @@ DAP_bridge_state_st dap_bridge_state_lcl;//
 #include "CycleTimer.h"
 
 
-#include "RTDebugOutput.h"
 #include "Wire.h"
 #include "SPI.h"
 #include <EEPROM.h>
@@ -176,6 +175,7 @@ bool resetPedalPosition = false;
 
 #include "Controller.h"
 #include "LogOutput.h"
+#include "RTDebugOutput.h"
 
 
 /**********************************************************************************************/
@@ -215,7 +215,8 @@ bool dap_action_update= false;
 #include "MovingAverageFilter.h"
 MovingAverageFilter rssi_filter(30);
 int32_t joystickNormalizedToInt32_local = 0;
-unsigned long pedal_last_update[3]={1,1,1};
+unsigned long pedal_last_update_basic[3]={1,1,1};
+unsigned long pedal_last_update_ext[3]={1,1,1};
 uint8_t pedal_avaliable[3]={0,0,0};
 uint8_t LED_Status=0; //0=normal 1= pairing
 void ESPNOW_SyncTask( void * pvParameters);
@@ -225,6 +226,7 @@ void Serial_Task( void * pvParameters);
 void LED_Task_Dongle( void * pvParameters);
 void FanatecUpdate(void * pvParameters);
 LogOutputService logOutput = LogOutputService();
+RTDebugOutputService debugOutput = RTDebugOutputService();
 
 
 #ifdef Fanatec_comunication
@@ -389,7 +391,8 @@ void setup()
   uint8_t pedalIDX;
   for(pedalIDX=0;pedalIDX<3;pedalIDX++)
   {
-    pedal_last_update[pedalIDX]=millis();
+    pedal_last_update_basic[pedalIDX]=millis();
+    pedal_last_update_ext[pedalIDX]=millis();
   }
   #ifdef LED_ENABLE_WAVESHARE
     pixels.begin();
@@ -695,7 +698,7 @@ void Serial_Task( void * pvParameters)
     uint16_t crc;
     uint16_t n = Serial.available();
     unsigned long current_time=millis();
-    if(current_time-bridge_state_last_update>200)
+    if(current_time-bridge_state_last_update>1000)
     {
       basic_rssi_update=true;
       bridge_state_last_update=millis();
@@ -918,24 +921,27 @@ void Serial_Task( void * pvParameters)
 
     if(update_basic_state)
     {
-      update_basic_state=false;
-      Serial.write((char*)&dap_state_basic_st, sizeof(DAP_state_basic_st));
-      Serial.print("\r\n");
-      if(dap_bridge_state_st.payloadBridgeState_.Pedal_availability[dap_state_basic_st.payLoadHeader_.PedalTag]==0)
-      {
-        Serial.print("[L]Found Pedal:");
-        Serial.println(dap_state_basic_st.payLoadHeader_.PedalTag);
+      if ((millis() - pedal_last_update_basic[dap_state_basic_st.payLoadHeader_.PedalTag]) > 500) {
+        update_basic_state=false;
+        Serial.write((char*)&dap_state_basic_st, sizeof(DAP_state_basic_st));
+        Serial.print("\r\n");
+        if(dap_bridge_state_st.payloadBridgeState_.Pedal_availability[dap_state_basic_st.payLoadHeader_.PedalTag]==0)
+        {
+          Serial.print("[L]Found Pedal: ");
+          Serial.println(dap_state_basic_st.payLoadHeader_.PedalTag);
+        }
+        dap_bridge_state_st.payloadBridgeState_.Pedal_availability[dap_state_basic_st.payLoadHeader_.PedalTag]=1;
+        pedal_last_update_basic[dap_state_basic_st.payLoadHeader_.PedalTag]=millis();
       }
-      dap_bridge_state_st.payloadBridgeState_.Pedal_availability[dap_state_basic_st.payLoadHeader_.PedalTag]=1;
-      pedal_last_update[dap_state_basic_st.payLoadHeader_.PedalTag]=millis();
-
     }
     if(update_extend_state)
     {
-      update_extend_state=false;
-      Serial.write((char*)&dap_state_extended_st, sizeof(dap_state_extended_st));
-      Serial.print("\r\n");
-
+      if ((millis() - pedal_last_update_ext[dap_state_extended_st.payLoadHeader_.PedalTag]) > 500) {
+        update_extend_state=false;
+        Serial.write((char*)&dap_state_extended_st, sizeof(dap_state_extended_st));
+        Serial.print("\r\n");
+        pedal_last_update_ext[dap_state_extended_st.payLoadHeader_.PedalTag]=millis();
+      }
     }
     int pedal_config_IDX=0;
     for(pedal_config_IDX=0;pedal_config_IDX<3;pedal_config_IDX++)
@@ -964,7 +970,7 @@ void Serial_Task( void * pvParameters)
         //uint16_t crc = checksumCalculator((uint8_t*)(&(dap_config_st.payLoadHeader_)), sizeof(dap_config_st.payLoadHeader_) + sizeof(dap_config_st.payLoadPedalConfig_));
         crc = checksumCalculator((uint8_t*)(&(dap_config_st_local.payLoadHeader_)), sizeof(dap_config_st_local.payLoadHeader_) + sizeof(dap_config_st_local.payLoadPedalConfig_));
         //dap_config_st_local_ptr->payloadFooter_.checkSum = crc;
-        dap_config_st_local_ptr->payLoadHeader_.PedalTag=dap_config_st_local_ptr->payLoadPedalConfig_.pedal_type;
+        //dap_config_st_local_ptr->payLoadHeader_.PedalTag=dap_config_st_local_ptr->payLoadPedalConfig_.pedal_type;
         Serial.write((char*)dap_config_st_local_ptr, sizeof(DAP_config_st));
         Serial.print("\r\n");
         ESPNow_request_config_b[pedal_config_IDX]=false;
@@ -1022,7 +1028,7 @@ void Serial_Task( void * pvParameters)
       unsigned long current_time=millis();
       if(dap_bridge_state_st.payloadBridgeState_.Pedal_availability[pedalIDX]==1)
       {
-        if(current_time-pedal_last_update[pedalIDX]>3000)
+        if(current_time-pedal_last_update_basic[pedalIDX]>3000)
         {
           Serial.print("[L]Pedal:");
           Serial.print(pedalIDX);
@@ -1032,6 +1038,8 @@ void Serial_Task( void * pvParameters)
       }
 
     }
+
+    delay(2);
     
     #ifdef USB_JOYSTICK
     if(IsControllerReady())
@@ -1110,8 +1118,9 @@ void Serial_Task( void * pvParameters)
     #endif
 
     logOutput.pump(5);
+    debugOutput.pump(5);
 
-    delay(1);
+    delay(2);
   }
 }
 unsigned long last_serial_joy_out =millis();

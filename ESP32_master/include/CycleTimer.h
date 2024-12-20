@@ -7,7 +7,7 @@ static const int MAX_CYCLES = 1000;
 
 class CycleTimer {
 private:
-  RTDebugOutput<float, 1> _rtOutput;
+  RTDebugOutput<1> _rtOutput;
   int64_t _timeFirst;
   unsigned int _cycleCount;
 

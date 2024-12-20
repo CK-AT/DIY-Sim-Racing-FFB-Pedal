@@ -90,7 +90,7 @@ void DAP_config_st::initialiseDefaults() {
 
   payLoadPedalConfig_.debug_flags_0 = 0;
 
-  payLoadPedalConfig_.loadcell_rating = 200;
+  payLoadPedalConfig_.loadcell_rating = 100;
 
   payLoadPedalConfig_.travelAsJoystickOutput_u8 = 0;
 

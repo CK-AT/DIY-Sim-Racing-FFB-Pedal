@@ -407,13 +407,13 @@ static const uint32_t STEPS_PER_MOTOR_REVOLUTION = 6400;
   #define ISV57_RXPIN 13//26 // 16
 
   //#define Using_analog_output_ESP32_S3
-  //#define ESPNOW_Enable
+  #define ESPNOW_Enable
   #define ESPNow_S3
   //#define BLUETOOTH_GAMEPAD
-  #define USB_JOYSTICK
+  //#define USB_JOYSTICK
 
   #define SERIAL_COOMUNICATION_TASK_DELAY_IN_MS 1
-  #define ESPNow_Pairing_function
+  //#define ESPNow_Pairing_function
   #define Pairing_GPIO 0
   // #define PRINT_TASK_FREE_STACKSIZE_IN_WORDS
 #endif

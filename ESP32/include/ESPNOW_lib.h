@@ -2,6 +2,7 @@
 #include <esp_wifi.h>
 #include <Arduino.h>
 #include "ESPNowW.h"
+#include "ota.h"
 //#define ESPNow_debug
 uint8_t esp_master[] = {0x36, 0x33, 0x33, 0x33, 0x33, 0x31};
 //uint8_t esp_master[] = {0xdc, 0xda, 0x0c, 0x22, 0x8f, 0xd8}; // S3
@@ -28,9 +29,9 @@ bool ESPNow_Pairing_status = false;
 bool UpdatePairingToEeprom = false;
 bool ESPNow_pairing_action_b = false;
 bool software_pairing_action_b = false;
-
-
-
+bool hardware_pairing_action_b = false;
+bool OTA_update_action_b=false;
+bool Config_update_b=false;
 struct ESPNow_Send_Struct
 { 
   uint16_t pedal_position;
@@ -40,7 +41,8 @@ struct ESPNow_Send_Struct
 typedef struct struct_message {
   uint64_t cycleCnt_u64;
   int64_t timeSinceBoot_i64;
-	int32_t controllerValue_i32;
+  double force_dbl;
+  double position_dbl;
   int8_t pedal_status; //0=default, 1=rudder, 2=rudder brake
 } struct_message;
 
@@ -55,6 +57,8 @@ struct_message myData;
 ESPNow_Send_Struct _ESPNow_Recv;
 ESPNow_Send_Struct _ESPNow_Send;
 ESP_pairing_reg _ESP_pairing_reg;
+
+void update_config(void);
 
 bool MacCheck(uint8_t* Mac_A, uint8_t*  Mac_B)
 {
@@ -77,12 +81,13 @@ bool MacCheck(uint8_t* Mac_A, uint8_t*  Mac_B)
 }
 
 
-void sendMessageToMaster(int32_t controllerValue)
+bool sendMessageToMaster(double &force, double &position)
 {
 
   myData.cycleCnt_u64++;
   myData.timeSinceBoot_i64 = esp_timer_get_time() / 1000;
-  myData.controllerValue_i32 = controllerValue;
+  myData.force_dbl = force;
+  myData.position_dbl = position;
   if(dap_calculationVariables_st.Rudder_status)
   {
     if(dap_calculationVariables_st.rudder_brake_status)
@@ -99,29 +104,9 @@ void sendMessageToMaster(int32_t controllerValue)
     myData.pedal_status=0;
   }
   esp_now_send(broadcast_mac, (uint8_t *) &myData, sizeof(myData));
-
-  
-  
-  //esp_now_send(esp_master, (uint8_t *) &myData, sizeof(myData));
-  /*
-  if (result != ESP_OK) 
-  {
-    ESPNow_no_device=true;
-    //Serial.println("Failed send data to ESP_Master");
-  }
-  else
-  {
-    ESPNow_no_device=false;
-  }
-  */
-  
-  /*if (result == ESP_OK) {
-    Serial.println("Sent with success");
-  }
-  else {
-    Serial.println("Error sending the data");
-  }*/
+  return true;
 }
+
 void ESPNow_Pairing_callback(const uint8_t *mac_addr, const uint8_t *data, int data_len)
 {
 
@@ -219,7 +204,8 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
               if (structChecker == true)
               {
                 //Serial.println("Updating pedal config");
-                configUpdateAvailable = true;          
+                update_config();
+                Config_update_b=true;       
               }
                 xSemaphoreGive(semaphore_updateConfig);
             }
@@ -260,11 +246,7 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
                 if (structChecker == true)
                 {
 
-                  //1=trigger reset pedal position
-                  if (dap_actions_st.payloadPedalAction_.system_action_u8==1)
-                  {
-                    resetPedalPosition = true;
-                  }
+                  
                   //2= restart pedal
                   if (dap_actions_st.payloadPedalAction_.system_action_u8==2)
                   {
@@ -289,8 +271,15 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
                   {
                     _WSOscillation.trigger();
                   }     
-                  //Road impact
-                  _Road_impact_effect.Road_Impact_value=dap_actions_st.payloadPedalAction_.impact_value_u8;
+                  //Road impact && Rudder G impact
+                  if(dap_calculationVariables_st.Rudder_status==false)
+                  {
+                    _Road_impact_effect.Road_Impact_value=dap_actions_st.payloadPedalAction_.impact_value_u8;
+                  }
+                  else
+                  {
+                    _rudder_g_force.G_value=dap_actions_st.payloadPedalAction_.impact_value_u8;
+                  }
                   // trigger system identification
                   if (dap_actions_st.payloadPedalAction_.startSystemIdentification_u8)
                   {
@@ -364,6 +353,13 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
             
               
       }
+      if(data_len==sizeof(Basic_WIfi_info))
+      {        
+        memcpy(&_basic_wifi_info, data, sizeof(Basic_WIfi_info));
+        OTA_update_action_b=true;
+      }
+      
+
     }
 
     
@@ -379,11 +375,11 @@ void ESPNow_initialize()
 {
 
     WiFi.mode(WIFI_MODE_STA);
-    Serial.println("Initializing ESPNow, please wait"); 
+    LogOutput::printf("Initializing ESPNow, please wait\n"); 
     //Serial.print("Current MAC Address:  ");  
     //Serial.println(WiFi.macAddress());
     WiFi.macAddress(esp_Mac); 
-    Serial.printf("Device Mac: %02X:%02X:%02X:%02X:%02X:%02X\n", esp_Mac[0], esp_Mac[1], esp_Mac[2], esp_Mac[3], esp_Mac[4], esp_Mac[5]);
+    LogOutput::printf("Device Mac: %02X:%02X:%02X:%02X:%02X:%02X\n", esp_Mac[0], esp_Mac[1], esp_Mac[2], esp_Mac[3], esp_Mac[4], esp_Mac[5]);
     #ifndef ESPNow_Pairing_function
       if(dap_config_st.payLoadPedalConfig_.pedal_type==0)
       {
@@ -398,13 +394,12 @@ void ESPNow_initialize()
         esp_wifi_set_mac(WIFI_IF_STA, &Gas_mac[0]);
       }
       delay(300);
-      Serial.print("Modified MAC Address:  ");  
-      Serial.println(WiFi.macAddress());
+      LogOutput::printf("Modified MAC Address: %s\n", WiFi.macAddress().c_str());
     #endif
 
 
     ESPNow.init();
-    Serial.println("Wait for ESPNOW");
+    LogOutput::printf("Wait for ESPNOW\n");
     delay(3000);
     #ifdef ESPNow_S3
       //esp_wifi_config_espnow_rate(WIFI_IF_STA, 	WIFI_PHY_RATE_54M);
@@ -479,22 +474,22 @@ void ESPNow_initialize()
     if(ESPNow.add_peer(esp_master)== ESP_OK)
     {
       ESPNOW_status=true;
-      Serial.println("Sucess to add joystick peer");
+      LogOutput::printf("Sucess to add joystick peer\n");
     }
     if(ESPNow.add_peer(esp_Host)== ESP_OK)
     {
       ESPNOW_status=true;
-      Serial.println("Sucess to add host peer");
+      LogOutput::printf("Sucess to add host peer\n");
     }
     if(ESPNow.add_peer(broadcast_mac)== ESP_OK)
     {
       ESPNOW_status=true;
-      Serial.println("Sucess to add broadcast peer");
+      LogOutput::printf("Sucess to add broadcast peer\n");
     }
     ESPNow.reg_recv_cb(onRecv);
     ESPNow.reg_send_cb(OnSent);
     ESPNow_initial_status=true;
     ESPNOW_status=true;
-    Serial.println("ESPNow Initialized");
+    LogOutput::printf("ESPNow Initialized\n");
   
 }

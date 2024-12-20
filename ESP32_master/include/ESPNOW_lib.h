@@ -73,7 +73,8 @@ typedef struct ESP_pairing_reg
 typedef struct struct_message {
   uint64_t cycleCnt_u64;
   int64_t timeSinceBoot_i64;
-	int32_t controllerValue_i32;
+  double force_dbl;
+  double position_dbl;
   int8_t pedal_status; //0=default, 1=rudder, 2=rudder brake
 } struct_message;
 
@@ -84,12 +85,13 @@ ESPNow_Send_Struct _ESPNow_Recv;
 ESPNow_Send_Struct _ESPNow_Send;
 ESP_pairing_reg _ESP_pairing_reg;
 
-bool sendMessageToMaster(int32_t controllerValue)
+bool sendMessageToMaster(double &force, double &position)
 {
 
   myData.cycleCnt_u64++;
   myData.timeSinceBoot_i64 = esp_timer_get_time() / 1000;
-  myData.controllerValue_i32 = controllerValue;
+  myData.force_dbl = force;
+  myData.position_dbl = position;
   if(dap_calculationVariables_st.Rudder_status)
   {
     if(dap_calculationVariables_st.rudder_brake_status)
@@ -107,8 +109,8 @@ bool sendMessageToMaster(int32_t controllerValue)
   }
   esp_now_send(broadcast_mac, (uint8_t *) &myData, sizeof(myData));
   return true;
-  
 }
+
 void ESPNow_Pairing_callback(const uint8_t *mac_addr, const uint8_t *data, int data_len)
 {
 
@@ -150,25 +152,25 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
       
       //#ifdef ACTIVATE_JOYSTICK_OUTPUT
       // normalize controller output
-      int32_t joystickNormalizedToInt32 = NormalizeControllerOutputValue(myData.controllerValue_i32, 0, 10000, 100); 
+      int32_t joystickNormalizedToInt32 = NormalizeControllerOutputValue(myData.position_dbl, 0.0, 100.0, 100.0);
       //if(esp_now_info->src_addr[5]==Clu_mac[5])
       if(mac_addr[5]==Clu_mac[5])
       {
         pedal_cluth_value=joystickNormalizedToInt32;
-        Joystick_value[0]=myData.controllerValue_i32;
+        Joystick_value[0]=joystickNormalizedToInt32;
         //joystick_update=true;
       }
       if(mac_addr[5]==Brk_mac[5])
       {
         pedal_brake_value=joystickNormalizedToInt32;
-        Joystick_value[1]=myData.controllerValue_i32;
+        Joystick_value[1]=joystickNormalizedToInt32;
         pedal_status=myData.pedal_status;//control pedal status only by brake
         //joystick_update=true;
       }
       if(mac_addr[5]==Gas_mac[5])
       {
         pedal_throttle_value=joystickNormalizedToInt32;
-        Joystick_value[2]=myData.controllerValue_i32;
+        Joystick_value[2]=joystickNormalizedToInt32;
         //joystick_update=true;
       }
       #ifdef ESPNow_debug

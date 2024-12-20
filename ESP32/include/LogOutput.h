@@ -8,6 +8,7 @@ class LogOutput {
   public:
     template <typename ...Params>
     static void printf(const char* fmt, Params&&... params) {
+      if (!_log_queue_data) return;
       char buff[100] = {};
       snprintf(buff, 99, fmt, std::forward<Params>(params)...);
       xQueueSend(_log_queue_data, buff, /*xTicksToWait=*/0);
