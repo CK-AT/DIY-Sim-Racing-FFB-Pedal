@@ -11,6 +11,7 @@
 #define DAP_PAYLOAD_TYPE_STATE_BASIC 120
 #define DAP_PAYLOAD_TYPE_STATE_EXTENDED 130
 #define DAP_PAYLOAD_TYPE_ESPNOW_PAIRING 140
+#define DAP_PAYLOAD_TYPE_MECH_CONFIG 150
 #define DAP_PAYLOAD_TYPE_BRIDGE_STATE 210
 
 struct payloadHeader {
@@ -195,6 +196,31 @@ struct payloadPedalConfig {
 
 };
 
+struct payloadMechConfig {
+  // polynomial coefficients for the conversion factor
+  // from load cell force to pedal force over pedal position
+  double coeffs_force_factor_over_pedal_pos[5];
+
+  // polynomial coefficients for the conversion
+  // from pedal position to sled position
+  double coeffs_sled_pos_over_pedal_pos[5];
+
+  // loadcell rating in kg / 2 --> to get value in kg, muiltiply by 2
+  uint8_t loadcell_rating;
+
+  // invert loadcell sign
+  uint8_t invertLoadcellReading_u8;
+
+  // invert motor direction
+  uint8_t invertMotorDirection_u8;
+
+  // spindle pitch in mm/rev
+  uint8_t spindlePitch_mmPerRev_u8;
+
+  //pedal type, 0= clutch, 1= brake, 2= gas
+  uint8_t pedal_type;
+};
+
 struct payloadESPNowInfo{
   //uint8_t macAddr[6];
   uint8_t _deviceID;
@@ -242,6 +268,19 @@ struct DAP_config_st {
   void initialiseDefaults_Accelerator();
   void loadConfigFromEprom(DAP_config_st& config_st);
   void storeConfigToEprom(DAP_config_st& config_st);
+};
+
+struct DAP_mech_config_st {
+
+  payloadHeader payLoadHeader_;
+  payloadMechConfig payLoadMechConfig_;
+  payloadFooter payloadFooter_; 
+  
+  
+  void initialiseDefaults();
+  void initialiseDefaults_Accelerator();
+  void loadConfigFromEprom(DAP_mech_config_st& config_st);
+  void storeConfigToEprom(DAP_mech_config_st& config_st);
 };
 
 struct DAP_ESPPairing_st {

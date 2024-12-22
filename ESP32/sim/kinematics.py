@@ -17,10 +17,10 @@ def fit_polynomial(x, y, max_order, max_err_ratio=0.01):
 
 l_pivot_foot = 180.0        # pedal length between pivot and foot contact point (mm)
 l_pivot_link = 100.0        # pedal length between pivot and link (mm)
-l_link = 149.0              # length of link between pedal and sled connection point (mm)
-l_pivot_sled_y = 40.0       # vertical distance between pivot and sled connection point (mm)
-l_pivot_sled_x_min = 104.0  # horizontal distance between pivot and sled connection point @ minimum stroke (mm)
-l_sled_stroke = 100.0       # sled stroke (mm)
+l_link = 153.0              # length of link between pedal and sled connection point (mm)
+l_pivot_sled_y = 32.0       # vertical distance between pivot and sled connection point (mm)
+l_pivot_sled_x_min = 82.0  # horizontal distance between pivot and sled connection point @ minimum stroke (mm)
+l_sled_stroke = 114.0       # sled stroke (mm)
 
 samples_per_mm = 10.0
 max_order = 4
@@ -51,13 +51,13 @@ for i in range(int(l_sled_stroke * samples_per_mm) + 1):
     data['r_force_link_foot'].append(r_force_link_foot)
     data['l_foot'].append(l_foot)
 
-print(f'fitting r_force_link_foot over l_sled...')
-coeff_l_sled_to_r_force = fit_polynomial(data['l_sled'], data['r_force_link_foot'], max_order, max_err)
-print(f'coefficients: {str(coeff_l_sled_to_r_force).replace('.',',')}')
+print(f'fitting r_force_link_foot over l_foot...')
+coeff_l_sled_to_r_force = fit_polynomial(data['l_foot'], data['r_force_link_foot'], max_order, max_err)
+print(f'coefficients: {str(coeff_l_sled_to_r_force)}')
 
 print()
 
 print(f'fitting l_sled over l_foot...')
 coeff_l_foot_to_l_sled = fit_polynomial(data['l_foot'], data['l_sled'], max_order, max_err)
-print(f'coefficients: {str(coeff_l_foot_to_l_sled).replace('.',',')}')
+print(f'coefficients: {str(coeff_l_foot_to_l_sled)}')
 

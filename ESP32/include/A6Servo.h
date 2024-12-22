@@ -9,7 +9,7 @@
 class A6Servo : public Servo {
     public:
         A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareSerial &serial, unsigned long baud, uint32_t config, uint8_t pin_rx, uint8_t pin_tx, uint8_t pin_tx_ena, bool serial_inverted = false);
-        bool setup(uint32_t steps_per_mm, uint32_t mm_per_rev);
+        bool setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome=true);
         bool home(void);
         bool enable(void);
         bool disable(void);

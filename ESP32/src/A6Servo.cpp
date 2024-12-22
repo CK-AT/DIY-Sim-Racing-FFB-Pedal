@@ -25,7 +25,7 @@ A6Servo::A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareS
     _stepper_engine->setMaxSpeed(MAXIMUM_SPEED);
 }
 
-bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev) {
+bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome) {
     _steps_per_mm = steps_per_mm;
     _mm_per_rev = mm_per_rev;
     if (!disable()) {
@@ -47,6 +47,9 @@ bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev) {
         _homing_state = HomingState::Homed;
     } else {
         LogOutput::printf("Negative endstop @ %i, not homed.\n", min_pos);
+        if (autohome) {
+            _homing_state = HomingState::Pending;
+        }
     }
     xTaskCreatePinnedToCore(this->task_func, "A6ServoTask", 5000, this, 1, NULL, 0);
     return true;

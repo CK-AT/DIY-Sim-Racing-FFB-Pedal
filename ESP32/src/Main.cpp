@@ -99,6 +99,7 @@ Rudder_G_Force _rudder_g_force;
 
 #include "DiyActivePedal_types.h"
 DAP_config_st dap_config_st;
+DAP_mech_config_st dap_mech_config_st;
 DAP_calculationVariables_st dap_calculationVariables_st;
 DAP_state_basic_st dap_state_basic_st;
 DAP_state_extended_st dap_state_extended_st;
@@ -146,6 +147,7 @@ TaskHandle_t SerialCommTask;
 
 static SemaphoreHandle_t semaphore_updateConfig=NULL;
   DAP_config_st dap_config_st_local;
+  DAP_mech_config_st dap_mech_config_st_local;
 
 static SemaphoreHandle_t semaphore_updateJoystick=NULL;
   int32_t joystickNormalizedToInt32 = 0;                           // semaphore protected data
@@ -313,71 +315,81 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
 
 // initialize configuration and update local variables
   dap_config_st.initialiseDefaults();
+  dap_mech_config_st.initialiseDefaults();
 
   // Load config from EEPROM, if valid, overwrite initial config
   EEPROM.begin(2048);
+  dap_mech_config_st.loadConfigFromEprom(dap_mech_config_st_local);
   dap_config_st.loadConfigFromEprom(dap_config_st_local);
 
 
   // check validity of data from EEPROM  
   bool structChecker = true;
   uint16_t crc;
-  if ( dap_config_st_local.payLoadHeader_.payloadType != DAP_PAYLOAD_TYPE_CONFIG ){ 
+
+  // mechanical config
+  if ( dap_mech_config_st_local.payLoadHeader_.payloadType != DAP_PAYLOAD_TYPE_MECH_CONFIG ) { 
     structChecker = false;
-    /*Serial.print("Payload type expected: ");
-    Serial.print(DAP_PAYLOAD_TYPE_CONFIG);
-    Serial.print(",   Payload type received: ");
-    Serial.println(dap_config_st_local.payLoadHeader_.payloadType);*/
   }
-  if ( dap_config_st_local.payLoadHeader_.version != DAP_VERSION_CONFIG ){ 
+  if ( dap_mech_config_st_local.payLoadHeader_.version != DAP_VERSION_CONFIG ) { 
     structChecker = false;
-    /*Serial.print("Config version expected: ");
-    Serial.print(DAP_VERSION_CONFIG);
-    Serial.print(",   Config version received: ");
-    Serial.println(dap_config_st_local.payLoadHeader_.version);*/
   }
-  // checksum validation
-  crc = checksumCalculator((uint8_t*)(&(dap_config_st_local.payLoadHeader_)), sizeof(dap_config_st_local.payLoadHeader_) + sizeof(dap_config_st_local.payLoadPedalConfig_));
-  if (crc != dap_config_st_local.payloadFooter_.checkSum){ 
+  crc = checksumCalculator((uint8_t*)(&(dap_mech_config_st_local.payLoadHeader_)), sizeof(dap_mech_config_st_local.payLoadHeader_) + sizeof(dap_mech_config_st_local.payLoadMechConfig_));
+  if (crc != dap_mech_config_st_local.payloadFooter_.checkSum) { 
     structChecker = false;
-    /*Serial.print("CRC expected: ");
-    Serial.print(crc);
-    Serial.print(",   CRC received: ");
-    Serial.println(dap_config_st_local.payloadFooter_.checkSum);*/
   }
-
-
-
-
-
 
   // if checks are successfull, overwrite global configuration struct
-  if (structChecker == true)
-  {
-    Serial.println("Updating pedal config from EEPROM");
-    dap_config_st = dap_config_st_local;          
+  if (structChecker == true) {
+    Serial.println("Updating mechanical pedal config from EEPROM");
+    dap_mech_config_st = dap_mech_config_st_local;          
+  } else {
+    Serial.println("Couldn't load mechanical config from EPROM due to mismatch: ");
+    Serial.print("Payload type expected: ");
+    Serial.print(DAP_PAYLOAD_TYPE_MECH_CONFIG);
+    Serial.print(",   Payload type received: ");
+    Serial.println(dap_mech_config_st_local.payLoadHeader_.payloadType);
+    Serial.print("Target version: ");
+    Serial.print(DAP_VERSION_CONFIG);
+    Serial.print(",    Source version: ");
+    Serial.println(dap_mech_config_st_local.payLoadHeader_.version);
+    Serial.print("CRC expected: ");
+    Serial.print(crc);
+    Serial.print(",   CRC received: ");
+    Serial.println(dap_mech_config_st_local.payloadFooter_.checkSum);
   }
-  else
-  {
 
-    Serial.println("Couldn't load config from EPROM due to mismatch: ");
+  // general config
+  structChecker = true;
+  if ( dap_config_st_local.payLoadHeader_.payloadType != DAP_PAYLOAD_TYPE_CONFIG ) { 
+    structChecker = false;
+  }
+  if ( dap_config_st_local.payLoadHeader_.version != DAP_VERSION_CONFIG ) { 
+    structChecker = false;
+  }
+  crc = checksumCalculator((uint8_t*)(&(dap_config_st_local.payLoadHeader_)), sizeof(dap_config_st_local.payLoadHeader_) + sizeof(dap_config_st_local.payLoadPedalConfig_));
+  if (crc != dap_config_st_local.payloadFooter_.checkSum) { 
+    structChecker = false;
+  }
 
+  // if checks are successfull, overwrite global configuration struct
+  if (structChecker == true) {
+    Serial.println("Updating general pedal config from EEPROM");
+    dap_config_st = dap_config_st_local;          
+  } else {
+    Serial.println("Couldn't load general config from EPROM due to mismatch: ");
     Serial.print("Payload type expected: ");
     Serial.print(DAP_PAYLOAD_TYPE_CONFIG);
     Serial.print(",   Payload type received: ");
     Serial.println(dap_config_st_local.payLoadHeader_.payloadType);
-
-    
     Serial.print("Target version: ");
     Serial.print(DAP_VERSION_CONFIG);
     Serial.print(",    Source version: ");
     Serial.println(dap_config_st_local.payLoadHeader_.version);
-
     Serial.print("CRC expected: ");
     Serial.print(crc);
     Serial.print(",   CRC received: ");
     Serial.println(dap_config_st_local.payloadFooter_.checkSum);
-
   }
 
 
@@ -386,13 +398,13 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
 
 
 
-  bool invMotorDir = dap_config_st.payLoadPedalConfig_.invertMotorDirection_u8 > 0;
+  bool invMotorDir = dap_mech_config_st.payLoadMechConfig_.invertMotorDirection_u8 > 0;
 #ifdef A6SERVO
   stepper = new A6Servo(stepPinStepper, dirPinStepper, !invMotorDir, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN, false);
 #endif
   loadcell = new LoadCell_ADS1256();
 
-  loadcell->setLoadcellRating(dap_config_st.payLoadPedalConfig_.loadcell_rating);
+  loadcell->setLoadcellRating(dap_mech_config_st.payLoadMechConfig_.loadcell_rating);
 
   loadcell->setZeroPoint();
   #ifdef ESTIMATE_LOADCELL_VARIANCE
@@ -425,6 +437,7 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
   // update_config();
   // equalize pedal config for both tasks
   dap_config_st_local = dap_config_st;
+  dap_mech_config_st_local = dap_mech_config_st;
 
 
   if(semaphore_updateJoystick==NULL)
@@ -453,7 +466,7 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
 
   delay(100);
 
-  if (!stepper->setup(1000, 5)) {
+  if (!stepper->setup(1000, dap_mech_config_st.payLoadMechConfig_.spindlePitch_mmPerRev_u8)) {
     LogOutput::printf("Failed to initialize the servo (check power and connections).\n");
   } else {
     stepper->enable();
@@ -461,11 +474,13 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
   }
 
 sim.add_element(&spring1);
+spring1.disable();
 sim.add_element(&damper1);
 sim.add_element(&force_map1);
 force_map1.disable();
 endstops.add_element(&force_map2);
 endstops.add_element(&damping_map1);
+endstops.disable();
 sim.add_element(&endstops);
 sim.add_element(&absOscillation);
 sim.add_element(&friction1);
@@ -673,6 +688,32 @@ void loop() {
   */
 }
 
+void calc_poly(const double &in, double &out, const double *coeffs) {
+  double result = coeffs[0];
+  double temp = in;
+  for (uint8_t i = 1; i < 5; i++) {
+    result += temp * coeffs[i];
+    temp *= in;
+  }
+  out = result;
+}
+
+double NormalizeValue(double value, double minVal, double maxVal) {
+  double valRange = (maxVal - minVal);
+  if (abs(valRange) < 0.01) {
+    return 0.0;   // avoid div-by-zero
+  }
+  if (value < minVal) {
+    return 0.0;
+  }
+  if (value > maxVal) {
+    return 1.0;
+  }
+
+  return (value - minVal) / valRange;
+}
+
+
 
 /**********************************************************************************************/
 /*                                                                                            */
@@ -690,8 +731,8 @@ unsigned long printCycleCounter = 0;
 
 
 uint printCntr = 0;
-double x_curr = 0.0;
-double f_in = 0.0;
+double x_foot = 0.0;
+double f_foot = 0.0;
 
 
 int64_t timeNow_pedalUpdateTask_l = 0;
@@ -772,9 +813,9 @@ void pedalUpdateTask( void * pvParameters )
 
 
     // Invert the loadcell reading digitally if desired
-    if (dap_config_st.payLoadPedalConfig_.invertLoadcellReading_u8 == 1)
+    if (dap_mech_config_st.payLoadMechConfig_.invertLoadcellReading_u8 == 1)
     {
-      loadcellReading *= -1;
+      loadcellReading *= -1.0;
     }
 
 /*
@@ -825,22 +866,37 @@ void pedalUpdateTask( void * pvParameters )
     //   sim.set_x_max(50.0, true);
     // }
 
-    f_in = filteredReading * 9.81;
+    double f_loadcell = filteredReading * 9.81;
+
+    double r_conv;
+    calc_poly(x_foot, r_conv, dap_mech_config_st.payLoadMechConfig_.coeffs_force_factor_over_pedal_pos);
+
+    f_foot = f_loadcell * r_conv;
+
+    double x_foot_norm = NormalizeValue(x_foot, 0.0, 60.0);
+    double f_curve = forceCurve.EvalForceCubicSpline(&dap_config_st, &dap_calculationVariables_st, x_foot_norm) * 9.81;
+    double f_in = f_foot - f_curve;
+
     sim.update(dt, f_in);
+
+    x_foot = sim.get_x();
+
+    double x_sled;
+    calc_poly(x_foot, x_sled, dap_mech_config_st.payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos);
+    stepper->move_to(x_sled);
 
     //#define DEBUG_FILTER
     if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_LOADCELL_READING) 
     {
       static uint16_t loop_cnt = 0;
-      static RTDebugOutput<6> rtDebugFilter({ "raw", "flt", "f", "a", "v", "x"});
+      static RTDebugOutput<10> rtDebugFilter({ "raw", "flt", "f_in", "f_foot", "f_curve", "f_sum", "a", "v", "x", "x_sled"});
       loop_cnt++;
-      if (loop_cnt >= 10) {
+      if (loop_cnt >= 20) {
         loop_cnt = 0;
-        rtDebugFilter.offerData({ loadcellReading, filteredReading, sim.get_f_sum(), sim.get_a(), sim.get_v(), sim.get_x()});
+        rtDebugFilter.offerData({ loadcellReading, filteredReading, f_in, f_foot, f_curve, sim.get_f_sum(), sim.get_a(), sim.get_v(), x_foot, x_sled});
       }
     }
-    stepper->move_to(sim.get_x());
-    x_curr = sim.get_x();
+
 
 /*
 
@@ -1065,13 +1121,30 @@ void pedalUpdateTask( void * pvParameters )
 
   
 
+void update_mech_config(void) {
+  LogOutput::printf("Updating mechanical config\n");
+  dap_mech_config_st = dap_mech_config_st_local;
+
+  LogOutput::printf("Updating the calc params\n");
+
+  // dap_mech_config_st.payLoadHeader_.storeToEeprom = false; // TODO: remove this line to re-enable storing to EEPROM
+
+  if (true == dap_mech_config_st.payLoadHeader_.storeToEeprom)
+  {
+    dap_mech_config_st.payLoadHeader_.storeToEeprom = false; // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
+    uint16_t crc = checksumCalculator((uint8_t*)(&(dap_mech_config_st.payLoadHeader_)), sizeof(dap_mech_config_st.payLoadHeader_) + sizeof(dap_mech_config_st.payLoadMechConfig_));
+    dap_mech_config_st.payloadFooter_.checkSum = crc;
+    dap_mech_config_st.storeConfigToEprom(dap_mech_config_st); // store config to EEPROM
+  }
+}
+
 void update_config(void) {
   LogOutput::printf("Updating pedal config\n");
   dap_config_st = dap_config_st_local;
 
   LogOutput::printf("Updating the calc params\n");
 
-  dap_config_st.payLoadHeader_.storeToEeprom = false; // TODO: remove this line to re-enable storing to EEPROM
+  // dap_config_st.payLoadHeader_.storeToEeprom = false; // TODO: remove this line to re-enable storing to EEPROM
 
   if (true == dap_config_st.payLoadHeader_.storeToEeprom)
   {
@@ -1189,6 +1262,55 @@ void serialCommunicationTask( void * pvParameters )
                   if (structChecker == true)
                   {
                     update_config();          
+                  }
+                  xSemaphoreGive(semaphore_updateConfig);
+                }
+              }
+            break;
+
+          case sizeof(DAP_mech_config_st):
+              
+              if(semaphore_updateConfig!=NULL)
+              {
+                if(xSemaphoreTake(semaphore_updateConfig, (TickType_t)1)==pdTRUE)
+                {
+                  DAP_mech_config_st * dap_mech_config_st_local_ptr;
+                  dap_mech_config_st_local_ptr = &dap_mech_config_st_local;
+                  Serial.readBytes((char*)dap_mech_config_st_local_ptr, sizeof(DAP_mech_config_st));
+
+                  
+
+                  // check if data is plausible
+                  
+                  if ( dap_mech_config_st_local.payLoadHeader_.payloadType != DAP_PAYLOAD_TYPE_MECH_CONFIG ){ 
+                    structChecker = false;
+                    Serial.print("Payload type expected: ");
+                    Serial.print(DAP_PAYLOAD_TYPE_MECH_CONFIG);
+                    Serial.print(",   Payload type received: ");
+                    Serial.println(dap_mech_config_st_local.payLoadHeader_.payloadType);
+                  }
+                  if ( dap_mech_config_st_local.payLoadHeader_.version != DAP_VERSION_CONFIG ){ 
+                    structChecker = false;
+                    Serial.print("Config version expected: ");
+                    Serial.print(DAP_VERSION_CONFIG);
+                    Serial.print(",   Config version received: ");
+                    Serial.println(dap_mech_config_st_local.payLoadHeader_.version);
+                  }
+                  // checksum validation
+                  crc = checksumCalculator((uint8_t*)(&(dap_mech_config_st_local.payLoadHeader_)), sizeof(dap_mech_config_st_local.payLoadHeader_) + sizeof(dap_mech_config_st_local.payLoadMechConfig_));
+                  if (crc != dap_mech_config_st_local.payloadFooter_.checkSum){ 
+                    structChecker = false;
+                    Serial.print("CRC expected: ");
+                    Serial.print(crc);
+                    Serial.print(",   CRC received: ");
+                    Serial.println(dap_mech_config_st_local.payloadFooter_.checkSum);
+                  }
+
+
+                  // if checks are successfull, overwrite global configuration struct
+                  if (structChecker == true)
+                  {
+                    update_mech_config();          
                   }
                   xSemaphoreGive(semaphore_updateConfig);
                 }
@@ -1475,9 +1597,9 @@ void serialCommunicationTask( void * pvParameters )
     //     SetControllerOutputValue(joystickNormalizedToInt32_local);
     //   }
     // }
-    
+
     #ifdef USB_JOYSTICK
-    SetControllerOutputValue_rudder(int32_t(x_curr * 100.0), int32_t(f_in * 10.0));
+    SetControllerOutputValue_rudder(int32_t(x_foot * 100.0), int32_t(f_in * 10.0));
     #endif
   
     debugOutput.pump(2);
@@ -1741,7 +1863,7 @@ void ESPNOW_SyncTask( void * pvParameters )
         }
       #endif
       //joystick sync
-      sendMessageToMaster(f_in, x_curr);
+      sendMessageToMaster(f_foot, x_foot);
 
       if(basic_state_send_b)
       {

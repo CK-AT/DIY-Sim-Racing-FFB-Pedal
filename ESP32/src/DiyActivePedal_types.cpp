@@ -8,7 +8,8 @@
 
 static const float ABS_SCALING = 50;
 
-const uint32_t EEPROM_OFFSET = (DAP_VERSION_CONFIG-128) * sizeof(DAP_config_st) % (2048-sizeof(DAP_config_st));
+const uint32_t EEPROM_OFFSET_MECH_CONFIG = 0;
+const uint32_t EEPROM_OFFSET_GENERAL_CONFIG = 0 + sizeof(DAP_mech_config_st);
 
 void DAP_config_st::initialiseDefaults() {
   payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_CONFIG;
@@ -109,7 +110,7 @@ void DAP_config_st::initialiseDefaults() {
 void DAP_config_st::storeConfigToEprom(DAP_config_st& config_st)
 {
 
-  EEPROM.put(EEPROM_OFFSET, config_st); 
+  EEPROM.put(EEPROM_OFFSET_GENERAL_CONFIG, config_st); 
   EEPROM.commit();
   Serial.println("Successfully stored config in EPROM");
   
@@ -126,7 +127,76 @@ void DAP_config_st::loadConfigFromEprom(DAP_config_st& config_st)
 {
   DAP_config_st local_config_st;
 
-  EEPROM.get(EEPROM_OFFSET, local_config_st);
+  EEPROM.get(EEPROM_OFFSET_GENERAL_CONFIG, local_config_st);
+  //EEPROM.commit();
+
+  config_st = local_config_st;
+
+  // check if version matches revision, in case, update the default config
+  /*if (local_config_st.payLoadHeader_.version == DAP_VERSION_CONFIG)
+  {
+    config_st = local_config_st;
+    Serial.println("Successfully loaded config from EPROM");
+  }
+  else
+  { 
+    Serial.println("Couldn't load config from EPROM due to version mismatch");
+    Serial.print("Target version: ");
+    Serial.println(DAP_VERSION_CONFIG);
+    Serial.print("Source version: ");
+    Serial.println(local_config_st.payLoadHeader_.version);
+
+  }*/
+
+}
+
+void DAP_mech_config_st::initialiseDefaults() {
+  payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_MECH_CONFIG;
+  payLoadHeader_.version = DAP_VERSION_CONFIG;
+  payLoadHeader_.storeToEeprom = false;
+
+  payLoadMechConfig_.coeffs_force_factor_over_pedal_pos[0] = 6.20184902e-01;
+  payLoadMechConfig_.coeffs_force_factor_over_pedal_pos[1] = -1.71372506e-03;
+  payLoadMechConfig_.coeffs_force_factor_over_pedal_pos[2] = 1.07828479e-05;
+  payLoadMechConfig_.coeffs_force_factor_over_pedal_pos[3] = 2.71382634e-09;
+  payLoadMechConfig_.coeffs_force_factor_over_pedal_pos[4] = 7.34203389e-11;
+
+  payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos[0] = 5.50622588e+01;
+  payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos[1] = 5.55488175e-01;
+  payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos[2] = 7.59065219e-04;
+  payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos[3] = -2.81513616e-06;
+  payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos[4] = -1.11220289e-08;
+
+  payLoadMechConfig_.loadcell_rating = 100;
+  payLoadMechConfig_.spindlePitch_mmPerRev_u8 = 5;
+
+  payLoadMechConfig_.invertLoadcellReading_u8 = 0;
+
+  payLoadMechConfig_.invertMotorDirection_u8 = 0;
+  payLoadMechConfig_.pedal_type=1;
+}
+
+void DAP_mech_config_st::storeConfigToEprom(DAP_mech_config_st& config_st)
+{
+
+  EEPROM.put(EEPROM_OFFSET_MECH_CONFIG, config_st); 
+  EEPROM.commit();
+  Serial.println("Successfully stored config in EPROM");
+  
+  /*if (true == config_st.payLoadHeader_.storeToEeprom)
+  {
+    config_st.payLoadHeader_.storeToEeprom = false; // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
+    EEPROM.put(0, config_st); 
+    EEPROM.commit();
+    Serial.println("Successfully stored config in EPROM");
+  }*/
+}
+
+void DAP_mech_config_st::loadConfigFromEprom(DAP_mech_config_st& config_st)
+{
+  DAP_mech_config_st local_config_st;
+
+  EEPROM.get(EEPROM_OFFSET_MECH_CONFIG, local_config_st);
   //EEPROM.commit();
 
   config_st = local_config_st;
