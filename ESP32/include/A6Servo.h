@@ -73,6 +73,8 @@ class A6Servo : public Servo {
         void move_to_slow(int32_t position);
         void write_min_pos(int32_t counts);
         void write_max_pos(int32_t counts);
+        void write_homing_trq_limit(float limit_percent);
+        bool check_required_registers(void);
         int32_t read_min_pos(void);
         int32_t read_max_pos(void);
         float get_speed(void);
@@ -85,6 +87,8 @@ class A6Servo : public Servo {
         uint32_t _steps_per_mm;
         uint32_t _mm_per_rev;
         int32_t _pos_max = 0;
+        double _trq_locked_in = 300.0;
+        double _trq_open_loop = 10.0;
         static void task_func(void* pvParameters) {
             A6Servo* servo = (A6Servo*) pvParameters;
             delay(1000);

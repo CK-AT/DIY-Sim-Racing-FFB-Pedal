@@ -25,19 +25,48 @@ A6Servo::A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareS
     _stepper_engine->setMaxSpeed(MAXIMUM_SPEED);
 }
 
+bool A6Servo::check_required_registers(void) {
+    uint16_t value;
+    bool success = true;
+    // read RS485 EEPROM storage flag
+    if (read_hold_register<uint16_t>(0x0A05, value) != Modbus::Error::SUCCESS) {
+        return false;
+    }
+    if (value != 0) {
+        LogOutput::printf("Register 0x0A05 (store RS485 register writes to EEPROM) is not 0!");
+        success = false;
+    }
+    if (read_hold_register<uint16_t>(0x0A06, value) != Modbus::Error::SUCCESS) {
+        return false;
+    }
+    if (value != 1) {
+        LogOutput::printf("Register 0x0A06 (register order) is not 1!");
+        success = false;
+    }
+    if (read_hold_register<uint16_t>(0x0022, value) != Modbus::Error::SUCCESS) {
+        return false;
+    }
+    if (value != 1) {
+        LogOutput::printf("Register 0x0022 (pulse channel selection) is not 1!");
+        success = false;
+    }
+    return success;
+}
+
 bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome) {
     _steps_per_mm = steps_per_mm;
     _mm_per_rev = mm_per_rev;
-    if (!disable()) {
+    if (!check_required_registers()) {
         return false;
     }
+    disable();
     delay(100);
-    write_hold_register<int32_t>(0x0122, 10); // 1.0ms LPF on position input
-    write_hold_register<int32_t>(0x0304, steps_per_mm * mm_per_rev); // gear ratio denominator (steps_per_rev)
-    write_hold_register<int32_t>(0x0306, 131072); // gear ratio numerator (encoder counts per rev)
-    write_hold_register<int16_t>(0x0607, 2); // limit active after homing
+    write_hold_register<uint32_t>(0x0122, 10); // 1.0ms LPF on position input
+    write_hold_register<uint32_t>(0x0304, steps_per_mm * mm_per_rev); // gear ratio denominator (steps_per_rev)
+    write_hold_register<uint32_t>(0x0306, 131072); // gear ratio numerator (encoder counts per rev)
+    write_hold_register<uint16_t>(0x0607, 2); // limit active after homing
     write_hold_register<uint32_t>(0x0600, 1000000); // relax excessive local position deviation threshold
-    write_trq_limit(5.0);
+    write_trq_limit(_trq_open_loop);
     set_speed(100.0);
     int32_t min_pos = read_min_pos();
     if (min_pos == 0) {
@@ -85,12 +114,14 @@ void A6Servo::do_homing(void) {
     _stepper_engine->setCurrentPosition(0);
     write_min_pos(-20000000);
     write_max_pos(20000000);
-    write_trq_limit(5.0);
+    write_trq_limit(_trq_open_loop);
+    write_homing_trq_limit(_trq_open_loop);
     set_speed(100.0);
     write_hold_register<uint32_t>(0x0600, 1000000); // relax excessive local position deviation threshold
-    write_hold_register<int16_t>(0x1000, 0); // homing off
+    write_hold_register<int16_t>(0x1001, -1); // homing mode = search for mechanical limit in negative direction
+    write_hold_register<uint16_t>(0x1000, 0); // homing off
     delay(100);
-    write_hold_register<int16_t>(0x1000, 1); // homing on
+    write_hold_register<uint16_t>(0x1000, 1); // homing on
     LogOutput::printf("Waiting for negative endstop...\n");
     int num_zero_spd = 0;
     float speed;
@@ -125,7 +156,7 @@ void A6Servo::do_homing(void) {
     _stepper_engine->moveTo(_pos_max, true);
     write_min_pos(0);
     write_max_pos(_pos_max);
-    write_hold_register<int16_t>(0x1000, 0); // reset homing command
+    write_hold_register<uint16_t>(0x1000, 0); // reset homing command
     _homing_state = HomingState::Homed;
     _state = State::Enabled;
     LogOutput::printf("Homing done.\n");
@@ -147,7 +178,7 @@ void A6Servo::lock_onto_curr_pos(void) {
         LogOutput::printf("Locked in.\n");
         write_hold_register<uint32_t>(0x0600, 30000); // tighten excessive local position deviation threshold
         set_speed(6000.0);
-        write_trq_limit(300.0);
+        write_trq_limit(_trq_locked_in);
         _homing_state = HomingState::LockedIn;
     } else {
         LogOutput::printf("Failed to lock in, commanded position probably out of bounds.\n");
@@ -163,6 +194,10 @@ int32_t A6Servo::get_target_pos()
 void A6Servo::write_trq_limit(float limit_percent) {
     write_hold_register<uint16_t>(0x0343, uint16_t(limit_percent * 10.0)); // negative limit (0.1%/LSB)
     write_hold_register<uint16_t>(0x0344, uint16_t(limit_percent * 10.0)); // positive limit (0.1%/LSB)
+}
+
+void A6Servo::write_homing_trq_limit(float limit_percent) {
+    write_hold_register<uint16_t>(0x1030, uint16_t(limit_percent * 10.0)); // 0.1%/LSB
 }
 
 void A6Servo::write_min_pos(int32_t counts) {
