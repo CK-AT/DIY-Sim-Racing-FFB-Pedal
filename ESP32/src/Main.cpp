@@ -249,7 +249,7 @@ char* APhost;
   TaskHandle_t Task6;
 #endif
 
-double m = 0.2;
+double m = 0.1;
 double x_min = 0.0;
 double x_max = 100.0;
 double v_min = -1000.0;
@@ -258,8 +258,8 @@ double a_min = -100000.0;
 double a_max = 100000.0;
 Sim sim = Sim(m, x_min, x_max, v_min, v_max, a_min, a_max);
 Spring spring1 = Spring(50.0, 2.0);
-Damper damper1 = Damper(0.01);
-Friction friction1 = Friction(1.0);
+Damper damper1 = Damper(0.1);
+Friction friction1 = Friction(0.0);
 ForceMap force_map1 = ForceMap({0.0, 100.0}, {-100.0, 100.0});
 CompoundElement endstops = CompoundElement();
 ForceMap force_map2 = ForceMap({0.0, 10.0, 90.0, 100.0}, {-100.0, 0.0, 0.0, 100.0});
@@ -396,6 +396,9 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
   // interprete config values
   dap_calculationVariables_st.updateFromConfig(dap_config_st);
 
+  sim.set_x_min(dap_calculationVariables_st.startPosRel * 100.0, true);
+  sim.set_x_max(dap_calculationVariables_st.endPosRel * 100.0, true);
+  damper1.set_k(dap_calculationVariables_st.dampingPress * 100.0);
 
 
   bool invMotorDir = dap_mech_config_st.payLoadMechConfig_.invertMotorDirection_u8 > 0;
@@ -1131,6 +1134,7 @@ void update_mech_config(void) {
 
   if (true == dap_mech_config_st.payLoadHeader_.storeToEeprom)
   {
+    LogOutput::printf("Storing mech config to EEPROM\n");
     dap_mech_config_st.payLoadHeader_.storeToEeprom = false; // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
     uint16_t crc = checksumCalculator((uint8_t*)(&(dap_mech_config_st.payLoadHeader_)), sizeof(dap_mech_config_st.payLoadHeader_) + sizeof(dap_mech_config_st.payLoadMechConfig_));
     dap_mech_config_st.payloadFooter_.checkSum = crc;
@@ -1142,19 +1146,23 @@ void update_config(void) {
   LogOutput::printf("Updating pedal config\n");
   dap_config_st = dap_config_st_local;
 
-  LogOutput::printf("Updating the calc params\n");
-
-  // dap_config_st.payLoadHeader_.storeToEeprom = false; // TODO: remove this line to re-enable storing to EEPROM
+//  dap_config_st.payLoadHeader_.storeToEeprom = false; // TODO: remove this line to re-enable storing to EEPROM
 
   if (true == dap_config_st.payLoadHeader_.storeToEeprom)
   {
+    LogOutput::printf("Storing general config to EEPROM\n");
     dap_config_st.payLoadHeader_.storeToEeprom = false; // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
     uint16_t crc = checksumCalculator((uint8_t*)(&(dap_config_st.payLoadHeader_)), sizeof(dap_config_st.payLoadHeader_) + sizeof(dap_config_st.payLoadPedalConfig_));
     dap_config_st.payloadFooter_.checkSum = crc;
     dap_config_st.storeConfigToEprom(dap_config_st); // store config to EEPROM
   }
   
+  LogOutput::printf("Updating the calc params\n");
+
   updatePedalCalcParameters(); // update the calc parameters
+  sim.set_x_min(dap_calculationVariables_st.startPosRel * 100.0);
+  sim.set_x_max(dap_calculationVariables_st.endPosRel * 100.0);
+  damper1.set_k(dap_calculationVariables_st.dampingPress * 100.0);
 }
 
 
