@@ -112,7 +112,7 @@ void DAP_config_st::storeConfigToEprom(DAP_config_st& config_st)
 
   EEPROM.put(EEPROM_OFFSET_GENERAL_CONFIG, config_st); 
   EEPROM.commit();
-  Serial.println("Successfully stored config in EPROM");
+  Serial.println("Successfully stored general config to EEPROM");
   
   /*if (true == config_st.payLoadHeader_.storeToEeprom)
   {
@@ -181,7 +181,7 @@ void DAP_mech_config_st::storeConfigToEprom(DAP_mech_config_st& config_st)
 
   EEPROM.put(EEPROM_OFFSET_MECH_CONFIG, config_st); 
   EEPROM.commit();
-  Serial.println("Successfully stored config in EPROM");
+  Serial.println("Successfully stored mech config to EEPROM");
   
   /*if (true == config_st.payLoadHeader_.storeToEeprom)
   {
@@ -234,7 +234,7 @@ void DAP_calculationVariables_st::updateFromConfig(DAP_config_st& config_st) {
   }
   
   absFrequency = ((float)config_st.payLoadPedalConfig_.absFrequency);
-  absAmplitude = ((float)config_st.payLoadPedalConfig_.absAmplitude) / 20.0f; // in kg or percent
+  absAmplitude = ((float)config_st.payLoadPedalConfig_.absAmplitude) / 20.0f * 9.81; // from kg to N
 
   dampingPress = ((float)config_st.payLoadPedalConfig_.dampingPress) * 0.00015f;
   RPM_max_freq = ((float)config_st.payLoadPedalConfig_.RPM_max_freq);
@@ -248,8 +248,8 @@ void DAP_calculationVariables_st::updateFromConfig(DAP_config_st& config_st) {
   WS_amp=((float)config_st.payLoadPedalConfig_.WS_amp) / 20.0f;
   WS_freq=(float)config_st.payLoadPedalConfig_.WS_freq;
   // update force variables
-  Force_Min = ((float)config_st.payLoadPedalConfig_.preloadForce);
-  Force_Max = ((float)config_st.payLoadPedalConfig_.maxForce); 
+  Force_Min = ((float)config_st.payLoadPedalConfig_.preloadForce) * 9.81; // to N
+  Force_Max = ((float)config_st.payLoadPedalConfig_.maxForce) * 9.81; // to N
   Force_Range = Force_Max - Force_Min;
   Force_Max_default=((float)config_st.payLoadPedalConfig_.maxForce); 
   pedal_type=config_st.payLoadPedalConfig_.pedal_type;

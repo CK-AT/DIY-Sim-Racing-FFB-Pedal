@@ -874,7 +874,7 @@ void pedalUpdateTask( void * pvParameters )
     f_foot = f_loadcell * r_conv;
 
     double x_foot_norm = NormalizeValue(x_foot, 0.0, 60.0);
-    double f_curve = forceCurve.EvalForceCubicSpline(&dap_config_st, &dap_calculationVariables_st, x_foot_norm) * 9.81;
+    double f_curve = forceCurve.EvalForceCubicSpline(&dap_config_st, &dap_calculationVariables_st, x_foot_norm);
     double f_in = f_foot - f_curve;
 
     sim.update(dt, f_in);
