@@ -379,8 +379,8 @@ static const uint32_t STEPS_PER_MOTOR_REVOLUTION = 6400;
   #define PIN_CS 4//21 // 21 --> CS
 
   // stepper pins
-  #define dirPinStepper    2//22
-  #define stepPinStepper   1//23
+  #define dirPinStepper    48//22
+  #define stepPinStepper   47//23
 
   // A6 series servo drive is used
   #define A6SERVO
