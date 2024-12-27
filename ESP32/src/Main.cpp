@@ -1500,6 +1500,14 @@ void serialCommunicationTask( void * pvParameters )
                     double val_num = atof(val);
                     damper1.set_k(val_num);
                     Serial.printf("Damper set to %.3f N/(mm/s)\n", val_num);
+                  } else if (strcmp(param, "damp_pos") == 0) {
+                    double val_num = atof(val);
+                    damper1.set_k_pos(val_num);
+                    Serial.printf("Positive damper set to %.3f N/(mm/s)\n", val_num);
+                  } else if (strcmp(param, "damp_neg") == 0) {
+                    double val_num = atof(val);
+                    damper1.set_k_neg(val_num);
+                    Serial.printf("Negative damper set to %.3f N/(mm/s)\n", val_num);
                   } else {
                     Serial.printf("Unknown param \"%s\"\n", param);
                   }
