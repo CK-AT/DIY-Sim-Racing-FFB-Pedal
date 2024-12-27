@@ -1863,7 +1863,14 @@ void ESPNOW_SyncTask( void * pvParameters )
         }
       #endif
       //joystick sync
-      sendMessageToMaster(f_foot, x_foot);
+      double controller_val;
+      if (dap_config_st.payLoadPedalConfig_.travelAsJoystickOutput_u8) {
+        controller_val = NormalizeValue(x_foot, dap_calculationVariables_st.startPosRel * 100.0, dap_calculationVariables_st.endPosRel * 100.0);
+      } else {
+        controller_val = NormalizeValue(f_foot, dap_calculationVariables_st.Force_Min, dap_calculationVariables_st.Force_Max);
+      }
+
+      sendMessageToMaster(f_foot, x_foot, controller_val);
 
       if(basic_state_send_b)
       {
