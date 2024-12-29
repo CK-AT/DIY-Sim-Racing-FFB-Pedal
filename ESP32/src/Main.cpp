@@ -246,7 +246,7 @@ char* APhost;
 //ESPNOW
 #ifdef ESPNOW_Enable
   #include "ESPNOW_lib.h"
-  TaskHandle_t Task6;
+  TaskHandle_t ESPNowTask;
 #endif
 
 double m = 0.1;
@@ -264,6 +264,8 @@ ForceMap force_map1 = ForceMap({0.0, 100.0}, {-100.0, 100.0});
 CompoundElement endstops = CompoundElement();
 ForceMap force_map2 = ForceMap({0.0, 10.0, 90.0, 100.0}, {-100.0, 0.0, 0.0, 100.0});
 DampingMap damping_map1 = DampingMap({0.0, 15.0, 85.0, 100.0}, {3.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 3.0});
+
+uint64_t ti_relock;
 
 void IRAM_ATTR adc_isr( void ) {
   if (PedalTask) {
@@ -625,7 +627,7 @@ sim.add_element(&friction1);
                         //STACK_SIZE_FOR_TASK_2,    
                         NULL,      
                         1,         
-                        &Task6,    
+                        &ESPNowTask,    
                         0);     
     delay(500);
   } 
@@ -877,16 +879,38 @@ void pedalUpdateTask( void * pvParameters )
     f_foot = f_loadcell * r_conv;
 
     double x_foot_norm = NormalizeValue(x_foot, 0.0, 60.0);
-    double f_curve = forceCurve.EvalForceCubicSpline(&dap_config_st, &dap_calculationVariables_st, x_foot_norm);
+    double f_curve = 0.0;
+    if (dap_calculationVariables_st.Rudder_status == false) {
+      f_curve = forceCurve.EvalForceCubicSpline(&dap_config_st, &dap_calculationVariables_st, x_foot_norm);
+    } else {
+      f_curve = dap_calculationVariables_st.f_foot_other_pedal;
+    }
     double f_in = f_foot - f_curve;
 
     sim.update(dt, f_in);
 
-    x_foot = sim.get_x();
+    if (dap_calculationVariables_st.Rudder_status == true && dap_calculationVariables_st.pedal_type != 2) {
+      double offset = dap_calculationVariables_st.x_foot_other_pedal - 50.0;
+      x_foot = 50.0 - offset;
+    } else {
+      x_foot = sim.get_x();
+    }
 
     double x_sled;
     calc_poly(x_foot, x_sled, dap_mech_config_st.payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos);
+
+    if (moveSlowlyToPosition_b) {
+      stepper->pause();
+      ti_relock = millis() + 1000;
+      moveSlowlyToPosition_b = false;
+    }
+
     stepper->move_to(x_sled);
+
+    if (ti_relock && (millis() > ti_relock)) {
+      ti_relock = 0;
+      stepper->resume();
+    }
 
     //#define DEBUG_FILTER
     if (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_LOADCELL_READING) 
@@ -1712,12 +1736,7 @@ void ESPNOW_SyncTask( void * pvParameters )
   {
     //if(ESPNOW_status)
 
-    // measure callback time and continue, when desired period is reached
-    timeNow_espNowTask_l = millis();
-    int64_t timeDiff_espNowTask_l = ( timePrevious_espNowTask_l + REPETITION_INTERVAL_ESPNOW_TASK) - timeNow_espNowTask_l;
-    uint32_t targetWaitTime_u32 = constrain(timeDiff_espNowTask_l, 0, REPETITION_INTERVAL_ESPNOW_TASK);
-    delay(targetWaitTime_u32); 
-    timePrevious_espNowTask_l = millis();
+    delay(1);
 
 
     //restart from espnow
@@ -1729,13 +1748,13 @@ void ESPNOW_SyncTask( void * pvParameters )
 
     
     //basic state sendout interval
-    if(ESPNOW_count%9==0)
+    if(ESPNOW_count%18==0)
     {
       basic_state_send_b=true;
       
     }
     //entend state send out interval
-    if(ESPNOW_count%13==0 && dap_config_st.payLoadPedalConfig_.debug_flags_0 == DEBUG_INFO_0_STATE_EXTENDED_INFO_STRUCT)
+    if(ESPNOW_count%26==0 && dap_config_st.payLoadPedalConfig_.debug_flags_0 == DEBUG_INFO_0_STATE_EXTENDED_INFO_STRUCT)
     {
       extend_state_send_b=true;
       
@@ -1880,7 +1899,7 @@ void ESPNOW_SyncTask( void * pvParameters )
       #endif
       //joystick sync
       double controller_val;
-      if (dap_config_st.payLoadPedalConfig_.travelAsJoystickOutput_u8) {
+      if (dap_config_st.payLoadPedalConfig_.travelAsJoystickOutput_u8 || dap_calculationVariables_st.Rudder_status) {
         controller_val = NormalizeValue(x_foot, dap_calculationVariables_st.startPosRel * 100.0, dap_calculationVariables_st.endPosRel * 100.0);
       } else {
         controller_val = NormalizeValue(f_foot, dap_calculationVariables_st.Force_Min, dap_calculationVariables_st.Force_Max);
@@ -1950,20 +1969,11 @@ void ESPNOW_SyncTask( void * pvParameters )
       //rudder sync
       if(dap_calculationVariables_st.Rudder_status)
       {              
-        dap_calculationVariables_st.current_pedal_position_ratio=((float)(dap_calculationVariables_st.current_pedal_position-dap_calculationVariables_st.stepperPosMin_default))/((float)dap_calculationVariables_st.stepperPosRange_default);
-        _ESPNow_Send.pedal_position_ratio=dap_calculationVariables_st.current_pedal_position_ratio;
-        _ESPNow_Send.pedal_position=dap_calculationVariables_st.current_pedal_position;
-        //ESPNow_send=dap_calculationVariables_st.current_pedal_position; 
-        esp_err_t result =ESPNow.send_message(Recv_mac,(uint8_t *) &_ESPNow_Send,sizeof(_ESPNow_Send));                
-        //if (result == ESP_OK) 
-        //{
-        //  Serial.println("Error sending the data");
-        //}                
         if(ESPNow_update)
         {
           //dap_calculationVariables_st.sync_pedal_position=ESPNow_recieve;
-          dap_calculationVariables_st.sync_pedal_position=_ESPNow_Recv.pedal_position;
-          dap_calculationVariables_st.Sync_pedal_position_ratio=_ESPNow_Recv.pedal_position_ratio;
+          dap_calculationVariables_st.f_foot_other_pedal=other_data.force_dbl;
+          dap_calculationVariables_st.x_foot_other_pedal=other_data.position_dbl;
           ESPNow_update=false;
         }                
       }

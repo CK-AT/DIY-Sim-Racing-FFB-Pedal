@@ -319,10 +319,8 @@ struct DAP_calculationVariables_st
   float WS_freq;
   bool Rudder_status;
   uint8_t pedal_type;
-  uint32_t sync_pedal_position;
-  uint32_t current_pedal_position;
-  float current_pedal_position_ratio;
-  float Sync_pedal_position_ratio;
+  double f_foot_other_pedal;
+  double x_foot_other_pedal;
   bool rudder_brake_status;
   long stepperPosMin_default;
   long stepperPosMax_default;

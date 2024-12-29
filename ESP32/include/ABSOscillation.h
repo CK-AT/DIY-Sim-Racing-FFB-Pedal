@@ -466,8 +466,8 @@ class Rudder{
 
   void offset_calculate(DAP_calculationVariables_st* calcVars_st)
   {
-    current_pedal_position=calcVars_st->current_pedal_position;
-    position_ratio_sync=calcVars_st->Sync_pedal_position_ratio;
+//    current_pedal_position=calcVars_st->current_pedal_position;
+//    position_ratio_sync=calcVars_st->Sync_pedal_position_ratio;
     endpos_travel=(float)calcVars_st->stepperPosRange;
     position_ratio_current=((float)(current_pedal_position-calcVars_st->stepperPosMin))/endpos_travel;    
     dead_zone=20;
@@ -502,14 +502,14 @@ class Rudder{
     Center_offset=calcVars_st->stepperPosRange/2;
     dead_zone_upper=Center_offset+dead_zone/2;
     dead_zone_lower=Center_offset-dead_zone/2;
-    sync_pedal_position=calcVars_st->sync_pedal_position;
-    current_pedal_position=calcVars_st->current_pedal_position;
+//    sync_pedal_position=calcVars_st->sync_pedal_position;
+//    current_pedal_position=calcVars_st->current_pedal_position;
     stepper_range=calcVars_st->stepperPosRange;
     force_range=calcVars_st->Force_Range;
     force_center_offset=force_range/2+calcVars_st->Force_Min;
     endpos_travel=(float)calcVars_st->stepperPosRange;
     //endpos_travel=((float)(calcVars_st->current_pedal_position-calcVars_st->stepperPosMin))/((float)calcVars_st->stepperPosRange);
-    position_ratio_sync=calcVars_st->Sync_pedal_position_ratio;
+//    position_ratio_sync=calcVars_st->Sync_pedal_position_ratio;
     position_ratio_current=((float)(current_pedal_position-calcVars_st->stepperPosMin))/endpos_travel;
     
 

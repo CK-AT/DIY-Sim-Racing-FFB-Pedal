@@ -55,8 +55,7 @@ typedef struct ESP_pairing_reg
 // Create a struct_message called myData
 struct_message myData;
 
-ESPNow_Send_Struct _ESPNow_Recv;
-ESPNow_Send_Struct _ESPNow_Send;
+struct_message other_data;
 ESP_pairing_reg _ESP_pairing_reg;
 
 void update_config(void);
@@ -150,9 +149,9 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
   {
     if(MacCheck(Recv_mac,(uint8_t *)mac_addr))
     {
-      if(data_len==sizeof(_ESPNow_Recv))
+      if(data_len==sizeof(other_data))
       {
-        memcpy(&_ESPNow_Recv, data, sizeof(_ESPNow_Recv));
+        memcpy(&other_data, data, sizeof(other_data));
         ESPNow_update=true;
       }
     }
@@ -465,7 +464,7 @@ void ESPNow_initialize()
     }
     if(dap_config_st.payLoadPedalConfig_.pedal_type==0)
     {
-      Recv_mac=Brk_mac;
+      Recv_mac=Gas_mac;
       ESPNow.add_peer(Recv_mac);
     }
     
