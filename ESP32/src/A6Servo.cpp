@@ -4,7 +4,7 @@
 void A6Servo::periodic_task_func(void) {
     if (_homing_state == HomingState::Pending && _state == State::Enabled) {
         do_homing();
-    } else if (_homing_state == HomingState::Homed && _state == State::Enabled) {
+    } else if (!_locking_blocked && _homing_state == HomingState::Homed && _state == State::Enabled) {
         if (_curr_pos_valid) {
             lock_onto_curr_pos();
         }
@@ -163,6 +163,8 @@ void A6Servo::do_homing(void) {
 }
 
 void A6Servo::lock_onto_curr_pos(void) {
+    write_trq_limit(_trq_open_loop);
+    set_speed(100.0);
     LogOutput::printf("Locking onto last commanded position...\n");
     uint8_t max_tries = 10;
     bool is_locked = false;
