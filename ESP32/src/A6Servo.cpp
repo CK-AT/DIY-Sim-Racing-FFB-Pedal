@@ -243,7 +243,7 @@ bool A6Servo::move_to(int32_t position, bool blocking) {
 }
 
 void A6Servo::move_to_slow(double position) {
-    _curr_pos = position;
+    _curr_pos = constrain(position, 0, double(double(_pos_max) / double(_steps_per_mm)));
     _curr_pos_valid = true;
     if (_state == State::Enabled && _homing_state == HomingState::LockedIn) {
         move_to_slow(int32_t(position * double(_steps_per_mm)));
@@ -251,7 +251,7 @@ void A6Servo::move_to_slow(double position) {
 }
 
 bool A6Servo::move_to(double position, bool blocking) {
-    _curr_pos = position;
+    _curr_pos = constrain(position, 0, double(double(_pos_max) / double(_steps_per_mm)));
     _curr_pos_valid = true;
     if (_state == State::Enabled && _homing_state == HomingState::LockedIn) {
         return move_to(int32_t(position * double(_steps_per_mm)), blocking);
