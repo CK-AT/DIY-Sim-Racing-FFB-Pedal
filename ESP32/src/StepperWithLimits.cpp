@@ -1,7 +1,7 @@
 #include "StepperWithLimits.h"
 #include "RTDebugOutput.h"
 #include "Main.h"
-#include "Math.h"
+#include "math.h"
 
 
 #define STEPPER_WITH_LIMITS_SENSORLESS_CURRENT_THRESHOLD_IN_PERCENT 20
