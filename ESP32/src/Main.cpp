@@ -880,10 +880,10 @@ void pedalUpdateTask( void * pvParameters )
 
     double x_foot_norm = NormalizeValue(x_foot, 0.0, 60.0);
     double f_curve = forceCurve.EvalForceCubicSpline(&dap_config_st, &dap_calculationVariables_st, x_foot_norm);
-    if (dap_calculationVariables_st.Rudder_status == true) {
-      f_curve -= dap_calculationVariables_st.f_foot_other_pedal;
-    }
     double f_in = f_foot - f_curve;
+    if (dap_calculationVariables_st.Rudder_status == true) {
+      f_in -= dap_calculationVariables_st.f_foot_other_pedal;
+    }
 
     sim.update(dt, f_in);
 
