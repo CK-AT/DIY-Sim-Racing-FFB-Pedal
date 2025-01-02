@@ -411,6 +411,10 @@ static const uint32_t STEPS_PER_MOTOR_REVOLUTION = 6400;
   #define ESPNow_S3
   //#define BLUETOOTH_GAMEPAD
   //#define USB_JOYSTICK
+  
+  #define HAS_CAN
+  #define CAN_TX		2
+  #define CAN_RX		1
 
   #define SERIAL_COOMUNICATION_TASK_DELAY_IN_MS 1
   //#define ESPNow_Pairing_function

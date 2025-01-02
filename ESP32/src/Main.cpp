@@ -136,6 +136,10 @@ ForceCurve_Interpolated forceCurve;
   #include "soc/rtc_wdt.h"
 #endif
 
+#ifdef HAS_CAN
+  #include <ESP32-TWAI-CAN.hpp>
+#endif
+
 //#define PRINT_USED_STACK_SIZE
 // https://stackoverflow.com/questions/55998078/freertos-task-priority-and-stack-size
 #define STACK_SIZE_FOR_TASK_1 0.2 * (configTOTAL_HEAP_SIZE / 4)
@@ -267,6 +271,11 @@ DampingMap damping_map1 = DampingMap({0.0, 15.0, 85.0, 100.0}, {3.0, 0.0, 0.0, 0
 
 uint64_t ti_relock;
 
+#ifdef HAS_CAN
+  CanFrame tx_frame;
+  CanFrame rx_frame;
+#endif
+  
 void IRAM_ATTR adc_isr( void ) {
   if (PedalTask) {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -309,8 +318,10 @@ void setup()
   Serial.println("Please check github repo for more detail: https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal");
   //printout the github releasing version
 
+#ifdef HAS_CAN
+  ESP32Can.begin(ESP32Can.convertSpeed(500), CAN_TX, CAN_RX, 10, 10);
+#endif
 
-  
 // check whether iSV57 communication can be established
 // and in case, (a) send tuned servo parameters and (b) prepare the servo for signal read
 pinMode(Pairing_GPIO, INPUT_PULLUP);
@@ -397,6 +408,11 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
 
   // interprete config values
   dap_calculationVariables_st.updateFromConfig(dap_config_st);
+
+#ifdef HAS_CAN
+  tx_frame.identifier = 0x600 + dap_config_st.payLoadHeader_.PedalTag;
+  tx_frame.data_length_code = 8;
+#endif
 
   sim.set_x_min(dap_calculationVariables_st.startPosRel * 100.0, true);
   sim.set_x_max(dap_calculationVariables_st.endPosRel * 100.0, true);
@@ -878,6 +894,15 @@ void pedalUpdateTask( void * pvParameters )
 
     f_foot = f_loadcell * r_conv;
 
+  #ifdef HAS_CAN
+    while (ESP32Can.readFrame(rx_frame, 0)) {
+      float *f_foot_ptr = reinterpret_cast<float*>(&(rx_frame.data[0]));
+      float *x_foot_ptr = reinterpret_cast<float*>(&(rx_frame.data[4]));
+      dap_calculationVariables_st.f_foot_other_pedal = *f_foot_ptr;
+      dap_calculationVariables_st.x_foot_other_pedal = *x_foot_ptr;
+    }
+  #endif
+
     double x_foot_norm = NormalizeValue(x_foot, 0.0, 60.0);
     double f_curve = forceCurve.EvalForceCubicSpline(&dap_config_st, &dap_calculationVariables_st, x_foot_norm);
     double f_in = f_foot - f_curve;
@@ -922,7 +947,15 @@ void pedalUpdateTask( void * pvParameters )
       }
     }
 
+  #ifdef HAS_CAN
+    float *f_foot_ptr = reinterpret_cast<float*>(&(tx_frame.data[0]));
+    float *x_foot_ptr = reinterpret_cast<float*>(&(tx_frame.data[4]));
 
+    *f_foot_ptr = float(f_foot);
+    *x_foot_ptr = float(x_foot);
+
+    ESP32Can.writeFrame(tx_frame);
+  #endif
 /*
 
     //Add effect by force
@@ -1965,6 +1998,7 @@ void ESPNOW_SyncTask( void * pvParameters )
 
       } 
       //rudder sync
+      #ifndef HAS_CAN
       if(dap_calculationVariables_st.Rudder_status)
       {              
         if(ESPNow_update)
@@ -1975,6 +2009,7 @@ void ESPNOW_SyncTask( void * pvParameters )
           ESPNow_update=false;
         }                
       }
+      #endif
           
     }
 
