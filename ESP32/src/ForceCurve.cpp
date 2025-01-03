@@ -32,7 +32,7 @@ float ForceCurve_Interpolated::EvalForceCubicSpline(const DAP_config_st* config_
   yOrig[4] = config_st->payLoadPedalConfig_.relativeForce_p080;
   yOrig[5] = config_st->payLoadPedalConfig_.relativeForce_p100;
 
-  //double dx = 1.0f;
+  //float dx = 1.0f;
   float t = (splineSegment_fl32 - (float)splineSegment_u8);// / dx;
   float y = (1.0f - t) * yOrig[splineSegment_u8] + t * yOrig[splineSegment_u8 + 1] + t * (1.0f - t) * (a * (1.0f - t) + b * t);
   

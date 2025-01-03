@@ -14,13 +14,13 @@ class A6Servo : public Servo {
         bool enable(void);
         bool disable(void);
         void write_trq_limit(float limit_percent);
-        bool move_to(double position, bool blocking = false);
-        void move_to_slow(double position);
-        double get_min_pos(void) {
+        bool move_to(float position, bool blocking = false);
+        void move_to_slow(float position);
+        float get_min_pos(void) {
             return 0.0;
         }
-        double get_max_pos(void) {
-            return double(_pos_max) / double(_steps_per_mm * _mm_per_rev);
+        float get_max_pos(void) {
+            return float(_pos_max) / float(_steps_per_mm * _mm_per_rev);
         }
         void periodic_task_func(void);
         void lock_onto_curr_pos(void);
@@ -87,8 +87,8 @@ class A6Servo : public Servo {
         uint32_t _steps_per_mm;
         uint32_t _mm_per_rev;
         int32_t _pos_max = 0;
-        double _trq_locked_in = 300.0;
-        double _trq_open_loop = 10.0;
+        float _trq_locked_in = 300.0;
+        float _trq_open_loop = 10.0;
         static void task_func(void* pvParameters) {
             A6Servo* servo = (A6Servo*) pvParameters;
             delay(1000);

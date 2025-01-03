@@ -73,9 +73,9 @@ typedef struct ESP_pairing_reg
 typedef struct struct_message {
   uint64_t cycleCnt_u64;
   int64_t timeSinceBoot_i64;
-  double force_dbl;
-  double position_dbl;
-  double controller_val_norm_f32;
+  float force_fp32;
+  float position_fp32;
+  float controller_val_norm_fp32;
   int8_t pedal_status; //0=default, 1=rudder, 2=rudder brake
 } struct_message;
 
@@ -86,13 +86,13 @@ ESPNow_Send_Struct _ESPNow_Recv;
 ESPNow_Send_Struct _ESPNow_Send;
 ESP_pairing_reg _ESP_pairing_reg;
 
-bool sendMessageToMaster(double &force, double &position, double &controller_value)
+bool sendMessageToMaster(float &force, float &position, float &controller_value)
 {
   myData.cycleCnt_u64++;
   myData.timeSinceBoot_i64 = esp_timer_get_time() / 1000;
-  myData.force_dbl = force;
-  myData.position_dbl = position;
-  myData.controller_val_norm_f32 = controller_value;
+  myData.force_fp32 = force;
+  myData.position_fp32 = position;
+  myData.controller_val_norm_fp32 = controller_value;
   if(dap_calculationVariables_st.Rudder_status)
   {
     if(dap_calculationVariables_st.rudder_brake_status)
@@ -153,7 +153,7 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
       
       //#ifdef ACTIVATE_JOYSTICK_OUTPUT
       // normalize controller output
-      int32_t joystickNormalizedToInt32 = NormalizeControllerOutputValue(myData.controller_val_norm_f32, 0.0, 1.0, 100.0);
+      int32_t joystickNormalizedToInt32 = NormalizeControllerOutputValue(myData.controller_val_norm_fp32, 0.0, 1.0, 100.0);
       //if(esp_now_info->src_addr[5]==Clu_mac[5])
       if(mac_addr[5]==Clu_mac[5])
       {

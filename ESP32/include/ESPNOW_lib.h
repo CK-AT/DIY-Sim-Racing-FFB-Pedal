@@ -41,9 +41,9 @@ struct ESPNow_Send_Struct
 typedef struct struct_message {
   uint64_t cycleCnt_u64;
   int64_t timeSinceBoot_i64;
-  double force_dbl;
-  double position_dbl;
-  double controller_val_norm_f32;
+  float force_fp32;
+  float position_fp32;
+  float controller_val_norm_fp32;
   int8_t pedal_status; //0=default, 1=rudder, 2=rudder brake
 } struct_message;
 
@@ -81,13 +81,13 @@ bool MacCheck(uint8_t* Mac_A, uint8_t*  Mac_B)
 }
 
 
-bool sendMessageToMaster(double &force, double &position, double &controller_value)
+bool sendMessageToMaster(float &force, float &position, float &controller_value)
 {
   myData.cycleCnt_u64++;
   myData.timeSinceBoot_i64 = esp_timer_get_time() / 1000;
-  myData.force_dbl = force;
-  myData.position_dbl = position;
-  myData.controller_val_norm_f32 = controller_value;
+  myData.force_fp32 = force;
+  myData.position_fp32 = position;
+  myData.controller_val_norm_fp32 = controller_value;
   if(dap_calculationVariables_st.Rudder_status)
   {
     if(dap_calculationVariables_st.rudder_brake_status)

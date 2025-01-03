@@ -1,20 +1,20 @@
 #include <Physics.h>
 
-void CompoundElement::update(Sim *sim, double &f_sum) {
+void CompoundElement::update(Sim *sim, float &f_sum) {
     if (!_enabled) return;
     for (auto element: _elements) {
         element->update(sim, f_sum);
     }
 }
 
-void Spring::update(Sim *sim, double &f_sum) {
+void Spring::update(Sim *sim, float &f_sum) {
     if (!_enabled) return;
     f_sum = f_sum - ((sim->get_x() - _offset) * _k);
 }
 
-void Damper::update(Sim *sim, double &f_sum) {
+void Damper::update(Sim *sim, float &f_sum) {
     if (!_enabled) return;
-    double v = sim->get_v();
+    float v = sim->get_v();
     if (v < 0.0) {
         f_sum = f_sum - (v * _k_neg);
     } else {
@@ -22,7 +22,7 @@ void Damper::update(Sim *sim, double &f_sum) {
     }
 }
 
-void Friction::update(Sim *sim, double &f_sum) {
+void Friction::update(Sim *sim, float &f_sum) {
     if (!_enabled) return;
     if (sim->get_v() > 0.0) {
         f_sum = f_sum - min(_f, abs(f_sum));
@@ -31,14 +31,14 @@ void Friction::update(Sim *sim, double &f_sum) {
     }
 }
 
-void ConstForce::update(Sim *sim, double &f_sum) {
+void ConstForce::update(Sim *sim, float &f_sum) {
     if (!_enabled) return;
     f_sum += _f;
 }
 
-void ForceMap::update(Sim *sim, double &f_sum) {
+void ForceMap::update(Sim *sim, float &f_sum) {
     if (!_enabled) return;
-    double x = sim->get_x();
+    float x = sim->get_x();
     if (x <= _x_vect[0]) {
         f_sum -= _f_vect[0];
         last_idx = 0;
@@ -61,11 +61,11 @@ void ForceMap::update(Sim *sim, double &f_sum) {
     }
 }
 
-void DampingMap::update(Sim *sim, double &f_sum) {
+void DampingMap::update(Sim *sim, float &f_sum) {
     if (!_enabled) return;
-    double x = sim->get_x();
-    double v = sim->get_v();
-    std::vector<double> *k_vect;
+    float x = sim->get_x();
+    float v = sim->get_v();
+    std::vector<float> *k_vect;
     if (v < 0.0) {
         k_vect = &_k_vect_neg;
     } else {
@@ -93,8 +93,8 @@ void DampingMap::update(Sim *sim, double &f_sum) {
     }
 }
 
-void Sim::update(double &dt, double &f_in, bool final_f) {
-    double f_sum = f_in;
+void Sim::update(float &dt, float &f_in, bool final_f) {
+    float f_sum = f_in;
     
     if (!final_f) {
         for (auto element: _elements) {
@@ -105,18 +105,18 @@ void Sim::update(double &dt, double &f_in, bool final_f) {
     _x_min += constrain(_x_min_tgt - _x_min, -10.0 * dt / 1000.0, 10.0 * dt / 1000.0);
     _x_max += constrain(_x_max_tgt - _x_max, -10.0 * dt / 1000.0, 10.0 * dt / 1000.0);
     
-    double a_raw = f_sum / _m * 1000.0;
-    double a_lim = constrain(a_raw, _a_min, _a_max);
+    float a_raw = f_sum / _m * 1000.0;
+    float a_lim = constrain(a_raw, _a_min, _a_max);
     if (abs(a_lim) < 0.001) {
         a_lim = 0.0;
     }
-    double v_raw = _v + (((a_lim + _a) * dt) / 2000.0);
-    double v_lim = constrain(v_raw, _v_min, _v_max);
+    float v_raw = _v + (((a_lim + _a) * dt) / 2000.0);
+    float v_lim = constrain(v_raw, _v_min, _v_max);
     if (abs(v_lim) < 0.001) {
         v_lim = 0.0;
     }
-    double x_raw = _x + (((v_lim + _v) * dt) / 2000.0);
-    double x_lim = constrain(x_raw, _x_min, _x_max);
+    float x_raw = _x + (((v_lim + _v) * dt) / 2000.0);
+    float x_lim = constrain(x_raw, _x_min, _x_max);
     if (abs(x_raw - x_lim) > 0.01) {
         v_lim = 0.0;
     }

@@ -6,7 +6,7 @@ typedef struct {
   uint32_t t;
   String *name_prefix;
   String *name;
-  double value;
+  float value;
 } RTDebugSample;
 
 extern QueueHandle_t _queue_data;
@@ -22,7 +22,7 @@ class RTDebugOutput {
       : _outNames(outNames), _namePrefix(namePrefix)
     { }
 
-    void offerData(std::array<double,NVALS> values) {
+    void offerData(std::array<float,NVALS> values) {
         if (!_queue_data) return;
         RTDebugSample sample;
         sample.t = millis();

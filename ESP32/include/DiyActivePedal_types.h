@@ -319,8 +319,8 @@ struct DAP_calculationVariables_st
   float WS_freq;
   bool Rudder_status;
   uint8_t pedal_type;
-  double f_foot_other_pedal;
-  double x_foot_other_pedal;
+  float f_foot_other_pedal;
+  float x_foot_other_pedal;
   bool rudder_brake_status;
   long stepperPosMin_default;
   long stepperPosMax_default;

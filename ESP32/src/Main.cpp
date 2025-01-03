@@ -253,13 +253,13 @@ char* APhost;
   TaskHandle_t ESPNowTask;
 #endif
 
-double m = 0.1;
-double x_min = 0.0;
-double x_max = 100.0;
-double v_min = -1000.0;
-double v_max = 1000.0;
-double a_min = -100000.0;
-double a_max = 100000.0;
+float m = 0.1;
+float x_min = 0.0;
+float x_max = 100.0;
+float v_min = -1000.0;
+float v_max = 1000.0;
+float a_min = -100000.0;
+float a_max = 100000.0;
 Sim sim = Sim(m, x_min, x_max, v_min, v_max, a_min, a_max);
 Spring spring1 = Spring(50.0, 2.0);
 Damper damper1 = Damper(0.1);
@@ -709,7 +709,7 @@ void loop() {
   */
 }
 
-void calc_poly(const double &in, double &out, const double *coeffs) {
+void calc_poly(const float &in, float &out, const double *coeffs) {
   double result = coeffs[0];
   double temp = in;
   for (uint8_t i = 1; i < 5; i++) {
@@ -719,8 +719,8 @@ void calc_poly(const double &in, double &out, const double *coeffs) {
   out = result;
 }
 
-double NormalizeValue(double value, double minVal, double maxVal) {
-  double valRange = (maxVal - minVal);
+float NormalizeValue(float value, float minVal, float maxVal) {
+  float valRange = (maxVal - minVal);
   if (abs(valRange) < 0.01) {
     return 0.0;   // avoid div-by-zero
   }
@@ -752,8 +752,8 @@ unsigned long printCycleCounter = 0;
 
 
 uint printCntr = 0;
-double x_foot = 0.0;
-double f_foot = 0.0;
+float x_foot = 0.0;
+float f_foot = 0.0;
 
 
 int64_t timeNow_pedalUpdateTask_l = 0;
@@ -763,7 +763,7 @@ int64_t timePrevious_pedalUpdateTask_l = 0;
 //void loop()
 void pedalUpdateTask( void * pvParameters )
 {
-  double dt = 1000.0;
+  float dt = 1000.0;
 
   for(;;){
 
@@ -887,9 +887,9 @@ void pedalUpdateTask( void * pvParameters )
     //   sim.set_x_max(50.0, true);
     // }
 
-    double f_loadcell = filteredReading * 9.81;
+    float f_loadcell = filteredReading * 9.81;
 
-    double r_conv;
+    float r_conv;
     calc_poly(x_foot, r_conv, dap_mech_config_st.payLoadMechConfig_.coeffs_force_factor_over_pedal_pos);
 
     f_foot = f_loadcell * r_conv;
@@ -903,9 +903,9 @@ void pedalUpdateTask( void * pvParameters )
     }
   #endif
 
-    double x_foot_norm = NormalizeValue(x_foot, 0.0, 60.0);
-    double f_curve = forceCurve.EvalForceCubicSpline(&dap_config_st, &dap_calculationVariables_st, x_foot_norm);
-    double f_in = f_foot - f_curve;
+    float x_foot_norm = NormalizeValue(x_foot, 0.0, 60.0);
+    float f_curve = forceCurve.EvalForceCubicSpline(&dap_config_st, &dap_calculationVariables_st, x_foot_norm);
+    float f_in = f_foot - f_curve;
     if (dap_calculationVariables_st.Rudder_status == true) {
       f_in -= dap_calculationVariables_st.f_foot_other_pedal;
     }
@@ -913,13 +913,13 @@ void pedalUpdateTask( void * pvParameters )
     sim.update(dt, f_in);
 
     if (dap_calculationVariables_st.Rudder_status == true && dap_calculationVariables_st.pedal_type != 2) {
-      double offset = dap_calculationVariables_st.x_foot_other_pedal - 50.0;
+      float offset = dap_calculationVariables_st.x_foot_other_pedal - 50.0;
       x_foot = 50.0 - offset;
     } else {
       x_foot = sim.get_x();
     }
 
-    double x_sled;
+    float x_sled;
     calc_poly(x_foot, x_sled, dap_mech_config_st.payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos);
 
     if (moveSlowlyToPosition_b) {
@@ -954,13 +954,13 @@ void pedalUpdateTask( void * pvParameters )
     *f_foot_ptr = float(f_foot);
     *x_foot_ptr = float(x_foot);
 
-    ESP32Can.writeFrame(tx_frame);
+    ESP32Can.writeFrame(tx_frame, 0);
   #endif
 /*
 
     //Add effect by force
     float effect_force = absForceOffset + _BitePointOscillation.BitePoint_Force_offset + _WSOscillation.WS_Force_offset + CV1.CV_Force_offset + CV2.CV_Force_offset;
-    // double stepperPosFraction = stepper->getCurrentPositionFraction();
+    // float stepperPosFraction = stepper->getCurrentPositionFraction();
     int32_t Position_Next = 0;
 
 
@@ -1536,7 +1536,7 @@ void serialCommunicationTask( void * pvParameters )
                 if (val) {
                   // Serial.printf("Val: %s\n", val);
                   if (strcmp(param, "m") == 0) {
-                    double val_num = atof(val);
+                    float val_num = atof(val);
                     sim.set_m(val_num);
                     Serial.printf("Simulation mass set to %.3f kg\n", val_num);
                   } else if (strcmp(param, "debug") == 0) {
@@ -1552,23 +1552,23 @@ void serialCommunicationTask( void * pvParameters )
                       Serial.printf("Endstops disabled\n");
                     }
                   } else if (strcmp(param, "fric") == 0) {
-                    double val_num = atof(val);
+                    float val_num = atof(val);
                     friction1.set_f(val_num);
                     Serial.printf("Friction set to %.3f N\n", val_num);
                   } else if (strcmp(param, "spr") == 0) {
-                    double val_num = atof(val);
+                    float val_num = atof(val);
                     spring1.set_k(val_num);
                     Serial.printf("Spring set to %.3f N/mm\n", val_num);
                   } else if (strcmp(param, "damp") == 0) {
-                    double val_num = atof(val);
+                    float val_num = atof(val);
                     damper1.set_k(val_num);
                     Serial.printf("Damper set to %.3f N/(mm/s)\n", val_num);
                   } else if (strcmp(param, "damp_pos") == 0) {
-                    double val_num = atof(val);
+                    float val_num = atof(val);
                     damper1.set_k_pos(val_num);
                     Serial.printf("Positive damper set to %.3f N/(mm/s)\n", val_num);
                   } else if (strcmp(param, "damp_neg") == 0) {
-                    double val_num = atof(val);
+                    float val_num = atof(val);
                     damper1.set_k_neg(val_num);
                     Serial.printf("Negative damper set to %.3f N/(mm/s)\n", val_num);
                   } else {
@@ -1929,7 +1929,7 @@ void ESPNOW_SyncTask( void * pvParameters )
         }
       #endif
       //joystick sync
-      double controller_val;
+      float controller_val;
       if (dap_config_st.payLoadPedalConfig_.travelAsJoystickOutput_u8 || dap_calculationVariables_st.Rudder_status) {
         controller_val = NormalizeValue(x_foot, dap_calculationVariables_st.startPosRel * 100.0, dap_calculationVariables_st.endPosRel * 100.0);
       } else {

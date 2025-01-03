@@ -142,7 +142,7 @@ void A6Servo::do_homing(void) {
     {
         delay(100);
         speed = get_speed();
-        LogOutput::printf("%.3f mm @ %.0f rpm\n", double(read_position()) / double(_steps_per_mm), speed);
+        LogOutput::printf("%.3f mm @ %.0f rpm\n", float(read_position()) / float(_steps_per_mm), speed);
         if (abs(speed) < 2) {
             num_zero_spd++;
         } else {
@@ -197,7 +197,7 @@ void A6Servo::lock_onto_curr_pos(void) {
 
 int32_t A6Servo::get_target_pos()
 {
-    return int32_t(_curr_pos * double(_steps_per_mm));
+    return int32_t(_curr_pos * float(_steps_per_mm));
 }
 
 void A6Servo::write_trq_limit(float limit_percent) {
@@ -249,19 +249,19 @@ bool A6Servo::move_to(int32_t position, bool blocking) {
     return true;
 }
 
-void A6Servo::move_to_slow(double position) {
-    _curr_pos = constrain(position, 0, double(double(_pos_max) / double(_steps_per_mm)));
+void A6Servo::move_to_slow(float position) {
+    _curr_pos = constrain(position, 0, float(float(_pos_max) / float(_steps_per_mm)));
     _curr_pos_valid = true;
     if (_state == State::Enabled && _homing_state == HomingState::LockedIn) {
-        move_to_slow(int32_t(position * double(_steps_per_mm)));
+        move_to_slow(int32_t(position * float(_steps_per_mm)));
     }
 }
 
-bool A6Servo::move_to(double position, bool blocking) {
-    _curr_pos = constrain(position, 0, double(double(_pos_max) / double(_steps_per_mm)));
+bool A6Servo::move_to(float position, bool blocking) {
+    _curr_pos = constrain(position, 0, float(float(_pos_max) / float(_steps_per_mm)));
     _curr_pos_valid = true;
     if (_state == State::Enabled && _homing_state == HomingState::LockedIn) {
-        return move_to(int32_t(position * double(_steps_per_mm)), blocking);
+        return move_to(int32_t(position * float(_steps_per_mm)), blocking);
     }
     return false;
 }

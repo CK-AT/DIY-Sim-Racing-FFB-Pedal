@@ -16,7 +16,7 @@ private:
   long _timeLastTriggerMillis;
   long _absTimeMillis;
   long _lastCallTimeMillis = 0;
-  double f_curr;
+  float f_curr;
 
 public:
   ABSOscillation()
@@ -28,7 +28,7 @@ public:
     _timeLastTriggerMillis = millis();
   }
   
-  void update(Sim *sim, double &f_sum) {
+  void update(Sim *sim, float &f_sum) {
     if (!_enabled) return;
     f_sum += f_curr;
   }

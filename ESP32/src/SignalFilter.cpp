@@ -10,15 +10,15 @@
 // a = 300 / delta_t^2
 // adjust model noise here s = 0.5 * a * delta_t^2 --> a = 2 * s / delta_t^2
 //static const float KF_MODEL_NOISE_FORCE_ACCELERATION = ( 2.0f * 1000.0f / 0.05f/ 0.05f );
-static const double KF_MODEL_NOISE_FORCE_ACCELERATION = ( 8.0f * 4.0f / 0.1f/ 0.1f );
+static const float KF_MODEL_NOISE_FORCE_ACCELERATION = ( 8.0f * 4.0f / 0.1f/ 0.1f );
 
 
 KalmanFilter::KalmanFilter(float varianceEstimate)
   : _timeLastObservation(micros())
 {
   // evolution matrix. Size is <Nstate,Nstate>
-  _K.F = {(double)1.0, 0.0,
-          0.0, (double)1.0};
+  _K.F = {(float)1.0, 0.0,
+          0.0, (float)1.0};
 
   // command matrix.  Size is <Nstate,Ncom>
   _K.B = {1.0, 
@@ -39,7 +39,7 @@ float KalmanFilter::filteredValue(float observation, float command, uint8_t mode
   // obtain time
   unsigned long currentTime = micros();
   unsigned long elapsedTime = currentTime - _timeLastObservation;
-  double modelNoiseScaling_fl32 = modelNoiseScaling_u8;
+  float modelNoiseScaling_fl32 = modelNoiseScaling_u8;
   modelNoiseScaling_fl32 /= 255.0;
 
   if (modelNoiseScaling_fl32 < 0.001)
@@ -50,19 +50,19 @@ float KalmanFilter::filteredValue(float observation, float command, uint8_t mode
   _timeLastObservation = currentTime;
 
   // update state transition and system covariance matrices
-  double delta_t = ((double)elapsedTime)  / 1000000.0f;/// 1000000.0f; // convert to seconds
-  double delta_t_pow2 = delta_t * delta_t;
-  double delta_t_pow3 = delta_t_pow2 * delta_t;
-  double delta_t_pow4 = delta_t_pow2 * delta_t_pow2;
+  float delta_t = ((float)elapsedTime)  / 1000000.0f;/// 1000000.0f; // convert to seconds
+  float delta_t_pow2 = delta_t * delta_t;
+  float delta_t_pow3 = delta_t_pow2 * delta_t;
+  float delta_t_pow4 = delta_t_pow2 * delta_t_pow2;
 
-  _K.F = {(double)1.0,  delta_t, 
-          0.0,  (double)1.0};
+  _K.F = {(float)1.0,  delta_t, 
+          0.0,  (float)1.0};
 
   _K.B = {1.0, 
           0.0};
 
-  double K_Q_11 = modelNoiseScaling_fl32 * KF_MODEL_NOISE_FORCE_ACCELERATION * (double)0.5f * delta_t_pow3;
-  _K.Q = {modelNoiseScaling_fl32 * KF_MODEL_NOISE_FORCE_ACCELERATION * (double)0.25f * delta_t_pow4,   K_Q_11,
+  float K_Q_11 = modelNoiseScaling_fl32 * KF_MODEL_NOISE_FORCE_ACCELERATION * (float)0.5f * delta_t_pow3;
+  _K.Q = {modelNoiseScaling_fl32 * KF_MODEL_NOISE_FORCE_ACCELERATION * (float)0.25f * delta_t_pow4,   K_Q_11,
         K_Q_11, modelNoiseScaling_fl32 * KF_MODEL_NOISE_FORCE_ACCELERATION * delta_t_pow2};
         
 
