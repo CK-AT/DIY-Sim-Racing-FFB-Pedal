@@ -138,7 +138,7 @@ void A6Servo::do_homing(void) {
     LogOutput::printf("Negative endstop found, moving to positive endstop...\n");
     _stepper_engine->keepRunningForward((_steps_per_mm * _mm_per_rev) / 0.6);
     num_zero_spd = 0;
-    while (num_zero_spd < 2)
+    while (num_zero_spd < 5)
     {
         delay(100);
         speed = get_speed();
@@ -151,15 +151,22 @@ void A6Servo::do_homing(void) {
     }
     _stepper_engine->forceStop();
     int32_t pos_endstop = read_position();
-    LogOutput::printf("Positive endstop found @ %.3f mm\n", double(pos_endstop) / double(_steps_per_mm));
-    _pos_max = pos_endstop - 2500;
-    _stepper_engine->moveTo(_pos_max, true);
-    write_min_pos(0);
-    write_max_pos(_pos_max);
-    write_hold_register<uint16_t>(0x1000, 0); // reset homing command
-    _homing_state = HomingState::Homed;
-    _state = State::Enabled;
-    LogOutput::printf("Homing done.\n");
+    if ((float(pos_endstop) / float(_steps_per_mm)) > 20.0) {
+        LogOutput::printf("Positive endstop found @ %.3f mm\n", float(pos_endstop) / float(_steps_per_mm));
+        _pos_max = pos_endstop - 2500;
+        _stepper_engine->moveTo(_pos_max, true);
+        write_min_pos(0);
+        write_max_pos(_pos_max);
+        write_hold_register<uint16_t>(0x1000, 0); // reset homing command
+        _homing_state = HomingState::Homed;
+        _state = State::Enabled;
+        LogOutput::printf("Homing done.\n");        
+    } else {
+        LogOutput::printf("Homing failed, sled did not move far enough from negative endstop (only %.3f mm).\n", float(pos_endstop) / float(_steps_per_mm));
+        _homing_state = HomingState::HomeUnknown;
+        _state = State::Enabled;
+        write_hold_register<uint16_t>(0x1000, 0); // reset homing command
+    }
 }
 
 void A6Servo::lock_onto_curr_pos(void) {
