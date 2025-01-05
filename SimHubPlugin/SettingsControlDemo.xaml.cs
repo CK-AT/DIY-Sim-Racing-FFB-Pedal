@@ -53,6 +53,9 @@ using Windows.UI.Notifications;
 using System.Windows.Navigation;
 using System.CodeDom;
 using System.Media;
+using System.Windows.Threading;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 // Win 11 install, see https://github.com/jshafer817/vJoy/releases
 //using vJoy.Wrapper;
@@ -81,7 +84,9 @@ namespace User.PluginSdkDemo
 
 
         public DAP_config_st[] dap_config_st = new DAP_config_st[3];
+        public DAP_config_st dap_config_st_rudder;
         public DAP_bridge_state_st dap_bridge_state_st;
+        public Basic_WIfi_info _basic_wifi_info;
         private string stringValue;
 
 
@@ -98,8 +103,10 @@ namespace User.PluginSdkDemo
         //public VirtualJoystick joystick;
         internal vJoyInterfaceWrap.vJoy joystick;
 
+        private Profile_Online Online_profile;
 
         public bool[] dumpPedalToResponseFile = new bool[3];
+        public bool[] dumpPedalToResponseFile_clearFile = new bool[3];
 
         private SolidColorBrush defaultcolor;
         private SolidColorBrush lightcolor;
@@ -109,6 +116,7 @@ namespace User.PluginSdkDemo
         private SolidColorBrush color_RSSI_3;
         private SolidColorBrush color_RSSI_4;
         private string info_text_connection;
+        private string system_info_text_connection;
         private int current_pedal_travel_state= 0;
         private int gridline_kinematic_count_original = 0;
         private double[] Pedal_position_reading=new double[3];
@@ -116,6 +124,16 @@ namespace User.PluginSdkDemo
         public byte Bridge_RSSI = 0;
         public bool[] Pedal_wireless_connection_update_b = new bool[3] { false,false,false};
         public int Bridge_baudrate = 3000000;
+        public bool Fanatec_mode = false;
+        public bool Update_Profile_Checkbox_b = false;
+        public bool Update_CV_textbox = false;
+        public bool[] Version_error_warning_b = new bool[3] { false, false, false };
+        public bool[] Version_warning_first_show_b= new bool[3] { false, false, false };
+        public bool Version_warning_first_show_b_bridge = false;
+        public byte[] Pedal_version = new byte[3];
+        private SerialMonitor_Window _serial_monitor_window;
+        public bool Pedal_Log_warning_1st_show_b = true;
+        //public int Bridge_baudrate = 921600;
         /*
         private double kinematicDiagram_zeroPos_OX = 100;
         private double kinematicDiagram_zeroPos_OY = 20;
@@ -227,8 +245,20 @@ namespace User.PluginSdkDemo
                     Opacity = 0.1
 
                 };
+                Line line2 = new Line
+                {
+                    X1 = 0,
+                    Y1 = i * cellHeight,
+                    X2 = canvas.Width,
+                    Y2 = i * cellHeight,
+                    //Stroke = Brush.Black,
+                    Stroke = System.Windows.Media.Brushes.LightSteelBlue,
+                    StrokeThickness = 1,
+                    Opacity = 0.1
+
+                };
                 canvas.Children.Add(line);
-          
+                canvas_rudder_curve.Children.Add(line2);
             }
 
             // Draw vertical gridlines
@@ -245,8 +275,20 @@ namespace User.PluginSdkDemo
                     StrokeThickness = 1,
                     Opacity = 0.1
                 };
+                Line line2 = new Line
+                {
+                    X1 = i * cellWidth,
+                    Y1 = 0,
+                    X2 = i * cellWidth,
+                    Y2 = canvas.Height,
+                    //Stroke = Brushes.Black,
+                    Stroke = System.Windows.Media.Brushes.LightSteelBlue,
+                    StrokeThickness = 1,
+                    Opacity = 0.1
+                };
                 canvas.Children.Add(line);
-                
+                canvas_rudder_curve.Children.Add(line2);
+
             }
         }
 
@@ -405,6 +447,7 @@ namespace User.PluginSdkDemo
         public void DAP_config_set_default(uint pedalIdx)
         {
             dumpPedalToResponseFile[pedalIdx] = false;
+            dumpPedalToResponseFile_clearFile[pedalIdx] = false;
             dap_config_st[pedalIdx].payloadHeader_.payloadType = (byte)Constants.pedalConfigPayload_type;
             dap_config_st[pedalIdx].payloadHeader_.version = (byte)Constants.pedalConfigPayload_version;
             dap_config_st[pedalIdx].payloadPedalConfig_.pedalStartPosition = 35;
@@ -465,12 +508,13 @@ namespace User.PluginSdkDemo
             dap_config_st[pedalIdx].payloadPedalConfig_.cubic_spline_param_b_3 = 0;
             dap_config_st[pedalIdx].payloadPedalConfig_.cubic_spline_param_b_4 = 0;
 
-            dap_config_st[pedalIdx].payloadPedalConfig_.PID_p_gain = 0.3f;
-            dap_config_st[pedalIdx].payloadPedalConfig_.PID_i_gain = 50.0f;
+            dap_config_st[pedalIdx].payloadPedalConfig_.PID_p_gain = 0.1f;
+            dap_config_st[pedalIdx].payloadPedalConfig_.PID_i_gain = 1.0f;
             dap_config_st[pedalIdx].payloadPedalConfig_.PID_d_gain = 0.0f;
             dap_config_st[pedalIdx].payloadPedalConfig_.PID_velocity_feedforward_gain = 0.0f;
 
-            dap_config_st[pedalIdx].payloadPedalConfig_.MPC_0th_order_gain = 1.0f;
+            dap_config_st[pedalIdx].payloadPedalConfig_.MPC_0th_order_gain = 10.0f;
+            dap_config_st[pedalIdx].payloadPedalConfig_.MPC_1st_order_gain = 0.0f;
 
             dap_config_st[pedalIdx].payloadPedalConfig_.control_strategy_b = 2;
 
@@ -484,39 +528,195 @@ namespace User.PluginSdkDemo
             dap_config_st[pedalIdx].payloadPedalConfig_.spindlePitch_mmPerRev_u8 = 5;
             dap_config_st[pedalIdx].payloadPedalConfig_.pedal_type = (byte)pedalIdx;
             //dap_config_st[pedalIdx].payloadPedalConfig_.OTA_flag = 0;
-            dap_config_st[pedalIdx].payloadPedalConfig_.enableReboot_u8 = 0;
+            dap_config_st[pedalIdx].payloadPedalConfig_.stepLossFunctionFlags_u8 = 0b11;
         }
 
-
-        public SettingsControlDemo()
+        public void DAP_config_set_default_rudder()
         {
+            
+            dap_config_st_rudder.payloadHeader_.payloadType = (byte)Constants.pedalConfigPayload_type;
+            dap_config_st_rudder.payloadHeader_.version = (byte)Constants.pedalConfigPayload_version;
+            dap_config_st_rudder.payloadPedalConfig_.pedalStartPosition = 5;
+            dap_config_st_rudder.payloadPedalConfig_.pedalEndPosition = 95;
+            dap_config_st_rudder.payloadPedalConfig_.maxForce = 10;
+            dap_config_st_rudder.payloadPedalConfig_.preloadForce = 0;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020 = 20;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040 = 40;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = 60;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = 80;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = 100;
+            dap_config_st_rudder.payloadPedalConfig_.dampingPress = 0;
+            dap_config_st_rudder.payloadPedalConfig_.dampingPull = 0;
+            dap_config_st_rudder.payloadPedalConfig_.absFrequency = 5;
+            dap_config_st_rudder.payloadPedalConfig_.absAmplitude = 20;
+            dap_config_st_rudder.payloadPedalConfig_.absPattern = 0;
+            dap_config_st_rudder.payloadPedalConfig_.absForceOrTarvelBit = 0;
 
+            dap_config_st_rudder.payloadPedalConfig_.lengthPedal_a = 205;
+            dap_config_st_rudder.payloadPedalConfig_.lengthPedal_b = 220;
+            dap_config_st_rudder.payloadPedalConfig_.lengthPedal_d = 60;
+            dap_config_st_rudder.payloadPedalConfig_.lengthPedal_c_horizontal = 215;
+            dap_config_st_rudder.payloadPedalConfig_.lengthPedal_c_vertical = 60;
+            dap_config_st_rudder.payloadPedalConfig_.lengthPedal_travel = 60;
 
+            dap_config_st_rudder.payloadPedalConfig_.Simulate_ABS_trigger = 0;
+            dap_config_st_rudder.payloadPedalConfig_.Simulate_ABS_value = 80;
+            dap_config_st_rudder.payloadPedalConfig_.RPM_max_freq = 45;
+            dap_config_st_rudder.payloadPedalConfig_.RPM_min_freq = 15;
+            dap_config_st_rudder.payloadPedalConfig_.RPM_AMP = 1;
+            dap_config_st_rudder.payloadPedalConfig_.BP_trigger_value = 50;
+            dap_config_st_rudder.payloadPedalConfig_.BP_amp = 1;
+            dap_config_st_rudder.payloadPedalConfig_.BP_freq = 15;
+            dap_config_st_rudder.payloadPedalConfig_.BP_trigger = 0;
+            dap_config_st_rudder.payloadPedalConfig_.G_multi = 50;
+            dap_config_st_rudder.payloadPedalConfig_.G_window = 10;
+            dap_config_st_rudder.payloadPedalConfig_.WS_amp = 1;
+            dap_config_st_rudder.payloadPedalConfig_.WS_freq = 15;
+            dap_config_st_rudder.payloadPedalConfig_.Impact_multi = 50;
+            dap_config_st_rudder.payloadPedalConfig_.Impact_window = 60;
+            dap_config_st_rudder.payloadPedalConfig_.CV_amp_1 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.CV_freq_1 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.CV_amp_2 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.CV_freq_2 = 0;
+
+            dap_config_st_rudder.payloadPedalConfig_.maxGameOutput = 100;
+            dap_config_st_rudder.payloadPedalConfig_.kf_modelNoise = 10;
+            dap_config_st_rudder.payloadPedalConfig_.kf_modelOrder = 0;
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_0 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_1 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_2 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_3 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_4 = 0;
+
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_0 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_1 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_2 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_3 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_4 = 0;
+
+            dap_config_st_rudder.payloadPedalConfig_.PID_p_gain = 0.3f;
+            dap_config_st_rudder.payloadPedalConfig_.PID_i_gain = 50.0f;
+            dap_config_st_rudder.payloadPedalConfig_.PID_d_gain = 0.0f;
+            dap_config_st_rudder.payloadPedalConfig_.PID_velocity_feedforward_gain = 0.0f;
+
+            dap_config_st_rudder.payloadPedalConfig_.MPC_0th_order_gain = 6.0f;
+            dap_config_st_rudder.payloadPedalConfig_.MPC_1st_order_gain = 0.0f;
+
+            dap_config_st_rudder.payloadPedalConfig_.control_strategy_b = 2;
+
+            dap_config_st_rudder.payloadPedalConfig_.loadcell_rating = 100;
+
+            dap_config_st_rudder.payloadPedalConfig_.travelAsJoystickOutput_u8 = 1;
+
+            dap_config_st_rudder.payloadPedalConfig_.invertLoadcellReading_u8 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.invertMotorDirection_u8 = 0;
+
+            dap_config_st_rudder.payloadPedalConfig_.spindlePitch_mmPerRev_u8 = 5;
+            dap_config_st_rudder.payloadPedalConfig_.pedal_type = (byte)4;
+            //dap_config_st[pedalIdx].payloadPedalConfig_.OTA_flag = 0;
+            dap_config_st_rudder.payloadPedalConfig_.stepLossFunctionFlags_u8 = 0b11;
+        }
+        System.Windows.Controls.CheckBox[,] Effect_status_profile=new System.Windows.Controls.CheckBox[3,8];
+        unsafe public SettingsControlDemo()
+        {
+            
+            DAP_config_set_default_rudder();
             for (uint pedalIdx = 0; pedalIdx < 3; pedalIdx++)
             {
-
-
                 DAP_config_set_default(pedalIdx);
-                InitializeComponent();
-
-
+                
             }
+            for (uint i = 0; i < 30; i++)
+            {
+                _basic_wifi_info.WIFI_PASS[i] = 0;
+                _basic_wifi_info.WIFI_SSID[i] = 0;
+            }
+            InitializeComponent();
+
+            //initialize profile effect status
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 8; j++)
+                {
+                    Effect_status_profile[i, j] = new System.Windows.Controls.CheckBox();
+                    Effect_status_profile[i, j].Width = 45;
+                    Effect_status_profile[i, j].Height = 20;
+                    Effect_status_profile[i, j].FontSize = 8;
+                    switch (j)
+                    {
+                        case 0:
+                            
+                            Effect_status_profile[i, j].Margin = new Thickness(20, 0, 0, 0);
+                            if (i == 0 || i == 2)
+                            {
+                                Effect_status_profile[i, j].Content = "TC";
+                                
+                            }
+                            else
+                            {
+                                Effect_status_profile[i, j].Content = "ABS";
+                            }
+                            
+                            break;
+                        case 1:
+                            Effect_status_profile[i, j].Content = "RPM";
+                            break;
+                        case 2:
+                            Effect_status_profile[i, j].Content = "B.P";
+                            Effect_status_profile[i, j].Width = 40;
+                            break;
+                        case 3:
+                            Effect_status_profile[i, j].Content = "G-F";
+                            Effect_status_profile[i, j].Width = 40;
+                            if (i == 0 || i == 2)
+                            {
+                                Effect_status_profile[i, j].IsEnabled = false;
+                            }
+                            break;
+                        case 4:
+                            Effect_status_profile[i, j].Content = "W.S";
+                            Effect_status_profile[i, j].Width = 40;
+                            break;
+                        case 5:
+                            Effect_status_profile[i, j].Content = "IMAPCT";
+                            Effect_status_profile[i, j].Width = 60;
+                            break;
+                        case 6:
+                            Effect_status_profile[i, j].Content = "CUS-1";
+                            Effect_status_profile[i, j].Width = 50;
+                            break;
+                        case 7:
+                            Effect_status_profile[i, j].Content = "CUS-2";
+                            Effect_status_profile[i, j].Width = 50;
+                            break;
+                    }
+                    switch (i)
+                    {
+                        case 0:
+                            StackPanel_Effects_Status_0.Children.Add(Effect_status_profile[i, j]);
+                            break;
+                        case 1:
+                            StackPanel_Effects_Status_1.Children.Add(Effect_status_profile[i, j]);
+                            break;
+                        case 2:
+                            StackPanel_Effects_Status_2.Children.Add(Effect_status_profile[i, j]);
+                            break;
+                    }
+                }
+            }
+
             // debug mode invisiable
-            text_debug_flag.Visibility = Visibility.Hidden;
-            text_serial.Visibility = Visibility.Hidden;
-            TextBox_serialMonitor.Visibility = System.Windows.Visibility.Hidden;
+            //text_debug_flag.Visibility = Visibility.Hidden;
+            //text_serial.Visibility = Visibility.Hidden;
+            //TextBox_serialMonitor.Visibility = System.Windows.Visibility.Hidden;
             //InvertLoadcellReading_check.Visibility = Visibility.Hidden;
             //InvertMotorDir_check.Visibility = Visibility.Hidden;
-            textBox_debug_Flag_0.Visibility = Visibility.Hidden;
-            Border_serial_monitor.Visibility=Visibility.Hidden;
-            Advanced_Tab.Visibility=Visibility.Hidden;
+            //textBox_debug_Flag_0.Visibility = Visibility.Hidden;
+            //Border_serial_monitor.Visibility=Visibility.Hidden;
+            
            
-            //btn_serial.Visibility = System.Windows.Visibility.Hidden;
-            button_pedal_position_reset.Visibility = System.Windows.Visibility.Hidden;
-            button_pedal_restart.Visibility = System.Windows.Visibility.Hidden;
-            btn_system_id.Visibility = System.Windows.Visibility.Hidden;
-            btn_reset_default.Visibility = System.Windows.Visibility.Hidden;
-            dump_pedal_response_to_file.Visibility = System.Windows.Visibility.Hidden;
+
             //Label_reverse_LC.Visibility=Visibility.Hidden;
             //Label_reverse_servo.Visibility=Visibility.Hidden;
             btn_test.Visibility=Visibility.Hidden;
@@ -548,7 +748,9 @@ namespace User.PluginSdkDemo
             Label_RSSI.Visibility= Visibility.Hidden;
             Rangeslider_force_range.TickFrequency = 1;
             TextBox_debug_count.Visibility= Visibility.Hidden;
-
+            text_rudder_log.Visibility=Visibility.Hidden;
+            Online_profile = new Profile_Online();
+            Online_profile.Basic_Config=new BasicConfig();
 
 
 
@@ -941,6 +1143,7 @@ namespace User.PluginSdkDemo
             update_plot_WS();
             update_plot_RPM();
             info_label.Content = "State:\nDAP Version:\nPlugin Version:";
+            info_label_system.Content = "Bridge:\nDAP Version:\nPlugin Version:";
             //RSSI canvas
             if (Plugin != null)
             {
@@ -962,8 +1165,12 @@ namespace User.PluginSdkDemo
                 plugin_version = "Dev.";
             }
             string info_text;
+            string system_info_text;
+            info_text = "Waiting...";
+            system_info_text = "Waiting...";
             if (Plugin != null)
             {
+                
                 if (Plugin._serialPort[indexOfSelectedPedal_u].IsOpen)
                 {
                     info_text = "Connected";
@@ -974,16 +1181,13 @@ namespace User.PluginSdkDemo
                     {
                         info_text = info_text_connection;
                     }
-                    else
-                    {
-                        info_text = "Waiting...";
-                    }
                 }
                 if (Plugin.ESPsync_serialPort.IsOpen)
                 {
+                    system_info_text = "Connected";
                     if (Plugin.Settings.Pedal_ESPNow_Sync_flag[indexOfSelectedPedal_u])
                     {
-
+                        
                         if (dap_bridge_state_st.payloadBridgeState_.Pedal_availability_0 == 1 && indexOfSelectedPedal_u == 0)
                         {
                             info_text = "Wireless";
@@ -1001,6 +1205,10 @@ namespace User.PluginSdkDemo
                 }
                 else
                 {
+                    if (Plugin.Settings.Pedal_ESPNow_auto_connect_flag)
+                    {
+                        system_info_text = system_info_text_connection;
+                    }
                     if (Plugin.Settings.Pedal_ESPNow_Sync_flag[indexOfSelectedPedal_u])
                     {
                         if (Plugin.Settings.Pedal_ESPNow_auto_connect_flag)
@@ -1009,19 +1217,26 @@ namespace User.PluginSdkDemo
                         }
                         
                     }
-                    else
-                    {
-                        info_text = "Waiting...";
-                    }
 
                 }
                 info_text += "\n" + Constants.pedalConfigPayload_version + "\n" + plugin_version;
+                system_info_text += "\n" + Constants.pedalConfigPayload_version + "\n" + plugin_version;
                 if (Plugin.Rudder_status)
                 {
                     info_text += "\nIn Action";
+                    system_info_text += "\nIn Action";
                     info_label.Content += "\nRudder:";
+                    info_label_system.Content += "\nRudder:";
+                }
+                if (Fanatec_mode)
+                {
+                    info_text += "\nIn Action";
+                    system_info_text += "\nIn Action";
+                    info_label.Content += "\nFanatec:";
+                    info_label_system.Content += "\nFanatec:";
                 }
                 info_label_2.Content = info_text;
+                info_label_2_system.Content = system_info_text;
             }
 
 
@@ -1118,6 +1333,9 @@ namespace User.PluginSdkDemo
             Slider_MPC_0th_gain.Value= dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_0th_order_gain;
             label_MPC_0th_gain.Content = "Foot spring stiffness: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_0th_order_gain, 2) + "kg/mm";
 
+            //Slider_MPC_1st_gain.Value = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_1st_order_gain;
+            //label_MPC_1st_gain.Content = "Foot spring damping: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_1st_order_gain, 2) + "kg*s/mm";
+
             Slider_Pgain.Value= dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_p_gain;
             label_Pgain.Content = "P-Gain: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_p_gain, 2);
 
@@ -1162,20 +1380,15 @@ namespace User.PluginSdkDemo
                 label_CV2_trigger.Content = "Effect Trigger:" + Plugin.Settings.CV2_trigger[indexOfSelectedPedal_u];
                 label_CV2_AMP.Content = "Effect Amplitude:" + (float)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.CV_amp_2 / 20.0f + "kg";
                 label_CV2_freq.Content = "Effect Frequency:" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.CV_freq_2 + "Hz";
-                textBox_CV1_string.Text = Plugin.Settings.CV1_bindings[indexOfSelectedPedal_u];
-                textBox_CV2_string.Text = Plugin.Settings.CV2_bindings[indexOfSelectedPedal_u];
+                if (Update_CV_textbox)
+                {
+                    Update_CV_textbox = false;
+                    textBox_CV1_string.Text = Plugin.Settings.CV1_bindings[indexOfSelectedPedal_u];
+                    textBox_CV2_string.Text = Plugin.Settings.CV2_bindings[indexOfSelectedPedal_u];
+                }
                 Label_Pedal_interval_trigger.Content = "Action Interval: "+Plugin.Settings.Pedal_action_interval[indexOfSelectedPedal_u] + "ms";
                 Slider_Pedal_interval_trigger.Value = Plugin.Settings.Pedal_action_interval[indexOfSelectedPedal_u];
 
-                //rudder text
-                if (Plugin.Rudder_status)
-                {
-                    btn_rudder.Content = "Rudder Off";
-                }
-                else
-                {
-                    btn_rudder.Content = "Rudder On";
-                }
                 if (Plugin.Sync_esp_connection_flag)
                 {
                     btn_connect_espnow_port.Content = "Disconnect";
@@ -1205,11 +1418,11 @@ namespace User.PluginSdkDemo
 
                 if (Plugin.Settings.Serial_auto_clean)
                 {
-                    Checkbox_auto_remove_serial_line.IsChecked = true;
+                    //Checkbox_auto_remove_serial_line.IsChecked = true;
                 }
                 else
                 { 
-                    Checkbox_auto_remove_serial_line.IsChecked= false;
+                    //Checkbox_auto_remove_serial_line.IsChecked= false;
                 }
 
                 if (Plugin.Settings.Using_CDC_bridge)
@@ -1333,12 +1546,6 @@ namespace User.PluginSdkDemo
             }
             //set for travel slider;
             double dx = 0;
-           
-
-
-
-
-            
 
             // ABS pattern
             try
@@ -1378,12 +1585,6 @@ namespace User.PluginSdkDemo
             {
             }
 
-
-
-            //RPM AMP slider
-
-
-
             //Bite point control
             double BP_max = 100;
             dx = (double)canvas.Width / BP_max;
@@ -1391,25 +1592,6 @@ namespace User.PluginSdkDemo
             Canvas.SetLeft(rect_BP_Control, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.BP_trigger_value * dx - rect_BP_Control.Width / 2);
             Canvas.SetLeft(text_BP, Canvas.GetLeft(rect_BP_Control) + rect_BP_Control.Width + 3);
             Canvas.SetTop(text_BP, canvas.Height - text_BP.Height-15);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
             //// Select serial port accordingly
             string tmp = (string)Plugin._serialPort[indexOfSelectedPedal_u].PortName;
             try
@@ -1492,17 +1674,6 @@ namespace User.PluginSdkDemo
                 checkbox_enable_G_force.Content = "G Force Effect Disabled";
             }
 
-            if (Plugin.Settings.connect_status[indexOfSelectedPedal_u] == 1)
-            {
-                Serial_port_text.Text = "Serial Port connected";
-                Serial_port_text.Visibility = Visibility.Visible;
-
-            }
-            else
-            {
-                Serial_port_text.Visibility = Visibility.Hidden;
-            }
-
             if (Plugin.Settings.RPM_effect_type == 0)
             {
                 RPMeffecttype_Sel_1.IsChecked = true;
@@ -1552,13 +1723,23 @@ namespace User.PluginSdkDemo
             {
                 checkbox_enable_wheelslip.IsChecked = false;
             }
-            if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.enableReboot_u8 == 1)
+
+            if ( ((dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.stepLossFunctionFlags_u8 >> 0) & 1) == 1)
             {
-                EnableReboot_check.IsChecked = true;
+                EnableStepLossRecov_check.IsChecked = true;
             }
             else
             {
-                EnableReboot_check.IsChecked = false;
+                EnableStepLossRecov_check.IsChecked = false;
+            }
+
+            if (((dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.stepLossFunctionFlags_u8 >> 1) & 1) == 1)
+            {
+                EnableCrashDetection_check.IsChecked = true;
+            }
+            else
+            {
+                EnableCrashDetection_check.IsChecked = false;
             }
 
 
@@ -1605,46 +1786,182 @@ namespace User.PluginSdkDemo
 
             //pedal joint draw
             Pedal_joint_draw();
-            /*
-            Label_OA.Content= dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-            Label_OB.Content= dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-            Label_BC.Content = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-            Label_CA.Content = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-            Label_AD.Content= dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_d;
-            Label_travel.Content = Plugin.Settings.Pedal_travel[indexOfSelectedPedal_u];
-            */
 
 
-            //try
-            //{
-            //    //ComboBox_JsonFileSelected.SelectedItem = Plugin.Settings.selectedJsonFileNames[indexOfSelectedPedal_u];
-            //    //ComboBox_JsonFileSelected.SelectedValue = (string)Plugin.Settings.selectedJsonFileNames[indexOfSelectedPedal_u];
+            //Rudder UI initialized
+            if (Plugin != null)
+            {
+                Rangeslider_rudder_force_range.LowerValue = dap_config_st_rudder.payloadPedalConfig_.preloadForce;
+                Rangeslider_rudder_force_range.UpperValue = dap_config_st_rudder.payloadPedalConfig_.maxForce;
+                Rangeslider_rudder_travel_range.LowerValue= dap_config_st_rudder.payloadPedalConfig_.pedalStartPosition;
+                Rangeslider_rudder_travel_range.UpperValue = dap_config_st_rudder.payloadPedalConfig_.pedalEndPosition;
+                Label_min_pos_rudder.Content = "MIN\n" + dap_config_st_rudder.payloadPedalConfig_.pedalStartPosition + "%";
+                Label_max_pos_rudder.Content = "MAX\n" + dap_config_st_rudder.payloadPedalConfig_.pedalEndPosition + "%" ;
+                Label_max_force_rudder.Content = "Max force:\n" + dap_config_st_rudder.payloadPedalConfig_.maxForce + "kg";
+                Label_min_force_rudder.Content = "Preload:\n" + dap_config_st_rudder.payloadPedalConfig_.preloadForce + "kg";
+                Rangeslider_RPM_freq_rudder.LowerValue = dap_config_st_rudder.payloadPedalConfig_.RPM_min_freq;
+                Rangeslider_RPM_freq_rudder.UpperValue = dap_config_st_rudder.payloadPedalConfig_.RPM_max_freq;
+                label_RPM_freq_max_rudder.Content = "MAX:" + dap_config_st_rudder.payloadPedalConfig_.RPM_max_freq + "Hz";
+                label_RPM_freq_min_rudder.Content = "MIN:" + dap_config_st_rudder.payloadPedalConfig_.RPM_min_freq + "Hz";
+                Slider_RPM_AMP_rudder.Value = (float)(dap_config_st_rudder.payloadPedalConfig_.RPM_AMP) / 100.0f;
+                label_RPM_AMP_rudder.Content = "Effect Amplitude: " + (float)(dap_config_st_rudder.payloadPedalConfig_.RPM_AMP) / 100.0f + "kg";
 
-            //    ComboBox_JsonFileSelected.SelectedIndex = Plugin.Settings.selectedJsonIndexLast[indexOfSelectedPedal_u];
+                // rect position
+                double dyy_rudder = canvas_rudder_curve.Height / control_rect_value_max;
+                Canvas.SetTop(rect0_rudder, canvas_rudder_curve.Height - dyy_rudder * dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 - rect0_rudder.Height / 2);
+                Canvas.SetLeft(rect0_rudder, 0 * canvas_rudder_curve.Width / 5 - rect0_rudder.Width / 2);
 
-            //    //ReadStructFromJson();
+                Canvas.SetTop(rect1_rudder, canvas_rudder_curve.Height - dyy_rudder * dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020 - rect1_rudder.Height / 2);
+                Canvas.SetLeft(rect1_rudder, 1 * canvas_rudder_curve.Width / 5 - rect1_rudder.Width / 2);
+
+                Canvas.SetTop(rect2_rudder, canvas_rudder_curve.Height - dyy_rudder * dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040 - rect2_rudder.Height / 2);
+                Canvas.SetLeft(rect2_rudder, 2 * canvas_rudder_curve.Width / 5 - rect2_rudder.Width / 2);
+
+                Canvas.SetTop(rect3_rudder, canvas_rudder_curve.Height - dyy_rudder * dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 - rect3_rudder.Height / 2);
+                Canvas.SetLeft(rect3_rudder, 3 * canvas_rudder_curve.Width / 5 - rect3_rudder.Width / 2);
+
+                Canvas.SetTop(rect4_rudder, canvas_rudder_curve.Height - dyy_rudder * dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 - rect4_rudder.Height / 2);
+                Canvas.SetLeft(rect4_rudder, 4 * canvas_rudder_curve.Width / 5 - rect4_rudder.Width / 2);
+
+                Canvas.SetTop(rect5_rudder, canvas_rudder_curve.Height - dyy_rudder * dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 - rect5_rudder.Height / 2);
+                Canvas.SetLeft(rect5_rudder, 5 * canvas_rudder_curve.Width / 5 - rect5_rudder.Width / 2);
+                text_point_pos_rudder.Visibility = Visibility.Hidden;
+                if (Plugin.Rudder_status)
+                {
+                    btn_rudder_initialize.Content = "Disable Rudder";
+                    //text_rudder_log.Visibility= Visibility.Visible;
+                }
+                else
+                {
+                    btn_rudder_initialize.Content = "Enable Rudder";
+                    //text_rudder_log.Visibility = Visibility.Hidden;
+                }
 
 
-            //    //SerialPortSelection.SelectedValue
-            //    //TextBox_debugOutput.Text = "Error 2: ";
-            //    //TextBox_debugOutput.Text += Plugin.Settings.selectedJsonFileNames[indexOfSelectedPedal_u];
-            //    //TextBox_debugOutput.Text += "     ";
-            //    //TextBox_debugOutput.Text += ComboBox_JsonFileSelected.SelectedValue;
-            //}
-            //catch (Exception caughtEx)
-            //{
-            //    string errorMessage = caughtEx.Message;
-            //    TextBox_debugOutput.Text = "Error 1: ";
-            //    TextBox_debugOutput.Text += errorMessage;
-            //}
+                //Rudder text
+                info_rudder_label.Content = "Bridge State:\nBRK Pedal:\nGAS Pedal:\nRudder:";
+                if (Plugin.ESPsync_serialPort.IsOpen)
+                {
+                    info_rudder_label_2.Content = "Online\n";
+                }
+                else
+                {
+                    info_rudder_label_2.Content = "Offline\n";
+                }
+                if (dap_bridge_state_st.payloadBridgeState_.Pedal_availability_1 == 1)
+                {
+                    info_rudder_label_2.Content += "Online\n";
+                }
+                else
+                {
+                    info_rudder_label_2.Content += "Offline\n";
+                }
+                if (dap_bridge_state_st.payloadBridgeState_.Pedal_availability_2 == 1)
+                {
+                    info_rudder_label_2.Content += "Online\n";
+                }
+                else
+                {
+                    info_rudder_label_2.Content += "Offline\n";
+                }
+                if (Plugin.Rudder_status)
+                {
+                    info_rudder_label_2.Content += "In action";
+                }
+                else
+                {
+                    info_rudder_label_2.Content += "Off";
+                }
 
-            //= ComboBox_JsonFileSelected.SelectedItem.ToString();
+                if (Plugin.Settings.Rudder_RPM_effect_b)
+                {
+                    checkbox_enable_RPM_rudder.IsChecked = true;
+                }
+                else
+                {
+                    checkbox_enable_RPM_rudder.IsChecked = false;
+                }
 
-            //ConnectToPedal.IsChecked = true;
+                if (Plugin.Settings.Rudder_ACC_effect_b)
+                {
+                    checkbox_Rudder_ACC_effect.IsChecked = true;
+                }
+                else
+                {
+                    checkbox_Rudder_ACC_effect.IsChecked = false;
+                }
 
-            //TextBox_debugOutput.Text = "Pedal selected: " + indexOfSelectedPedal_u;
-            //TextBox_debugOutput.Text += ",    connected: " + ConnectToPedal.IsChecked;
-            //TextBox_debugOutput.Text += ",    serial port name: " + tmp;
+                if (Plugin.Settings.Rudder_ACC_WindForce)
+                {
+                    Checkbox_Rudder_ACC_WindForce.IsChecked = true;
+                }
+                else
+                {
+                    Checkbox_Rudder_ACC_WindForce.IsChecked = false;
+                }
+
+                Slider_MPC_0th_gain_rudder.Value = dap_config_st_rudder.payloadPedalConfig_.MPC_0th_order_gain;
+                label_MPC_0th_gain_rudder.Content = "MPC Foot spring stiffness: " + Math.Round(dap_config_st_rudder.payloadPedalConfig_.MPC_0th_order_gain, 2) + "kg/mm";
+                Slider_MPC_1st_gain_rudder.Value = dap_config_st_rudder.payloadPedalConfig_.MPC_1st_order_gain;
+                label_MPC_1st_gain_rudder.Content = "Foot spring damping: " + Math.Round(dap_config_st_rudder.payloadPedalConfig_.MPC_1st_order_gain, 2) + "kg*s/mm";
+
+
+                //Slider_MPC_1st_gain_rudder.Value = dap_config_st_rudder.payloadPedalConfig_.MPC_1st_order_gain;
+                //label_MPC_1st_gain_rudder.Content = "MPC Foot spring dampening: " + Math.Round(dap_config_st_rudder.payloadPedalConfig_.MPC_1st_order_gain, 2) + "kg*s/mm";
+
+                label_damping_rudder.Content = "Damping factor: " + (float)(dap_config_st_rudder.payloadPedalConfig_.dampingPress * 0.00015f) + "s";
+                Slider_damping_rudder.Value = dap_config_st_rudder.payloadPedalConfig_.dampingPress;
+
+
+
+            }
+
+            //system UI
+
+            if (Plugin != null)
+            {
+                if (Plugin.Settings.advanced_b)
+                {
+                    Debug_check.IsChecked = true;
+                    debug_flag=Plugin.Settings.advanced_b;
+                }
+                else
+                { 
+                    Debug_check.IsChecked= false;
+                    debug_flag = Plugin.Settings.advanced_b;
+                }
+
+                if (Plugin.Settings.Serial_auto_clean_bridge)
+                {
+                    Checkbox_auto_remove_serial_line_bridge.IsChecked = true;
+                }
+                else
+                {
+                    Checkbox_auto_remove_serial_line_bridge.IsChecked = false;
+                }
+                //effect profile reading
+                if (Update_Profile_Checkbox_b)
+                {
+                    for (int j = 0; j < 3; j++)
+                    {
+                        for (int k = 0; k < 8; k++)
+                        {
+                            if (Plugin.Settings.Effect_status_prolife[profile_select, j, k])
+                            {
+                                Effect_status_profile[j, k].IsChecked = true;
+                            }
+                            else
+                            {
+                                Effect_status_profile[j, k].IsChecked = false;
+                            }
+                        }
+                    }
+                    Update_Profile_Checkbox_b = false;
+                }
+
+                textbox_SSID.Text = Plugin.Settings.SSID_string;
+                textbox_PASS.Password = Plugin.Settings.PASS_string;
+            }
 
         }
 
@@ -1660,7 +1977,7 @@ namespace User.PluginSdkDemo
             double y_max = 100;
             double dx = canvas.Width / x_quantity;
             double dy = canvas.Height / y_max;
-
+            //draw pedal force-travel curve
             x[0] = 0;
             x[1] = 20;
             x[2] = 40;
@@ -1707,9 +2024,56 @@ namespace User.PluginSdkDemo
                 System.Windows.Point Pointlcl = new System.Windows.Point(dx * xs2[pointIdx], dy * ys2[pointIdx]);
                 myPointCollection2.Add(Pointlcl);
                 Force_curve_Y[pointIdx] = dy * ys2[pointIdx];
+            }            
+            this.Polyline_BrakeForceCurve.Points = myPointCollection2;
+
+
+            //draw rudder curve
+            x[0] = 0;
+            x[1] = 20;
+            x[2] = 40;
+            x[3] = 60;
+            x[4] = 80;
+            x[5] = 100;
+
+            y[0] = dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000;
+            y[1] = dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020;
+            y[2] = dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040;
+            y[3] = dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060;
+            y[4] = dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080;
+            y[5] = dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100;
+
+            // Use cubic interpolation to smooth the original data
+            (double[] xs2_rudder, double[] ys2_rudder, double[] a_rudder, double[] b_rudder) = Cubic.Interpolate1D(x, y, 100);
+
+
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_0 = (float)a_rudder[0];
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_1 = (float)a_rudder[1];
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_2 = (float)a_rudder[2];
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_3 = (float)a_rudder[3];
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_4 = (float)a_rudder[4];
+
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_0 = (float)b_rudder[0];
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_1 = (float)b_rudder[1];
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_2 = (float)b_rudder[2];
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_3 = (float)b_rudder[3];
+            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_4 = (float)b_rudder[4];
+
+
+            System.Windows.Media.PointCollection myPointCollection3 = new System.Windows.Media.PointCollection();
+
+
+            for (int pointIdx = 0; pointIdx < 100; pointIdx++)
+            {
+                System.Windows.Point Pointlcl = new System.Windows.Point(dx * xs2_rudder[pointIdx], dy * ys2_rudder[pointIdx]);
+                myPointCollection3.Add(Pointlcl);
+                //Force_curve_Y[pointIdx] = dy * ys2_rudder[pointIdx];
             }
 
-            this.Polyline_BrakeForceCurve.Points = myPointCollection2;
+            this.Polyline_RudderForceCurve.Points = myPointCollection3;
+
+            
+
 
 
         }
@@ -1847,10 +2211,15 @@ namespace User.PluginSdkDemo
         // see https://stackoverflow.com/questions/772841/is-there-selected-tab-changed-event-in-the-standard-wpf-tab-control
         private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            indexOfSelectedPedal_u = (uint)MyTab.SelectedIndex;
-            Plugin.Settings.table_selected = (uint)MyTab.SelectedIndex;
+
             // update the sliders & serial port selection accordingly
-            updateTheGuiFromConfig();
+            if (Plugin != null)
+            {
+                indexOfSelectedPedal_u = (uint)MyTab.SelectedIndex;
+                Plugin.Settings.table_selected = (uint)MyTab.SelectedIndex;
+                Update_CV_textbox = true;
+                updateTheGuiFromConfig();
+            }
         }
 
 
@@ -2050,125 +2419,11 @@ namespace User.PluginSdkDemo
         /********************************************************************************************************************/
         /*							Refind min endstop																		*/
         /********************************************************************************************************************/
-        unsafe public void ResetPedalPosition_click(object sender, RoutedEventArgs e)
-        {
-
-            if (Plugin._serialPort[indexOfSelectedPedal_u].IsOpen)
-            {
-
-                try
-                {
-                    // compute checksum
-                    DAP_action_st tmp;
-                    tmp.payloadHeader_.version = (byte)Constants.pedalConfigPayload_version;
-                    tmp.payloadHeader_.payloadType = (byte)Constants.pedalActionPayload_type;
-                    tmp.payloadHeader_.PedalTag = (byte)indexOfSelectedPedal_u;
-                    tmp.payloadPedalAction_.system_action_u8 = 1;
-
-
-                    DAP_action_st* v = &tmp;
-                    byte* p = (byte*)v;
-                    tmp.payloadFooter_.checkSum = Plugin.checksumCalc(p, sizeof(payloadHeader) + sizeof(payloadPedalAction));
-
-
-                    int length = sizeof(DAP_action_st);
-                    byte[] newBuffer = new byte[length];
-                    newBuffer = Plugin.getBytes_Action(tmp);
-
-
-                    // clear inbuffer 
-                    Plugin._serialPort[indexOfSelectedPedal_u].DiscardInBuffer();
-
-                    // send query command
-                    Plugin._serialPort[indexOfSelectedPedal_u].Write(newBuffer, 0, newBuffer.Length);
-                }
-                catch (Exception caughtEx)
-                {
-                    string errorMessage = caughtEx.Message;
-                    TextBox_debugOutput.Text = errorMessage;
-                }
-            }
-        }
+       
 
 
 
-        /********************************************************************************************************************/
-        /*							System identification																	*/
-        /********************************************************************************************************************/
-        public void StartSystemIdentification_click(object sender, RoutedEventArgs e)
-        {
-
-            TextBox_debugOutput.Text = "Start system identification";
-
-
-            try
-            {
-
-                string currentDirectory = Directory.GetCurrentDirectory();
-                string dirName = currentDirectory + "\\PluginsData\\Common";
-                string logFileName = "DiyActivePedalSystemIdentification";
-                string fileName = dirName + "\\" + logFileName + ".txt";
-
-                if (File.Exists(fileName))
-                {
-                    File.Delete(fileName);
-                }
-
-
-                // This text is added only once to the file.
-                if (!File.Exists(fileName))
-                {
-                    using (StreamWriter sw = File.CreateText(fileName))
-                    {
-
-                        // trigger system identification
-                        Plugin._serialPort[indexOfSelectedPedal_u].Write("3");
-
-                        //System.Threading.Thread.Sleep(100);
-
-
-                        // read system return log
-                        //while (Plugin._serialPort[indexOfSelectedPedal_u].BytesToRead > 0)
-                        //{
-                        //    string message = Plugin._serialPort[indexOfSelectedPedal_u].ReadLine();
-                        //    sw.Write(message);
-
-                        //    System.Threading.Thread.Sleep(20);
-
-                        //}
-                    }
-
-                }
-
-                TextBox_debugOutput.Text = "Finished system identification";
-
-
-                ////// trigger system identification
-                ////Plugin._serialPort[indexOfSelectedPedal_u].Write("3");
-
-                ////System.Threading.Thread.Sleep(100);
-
-
-                ////// read system return log
-                ////while (Plugin._serialPort[indexOfSelectedPedal_u].BytesToRead > 0)
-                ////{
-                ////    string message = Plugin._serialPort[indexOfSelectedPedal_u].ReadLine();
-                ////    using (StreamWriter sw = File.AppendText(fileName))
-                ////    {
-                ////        sw.WriteLine(message);
-                ////    }
-                ////    System.Threading.Thread.Sleep(100);
-                ////}
-
-
-            }
-            catch (Exception caughtEx)
-            {
-                string errorMessage = caughtEx.Message;
-                TextBox_debugOutput.Text = errorMessage;
-            }
-
-        }
+    
 
 
 
@@ -2178,18 +2433,20 @@ namespace User.PluginSdkDemo
         /********************************************************************************************************************/
         /*							Send config to pedal																	*/
         /********************************************************************************************************************/
-        unsafe public void Sendconfig(uint pedalIdx)
+        unsafe public void Sendconfig(uint pedalIdx, bool store=false)
         {
             // compute checksum
             //getBytes(this.dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_)
             this.dap_config_st[pedalIdx].payloadHeader_.version = (byte)Constants.pedalConfigPayload_version;
             this.dap_config_st[pedalIdx].payloadHeader_.payloadType = (byte)Constants.pedalConfigPayload_type;
             this.dap_config_st[pedalIdx].payloadHeader_.PedalTag = (byte)pedalIdx;
-            this.dap_config_st[pedalIdx].payloadHeader_.storeToEeprom = 1;
+            this.dap_config_st[pedalIdx].payloadHeader_.storeToEeprom = store ? (byte)1 : (byte)0;
             DAP_config_st tmp = this.dap_config_st[pedalIdx];
-
+            //prevent read default config from pedal without assignement
+            tmp.payloadPedalConfig_.pedal_type = (byte)pedalIdx;
             //payloadPedalConfig tmp = this.dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_;
             DAP_config_st* v = &tmp;
+
             byte* p = (byte*)v;
             this.dap_config_st[pedalIdx].payloadFooter_.checkSum = Plugin.checksumCalc(p, sizeof(payloadHeader) + sizeof(payloadPedalConfig));
             int length = sizeof(DAP_config_st);
@@ -2247,6 +2504,51 @@ namespace User.PluginSdkDemo
                 }
             }
         }
+
+        unsafe public void Sendconfig_Rudder(uint pedalIdx)
+        {
+
+            this.dap_config_st_rudder.payloadHeader_.version = (byte)Constants.pedalConfigPayload_version;
+            this.dap_config_st_rudder.payloadHeader_.payloadType = (byte)Constants.pedalConfigPayload_type;
+            this.dap_config_st_rudder.payloadHeader_.PedalTag = (byte)pedalIdx;
+            this.dap_config_st_rudder.payloadHeader_.storeToEeprom = 0;
+            this.dap_config_st_rudder.payloadPedalConfig_.pedal_type = (byte)pedalIdx;
+            DAP_config_st tmp = this.dap_config_st_rudder;
+
+            DAP_config_st* v = &tmp;
+            byte* p = (byte*)v;
+            this.dap_config_st_rudder.payloadFooter_.checkSum = Plugin.checksumCalc(p, sizeof(payloadHeader) + sizeof(payloadPedalConfig));
+            int length = sizeof(DAP_config_st);
+            //int val = this.dap_config_st[indexOfSelectedPedal_u].payloadHeader_.checkSum;
+            //string msg = "CRC value: " + val.ToString();
+            byte[] newBuffer = new byte[length];
+            newBuffer = getBytes(this.dap_config_st_rudder);
+
+
+            TextBox_debugOutput.Text = String.Empty;
+            if (Plugin.Settings.Pedal_ESPNow_Sync_flag[pedalIdx])
+            {
+                if (Plugin.ESPsync_serialPort.IsOpen)
+                {
+                    try
+                    {
+                        TextBox2.Text = "Buffer sent size:" + length;
+                        Plugin.ESPsync_serialPort.DiscardInBuffer();
+                        Plugin.ESPsync_serialPort.DiscardOutBuffer();
+                        // send data
+                        Plugin.ESPsync_serialPort.Write(newBuffer, 0, newBuffer.Length);
+                        //Plugin._serialPort[indexOfSelectedPedal_u].Write("\n");
+                        System.Threading.Thread.Sleep(100);
+                    }
+                    catch (Exception caughtEx)
+                    {
+                        string errorMessage = caughtEx.Message;
+                        TextBox_debugOutput.Text = errorMessage;
+                    }
+                }
+            }
+
+        }
         unsafe public void Sendconfigtopedal_shortcut()
         {
 
@@ -2262,58 +2564,12 @@ namespace User.PluginSdkDemo
         }
         unsafe public void SendConfigToPedal_click(object sender, RoutedEventArgs e)
         {
-
             Sendconfig(indexOfSelectedPedal_u);
-            /*
-            if (Plugin._serialPort[indexOfSelectedPedal_u].IsOpen)
-            {
-
-                // compute checksum
-                //getBytes(this.dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_)
-                this.dap_config_st[indexOfSelectedPedal_u].payloadHeader_.version = (byte)Constants.pedalConfigPayload_version;
-                this.dap_config_st[indexOfSelectedPedal_u].payloadHeader_.payloadType = (byte)Constants.pedalConfigPayload_type;
-                this.dap_config_st[indexOfSelectedPedal_u].payloadHeader_.storeToEeprom = 1;
-                DAP_config_st tmp = this.dap_config_st[indexOfSelectedPedal_u];
-
-                //payloadPedalConfig tmp = this.dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_;
-                DAP_config_st* v = &tmp;
-                byte* p = (byte*)v;
-                this.dap_config_st[indexOfSelectedPedal_u].payloadFooter_.checkSum = Plugin.checksumCalc(p, sizeof(payloadHeader) + sizeof(payloadPedalConfig));
-
-
-                //TextBox_debugOutput.Text = "CRC simhub calc: " + this.dap_config_st[indexOfSelectedPedal_u].payloadFooter_.checkSum + "    ";
-
-                TextBox_debugOutput.Text = String.Empty;
-
-                try
-                {
-                    int length = sizeof(DAP_config_st);
-                    //int val = this.dap_config_st[indexOfSelectedPedal_u].payloadHeader_.checkSum;
-                    //string msg = "CRC value: " + val.ToString();
-                    byte[] newBuffer = new byte[length];
-                    newBuffer = getBytes(this.dap_config_st[indexOfSelectedPedal_u]);
-
-                    //TextBox_debugOutput.Text = "ConfigLength" + length;
-
-                    // clear inbuffer 
-                    Plugin._serialPort[indexOfSelectedPedal_u].DiscardInBuffer();
-                    Plugin._serialPort[indexOfSelectedPedal_u].DiscardOutBuffer();
-
-
-                    // send data
-                    Plugin._serialPort[indexOfSelectedPedal_u].Write(newBuffer, 0, newBuffer.Length);
-                    //Plugin._serialPort[indexOfSelectedPedal_u].Write("\n");
-                }
-                catch (Exception caughtEx)
-                {
-                    string errorMessage = caughtEx.Message;
-                    TextBox_debugOutput.Text = errorMessage;
-                }
-
-            }
-            */
         }
-
+        unsafe public void SendConfigToPedalAndStore_click(object sender, RoutedEventArgs e)
+        {
+            Sendconfig(indexOfSelectedPedal_u, true);
+        }
 
         unsafe public void Reading_config_auto(uint i)
         {
@@ -2522,9 +2778,13 @@ namespace User.PluginSdkDemo
                             {
                                 //TextBox_serialMonitor.Text += "DataArrayLength: " + dataArray.Length + "\n";
                                 //TextBox_serialMonitor.Text += "DataLength: " + dataToSend.Length + "\n";
-                                TextBox_serialMonitor.Text += dataToSend + "\n";
-
-                                TextBox_serialMonitor.ScrollToEnd();
+                                if (_serial_monitor_window != null)
+                                {
+                                    _serial_monitor_window.TextBox_SerialMonitor.Text += dataToSend + "\n";
+                                    _serial_monitor_window.TextBox_SerialMonitor.ScrollToEnd();
+                                }
+                                //TextBox_serialMonitor.Text += dataToSend + "\n";
+                                //TextBox_serialMonitor.ScrollToEnd();
                                 //TextBox_serialMonitor.Text += receivedLength + "\n";
                             });
                         }
@@ -2688,6 +2948,7 @@ namespace User.PluginSdkDemo
             Simhub_action_update();
             string tmp = "Connecting";
             int count_connection = ((int)count_timmer_count) % 4;
+            
             switch (count_connection) 
             {
                 case 0:
@@ -2703,7 +2964,7 @@ namespace User.PluginSdkDemo
                     break;
             }
             info_text_connection = tmp;
-
+            system_info_text_connection=tmp;
             for (uint pedal_idex = 0; pedal_idex < 3; pedal_idex++)
             {
                 if (Pedal_wireless_connection_update_b[pedal_idex])
@@ -2716,6 +2977,7 @@ namespace User.PluginSdkDemo
                 }
             }
 
+            
 
             count_timmer_count++;
             if (count_timmer_count > 1)
@@ -2775,8 +3037,15 @@ namespace User.PluginSdkDemo
                         }
                     }
                     else
-                    {  
-                        Plugin.Sync_esp_connection_flag = false;
+                    {
+                        if (Plugin.Sync_esp_connection_flag)
+                        {
+                            Plugin.Sync_esp_connection_flag = false;
+                            dap_bridge_state_st.payloadBridgeState_.Pedal_availability_0 = 0;
+                            dap_bridge_state_st.payloadBridgeState_.Pedal_availability_1 = 0;
+                            dap_bridge_state_st.payloadBridgeState_.Pedal_availability_2 = 0;
+                        }
+                        
                         btn_connect_espnow_port.Content = "Connect";
                         if (ESP_host_serial_timer != null)
                         {
@@ -2847,7 +3116,6 @@ namespace User.PluginSdkDemo
                         }
                     }
                 }
-                    
 
                 
             }
@@ -2855,6 +3123,7 @@ namespace User.PluginSdkDemo
             {
                 count_timmer_count = 2;
             }
+            updateTheGuiFromConfig();
 
         }
 
@@ -3043,9 +3312,15 @@ namespace User.PluginSdkDemo
                 {
                     if (Plugin.Settings.Serial_auto_clean)
                     {
+                        /*
                         if (TextBox_serialMonitor.LineCount > 300)
                         {
                             TextBox_serialMonitor.Clear();
+                        }
+                        */
+                        if (_serial_monitor_window != null && _serial_monitor_window.TextBox_SerialMonitor.LineCount > 300)
+                        {
+                            _serial_monitor_window.TextBox_SerialMonitor.Clear();
                         }
                     }
 
@@ -3162,13 +3437,36 @@ namespace User.PluginSdkDemo
                                 // check whether receive struct is plausible
                                 DAP_state_basic_st* v_state = &pedalState_read_st;
                                 byte* p_state = (byte*)v_state;
-
+                                
                                 // payload type check
                                 bool check_payload_state_b = false;
                                 if (pedalState_read_st.payloadHeader_.payloadType == Constants.pedalStateBasicPayload_type)
                                 {
                                     check_payload_state_b = true;
                                 }
+
+                                //Pedal version and Plugin DAP version check
+                                Pedal_version[pedalSelected] = pedalState_read_st.payloadHeader_.version;
+                                if (Pedal_version[pedalSelected] != Constants.pedalConfigPayload_version && pedalState_read_st.payloadHeader_.payloadType == Constants.pedalStateBasicPayload_type)
+                                {
+                                    if (!Version_warning_first_show_b[pedalSelected])
+                                    {
+                                        Version_warning_first_show_b[pedalSelected] = true;
+                                        if (Pedal_version[pedalSelected] > Constants.pedalConfigPayload_version)
+                                        {
+                                            String MSG_tmp;
+                                            MSG_tmp = "Pedal: " + pedalState_read_st.payloadHeader_.PedalTag + " Pedal Dap version: " + Pedal_version[pedalSelected] + ", Plugin DAP version: " + Constants.pedalConfigPayload_version + ". Please update Simhub Plugin.";
+                                            System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                        }
+                                        else
+                                        {
+                                            String MSG_tmp;
+                                            MSG_tmp = "Pedal: " + pedalState_read_st.payloadHeader_.PedalTag + " Pedal Dap version: " + Pedal_version[pedalSelected] + ", Plugin DAP version: " + Constants.pedalConfigPayload_version + ". Please update Pedal Firmware.";
+                                            System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                        }
+                                    }
+                                }
+
 
                                 // CRC check
                                 bool check_crc_state_b = false;
@@ -3206,42 +3504,7 @@ namespace User.PluginSdkDemo
                                             }
 
                                         }
-                                        
-                                    //}
-                                    /*
-                                    else
-                                    {
-                                        //Brk move
-
-                                        if (Pedal_position_reading[1] > Pedal_position_reading[2])
-                                        {
-                                            double Rudder_axis_value = 16384;
-                                            Rudder_axis_value = Rudder_axis_value - Pedal_position_reading[1];
-
-                                            joystick.SetAxis((int)Rudder_axis_value, Plugin.Settings.vjoy_order, HID_USAGES.HID_USAGE_RZ);   // HID_USAGES Enums
-                                        }
-                                        else
-                                        {
-                                            if (Pedal_position_reading[2] > Pedal_position_reading[1])
-                                            {
-                                                double Rudder_axis_value = 16384;
-                                                Rudder_axis_value = Rudder_axis_value + Pedal_position_reading[2];
-
-                                                joystick.SetAxis((int)Rudder_axis_value, Plugin.Settings.vjoy_order, HID_USAGES.HID_USAGE_RZ);   // HID_USAGES Enums
-                                            }
-                                            else
-                                            {
-                                                joystick.SetAxis(16384, Plugin.Settings.vjoy_order, HID_USAGES.HID_USAGE_RZ);
-
-                                            }
-
-                                        }
-
-
-
-
-                                    }
-                                    */
+                                   
 
 
 
@@ -3341,7 +3604,15 @@ namespace User.PluginSdkDemo
                                         {
                                             // Specify the path to the file
                                             string currentDirectory = Directory.GetCurrentDirectory();
-                                            string filePath = currentDirectory + "\\PluginsData\\Common" + "\\output_" + indexOfSelectedPedal_u.ToString() + ".txt";
+                                            string filePath = currentDirectory + "\\PluginsData\\Common" + "\\DiyFfbPedalStateLog_" + indexOfSelectedPedal_u.ToString() + ".txt";
+
+
+                                            // delete file 
+                                            if (true == dumpPedalToResponseFile_clearFile[indexOfSelectedPedal_u])
+                                            {
+                                                dumpPedalToResponseFile_clearFile[indexOfSelectedPedal_u] = false;
+                                                File.Delete(filePath);
+                                            }
 
 
                                             // write header
@@ -3363,6 +3634,8 @@ namespace User.PluginSdkDemo
                                                 }
 
                                             }
+
+
                                             // Use StreamWriter to write to the file
                                             using (StreamWriter writer = new StreamWriter(filePath, true))
                                             {
@@ -3448,14 +3721,20 @@ namespace User.PluginSdkDemo
 
                             // If non known array datatype was received, assume a text message was received and print it
                             // only print debug messages when debug mode is active as it degrades performance
-                            if (Debug_check.IsChecked == true)
+                            if (/*Debug_check.IsChecked == true|| */_serial_monitor_window != null)
                             {
                                 byte[] destinationArray_sub = new byte[destBuffLength];
                                 Buffer.BlockCopy(destinationArray, 0, destinationArray_sub, 0, destBuffLength);
                                 string resultString = Encoding.GetEncoding(28591).GetString(destinationArray_sub);
-
+                                if (_serial_monitor_window != null)
+                                {
+                                    _serial_monitor_window.TextBox_SerialMonitor.Text += resultString + "\n";
+                                    _serial_monitor_window.TextBox_SerialMonitor.ScrollToEnd();
+                                }
+                                /*
                                 TextBox_serialMonitor.Text += resultString + "\n";
                                 TextBox_serialMonitor.ScrollToEnd();
+                                */
                             }
 
                             
@@ -3772,15 +4051,18 @@ namespace User.PluginSdkDemo
 
 
                     string filePath = openFileDialog.FileName;
-                    //TextBox_debugOutput.Text =  Button.Name; 
+                    //TextBox_debugOutput.Text =  Button.Name;
+                    //
+                    uint i = profile_select;
+                    uint j = 0;
                     if (Button.Name == "Reading_clutch")
                     {
 
                         Plugin.Settings.Pedal_file_string[profile_select,0] = filePath;
                         Label_clutch_file.Content = Plugin.Settings.Pedal_file_string[profile_select, 0];
                         Plugin.Settings.file_enable_check[profile_select, 0] = 1;
-                        Clutch_file_check.IsChecked = true;
-
+                        Clutch_file_check.IsChecked = true;                       
+                        j = 0;                        
                     }
                     if (Button.Name == "Reading_brake")
                     {
@@ -3788,6 +4070,7 @@ namespace User.PluginSdkDemo
                         Label_brake_file.Content = Plugin.Settings.Pedal_file_string[profile_select, 1];
                         Plugin.Settings.file_enable_check[profile_select, 1] = 1;
                         Brake_file_check.IsChecked = true;
+                        j = 1;
                     }
                     if (Button.Name == "Reading_gas")
                     {
@@ -3795,6 +4078,21 @@ namespace User.PluginSdkDemo
                         Label_gas_file.Content = Plugin.Settings.Pedal_file_string[profile_select, 2];
                         Plugin.Settings.file_enable_check[profile_select, 2] = 1;
                         Gas_file_check.IsChecked = true;
+                        j = 2;
+                    }
+
+                    //write to setting
+                    for (int k = 0; k < 8; k++)
+                    {
+                        if (Effect_status_profile[j, k].IsChecked == true)
+                        {
+                            Plugin.Settings.Effect_status_prolife[i, j, k] = true;
+                        }
+                        else
+                        {
+                            Plugin.Settings.Effect_status_prolife[i, j, k] = false;
+                        }
+
                     }
 
 
@@ -3805,6 +4103,8 @@ namespace User.PluginSdkDemo
         public void Clear_slot(object sender, EventArgs e)
         {
             var Button = sender as SHButtonPrimary;
+            uint i = profile_select;
+            uint j = 0;
             if (Button.Name == "Clear_clutch")
             {
 
@@ -3812,6 +4112,7 @@ namespace User.PluginSdkDemo
                 Label_clutch_file.Content = Plugin.Settings.Pedal_file_string[profile_select, 0];
                 Plugin.Settings.file_enable_check[profile_select, 0] = 0;
                 Clutch_file_check.IsChecked = false;
+                j = 0;
 
             }
             if (Button.Name == "Clear_brake")
@@ -3821,6 +4122,7 @@ namespace User.PluginSdkDemo
                 Label_brake_file.Content = Plugin.Settings.Pedal_file_string[profile_select, 1];
                 Plugin.Settings.file_enable_check[profile_select, 1] = 0;
                 Brake_file_check.IsChecked = false;
+                j = 1;
 
             }
             if (Button.Name == "Clear_gas")
@@ -3830,7 +4132,14 @@ namespace User.PluginSdkDemo
                 Label_gas_file.Content = Plugin.Settings.Pedal_file_string[profile_select, 2];
                 Plugin.Settings.file_enable_check[profile_select, 2] = 0;
                 Gas_file_check.IsChecked = false;
+                j = 2;
 
+            }
+            //write to setting
+            for (int k = 0; k < 8; k++)
+            {
+                Plugin.Settings.Effect_status_prolife[i, j, k] = false;
+                Effect_status_profile[j, k].IsChecked = false;
             }
             //updateTheGuiFromConfig();
         }
@@ -4132,6 +4441,7 @@ namespace User.PluginSdkDemo
 
         private void dump_pedal_response_to_file_checked(object sender, RoutedEventArgs e)
         {
+            dumpPedalToResponseFile_clearFile[indexOfSelectedPedal_u] = true;
             dumpPedalToResponseFile[indexOfSelectedPedal_u] = true;
         }
 
@@ -4178,8 +4488,8 @@ namespace User.PluginSdkDemo
             isDragging = true;
             var rectangle = sender as Rectangle;
             offset = e.GetPosition(rectangle);
-            rectangle.CaptureMouse();
-            if(rectangle.Name != "rect_SABS_Control" & rectangle.Name != "rect_BP_Control")
+            rectangle.CaptureMouse();                      
+            if (rectangle.Name != "rect_SABS_Control" & rectangle.Name != "rect_BP_Control")
             {
                 var dropShadowEffect = new DropShadowEffect
                 {
@@ -4249,6 +4559,7 @@ namespace User.PluginSdkDemo
                     text_point_pos.Text = "Travel:100%";
                     text_point_pos.Text += "\nForce: " + (int)y_actual + "%";
                 }
+                
                 text_point_pos.Visibility = Visibility.Visible; ;
 
                 Update_BrakeForceCurve();
@@ -4259,9 +4570,76 @@ namespace User.PluginSdkDemo
                 //rectanglePositions[rectangle.Name] = new Point(x, y);
             }
         }
+        private void Rectangle_MouseMove_Rudder(object sender, MouseEventArgs e)
+        {
+            if (isDragging)
+            {
+                var rectangle = sender as Rectangle;
+                //double x = e.GetPosition(canvas).X - offset.X;
+                double y = e.GetPosition(canvas_rudder_curve).Y - offset.Y;
 
-       
-        
+                // Ensure the rectangle stays within the canvas
+                //x = Math.Max(0, Math.Min(x, canvas.ActualWidth - rectangle.ActualWidth));
+                y = Math.Max(-1 * rectangle.Height / 2, Math.Min(y, canvas_rudder_curve.Height - rectangle.Height / 2));
+
+                //Canvas.SetLeft(rectangle, x);
+                Canvas.SetTop(rectangle, y);
+                double y_max = 100;
+                double dx = canvas_rudder_curve.Height / y_max;
+                double y_actual = (canvas_rudder_curve.Height - y - rectangle.Height / 2) / dx;
+                
+                
+                //rudder
+                if (rectangle.Name == "rect0_rudder")
+                {
+                    dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 = Convert.ToByte(y_actual);
+                    text_point_pos_rudder.Text = "Travel:0%";
+                    text_point_pos_rudder.Text += "\nForce: " + (int)y_actual + "%";
+
+                }
+                if (rectangle.Name == "rect1_rudder")
+                {
+
+                    dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020 = Convert.ToByte(y_actual);
+                    text_point_pos_rudder.Text = "Travel:20%";
+                    text_point_pos_rudder.Text += "\nForce: " + (int)y_actual + "%";
+                }
+                if (rectangle.Name == "rect2_rudder")
+                {
+                    dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040 = Convert.ToByte(y_actual);
+                    text_point_pos_rudder.Text = "Travel:40%";
+                    text_point_pos_rudder.Text += "\nForce: " + (int)y_actual + "%";
+                }
+                if (rectangle.Name == "rect3_rudder")
+                {
+                    dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = Convert.ToByte(y_actual);
+                    text_point_pos_rudder.Text = "Travel:60%";
+                    text_point_pos_rudder.Text += "\nForce: " + (int)y_actual + "%";
+                }
+                if (rectangle.Name == "rect4_rudder")
+                {
+                    dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = Convert.ToByte(y_actual);
+                    text_point_pos_rudder.Text = "Travel:80%";
+                    text_point_pos_rudder.Text += "\nForce: " + (int)y_actual + "%";
+                }
+                if (rectangle.Name == "rect5_rudder")
+                {
+                    dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = Convert.ToByte(y_actual);
+                    text_point_pos_rudder.Text = "Travel:100%";
+                    text_point_pos_rudder.Text += "\nForce: " + (int)y_actual + "%";
+                }
+                text_point_pos_rudder.Visibility = Visibility.Visible;
+
+                Update_BrakeForceCurve();
+
+
+
+                // Update the position in the dictionary
+                //rectanglePositions[rectangle.Name] = new Point(x, y);
+            }
+        }
+
+
 
         private void Rectangle_MouseMove_ABS(object sender, MouseEventArgs e)
         {
@@ -4324,6 +4702,7 @@ namespace User.PluginSdkDemo
                 isDragging = false;
                 rectangle.ReleaseMouseCapture();
                 text_point_pos.Visibility = Visibility.Hidden;
+                text_point_pos_rudder.Visibility = Visibility.Hidden;
                 //SolidColorBrush buttonBackground = btn_update.Background as SolidColorBrush;
                 //Color color = Color.FromArgb(150, buttonBackground.Color.R, buttonBackground.Color.G, buttonBackground.Color.B);
                 //rectangle.Fill = btn_update.Background;
@@ -4346,27 +4725,23 @@ namespace User.PluginSdkDemo
         private void Debug_checkbox_Checked(object sender, RoutedEventArgs e)
         {
 
-            text_debug_flag.Visibility = Visibility.Visible; 
-            text_serial.Visibility = Visibility.Visible;
-            TextBox_serialMonitor.Visibility = System.Windows.Visibility.Visible;
-            textBox_debug_Flag_0.Visibility = Visibility.Visible;
-            //btn_serial.Visibility = System.Windows.Visibility.Visible;
-            btn_system_id.Visibility = System.Windows.Visibility.Visible;
-            button_pedal_position_reset.Visibility = System.Windows.Visibility.Visible;
-            button_pedal_restart.Visibility = System.Windows.Visibility.Visible;
-            btn_reset_default.Visibility = System.Windows.Visibility.Visible;
-            dump_pedal_response_to_file.Visibility = System.Windows.Visibility.Visible;
-            //InvertLoadcellReading_check.Visibility = Visibility.Visible;
-            //InvertMotorDir_check.Visibility = Visibility.Visible;
-            //text_state.Visibility = Visibility.Hidden;
+            //text_debug_flag.Visibility = Visibility.Visible; 
+            //text_serial.Visibility = Visibility.Visible;
+            //TextBox_serialMonitor.Visibility = System.Windows.Visibility.Visible;
+            //textBox_debug_Flag_0.Visibility = Visibility.Visible;
+
             debug_flag = true;
-            Border_serial_monitor.Visibility = Visibility.Visible;
-            Advanced_Tab.Visibility = Visibility.Visible;
+            if (Plugin != null)
+            {
+                Plugin.Settings.advanced_b = debug_flag;
+            }
+            //Border_serial_monitor.Visibility = Visibility.Visible;
+            
             
            // Label_reverse_LC.Visibility = Visibility.Visible;
             //Label_reverse_servo.Visibility = Visibility.Visible;
             btn_test.Visibility = Visibility.Visible;
-            Line_H_HeaderTab.X2 = 1088;
+            //Line_H_HeaderTab.X2 = 1128;
 
             Slider_LC_rate.TickFrequency = 1;
             Rangeslider_force_range.TickFrequency = 0.1;
@@ -4376,27 +4751,23 @@ namespace User.PluginSdkDemo
         }
         private void Debug_checkbox_Unchecked(object sender, RoutedEventArgs e)
         {
-            text_debug_flag.Visibility = Visibility.Hidden; ;
-            text_serial.Visibility = Visibility.Hidden;
-            TextBox_serialMonitor.Visibility = System.Windows.Visibility.Hidden;
-            textBox_debug_Flag_0.Visibility = Visibility.Hidden;
-            //btn_serial.Visibility = System.Windows.Visibility.Hidden;
-            btn_system_id.Visibility = System.Windows.Visibility.Hidden;
-            button_pedal_position_reset.Visibility = System.Windows.Visibility.Hidden;
-            button_pedal_restart.Visibility = System.Windows.Visibility.Hidden;
-            btn_reset_default.Visibility = System.Windows.Visibility.Hidden;
-            dump_pedal_response_to_file.Visibility = System.Windows.Visibility.Hidden;
-            //InvertLoadcellReading_check.Visibility = Visibility.Hidden;
-            //InvertMotorDir_check.Visibility = Visibility.Hidden;
-            //text_state.Visibility = Visibility.Visible;
+            //text_debug_flag.Visibility = Visibility.Hidden; ;
+            //text_serial.Visibility = Visibility.Hidden;
+            //TextBox_serialMonitor.Visibility = System.Windows.Visibility.Hidden;
+            //textBox_debug_Flag_0.Visibility = Visibility.Hidden;
+
             debug_flag = false;
-            Border_serial_monitor.Visibility = Visibility.Hidden;
-            Advanced_Tab.Visibility = Visibility.Hidden;
+            if (Plugin != null)
+            {
+                Plugin.Settings.advanced_b = debug_flag;
+            }
+            //Border_serial_monitor.Visibility = Visibility.Hidden;
+            
             
             //Label_reverse_LC.Visibility = Visibility.Hidden;
             //Label_reverse_servo.Visibility = Visibility.Hidden;
             btn_test.Visibility = Visibility.Hidden;
-            Line_H_HeaderTab.X2 = 723;
+            //Line_H_HeaderTab.X2 = 763;
 
             Slider_LC_rate.TickFrequency = 10;
             Rangeslider_force_range.TickFrequency = 1;
@@ -4740,7 +5111,9 @@ namespace User.PluginSdkDemo
             //Profile_change(profile_select);
             //Plugin.Settings.table_selected = (uint)MyTab.SelectedIndex;
             // update the sliders & serial port selection accordingly
+            Update_Profile_Checkbox_b = true;
             updateTheGuiFromConfig();
+            
         }
 
         private void file_check_Checked(object sender, RoutedEventArgs e)
@@ -4813,6 +5186,75 @@ namespace User.PluginSdkDemo
                     break;
             }
             Plugin.current_profile = tmp;
+            for (int j = 0; j < 3; j++)
+            {
+                for (int k = 0; k < 8; k++)
+                {
+                    if (Plugin.Settings.Effect_status_prolife[profile_select, j, k])
+                    {
+                        switch (k)
+                        {
+                            case 0:
+                                Plugin.Settings.ABS_enable_flag[j] = 1;
+                                break;
+                            case 1:
+                                Plugin.Settings.RPM_enable_flag[j] = 1;
+                                break;
+                            case 2:
+                                //Plugin.Settings. = 1;
+                                break;
+                            case 3:
+                                Plugin.Settings.G_force_enable_flag[j] = 1;
+                                break;
+                            case 4:
+                                Plugin.Settings.WS_enable_flag[j] = 1;
+                                break;
+                            case 5:
+                                Plugin.Settings.Road_impact_enable_flag[j] = 1;
+                                break;
+                            case 6:
+                                Plugin.Settings.CV1_enable_flag[j] = true;
+                                break;
+                            case 7:
+                                Plugin.Settings.CV2_enable_flag[j] = true;
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        switch (k)
+                        {
+                            case 0:
+                                Plugin.Settings.ABS_enable_flag[j] = 0;
+                                break;
+                            case 1:
+                                Plugin.Settings.RPM_enable_flag[j] = 0;
+                                break;
+                            case 2:
+                                //Plugin.Settings. = 1;
+                                break;
+                            case 3:
+                                Plugin.Settings.G_force_enable_flag[j] = 0;
+                                break;
+                            case 4:
+                                Plugin.Settings.WS_enable_flag[j] = 0;
+                                break;
+                            case 5:
+                                Plugin.Settings.Road_impact_enable_flag[j] = 0;
+                                break;
+                            case 6:
+                                Plugin.Settings.CV1_enable_flag[j] = false;
+                                break;
+                            case 7:
+                                Plugin.Settings.CV2_enable_flag[j] = false;
+                                break;
+                        }
+                    }
+
+                }
+            }
+            //effect profile change
+
         }
 
         private void effect_bind_click(object sender, RoutedEventArgs e)
@@ -4858,10 +5300,13 @@ namespace User.PluginSdkDemo
             Plugin.Settings.Profile_name[profile_select]= textbox.Text;
         }
 
-        private void btn_toast_Click(object sender, RoutedEventArgs e)
+        unsafe private void btn_toast_Click(object sender, RoutedEventArgs e)
         {
+            
             ToastNotification("Rudder Brake","Test");
             Plugin.Rudder_brake_enable_flag = true;
+            
+            
         }
         private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
         {
@@ -4926,19 +5371,47 @@ namespace User.PluginSdkDemo
         }
         */
 
-        private void EnableReboot_check_Unchecked(object sender, RoutedEventArgs e)
+    
+
+
+
+        private void EnableStepLossRecov_check_Unchecked(object sender, RoutedEventArgs e)
         {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.enableReboot_u8 = 0;
+            byte tmp = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.stepLossFunctionFlags_u8;
+            tmp = (byte)(tmp & ~(1 << 0));
+            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.stepLossFunctionFlags_u8 = tmp;
+
+            tmp = 5;
+        }
+        private void EnableStepLossRecov_check_Checked(object sender, RoutedEventArgs e)
+        {
+            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.stepLossFunctionFlags_u8 |= (1 << 0);
+
+            byte tmp = 5;
         }
 
-        private void EnableReboot_check_Checked(object sender, RoutedEventArgs e)
+        private void EnableCrashDetection_check_Unchecked(object sender, RoutedEventArgs e)
         {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.enableReboot_u8 = 1;
+            byte tmp = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.stepLossFunctionFlags_u8;
+            tmp = (byte)(tmp & ~(1 << 1));
+            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.stepLossFunctionFlags_u8 = tmp;
+
+            tmp = 5;
         }
+        private void EnableCrashDetection_check_Checked(object sender, RoutedEventArgs e)
+        {
+            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.stepLossFunctionFlags_u8 |= (1 << 1);
+
+            byte tmp = 5;
+        }
+
+
+
+
 
         private void btn_serial_clear_Click(object sender, RoutedEventArgs e)
         {
-            TextBox_serialMonitor.Clear();
+            //TextBox_serialMonitor.Clear();
         }
 
         private void checkbox_enable_impact_Checked(object sender, RoutedEventArgs e)
@@ -5344,14 +5817,14 @@ namespace User.PluginSdkDemo
 
         private void btn_plus_travel_Click(object sender, RoutedEventArgs e)
         {
-            if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel <= 100)
+            if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel <= 200)
             {
                 dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel = (Int16)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel + 1);
                 updateTheGuiFromConfig();
             }
             else
             {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel = 100;
+                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel = 200;
             }
 
         }
@@ -5522,7 +5995,7 @@ namespace User.PluginSdkDemo
             {
                 if (int.TryParse(textbox.Text, out int result))
                 {
-                    if (result >= 10 && result <= 100)
+                    if (result >= 10 && result <= 200)
                     {
                         dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel = (Int16)result;
                         Pedal_joint_draw();
@@ -5721,6 +6194,12 @@ namespace User.PluginSdkDemo
             label_MPC_0th_gain.Content = "Foot spring stiffness: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_0th_order_gain, 2)+ "kg/mm";
         }
 
+        //private void Slider_MPC_1st_gain_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        //{
+        //    dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_1st_order_gain = (float)e.NewValue;
+        //    label_MPC_1st_gain.Content = "Foot spring damping: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_1st_order_gain, 2) + "kg*s/mm";
+        //}
+
         private void Slider_Pgain_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_p_gain = (float)e.NewValue;
@@ -5769,8 +6248,18 @@ namespace User.PluginSdkDemo
 
         private void Bind_CV1_Click(object sender, RoutedEventArgs e)
         {
-            Plugin.Settings.CV1_bindings[indexOfSelectedPedal_u] = (string)textBox_CV1_string.Text;
-            Plugin.Settings.CV1_enable_flag[indexOfSelectedPedal_u] = true;
+            if (Plugin.Ncalc_reading(textBox_CV1_string.Text) != "Error")
+            {
+                Plugin.Settings.CV1_bindings[indexOfSelectedPedal_u] = (string)textBox_CV1_string.Text;
+                Plugin.Settings.CV1_enable_flag[indexOfSelectedPedal_u] = true;
+            }
+            else
+            {
+                Plugin.Settings.CV1_enable_flag[indexOfSelectedPedal_u] = false;
+                string MSG_tmp = "ERROR! String can not be evaluated";
+                System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+            }
             //updateTheGuiFromConfig();
         }
 
@@ -5828,8 +6317,22 @@ namespace User.PluginSdkDemo
 
         private void Bind_CV2_Click(object sender, RoutedEventArgs e)
         {
+            if (Plugin.Ncalc_reading(textBox_CV2_string.Text) != "Error")
+            {
+                Plugin.Settings.CV2_bindings[indexOfSelectedPedal_u] = (string)textBox_CV2_string.Text;
+                Plugin.Settings.CV2_enable_flag[indexOfSelectedPedal_u] = true;
+            }
+            else
+            {
+                Plugin.Settings.CV2_enable_flag[indexOfSelectedPedal_u] = false;
+                string MSG_tmp = "ERROR! String can not be evaluated";
+                System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+            }
+            /*
             Plugin.Settings.CV2_bindings[indexOfSelectedPedal_u] = (string)textBox_CV2_string.Text;
             Plugin.Settings.CV2_enable_flag[indexOfSelectedPedal_u] = true;
+            */
         }
 
         private void Clear_CV2_Click(object sender, RoutedEventArgs e)
@@ -5851,21 +6354,7 @@ namespace User.PluginSdkDemo
             label_CV2_freq.Content = "Effect Frequency:" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.CV_freq_2 + "Hz";
         }
 
-        private void btn_rudder_Click(object sender, RoutedEventArgs e)
-        {
-            if (Plugin.Rudder_status)
-            {
-                Plugin.Rudder_enable_flag = true;
-                Plugin.Rudder_status = false;
-                btn_rudder.Content = "Rudder On";
-            }
-            else
-            {
-                Plugin.Rudder_enable_flag = true;
-                Plugin.Rudder_status = true;
-                btn_rudder.Content = "Rudder Off";
-            }
-        }
+
         public void ESPNow_SerialPortSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             string tmp = (string)SerialPortSelection_ESPNow.SelectedValue;
@@ -5953,6 +6442,8 @@ namespace User.PluginSdkDemo
                                 Plugin.ESPsync_serialPort.RtsEnable = false;
                                 Plugin.ESPsync_serialPort.DtrEnable = true;
                             }
+                            Plugin.ESPsync_serialPort.RtsEnable = false;
+                            Plugin.ESPsync_serialPort.DtrEnable = false;
 
                             SystemSounds.Beep.Play();
                             Plugin.Sync_esp_connection_flag = true;
@@ -6036,11 +6527,20 @@ namespace User.PluginSdkDemo
             //int pedalSelected = (int)(sender as System.Windows.Forms.Timer).Tag;
 
             bool pedalStateHasAlreadyBeenUpdated_b = false;
-            if (Plugin.Settings.Serial_auto_clean)
+            if (Plugin.Settings.Serial_auto_clean_bridge)
             {
+                if (TextBox_serialMonitor_bridge.LineCount > 100)
+                {
+                    TextBox_serialMonitor_bridge.Clear();
+                }
+                /*
                 if (TextBox_serialMonitor.LineCount > 100)
                 {
                     TextBox_serialMonitor.Clear();
+                }*/
+                if (_serial_monitor_window != null && _serial_monitor_window.TextBox_SerialMonitor.LineCount>100)
+                {
+                    _serial_monitor_window.TextBox_SerialMonitor.Clear();
                 }
             }
             try 
@@ -6148,7 +6648,26 @@ namespace User.PluginSdkDemo
                                 {
                                     check_payload_state_b = true;
                                 }
-
+                                Pedal_version[pedalSelected] = pedalState_read_st.payloadHeader_.version;
+                                if (Pedal_version[pedalSelected] != Constants.pedalConfigPayload_version && pedalState_read_st.payloadHeader_.payloadType== Constants.pedalStateBasicPayload_type)
+                                {
+                                    if (!Version_warning_first_show_b[pedalSelected])
+                                    {
+                                        Version_warning_first_show_b[pedalSelected] = true;
+                                        if (Pedal_version[pedalSelected] > Constants.pedalConfigPayload_version)
+                                        {
+                                            String MSG_tmp;
+                                            MSG_tmp = "Pedal: " + pedalState_read_st.payloadHeader_.PedalTag + " Pedal Dap version: " + Pedal_version[pedalSelected] + ", Plugin DAP version: " + Constants.pedalConfigPayload_version + ". Please update Simhub Plugin.";
+                                            System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                        }
+                                        else
+                                        {
+                                            String MSG_tmp;
+                                            MSG_tmp = "Pedal: " + pedalState_read_st.payloadHeader_.PedalTag + " Pedal Dap version: " + Pedal_version[pedalSelected] + ", Plugin DAP version: " + Constants.pedalConfigPayload_version + ". Please update Pedal Firmware.";
+                                            System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning); 
+                                        }
+                                    }
+                                }
                                 // CRC check
                                 bool check_crc_state_b = false;
                                 if (Plugin.checksumCalc(p_state, sizeof(payloadHeader) + sizeof(payloadPedalState_Basic)) == pedalState_read_st.payloadFooter_.checkSum)
@@ -6249,6 +6768,12 @@ namespace User.PluginSdkDemo
                                             string currentDirectory = Directory.GetCurrentDirectory();
                                             string filePath = currentDirectory + "\\PluginsData\\Common" + "\\output_" + pedalSelected + ".txt";
 
+                                            // delete file 
+                                            if (true == dumpPedalToResponseFile_clearFile[indexOfSelectedPedal_u])
+                                            {
+                                                dumpPedalToResponseFile_clearFile[indexOfSelectedPedal_u] = false;
+                                                File.Delete(filePath);
+                                            }
 
                                             // write header
                                             if (!File.Exists(filePath))
@@ -6317,6 +6842,25 @@ namespace User.PluginSdkDemo
                                     check_payload_state_b = true;
                                 }
 
+                                if (bridge_state.payLoadHeader_.version != Constants.pedalConfigPayload_version && bridge_state.payLoadHeader_.payloadType== Constants.bridgeStatePayloadType)
+                                {
+                                    if (!Version_warning_first_show_b_bridge)
+                                    {
+                                        Version_warning_first_show_b_bridge = true;
+                                        if (bridge_state.payLoadHeader_.version > Constants.pedalConfigPayload_version)
+                                        {
+                                            String MSG_tmp;
+                                            MSG_tmp = "Bridge Dap version: " + bridge_state.payLoadHeader_.version + ", Plugin DAP version: " + Constants.pedalConfigPayload_version + ". Please update Simhub Plugin.";
+                                            System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                        }
+                                        else
+                                        {
+                                            String MSG_tmp;
+                                            MSG_tmp = "Bridge Dap version: " + bridge_state.payLoadHeader_.version + ", Plugin DAP version: " + Constants.pedalConfigPayload_version + ". Please update Bridge Firmware.";
+                                            System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning); 
+                                        }
+                                    }
+                                }
                                 // CRC check
                                 bool check_crc_state_b = false;
                                 if (Plugin.checksumCalc(p_state, sizeof(payloadHeader) + sizeof(payloadBridgeState)) == bridge_state.payloadFooter_.checkSum)
@@ -6328,7 +6872,7 @@ namespace User.PluginSdkDemo
                                 {
                                     Bridge_RSSI = bridge_state.payloadBridgeState_.Pedal_RSSI;
                                     Label_RSSI.Content = "" + (Bridge_RSSI - 100) + "dBm";
-                                    if (Bridge_RSSI < 12)
+                                    if (Bridge_RSSI < 25)
                                     {
                                         RSSI_1.Visibility = Visibility.Visible;
                                         RSSI_1.Fill = redcolor;
@@ -6336,7 +6880,7 @@ namespace User.PluginSdkDemo
                                         RSSI_3.Visibility = Visibility.Hidden;
                                         RSSI_4.Visibility = Visibility.Hidden;
                                     }
-                                    if (Bridge_RSSI > 12 && Bridge_RSSI < 23)
+                                    if (Bridge_RSSI > 25 && Bridge_RSSI < 30)
                                     {
                                         RSSI_1.Visibility = Visibility.Visible;
                                         RSSI_1.Fill = color_RSSI_1;
@@ -6345,7 +6889,7 @@ namespace User.PluginSdkDemo
                                         RSSI_3.Visibility = Visibility.Hidden;
                                         RSSI_4.Visibility = Visibility.Hidden;
                                     }
-                                    if (Bridge_RSSI > 23 && Bridge_RSSI < 34)
+                                    if (Bridge_RSSI > 30 && Bridge_RSSI < 35)
                                     {
                                         RSSI_1.Visibility = Visibility.Visible;
                                         RSSI_1.Fill = color_RSSI_1;
@@ -6354,7 +6898,7 @@ namespace User.PluginSdkDemo
                                         RSSI_3.Visibility = Visibility.Visible;
                                         RSSI_4.Visibility = Visibility.Hidden;
                                     }
-                                    if (Bridge_RSSI > 34)
+                                    if (Bridge_RSSI > 35)
                                     {
                                         RSSI_1.Visibility = Visibility.Visible;
                                         RSSI_1.Fill = defaultcolor;
@@ -6495,7 +7039,7 @@ namespace User.PluginSdkDemo
                             }
                             // If non known array datatype was received, assume a text message was received and print it
                             // only print debug messages when debug mode is active as it degrades performance
-                            if (Debug_check.IsChecked == true)
+                            if (Debug_check.IsChecked == true||_serial_monitor_window != null)
                             {
                                 byte[] destinationArray_sub = new byte[destBuffLength];
                                 Buffer.BlockCopy(destinationArray, 0, destinationArray_sub, 0, destBuffLength);
@@ -6507,18 +7051,34 @@ namespace User.PluginSdkDemo
                                     {
                                         string temp = resultString.Substring(3, resultString.Length - 3);
                                         //TextBox_serialMonitor.Text += str_chk + "\n";
-                                        TextBox_serialMonitor.Text += temp + "\n";
+                                        TextBox_serialMonitor_bridge.Text += temp + "\n";
+                                        //TextBox_serialMonitor.Text += temp + "\n";
+                                        if (_serial_monitor_window != null)
+                                        {
+                                            _serial_monitor_window.TextBox_SerialMonitor.Text += temp + "\n";
+                                        }
+                                     
                                         SimHub.Logging.Current.Info(temp);
                                     }
                                     if ( String.Equals(str_chk, "E ("))
                                     {
-                                        TextBox_serialMonitor.Text += resultString + "\n";
+                                        TextBox_serialMonitor_bridge.Text += resultString + "\n";
+                                        //TextBox_serialMonitor.Text += resultString + "\n";
                                         SimHub.Logging.Current.Info(resultString);
+                                        if (_serial_monitor_window != null)
+                                        {
+                                            _serial_monitor_window.TextBox_SerialMonitor.Text += resultString + "\n";
+                                        }
                                     }
                                 }
 
                                 //TextBox_serialMonitor.Text += resultString + "\n";
-                                TextBox_serialMonitor.ScrollToEnd();
+                                TextBox_serialMonitor_bridge.ScrollToEnd();
+                                //TextBox_serialMonitor.ScrollToEnd();
+                                if (_serial_monitor_window != null)
+                                {
+                                    _serial_monitor_window.TextBox_SerialMonitor.ScrollToEnd();
+                                }
 
                             }
                         }
@@ -6613,6 +7173,7 @@ namespace User.PluginSdkDemo
  unsafe private void btn_OTA_enable_Click(object sender, RoutedEventArgs e)
         {
             // compute checksum
+            /*
             DAP_action_st tmp;
             tmp.payloadHeader_.version = (byte)Constants.pedalConfigPayload_version;
             tmp.payloadHeader_.payloadType = (byte)Constants.pedalActionPayload_type;
@@ -6679,15 +7240,173 @@ namespace User.PluginSdkDemo
             MSG_tmp += " wifi hotspot, then go to 192.168.2.1 to upload firmware.bin";
 
             System.Windows.MessageBox.Show(MSG_tmp, "OTA warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+            */
+            Basic_WIfi_info tmp_2;
+            int length;
+            string SSID = textbox_SSID.Text;
+            string PASS = textbox_PASS.Password;
+            string MSG_tmp="";
+            bool SSID_PASS_check = true;
+            if (Checkbox_Force_flash.IsChecked == true)
+            {
+                tmp_2.wifi_action = 1;
+            }
+            if (OTAChannel_Sel_1.IsChecked == true)
+            {
+                tmp_2.mode_select = 1;
+            }
+            if (OTAChannel_Sel_2.IsChecked == true)
+            {
+                tmp_2.mode_select = 2;
+            }
+            if (SSID.Length > 30 || PASS.Length > 30)
+            {
+                SSID_PASS_check = false;
+                
+                MSG_tmp = "ERROR! SSID or Password length must less than 30 bytes";
+                System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            MSG_tmp += "OTA-Pull function only support V4/Gilphilbert board, for V3/Speedcrafter board user, please connect";
+            if (indexOfSelectedPedal_u == 0)
+            {
+                MSG_tmp += "FFBPedalClutch";
+            }
+            if (indexOfSelectedPedal_u == 1)
+            {
+                MSG_tmp += "FFBPedalBrake";
+            }
+            if (indexOfSelectedPedal_u == 2)
+            {
+                MSG_tmp += "FFBPedalGas";
+            }
+            MSG_tmp += " wifi hotspot, open 192.168.2.1 in web browser to upload firmware.bin";
+
+            System.Windows.MessageBox.Show(MSG_tmp, "OTA warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+            if (SSID_PASS_check)
+            {
+                tmp_2.SSID_Length = (byte)SSID.Length;
+                tmp_2.PASS_Length = (byte)PASS.Length;
+                tmp_2.device_ID = (byte)indexOfSelectedPedal_u;
+                tmp_2.payload_Type = (Byte)Constants.Basic_Wifi_info_type;
+
+                byte[] array_ssid = Encoding.ASCII.GetBytes(SSID);
+                //TextBox_serialMonitor_bridge.Text += "SSID:";
+                for (int i = 0; i < SSID.Length; i++)
+                {
+                    tmp_2.WIFI_SSID[i] = array_ssid[i];
+                    //TextBox_serialMonitor_bridge.Text += tmp_2.WIFI_SSID[i] + ",";
+                }
+                //TextBox_serialMonitor_bridge.Text += "\nPASS:";
+                byte[] array_pass = Encoding.ASCII.GetBytes(PASS);
+                for (int i = 0; i < PASS.Length; i++)
+                {
+                    tmp_2.WIFI_PASS[i] = array_pass[i];
+                    //TextBox_serialMonitor_bridge.Text += tmp_2.WIFI_PASS[i] + ",";
+                }
+
+                Basic_WIfi_info* v_2 = &tmp_2;
+                byte* p_2 = (byte*)v_2;
+                TextBox_serialMonitor_bridge.Text += "\nwifi info sent\n\r";
+
+                length = sizeof(Basic_WIfi_info);
+                TextBox_serialMonitor_bridge.Text += "\nLength:" + length;
+                byte[] newBuffer_2 = new byte[length];
+                newBuffer_2 = Plugin.getBytes_Basic_Wifi_info(tmp_2);
+                if (Plugin.Settings.Pedal_ESPNow_Sync_flag[indexOfSelectedPedal_u])
+                {
+                    if (Plugin.ESPsync_serialPort.IsOpen)
+                    {
+                        try
+                        {
+                            // clear inbuffer 
+                            Plugin.ESPsync_serialPort.DiscardInBuffer();
+
+                            // send query command
+                            Plugin.ESPsync_serialPort.Write(newBuffer_2, 0, newBuffer_2.Length);
+                        }
+                        catch (Exception caughtEx)
+                        {
+                            string errorMessage = caughtEx.Message;
+                            //TextBox_debugOutput.Text = errorMessage;
+                            if (_serial_monitor_window != null)
+                            {
+                                _serial_monitor_window.TextBox_SerialMonitor.Text += errorMessage + "\n";
+                                _serial_monitor_window.TextBox_SerialMonitor.ScrollToEnd();
+                            }
+                            //TextBox_serialMonitor.Text+= errorMessage+"\n";
+                        }
+                    }
+                }
+                else
+                {
+                    if (Plugin._serialPort[indexOfSelectedPedal_u].IsOpen)
+                    {
+                        try
+                        {
+                            // clear inbuffer 
+                            Plugin._serialPort[indexOfSelectedPedal_u].DiscardInBuffer();
+
+                            // send query command
+                            Plugin._serialPort[indexOfSelectedPedal_u].Write(newBuffer_2, 0, newBuffer_2.Length);
+                        }
+                        catch (Exception caughtEx)
+                        {
+                            string errorMessage = caughtEx.Message;
+                            //TextBox_debugOutput.Text = errorMessage;
+                            if (_serial_monitor_window != null)
+                            {
+                                _serial_monitor_window.TextBox_SerialMonitor.Text += errorMessage + "\n";
+                            }
+                            //TextBox_serialMonitor.Text += errorMessage + "\n";
+                        }
+                    }
+                }
+            }
         }
 
-        private void btn_Bridge_restart_Click(object sender, RoutedEventArgs e)
+        unsafe private void btn_Bridge_restart_Click(object sender, RoutedEventArgs e)
         {
+            /*
             Plugin.ESPsync_serialPort.DtrEnable = true;
             Plugin.ESPsync_serialPort.RtsEnable = true;
             System.Threading.Thread.Sleep(100);
             Plugin.ESPsync_serialPort.DtrEnable = false;
             Plugin.ESPsync_serialPort.RtsEnable = false;
+            */
+            //write to bridge
+            DAP_bridge_state_st tmp_2;
+            int length;
+            tmp_2.payLoadHeader_.version = (byte)Constants.pedalConfigPayload_version;
+            tmp_2.payLoadHeader_.payloadType = (byte)Constants.bridgeStatePayloadType;
+            tmp_2.payLoadHeader_.PedalTag = (byte)indexOfSelectedPedal_u;
+            tmp_2.payloadBridgeState_.Pedal_RSSI = 0;
+            tmp_2.payloadBridgeState_.Pedal_availability_0 = 0;
+            tmp_2.payloadBridgeState_.Pedal_availability_1 = 0;
+            tmp_2.payloadBridgeState_.Pedal_availability_2 = 0;
+            tmp_2.payloadBridgeState_.Bridge_action = 2; //restart bridge
+            DAP_bridge_state_st* v_2 = &tmp_2;
+            byte* p_2 = (byte*)v_2;
+            tmp_2.payloadFooter_.checkSum = Plugin.checksumCalc(p_2, sizeof(payloadHeader) + sizeof(payloadBridgeState));
+            length = sizeof(DAP_bridge_state_st);
+            byte[] newBuffer_2 = new byte[length];
+            newBuffer_2 = Plugin.getBytes_Bridge(tmp_2);
+            if (Plugin.ESPsync_serialPort.IsOpen)
+            {
+                try
+                {
+                    // clear inbuffer 
+                    Plugin.ESPsync_serialPort.DiscardInBuffer();
+                    // send query command
+                    Plugin.ESPsync_serialPort.Write(newBuffer_2, 0, newBuffer_2.Length);
+                }
+                catch (Exception caughtEx)
+                {
+                    string errorMessage = caughtEx.Message;
+                    TextBox_debugOutput.Text = errorMessage;
+                }
+            }
         }
 
         unsafe private void btn_PedalID_Reset_Click(object sender, RoutedEventArgs e)
@@ -6847,6 +7566,913 @@ namespace User.PluginSdkDemo
             if (Plugin != null)
             {
                 Plugin.Settings.USING_ESP32S3[indexOfSelectedPedal_u] = false;
+            }
+        }
+
+        private void Rangeslider_rudder_travel_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                dap_config_st_rudder.payloadPedalConfig_.pedalStartPosition= (byte)e.NewValue;
+                Label_min_pos_rudder.Content = "MIN\n" + dap_config_st_rudder.payloadPedalConfig_.pedalStartPosition + "%";                
+            }
+        }
+
+        private void Rangeslider_rudder_force_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                dap_config_st_rudder.payloadPedalConfig_.preloadForce = (float)e.NewValue;
+                Label_min_force_rudder.Content = "Preload:\n" + dap_config_st_rudder.payloadPedalConfig_.preloadForce + "kg";
+            }      
+            
+        }
+
+        private void Rangeslider_rudder_force_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                dap_config_st_rudder.payloadPedalConfig_.maxForce = (float)e.NewValue;
+                Label_max_force_rudder.Content = "Max force:\n" + dap_config_st_rudder.payloadPedalConfig_.maxForce + "kg";
+            }
+        }
+
+        private void Rangeslider_rudder_travel_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                dap_config_st_rudder.payloadPedalConfig_.pedalEndPosition = (byte)e.NewValue;
+                Label_max_pos_rudder.Content = "MAX\n" + dap_config_st_rudder.payloadPedalConfig_.pedalEndPosition + "%";
+            }
+        }
+
+        private void btn_Scurve_rudder_Click(object sender, RoutedEventArgs e)
+        {
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020 = 7;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040 = 28;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = 70;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = 93;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = 100;
+            Update_BrakeForceCurve();
+            updateTheGuiFromConfig();
+        }
+        private void btn_10xcurve_rudder_Click(object sender, RoutedEventArgs e)
+        {
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020 = 43;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040 = 69;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = 85;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = 95;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = 100;
+            Update_BrakeForceCurve();
+            updateTheGuiFromConfig();
+        }
+        private void btn_logcurve_rudder_Click(object sender, RoutedEventArgs e)
+        {
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020 = 6;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040 = 17;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = 33;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = 59;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = 100;
+            Update_BrakeForceCurve();
+            updateTheGuiFromConfig();
+        }
+        private void btn_linearcurve_rudder_Click(object sender, RoutedEventArgs e)
+        {
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 = 0;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020 = 20;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040 = 40;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = 60;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = 80;
+            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = 100;
+            Update_BrakeForceCurve();
+            updateTheGuiFromConfig();
+        }
+        //Rudder initialize procee
+        public void DelayCall(int msec, Action fn)
+        {
+            // Grab the dispatcher from the current executing thread
+            Dispatcher d = Dispatcher.CurrentDispatcher;
+
+            // Tasks execute in a thread pool thread
+            new System.Threading.Tasks.Task(() =>
+            {
+                System.Threading.Thread.Sleep(msec);   // delay
+
+                // use the dispatcher to asynchronously invoke the action 
+                // back on the original thread
+                d.BeginInvoke(fn);
+            }).Start();
+        }
+        private void Rudder_Initialized()
+        {
+
+            DelayCall(400, () =>
+            {
+                Reading_config_auto(1);//read brk config from pedal
+                text_rudder_log.Text += "Read Config from BRK Pedal\n";              
+            });
+
+            DelayCall(600, () =>
+            {
+                Reading_config_auto(2);//read gas config from pedal
+                text_rudder_log.Text += "Read Config from GAS Pedal\n";               
+            });
+            /*
+            text_rudder_log.Text += "Read Config from BRK Pedal\n";
+            Reading_config_auto(1);//read brk config from pedal
+            System.Threading.Thread.Sleep(500);
+            text_rudder_log.Text += "Read Config from GAS Pedal\n";
+            Reading_config_auto(2);//read gas config from pedal
+            System.Threading.Thread.Sleep(500);
+            */
+
+
+
+
+                //System.Threading.Thread.Sleep(200);
+                DelayCall((int)(900), () =>
+                {
+                    for (uint i = 1; i < 3; i++)
+                    {
+                        text_rudder_log.Visibility = Visibility.Visible;
+                        //read pedal kinematic
+                        text_rudder_log.Text += "Create Rudder config for Pedal: " + i + "\n";
+                        dap_config_st_rudder.payloadPedalConfig_.lengthPedal_a = dap_config_st[i].payloadPedalConfig_.lengthPedal_a;
+                        dap_config_st_rudder.payloadPedalConfig_.lengthPedal_b = dap_config_st[i].payloadPedalConfig_.lengthPedal_b;
+                        dap_config_st_rudder.payloadPedalConfig_.lengthPedal_c_horizontal = dap_config_st[i].payloadPedalConfig_.lengthPedal_c_horizontal;
+                        dap_config_st_rudder.payloadPedalConfig_.lengthPedal_c_vertical = dap_config_st[i].payloadPedalConfig_.lengthPedal_c_vertical;
+                        dap_config_st_rudder.payloadPedalConfig_.lengthPedal_travel = dap_config_st[i].payloadPedalConfig_.lengthPedal_travel;
+                        dap_config_st_rudder.payloadPedalConfig_.spindlePitch_mmPerRev_u8 = dap_config_st[i].payloadPedalConfig_.spindlePitch_mmPerRev_u8;
+                        dap_config_st_rudder.payloadPedalConfig_.invertLoadcellReading_u8 = dap_config_st[i].payloadPedalConfig_.invertLoadcellReading_u8;
+                        dap_config_st_rudder.payloadPedalConfig_.invertMotorDirection_u8 = dap_config_st[i].payloadPedalConfig_.invertMotorDirection_u8;
+                        dap_config_st_rudder.payloadPedalConfig_.loadcell_rating = dap_config_st[i].payloadPedalConfig_.loadcell_rating;
+                        dap_config_st_rudder.payloadPedalConfig_.stepLossFunctionFlags_u8 = dap_config_st[i].payloadPedalConfig_.stepLossFunctionFlags_u8;
+                        //dap_config_st_rudder.payloadPedalConfig_.Simulate_ABS_trigger = 0;
+                        dap_config_st_rudder.payloadPedalConfig_.Simulate_ABS_value = dap_config_st[i].payloadPedalConfig_.Simulate_ABS_value;
+                        Sendconfig_Rudder(i);
+                        System.Threading.Thread.Sleep(200);
+                        text_rudder_log.Text += "Send Rudder config to Pedal: " + i + "\n";
+                    }
+                });
+
+                /*
+                text_rudder_log.Text += "Send Rudder config to Pedal: "+i+"\n";
+                Sendconfig_Rudder(i);
+                System.Threading.Thread.Sleep(300);
+                */
+
+            
+
+
+
+
+
+
+
+        }
+
+
+
+        private void btn_rudder_initialize_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin.ESPsync_serialPort.IsOpen)
+            {
+                if (dap_bridge_state_st.payloadBridgeState_.Pedal_availability_1 == 1 && dap_bridge_state_st.payloadBridgeState_.Pedal_availability_2 == 1)
+                {
+                    if (Plugin.Rudder_status)
+                    {
+                        
+
+                        text_rudder_log.Clear();
+                        text_rudder_log.Visibility = Visibility.Visible;
+                        Plugin.Rudder_enable_flag = true;
+                        //Plugin.Rudder_status = false;
+                        text_rudder_log.Text += "Disabling Rudder\n";
+                        btn_rudder_initialize.Content = "Enable Rudder";
+                                             
+                        DelayCall(300, () =>
+                        {
+                            text_rudder_log.Visibility = Visibility.Visible;
+                            Sendconfig(1);
+                            text_rudder_log.Text += "Send Original config back to Brk Pedal\n";
+                            
+                        });
+                        DelayCall(600, () =>
+                        {
+                            text_rudder_log.Visibility = Visibility.Visible;
+                            Sendconfig(2);
+                            text_rudder_log.Text += "Send Original config back to Gas Pedal\n";
+                            
+                        });
+                        DelayCall(1600, () =>
+                        {
+                            text_rudder_log.Visibility = Visibility.Hidden;
+                        });
+                        //resent config back
+                        /*
+                        text_rudder_log.Text += "Send Original config back to Brk Pedal\n";
+                        System.Threading.Thread.Sleep(300);
+                        
+                        Sendconfig(1);
+                        text_rudder_log.Text += "Send Original config back to Gas Pedal\n";
+                        System.Threading.Thread.Sleep(300);
+                        
+                        Sendconfig(2);
+                        */
+
+                    }
+                    else
+                    {
+                        
+
+                        if (Plugin.MSFS_Plugin_Status == false && Plugin.Version_Check_Simhub_MSFS==false)
+                        {
+                            String MSG_tmp;
+                            MSG_tmp = "No MSFS simconnect plugin detected, please install the plugin or update simhub verison above 9.6.0 then try again.";
+                            System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        }
+
+                        text_rudder_log.Clear();
+                        text_rudder_log.Visibility = Visibility.Visible;
+                        DelayCall(100, () =>
+                        {
+                            text_rudder_log.Visibility = Visibility.Visible;
+                            text_rudder_log.Text += "Initializing Rudder\n";
+                        });
+                        Rudder_Initialized();
+                        DelayCall(1300, () =>
+                        {
+                            text_rudder_log.Visibility = Visibility.Visible;
+                            text_rudder_log.Text += "Rudder initialized\n";
+                            Plugin.Rudder_enable_flag = true;
+                            //Plugin.Rudder_status = true;
+                            btn_rudder_initialize.Content = "Disable Rudder";
+                        });
+                        
+
+                    }
+                }
+                else
+                {
+                    String MSG_tmp;
+                    MSG_tmp = "BRK or GAS pedal didnt connect to Bridge, please connect pedal to via Bridge then try again.";
+                    System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+
+            }
+            else
+            {
+                String MSG_tmp;
+                MSG_tmp = "No Bridge conneted, please connect to Bridge and try again.";
+                System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+            }
+
+            
+        }
+
+        private void Slider_RPM_AMP_rudder_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            dap_config_st_rudder.payloadPedalConfig_.RPM_AMP = (Byte)(e.NewValue * 100);
+            label_RPM_AMP_rudder.Content = "Effect Amplitude: " + (float)(dap_config_st_rudder.payloadPedalConfig_.RPM_AMP) / 100.0f + "kg";
+        }
+
+        private void Rangeslider_RPM_freq_rudder_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
+        {
+            dap_config_st_rudder.payloadPedalConfig_.RPM_min_freq = (byte)e.NewValue;
+            label_RPM_freq_min_rudder.Content = "MIN:" + dap_config_st_rudder.payloadPedalConfig_.RPM_min_freq + "Hz";
+        }
+
+        private void Rangeslider_RPM_freq_rudder_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
+        {
+            dap_config_st_rudder.payloadPedalConfig_.RPM_max_freq = (byte)e.NewValue;
+            label_RPM_freq_max_rudder.Content = "MAX:" + dap_config_st_rudder.payloadPedalConfig_.RPM_max_freq + "Hz";
+        }
+
+        private void SHButtonPrimary_Click(object sender, RoutedEventArgs e)
+        {
+            using (System.Windows.Forms.OpenFileDialog openFileDialog = new System.Windows.Forms.OpenFileDialog())
+            {
+                openFileDialog.Title = "Datei auswählen";
+                openFileDialog.Filter = "Configdateien (*.json)|*.json";
+                string currentDirectory = Directory.GetCurrentDirectory();
+                openFileDialog.InitialDirectory = currentDirectory + "\\PluginsData\\Common";
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    string content = (string)openFileDialog.FileName;
+                    TextBox_debugOutput.Text = content;
+
+                    string filePath = openFileDialog.FileName;
+
+
+                    if (false)
+                    {
+                        string text1 = System.IO.File.ReadAllText(filePath);
+                        DataContractJsonSerializer deserializer = new DataContractJsonSerializer(typeof(DAP_config_st));
+                        var ms = new MemoryStream(Encoding.UTF8.GetBytes(text1));
+                        dap_config_st_rudder = (DAP_config_st)deserializer.ReadObject(ms);
+                    }
+                    else
+                    {
+                        // https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/deserialization
+
+
+                        // c# code to iterate over all fields of struct and set values from json file
+
+                        // Read the entire JSON file
+                        string jsonString = File.ReadAllText(filePath);
+
+                        // Parse all of the JSON.
+                        //JsonNode forecastNode = JsonNode.Parse(jsonString);
+                        dynamic data = JsonConvert.DeserializeObject(jsonString);
+
+
+
+                        payloadPedalConfig payloadPedalConfig_fromJson_st = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_;
+                        //var s = default(payloadPedalConfig);
+                        Object obj = payloadPedalConfig_fromJson_st;// s;
+
+
+
+                        FieldInfo[] fi = payloadPedalConfig_fromJson_st.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance);
+
+                        // Iterate over each field and print its name and value
+                        foreach (var field in fi)
+                        {
+
+                            if (data["payloadPedalConfig_"][field.Name] != null)
+                            //if (forecastNode["payloadPedalConfig_"][field.Name] != null)
+                            {
+                                try
+                                {
+                                    if (field.FieldType == typeof(float))
+                                    {
+                                        //float value = forecastNode["payloadPedalConfig_"][field.Name].GetValue<float>();
+                                        float value = (float)data["payloadPedalConfig_"][field.Name];
+                                        field.SetValue(obj, value);
+                                    }
+
+                                    if (field.FieldType == typeof(byte))
+                                    {
+                                        //byte value = forecastNode["payloadPedalConfig_"][field.Name].GetValue<byte>();
+                                        byte value = (byte)data["payloadPedalConfig_"][field.Name];
+                                        field.SetValue(obj, value);
+                                    }
+
+                                    if (field.FieldType == typeof(Int16))
+                                    {
+                                        //byte value = forecastNode["payloadPedalConfig_"][field.Name].GetValue<byte>();
+                                        Int16 value = (Int16)data["payloadPedalConfig_"][field.Name];
+                                        field.SetValue(obj, value);
+                                    }
+
+
+                                }
+                                catch (Exception)
+                                {
+
+                                }
+
+                            }
+                        }
+
+                        // set values in global structure
+                        dap_config_st_rudder.payloadPedalConfig_ = (payloadPedalConfig)obj;// payloadPedalConfig_fromJson_st;
+                        if (dap_config_st_rudder.payloadPedalConfig_.spindlePitch_mmPerRev_u8 == 0)
+                        {
+                            dap_config_st_rudder.payloadPedalConfig_.spindlePitch_mmPerRev_u8 = 5;
+                        }
+                        if (dap_config_st_rudder.payloadPedalConfig_.kf_modelNoise == 0)
+                        {
+                            dap_config_st_rudder.payloadPedalConfig_.kf_modelNoise = 5;
+                        }
+                        if (dap_config_st_rudder.payloadPedalConfig_.lengthPedal_a == 0)
+                        {
+                            dap_config_st_rudder.payloadPedalConfig_.lengthPedal_a = 205;
+                        }
+                        if (dap_config_st_rudder.payloadPedalConfig_.lengthPedal_b == 0)
+                        {
+                            dap_config_st_rudder.payloadPedalConfig_.lengthPedal_b = 220;
+                        }
+                        if (dap_config_st_rudder.payloadPedalConfig_.lengthPedal_d == 0)
+                        {
+                            dap_config_st_rudder.payloadPedalConfig_.lengthPedal_d = 60;
+                        }
+                        if (dap_config_st_rudder.payloadPedalConfig_.lengthPedal_c_horizontal == 0)
+                        {
+                            dap_config_st_rudder.payloadPedalConfig_.lengthPedal_c_horizontal = 215;
+                        }
+                        if (dap_config_st_rudder.payloadPedalConfig_.lengthPedal_c_vertical == 0)
+                        {
+                            dap_config_st_rudder.payloadPedalConfig_.lengthPedal_c_vertical = 60;
+                        }
+                        if (dap_config_st_rudder.payloadPedalConfig_.lengthPedal_travel == 0)
+                        {
+                            dap_config_st_rudder.payloadPedalConfig_.lengthPedal_travel = 100;
+                        }
+                        if (dap_config_st_rudder.payloadPedalConfig_.pedalStartPosition < 5)
+                        {
+                            dap_config_st_rudder.payloadPedalConfig_.pedalStartPosition = 5;
+                        }
+                        if (dap_config_st_rudder.payloadPedalConfig_.pedalEndPosition > 95)
+                        {
+                            dap_config_st_rudder.payloadPedalConfig_.pedalEndPosition = 95;
+                        }
+                    }
+
+                    updateTheGuiFromConfig();
+                    /*
+                    TextBox_debugOutput.Text = "Config new imported!";
+                    TextBox2.Text = "Open " + openFileDialog.FileName;
+                    */
+                }
+            }
+        }
+
+        private void checkbox_enable_RPM_rudder_Checked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.Rudder_RPM_effect_b = true;
+            }
+        }
+
+        private void checkbox_enable_RPM_rudder_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.Rudder_RPM_effect_b = false;
+            }
+        }
+
+        private void checkbox_Rudder_ACC_effect_Checked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.Rudder_ACC_effect_b = true;
+            }
+        }
+
+        private void checkbox_Rudder_ACC_effect_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.Rudder_ACC_effect_b = false;
+            }
+        }
+
+        private void Slider_damping_rudder_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            dap_config_st_rudder.payloadPedalConfig_.dampingPress = (Byte)e.NewValue;
+            dap_config_st_rudder.payloadPedalConfig_.dampingPull = (Byte)e.NewValue;
+            label_damping_rudder.Content = "Damping factor: " + (float)(dap_config_st_rudder.payloadPedalConfig_.dampingPress * 0.00015f) + "s";
+        }
+
+        private void Slider_MPC_0th_gain_rudder_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            dap_config_st_rudder.payloadPedalConfig_.MPC_0th_order_gain = (float)e.NewValue;
+            label_MPC_0th_gain_rudder.Content = "MPC Foot spring stiffness: " + Math.Round(dap_config_st_rudder.payloadPedalConfig_.MPC_0th_order_gain, 2) + "kg/mm";
+
+        }
+
+        private void Checkbox_Rudder_ACC_WindForce_Checked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.Rudder_ACC_WindForce = true;
+            }
+        }
+
+        private void Checkbox_Rudder_ACC_WindForce_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.Rudder_ACC_WindForce = true;
+            }
+
+        }
+
+        private void btn_serial_clear_bridge_Click(object sender, RoutedEventArgs e)
+        {
+            TextBox_serialMonitor_bridge.Clear();
+        }
+
+        private void Checkbox_auto_remove_serial_line_bridge_Checked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.Serial_auto_clean_bridge = true;
+            }
+        }
+
+        private void Checkbox_auto_remove_serial_line_bridge_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.Serial_auto_clean_bridge = false;
+            }
+        }
+
+        unsafe private void btn_Bridge_boot_restart_Click(object sender, RoutedEventArgs e)
+        {
+            DAP_bridge_state_st tmp_2;
+            int length;
+            tmp_2.payLoadHeader_.version = (byte)Constants.pedalConfigPayload_version;
+            tmp_2.payLoadHeader_.payloadType = (byte)Constants.bridgeStatePayloadType;
+            tmp_2.payLoadHeader_.PedalTag = (byte)indexOfSelectedPedal_u;
+            tmp_2.payloadBridgeState_.Pedal_RSSI = 0;
+            tmp_2.payloadBridgeState_.Pedal_availability_0 = 0;
+            tmp_2.payloadBridgeState_.Pedal_availability_1 = 0;
+            tmp_2.payloadBridgeState_.Pedal_availability_2 = 0;
+            tmp_2.payloadBridgeState_.Bridge_action = 3; //restart bridge into boot mode
+            DAP_bridge_state_st* v_2 = &tmp_2;
+            byte* p_2 = (byte*)v_2;
+            tmp_2.payloadFooter_.checkSum = Plugin.checksumCalc(p_2, sizeof(payloadHeader) + sizeof(payloadBridgeState));
+            length = sizeof(DAP_bridge_state_st);
+            byte[] newBuffer_2 = new byte[length];
+            newBuffer_2 = Plugin.getBytes_Bridge(tmp_2);
+            if (Plugin.ESPsync_serialPort.IsOpen)
+            {
+                try
+                {
+                    // clear inbuffer 
+                    Plugin.ESPsync_serialPort.DiscardInBuffer();
+                    // send query command
+                    Plugin.ESPsync_serialPort.Write(newBuffer_2, 0, newBuffer_2.Length);
+                }
+                catch (Exception caughtEx)
+                {
+                    string errorMessage = caughtEx.Message;
+                    TextBox_debugOutput.Text = errorMessage;
+                }
+            }
+        }
+
+        
+
+        unsafe private void btn_Bridge_OTA_Click(object sender, RoutedEventArgs e)
+        {
+            Basic_WIfi_info tmp_2;
+            int length;
+            string SSID = textbox_SSID.Text;
+            string PASS = textbox_PASS.Password;
+            bool SSID_PASS_check = true;
+            if (Checkbox_Force_flash.IsChecked == true)
+            {
+                tmp_2.wifi_action = 1;
+            }
+            if (OTAChannel_Sel_1.IsChecked == true)
+            {
+                tmp_2.mode_select = 1;
+            }
+            if (OTAChannel_Sel_2.IsChecked == true)
+            {
+                tmp_2.mode_select = 2;
+            }
+            if (SSID.Length > 30 || PASS.Length > 30)
+            { 
+                SSID_PASS_check = false;
+                String MSG_tmp;
+                MSG_tmp = "ERROR! SSID or Password length larger than 30 bytes";
+                System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+
+            if (SSID_PASS_check)
+            {
+                tmp_2.SSID_Length = (byte)SSID.Length;
+                tmp_2.PASS_Length = (byte)PASS.Length;
+                tmp_2.device_ID = 99;
+                tmp_2.payload_Type = (Byte)Constants.Basic_Wifi_info_type;
+
+                byte[] array_ssid = Encoding.ASCII.GetBytes(SSID);
+                //TextBox_serialMonitor_bridge.Text += "SSID:";
+                for (int i = 0; i < SSID.Length; i++)
+                {
+                    tmp_2.WIFI_SSID[i] = array_ssid[i];
+                    //TextBox_serialMonitor_bridge.Text += tmp_2.WIFI_SSID[i] + ",";
+                }
+                //TextBox_serialMonitor_bridge.Text += "\nPASS:";
+                byte[] array_pass = Encoding.ASCII.GetBytes(PASS);
+                for (int i = 0; i < PASS.Length; i++)
+                {
+                    tmp_2.WIFI_PASS[i] = array_pass[i];
+                    //TextBox_serialMonitor_bridge.Text += tmp_2.WIFI_PASS[i] + ",";
+                }
+
+                Basic_WIfi_info* v_2 = &tmp_2;
+                byte* p_2 = (byte*)v_2;
+                TextBox_serialMonitor_bridge.Text += "\nwifi info sent\n\r";
+
+                length = sizeof(Basic_WIfi_info);
+                TextBox_serialMonitor_bridge.Text += "\nLength:" + length;
+                byte[] newBuffer_2 = new byte[length];
+                newBuffer_2 = Plugin.getBytes_Basic_Wifi_info(tmp_2);
+                if (Plugin.ESPsync_serialPort.IsOpen)
+                {
+                    try
+                    {
+                        // clear inbuffer 
+                        Plugin.ESPsync_serialPort.DiscardInBuffer();
+                        // send query command
+                        Plugin.ESPsync_serialPort.Write(newBuffer_2, 0, newBuffer_2.Length);
+                    }
+                    catch (Exception caughtEx)
+                    {
+                        string errorMessage = caughtEx.Message;
+                        TextBox_debugOutput.Text = errorMessage;
+                    }
+                }
+            }
+            
+        }
+
+        private void textbox_SSID_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (textbox_SSID.Text.Length > 30)
+            {
+                Label_SSID.Content = "Error! SSID length >30";
+            }
+            else
+            {
+                if (Plugin != null)
+                { 
+                    Plugin.Settings.SSID_string = textbox_SSID.Text;
+                }
+                Label_SSID.Content = "";
+            }
+        }
+
+
+        private void textbox_PASS_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            if (textbox_PASS.Password.Length > 30)
+            {
+                Label_PASS.Content = "Error! Password length >30";
+            }
+            else
+            {
+                if (Plugin != null)
+                {
+                    Plugin.Settings.PASS_string = textbox_PASS.Password;
+                }
+                Label_PASS.Content = "";
+            }
+        }
+
+        private void Function_Tab_seleciton_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (Function_Tab_seleciton.SelectedIndex==2)
+            {
+                Update_Profile_Checkbox_b = true;
+                updateTheGuiFromConfig();
+            }
+        }
+        private void textBox_CV1_string_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            string var1 = "";
+            var1 = Plugin.Ncalc_reading(textBox_CV1_string.Text.ToString());
+            Label_NCALC_CUS1.Content = var1;
+        }
+
+        private void TabControl_SelectionChanged_1(object sender, SelectionChangedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Update_CV_textbox = true;
+                updateTheGuiFromConfig();
+            }
+
+        }
+
+        private void textBox_CV2_string_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            string var1 = "";
+            var1 = Plugin.Ncalc_reading(textBox_CV2_string.Text.ToString());
+            Label_NCALC_CUS2.Content = var1;
+        }
+
+        private void btn_plus_maxforce_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                if (Plugin.Settings.advanced_b)
+                {
+                    Rangeslider_force_range.UpperValue = Rangeslider_force_range.UpperValue + 0.1;
+                }
+                else
+                {
+                    Rangeslider_force_range.UpperValue = Rangeslider_force_range.UpperValue + 1;
+                }
+                
+            }
+
+        }
+
+        private void btn_minus_maxforce_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                if (Plugin.Settings.advanced_b)
+                {
+                    Rangeslider_force_range.UpperValue = Rangeslider_force_range.UpperValue - 0.1;
+                }
+                else
+                {
+                    Rangeslider_force_range.UpperValue = Rangeslider_force_range.UpperValue - 1;
+                }
+
+            }
+        }
+
+        private void btn_plus_preload_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                if (Plugin.Settings.advanced_b)
+                {
+                    Rangeslider_force_range.LowerValue = Rangeslider_force_range.LowerValue + 0.1;
+                }
+                else
+                {
+                    Rangeslider_force_range.LowerValue = Rangeslider_force_range.LowerValue + 1;
+                }
+
+            }
+        }
+
+        private void btn_minus_preload_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                if (Plugin.Settings.advanced_b)
+                {
+                    Rangeslider_force_range.LowerValue = Rangeslider_force_range.LowerValue - 0.1;
+                }
+                else
+                {
+                    Rangeslider_force_range.LowerValue = Rangeslider_force_range.LowerValue - 1;
+                }
+
+            }
+        }
+
+        private void Slider_MPC_1st_gain_rudder_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (Plugin != null)
+            {
+                dap_config_st_rudder.payloadPedalConfig_.MPC_1st_order_gain = (float)e.NewValue;
+                label_MPC_1st_gain_rudder.Content = "Foot spring damping: " + Math.Round(dap_config_st_rudder.payloadPedalConfig_.MPC_1st_order_gain, 2) + "kg*s/mm";
+            }
+        }
+
+        private void OpenProfileWindow_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private async void btn_OnlineProfile_Click(object sender, RoutedEventArgs e)
+        {
+            System.Windows.MessageBox.Show("Please make sure you already set the correct Pedal kinematics and Pedal start position(min pos)", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+            OnlineProfile sideWindow = new OnlineProfile();
+            double screenWidth = SystemParameters.PrimaryScreenWidth;
+            double screenHeight = SystemParameters.PrimaryScreenHeight;
+            sideWindow.Left=screenWidth/2-sideWindow.Width/2;
+            sideWindow.Top=screenHeight/2-sideWindow.Height/2;
+            if (sideWindow.ShowDialog() == true)
+            {
+
+                string jsonUrl = "https://raw.githubusercontent.com/tcfshcrw/FFB_PEDAL_PROFILE/master/Profiles/"+sideWindow.SelectedFileName;
+
+                try
+                {
+                    DAP_config_st tmp_config;
+                    tmp_config = await GetProfileDataAsync(jsonUrl);
+                    float travel = (tmp_config.payloadPedalConfig_.pedalEndPosition - tmp_config.payloadPedalConfig_.pedalStartPosition) / 100.0f * (float)tmp_config.payloadPedalConfig_.lengthPedal_travel;
+                    byte max_pos= (byte)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition + (travel / (float)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel * 100.0f));
+                    if (max_pos > 95)
+                    {
+                        System.Windows.MessageBox.Show("Pedal max position calculation error(max position out of travel), please adjust Pedal min position.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                    else
+                    {
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.maxForce = tmp_config.payloadPedalConfig_.maxForce;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.preloadForce = tmp_config.payloadPedalConfig_.preloadForce;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p000 = tmp_config.payloadPedalConfig_.relativeForce_p000;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p020 = tmp_config.payloadPedalConfig_.relativeForce_p020;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p040 = tmp_config.payloadPedalConfig_.relativeForce_p040;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p060 = tmp_config.payloadPedalConfig_.relativeForce_p060;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p080 = tmp_config.payloadPedalConfig_.relativeForce_p080;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p100 = tmp_config.payloadPedalConfig_.relativeForce_p100;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.dampingPress = tmp_config.payloadPedalConfig_.dampingPress;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.dampingPull = tmp_config.payloadPedalConfig_.dampingPull;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition = max_pos;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_0th_order_gain = tmp_config.payloadPedalConfig_.MPC_0th_order_gain;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_1st_order_gain = tmp_config.payloadPedalConfig_.MPC_1st_order_gain;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_2nd_order_gain = tmp_config.payloadPedalConfig_.MPC_2nd_order_gain;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_d_gain = tmp_config.payloadPedalConfig_.PID_d_gain;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_i_gain = tmp_config.payloadPedalConfig_.PID_i_gain;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_p_gain = tmp_config.payloadPedalConfig_.PID_p_gain;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_velocity_feedforward_gain = tmp_config.payloadPedalConfig_.PID_velocity_feedforward_gain;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.control_strategy_b = tmp_config.payloadPedalConfig_.control_strategy_b;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.kf_modelNoise = tmp_config.payloadPedalConfig_.kf_modelNoise;
+                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.kf_modelOrder = tmp_config.payloadPedalConfig_.kf_modelOrder;
+                        updateTheGuiFromConfig();
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.MessageBox.Show($"Error loading JSON: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    
+                }
+            }
+        }
+
+        private void btn_Export_OnlineProfile_Click(object sender, RoutedEventArgs e)
+        {
+            Online_profile.Basic_Config.Travel = (int)((float)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition - dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition)/100.0f* (float)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel);
+            Online_profile.Basic_Config.MaxForce = (int)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.maxForce;
+            Online_profile.Basic_Config.PreloadForce = (int)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.preloadForce;
+            Online_profile.Basic_Config.Damping = (int)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.dampingPress;
+            Online_profile.Basic_Config.relativeForce_p000 = (int)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p000;
+            Online_profile.Basic_Config.relativeForce_p020 = (int)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p020;
+            Online_profile.Basic_Config.relativeForce_p040 = (int)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p040;
+            Online_profile.Basic_Config.relativeForce_p060 = (int)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p060;
+            Online_profile.Basic_Config.relativeForce_p080 = (int)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p080;
+            Online_profile.Basic_Config.relativeForce_p100 = (int)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p100;
+            
+            if (Online_profile != null)
+            {
+                Microsoft.Win32.SaveFileDialog saveFileDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "JSON files (*.json)|*.json",
+                    DefaultExt = "json",
+                    FileName = "Profile.json"
+                };
+
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    string jsonString = JsonConvert.SerializeObject(Online_profile, Formatting.Indented);
+                    File.WriteAllText(saveFileDialog.FileName, jsonString);
+                    System.Windows.MessageBox.Show("File saved successfully.");
+                    
+                }
+            }
+            else
+            {
+                System.Windows.MessageBox.Show("No profile data to save.");
+            }
+        }
+        private async Task<DAP_config_st> GetProfileDataAsync(string url)
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                string jsonString = await client.GetStringAsync(url);
+                //return JsonConvert.DeserializeObject<Profile_Online>(jsonString);
+                return JsonConvert.DeserializeObject<DAP_config_st>(jsonString);
+            }
+        }
+        private void DisplayProfileData(Profile_Online profile)
+        {
+            if (profile?.Basic_Config != null)
+            {
+                TextBox_debug_count.Text = $"Max Force: {profile.Basic_Config.MaxForce}\n" +
+                                     $"Preload Force: {profile.Basic_Config.PreloadForce}\n" +
+                                     $"Damping: {profile.Basic_Config.Damping}\n" +
+                                     $"Travel: {profile.Basic_Config.Travel}\n" +
+                                     $"Relative Force (0%): {profile.Basic_Config.relativeForce_p000}\n" +
+                                     $"Relative Force (20%): {profile.Basic_Config.relativeForce_p020}\n" +
+                                     $"Relative Force (40%): {profile.Basic_Config.relativeForce_p040}\n" +
+                                     $"Relative Force (60%): {profile.Basic_Config.relativeForce_p060}\n" +
+                                     $"Relative Force (80%): {profile.Basic_Config.relativeForce_p080}\n" +
+                                     $"Relative Force (100%): {profile.Basic_Config.relativeForce_p100}";
+            }
+            else
+            {
+                TextBox_debug_count.Text = "No data available.";
+            }
+        }
+        private void btn_SerialMonitorWindow_Click(object sender, RoutedEventArgs e)
+        {
+            if (_serial_monitor_window == null || !_serial_monitor_window.IsVisible)
+            {
+                if (Pedal_Log_warning_1st_show_b)
+                {
+                    System.Windows.MessageBox.Show("Please connect Pedal via USB to Simhub to get Logs");
+                    Pedal_Log_warning_1st_show_b = false;
+                }
+                
+                _serial_monitor_window = new SerialMonitor_Window(this); // Create a new side window
+                double screenWidth = SystemParameters.PrimaryScreenWidth;
+                double screenHeight = SystemParameters.PrimaryScreenHeight;
+                _serial_monitor_window.Left = screenWidth / 2 - _serial_monitor_window.Width / 2;
+                _serial_monitor_window.Top = screenHeight / 2 - _serial_monitor_window.Height / 2;
+                _serial_monitor_window.Show(); // Show the side window
+
             }
         }
     }
