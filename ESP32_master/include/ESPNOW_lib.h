@@ -82,8 +82,7 @@ typedef struct struct_message {
 // Create a struct_message called myData
 struct_message myData;
 struct_message broadcast_incoming;
-ESPNow_Send_Struct _ESPNow_Recv;
-ESPNow_Send_Struct _ESPNow_Send;
+ESPNow_Send_Struct other_data;
 ESP_pairing_reg _ESP_pairing_reg;
 
 bool sendMessageToMaster(float &force, float &position, float &controller_value)

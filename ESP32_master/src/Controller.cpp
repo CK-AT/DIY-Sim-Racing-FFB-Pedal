@@ -16,11 +16,11 @@
                    false, false, false);  // No accelerator, brake, or steering
   
   void SetupController() {
-    	// USB.PID(0x8213);
-      // USB.VID(0x3035);
-      // USB.productName("DIY_FFB_PEDAL_JOYSTICK");
-      // USB.manufacturerName("OPENSOURCE");
-      // USB.begin();
+    USB.PID(0x8211);
+    USB.VID(0x303b);
+    USB.productName("DiyFfbPedal");
+    USB.manufacturerName("OpenSource");
+    USB.begin();
     Joystick.setRxAxisRange(JOYSTICK_MIN_VALUE, JOYSTICK_MAX_VALUE);
     Joystick.setRyAxisRange(JOYSTICK_MIN_VALUE, JOYSTICK_MAX_VALUE);
     Joystick.setRzAxisRange(JOYSTICK_MIN_VALUE, JOYSTICK_MAX_VALUE);
