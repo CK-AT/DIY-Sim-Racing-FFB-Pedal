@@ -205,6 +205,12 @@ struct payloadMechConfig {
   // from pedal position to sled position
   double coeffs_sled_pos_over_pedal_pos[5];
 
+  // minimum absolute pedal position (0.1mm/LSB)
+  int16_t x_foot_min_abs;
+
+  // maximum absolute pedal position (0.1mm/LSB)
+  int16_t x_foot_max_abs;
+
   // loadcell rating in kg / 2 --> to get value in kg, muiltiply by 2
   uint8_t loadcell_rating;
 
@@ -326,8 +332,15 @@ struct DAP_calculationVariables_st
   long stepperPosMax_default;
   float stepperPosRange_default;
   uint32_t stepsPerMotorRevolution;
+  float x_foot_min_abs;
+  float x_foot_max_abs;
+  float x_foot_range_abs;
+  float x_foot_min_curr;
+  float x_foot_max_curr;
+  float x_foot_center_curr;
 
   void updateFromConfig(DAP_config_st& config_st);
+  void updateFromMechConfig(DAP_mech_config_st& mech_config_st);
   void updateEndstops(long newMinEndstop, long newMaxEndstop);
   void updateStiffness();
   void dynamic_update();
@@ -336,4 +349,5 @@ struct DAP_calculationVariables_st
   void Default_pos();
   void update_stepperMinpos(long newMinstop);
   void update_stepperMaxpos(long newMaxstop);
+  float x_foot_rel_to_abs(float x_foot_rel);
 };

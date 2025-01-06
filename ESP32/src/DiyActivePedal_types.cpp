@@ -167,6 +167,9 @@ void DAP_mech_config_st::initialiseDefaults() {
   payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos[3] = -2.81513616e-06;
   payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos[4] = -1.11220289e-08;
 
+  payLoadMechConfig_.x_foot_min_abs = -1259;
+  payLoadMechConfig_.x_foot_max_abs = 927;
+
   payLoadMechConfig_.loadcell_rating = 100;
   payLoadMechConfig_.spindlePitch_mmPerRev_u8 = 5;
 
@@ -227,6 +230,10 @@ void DAP_calculationVariables_st::updateFromConfig(DAP_config_st& config_st) {
   startPosRel = ((float)config_st.payLoadPedalConfig_.pedalStartPosition) / 100.0f;
   endPosRel = ((float)config_st.payLoadPedalConfig_.pedalEndPosition) / 100.0f;
 
+  x_foot_min_curr = x_foot_rel_to_abs(startPosRel);
+  x_foot_max_curr = x_foot_rel_to_abs(endPosRel);
+
+  x_foot_center_curr = x_foot_min_curr + ((x_foot_max_curr - x_foot_min_curr) / 2.0f);
 
   if (startPosRel  ==  endPosRel)
   {
@@ -265,6 +272,16 @@ void DAP_calculationVariables_st::updateFromConfig(DAP_config_st& config_st) {
   {stepsPerMotorRevolution = 3200;}
   else{stepsPerMotorRevolution = 6400;}
   
+}
+
+void DAP_calculationVariables_st::updateFromMechConfig(DAP_mech_config_st& mech_config_st) {
+  x_foot_min_abs = float(mech_config_st.payLoadMechConfig_.x_foot_min_abs) / 10.0f;
+  x_foot_max_abs = float(mech_config_st.payLoadMechConfig_.x_foot_max_abs) / 10.0f;
+  x_foot_range_abs = x_foot_max_abs - x_foot_min_abs;
+}
+
+float DAP_calculationVariables_st::x_foot_rel_to_abs(float x_foot_rel) {
+  return x_foot_min_abs + (x_foot_range_abs * x_foot_rel);
 }
 
 void DAP_calculationVariables_st::dynamic_update()

@@ -407,6 +407,7 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
 
 
   // interprete config values
+  dap_calculationVariables_st.updateFromMechConfig(dap_mech_config_st);
   dap_calculationVariables_st.updateFromConfig(dap_config_st);
 
 #ifdef HAS_CAN
@@ -414,8 +415,8 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
   tx_frame.data_length_code = 8;
 #endif
 
-  sim.set_x_min(dap_calculationVariables_st.startPosRel * 100.0, true);
-  sim.set_x_max(dap_calculationVariables_st.endPosRel * 100.0, true);
+  sim.set_x_min(dap_calculationVariables_st.x_foot_min_curr, true);
+  sim.set_x_max(dap_calculationVariables_st.x_foot_max_curr, true);
   damper1.set_k(dap_calculationVariables_st.dampingPress * 100.0);
 
 
@@ -680,6 +681,7 @@ sim.add_element(&friction1);
 /**********************************************************************************************/
 void updatePedalCalcParameters()
 {
+  dap_calculationVariables_st.updateFromMechConfig(dap_mech_config_st);
   dap_calculationVariables_st.updateFromConfig(dap_config_st);
   // dap_calculationVariables_st.updateEndstops(stepper->getLimitMin(), stepper->getLimitMax());
   // stepper->updatePedalMinMaxPos(dap_config_st.payLoadPedalConfig_.pedalStartPosition, dap_config_st.payLoadPedalConfig_.pedalEndPosition);
@@ -903,7 +905,7 @@ void pedalUpdateTask( void * pvParameters )
     }
   #endif
 
-    float x_foot_norm = NormalizeValue(x_foot, 0.0, 60.0);
+    float x_foot_norm = NormalizeValue(x_foot, dap_calculationVariables_st.x_foot_min_curr, dap_calculationVariables_st.x_foot_max_curr);
     float f_curve = forceCurve.EvalForceCubicSpline(&dap_config_st, &dap_calculationVariables_st, x_foot_norm);
     float f_in = f_foot - f_curve;
     if (dap_calculationVariables_st.Rudder_status == true) {
@@ -913,8 +915,7 @@ void pedalUpdateTask( void * pvParameters )
     sim.update(dt, f_in);
 
     if (dap_calculationVariables_st.Rudder_status == true && dap_calculationVariables_st.pedal_type != 2) {
-      float offset = dap_calculationVariables_st.x_foot_other_pedal - 50.0;
-      x_foot = 50.0 - offset;
+      x_foot = (dap_calculationVariables_st.x_foot_center_curr * 2.0f) - dap_calculationVariables_st.x_foot_other_pedal;
     } else {
       x_foot = sim.get_x();
     }
@@ -1125,8 +1126,8 @@ void pedalUpdateTask( void * pvParameters )
       {
         
         // update basic pedal state struct
-        dap_state_basic_st.payloadPedalState_Basic_.pedalForce_u16 =  0;
-        dap_state_basic_st.payloadPedalState_Basic_.pedalPosition_u16 = 10;
+        dap_state_basic_st.payloadPedalState_Basic_.pedalForce_u16 = uint16_t(NormalizeValue(f_foot, dap_calculationVariables_st.Force_Min, dap_calculationVariables_st.Force_Max) * 65535.0f);
+        dap_state_basic_st.payloadPedalState_Basic_.pedalPosition_u16 = uint16_t(x_foot_norm * 65535.0f);
         dap_state_basic_st.payloadPedalState_Basic_.joystickOutput_u16 = 1000;//65535;
 
         dap_state_basic_st.payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_STATE_BASIC;
@@ -1215,8 +1216,8 @@ void update_config(void) {
   LogOutput::printf("Updating the calc params\n");
 
   updatePedalCalcParameters(); // update the calc parameters
-  sim.set_x_min(dap_calculationVariables_st.startPosRel * 100.0);
-  sim.set_x_max(dap_calculationVariables_st.endPosRel * 100.0);
+  sim.set_x_min(dap_calculationVariables_st.x_foot_min_curr);
+  sim.set_x_max(dap_calculationVariables_st.x_foot_max_curr);
   damper1.set_k(dap_calculationVariables_st.dampingPress * 100.0);
 }
 
