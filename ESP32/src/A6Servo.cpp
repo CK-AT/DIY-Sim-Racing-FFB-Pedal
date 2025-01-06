@@ -171,15 +171,15 @@ void A6Servo::do_homing(void) {
 
 void A6Servo::lock_onto_curr_pos(void) {
     write_trq_limit(_trq_open_loop);
-    set_speed(100.0);
+    set_speed(150.0);
     LogOutput::printf("Locking onto last commanded position...\n");
-    uint8_t max_tries = 10;
+    uint8_t max_tries = 100;
     bool is_locked = false;
     while (!is_locked && max_tries)
     {
         // FastNonAccelStepper does a maximum of 32767 steps at once for now
         move_to(get_target_pos(), true);
-        is_locked = abs(get_target_pos() - _stepper_engine->getCurrentPosition()) < 5;
+        is_locked = abs(get_target_pos() - _stepper_engine->getCurrentPosition()) < 10;
         max_tries--;
         delay(2);
     }
@@ -253,7 +253,7 @@ void A6Servo::move_to_slow(float position) {
     _curr_pos = constrain(position, 0, float(float(_pos_max) / float(_steps_per_mm)));
     _curr_pos_valid = true;
     if (_state == State::Enabled && _homing_state == HomingState::LockedIn) {
-        move_to_slow(int32_t(position * float(_steps_per_mm)));
+        move_to_slow(int32_t(_curr_pos * float(_steps_per_mm)));
     }
 }
 
@@ -261,7 +261,7 @@ bool A6Servo::move_to(float position, bool blocking) {
     _curr_pos = constrain(position, 0, float(float(_pos_max) / float(_steps_per_mm)));
     _curr_pos_valid = true;
     if (_state == State::Enabled && _homing_state == HomingState::LockedIn) {
-        return move_to(int32_t(position * float(_steps_per_mm)), blocking);
+        return move_to(int32_t(_curr_pos * float(_steps_per_mm)), blocking);
     }
     return false;
 }
