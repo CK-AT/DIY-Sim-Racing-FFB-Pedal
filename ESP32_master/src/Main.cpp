@@ -1057,15 +1057,7 @@ void Serial_Task( void * pvParameters)
         SetControllerOutputValueAccelerator(0);
         SetControllerOutputValueBrake(0);
         SetControllerOutputValueThrottle(0);
-        //3% deadzone
-        if(pedal_brake_value<((int16_t)(0.47*JOYSTICK_RANGE))||pedal_brake_value>((int16_t)(0.53*JOYSTICK_RANGE)))
-        {
-          SetControllerOutputValueRudder(pedal_brake_value);
-        }
-        else
-        {
-          SetControllerOutputValueRudder((int16_t)(0.5*JOYSTICK_RANGE));
-        }
+        SetControllerOutputValueRudder(pedal_throttle_value);
         SetControllerOutputValueRudder_brake(0,0);
         
       }
