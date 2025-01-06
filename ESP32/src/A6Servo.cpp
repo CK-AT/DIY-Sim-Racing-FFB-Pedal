@@ -61,7 +61,7 @@ bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome) {
     }
     disable();
     delay(100);
-    write_hold_register<uint32_t>(0x0122, 10); // 1.0ms LPF on position input
+    write_hold_register<uint32_t>(0x0122, 50); // 5.0ms LPF on position input
     write_hold_register<uint32_t>(0x0304, steps_per_mm * mm_per_rev); // gear ratio denominator (steps_per_rev)
     write_hold_register<uint32_t>(0x0306, 131072); // gear ratio numerator (encoder counts per rev)
     write_hold_register<uint16_t>(0x0607, 2); // limit active after homing
