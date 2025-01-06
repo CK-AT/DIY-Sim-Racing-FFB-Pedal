@@ -927,6 +927,13 @@ void pedalUpdateTask( void * pvParameters )
       stepper->pause();
       ti_relock = millis() + 1000;
       moveSlowlyToPosition_b = false;
+      if (dap_calculationVariables_st.Rudder_status == true) {
+        spring1.set_offset(dap_calculationVariables_st.x_foot_center_curr);
+        spring1.set_k(1.0);
+        spring1.enable();
+      } else {
+        spring1.disable();
+      }
     }
 
     stepper->move_to(x_sled);
@@ -1932,7 +1939,7 @@ void ESPNOW_SyncTask( void * pvParameters )
       //joystick sync
       float controller_val;
       if (dap_config_st.payLoadPedalConfig_.travelAsJoystickOutput_u8 || dap_calculationVariables_st.Rudder_status) {
-        controller_val = NormalizeValue(x_foot, dap_calculationVariables_st.startPosRel * 100.0, dap_calculationVariables_st.endPosRel * 100.0);
+        controller_val = NormalizeValue(x_foot, dap_calculationVariables_st.x_foot_min_curr, dap_calculationVariables_st.x_foot_max_curr);
       } else {
         controller_val = NormalizeValue(f_foot, dap_calculationVariables_st.Force_Min, dap_calculationVariables_st.Force_Max);
       }
