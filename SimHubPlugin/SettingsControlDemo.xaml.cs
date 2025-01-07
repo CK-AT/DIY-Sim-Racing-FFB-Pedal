@@ -133,6 +133,9 @@ namespace User.PluginSdkDemo
         public byte[] Pedal_version = new byte[3];
         private SerialMonitor_Window _serial_monitor_window;
         public bool Pedal_Log_warning_1st_show_b = true;
+        private double pedal_pos_min = 0.0;
+        private double pedal_pos_max = 0.0;
+        private double pedal_pos_range = 0.0;
         //public int Bridge_baudrate = 921600;
         /*
         private double kinematicDiagram_zeroPos_OX = 100;
@@ -1295,8 +1298,8 @@ namespace User.PluginSdkDemo
             
             if (Plugin != null)
             {
-                Label_min_pos.Content = "MIN\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition + "%\n" + Math.Round((float)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel * dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition) / 100) + "mm";
-                Label_max_pos.Content = "MAX\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition + "%\n" + Math.Round((float)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel * dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition) / 100) + "mm";
+                Label_min_pos.Content = "MIN\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition + "%\n" + Math.Round(pedal_pos_min + ((pedal_pos_range * (double)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition)) / 100.0)) + "mm";
+                Label_max_pos.Content = "MAX\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition + "%\n" + Math.Round(pedal_pos_min + ((pedal_pos_range * (double)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition)) / 100.0)) + "mm";
             }
 
 
@@ -5500,11 +5503,6 @@ namespace User.PluginSdkDemo
                 pedal_angle_1 = Math.Acos((OA_length * OA_length + OC_length * OC_length - CA_length * CA_length) / (2 * OA_length * OC_length));
                 pedal_angle_2 = Math.Atan2(BC_length, (OB_length + Current_travel_position));
                 pedal_angle = pedal_angle_1 + pedal_angle_2;
-                // only draw when pedal kinematic tab is selected
-                if (pedalKinematicTab.IsSelected == false)
-                {
-                    return;
-                }
             }
             else 
             {
@@ -5526,6 +5524,17 @@ namespace User.PluginSdkDemo
             double OC_Min = Math.Sqrt((OB_length) * (OB_length) + BC_length * BC_length);
             double max_angle_1= Math.Acos((OA_length * OA_length + OC_Min * OC_Min - CA_length * CA_length) / (2 * OA_length * OC_Min));
             double max_angle_2= Math.Atan2(BC_length, OB_length);
+
+            pedal_pos_min = ((Math.PI / 2.0) - (max_angle_1 + max_angle_2)) * OD_length;
+            pedal_pos_max = ((Math.PI / 2.0) - (min_angle_1 + min_angle_2)) * OD_length;
+            pedal_pos_range = pedal_pos_max - pedal_pos_min;
+
+            // only draw when pedal kinematic tab is selected
+            if (pedalKinematicTab.IsSelected == false)
+            {
+                return;
+            }
+
             Label_kinematic_pedal_angle.Content = "Current Pedal Angle: " + Math.Round(pedal_angle/Math.PI*180)+ "°,";
             Label_kinematic_pedal_angle.Content = Label_kinematic_pedal_angle.Content + " Max Pedal Angle:" + Math.Round((max_angle_1+max_angle_2) / Math.PI * 180) + "°,";
             Label_kinematic_pedal_angle.Content = Label_kinematic_pedal_angle.Content + " Min Pedal Angle:" + Math.Round((min_angle_1 + min_angle_2) / Math.PI * 180) + "°,";
@@ -6129,7 +6138,7 @@ namespace User.PluginSdkDemo
             dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition = (byte)e.NewValue;
             if (Plugin != null)
             {
-                Label_min_pos.Content = "MIN\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition + "%\n" + Math.Round((float)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel * dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition) / 100) + "mm";         
+                Label_min_pos.Content = "MIN\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition + "%\n" + Math.Round((pedal_pos_min + ((pedal_pos_range * (double)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition)) / 100.0))) + "mm";         
             }
             
 
@@ -6140,7 +6149,7 @@ namespace User.PluginSdkDemo
             dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition = (byte)e.NewValue;
             if (Plugin != null)
             { 
-                Label_max_pos.Content = "MAX\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition + "%\n" + Math.Round((float)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel * dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition) / 100) + "mm";
+                Label_max_pos.Content = "MAX\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition + "%\n" + Math.Round((pedal_pos_min + ((pedal_pos_range * (double)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition)) / 100.0))) + "mm";
 
             }
         }
