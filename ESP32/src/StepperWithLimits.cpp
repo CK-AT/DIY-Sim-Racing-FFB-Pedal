@@ -67,7 +67,7 @@ StepperWithLimits::StepperWithLimits(uint8_t pinStep, uint8_t pinDirection, uint
 }
 
 
-void StepperWithLimits::findMinMaxSensorless(isv57communication * isv57, DAP_config_st dap_config_st)
+void StepperWithLimits::findMinMaxSensorless(isv57communication * isv57, DAP_mech_config_st& mech_config_st)
 {
 
   if (! hasValidStepper()) return;
@@ -108,8 +108,8 @@ void StepperWithLimits::findMinMaxSensorless(isv57communication * isv57, DAP_con
   setPosition = _stepper->getCurrentPosition();
 
   // calculate max steps for endstop limit
-  float spindlePitch = max( dap_config_st.payLoadPedalConfig_.spindlePitch_mmPerRev_u8, (uint8_t)1 );
-  float maxRevToReachEndPos = (float)dap_config_st.payLoadPedalConfig_.lengthPedal_travel / spindlePitch;
+  float spindlePitch = max( mech_config_st.payLoadMechConfig_.spindlePitch_mmPerRev_u8, (uint8_t)1 );
+  float maxRevToReachEndPos = (float)mech_config_st.payLoadMechConfig_.lengthPedal_travel / spindlePitch;
   float maxStepsToReachEndPos = maxRevToReachEndPos * (float)STEPS_PER_MOTOR_REVOLUTION;
 
   Serial.print("Max travel steps: ");

@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 // define the payload revision
-#define DAP_VERSION_CONFIG 142
+#define DAP_VERSION_CONFIG 200
 
 // define the payload types
 #define DAP_PAYLOAD_TYPE_CONFIG 100
@@ -51,7 +51,7 @@ struct payloadPedalState_Basic {
   uint16_t pedalPosition_u16;
   uint16_t pedalForce_u16;
   uint16_t joystickOutput_u16;
-  uint8_t erroe_code_u8;
+  uint8_t error_code_u8;
 };
 
 struct payloadPedalState_Extended {
@@ -70,7 +70,7 @@ struct payloadPedalState_Extended {
 
 struct payloadBridgeState {
   uint8_t Pedal_RSSI;
-  uint8_t Pedal_availability[3];
+  uint8_t Pedal_availability; // up to 8 axes are supported
   uint8_t Bridge_action;//0=none, 1=enable pairing
 
 };
@@ -94,25 +94,14 @@ struct payloadPedalConfig {
   uint8_t relativeForce_p100;
 
   // parameter to configure damping
-  uint8_t dampingPress;
-  uint8_t dampingPull;
+  float dampingPress;
+  float dampingPull;
 
   // configure ABS effect 
   uint8_t absFrequency; // In Hz
   uint8_t absAmplitude; // In kg/20
   uint8_t absPattern; // 0: sinewave, 1: sawtooth
   uint8_t absForceOrTarvelBit; // 0: Force, 1: travel
-
-
-  // geometric properties of the pedal
-  // in mm
-  int16_t lengthPedal_a;
-  int16_t lengthPedal_b;
-  int16_t lengthPedal_d;
-  int16_t lengthPedal_c_horizontal;
-  int16_t lengthPedal_c_vertical;
-  int16_t lengthPedal_travel;
-  
 
   //Simulate ABS trigger
   uint8_t Simulate_ABS_trigger;
@@ -146,57 +135,27 @@ struct payloadPedalConfig {
   float cubic_spline_param_a_array[5];
   float cubic_spline_param_b_array[5];
 
-  // PID parameters
-  float PID_p_gain;
-  float PID_i_gain;
-  float PID_d_gain;
-  float PID_velocity_feedforward_gain;
-
-  // MPC settings
-  float MPC_0th_order_gain;
-  float MPC_1st_order_gain;
-  float MPC_2nd_order_gain;
-
-  uint8_t control_strategy_b;
-
-  // controller settings
-  uint8_t maxGameOutput;
-
   // Kalman filter model noise
   uint8_t kf_modelNoise;
   uint8_t kf_modelOrder;
 
-  // debug flags, sued to enable debug output
+  // debug flags, used to enable debug output
   uint8_t debug_flags_0;
-
-  // loadcell rating in kg / 2 --> to get value in kg, muiltiply by 2
-  uint8_t loadcell_rating;
 
   // use loadcell or travel as joystick output
   uint8_t travelAsJoystickOutput_u8;
-
-  // invert loadcell sign
-  uint8_t invertLoadcellReading_u8;
-
-  // invert motor direction
-  uint8_t invertMotorDirection_u8;
-
-  // spindle pitch in mm/rev
-  uint8_t spindlePitch_mmPerRev_u8;
-
-  //pedal type, 0= clutch, 1= brake, 2= gas
-  uint8_t pedal_type;
-  //OTA flag
-  //uint8_t OTA_flag;
-
-  uint8_t stepLossFunctionFlags_u8;
-  //joystick out flag
-  //uint8_t Joystick_ESPsync_to_ESP;
-  
-
 };
 
 struct payloadMechConfig {
+  // geometric properties of the pedal
+  // in mm
+  int16_t lengthPedal_a;
+  int16_t lengthPedal_b;
+  int16_t lengthPedal_d;
+  int16_t lengthPedal_c_horizontal;
+  int16_t lengthPedal_c_vertical;
+  int16_t lengthPedal_travel;
+  
   // polynomial coefficients for the conversion factor
   // from load cell force to pedal force over pedal position
   double coeffs_force_factor_over_pedal_pos[5];
@@ -320,6 +279,7 @@ struct DAP_calculationVariables_st
   float BP_amp;
   float BP_freq;
   float dampingPress;
+  float dampingPull;
   float Force_Max_default;
   float WS_amp;
   float WS_freq;
@@ -350,4 +310,5 @@ struct DAP_calculationVariables_st
   void update_stepperMinpos(long newMinstop);
   void update_stepperMaxpos(long newMaxstop);
   float x_foot_rel_to_abs(float x_foot_rel);
+  void updatePedalType(uint8_t new_pedal_type);
 };

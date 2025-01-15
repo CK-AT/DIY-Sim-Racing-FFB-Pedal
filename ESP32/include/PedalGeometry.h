@@ -8,10 +8,10 @@ static const float TRAVEL_PER_ROTATION_IN_MM = 5.0;   // determined by lead scre
 
 class StepperWithLimits;
 
-float sledPositionInMM(StepperWithLimits* stepper, DAP_config_st& config_st);
-float pedalInclineAngleDeg(float sledPositionMM, DAP_config_st& config_st);
+float sledPositionInMM(StepperWithLimits* stepper, DAP_mech_config_st& mech_config_st);
+float pedalInclineAngleDeg(float sledPositionMM, DAP_mech_config_st& mech_config_st);
 float pedalInclineAngleAccel(float pedalInclineAngleDeg_global);
-float convertToPedalForce(float F_l, float sledPositionMM, DAP_config_st& config_st);
-float convertToPedalForceGain(float sledPositionMM, DAP_config_st& config_st);
+float convertToPedalForce(float F_l, float sledPositionMM, DAP_mech_config_st& mech_config_st);
+float convertToPedalForceGain(float sledPositionMM, DAP_mech_config_st& mech_config_st);
 
 

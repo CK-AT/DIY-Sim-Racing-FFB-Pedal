@@ -59,6 +59,7 @@ struct_message other_data;
 ESP_pairing_reg _ESP_pairing_reg;
 
 void update_config(void);
+void update_mech_config(void);
 
 bool MacCheck(uint8_t* Mac_A, uint8_t*  Mac_B)
 {
@@ -158,60 +159,102 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
     if(MacCheck(esp_Host,(uint8_t *)mac_addr))
     {
 
+      if(data_len==sizeof(dap_mech_config_st))
+      {
+        //Serial.println("dap_config_st ESPNow recieved");
+        if(semaphore_updateConfig!=NULL)
+        {
+          if(xSemaphoreTake(semaphore_updateConfig, (TickType_t)1)==pdTRUE)
+          {
+            bool structChecker = true;
+            uint16_t crc;
+            //Serial.readBytes((char*)dap_config_st_local_ptr, sizeof(DAP_config_st));
+            memcpy(&dap_mech_config_st_local, data, sizeof(DAP_mech_config_st));
+      
+  
+
+            // check if data is plausible
+            if ( dap_mech_config_st_local.payLoadHeader_.payloadType != DAP_PAYLOAD_TYPE_MECH_CONFIG )
+            { 
+              structChecker = false;
+              ESPNow_error_code=101;
+
+            }
+            if ( dap_mech_config_st_local.payLoadHeader_.version != DAP_VERSION_CONFIG )
+            { 
+              structChecker = false;
+              ESPNow_error_code=102;
+
+            }
+                    // checksum validation
+            crc = checksumCalculator((uint8_t*)(&(dap_mech_config_st_local.payLoadHeader_)), sizeof(dap_mech_config_st_local.payLoadHeader_) + sizeof(dap_mech_config_st_local.payLoadMechConfig_));
+            if (crc != dap_mech_config_st_local.payloadFooter_.checkSum)
+            { 
+              structChecker = false;
+              ESPNow_error_code=103;
+
+            }
+
+
+                    // if checks are successfull, overwrite global configuration struct
+            if (structChecker == true)
+            {
+              //Serial.println("Updating pedal config");
+              update_mech_config();
+              Config_update_b=true;       
+            }
+              xSemaphoreGive(semaphore_updateConfig);
+          }
+        }
+      }
+
       if(data_len==sizeof(dap_config_st))
       {
-
-        if(mac_addr[5]==esp_Host[5])
+        //Serial.println("dap_config_st ESPNow recieved");
+        if(semaphore_updateConfig!=NULL)
         {
-          //Serial.println("dap_config_st ESPNow recieved");
-          if(semaphore_updateConfig!=NULL)
+          if(xSemaphoreTake(semaphore_updateConfig, (TickType_t)1)==pdTRUE)
           {
-            if(xSemaphoreTake(semaphore_updateConfig, (TickType_t)1)==pdTRUE)
-            {
-              bool structChecker = true;
-              uint16_t crc;
-              DAP_config_st * dap_config_st_local_ptr;
-              dap_config_st_local_ptr = &dap_config_st_local;
-              //Serial.readBytes((char*)dap_config_st_local_ptr, sizeof(DAP_config_st));
-              memcpy(dap_config_st_local_ptr, data, sizeof(DAP_config_st));
-        
-    
+            bool structChecker = true;
+            uint16_t crc;
+            //Serial.readBytes((char*)dap_config_st_local_ptr, sizeof(DAP_config_st));
+            memcpy(&dap_config_st_local, data, sizeof(DAP_config_st));
+      
+  
 
-              // check if data is plausible
-              if ( dap_config_st_local.payLoadHeader_.payloadType != DAP_PAYLOAD_TYPE_CONFIG )
-              { 
-                structChecker = false;
-                ESPNow_error_code=101;
+            // check if data is plausible
+            if ( dap_config_st_local.payLoadHeader_.payloadType != DAP_PAYLOAD_TYPE_CONFIG )
+            { 
+              structChecker = false;
+              ESPNow_error_code=101;
 
-              }
-              if ( dap_config_st_local.payLoadHeader_.version != DAP_VERSION_CONFIG )
-              { 
-                structChecker = false;
-                ESPNow_error_code=102;
-
-              }
-                      // checksum validation
-              crc = checksumCalculator((uint8_t*)(&(dap_config_st_local.payLoadHeader_)), sizeof(dap_config_st_local.payLoadHeader_) + sizeof(dap_config_st_local.payLoadPedalConfig_));
-              if (crc != dap_config_st_local.payloadFooter_.checkSum)
-              { 
-                structChecker = false;
-                ESPNow_error_code=103;
-
-              }
-
-
-                      // if checks are successfull, overwrite global configuration struct
-              if (structChecker == true)
-              {
-                //Serial.println("Updating pedal config");
-                update_config();
-                Config_update_b=true;       
-              }
-                xSemaphoreGive(semaphore_updateConfig);
             }
+            if ( dap_config_st_local.payLoadHeader_.version != DAP_VERSION_CONFIG )
+            { 
+              structChecker = false;
+              ESPNow_error_code=102;
+
+            }
+                    // checksum validation
+            crc = checksumCalculator((uint8_t*)(&(dap_config_st_local.payLoadHeader_)), sizeof(dap_config_st_local.payLoadHeader_) + sizeof(dap_config_st_local.payLoadPedalConfig_));
+            if (crc != dap_config_st_local.payloadFooter_.checkSum)
+            { 
+              structChecker = false;
+              ESPNow_error_code=103;
+
+            }
+
+
+                    // if checks are successfull, overwrite global configuration struct
+            if (structChecker == true)
+            {
+              //Serial.println("Updating pedal config");
+              update_config();
+              Config_update_b=true;       
+            }
+              xSemaphoreGive(semaphore_updateConfig);
           }
-        }  
-        
+        }
       }
 
       DAP_actions_st dap_actions_st;
@@ -220,7 +263,7 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
               
               memcpy(&dap_actions_st, data, sizeof(dap_actions_st));
               //Serial.readBytes((char*)&dap_actions_st, sizeof(DAP_actions_st));
-              if(dap_actions_st.payLoadHeader_.PedalTag==dap_config_st.payLoadPedalConfig_.pedal_type)
+              if(dap_actions_st.payLoadHeader_.PedalTag==dap_calculationVariables_st.pedal_type)
               {
                 bool structChecker = true;
                 uint16_t crc;
@@ -381,15 +424,15 @@ void ESPNow_initialize()
     WiFi.macAddress(esp_Mac); 
     LogOutput::printf("Device Mac: %02X:%02X:%02X:%02X:%02X:%02X\n", esp_Mac[0], esp_Mac[1], esp_Mac[2], esp_Mac[3], esp_Mac[4], esp_Mac[5]);
     #ifndef ESPNow_Pairing_function
-      if(dap_config_st.payLoadPedalConfig_.pedal_type==0)
+      if(dap_calculationVariables_st.pedal_type==0)
       {
         esp_wifi_set_mac(WIFI_IF_STA, &Clu_mac[0]);
       }
-      if(dap_config_st.payLoadPedalConfig_.pedal_type==1)
+      if(dap_calculationVariables_st.pedal_type==1)
       {
         esp_wifi_set_mac(WIFI_IF_STA, &Brk_mac[0]);
       }
-      if(dap_config_st.payLoadPedalConfig_.pedal_type==2)
+      if(dap_calculationVariables_st.pedal_type==2)
       {
         esp_wifi_set_mac(WIFI_IF_STA, &Gas_mac[0]);
       }
@@ -451,18 +494,18 @@ void ESPNow_initialize()
       }
     #endif
        
-    if(dap_config_st.payLoadPedalConfig_.pedal_type==1)
+    if(dap_calculationVariables_st.pedal_type==1)
     {
       Recv_mac=Gas_mac;
       ESPNow.add_peer(Recv_mac);    
     }
 
-    if(dap_config_st.payLoadPedalConfig_.pedal_type==2)
+    if(dap_calculationVariables_st.pedal_type==2)
     {
       Recv_mac=Brk_mac;
       ESPNow.add_peer(Recv_mac);
     }
-    if(dap_config_st.payLoadPedalConfig_.pedal_type==0)
+    if(dap_calculationVariables_st.pedal_type==0)
     {
       Recv_mac=Gas_mac;
       ESPNow.add_peer(Recv_mac);

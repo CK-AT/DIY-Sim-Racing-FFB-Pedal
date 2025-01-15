@@ -417,7 +417,8 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
 
   sim.set_x_min(dap_calculationVariables_st.x_foot_min_curr, true);
   sim.set_x_max(dap_calculationVariables_st.x_foot_max_curr, true);
-  damper1.set_k(dap_calculationVariables_st.dampingPress * 100.0);
+  damper1.set_k_pos(dap_calculationVariables_st.dampingPress);
+  damper1.set_k_neg(dap_calculationVariables_st.dampingPull);
 
 
   bool invMotorDir = dap_mech_config_st.payLoadMechConfig_.invertMotorDirection_u8 > 0;
@@ -512,7 +513,7 @@ sim.add_element(&friction1);
   //Serial.begin(115200);
   #ifdef OTA_update
   
-    switch(dap_config_st.payLoadPedalConfig_.pedal_type)
+    switch(dap_calculationVariables_st.pedal_type)
     {
       case 0:
         APhost="FFBPedalClutch";
@@ -585,7 +586,7 @@ sim.add_element(&friction1);
   #ifdef PEDAL_ASSIGNMENT
     pinMode(CFG1, INPUT_PULLUP);
     pinMode(CFG2, INPUT_PULLUP);
-    if(dap_config_st.payLoadPedalConfig_.pedal_type==4)
+    if(dap_calculationVariables_st.pedal_type==4)
     {
       Serial.println("Pedal type:4, Pedal not assignment, reading from CFG pins....");
       uint8_t CFG1_reading;
@@ -617,7 +618,7 @@ sim.add_element(&friction1);
           {
             Serial.println("Pedal is assigned as Throttle, please also send the config in.");
           }
-          dap_config_st.payLoadPedalConfig_.pedal_type=Pedal_assignment;
+          dap_calculationVariables_st.updatePedalType(Pedal_assignment);
         }
         else
         {
@@ -632,9 +633,13 @@ sim.add_element(&friction1);
   #ifdef ESPNOW_Enable
   dap_calculationVariables_st.rudder_brake_status=false;
 
-  dap_state_basic_st.payLoadHeader_.PedalTag = dap_config_st.payLoadPedalConfig_.pedal_type;
-  
-  if(dap_config_st.payLoadPedalConfig_.pedal_type==0||dap_config_st.payLoadPedalConfig_.pedal_type==1||dap_config_st.payLoadPedalConfig_.pedal_type==2)
+  dap_state_basic_st.payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_STATE_BASIC;
+  dap_state_basic_st.payLoadHeader_.version = DAP_VERSION_CONFIG;
+
+  dap_state_extended_st.payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_STATE_EXTENDED;
+  dap_state_extended_st.payLoadHeader_.version = DAP_VERSION_CONFIG;
+
+  if(dap_calculationVariables_st.pedal_type > 8)
   {
     ESPNow_initialize();
     xTaskCreatePinnedToCore(
@@ -1136,13 +1141,9 @@ void pedalUpdateTask( void * pvParameters )
         dap_state_basic_st.payloadPedalState_Basic_.pedalForce_u16 = uint16_t(NormalizeValue(f_foot, dap_calculationVariables_st.Force_Min, dap_calculationVariables_st.Force_Max) * 65535.0f);
         dap_state_basic_st.payloadPedalState_Basic_.pedalPosition_u16 = uint16_t(x_foot_norm * 65535.0f);
         dap_state_basic_st.payloadPedalState_Basic_.joystickOutput_u16 = 1000;//65535;
-
-        dap_state_basic_st.payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_STATE_BASIC;
-        dap_state_basic_st.payLoadHeader_.version = DAP_VERSION_CONFIG;
-        dap_state_basic_st.payLoadHeader_.PedalTag = dap_config_st.payLoadPedalConfig_.pedal_type;
         
         //error code
-        dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=0;
+        dap_state_basic_st.payloadPedalState_Basic_.error_code_u8=0;
         // if(ESPNow_error_code!=0)
         // {
         //   dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=ESPNow_error_code;
@@ -1154,7 +1155,6 @@ void pedalUpdateTask( void * pvParameters )
         //   dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=12;
         //   isv57_not_live_b=false;
         // }
-        dap_state_basic_st.payloadFooter_.checkSum = checksumCalculator((uint8_t*)(&(dap_state_basic_st.payLoadHeader_)), sizeof(dap_state_basic_st.payLoadHeader_) + sizeof(dap_state_basic_st.payloadPedalState_Basic_));
 
         // update extended struct 
         dap_state_extended_st.payloadPedalState_Extended_.timeInMs_u32 = millis();
@@ -1164,10 +1164,6 @@ void pedalUpdateTask( void * pvParameters )
 
 
         // dap_state_extended_st.payloadPedalState_Extended_.servoPositionTarget_i16 = stepper->getCurrentPositionFromMin();
-        dap_state_extended_st.payLoadHeader_.PedalTag=dap_config_st.payLoadPedalConfig_.pedal_type;
-        dap_state_extended_st.payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_STATE_EXTENDED;
-        dap_state_extended_st.payLoadHeader_.version = DAP_VERSION_CONFIG;
-        dap_state_extended_st.payloadFooter_.checkSum = checksumCalculator((uint8_t*)(&(dap_state_extended_st.payLoadHeader_)), sizeof(dap_state_extended_st.payLoadHeader_) + sizeof(dap_state_extended_st.payloadPedalState_Extended_));
 
         // release semaphore
         xSemaphoreGive(semaphore_updatePedalStates);
@@ -1225,7 +1221,8 @@ void update_config(void) {
   updatePedalCalcParameters(); // update the calc parameters
   sim.set_x_min(dap_calculationVariables_st.x_foot_min_curr);
   sim.set_x_max(dap_calculationVariables_st.x_foot_max_curr);
-  damper1.set_k(dap_calculationVariables_st.dampingPress * 100.0);
+  damper1.set_k_pos(dap_calculationVariables_st.dampingPress);
+  damper1.set_k_neg(dap_calculationVariables_st.dampingPull);
 }
 
 
@@ -1296,11 +1293,7 @@ void serialCommunicationTask( void * pvParameters )
               {
                 if(xSemaphoreTake(semaphore_updateConfig, (TickType_t)1)==pdTRUE)
                 {
-                  DAP_config_st * dap_config_st_local_ptr;
-                  dap_config_st_local_ptr = &dap_config_st_local;
-                  Serial.readBytes((char*)dap_config_st_local_ptr, sizeof(DAP_config_st));
-
-                  
+                  Serial.readBytes((char*)&dap_config_st_local, sizeof(DAP_config_st));
 
                   // check if data is plausible
                   
@@ -1345,11 +1338,7 @@ void serialCommunicationTask( void * pvParameters )
               {
                 if(xSemaphoreTake(semaphore_updateConfig, (TickType_t)1)==pdTRUE)
                 {
-                  DAP_mech_config_st * dap_mech_config_st_local_ptr;
-                  dap_mech_config_st_local_ptr = &dap_mech_config_st_local;
-                  Serial.readBytes((char*)dap_mech_config_st_local_ptr, sizeof(DAP_mech_config_st));
-
-                  
+                  Serial.readBytes((char*)&dap_mech_config_st_local, sizeof(DAP_mech_config_st));
 
                   // check if data is plausible
                   
@@ -1481,12 +1470,13 @@ void serialCommunicationTask( void * pvParameters )
               // trigger return pedal position
               if (dap_actions_st.payloadPedalAction_.returnPedalConfig_u8)
               {
-                DAP_config_st * dap_config_st_local_ptr;
-                dap_config_st_local_ptr = &dap_config_st;
-                //uint16_t crc = checksumCalculator((uint8_t*)(&(dap_config_st.payLoadHeader_)), sizeof(dap_config_st.payLoadHeader_) + sizeof(dap_config_st.payLoadPedalConfig_));
+                crc = checksumCalculator((uint8_t*)(&(dap_mech_config_st.payLoadHeader_)), sizeof(dap_mech_config_st.payLoadHeader_) + sizeof(dap_mech_config_st.payLoadMechConfig_));
+                dap_mech_config_st.payloadFooter_.checkSum = crc;
+                Serial.write((char*)&dap_mech_config_st, sizeof(DAP_mech_config_st));
+                Serial.print("\r\n");
                 crc = checksumCalculator((uint8_t*)(&(dap_config_st.payLoadHeader_)), sizeof(dap_config_st.payLoadHeader_) + sizeof(dap_config_st.payLoadPedalConfig_));
-                dap_config_st_local_ptr->payloadFooter_.checkSum = crc;
-                Serial.write((char*)dap_config_st_local_ptr, sizeof(DAP_config_st));
+                dap_config_st.payloadFooter_.checkSum = crc;
+                Serial.write((char*)&dap_config_st, sizeof(DAP_config_st));
                 Serial.print("\r\n");
               }
               if(dap_actions_st.payloadPedalAction_.Rudder_action==1)
@@ -1843,9 +1833,9 @@ void ESPNOW_SyncTask( void * pvParameters )
           {
             uint16_t crc=0;          
             building_dap_esppairing_lcl=false;
-            dap_esppairing_lcl.payloadESPNowInfo_._deviceID=dap_config_st.payLoadPedalConfig_.pedal_type;
+            dap_esppairing_lcl.payloadESPNowInfo_._deviceID=dap_calculationVariables_st.pedal_type;
             dap_esppairing_lcl.payLoadHeader_.payloadType=DAP_PAYLOAD_TYPE_ESPNOW_PAIRING;
-            dap_esppairing_lcl.payLoadHeader_.PedalTag=dap_config_st.payLoadPedalConfig_.pedal_type;
+            dap_esppairing_lcl.payLoadHeader_.PedalTag=dap_calculationVariables_st.pedal_type;
             dap_esppairing_lcl.payLoadHeader_.version=DAP_VERSION_CONFIG;
             crc = checksumCalculator((uint8_t*)(&(dap_esppairing_lcl.payLoadHeader_)), sizeof(dap_esppairing_lcl.payLoadHeader_) + sizeof(dap_esppairing_lcl.payloadESPNowInfo_));
             dap_esppairing_lcl.payloadFooter_.checkSum=crc;
@@ -1863,7 +1853,7 @@ void ESPNOW_SyncTask( void * pvParameters )
           {
             ESPNow_pairing_action_b=false;
             Serial.print("Pedal: ");
-            Serial.print(dap_config_st.payLoadPedalConfig_.pedal_type);
+            Serial.print(dap_calculationVariables_st.pedal_type);
             Serial.println(" timeout.");
             #ifdef USING_BUZZER
               Buzzer.single_beep_tone(700,100);
@@ -1922,11 +1912,11 @@ void ESPNOW_SyncTask( void * pvParameters )
                     delay(100);
                     ESPNow.add_peer(esp_Host);                
                   }        
-                  if(dap_config_st.payLoadPedalConfig_.pedal_type==1)
+                  if(dap_calculationVariables_st.pedal_type==1)
                   {
                     Recv_mac=Gas_mac;
                   }
-                  if(dap_config_st.payLoadPedalConfig_.pedal_type==2)
+                  if(dap_calculationVariables_st.pedal_type==2)
                   {
                     Recv_mac=Brk_mac;
                   }
@@ -1952,6 +1942,8 @@ void ESPNOW_SyncTask( void * pvParameters )
         {
           if(xSemaphoreTake(semaphore_updatePedalStates, (TickType_t)0)==pdTRUE) 
           {
+            dap_state_basic_st.payLoadHeader_.PedalTag = dap_calculationVariables_st.pedal_type;
+            dap_state_basic_st.payloadFooter_.checkSum = checksumCalculator((uint8_t*)(&(dap_state_basic_st.payLoadHeader_)), sizeof(dap_state_basic_st.payLoadHeader_) + sizeof(dap_state_basic_st.payloadPedalState_Basic_));
             ESPNow.send_message(broadcast_mac,(uint8_t *) & dap_state_basic_st,sizeof(dap_state_basic_st));
             basic_state_send_b=false;
             xSemaphoreGive(semaphore_updatePedalStates);
@@ -1964,6 +1956,8 @@ void ESPNOW_SyncTask( void * pvParameters )
         {
           if(xSemaphoreTake(semaphore_updatePedalStates, (TickType_t)0)==pdTRUE) 
           {
+            dap_state_extended_st.payLoadHeader_.PedalTag=dap_calculationVariables_st.pedal_type;
+            dap_state_extended_st.payloadFooter_.checkSum = checksumCalculator((uint8_t*)(&(dap_state_extended_st.payLoadHeader_)), sizeof(dap_state_extended_st.payLoadHeader_) + sizeof(dap_state_extended_st.payloadPedalState_Extended_));
             ESPNow.send_message(broadcast_mac,(uint8_t *) & dap_state_extended_st, sizeof(dap_state_extended_st));
             extend_state_send_b=false;
             xSemaphoreGive(semaphore_updatePedalStates);
@@ -1972,6 +1966,7 @@ void ESPNOW_SyncTask( void * pvParameters )
       }
       if(ESPNow_config_request)
       {
+        ESPNow.send_message(broadcast_mac,(uint8_t *) & dap_mech_config_st,sizeof(dap_mech_config_st));
         ESPNow.send_message(broadcast_mac,(uint8_t *) & dap_config_st,sizeof(dap_config_st));
         ESPNow_config_request=false;
         LogOutput::printf("ESPNow: Config sent\n");
@@ -1992,7 +1987,7 @@ void ESPNOW_SyncTask( void * pvParameters )
         Serial.println("get basic wifi info");
         Serial.readBytes((char*)&_basic_wifi_info, sizeof(Basic_WIfi_info));
         #ifdef OTA_update
-          if(_basic_wifi_info.device_ID==dap_config_st.payLoadPedalConfig_.pedal_type)
+          if(_basic_wifi_info.device_ID==dap_calculationVariables_st.pedal_type)
           {
             SSID=new char[_basic_wifi_info.SSID_Length+1];
             PASS=new char[_basic_wifi_info.PASS_Length+1];
@@ -2027,7 +2022,7 @@ void ESPNOW_SyncTask( void * pvParameters )
         if(dap_calculationVariables_st.Rudder_status)
         {
           Serial.print("Pedal:");
-          Serial.print(dap_config_st.payLoadPedalConfig_.pedal_type);
+          Serial.print(dap_calculationVariables_st.pedal_type);
           Serial.print(", Send %: ");
           Serial.print(_ESPNow_Send.pedal_position_ratio);
           Serial.print(", Recieve %:");

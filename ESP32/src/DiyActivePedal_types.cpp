@@ -29,21 +29,13 @@ void DAP_config_st::initialiseDefaults() {
   payLoadPedalConfig_.relativeForce_p080 = 80;
   payLoadPedalConfig_.relativeForce_p100 = 100;
 
-  payLoadPedalConfig_.dampingPress = 0;
-  payLoadPedalConfig_.dampingPull = 0;
+  payLoadPedalConfig_.dampingPress = 0.01f;
+  payLoadPedalConfig_.dampingPull = 0.01f;
 
   payLoadPedalConfig_.absFrequency = 15;
   payLoadPedalConfig_.absAmplitude = 0;
   payLoadPedalConfig_.absPattern = 0;
   payLoadPedalConfig_.absForceOrTarvelBit = 0;
-
-  payLoadPedalConfig_.lengthPedal_a = 205;
-  payLoadPedalConfig_.lengthPedal_b = 220; 
-  payLoadPedalConfig_.lengthPedal_d = 60; 
-  payLoadPedalConfig_.lengthPedal_c_horizontal = 215;
-  payLoadPedalConfig_.lengthPedal_c_vertical = 60;
-  payLoadPedalConfig_.lengthPedal_travel = 100;
-  
 
   payLoadPedalConfig_.Simulate_ABS_trigger = 0;// add for abs trigger
   payLoadPedalConfig_.Simulate_ABS_value = 80;// add for abs trigger
@@ -72,36 +64,12 @@ void DAP_config_st::initialiseDefaults() {
   payLoadPedalConfig_.cubic_spline_param_b_array[3] = 0;
   payLoadPedalConfig_.cubic_spline_param_b_array[4] = 0;
 
-  payLoadPedalConfig_.PID_p_gain = 0.3f;
-  payLoadPedalConfig_.PID_i_gain = 50.0f;
-  payLoadPedalConfig_.PID_d_gain = 0.0f;
-  payLoadPedalConfig_.PID_velocity_feedforward_gain = 0.0f;
-
-
-  payLoadPedalConfig_.MPC_0th_order_gain = 10.0f;
-  payLoadPedalConfig_.MPC_1st_order_gain = 0.0f;
-  payLoadPedalConfig_.MPC_2nd_order_gain = 0.0f;
-
-  payLoadPedalConfig_.control_strategy_b = 0;
-
-  payLoadPedalConfig_.maxGameOutput = 100;
-
   payLoadPedalConfig_.kf_modelNoise = 128;
   payLoadPedalConfig_.kf_modelOrder = 0;
 
   payLoadPedalConfig_.debug_flags_0 = 0;
 
-  payLoadPedalConfig_.loadcell_rating = 100;
-
   payLoadPedalConfig_.travelAsJoystickOutput_u8 = 0;
-
-  payLoadPedalConfig_.invertLoadcellReading_u8 = 0;
-
-  payLoadPedalConfig_.invertMotorDirection_u8 = 0;
-  payLoadPedalConfig_.pedal_type=1;
-  //payLoadPedalConfig_.OTA_flag=0;
-  payLoadPedalConfig_.stepLossFunctionFlags_u8=0b11;
-  //payLoadPedalConfig_.Joystick_ESPsync_to_ESP=0;
 }
 
 
@@ -155,6 +123,13 @@ void DAP_mech_config_st::initialiseDefaults() {
   payLoadHeader_.version = DAP_VERSION_CONFIG;
   payLoadHeader_.storeToEeprom = false;
 
+  payLoadMechConfig_.lengthPedal_a = 100;
+  payLoadMechConfig_.lengthPedal_b = 153; 
+  payLoadMechConfig_.lengthPedal_d = 80; 
+  payLoadMechConfig_.lengthPedal_c_horizontal = 82;
+  payLoadMechConfig_.lengthPedal_c_vertical = 32;
+  payLoadMechConfig_.lengthPedal_travel = 110;
+  
   payLoadMechConfig_.coeffs_force_factor_over_pedal_pos[0] = 6.20184902e-01;
   payLoadMechConfig_.coeffs_force_factor_over_pedal_pos[1] = -1.71372506e-03;
   payLoadMechConfig_.coeffs_force_factor_over_pedal_pos[2] = 1.07828479e-05;
@@ -243,7 +218,8 @@ void DAP_calculationVariables_st::updateFromConfig(DAP_config_st& config_st) {
   absFrequency = ((float)config_st.payLoadPedalConfig_.absFrequency);
   absAmplitude = ((float)config_st.payLoadPedalConfig_.absAmplitude) / 20.0f * 9.81; // from kg to N
 
-  dampingPress = ((float)config_st.payLoadPedalConfig_.dampingPress) * 0.00015f;
+  dampingPress = config_st.payLoadPedalConfig_.dampingPress;
+  dampingPull = config_st.payLoadPedalConfig_.dampingPull;
   RPM_max_freq = ((float)config_st.payLoadPedalConfig_.RPM_max_freq);
   RPM_min_freq = ((float)config_st.payLoadPedalConfig_.RPM_min_freq);
   RPM_AMP = ((float)config_st.payLoadPedalConfig_.RPM_AMP) / 100.0f;
@@ -259,25 +235,23 @@ void DAP_calculationVariables_st::updateFromConfig(DAP_config_st& config_st) {
   Force_Max = ((float)config_st.payLoadPedalConfig_.maxForce) * 9.81; // to N
   Force_Range = Force_Max - Force_Min;
   Force_Max_default=((float)config_st.payLoadPedalConfig_.maxForce); 
-  pedal_type=config_st.payLoadPedalConfig_.pedal_type;
 
   // calculate steps per motor revolution
   // float helper = MAXIMUM_STEPPER_SPEED / (MAXIMUM_STEPPER_RPM / SECONDS_PER_MINUTE);
   // helper = floor(helper / 10) * 10;
   // helper = constrain(helper, 2000, 10000);
   // stepsPerMotorRevolution = helper;
-
-  // when spindle pitch is smaller than 8, choose coarse microstepping
-  if ( 8 > config_st.payLoadPedalConfig_.spindlePitch_mmPerRev_u8)
-  {stepsPerMotorRevolution = 3200;}
-  else{stepsPerMotorRevolution = 6400;}
-  
 }
 
 void DAP_calculationVariables_st::updateFromMechConfig(DAP_mech_config_st& mech_config_st) {
+  pedal_type=mech_config_st.payLoadMechConfig_.pedal_type;
   x_foot_min_abs = float(mech_config_st.payLoadMechConfig_.x_foot_min_abs) / 10.0f;
   x_foot_max_abs = float(mech_config_st.payLoadMechConfig_.x_foot_max_abs) / 10.0f;
   x_foot_range_abs = x_foot_max_abs - x_foot_min_abs;
+}
+
+void DAP_calculationVariables_st::updatePedalType(uint8_t new_pedal_type) {
+  pedal_type = new_pedal_type;
 }
 
 float DAP_calculationVariables_st::x_foot_rel_to_abs(float x_foot_rel) {
