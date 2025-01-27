@@ -6,12 +6,12 @@
 #define DAP_VERSION_CONFIG 200
 
 // define the payload types
-#define DAP_PAYLOAD_TYPE_CONFIG 100
+#define DAP_PAYLOAD_TYPE_ROAD_PEDAL_CONFIG 100
 #define DAP_PAYLOAD_TYPE_ACTION 110
 #define DAP_PAYLOAD_TYPE_STATE_BASIC 120
 #define DAP_PAYLOAD_TYPE_STATE_EXTENDED 130
 #define DAP_PAYLOAD_TYPE_ESPNOW_PAIRING 140
-#define DAP_PAYLOAD_TYPE_MECH_CONFIG 150
+#define DAP_PAYLOAD_TYPE_BASE_CONFIG 150
 #define DAP_PAYLOAD_TYPE_BRIDGE_STATE 210
 
 struct payloadHeader {
@@ -74,7 +74,7 @@ struct payloadBridgeState {
   uint8_t Bridge_action;//0=none, 1=enable pairing
 
 };
-struct payloadPedalConfig {
+struct payloadRoadPedalConfig {
   // configure pedal start and endpoint
   // In percent
   uint8_t pedalStartPosition;
@@ -146,7 +146,7 @@ struct payloadPedalConfig {
   uint8_t travelAsJoystickOutput_u8;
 };
 
-struct payloadMechConfig {
+struct payloadBaseConfig {
   // geometric properties of the pedal
   // in mm
   int16_t lengthPedal_a;
@@ -200,58 +200,58 @@ struct payloadFooter {
 
 
 struct DAP_actions_st {
-  payloadHeader payLoadHeader_;
-  payloadPedalAction payloadPedalAction_;
-  payloadFooter payloadFooter_; 
+  payloadHeader header;
+  payloadPedalAction data;
+  payloadFooter footer; 
 };
 
 struct DAP_state_basic_st {
-  payloadHeader payLoadHeader_;
-  payloadPedalState_Basic payloadPedalState_Basic_;
-  payloadFooter payloadFooter_; 
+  payloadHeader header;
+  payloadPedalState_Basic data;
+  payloadFooter footer; 
 };
 
 struct DAP_state_extended_st {
-  payloadHeader payLoadHeader_;
-  payloadPedalState_Extended payloadPedalState_Extended_;
-  payloadFooter payloadFooter_; 
+  payloadHeader header;
+  payloadPedalState_Extended data;
+  payloadFooter footer; 
 };
 struct DAP_bridge_state_st {
-  payloadHeader payLoadHeader_;
-  payloadBridgeState payloadBridgeState_;
-  payloadFooter payloadFooter_; 
+  payloadHeader header;
+  payloadBridgeState data;
+  payloadFooter footer; 
 };
 
-struct DAP_config_st {
+struct DAP_road_pedal_config_st {
 
-  payloadHeader payLoadHeader_;
-  payloadPedalConfig payLoadPedalConfig_;
-  payloadFooter payloadFooter_; 
+  payloadHeader header;
+  payloadRoadPedalConfig data;
+  payloadFooter footer; 
   
   
   void initialiseDefaults();
   void initialiseDefaults_Accelerator();
-  void loadConfigFromEprom(DAP_config_st& config_st);
-  void storeConfigToEprom(DAP_config_st& config_st);
+  void loadConfigFromEprom(DAP_road_pedal_config_st& config_st);
+  void storeConfigToEprom(DAP_road_pedal_config_st& config_st);
 };
 
-struct DAP_mech_config_st {
+struct DAP_base_config_st {
 
-  payloadHeader payLoadHeader_;
-  payloadMechConfig payLoadMechConfig_;
-  payloadFooter payloadFooter_; 
+  payloadHeader header;
+  payloadBaseConfig data;
+  payloadFooter footer; 
   
   
   void initialiseDefaults();
   void initialiseDefaults_Accelerator();
-  void loadConfigFromEprom(DAP_mech_config_st& config_st);
-  void storeConfigToEprom(DAP_mech_config_st& config_st);
+  void loadConfigFromEprom(DAP_base_config_st& config_st);
+  void storeConfigToEprom(DAP_base_config_st& config_st);
 };
 
 struct DAP_ESPPairing_st {
-  payloadHeader payLoadHeader_;
-  payloadESPNowInfo payloadESPNowInfo_;
-  payloadFooter payloadFooter_; 
+  payloadHeader header;
+  payloadESPNowInfo data;
+  payloadFooter footer; 
 };
 
 struct DAP_calculationVariables_st
@@ -299,8 +299,8 @@ struct DAP_calculationVariables_st
   float x_foot_max_curr;
   float x_foot_center_curr;
 
-  void updateFromConfig(DAP_config_st& config_st);
-  void updateFromMechConfig(DAP_mech_config_st& mech_config_st);
+  void updateFromRoadPedalConfig(DAP_road_pedal_config_st& config_st);
+  void updateFromBaseConfig(DAP_base_config_st& mech_config_st);
   void updateEndstops(long newMinEndstop, long newMaxEndstop);
   void updateStiffness();
   void dynamic_update();

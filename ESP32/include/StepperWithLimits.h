@@ -29,7 +29,7 @@ public:
   void updatePedalMinMaxPos(uint8_t pedalStartPosPct, uint8_t pedalEndPosPct);
   bool isAtMinPos();
   bool correctPos(int32_t posOffset);
-  void findMinMaxSensorless(isv57communication * isv57, DAP_mech_config_st& mech_config_st);
+  void findMinMaxSensorless(isv57communication * isv57, DAP_base_config_st& mech_config_st);
   void refindMinLimitSensorless(isv57communication * isv57);
 public:
   int8_t moveTo(int32_t position, bool blocking = false);

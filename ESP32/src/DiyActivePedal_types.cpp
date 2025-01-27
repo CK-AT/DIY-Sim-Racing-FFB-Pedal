@@ -9,91 +9,91 @@
 static const float ABS_SCALING = 50;
 
 const uint32_t EEPROM_OFFSET_MECH_CONFIG = 0;
-const uint32_t EEPROM_OFFSET_GENERAL_CONFIG = 0 + sizeof(DAP_mech_config_st);
+const uint32_t EEPROM_OFFSET_GENERAL_CONFIG = EEPROM_OFFSET_MECH_CONFIG + sizeof(DAP_base_config_st);
 
-void DAP_config_st::initialiseDefaults() {
-  payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_CONFIG;
-  payLoadHeader_.version = DAP_VERSION_CONFIG;
-  payLoadHeader_.storeToEeprom = false;
+void DAP_road_pedal_config_st::initialiseDefaults() {
+  header.payloadType = DAP_PAYLOAD_TYPE_ROAD_PEDAL_CONFIG;
+  header.version = DAP_VERSION_CONFIG;
+  header.storeToEeprom = false;
 
-  payLoadPedalConfig_.pedalStartPosition = 10;
-  payLoadPedalConfig_.pedalEndPosition = 85;
+  data.pedalStartPosition = 10;
+  data.pedalEndPosition = 85;
 
-  payLoadPedalConfig_.maxForce = 60;
-  payLoadPedalConfig_.preloadForce = 2;
+  data.maxForce = 60;
+  data.preloadForce = 2;
 
-  payLoadPedalConfig_.relativeForce_p000 = 0;
-  payLoadPedalConfig_.relativeForce_p020 = 20;
-  payLoadPedalConfig_.relativeForce_p040 = 40;
-  payLoadPedalConfig_.relativeForce_p060 = 60;
-  payLoadPedalConfig_.relativeForce_p080 = 80;
-  payLoadPedalConfig_.relativeForce_p100 = 100;
+  data.relativeForce_p000 = 0;
+  data.relativeForce_p020 = 20;
+  data.relativeForce_p040 = 40;
+  data.relativeForce_p060 = 60;
+  data.relativeForce_p080 = 80;
+  data.relativeForce_p100 = 100;
 
-  payLoadPedalConfig_.dampingPress = 0.01f;
-  payLoadPedalConfig_.dampingPull = 0.01f;
+  data.dampingPress = 0.01f;
+  data.dampingPull = 0.01f;
 
-  payLoadPedalConfig_.absFrequency = 15;
-  payLoadPedalConfig_.absAmplitude = 0;
-  payLoadPedalConfig_.absPattern = 0;
-  payLoadPedalConfig_.absForceOrTarvelBit = 0;
+  data.absFrequency = 15;
+  data.absAmplitude = 0;
+  data.absPattern = 0;
+  data.absForceOrTarvelBit = 0;
 
-  payLoadPedalConfig_.Simulate_ABS_trigger = 0;// add for abs trigger
-  payLoadPedalConfig_.Simulate_ABS_value = 80;// add for abs trigger
-  payLoadPedalConfig_.RPM_max_freq = 40;
-  payLoadPedalConfig_.RPM_min_freq = 10;
-  payLoadPedalConfig_.RPM_AMP = 5;
-  payLoadPedalConfig_.BP_trigger_value =50;
-  payLoadPedalConfig_.BP_amp=1;
-  payLoadPedalConfig_.BP_freq=15;
-  payLoadPedalConfig_.BP_trigger=0;
-  payLoadPedalConfig_.G_multi = 50;
-  payLoadPedalConfig_.G_window=60;
-  payLoadPedalConfig_.WS_amp=1;
-  payLoadPedalConfig_.WS_freq=15;
-  payLoadPedalConfig_.Road_multi = 50;
-  payLoadPedalConfig_.Road_window=60;
-  payLoadPedalConfig_.cubic_spline_param_a_array[0] = 0;
-  payLoadPedalConfig_.cubic_spline_param_a_array[1] = 0;
-  payLoadPedalConfig_.cubic_spline_param_a_array[2] = 0;
-  payLoadPedalConfig_.cubic_spline_param_a_array[3] = 0;
-  payLoadPedalConfig_.cubic_spline_param_a_array[4] = 0;
+  data.Simulate_ABS_trigger = 0;// add for abs trigger
+  data.Simulate_ABS_value = 80;// add for abs trigger
+  data.RPM_max_freq = 40;
+  data.RPM_min_freq = 10;
+  data.RPM_AMP = 5;
+  data.BP_trigger_value =50;
+  data.BP_amp=1;
+  data.BP_freq=15;
+  data.BP_trigger=0;
+  data.G_multi = 50;
+  data.G_window=60;
+  data.WS_amp=1;
+  data.WS_freq=15;
+  data.Road_multi = 50;
+  data.Road_window=60;
+  data.cubic_spline_param_a_array[0] = 0;
+  data.cubic_spline_param_a_array[1] = 0;
+  data.cubic_spline_param_a_array[2] = 0;
+  data.cubic_spline_param_a_array[3] = 0;
+  data.cubic_spline_param_a_array[4] = 0;
 
-  payLoadPedalConfig_.cubic_spline_param_b_array[0] = 0;
-  payLoadPedalConfig_.cubic_spline_param_b_array[1] = 0;
-  payLoadPedalConfig_.cubic_spline_param_b_array[2] = 0;
-  payLoadPedalConfig_.cubic_spline_param_b_array[3] = 0;
-  payLoadPedalConfig_.cubic_spline_param_b_array[4] = 0;
+  data.cubic_spline_param_b_array[0] = 0;
+  data.cubic_spline_param_b_array[1] = 0;
+  data.cubic_spline_param_b_array[2] = 0;
+  data.cubic_spline_param_b_array[3] = 0;
+  data.cubic_spline_param_b_array[4] = 0;
 
-  payLoadPedalConfig_.kf_modelNoise = 128;
-  payLoadPedalConfig_.kf_modelOrder = 0;
+  data.kf_modelNoise = 128;
+  data.kf_modelOrder = 0;
 
-  payLoadPedalConfig_.debug_flags_0 = 0;
+  data.debug_flags_0 = 0;
 
-  payLoadPedalConfig_.travelAsJoystickOutput_u8 = 0;
+  data.travelAsJoystickOutput_u8 = 0;
 }
 
 
 
 
-void DAP_config_st::storeConfigToEprom(DAP_config_st& config_st)
+void DAP_road_pedal_config_st::storeConfigToEprom(DAP_road_pedal_config_st& config_st)
 {
 
   EEPROM.put(EEPROM_OFFSET_GENERAL_CONFIG, config_st); 
   EEPROM.commit();
   Serial.println("Successfully stored general config to EEPROM");
   
-  /*if (true == config_st.payLoadHeader_.storeToEeprom)
+  /*if (true == config_st.header.storeToEeprom)
   {
-    config_st.payLoadHeader_.storeToEeprom = false; // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
+    config_st.header.storeToEeprom = false; // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
     EEPROM.put(0, config_st); 
     EEPROM.commit();
     Serial.println("Successfully stored config in EPROM");
   }*/
 }
 
-void DAP_config_st::loadConfigFromEprom(DAP_config_st& config_st)
+void DAP_road_pedal_config_st::loadConfigFromEprom(DAP_road_pedal_config_st& config_st)
 {
-  DAP_config_st local_config_st;
+  DAP_road_pedal_config_st local_config_st;
 
   EEPROM.get(EEPROM_OFFSET_GENERAL_CONFIG, local_config_st);
   //EEPROM.commit();
@@ -101,7 +101,7 @@ void DAP_config_st::loadConfigFromEprom(DAP_config_st& config_st)
   config_st = local_config_st;
 
   // check if version matches revision, in case, update the default config
-  /*if (local_config_st.payLoadHeader_.version == DAP_VERSION_CONFIG)
+  /*if (local_config_st.header.version == DAP_VERSION_CONFIG)
   {
     config_st = local_config_st;
     Serial.println("Successfully loaded config from EPROM");
@@ -112,67 +112,67 @@ void DAP_config_st::loadConfigFromEprom(DAP_config_st& config_st)
     Serial.print("Target version: ");
     Serial.println(DAP_VERSION_CONFIG);
     Serial.print("Source version: ");
-    Serial.println(local_config_st.payLoadHeader_.version);
+    Serial.println(local_config_st.header.version);
 
   }*/
 
 }
 
-void DAP_mech_config_st::initialiseDefaults() {
-  payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_MECH_CONFIG;
-  payLoadHeader_.version = DAP_VERSION_CONFIG;
-  payLoadHeader_.storeToEeprom = false;
+void DAP_base_config_st::initialiseDefaults() {
+  header.payloadType = DAP_PAYLOAD_TYPE_BASE_CONFIG;
+  header.version = DAP_VERSION_CONFIG;
+  header.storeToEeprom = false;
 
-  payLoadMechConfig_.lengthPedal_a = 100;
-  payLoadMechConfig_.lengthPedal_b = 153; 
-  payLoadMechConfig_.lengthPedal_d = 80; 
-  payLoadMechConfig_.lengthPedal_c_horizontal = 82;
-  payLoadMechConfig_.lengthPedal_c_vertical = 32;
-  payLoadMechConfig_.lengthPedal_travel = 110;
+  data.lengthPedal_a = 100;
+  data.lengthPedal_b = 153; 
+  data.lengthPedal_d = 80; 
+  data.lengthPedal_c_horizontal = 82;
+  data.lengthPedal_c_vertical = 32;
+  data.lengthPedal_travel = 110;
   
-  payLoadMechConfig_.coeffs_force_factor_over_pedal_pos[0] = 6.20184902e-01;
-  payLoadMechConfig_.coeffs_force_factor_over_pedal_pos[1] = -1.71372506e-03;
-  payLoadMechConfig_.coeffs_force_factor_over_pedal_pos[2] = 1.07828479e-05;
-  payLoadMechConfig_.coeffs_force_factor_over_pedal_pos[3] = 2.71382634e-09;
-  payLoadMechConfig_.coeffs_force_factor_over_pedal_pos[4] = 7.34203389e-11;
+  data.coeffs_force_factor_over_pedal_pos[0] = 6.20184902e-01;
+  data.coeffs_force_factor_over_pedal_pos[1] = -1.71372506e-03;
+  data.coeffs_force_factor_over_pedal_pos[2] = 1.07828479e-05;
+  data.coeffs_force_factor_over_pedal_pos[3] = 2.71382634e-09;
+  data.coeffs_force_factor_over_pedal_pos[4] = 7.34203389e-11;
 
-  payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos[0] = 5.50622588e+01;
-  payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos[1] = 5.55488175e-01;
-  payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos[2] = 7.59065219e-04;
-  payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos[3] = -2.81513616e-06;
-  payLoadMechConfig_.coeffs_sled_pos_over_pedal_pos[4] = -1.11220289e-08;
+  data.coeffs_sled_pos_over_pedal_pos[0] = 5.50622588e+01;
+  data.coeffs_sled_pos_over_pedal_pos[1] = 5.55488175e-01;
+  data.coeffs_sled_pos_over_pedal_pos[2] = 7.59065219e-04;
+  data.coeffs_sled_pos_over_pedal_pos[3] = -2.81513616e-06;
+  data.coeffs_sled_pos_over_pedal_pos[4] = -1.11220289e-08;
 
-  payLoadMechConfig_.x_foot_min_abs = -1259;
-  payLoadMechConfig_.x_foot_max_abs = 927;
+  data.x_foot_min_abs = -1259;
+  data.x_foot_max_abs = 927;
 
-  payLoadMechConfig_.loadcell_rating = 100;
-  payLoadMechConfig_.spindlePitch_mmPerRev_u8 = 5;
+  data.loadcell_rating = 100;
+  data.spindlePitch_mmPerRev_u8 = 5;
 
-  payLoadMechConfig_.invertLoadcellReading_u8 = 0;
+  data.invertLoadcellReading_u8 = 0;
 
-  payLoadMechConfig_.invertMotorDirection_u8 = 0;
-  payLoadMechConfig_.pedal_type=1;
+  data.invertMotorDirection_u8 = 0;
+  data.pedal_type=1;
 }
 
-void DAP_mech_config_st::storeConfigToEprom(DAP_mech_config_st& config_st)
+void DAP_base_config_st::storeConfigToEprom(DAP_base_config_st& config_st)
 {
 
   EEPROM.put(EEPROM_OFFSET_MECH_CONFIG, config_st); 
   EEPROM.commit();
   Serial.println("Successfully stored mech config to EEPROM");
   
-  /*if (true == config_st.payLoadHeader_.storeToEeprom)
+  /*if (true == config_st.header.storeToEeprom)
   {
-    config_st.payLoadHeader_.storeToEeprom = false; // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
+    config_st.header.storeToEeprom = false; // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
     EEPROM.put(0, config_st); 
     EEPROM.commit();
     Serial.println("Successfully stored config in EPROM");
   }*/
 }
 
-void DAP_mech_config_st::loadConfigFromEprom(DAP_mech_config_st& config_st)
+void DAP_base_config_st::loadConfigFromEprom(DAP_base_config_st& config_st)
 {
-  DAP_mech_config_st local_config_st;
+  DAP_base_config_st local_config_st;
 
   EEPROM.get(EEPROM_OFFSET_MECH_CONFIG, local_config_st);
   //EEPROM.commit();
@@ -180,7 +180,7 @@ void DAP_mech_config_st::loadConfigFromEprom(DAP_mech_config_st& config_st)
   config_st = local_config_st;
 
   // check if version matches revision, in case, update the default config
-  /*if (local_config_st.payLoadHeader_.version == DAP_VERSION_CONFIG)
+  /*if (local_config_st.header.version == DAP_VERSION_CONFIG)
   {
     config_st = local_config_st;
     Serial.println("Successfully loaded config from EPROM");
@@ -191,7 +191,7 @@ void DAP_mech_config_st::loadConfigFromEprom(DAP_mech_config_st& config_st)
     Serial.print("Target version: ");
     Serial.println(DAP_VERSION_CONFIG);
     Serial.print("Source version: ");
-    Serial.println(local_config_st.payLoadHeader_.version);
+    Serial.println(local_config_st.header.version);
 
   }*/
 
@@ -201,9 +201,9 @@ void DAP_mech_config_st::loadConfigFromEprom(DAP_mech_config_st& config_st)
 
 
 
-void DAP_calculationVariables_st::updateFromConfig(DAP_config_st& config_st) {
-  startPosRel = ((float)config_st.payLoadPedalConfig_.pedalStartPosition) / 100.0f;
-  endPosRel = ((float)config_st.payLoadPedalConfig_.pedalEndPosition) / 100.0f;
+void DAP_calculationVariables_st::updateFromRoadPedalConfig(DAP_road_pedal_config_st& config_st) {
+  startPosRel = ((float)config_st.data.pedalStartPosition) / 100.0f;
+  endPosRel = ((float)config_st.data.pedalEndPosition) / 100.0f;
 
   x_foot_min_curr = x_foot_rel_to_abs(startPosRel);
   x_foot_max_curr = x_foot_rel_to_abs(endPosRel);
@@ -215,26 +215,26 @@ void DAP_calculationVariables_st::updateFromConfig(DAP_config_st& config_st) {
     endPosRel =   startPosRel + 1 / 100;
   }
   
-  absFrequency = ((float)config_st.payLoadPedalConfig_.absFrequency);
-  absAmplitude = ((float)config_st.payLoadPedalConfig_.absAmplitude) / 20.0f * 9.81; // from kg to N
+  absFrequency = ((float)config_st.data.absFrequency);
+  absAmplitude = ((float)config_st.data.absAmplitude) / 20.0f * 9.81; // from kg to N
 
-  dampingPress = config_st.payLoadPedalConfig_.dampingPress;
-  dampingPull = config_st.payLoadPedalConfig_.dampingPull;
-  RPM_max_freq = ((float)config_st.payLoadPedalConfig_.RPM_max_freq);
-  RPM_min_freq = ((float)config_st.payLoadPedalConfig_.RPM_min_freq);
-  RPM_AMP = ((float)config_st.payLoadPedalConfig_.RPM_AMP) / 100.0f;
+  dampingPress = config_st.data.dampingPress;
+  dampingPull = config_st.data.dampingPull;
+  RPM_max_freq = ((float)config_st.data.RPM_max_freq);
+  RPM_min_freq = ((float)config_st.data.RPM_min_freq);
+  RPM_AMP = ((float)config_st.data.RPM_AMP) / 100.0f;
   //Bite point effect;
   
-  BP_trigger_value=(float)config_st.payLoadPedalConfig_.BP_trigger_value;
-  BP_amp=((float)config_st.payLoadPedalConfig_.BP_amp) / 100.0f;
-  BP_freq=(float)config_st.payLoadPedalConfig_.BP_freq;
-  WS_amp=((float)config_st.payLoadPedalConfig_.WS_amp) / 20.0f;
-  WS_freq=(float)config_st.payLoadPedalConfig_.WS_freq;
+  BP_trigger_value=(float)config_st.data.BP_trigger_value;
+  BP_amp=((float)config_st.data.BP_amp) / 100.0f;
+  BP_freq=(float)config_st.data.BP_freq;
+  WS_amp=((float)config_st.data.WS_amp) / 20.0f;
+  WS_freq=(float)config_st.data.WS_freq;
   // update force variables
-  Force_Min = ((float)config_st.payLoadPedalConfig_.preloadForce) * 9.81; // to N
-  Force_Max = ((float)config_st.payLoadPedalConfig_.maxForce) * 9.81; // to N
+  Force_Min = ((float)config_st.data.preloadForce) * 9.81; // to N
+  Force_Max = ((float)config_st.data.maxForce) * 9.81; // to N
   Force_Range = Force_Max - Force_Min;
-  Force_Max_default=((float)config_st.payLoadPedalConfig_.maxForce); 
+  Force_Max_default=((float)config_st.data.maxForce); 
 
   // calculate steps per motor revolution
   // float helper = MAXIMUM_STEPPER_SPEED / (MAXIMUM_STEPPER_RPM / SECONDS_PER_MINUTE);
@@ -243,10 +243,10 @@ void DAP_calculationVariables_st::updateFromConfig(DAP_config_st& config_st) {
   // stepsPerMotorRevolution = helper;
 }
 
-void DAP_calculationVariables_st::updateFromMechConfig(DAP_mech_config_st& mech_config_st) {
-  pedal_type=mech_config_st.payLoadMechConfig_.pedal_type;
-  x_foot_min_abs = float(mech_config_st.payLoadMechConfig_.x_foot_min_abs) / 10.0f;
-  x_foot_max_abs = float(mech_config_st.payLoadMechConfig_.x_foot_max_abs) / 10.0f;
+void DAP_calculationVariables_st::updateFromBaseConfig(DAP_base_config_st& mech_config_st) {
+  pedal_type=mech_config_st.data.pedal_type;
+  x_foot_min_abs = float(mech_config_st.data.x_foot_min_abs) / 10.0f;
+  x_foot_max_abs = float(mech_config_st.data.x_foot_max_abs) / 10.0f;
   x_foot_range_abs = x_foot_max_abs - x_foot_min_abs;
 }
 

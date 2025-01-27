@@ -115,14 +115,14 @@ void ESPNow_Pairing_callback(const uint8_t *mac_addr, const uint8_t *data, int d
   {
     memcpy(&dap_esppairing_st, data , sizeof(DAP_ESPPairing_st));
     //pedal reg
-    if(dap_esppairing_st.payloadESPNowInfo_._deviceID==0||dap_esppairing_st.payloadESPNowInfo_._deviceID==1||dap_esppairing_st.payloadESPNowInfo_._deviceID==2)
+    if(dap_esppairing_st.data._deviceID==0||dap_esppairing_st.data._deviceID==1||dap_esppairing_st.data._deviceID==2)
     {
-      memcpy(&_ESP_pairing_reg.Pair_mac[dap_esppairing_st.payloadESPNowInfo_._deviceID], mac_addr , 6);
-      _ESP_pairing_reg.Pair_status[dap_esppairing_st.payloadESPNowInfo_._deviceID]=1;
+      memcpy(&_ESP_pairing_reg.Pair_mac[dap_esppairing_st.data._deviceID], mac_addr , 6);
+      _ESP_pairing_reg.Pair_status[dap_esppairing_st.data._deviceID]=1;
       UpdatePairingToEeprom = true;
     }
     //bridge and analog device, for pedal, only save for bridge
-    if(dap_esppairing_st.payloadESPNowInfo_._deviceID==99/*||dap_esppairing_st.payloadESPNowInfo_._deviceID==98*/)
+    if(dap_esppairing_st.data._deviceID==99/*||dap_esppairing_st.payloadESPNowInfo_._deviceID==98*/)
     {
       memcpy(&_ESP_pairing_reg.Pair_mac[3], mac_addr , 6);
       _ESP_pairing_reg.Pair_status[3]=1;
@@ -159,36 +159,36 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
     if(MacCheck(esp_Host,(uint8_t *)mac_addr))
     {
 
-      if(data_len==sizeof(dap_mech_config_st))
+      if(data_len==sizeof(dap_base_config_st))
       {
-        //Serial.println("dap_config_st ESPNow recieved");
+        //Serial.println("dap_road_pedal_config_st ESPNow recieved");
         if(semaphore_updateConfig!=NULL)
         {
           if(xSemaphoreTake(semaphore_updateConfig, (TickType_t)1)==pdTRUE)
           {
             bool structChecker = true;
             uint16_t crc;
-            //Serial.readBytes((char*)dap_config_st_local_ptr, sizeof(DAP_config_st));
-            memcpy(&dap_mech_config_st_local, data, sizeof(DAP_mech_config_st));
+            //Serial.readBytes((char*)dap_config_st_local_ptr, sizeof(DAP_road_pedal_config_st));
+            memcpy(&dap_mech_config_st_local, data, sizeof(DAP_base_config_st));
       
   
 
             // check if data is plausible
-            if ( dap_mech_config_st_local.payLoadHeader_.payloadType != DAP_PAYLOAD_TYPE_MECH_CONFIG )
+            if ( dap_mech_config_st_local.header.payloadType != DAP_PAYLOAD_TYPE_BASE_CONFIG )
             { 
               structChecker = false;
               ESPNow_error_code=101;
 
             }
-            if ( dap_mech_config_st_local.payLoadHeader_.version != DAP_VERSION_CONFIG )
+            if ( dap_mech_config_st_local.header.version != DAP_VERSION_CONFIG )
             { 
               structChecker = false;
               ESPNow_error_code=102;
 
             }
                     // checksum validation
-            crc = checksumCalculator((uint8_t*)(&(dap_mech_config_st_local.payLoadHeader_)), sizeof(dap_mech_config_st_local.payLoadHeader_) + sizeof(dap_mech_config_st_local.payLoadMechConfig_));
-            if (crc != dap_mech_config_st_local.payloadFooter_.checkSum)
+            crc = checksumCalculator((uint8_t*)(&(dap_mech_config_st_local.header)), sizeof(dap_mech_config_st_local.header) + sizeof(dap_mech_config_st_local.data));
+            if (crc != dap_mech_config_st_local.footer.checkSum)
             { 
               structChecker = false;
               ESPNow_error_code=103;
@@ -208,36 +208,36 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
         }
       }
 
-      if(data_len==sizeof(dap_config_st))
+      if(data_len==sizeof(dap_road_pedal_config_st))
       {
-        //Serial.println("dap_config_st ESPNow recieved");
+        //Serial.println("dap_road_pedal_config_st ESPNow recieved");
         if(semaphore_updateConfig!=NULL)
         {
           if(xSemaphoreTake(semaphore_updateConfig, (TickType_t)1)==pdTRUE)
           {
             bool structChecker = true;
             uint16_t crc;
-            //Serial.readBytes((char*)dap_config_st_local_ptr, sizeof(DAP_config_st));
-            memcpy(&dap_config_st_local, data, sizeof(DAP_config_st));
+            //Serial.readBytes((char*)dap_config_st_local_ptr, sizeof(DAP_road_pedal_config_st));
+            memcpy(&dap_road_pedal_config_st_local, data, sizeof(DAP_road_pedal_config_st));
       
   
 
             // check if data is plausible
-            if ( dap_config_st_local.payLoadHeader_.payloadType != DAP_PAYLOAD_TYPE_CONFIG )
+            if ( dap_road_pedal_config_st_local.header.payloadType != DAP_PAYLOAD_TYPE_ROAD_PEDAL_CONFIG )
             { 
               structChecker = false;
               ESPNow_error_code=101;
 
             }
-            if ( dap_config_st_local.payLoadHeader_.version != DAP_VERSION_CONFIG )
+            if ( dap_road_pedal_config_st_local.header.version != DAP_VERSION_CONFIG )
             { 
               structChecker = false;
               ESPNow_error_code=102;
 
             }
                     // checksum validation
-            crc = checksumCalculator((uint8_t*)(&(dap_config_st_local.payLoadHeader_)), sizeof(dap_config_st_local.payLoadHeader_) + sizeof(dap_config_st_local.payLoadPedalConfig_));
-            if (crc != dap_config_st_local.payloadFooter_.checkSum)
+            crc = checksumCalculator((uint8_t*)(&(dap_road_pedal_config_st_local.header)), sizeof(dap_road_pedal_config_st_local.header) + sizeof(dap_road_pedal_config_st_local.data));
+            if (crc != dap_road_pedal_config_st_local.footer.checkSum)
             { 
               structChecker = false;
               ESPNow_error_code=103;
@@ -263,23 +263,23 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
               
               memcpy(&dap_actions_st, data, sizeof(dap_actions_st));
               //Serial.readBytes((char*)&dap_actions_st, sizeof(DAP_actions_st));
-              if(dap_actions_st.payLoadHeader_.PedalTag==dap_calculationVariables_st.pedal_type)
+              if(dap_actions_st.header.PedalTag==dap_calculationVariables_st.pedal_type)
               {
                 bool structChecker = true;
                 uint16_t crc;
-                if ( dap_actions_st.payLoadHeader_.payloadType != DAP_PAYLOAD_TYPE_ACTION )
+                if ( dap_actions_st.header.payloadType != DAP_PAYLOAD_TYPE_ACTION )
                 { 
                   structChecker = false;
                   ESPNow_error_code=111;
 
                 }
-                if ( dap_actions_st.payLoadHeader_.version != DAP_VERSION_CONFIG ){ 
+                if ( dap_actions_st.header.version != DAP_VERSION_CONFIG ){ 
                   structChecker = false;
                   ESPNow_error_code=112;
 
                 }
-                crc = checksumCalculator((uint8_t*)(&(dap_actions_st.payLoadHeader_)), sizeof(dap_actions_st.payLoadHeader_) + sizeof(dap_actions_st.payloadPedalAction_));
-                if (crc != dap_actions_st.payloadFooter_.checkSum){ 
+                crc = checksumCalculator((uint8_t*)(&(dap_actions_st.header)), sizeof(dap_actions_st.header) + sizeof(dap_actions_st.data));
+                if (crc != dap_actions_st.footer.checkSum){ 
                   structChecker = false;
                   ESPNow_error_code=113;
 
@@ -291,68 +291,68 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
 
                   
                   //2= restart pedal
-                  if (dap_actions_st.payloadPedalAction_.system_action_u8==2)
+                  if (dap_actions_st.data.system_action_u8==2)
                   {
                     ESPNow_restart = true;
                   }
                   //3= Wifi OTA
-                  if (dap_actions_st.payloadPedalAction_.system_action_u8==3)
+                  if (dap_actions_st.data.system_action_u8==3)
                   {
                     ESPNow_OTA_enable = true;
                   }
                   // trigger ABS effect
-                  if (dap_actions_st.payloadPedalAction_.triggerAbs_u8)
+                  if (dap_actions_st.data.triggerAbs_u8)
                   {
                     absOscillation.trigger();
                   }
                   //RPM effect
-                  _RPMOscillation.RPM_value=dap_actions_st.payloadPedalAction_.RPM_u8;
+                  _RPMOscillation.RPM_value=dap_actions_st.data.RPM_u8;
                   //G force effect
-                  _G_force_effect.G_value=dap_actions_st.payloadPedalAction_.G_value-128;       
+                  _G_force_effect.G_value=dap_actions_st.data.G_value-128;       
                   //wheel slip
-                  if (dap_actions_st.payloadPedalAction_.WS_u8)
+                  if (dap_actions_st.data.WS_u8)
                   {
                     _WSOscillation.trigger();
                   }     
                   //Road impact && Rudder G impact
                   if(dap_calculationVariables_st.Rudder_status==false)
                   {
-                    _Road_impact_effect.Road_Impact_value=dap_actions_st.payloadPedalAction_.impact_value_u8;
+                    _Road_impact_effect.Road_Impact_value=dap_actions_st.data.impact_value_u8;
                   }
                   else
                   {
-                    _rudder_g_force.G_value=dap_actions_st.payloadPedalAction_.impact_value_u8;
+                    _rudder_g_force.G_value=dap_actions_st.data.impact_value_u8;
                   }
                   // trigger system identification
-                  if (dap_actions_st.payloadPedalAction_.startSystemIdentification_u8)
+                  if (dap_actions_st.data.startSystemIdentification_u8)
                   {
                     systemIdentificationMode_b = true;
                   }
                   // trigger Custom effect effect 1
-                  if (dap_actions_st.payloadPedalAction_.Trigger_CV_1)
+                  if (dap_actions_st.data.Trigger_CV_1)
                   {
                     CV1.trigger();
                   }
                   // trigger Custom effect effect 2
-                  if (dap_actions_st.payloadPedalAction_.Trigger_CV_2)
+                  if (dap_actions_st.data.Trigger_CV_2)
                   {
                     CV2.trigger();
                   }
                   // trigger return pedal position
-                  if (dap_actions_st.payloadPedalAction_.returnPedalConfig_u8)
+                  if (dap_actions_st.data.returnPedalConfig_u8)
                   {
                     ESPNow_config_request=true;
                     /*
-                    DAP_config_st * dap_config_st_local_ptr;
-                    dap_config_st_local_ptr = &dap_config_st;
-                    //uint16_t crc = checksumCalculator((uint8_t*)(&(dap_config_st.payLoadHeader_)), sizeof(dap_config_st.payLoadHeader_) + sizeof(dap_config_st.payLoadPedalConfig_));
-                    crc = checksumCalculator((uint8_t*)(&(dap_config_st.payLoadHeader_)), sizeof(dap_config_st.payLoadHeader_) + sizeof(dap_config_st.payLoadPedalConfig_));
-                    dap_config_st_local_ptr->payloadFooter_.checkSum = crc;
-                    Serial.write((char*)dap_config_st_local_ptr, sizeof(DAP_config_st));
+                    DAP_road_pedal_config_st * dap_config_st_local_ptr;
+                    dap_config_st_local_ptr = &dap_road_pedal_config_st;
+                    //uint16_t crc = checksumCalculator((uint8_t*)(&(dap_road_pedal_config_st.header)), sizeof(dap_road_pedal_config_st.header) + sizeof(dap_road_pedal_config_st.data));
+                    crc = checksumCalculator((uint8_t*)(&(dap_road_pedal_config_st.header)), sizeof(dap_road_pedal_config_st.header) + sizeof(dap_road_pedal_config_st.data));
+                    dap_config_st_local_ptr->footer.checkSum = crc;
+                    Serial.write((char*)dap_config_st_local_ptr, sizeof(DAP_road_pedal_config_st));
                     Serial.print("\r\n");
                     */
                   }
-                  if(dap_actions_st.payloadPedalAction_.Rudder_action==1)
+                  if(dap_actions_st.data.Rudder_action==1)
                   {
                     if(dap_calculationVariables_st.Rudder_status==false)
                     {
@@ -371,7 +371,7 @@ void onRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
                       //Serial.println(dap_calculationVariables_st.Rudder_status);
                     }
                   }
-                  if(dap_actions_st.payloadPedalAction_.Rudder_brake_action==1)
+                  if(dap_actions_st.data.Rudder_brake_action==1)
                   {
                     if(dap_calculationVariables_st.rudder_brake_status==false&&dap_calculationVariables_st.Rudder_status==true)
                     {

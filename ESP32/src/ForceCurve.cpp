@@ -11,7 +11,7 @@
 /**********************************************************************************************/
 
 // see https://swharden.com/blog/2022-01-22-spline-interpolation/
-float ForceCurve_Interpolated::EvalForceCubicSpline(const DAP_config_st* config_st, const DAP_calculationVariables_st* calc_st, float fractionalPos)
+float ForceCurve_Interpolated::EvalForceCubicSpline(const DAP_road_pedal_config_st* config_st, const DAP_calculationVariables_st* calc_st, float fractionalPos)
 {
 
   float fractionalPos_lcl = constrain(fractionalPos, 0, 1);
@@ -21,16 +21,16 @@ float ForceCurve_Interpolated::EvalForceCubicSpline(const DAP_config_st* config_
   
   if (splineSegment_u8 < 0){splineSegment_u8 = 0;}
   if (splineSegment_u8 > (NUMBER_OF_SPLINE_SEGMENTS-1) ){splineSegment_u8 = NUMBER_OF_SPLINE_SEGMENTS-1;}
-  float a = config_st->payLoadPedalConfig_.cubic_spline_param_a_array[splineSegment_u8];
-  float b = config_st->payLoadPedalConfig_.cubic_spline_param_b_array[splineSegment_u8];
+  float a = config_st->data.cubic_spline_param_a_array[splineSegment_u8];
+  float b = config_st->data.cubic_spline_param_b_array[splineSegment_u8];
 
   float yOrig[ NUMBER_OF_SPLINE_SEGMENTS + 1 ];
-  yOrig[0] = config_st->payLoadPedalConfig_.relativeForce_p000;
-  yOrig[1] = config_st->payLoadPedalConfig_.relativeForce_p020;
-  yOrig[2] = config_st->payLoadPedalConfig_.relativeForce_p040;
-  yOrig[3] = config_st->payLoadPedalConfig_.relativeForce_p060;
-  yOrig[4] = config_st->payLoadPedalConfig_.relativeForce_p080;
-  yOrig[5] = config_st->payLoadPedalConfig_.relativeForce_p100;
+  yOrig[0] = config_st->data.relativeForce_p000;
+  yOrig[1] = config_st->data.relativeForce_p020;
+  yOrig[2] = config_st->data.relativeForce_p040;
+  yOrig[3] = config_st->data.relativeForce_p060;
+  yOrig[4] = config_st->data.relativeForce_p080;
+  yOrig[5] = config_st->data.relativeForce_p100;
 
   //float dx = 1.0f;
   float t = (splineSegment_fl32 - (float)splineSegment_u8);// / dx;
@@ -56,7 +56,7 @@ float ForceCurve_Interpolated::EvalForceCubicSpline(const DAP_config_st* config_
 /*                                                                                            */
 /**********************************************************************************************/
 
-float ForceCurve_Interpolated::EvalForceGradientCubicSpline(const DAP_config_st* config_st, const DAP_calculationVariables_st* calc_st, float fractionalPos, bool normalized_b)
+float ForceCurve_Interpolated::EvalForceGradientCubicSpline(const DAP_road_pedal_config_st* config_st, const DAP_calculationVariables_st* calc_st, float fractionalPos, bool normalized_b)
 {
 
   float fractionalPos_lcl = constrain(fractionalPos, 0, 1);
@@ -66,16 +66,16 @@ float ForceCurve_Interpolated::EvalForceGradientCubicSpline(const DAP_config_st*
   
   if (splineSegment_u8 < 0){splineSegment_u8 = 0;}
   if (splineSegment_u8 > 4){splineSegment_u8 = 4;}
-  float a = config_st->payLoadPedalConfig_.cubic_spline_param_a_array[splineSegment_u8];
-  float b = config_st->payLoadPedalConfig_.cubic_spline_param_b_array[splineSegment_u8];
+  float a = config_st->data.cubic_spline_param_a_array[splineSegment_u8];
+  float b = config_st->data.cubic_spline_param_b_array[splineSegment_u8];
 
   float yOrig[NUMBER_OF_SPLINE_SEGMENTS + 1];
-  yOrig[0] = config_st->payLoadPedalConfig_.relativeForce_p000;
-  yOrig[1] = config_st->payLoadPedalConfig_.relativeForce_p020;
-  yOrig[2] = config_st->payLoadPedalConfig_.relativeForce_p040;
-  yOrig[3] = config_st->payLoadPedalConfig_.relativeForce_p060;
-  yOrig[4] = config_st->payLoadPedalConfig_.relativeForce_p080;
-  yOrig[5] = config_st->payLoadPedalConfig_.relativeForce_p100;
+  yOrig[0] = config_st->data.relativeForce_p000;
+  yOrig[1] = config_st->data.relativeForce_p020;
+  yOrig[2] = config_st->data.relativeForce_p040;
+  yOrig[3] = config_st->data.relativeForce_p060;
+  yOrig[4] = config_st->data.relativeForce_p080;
+  yOrig[5] = config_st->data.relativeForce_p100;
 
 
 

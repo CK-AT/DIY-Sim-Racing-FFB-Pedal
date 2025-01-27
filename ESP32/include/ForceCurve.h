@@ -8,7 +8,7 @@
 class ForceCurve_Interpolated {
 
 public:
-  float EvalForceCubicSpline(const DAP_config_st* config_st, const DAP_calculationVariables_st* calc_st, float fractionalPos);
-  float EvalForceGradientCubicSpline(const DAP_config_st* config_st, const DAP_calculationVariables_st* calc_st, float fractionalPos, bool normalized_b);
+  float EvalForceCubicSpline(const DAP_road_pedal_config_st* config_st, const DAP_calculationVariables_st* calc_st, float fractionalPos);
+  float EvalForceGradientCubicSpline(const DAP_road_pedal_config_st* config_st, const DAP_calculationVariables_st* calc_st, float fractionalPos, bool normalized_b);
 
 };

@@ -20,22 +20,22 @@ static const float KF_MODEL_NOISE_FORCE_ACCELERATION = ( 10000000000. );
 
 
 
-float sledPositionInMM(StepperWithLimits* stepper, DAP_mech_config_st& mech_config_st) {
+float sledPositionInMM(StepperWithLimits* stepper, DAP_base_config_st& mech_config_st) {
   float currentPos = stepper->getCurrentPositionFromMin();
   //return (currentPos / STEPS_PER_MOTOR_REVOLUTION) * TRAVEL_PER_ROTATION_IN_MM;
-  return (currentPos / (float)STEPS_PER_MOTOR_REVOLUTION) * mech_config_st.payLoadMechConfig_.spindlePitch_mmPerRev_u8;
+  return (currentPos / (float)STEPS_PER_MOTOR_REVOLUTION) * mech_config_st.data.spindlePitch_mmPerRev_u8;
   
 }
 
-float pedalInclineAngleDeg(float sledPositionMM, DAP_mech_config_st& mech_config_st) {
+float pedalInclineAngleDeg(float sledPositionMM, DAP_base_config_st& mech_config_st) {
   // see https://de.wikipedia.org/wiki/Kosinussatz
   // A: is lower pedal pivot
   // C: is upper pedal pivot
   // B: is rear pedal pivot
-  float a = mech_config_st.payLoadMechConfig_.lengthPedal_a;
-  float b = mech_config_st.payLoadMechConfig_.lengthPedal_b;
-  float c_ver = mech_config_st.payLoadMechConfig_.lengthPedal_c_vertical;
-  float c_hor = mech_config_st.payLoadMechConfig_.lengthPedal_c_horizontal + sledPositionMM;
+  float a = mech_config_st.data.lengthPedal_a;
+  float b = mech_config_st.data.lengthPedal_b;
+  float c_ver = mech_config_st.data.lengthPedal_c_vertical;
+  float c_hor = mech_config_st.data.lengthPedal_c_horizontal + sledPositionMM;
   float c = sqrtf(c_ver * c_ver + c_hor * c_hor);
 
 //#define DEBUG_PEDAL_INCLINE
@@ -80,7 +80,7 @@ float pedalInclineAngleDeg(float sledPositionMM, DAP_mech_config_st& mech_config
 
 
 
-float convertToPedalForce(float F_l, float sledPositionMM, DAP_mech_config_st& mech_config_st) {
+float convertToPedalForce(float F_l, float sledPositionMM, DAP_base_config_st& mech_config_st) {
   // see https://de.wikipedia.org/wiki/Kosinussatz
   // A: is lower pedal pivot
   // B: is rear pedal pivot
@@ -92,12 +92,12 @@ float convertToPedalForce(float F_l, float sledPositionMM, DAP_mech_config_st& m
   // c: is sled line (connection AC)
   // d: is upper pedal plate  (connection AC)
 
-  float a = mech_config_st.payLoadMechConfig_.lengthPedal_a;
-  float b = mech_config_st.payLoadMechConfig_.lengthPedal_b;
-  float d = mech_config_st.payLoadMechConfig_.lengthPedal_d;
+  float a = mech_config_st.data.lengthPedal_a;
+  float b = mech_config_st.data.lengthPedal_b;
+  float d = mech_config_st.data.lengthPedal_d;
 
-  float c_ver = mech_config_st.payLoadMechConfig_.lengthPedal_c_vertical;
-  float c_hor = mech_config_st.payLoadMechConfig_.lengthPedal_c_horizontal + sledPositionMM;
+  float c_ver = mech_config_st.data.lengthPedal_c_vertical;
+  float c_hor = mech_config_st.data.lengthPedal_c_horizontal + sledPositionMM;
   float c = sqrtf(c_ver * c_ver + c_hor * c_hor);
 
 
@@ -140,7 +140,7 @@ float convertToPedalForce(float F_l, float sledPositionMM, DAP_mech_config_st& m
 
 // Calculate gradient of phi with respect to sled position.
 // This is done by taking the derivative of the force with respect to the sled position.
-float convertToPedalForceGain(float sledPositionMM, DAP_mech_config_st& mech_config_st) {
+float convertToPedalForceGain(float sledPositionMM, DAP_base_config_st& mech_config_st) {
   // see https://de.wikipedia.org/wiki/Kosinussatz
   // A: is lower pedal pivot
   // B: is rear pedal pivot
@@ -153,12 +153,12 @@ float convertToPedalForceGain(float sledPositionMM, DAP_mech_config_st& mech_con
   // c: is sled line (connection AC)
   // d: is upper pedal plate  (connection AC)
 
-  float a = mech_config_st.payLoadMechConfig_.lengthPedal_a;
-  float b = mech_config_st.payLoadMechConfig_.lengthPedal_b;
-  float d = mech_config_st.payLoadMechConfig_.lengthPedal_d;
+  float a = mech_config_st.data.lengthPedal_a;
+  float b = mech_config_st.data.lengthPedal_b;
+  float d = mech_config_st.data.lengthPedal_d;
 
-  float c_ver = mech_config_st.payLoadMechConfig_.lengthPedal_c_vertical;
-  float c_hor = mech_config_st.payLoadMechConfig_.lengthPedal_c_horizontal + sledPositionMM;
+  float c_ver = mech_config_st.data.lengthPedal_c_vertical;
+  float c_hor = mech_config_st.data.lengthPedal_c_horizontal + sledPositionMM;
   float c = sqrtf(c_ver * c_ver + c_hor * c_hor);
 
 

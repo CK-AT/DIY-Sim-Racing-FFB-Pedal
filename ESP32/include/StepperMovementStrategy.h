@@ -31,7 +31,7 @@ bool pidWasInitialized = false;
 /*                                                                                            */
 /**********************************************************************************************/
 
-int32_t MoveByInterpolatedStrategy(float filteredLoadReadingKg, float stepperPosFraction, ForceCurve_Interpolated* forceCurve, const DAP_calculationVariables_st* calc_st, const DAP_config_st* config_st) {
+int32_t MoveByInterpolatedStrategy(float filteredLoadReadingKg, float stepperPosFraction, ForceCurve_Interpolated* forceCurve, const DAP_calculationVariables_st* calc_st, const DAP_road_pedal_config_st* config_st) {
   float spingStiffnessInv_lcl = calc_st->springStiffnesssInv;
   //float springStiffnessInterp = forceCurve->stiffnessAtPosition(stepperPosFraction);
   float springStiffnessInterp = forceCurve->EvalForceGradientCubicSpline(config_st, calc_st, stepperPosFraction, false);
@@ -56,18 +56,18 @@ int32_t MoveByInterpolatedStrategy(float filteredLoadReadingKg, float stepperPos
 /*                                                                                            */
 /**********************************************************************************************/
 
-void tunePidValues(DAP_config_st& config_st)
+void tunePidValues(DAP_road_pedal_config_st& config_st)
 {
-  Kp=config_st.payLoadPedalConfig_.PID_p_gain;
-  Ki=config_st.payLoadPedalConfig_.PID_i_gain;
-  Kd=config_st.payLoadPedalConfig_.PID_d_gain;
+  Kp=config_st.data.PID_p_gain;
+  Ki=config_st.data.PID_i_gain;
+  Kd=config_st.data.PID_d_gain;
 
-  control_strategy_u8 = config_st.payLoadPedalConfig_.control_strategy_b;
+  control_strategy_u8 = config_st.data.control_strategy_b;
 
-  myPID.SetTunings(config_st.payLoadPedalConfig_.PID_p_gain, config_st.payLoadPedalConfig_.PID_i_gain, config_st.payLoadPedalConfig_.PID_d_gain);
+  myPID.SetTunings(config_st.data.PID_p_gain, config_st.data.PID_i_gain, config_st.data.PID_d_gain);
 }
 
-int32_t MoveByPidStrategy(float loadCellReadingKg, float stepperPosFraction, StepperWithLimits* stepper, ForceCurve_Interpolated* forceCurve, const DAP_calculationVariables_st* calc_st, DAP_config_st* config_st, float absForceOffset_fl32, float changeVelocity) {
+int32_t MoveByPidStrategy(float loadCellReadingKg, float stepperPosFraction, StepperWithLimits* stepper, ForceCurve_Interpolated* forceCurve, const DAP_calculationVariables_st* calc_st, DAP_road_pedal_config_st* config_st, float absForceOffset_fl32, float changeVelocity) {
 
   if (pidWasInitialized == false)
   {
@@ -84,7 +84,7 @@ int32_t MoveByPidStrategy(float loadCellReadingKg, float stepperPosFraction, Ste
     //myPID.SetOutputLimits(-1.0,0.0);
     myPID.SetOutputLimits(-PID_OUTPUT_LIMIT_FL32, PID_OUTPUT_LIMIT_FL32); // allow the PID to only change the position a certain amount per cycle
 
-    myPID.SetTunings(config_st->payLoadPedalConfig_.PID_p_gain, config_st->payLoadPedalConfig_.PID_i_gain, config_st->payLoadPedalConfig_.PID_d_gain);
+    myPID.SetTunings(config_st->data.PID_p_gain, config_st->data.PID_i_gain, config_st->data.PID_d_gain);
   }
 
 
@@ -179,7 +179,7 @@ int32_t MoveByPidStrategy(float loadCellReadingKg, float stepperPosFraction, Ste
   posStepperNew_fl32 += calc_st->stepperPosMin;
 
   // add velocity feedforward
-  posStepperNew_fl32 += changeVelocity * config_st->payLoadPedalConfig_.PID_velocity_feedforward_gain;
+  posStepperNew_fl32 += changeVelocity * config_st->data.PID_velocity_feedforward_gain;
 
   // convert position to integer
   int32_t posStepperNew = floor(posStepperNew_fl32);
@@ -200,7 +200,7 @@ int32_t MoveByPidStrategy(float loadCellReadingKg, float stepperPosFraction, Ste
 
 
 
-int32_t MoveByForceTargetingStrategy(float loadCellReadingKg, StepperWithLimits* stepper, ForceCurve_Interpolated* forceCurve, const DAP_calculationVariables_st* calc_st, DAP_config_st* config_st, float absForceOffset_fl32, float changeVelocity, float d_phi_d_x, float d_x_hor_d_phi) {
+int32_t MoveByForceTargetingStrategy(float loadCellReadingKg, StepperWithLimits* stepper, ForceCurve_Interpolated* forceCurve, const DAP_calculationVariables_st* calc_st, DAP_road_pedal_config_st* config_st, float absForceOffset_fl32, float changeVelocity, float d_phi_d_x, float d_x_hor_d_phi) {
   // see https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal/wiki/Movement-control-strategies#mpc
 
 
@@ -223,12 +223,12 @@ int32_t MoveByForceTargetingStrategy(float loadCellReadingKg, StepperWithLimits*
   float stepperPos = stepper->getCurrentPosition();
 
   // add velocity feedforward
-  stepperPos += changeVelocity * config_st->payLoadPedalConfig_.PID_velocity_feedforward_gain;
+  stepperPos += changeVelocity * config_st->data.PID_velocity_feedforward_gain;
 
   // motion corrected loadcell reading
   float loadCellReadingKg_corrected = loadCellReadingKg;
-  //loadCellReadingKg_corrected += config_st->payLoadPedalConfig_.MPC_1st_order_gain * stepper_vel_filtered_fl32 / STEPS_PER_MOTOR_REVOLUTION / 10;// + stepper_accel_filtered_fl32;
-  //loadCellReadingKg_corrected += config_st->payLoadPedalConfig_.MPC_1st_order_gain * stepper_accel_filtered_fl32 / STEPS_PER_MOTOR_REVOLUTION / 10;// + stepper_accel_filtered_fl32;
+  //loadCellReadingKg_corrected += config_st->data.MPC_1st_order_gain * stepper_vel_filtered_fl32 / STEPS_PER_MOTOR_REVOLUTION / 10;// + stepper_accel_filtered_fl32;
+  //loadCellReadingKg_corrected += config_st->data.MPC_1st_order_gain * stepper_accel_filtered_fl32 / STEPS_PER_MOTOR_REVOLUTION / 10;// + stepper_accel_filtered_fl32;
 
 
   // set initial guess
@@ -253,13 +253,13 @@ int32_t MoveByForceTargetingStrategy(float loadCellReadingKg, StepperWithLimits*
 
     // how many mm movement to order if 1kg of error force is detected
     // this can be tuned for responsiveness vs oscillation
-    float mm_per_motor_rev = config_st->payLoadPedalConfig_.spindlePitch_mmPerRev_u8;//TRAVEL_PER_ROTATION_IN_MM;
+    float mm_per_motor_rev = config_st->data.spindlePitch_mmPerRev_u8;//TRAVEL_PER_ROTATION_IN_MM;
     float steps_per_motor_rev = (float)STEPS_PER_MOTOR_REVOLUTION;
 
     // foot spring stiffness
-    float d_f_d_phi = -config_st->payLoadPedalConfig_.MPC_0th_order_gain;
+    float d_f_d_phi = -config_st->data.MPC_0th_order_gain;
 
-    float move_mm_per_kg = config_st->payLoadPedalConfig_.MPC_0th_order_gain;
+    float move_mm_per_kg = config_st->data.MPC_0th_order_gain;
     float MOVE_STEPS_FOR_1KG = (move_mm_per_kg / mm_per_motor_rev) * steps_per_motor_rev;
     
 
@@ -327,7 +327,7 @@ int32_t MoveByForceTargetingStrategy(float loadCellReadingKg, StepperWithLimits*
 }
 
 
-int32_t mpcBasedMove(float loadCellReadingKg, float stepperPosFraction, StepperWithLimits* stepper, ForceCurve_Interpolated* forceCurve, const DAP_calculationVariables_st* calc_st, DAP_config_st* config_st, float absForceOffset_fl32) 
+int32_t mpcBasedMove(float loadCellReadingKg, float stepperPosFraction, StepperWithLimits* stepper, ForceCurve_Interpolated* forceCurve, const DAP_calculationVariables_st* calc_st, DAP_road_pedal_config_st* config_st, float absForceOffset_fl32) 
 {
 
 
@@ -425,7 +425,7 @@ int32_t mpcBasedMove(float loadCellReadingKg, float stepperPosFraction, StepperW
 
 
 // see https://pidtuner.com
-void measureStepResponse(StepperWithLimits* stepper, const DAP_calculationVariables_st* calc_st, const DAP_config_st* config_st, const LoadCell_ADS1256* loadcell)
+void measureStepResponse(StepperWithLimits* stepper, const DAP_calculationVariables_st* calc_st, const DAP_road_pedal_config_st* config_st, const LoadCell_ADS1256* loadcell)
 {
 
   int32_t currentPos = stepper->getCurrentPositionFromMin();
