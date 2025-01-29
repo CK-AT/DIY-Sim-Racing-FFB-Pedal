@@ -12,6 +12,7 @@
 #define DAP_PAYLOAD_TYPE_STATE_EXTENDED 130
 #define DAP_PAYLOAD_TYPE_ESPNOW_PAIRING 140
 #define DAP_PAYLOAD_TYPE_BASE_CONFIG 150
+#define DAP_PAYLOAD_TYPE_FLIGHT_PEDAL_CONFIG 160
 #define DAP_PAYLOAD_TYPE_BRIDGE_STATE 210
 
 struct payloadHeader {
@@ -74,6 +75,7 @@ struct payloadBridgeState {
   uint8_t Bridge_action;//0=none, 1=enable pairing
 
 };
+
 struct payloadRoadPedalConfig {
   // configure pedal start and endpoint
   // In percent
@@ -135,15 +137,21 @@ struct payloadRoadPedalConfig {
   float cubic_spline_param_a_array[5];
   float cubic_spline_param_b_array[5];
 
-  // Kalman filter model noise
-  uint8_t kf_modelNoise;
-  uint8_t kf_modelOrder;
-
-  // debug flags, used to enable debug output
-  uint8_t debug_flags_0;
-
   // use loadcell or travel as joystick output
   uint8_t travelAsJoystickOutput_u8;
+};
+
+struct payloadFlightPedalConfig {
+  // configure pedal start and endpoint
+  // In percent
+  uint8_t pedalStartPosition;
+  uint8_t pedalEndPosition;
+
+  // parameter to configure damping
+  float damping;
+
+  // debug flags, used to enable debug output
+  float centeringSpringConst;
 };
 
 struct payloadBaseConfig {
@@ -164,6 +172,9 @@ struct payloadBaseConfig {
   // from pedal position to sled position
   double coeffs_sled_pos_over_pedal_pos[5];
 
+  // position resolution in steps/mm
+  uint16_t steps_per_mm_u8;
+
   // minimum absolute pedal position (0.1mm/LSB)
   int16_t x_foot_min_abs;
 
@@ -181,6 +192,13 @@ struct payloadBaseConfig {
 
   // spindle pitch in mm/rev
   uint8_t spindlePitch_mmPerRev_u8;
+
+  // Kalman filter model noise
+  uint8_t kf_modelNoise;
+  uint8_t kf_modelOrder;
+
+  // debug flags, used to enable debug output
+  uint8_t debug_flags_0;
 
   //pedal type, 0= clutch, 1= brake, 2= gas
   uint8_t pedal_type;

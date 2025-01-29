@@ -8,8 +8,9 @@
 
 static const float ABS_SCALING = 50;
 
-const uint32_t EEPROM_OFFSET_MECH_CONFIG = 0;
-const uint32_t EEPROM_OFFSET_GENERAL_CONFIG = EEPROM_OFFSET_MECH_CONFIG + sizeof(DAP_base_config_st);
+const uint32_t EEPROM_OFFSET_BASE_CONFIG = 0;
+const uint32_t EEPROM_OFFSET_ROAD_PEDAL_CONFIG = EEPROM_OFFSET_BASE_CONFIG + sizeof(DAP_base_config_st);
+const uint32_t EEPROM_OFFSET_FLIGHT_PEDAL_CONFIG = EEPROM_OFFSET_ROAD_PEDAL_CONFIG + sizeof(DAP_road_pedal_config_st);
 
 void DAP_road_pedal_config_st::initialiseDefaults() {
   header.payloadType = DAP_PAYLOAD_TYPE_ROAD_PEDAL_CONFIG;
@@ -64,11 +65,6 @@ void DAP_road_pedal_config_st::initialiseDefaults() {
   data.cubic_spline_param_b_array[3] = 0;
   data.cubic_spline_param_b_array[4] = 0;
 
-  data.kf_modelNoise = 128;
-  data.kf_modelOrder = 0;
-
-  data.debug_flags_0 = 0;
-
   data.travelAsJoystickOutput_u8 = 0;
 }
 
@@ -78,7 +74,7 @@ void DAP_road_pedal_config_st::initialiseDefaults() {
 void DAP_road_pedal_config_st::storeConfigToEprom(DAP_road_pedal_config_st& config_st)
 {
 
-  EEPROM.put(EEPROM_OFFSET_GENERAL_CONFIG, config_st); 
+  EEPROM.put(EEPROM_OFFSET_ROAD_PEDAL_CONFIG, config_st); 
   EEPROM.commit();
   Serial.println("Successfully stored general config to EEPROM");
   
@@ -95,7 +91,7 @@ void DAP_road_pedal_config_st::loadConfigFromEprom(DAP_road_pedal_config_st& con
 {
   DAP_road_pedal_config_st local_config_st;
 
-  EEPROM.get(EEPROM_OFFSET_GENERAL_CONFIG, local_config_st);
+  EEPROM.get(EEPROM_OFFSET_ROAD_PEDAL_CONFIG, local_config_st);
   //EEPROM.commit();
 
   config_st = local_config_st;
@@ -147,17 +143,24 @@ void DAP_base_config_st::initialiseDefaults() {
 
   data.loadcell_rating = 100;
   data.spindlePitch_mmPerRev_u8 = 5;
+  data.steps_per_mm_u8 = 1000;
 
   data.invertLoadcellReading_u8 = 0;
 
   data.invertMotorDirection_u8 = 0;
+
+  data.kf_modelNoise = 128;
+  data.kf_modelOrder = 0;
+
+  data.debug_flags_0 = 0;
+
   data.pedal_type=1;
 }
 
 void DAP_base_config_st::storeConfigToEprom(DAP_base_config_st& config_st)
 {
 
-  EEPROM.put(EEPROM_OFFSET_MECH_CONFIG, config_st); 
+  EEPROM.put(EEPROM_OFFSET_BASE_CONFIG, config_st); 
   EEPROM.commit();
   Serial.println("Successfully stored mech config to EEPROM");
   
@@ -174,7 +177,7 @@ void DAP_base_config_st::loadConfigFromEprom(DAP_base_config_st& config_st)
 {
   DAP_base_config_st local_config_st;
 
-  EEPROM.get(EEPROM_OFFSET_MECH_CONFIG, local_config_st);
+  EEPROM.get(EEPROM_OFFSET_BASE_CONFIG, local_config_st);
   //EEPROM.commit();
 
   config_st = local_config_st;

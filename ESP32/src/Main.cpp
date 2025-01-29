@@ -489,7 +489,7 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
 
   delay(100);
 
-  if (!stepper->setup(1000, dap_base_config_st.data.spindlePitch_mmPerRev_u8)) {
+  if (!stepper->setup(dap_base_config_st.data.steps_per_mm_u8, dap_base_config_st.data.spindlePitch_mmPerRev_u8)) {
     LogOutput::printf("Failed to initialize the servo (check power and connections).\n");
   } else {
     stepper->enable();
@@ -789,7 +789,7 @@ void pedalUpdateTask( void * pvParameters )
 
     // print the execution time averaged over multiple cycles
     static CycleTimer timerPU("PU cycle time");
-    if (dap_road_pedal_config_st.data.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
+    if (dap_base_config_st.data.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
     {
       timerPU.BumpStart();
     }
@@ -865,23 +865,23 @@ void pedalUpdateTask( void * pvParameters )
     float changeVelocity = 0;
 
     // const velocity model denoising filter
-    if (dap_road_pedal_config_st.data.kf_modelOrder == 0)
+    if (dap_base_config_st.data.kf_modelOrder == 0)
     {
-      filteredReading = kalman->filteredValue(loadcellReading, 0, dap_road_pedal_config_st.data.kf_modelNoise);
+      filteredReading = kalman->filteredValue(loadcellReading, 0, dap_base_config_st.data.kf_modelNoise);
       changeVelocity = kalman->changeVelocity();
     }
 
     // const acceleration model denoising filter
-    if (dap_road_pedal_config_st.data.kf_modelOrder == 1)
+    if (dap_base_config_st.data.kf_modelOrder == 1)
     {
-      filteredReading = kalman_2nd_order->filteredValue(loadcellReading, 0, dap_road_pedal_config_st.data.kf_modelNoise);
+      filteredReading = kalman_2nd_order->filteredValue(loadcellReading, 0, dap_base_config_st.data.kf_modelNoise);
       changeVelocity = kalman->changeVelocity();
     }
 /*
     // exponential denoising filter
-    if (dap_road_pedal_config_st.data.kf_modelOrder == 2)
+    if (dap_base_config_st.data.kf_modelOrder == 2)
     {
-      float alpha_exp_filter = 1.0f - ( (float)dap_road_pedal_config_st.data.kf_modelNoise) / 5000.0f;
+      float alpha_exp_filter = 1.0f - ( (float)dap_base_config_st.data.kf_modelNoise) / 5000.0f;
       float filteredReading_exp_filter = filteredReading_exp_filter * alpha_exp_filter + pedalForce_fl32 * (1.0-alpha_exp_filter);
       filteredReading = filteredReading_exp_filter;
     }
@@ -949,7 +949,7 @@ void pedalUpdateTask( void * pvParameters )
     }
 
     //#define DEBUG_FILTER
-    if (dap_road_pedal_config_st.data.debug_flags_0 & DEBUG_INFO_0_LOADCELL_READING) 
+    if (dap_base_config_st.data.debug_flags_0 & DEBUG_INFO_0_LOADCELL_READING) 
     {
       static uint16_t loop_cnt = 0;
       static RTDebugOutput<10> rtDebugFilter({ "raw", "flt", "f_in", "f_foot", "f_curve", "f_sum", "a", "v", "x", "x_sled"});
@@ -1174,7 +1174,7 @@ void pedalUpdateTask( void * pvParameters )
       semaphore_updatePedalStates = xSemaphoreCreateMutex();
     }
     
-    if (dap_road_pedal_config_st.data.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
+    if (dap_base_config_st.data.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
     {
       timerPU.BumpEnd();
     }
@@ -1261,7 +1261,7 @@ void serialCommunicationTask( void * pvParameters )
 
     // average cycle time averaged over multiple cycles 
     static CycleTimer timerSC("SC cycle time");
-    if (dap_road_pedal_config_st.data.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
+    if (dap_base_config_st.data.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
     {
       timerSC.BumpStart();
     }
@@ -1539,7 +1539,7 @@ void serialCommunicationTask( void * pvParameters )
                     Serial.printf("Simulation mass set to %.3f kg\n", val_num);
                   } else if (strcmp(param, "debug") == 0) {
                     int flags = atoi(val);
-                    dap_road_pedal_config_st.data.debug_flags_0 = flags;
+                    dap_base_config_st.data.debug_flags_0 = flags;
                     Serial.printf("Debug flags set to %04X\n", flags);
                   } else if (strcmp(param, "endstops") == 0) {
                     if (atoi(val)) {
@@ -1630,7 +1630,7 @@ void serialCommunicationTask( void * pvParameters )
 
       // send the pedal state structs
       // send basic pedal state struct
-      // if ( !(dap_road_pedal_config_st.data.debug_flags_0 & DEBUG_INFO_0_STATE_BASIC_INFO_STRUCT) )
+      // if ( !(dap_base_config_st.data.debug_flags_0 & DEBUG_INFO_0_STATE_BASIC_INFO_STRUCT) )
       // {
       //   if (printCycleCounter >= 2)
       //   {
@@ -1640,7 +1640,7 @@ void serialCommunicationTask( void * pvParameters )
       //   }
       // }
 
-      // if ( (dap_road_pedal_config_st.data.debug_flags_0 & DEBUG_INFO_0_STATE_EXTENDED_INFO_STRUCT) )
+      // if ( (dap_base_config_st.data.debug_flags_0 & DEBUG_INFO_0_STATE_EXTENDED_INFO_STRUCT) )
       // {
       //   Serial.write((char*)&dap_state_extended_st_lcl, sizeof(DAP_state_extended_st));
       //   Serial.print("\r\n");
@@ -1674,7 +1674,7 @@ void serialCommunicationTask( void * pvParameters )
     debugOutput.pump(2);
     logOutput.pump(5);
 
-    if (dap_road_pedal_config_st.data.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
+    if (dap_base_config_st.data.debug_flags_0 & DEBUG_INFO_0_CYCLE_TIMER) 
     {
       timerSC.BumpEnd();
     }
@@ -1783,7 +1783,7 @@ void ESPNOW_SyncTask( void * pvParameters )
       
     }
     //entend state send out interval
-    if(ESPNOW_count%26==0 && dap_road_pedal_config_st.data.debug_flags_0 == DEBUG_INFO_0_STATE_EXTENDED_INFO_STRUCT)
+    if(ESPNOW_count%26==0 && dap_base_config_st.data.debug_flags_0 == DEBUG_INFO_0_STATE_EXTENDED_INFO_STRUCT)
     {
       extend_state_send_b=true;
       
