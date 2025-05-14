@@ -432,11 +432,6 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
   dap_calculationVariables_st.updateFromMechConfig(dap_mech_config_st);
   dap_calculationVariables_st.updateFromConfig(dap_config_st);
 
-#ifdef HAS_CAN
-  tx_frame.identifier = 0x600 + dap_config_st.payLoadHeader_.PedalTag;
-  tx_frame.data_length_code = 8;
-#endif
-
   sim.set_x_min(dap_calculationVariables_st.x_foot_min_curr, true);
   sim.set_x_max(dap_calculationVariables_st.x_foot_max_curr, true);
   damper1.set_k(dap_calculationVariables_st.dampingPress * 100.0);
@@ -605,49 +600,52 @@ sim.add_element(&friction1);
     }
   #endif
   #ifdef PEDAL_ASSIGNMENT
+    uint8_t Pedal_assignment = 0;//00=clutch 01=brk  02=gas
+    #ifdef CFG1
     pinMode(CFG1, INPUT_PULLUP);
+    Pedal_assignment |= (~digitalRead(CFG1)) & 0x01;
+    #endif
+    #ifdef CFG2
     pinMode(CFG2, INPUT_PULLUP);
-    if(dap_config_st.payLoadPedalConfig_.pedal_type==4)
-    {
-      Serial.println("Pedal type:4, Pedal not assignment, reading from CFG pins....");
-      uint8_t CFG1_reading;
-      uint8_t CFG2_reading;
-      uint8_t Pedal_assignment;//00=clutch 01=brk  02=gas
-      
-      CFG1_reading=digitalRead(CFG1);
-      CFG2_reading=digitalRead(CFG2);
-      Pedal_assignment=CFG1_reading*2+CFG2_reading*1;
-      if(Pedal_assignment==3)
-      {
-        Serial.println("Pedal Type:3, assignment error, please adjust dip switch on control board or connect USB and send a config to finish assignment.");
-      }
-      else
-      {
-        if(Pedal_assignment!=4)
-        {
-          //Serial.print("Pedal Type");
-          //Serial.println(Pedal_assignment);
-          if(Pedal_assignment==0)
-          {
-            Serial.println("Pedal is assigned as Clutch, please also send the config in.");
-          }
-          if(Pedal_assignment==1)
-          {
-            Serial.println("Pedal is assigned as Brake, please also send the config in.");
-          }
-          if(Pedal_assignment==2)
-          {
-            Serial.println("Pedal is assigned as Throttle, please also send the config in.");
-          }
-          dap_config_st.payLoadPedalConfig_.pedal_type=Pedal_assignment;
-        }
-        else
-        {
-          Serial.println("Asssignment error, defective pin connection, pelase connect USB and send a config to finish assignment");
-        }
-      }
+    Pedal_assignment |= (~digitalRead(CFG2) << 1) & 0x02;
+    #endif
+    #ifdef CFG3
+    pinMode(CFG3, INPUT_PULLUP);
+    Pedal_assignment |= (~digitalRead(CFG3) << 2) & 0x04;
+    #endif
+    #ifdef CFG4
+    pinMode(CFG4, INPUT_PULLUP);
+    Pedal_assignment |= (~digitalRead(CFG4) << 3) & 0x08;
+    #endif
 
+    if(Pedal_assignment < 3)
+    {
+      //Serial.print("Pedal Type");
+      //Serial.println(Pedal_assignment);
+      if(Pedal_assignment==0)
+      {
+        Serial.println("Axis is assigned as Clutch, please also send the config in.");
+      }
+      if(Pedal_assignment==1)
+      {
+        Serial.println("Axis is assigned as Brake, please also send the config in.");
+      }
+      if(Pedal_assignment==2)
+      {
+        Serial.println("Axis is assigned as Throttle, please also send the config in.");
+      }
+      dap_config_st.payLoadPedalConfig_.pedal_type=Pedal_assignment;
     }
+    else
+    {
+      Serial.printf("Assignment error, axis id = %d\n", Pedal_assignment);
+    }
+
+  #endif
+
+  #ifdef HAS_CAN
+  tx_frame.identifier = 0x600 + dap_config_st.payLoadPedalConfig_.pedal_type;
+  tx_frame.data_length_code = 8;
   #endif
 
   //enable ESP-NOW
