@@ -422,7 +422,7 @@ pinMode(Pairing_GPIO, INPUT_PULLUP);
 
   bool invMotorDir = dap_mech_config_st.payLoadMechConfig_.invertMotorDirection_u8 > 0;
 #ifdef A6SERVO
-  stepper = new A6Servo(stepPinStepper, dirPinStepper, !invMotorDir, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN, false);
+  stepper = new A6Servo(stepPinStepper, dirPinStepper, !invMotorDir, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN, ISV57_DEPIN, false);
 #endif
   loadcell = new LoadCell_ADS1256();
 

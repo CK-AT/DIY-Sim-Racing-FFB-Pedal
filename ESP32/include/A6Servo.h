@@ -8,7 +8,7 @@
 
 class A6Servo : public Servo {
     public:
-        A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareSerial &serial, unsigned long baud, uint32_t config, uint8_t pin_rx, uint8_t pin_tx, uint8_t pin_tx_ena, bool serial_inverted = false);
+        A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareSerial &serial, unsigned long baud, uint32_t config, int8_t pin_rx, int8_t pin_tx, int8_t pin_tx_ena = -1, bool serial_inverted = false);
         bool setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome=true);
         bool home(void);
         bool enable(void);
@@ -40,7 +40,7 @@ class A6Servo : public Servo {
             ModbusMessage response;
             uint8_t retries = 3;
             while (retries) {
-                response = _modbus.syncRequest(request, 0);
+                response = _modbus->syncRequest(request, 0);
                 if (response.getError() == Modbus::Error::SUCCESS) return Modbus::Error::SUCCESS;
                 retries--;
             }
@@ -58,7 +58,7 @@ class A6Servo : public Servo {
             ModbusMessage response;
             uint8_t retries = 3;
             while (retries) {
-                response = _modbus.syncRequest(request, 0);
+                response = _modbus->syncRequest(request, 0);
                 if (response.getError() == Modbus::Error::SUCCESS) {
                     response.get(3, value);
                     return Modbus::Error::SUCCESS;
@@ -83,7 +83,7 @@ class A6Servo : public Servo {
         void do_homing(void);
         int32_t get_target_pos();
         FastNonAccelStepper* _stepper_engine;
-        ModbusClientRTU _modbus;
+        ModbusClientRTU* _modbus;
         uint32_t _steps_per_mm;
         uint32_t _mm_per_rev;
         int32_t _pos_max = 0;

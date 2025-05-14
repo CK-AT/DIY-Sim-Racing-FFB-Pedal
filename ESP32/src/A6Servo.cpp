@@ -15,12 +15,13 @@ void A6Servo::on_response(ModbusMessage msg, uint32_t token) {
     
 }
 
-A6Servo::A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareSerial &serial, unsigned long baud, uint32_t config, uint8_t pin_rx, uint8_t pin_tx, uint8_t pin_tx_ena, bool serial_inverted) {
+A6Servo::A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareSerial &serial, unsigned long baud, uint32_t config, int8_t pin_rx, int8_t pin_tx, int8_t pin_tx_ena, bool serial_inverted) {
     RTUutils::prepareHardwareSerial(serial);
     serial.begin(baud, config, pin_rx, pin_tx, serial_inverted); // Modbus serial
-    _modbus.onResponseHandler(std::bind(&A6Servo::on_response, this, std::placeholders::_1, std::placeholders::_2));
-    _modbus.setTimeout(10);
-    _modbus.begin(serial, 0);
+    _modbus = new ModbusClientRTU(pin_tx_ena);
+    _modbus->onResponseHandler(std::bind(&A6Servo::on_response, this, std::placeholders::_1, std::placeholders::_2));
+    _modbus->setTimeout(10);
+    _modbus->begin(serial, 0);
     _stepper_engine = new FastNonAccelStepper(pin_step, pin_dir, dir_inverted); 
     _stepper_engine->setMaxSpeed(MAXIMUM_SPEED);
 }
