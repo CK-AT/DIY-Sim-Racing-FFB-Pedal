@@ -37,6 +37,9 @@ class Servo {
                 _homing_state = HomingState::Homed;
             }
         }
+        bool is_locked_in(void) {
+            return _homing_state == HomingState::LockedIn;
+        }
     protected:
         float _curr_pos = 0.0;
         bool _curr_pos_valid = false;
