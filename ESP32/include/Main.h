@@ -422,3 +422,67 @@ static const uint32_t STEPS_PER_MOTOR_REVOLUTION = 6400;
   // #define PRINT_TASK_FREE_STACKSIZE_IN_WORDS
 #endif
 
+// For CK-AT HW V1.0 (ESP32 S3, A6 series servo drive)
+// flash instructions, see https://hutscape.com/tutorials/hello-arduino-esp32s3
+// 1. USB CDC On Boot Enabled
+#if PCB_VERSION == 13
+  // ADC defines
+  #define PIN_DRDY 4//19// 19 --> DRDY
+  #define PIN_SCK 1//16 // 16 -->SCLK
+  #define PIN_MISO 2 // 18 --> DOUT
+  #define PIN_MOSI 3 // 17 --> DIN
+  #define PIN_CS 5//21 // 21 --> CS
+
+  // stepper pins
+  #define dirPinStepper    6//22
+  #define stepPinStepper   7//23
+
+  // A6 series servo drive is used
+  #define A6SERVO
+
+  //analog output pin
+  //#define D_O 25   
+  //MCP4725 SDA SCL
+  // #define MCP_SDA 5
+  // #define MCP_SCL 4
+  
+  // endstop pins
+  // #define minPin 12
+  // #define maxPin 13
+
+  // Pedal assignment pin
+  #define PEDAL_ASSIGNMENT
+  #define CFG1 48
+  #define CFG2 47
+  #define CFG3 21
+  #define CFG4 15
+
+  // #define EMERGENCY_BUTTON
+  // #define ShutdownPin 6
+  // level shifter is present on this PCB design
+  #define SENSORLESS_HOMING true
+  #define ISV57_TXPIN 16//27 //17
+  #define ISV57_RXPIN 18//26 // 16
+  #define ISV57_DEPIN 17//26 // 16
+
+  //#define Using_analog_output_ESP32_S3
+  #define ESPNOW_Enable
+  #define ESPNow_S3
+  //#define BLUETOOTH_GAMEPAD
+  //#define USB_JOYSTICK
+  
+  // CAN bus
+  #define HAS_CAN
+  #define CAN_TX		34
+  #define CAN_RX		33
+
+  // RGB LED
+  #define RGB_LED 38
+  #define NUM_LEDS 1
+
+  #define SERIAL_COOMUNICATION_TASK_DELAY_IN_MS 1
+  //#define ESPNow_Pairing_function
+  //#define Pairing_GPIO 0
+  // #define PRINT_TASK_FREE_STACKSIZE_IN_WORDS
+#endif
+
