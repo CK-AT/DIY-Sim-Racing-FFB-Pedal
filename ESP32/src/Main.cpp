@@ -246,6 +246,20 @@ TaskHandle_t Task4;
 char* APhost;
 #endif
 
+/**********************************************************************************************/
+/*                                                                                            */
+/*                         RGB LED                                                            */
+/*                                                                                            */
+/**********************************************************************************************/
+#ifdef RGB_LED
+#include <NeoPixelBus.h>
+NeoPixelBus<NeoGrbFeature, NeoWs2812xMethod> pixels(NUM_LEDS, RGB_LED);
+const RgbColor yellow = RgbColor(46, 34, 0);
+const RgbColor green = RgbColor(0, 46, 0);
+const RgbColor red = RgbColor(46, 0, 0);
+const RgbColor purple = RgbColor(36, 0, 46);
+#endif
+
 
 //ESPNOW
 #ifdef ESPNOW_Enable
@@ -293,6 +307,12 @@ void update_config(void);
 /**********************************************************************************************/
 void setup()
 {
+  #ifdef RGB_LED
+  pixels.Begin();
+  pixels.SetPixelColor(0, purple);
+  pixels.Show();
+  #endif
+  
   //Serial.begin(115200);
   //Serial.begin(921600);
   //Serial.begin(512000);
@@ -324,7 +344,9 @@ void setup()
 
 // check whether iSV57 communication can be established
 // and in case, (a) send tuned servo parameters and (b) prepare the servo for signal read
+#ifdef ESPNow_Pairing_function
 pinMode(Pairing_GPIO, INPUT_PULLUP);
+#endif
 
 // initialize configuration and update local variables
   dap_config_st.initialiseDefaults();
@@ -703,7 +725,17 @@ void updatePedalCalcParameters()
 unsigned long joystick_state_last_update=millis();
 void loop() {
   delay(10);
-  /*
+  #ifdef RGB_LED
+  if (stepper->get_state() == Servo::State::Disabled) {
+    pixels.SetPixelColor(0, red);
+  } else if (stepper->is_locked_in()) {
+    pixels.SetPixelColor(0, green);
+  } else {
+    pixels.SetPixelColor(0, yellow);
+  }
+  pixels.Show();
+  #endif
+    /*
   #ifdef OTA_update
   server.handleClient();
   //delay(1);
