@@ -197,6 +197,21 @@ bool resetPedalPosition = false;
 TaskHandle_t Task4;
 #endif
 
+#ifdef HAS_CAN
+  #include <ESP32-TWAI-CAN.hpp>
+  CanFrame tx_frame;
+  CanFrame rx_frame;
+#endif
+
+#ifdef RGB_LED
+#include <NeoPixelBus.h>
+NeoPixelBus<NeoGrbFeature, NeoWs2812xMethod> pixels(NUM_LEDS, RGB_LED);
+const RgbColor yellow = RgbColor(46, 34, 0);
+const RgbColor green = RgbColor(0, 46, 0);
+const RgbColor red = RgbColor(46, 0, 0);
+const RgbColor purple = RgbColor(36, 0, 46);
+#endif
+
 #ifdef Using_MCP4728
   #include <Adafruit_MCP4728.h>
   Adafruit_MCP4728 mcp;
@@ -252,12 +267,22 @@ void setup()
   //Serial.begin(512000);
   //
   
+  #ifdef RGB_LED
+  pixels.Begin();
+  pixels.SetPixelColor(0, purple);
+  pixels.Show();
+  #endif
+
+  #ifdef HAS_CAN
+  ESP32Can.begin(ESP32Can.convertSpeed(1000), CAN_TX, CAN_RX, 10, 10);
+  #endif
+
   #ifdef USB_JOYSTICK
 	SetupController();
   delay(100);
   #endif
 
-  #if PCB_VERSION == 5||PCB_VERSION == 6||PCB_VERSION == 7
+  #if PCB_VERSION == 5||PCB_VERSION == 6||PCB_VERSION == 7||PCB_VERSION == 8
     //Serial.setTxTimeoutMs(0);
     Serial.setRxBufferSize(1024);
     Serial.setTimeout(5);
@@ -471,7 +496,10 @@ void setup()
     _basic_wifi_info.WIFI_SSID[i]=0;
   }
   
-  
+  #ifdef RGB_LED
+  pixels.SetPixelColor(0, green);
+  pixels.Show();
+  #endif
 }
 
 
@@ -1107,6 +1135,15 @@ void Serial_Task( void * pvParameters)
         mcp.setChannelValue(MCP4728_CHANNEL_C, (uint16_t)((float)Joystick_value[2]/(float)JOYSTICK_RANGE*0.8f*4096));
       }
 
+    #endif
+
+    #ifdef HAS_CAN
+    while (ESP32Can.readFrame(rx_frame, 0)) {
+      float *f_foot_ptr = reinterpret_cast<float*>(&(rx_frame.data[0]));
+      float *x_foot_ptr = reinterpret_cast<float*>(&(rx_frame.data[4]));
+      uint8_t axis_id = rx_frame.identifier & 0x0F;
+      // Serial.printf("axis=%d; f_foot_other=%.1f; x_foot_other=%.3f\n", axis_id, *f_foot_ptr, *x_foot_ptr);
+    }
     #endif
 
     logOutput.pump(5);

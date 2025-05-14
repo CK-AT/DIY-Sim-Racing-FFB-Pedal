@@ -339,7 +339,7 @@ void setup()
   //printout the github releasing version
 
 #ifdef HAS_CAN
-  ESP32Can.begin(ESP32Can.convertSpeed(500), CAN_TX, CAN_RX, 10, 10);
+  ESP32Can.begin(ESP32Can.convertSpeed(1000), CAN_TX, CAN_RX, 10, 10);
 #endif
 
 // check whether iSV57 communication can be established

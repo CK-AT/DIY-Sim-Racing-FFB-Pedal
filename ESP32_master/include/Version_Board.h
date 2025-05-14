@@ -8,3 +8,6 @@
 #if PCB_VERSION==7
 	#define BRIDGE_BOARD   "Gilphilbert_Dongle"
 #endif
+#if PCB_VERSION==8
+	#define BRIDGE_BOARD   "CAN_Gateway_CK-AT"
+#endif
