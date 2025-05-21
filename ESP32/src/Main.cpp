@@ -137,7 +137,8 @@ ForceCurve_Interpolated forceCurve;
 #endif
 
 #ifdef HAS_CAN
-  #include <ESP32-TWAI-CAN.hpp>
+  #include <CANManager.h>
+  AxisCANManager can_manager;
 #endif
 
 //#define PRINT_USED_STACK_SIZE
@@ -285,17 +286,17 @@ DampingMap damping_map1 = DampingMap({0.0, 15.0, 85.0, 100.0}, {3.0, 0.0, 0.0, 0
 
 uint64_t ti_relock;
 
-#ifdef HAS_CAN
-  CanFrame tx_frame;
-  CanFrame rx_frame;
-#endif
-  
 void IRAM_ATTR adc_isr( void ) {
   if (PedalTask) {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     vTaskNotifyGiveFromISR( PedalTask, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
+}
+
+void on_gateway_payload(uint8_t *data, uint32_t len) {
+  // Just an echo as a proof of concept for now
+  can_manager.send_payload_to_gateway(data, len);
 }
 
 void update_config(void);
@@ -337,10 +338,6 @@ void setup()
   Serial.println("This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.");
   Serial.println("Please check github repo for more detail: https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal");
   //printout the github releasing version
-
-#ifdef HAS_CAN
-  ESP32Can.begin(ESP32Can.convertSpeed(1000), CAN_TX, CAN_RX, 10, 10);
-#endif
 
 // check whether iSV57 communication can be established
 // and in case, (a) send tuned servo parameters and (b) prepare the servo for signal read
@@ -644,8 +641,7 @@ sim.add_element(&friction1);
   #endif
 
   #ifdef HAS_CAN
-  tx_frame.identifier = 0x600 + dap_config_st.payLoadPedalConfig_.pedal_type;
-  tx_frame.data_length_code = 8;
+  can_manager.setup(dap_config_st.payLoadPedalConfig_.pedal_type, 1000, CAN_TX, CAN_RX, on_gateway_payload);
   #endif
 
   //enable ESP-NOW
@@ -927,24 +923,26 @@ void pedalUpdateTask( void * pvParameters )
     f_foot = f_loadcell * r_conv;
 
   #ifdef HAS_CAN
-    while (ESP32Can.readFrame(rx_frame, 0)) {
-      float *f_foot_ptr = reinterpret_cast<float*>(&(rx_frame.data[0]));
-      float *x_foot_ptr = reinterpret_cast<float*>(&(rx_frame.data[4]));
-      dap_calculationVariables_st.f_foot_other_pedal = *f_foot_ptr;
-      dap_calculationVariables_st.x_foot_other_pedal = *x_foot_ptr;
-    }
+    /* AxisCANManager is designed to run its main processing from within the pedal task to ensure minimum latency on other axes' position and force values */
+    can_manager.process();
   #endif
 
     float x_foot_norm = NormalizeValue(x_foot, dap_calculationVariables_st.x_foot_min_curr, dap_calculationVariables_st.x_foot_max_curr);
     float f_curve = forceCurve.EvalForceCubicSpline(&dap_config_st, &dap_calculationVariables_st, x_foot_norm);
     float f_in = f_foot - f_curve;
     if (dap_calculationVariables_st.Rudder_status == true) {
+      #ifdef HAS_CAN
+      can_manager.get_force(1, dap_calculationVariables_st.f_foot_other_pedal);
+      #endif
       f_in -= dap_calculationVariables_st.f_foot_other_pedal;
     }
 
     sim.update(dt, f_in);
 
     if (dap_calculationVariables_st.Rudder_status == true && dap_calculationVariables_st.pedal_type != 2) {
+      #ifdef HAS_CAN
+      can_manager.get_position(2, dap_calculationVariables_st.x_foot_other_pedal);
+      #endif
       x_foot = (dap_calculationVariables_st.x_foot_center_curr * 2.0f) - dap_calculationVariables_st.x_foot_other_pedal;
     } else {
       x_foot = sim.get_x();
@@ -986,13 +984,7 @@ void pedalUpdateTask( void * pvParameters )
     }
 
   #ifdef HAS_CAN
-    float *f_foot_ptr = reinterpret_cast<float*>(&(tx_frame.data[0]));
-    float *x_foot_ptr = reinterpret_cast<float*>(&(tx_frame.data[4]));
-
-    *f_foot_ptr = float(f_foot);
-    *x_foot_ptr = float(x_foot);
-
-    ESP32Can.writeFrame(tx_frame, 0);
+    can_manager.send_force_and_position(f_foot, x_foot);
   #endif
 /*
 

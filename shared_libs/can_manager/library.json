@@ -1,0 +1,8 @@
+{
+    "name": "CANManager",
+    "version": "1.0.0",
+    "dependencies": [
+        "handmade0octopus/ESP32-TWAI-CAN@^1.0.1",
+        "https://github.com/SimonCahill/isotp-c.git#v1.5.0"
+    ]
+}

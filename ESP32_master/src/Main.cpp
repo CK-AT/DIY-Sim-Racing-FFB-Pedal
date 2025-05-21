@@ -198,9 +198,8 @@ TaskHandle_t Task4;
 #endif
 
 #ifdef HAS_CAN
-  #include <ESP32-TWAI-CAN.hpp>
-  CanFrame tx_frame;
-  CanFrame rx_frame;
+  #include <CANManager.h>
+  GatewayCANManager can_manager;
 #endif
 
 #ifdef RGB_LED
@@ -254,6 +253,15 @@ RTDebugOutputService debugOutput = RTDebugOutputService();
   TaskHandle_t Task7;
 #endif
 
+void on_axis_payload(uint8_t axis_id, uint8_t *data, uint32_t len) {
+  // print the echo as a proof of concept for now
+  Serial.printf("ISOTP RX @ axis %d:", axis_id);
+  for (int i = 0; i < len; i++) {
+      Serial.printf(" 0x%02X", data[i]);
+  }
+  Serial.println();
+}
+
 /**********************************************************************************************/
 /*                                                                                            */
 /*                         setup function                                                     */
@@ -274,7 +282,7 @@ void setup()
   #endif
 
   #ifdef HAS_CAN
-  ESP32Can.begin(ESP32Can.convertSpeed(1000), CAN_TX, CAN_RX, 10, 10);
+  can_manager.setup(1000, CAN_TX, CAN_RX, on_axis_payload);
   #endif
 
   #ifdef USB_JOYSTICK
@@ -525,7 +533,17 @@ bool Pairing_timeout_status=false;
 bool building_dap_esppairing_lcl =false;
 void loop() 
 {
-  delay(10);
+  delay(1);
+  // send the current timestamp as a proof of concept for now
+  static uint64_t ti_last_update = 0;
+  if ((micros() - ti_last_update) > 10000) {
+    ti_last_update = micros();
+    for (int i = 0; i < MAX_AXES; i++) {
+      if (can_manager.is_online(i)) {
+        can_manager.send_payload_to_axis(i, reinterpret_cast<uint8_t *>(&ti_last_update), sizeof(ti_last_update));
+      }
+    }
+  }
 }
 
 void ESPNOW_SyncTask( void * pvParameters )
@@ -1138,11 +1156,25 @@ void Serial_Task( void * pvParameters)
     #endif
 
     #ifdef HAS_CAN
-    while (ESP32Can.readFrame(rx_frame, 0)) {
-      float *f_foot_ptr = reinterpret_cast<float*>(&(rx_frame.data[0]));
-      float *x_foot_ptr = reinterpret_cast<float*>(&(rx_frame.data[4]));
-      uint8_t axis_id = rx_frame.identifier & 0x0F;
-      // Serial.printf("axis=%d; f_foot_other=%.1f; x_foot_other=%.3f\n", axis_id, *f_foot_ptr, *x_foot_ptr);
+    // print axis forces and positions as a proof of concept for now
+    static uint64_t ti_last_update = 0;
+    if ((micros() - ti_last_update) > 1000000) {
+      ti_last_update = micros();
+      float temp;
+      bool valid = false;
+      for (int i = 0; i < MAX_AXES; i++) {
+        if (can_manager.get_force(i, temp)) {
+          Serial.printf("f_foot_%d=%.1f; ",i,  temp);
+          valid = true;
+        }
+        if (can_manager.get_position(i, temp)) {
+          Serial.printf("x_foot_%d=%.1f; ",i,  temp);
+          valid = true;
+        }
+      }
+      if (valid) {
+        Serial.println();
+      }
     }
     #endif
 
