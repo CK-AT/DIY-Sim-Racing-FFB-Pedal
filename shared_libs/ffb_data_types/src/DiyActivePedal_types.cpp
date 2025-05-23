@@ -1,9 +1,6 @@
 #include "DiyActivePedal_types.h"
 #include "Arduino.h"
 
-#include "PedalGeometry.h"
-#include "StepperWithLimits.h"
-
 #include <EEPROM.h>
 
 static const float ABS_SCALING = 50;

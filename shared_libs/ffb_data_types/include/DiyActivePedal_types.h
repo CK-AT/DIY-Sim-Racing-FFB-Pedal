@@ -11,7 +11,9 @@
 #define DAP_PAYLOAD_TYPE_STATE_BASIC 120
 #define DAP_PAYLOAD_TYPE_STATE_EXTENDED 130
 #define DAP_PAYLOAD_TYPE_ESPNOW_PAIRING 140
+#define DAP_PAYLOAD_TYPE_MECH_CONFIG 150
 #define DAP_PAYLOAD_TYPE_BRIDGE_STATE 210
+
 struct payloadHeader {
   
   // structure identification via payload
@@ -30,7 +32,7 @@ struct payloadHeader {
 
 struct payloadPedalAction {
   uint8_t triggerAbs_u8;
-  uint8_t system_action_u8;
+  uint8_t system_action_u8; //1=reset position, 2=restart ESP, 3=OTA Enable, 4=enable pairing
   uint8_t startSystemIdentification_u8;
   uint8_t returnPedalConfig_u8;
   uint8_t RPM_u8;
@@ -64,6 +66,7 @@ struct payloadPedalState_Extended {
   int16_t servo_voltage_0p1V;
   int16_t servo_current_percent_i16;
 };
+
 struct payloadBridgeState {
   uint8_t Pedal_RSSI;
   uint8_t Pedal_availability[3];
@@ -188,6 +191,39 @@ struct payloadPedalConfig {
   uint8_t stepLossFunctionFlags_u8;
   //joystick out flag
   //uint8_t Joystick_ESPsync_to_ESP;
+  
+
+};
+
+struct payloadMechConfig {
+  // polynomial coefficients for the conversion factor
+  // from load cell force to pedal force over pedal position
+  double coeffs_force_factor_over_pedal_pos[5];
+
+  // polynomial coefficients for the conversion
+  // from pedal position to sled position
+  double coeffs_sled_pos_over_pedal_pos[5];
+
+  // minimum absolute pedal position (0.1mm/LSB)
+  int16_t x_foot_min_abs;
+
+  // maximum absolute pedal position (0.1mm/LSB)
+  int16_t x_foot_max_abs;
+
+  // loadcell rating in kg / 2 --> to get value in kg, muiltiply by 2
+  uint8_t loadcell_rating;
+
+  // invert loadcell sign
+  uint8_t invertLoadcellReading_u8;
+
+  // invert motor direction
+  uint8_t invertMotorDirection_u8;
+
+  // spindle pitch in mm/rev
+  uint8_t spindlePitch_mmPerRev_u8;
+
+  //pedal type, 0= clutch, 1= brake, 2= gas
+  uint8_t pedal_type;
 };
 
 struct payloadESPNowInfo{
@@ -241,12 +277,24 @@ struct DAP_config_st {
   void storeConfigToEprom(DAP_config_st& config_st);
 };
 
+struct DAP_mech_config_st {
+
+  payloadHeader payLoadHeader_;
+  payloadMechConfig payLoadMechConfig_;
+  payloadFooter payloadFooter_; 
+  
+  
+  void initialiseDefaults();
+  void initialiseDefaults_Accelerator();
+  void loadConfigFromEprom(DAP_mech_config_st& config_st);
+  void storeConfigToEprom(DAP_mech_config_st& config_st);
+};
+
 struct DAP_ESPPairing_st {
   payloadHeader payLoadHeader_;
   payloadESPNowInfo payloadESPNowInfo_;
   payloadFooter payloadFooter_; 
 };
-
 
 struct DAP_calculationVariables_st
 {
@@ -278,20 +326,29 @@ struct DAP_calculationVariables_st
   float WS_freq;
   bool Rudder_status;
   uint8_t pedal_type;
-  uint16_t sync_pedal_position;
-  uint16_t current_pedal_position;
-  float current_pedal_position_ratio;
-  float Sync_pedal_position_ratio;
+  float f_foot_other_pedal;
+  float x_foot_other_pedal;
   bool rudder_brake_status;
   long stepperPosMin_default;
+  long stepperPosMax_default;
   float stepperPosRange_default;
+  uint32_t stepsPerMotorRevolution;
+  float x_foot_min_abs;
+  float x_foot_max_abs;
+  float x_foot_range_abs;
+  float x_foot_min_curr;
+  float x_foot_max_curr;
+  float x_foot_center_curr;
 
   void updateFromConfig(DAP_config_st& config_st);
+  void updateFromMechConfig(DAP_mech_config_st& mech_config_st);
   void updateEndstops(long newMinEndstop, long newMaxEndstop);
   void updateStiffness();
   void dynamic_update();
   void reset_maxforce();
   void StepperPos_setback();
   void Default_pos();
-  void update_stepperpos(long newMinstop);
+  void update_stepperMinpos(long newMinstop);
+  void update_stepperMaxpos(long newMaxstop);
+  float x_foot_rel_to_abs(float x_foot_rel);
 };
