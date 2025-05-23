@@ -7,6 +7,12 @@
 
 class CANManager {
     protected:
+        enum BusState {
+            PRE_ONLINE,
+            ONLINE,
+            BUS_OFF
+        };
+
         enum AxisFrameTypesHS {
             FORCE_AND_POSITION = 0
         };
@@ -43,11 +49,23 @@ class CANManager {
                 delay(1);
             }
         }
+        bool check_bus(uint32_t ti_now);
+        void update_axis_timeouts(uint32_t now);
+        bool try_process_high_prio_axis_frame(CanFrame &rx_frame, uint32_t now);
+        void switch_bus_state(uint32_t ti_now, BusState new_state) {
+            ti_state_change = ti_now;
+            bus_state = new_state;
+        }
+        void switch_bus_state(BusState new_state) {
+            switch_bus_state(micros(), new_state);
+        }
         AxisState axis_states[MAX_AXES] = {};
         uint8_t isotp_rx_buff[ISOTP_BUFFER_SIZE];
         uint32_t isotp_rx_size;
         uint32_t tx_err_cnt = 0;
         uint32_t rx_err_cnt = 0;
+        uint32_t ti_state_change = 0;
+        BusState bus_state = BusState::PRE_ONLINE;
 
 };
 
@@ -62,6 +80,7 @@ class AxisCANManager : public CANManager {
         bool send_payload_to_gateway(uint8_t *data, uint32_t len);
 
     private:
+        bool try_process_isotp_can_frame(CanFrame &rx_frame);
         int8_t own_axis_id = -1;
         IsotpState isotp_state;
         OnGatewayPayload on_gateway_payload = nullptr;
@@ -78,6 +97,7 @@ class GatewayCANManager : public CANManager {
 
     private:
         void process(void);
+        bool try_process_isotp_can_frame(CanFrame &rx_frame);
         IsotpState isotp_state[MAX_AXES];
         OnAxisPayload on_axis_payload = nullptr;
 
