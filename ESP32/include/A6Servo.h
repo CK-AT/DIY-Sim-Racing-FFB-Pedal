@@ -1,15 +1,17 @@
 #include <Arduino.h>
-#include <Servo.h>
 #include <FastNonAccelStepper.h>
-#include "ModbusClientRTU.h"
 #include <LogOutput.h>
+#include <Servo.h>
+
+#include "ModbusClientRTU.h"
 
 #define MAXIMUM_SPEED 2000000
 
 class A6Servo : public Servo {
     public:
-        A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareSerial &serial, unsigned long baud, uint32_t config, int8_t pin_rx, int8_t pin_tx, int8_t pin_tx_ena = -1, bool serial_inverted = false);
-        bool setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome=true);
+        A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareSerial& serial, unsigned long baud, uint32_t config, int8_t pin_rx,
+                int8_t pin_tx, int8_t pin_tx_ena = -1, bool serial_inverted = false);
+        bool setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome = true);
         bool home(void);
         bool enable(void);
         bool disable(void);
@@ -48,7 +50,7 @@ class A6Servo : public Servo {
             return response.getError();
         }
         template <typename T>
-        Modbus::Error read_hold_register(uint16_t addr, T &value) {
+        Modbus::Error read_hold_register(uint16_t addr, T& value) {
             ModbusMessage request;
             if (sizeof(T) <= 2) {
                 request = ModbusMessage(1, READ_HOLD_REGISTER, addr, 1);
@@ -90,7 +92,7 @@ class A6Servo : public Servo {
         float _trq_locked_in = 300.0;
         float _trq_open_loop = 10.0;
         static void task_func(void* pvParameters) {
-            A6Servo* servo = (A6Servo*) pvParameters;
+            A6Servo* servo = (A6Servo*)pvParameters;
             delay(1000);
             for (;;) {
                 servo->periodic_task_func();

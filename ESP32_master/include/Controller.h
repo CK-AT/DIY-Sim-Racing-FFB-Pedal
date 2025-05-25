@@ -13,15 +13,12 @@ static const int16_t JOYSTICK_RANGE = JOYSTICK_MAX_VALUE - JOYSTICK_MIN_VALUE;
 #endif
 */
 
-
-
-
 void SetupController();
 bool IsControllerReady();
 
 int32_t NormalizeControllerOutputValue(float value, float minVal, float maxVal, float maxGameOutput);
 void SetControllerOutputValueBrake(int32_t value);
-void SetControllerOutputValueAccelerator(int32_t value);
+void SetControllerOutputValueClutch(int32_t value);
 void SetControllerOutputValueThrottle(int32_t value);
 void SetControllerOutputValueRudder(int32_t value);
 void SetControllerOutputValueRudder_brake(int32_t value, int32_t value2);

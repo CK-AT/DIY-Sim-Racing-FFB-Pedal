@@ -1,13 +1,22 @@
 // FanatecInterface.cpp
 
 #include "FanatecInterface.h"
+
 #include "LogOutput.h"
 
 // Constructor
 FanatecInterface::FanatecInterface(int rxPin, int txPin, int plugPin)
-    : _rxPin(rxPin), _txPin(txPin), _plugPin(plugPin), _serial(&Serial1),
-      _throttle(0), _brake(0), _clutch(0), _handbrake(0),
-      _connected(false), _connectedCallback(nullptr), _initialized(false) {
+    : _rxPin(rxPin),
+      _txPin(txPin),
+      _plugPin(plugPin),
+      _serial(&Serial1),
+      _throttle(0),
+      _brake(0),
+      _clutch(0),
+      _handbrake(0),
+      _connected(false),
+      _connectedCallback(nullptr),
+      _initialized(false) {
 }
 
 // Initialization function
@@ -88,11 +97,11 @@ bool FanatecInterface::isConnected() {
 void FanatecInterface::performCommunicationSteps() {
     // Define communication steps
     struct Step {
-        unsigned long baudRate;
-        const uint8_t* rxData;
-        size_t rxLength;
-        const uint8_t* txData;
-        size_t txLength;
+            unsigned long baudRate;
+            const uint8_t* rxData;
+            size_t rxLength;
+            const uint8_t* txData;
+            size_t txLength;
     };
 
     // First step data
@@ -104,34 +113,22 @@ void FanatecInterface::performCommunicationSteps() {
     const uint8_t txData2[] = {0x15};
 
     // Third step data (combined message)
-    const uint8_t rxData3[] = {
-        // First message
-        0x7B, 0x02, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x26, 0x7D,
-        // Second message
-        0x7B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0xAA, 0x7D,
-        // Third message
-        0x7B, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x5F, 0x7D
-    };
-    const uint8_t txData3[] = {
-        // First message
-        0x7B, 0x02, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x26, 0x7D,
-        // Second message
-        0x7B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0xAA, 0x7D,
-        // Third message
-        0x7B, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x5F, 0x7D
-    };
+    const uint8_t rxData3[] = {// First message
+                               0x7B, 0x02, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x26, 0x7D,
+                               // Second message
+                               0x7B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xAA, 0x7D,
+                               // Third message
+                               0x7B, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5F, 0x7D};
+    const uint8_t txData3[] = {// First message
+                               0x7B, 0x02, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x26, 0x7D,
+                               // Second message
+                               0x7B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xAA, 0x7D,
+                               // Third message
+                               0x7B, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5F, 0x7D};
 
-    Step steps[] = {
-        {250000, rxData1, sizeof(rxData1), txData1, sizeof(txData1)},
-        {250000, rxData2, sizeof(rxData2), txData2, sizeof(txData2)},
-        {115200, rxData3, sizeof(rxData3), txData3, sizeof(txData3)}
-    };
+    Step steps[] = {{250000, rxData1, sizeof(rxData1), txData1, sizeof(txData1)},
+                    {250000, rxData2, sizeof(rxData2), txData2, sizeof(txData2)},
+                    {115200, rxData3, sizeof(rxData3), txData3, sizeof(txData3)}};
 
     const int numSteps = sizeof(steps) / sizeof(steps[0]);
 
@@ -153,7 +150,7 @@ void FanatecInterface::performCommunicationSteps() {
                 rxBuffer[rxIndex++] = receivedByte;
             }
         }
-        
+
         // Verify received data
         if (rxIndex == steps[i].rxLength && memcmp(rxBuffer, steps[i].rxData, rxIndex) == 0) {
             // Expected data received, send response
@@ -163,7 +160,7 @@ void FanatecInterface::performCommunicationSteps() {
                 LogOutput::printf("0x%02X ", rxBuffer[j]);
             }
             LogOutput::printf("\n");
-            i++; // Move to next step
+            i++;  // Move to next step
         } else {
             if (rxIndex > 0) {
                 LogOutput::printf("[L] FANATEC Received data in step %i: ", i);
@@ -210,8 +207,8 @@ uint8_t FanatecInterface::generateCRC(uint8_t* input, size_t length) {
 }
 
 void FanatecInterface::createPacket(uint8_t* packet) {
-    packet[0] = 0x7B; // Start byte
-    packet[1] = 0x01; // Command byte (send pedal data)
+    packet[0] = 0x7B;  // Start byte
+    packet[1] = 0x01;  // Command byte (send pedal data)
 
     // Add pedal data (little-endian)
     packet[2] = _throttle & 0xFF;
@@ -227,8 +224,8 @@ void FanatecInterface::createPacket(uint8_t* packet) {
     packet[9] = (_handbrake >> 8) & 0xFF;
 
     // Calculate CRC
-    uint8_t crc = generateCRC(&packet[1], 9); // Exclude start byte for CRC
+    uint8_t crc = generateCRC(&packet[1], 9);  // Exclude start byte for CRC
     packet[10] = crc;
 
-    packet[11] = 0x7D; // End byte
+    packet[11] = 0x7D;  // End byte
 }

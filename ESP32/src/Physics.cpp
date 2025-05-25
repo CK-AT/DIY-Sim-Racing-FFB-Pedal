@@ -2,7 +2,7 @@
 
 void CompoundElement::update(Sim *sim, float &f_sum) {
     if (!_enabled) return;
-    for (auto element: _elements) {
+    for (auto element : _elements) {
         element->update(sim, f_sum);
     }
 }
@@ -52,7 +52,7 @@ void ForceMap::update(Sim *sim, float &f_sum) {
             } else if (x > _x_vect[last_idx + 1]) {
                 last_idx++;
             } else {
-                float k = (_f_vect[last_idx+1]-_f_vect[last_idx]) / (_x_vect[last_idx+1]-_x_vect[last_idx]);
+                float k = (_f_vect[last_idx + 1] - _f_vect[last_idx]) / (_x_vect[last_idx + 1] - _x_vect[last_idx]);
                 float d = _f_vect[last_idx] - (k * _x_vect[last_idx]);
                 f_sum -= ((k * x) + d);
                 return;
@@ -84,7 +84,7 @@ void DampingMap::update(Sim *sim, float &f_sum) {
             } else if (x > _x_vect[last_idx + 1]) {
                 last_idx++;
             } else {
-                float k = (k_vect->at(last_idx+1)-k_vect->at(last_idx)) / (_x_vect[last_idx+1]-_x_vect[last_idx]);
+                float k = (k_vect->at(last_idx + 1) - k_vect->at(last_idx)) / (_x_vect[last_idx + 1] - _x_vect[last_idx]);
                 float d = k_vect->at(last_idx) - (k * _x_vect[last_idx]);
                 f_sum -= (sim->get_v() * ((k * x) + d));
                 return;
@@ -95,16 +95,16 @@ void DampingMap::update(Sim *sim, float &f_sum) {
 
 void Sim::update(float &dt, float &f_in, bool final_f) {
     float f_sum = f_in;
-    
+
     if (!final_f) {
-        for (auto element: _elements) {
+        for (auto element : _elements) {
             element->update(this, f_sum);
         }
     }
 
     _x_min += constrain(_x_min_tgt - _x_min, -10.0 * dt / 1000.0, 10.0 * dt / 1000.0);
     _x_max += constrain(_x_max_tgt - _x_max, -10.0 * dt / 1000.0, 10.0 * dt / 1000.0);
-    
+
     float a_raw = f_sum / _m * 1000.0;
     float a_lim = constrain(a_raw, _a_min, _a_max);
     if (abs(a_lim) < 0.001) {

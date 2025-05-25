@@ -13,8 +13,6 @@ static const int16_t JOYSTICK_MIN_VALUE = 0;
 static const int16_t JOYSTICK_MAX_VALUE = 10000;
 static const int16_t JOYSTICK_RANGE = JOYSTICK_MAX_VALUE - JOYSTICK_MIN_VALUE;
 
-
-
 void SetupController();
 bool IsControllerReady();
 

@@ -3,12 +3,19 @@
 class Servo {
     public:
         enum class State {
-            Disabled, Enabled, Homing
+            Disabled,
+            Enabled,
+            Homing
         };
         enum class HomingState {
-            HomeUnknown, Pending, Homed, LockedIn, LockingError, LockingBlocked
+            HomeUnknown,
+            Pending,
+            Homed,
+            LockedIn,
+            LockingError,
+            LockingBlocked
         };
-        virtual bool setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome=true);
+        virtual bool setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome = true);
         virtual bool home(void);
         virtual bool enable(void);
         virtual bool disable(void);
@@ -40,6 +47,7 @@ class Servo {
         bool is_locked_in(void) {
             return _homing_state == HomingState::LockedIn;
         }
+
     protected:
         float _curr_pos = 0.0;
         bool _curr_pos_valid = false;

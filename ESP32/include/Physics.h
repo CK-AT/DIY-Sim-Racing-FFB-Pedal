@@ -1,8 +1,9 @@
 #pragma once
 
-#include "Arduino.h"
 #include <list>
 #include <vector>
+
+#include "Arduino.h"
 
 class Sim;
 
@@ -15,14 +16,16 @@ class SimElement {
         void disable(void) {
             _enabled = false;
         }
+
     protected:
         bool _enabled = true;
 };
 
 class Sim {
     public:
-        Sim(float m, float x_min, float x_max, float v_min, float v_max, float a_min, float a_max) :
-            _m(m), _x_min_tgt(x_min), _x_max_tgt(x_max), _v_min(v_min), _v_max(v_max), _a_min(a_min), _a_max(a_max) {}
+        Sim(float m, float x_min, float x_max, float v_min, float v_max, float a_min, float a_max)
+            : _m(m), _x_min_tgt(x_min), _x_max_tgt(x_max), _v_min(v_min), _v_max(v_max), _a_min(a_min), _a_max(a_max) {
+        }
         float get_x(void) {
             return _x;
         }
@@ -38,13 +41,13 @@ class Sim {
         void set_m(float val) {
             _m = val;
         }
-        void set_x_min(float val, bool immediate=false) {
+        void set_x_min(float val, bool immediate = false) {
             _x_min_tgt = val;
             if (immediate) {
                 _x_min = val;
             }
         }
-        void set_x_max(float val, bool immediate=false) {
+        void set_x_max(float val, bool immediate = false) {
             _x_max_tgt = val;
             if (immediate) {
                 _x_max = val;
@@ -72,10 +75,10 @@ class Sim {
         void remove_element(SimElement *element) {
             _elements.remove(element);
         }
-        void update(float &dt, float &f_in, bool final_f=false);
+        void update(float &dt, float &f_in, bool final_f = false);
 
     private:
-        std::list<SimElement*> _elements = {};
+        std::list<SimElement *> _elements = {};
         float _m;
         float _x_min = 0.0;
         float _x_max = 0.0;
@@ -102,7 +105,7 @@ class CompoundElement : public SimElement {
         }
 
     private:
-        std::list<SimElement*> _elements = {};
+        std::list<SimElement *> _elements = {};
 };
 
 class Spring : public SimElement {
@@ -136,7 +139,7 @@ class Damper : public SimElement {
         void set_k_pos(float val) {
             _k_pos = val;
         }
- 
+
     private:
         float _k_neg;
         float _k_pos;
@@ -184,7 +187,8 @@ class ForceMap : public SimElement {
 class DampingMap : public SimElement {
     public:
         DampingMap(std::vector<float> x_vect, std::vector<float> k_vect) : _x_vect(x_vect), _k_vect_pos(k_vect), _k_vect_neg(k_vect) {};
-        DampingMap(std::vector<float> x_vect, std::vector<float> k_vect_neg, std::vector<float> k_vect_pos) : _x_vect(x_vect), _k_vect_neg(k_vect_neg), _k_vect_pos(k_vect_pos) {};
+        DampingMap(std::vector<float> x_vect, std::vector<float> k_vect_neg, std::vector<float> k_vect_pos)
+            : _x_vect(x_vect), _k_vect_neg(k_vect_neg), _k_vect_pos(k_vect_pos) {};
         void update(Sim *sim, float &f_sum);
         void set_map(std::vector<float> x_vect, std::vector<float> k_vect) {
             _x_vect = x_vect;
