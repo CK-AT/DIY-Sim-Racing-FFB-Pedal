@@ -22,3 +22,6 @@ SimHubPlugin/SettingsControlDemo.xaml.cs
 *.pyc
 SimHubPlugin/.vs
 SimHubPlugin/obj
+ProtbufTest/FfbDataTypes.cs
+ProtbufTest/bin
+ProtbufTest/obj

@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+message TestMessageWithOptions {
+  bytes mac = 1;
+  string str = 2;
+  int32 num = 3;
+}

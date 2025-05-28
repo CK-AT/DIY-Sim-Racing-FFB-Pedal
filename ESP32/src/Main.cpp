@@ -271,6 +271,7 @@ void IRAM_ATTR adc_isr(void) {
 void update_config(const void *data);
 bool on_data_reception(const uint8_t *data, uint32_t len, CommChannel comm_channel);
 void send_response(const uint8_t *data, uint32_t len, CommChannel comm_channel);
+void on_serial_packet_received(const uint8_t *buffer, size_t size);
 
 void send_response(const uint8_t *data, uint32_t len, CommChannel comm_channel) {
     switch (comm_channel) {
@@ -299,6 +300,13 @@ void on_ffb_update(CANManager::FFBUpdate &update) {
     }
 }
 
+#include "pb_encode.h"
+#include "pb_decode.h"
+#include "ffb_data_types.pb.h"
+#include "PacketSerial.h"
+
+PacketSerial myPacketSerial;
+
 /**********************************************************************************************/
 /*                                                                                            */
 /*                         setup function                                                     */
@@ -326,6 +334,8 @@ void setup() {
     Serial.begin(921600);
     Serial.setTimeout(5);
 #endif
+    myPacketSerial.setStream(&Serial);
+    myPacketSerial.setPacketHandler(&on_serial_packet_received);
     Serial.println(" ");
     Serial.println(" ");
     Serial.println(" ");
@@ -1231,6 +1241,93 @@ void process_action(const uint8_t *data, CommChannel comm_channel) {
     }
 }
 
+void on_serial_packet_received(const uint8_t *buffer, size_t size) {
+    if (on_data_reception((uint8_t *)buffer, size, CommChannel::USB_SERIAL) == false) {
+        if (buffer[0] == '>') {
+            char *param = strtok((char *)buffer + 1, "=");
+            if (param) {
+                // Serial.printf("Param: %s\n", param);
+                char *val = strtok(NULL, "=");
+                if (val) {
+                    // Serial.printf("Val: %s\n", val);
+                    if (strcmp(param, "m") == 0) {
+                        float val_num = atof(val);
+                        sim.set_m(val_num);
+                        Serial.printf("Simulation mass set to %.3f kg\n", val_num);
+                    } else if (strcmp(param, "debug") == 0) {
+                        int flags = atoi(val);
+                        dap_config_st.payLoadPedalConfig_.debug_flags_0 = flags;
+                        Serial.printf("Debug flags set to %04X\n", flags);
+                    } else if (strcmp(param, "can_output_prescaler") == 0) {
+                        can_output_prescaler = max(atoi(val), 1);
+                        Serial.printf("can_output_prescaler set to %02X\n", can_output_prescaler);
+                    } else if (strcmp(param, "endstops") == 0) {
+                        if (atoi(val)) {
+                            endstops.enable();
+                            Serial.printf("Endstops enabled\n");
+                        } else {
+                            endstops.disable();
+                            Serial.printf("Endstops disabled\n");
+                        }
+                    } else if (strcmp(param, "fric") == 0) {
+                        float val_num = atof(val);
+                        friction1.set_f(val_num);
+                        Serial.printf("Friction set to %.3f N\n", val_num);
+                    } else if (strcmp(param, "spr") == 0) {
+                        float val_num = atof(val);
+                        spring1.set_k(val_num);
+                        Serial.printf("Spring set to %.3f N/mm\n", val_num);
+                    } else if (strcmp(param, "damp") == 0) {
+                        float val_num = atof(val);
+                        damper1.set_k(val_num);
+                        Serial.printf("Damper set to %.3f N/(mm/s)\n", val_num);
+                    } else if (strcmp(param, "damp_pos") == 0) {
+                        float val_num = atof(val);
+                        damper1.set_k_pos(val_num);
+                        Serial.printf("Positive damper set to %.3f N/(mm/s)\n", val_num);
+                    } else if (strcmp(param, "damp_neg") == 0) {
+                        float val_num = atof(val);
+                        damper1.set_k_neg(val_num);
+                        Serial.printf("Negative damper set to %.3f N/(mm/s)\n", val_num);
+                    } else {
+                        Serial.printf("Unknown param \"%s\"\n", param);
+                    }
+                } else {
+                    if (strncmp(param, "home", sizeof("home") - 1) == 0) {
+                        Serial.printf("Homing command received\n");
+                        stepper->home();
+                        // } else if (strncmp(param, "lock", sizeof("lock") - 1) == 0) {
+                        //   Serial.printf("Locking command received\n");
+                        //   stepper->lock_onto_curr_pos();
+                    } else if (strncmp(param, "restart", sizeof("restart") - 1) == 0) {
+                        Serial.printf("Restarting...\n");
+                        ESP.restart();
+                    } else {
+                        Serial.printf("Unknown param \"%s\"\n", param);
+                    }
+                }
+            }
+        } else {
+            TestMessageWithOptions msg = TestMessageWithOptions_init_zero;
+            pb_istream_t istream = pb_istream_from_buffer(buffer, size);
+            if (pb_decode(&istream, &TestMessageWithOptions_msg, &msg))
+            {
+                msg.num++;
+                uint8_t tx_buffer[100];
+                pb_ostream_t ostream = pb_ostream_from_buffer(tx_buffer, sizeof(tx_buffer));
+                if (pb_encode(&ostream, &TestMessageWithOptions_msg, &msg))
+                {
+                    myPacketSerial.send(tx_buffer, ostream.bytes_written);
+                } else {
+                    Serial.printf("Encoding error!\n");
+                }
+            } else {
+                Serial.printf("Decoding error!\n");
+            }
+        }
+    }
+}
+
 bool on_data_reception(const uint8_t *data, uint32_t len, CommChannel comm_channel) {
     switch (verify_ffb_data_struct(data, len)) {
         case FFBDataType::CONFIG:
@@ -1281,80 +1378,15 @@ void serialCommunicationTask(void *pvParameters) {
 
         delay(SERIAL_COOMUNICATION_TASK_DELAY_IN_MS);
 
-        // read serial input
-        uint8_t n = Serial.available();
+        myPacketSerial.update();
 
-        if (n) {
-            char buffer[n];
-            Serial.readBytes(buffer, n);
-            if (on_data_reception((uint8_t *)buffer, n, CommChannel::USB_SERIAL) == false) {
-                if (buffer[0] == '>') {
-                    char *param = strtok(buffer + 1, "=");
-                    if (param) {
-                        // Serial.printf("Param: %s\n", param);
-                        char *val = strtok(NULL, "=");
-                        if (val) {
-                            // Serial.printf("Val: %s\n", val);
-                            if (strcmp(param, "m") == 0) {
-                                float val_num = atof(val);
-                                sim.set_m(val_num);
-                                Serial.printf("Simulation mass set to %.3f kg\n", val_num);
-                            } else if (strcmp(param, "debug") == 0) {
-                                int flags = atoi(val);
-                                dap_config_st.payLoadPedalConfig_.debug_flags_0 = flags;
-                                Serial.printf("Debug flags set to %04X\n", flags);
-                            } else if (strcmp(param, "can_output_prescaler") == 0) {
-                                can_output_prescaler = max(atoi(val), 1);
-                                Serial.printf("can_output_prescaler set to %02X\n", can_output_prescaler);
-                            } else if (strcmp(param, "endstops") == 0) {
-                                if (atoi(val)) {
-                                    endstops.enable();
-                                    Serial.printf("Endstops enabled\n");
-                                } else {
-                                    endstops.disable();
-                                    Serial.printf("Endstops disabled\n");
-                                }
-                            } else if (strcmp(param, "fric") == 0) {
-                                float val_num = atof(val);
-                                friction1.set_f(val_num);
-                                Serial.printf("Friction set to %.3f N\n", val_num);
-                            } else if (strcmp(param, "spr") == 0) {
-                                float val_num = atof(val);
-                                spring1.set_k(val_num);
-                                Serial.printf("Spring set to %.3f N/mm\n", val_num);
-                            } else if (strcmp(param, "damp") == 0) {
-                                float val_num = atof(val);
-                                damper1.set_k(val_num);
-                                Serial.printf("Damper set to %.3f N/(mm/s)\n", val_num);
-                            } else if (strcmp(param, "damp_pos") == 0) {
-                                float val_num = atof(val);
-                                damper1.set_k_pos(val_num);
-                                Serial.printf("Positive damper set to %.3f N/(mm/s)\n", val_num);
-                            } else if (strcmp(param, "damp_neg") == 0) {
-                                float val_num = atof(val);
-                                damper1.set_k_neg(val_num);
-                                Serial.printf("Negative damper set to %.3f N/(mm/s)\n", val_num);
-                            } else {
-                                Serial.printf("Unknown param \"%s\"\n", param);
-                            }
-                        } else {
-                            if (strncmp(param, "home", sizeof("home") - 1) == 0) {
-                                Serial.printf("Homing command received\n");
-                                stepper->home();
-                                // } else if (strncmp(param, "lock", sizeof("lock") - 1) == 0) {
-                                //   Serial.printf("Locking command received\n");
-                                //   stepper->lock_onto_curr_pos();
-                            } else if (strncmp(param, "restart", sizeof("restart") - 1) == 0) {
-                                Serial.printf("Restarting...\n");
-                                ESP.restart();
-                            } else {
-                                Serial.printf("Unknown param \"%s\"\n", param);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // // read serial input
+        // uint8_t n = Serial.available();
+
+        // if (n) {
+        //     char buffer[n];
+        //     Serial.readBytes(buffer, n);
+        // }
 
         // // send pedal state structs
         // // update pedal states

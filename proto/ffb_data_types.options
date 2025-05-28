@@ -1,0 +1,3 @@
+TestMessageWithOptions.mac max_size:6
+TestMessageWithOptions.str max_size:300
+TestMessageWithOptions.num int_size:IS_8
