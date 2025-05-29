@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="COBS.NET" Version="1.1.0" />
     <PackageReference Include="Google.Protobuf" Version="3.31.0" />
+    <PackageReference Include="NullFX.CRC" Version="1.1.10" />
     <PackageReference Include="System.IO.Ports" Version="8.0.0" />
   </ItemGroup>
 

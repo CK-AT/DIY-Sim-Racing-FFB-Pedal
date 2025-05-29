@@ -1,6 +1,7 @@
 ﻿using System.IO.Ports;
 using System.Threading.Tasks.Dataflow;
 using COBS.NET;
+using NullFX.CRC;
 
 namespace ProtbufTest
 {
@@ -79,7 +80,16 @@ namespace ProtbufTest
         {
             try
             {
-                return COBS.NET.COBS.Decode(await ReceiveRawData(max_size, timeout));
+                var decoded = COBS.NET.COBS.Decode(await ReceiveRawData(max_size, timeout));
+                var crc = Crc16.ComputeChecksum(Crc16Algorithm.Modbus, decoded, 0, decoded.Length - 2);
+                if (crc == BitConverter.ToUInt16(decoded, decoded.Length - 2))
+                {
+                    return decoded.AsSpan(0, decoded.Length - 2).ToArray();
+                }
+                else
+                {
+                    return [];
+                }
             }
             catch (ArgumentException) { }
             return [];
@@ -100,7 +110,10 @@ namespace ProtbufTest
         }
         public bool WriteFrame(byte[] data)
         {
-            return WriteRawData(COBS.NET.COBS.Encode(data));
+            MemoryStream ms = new MemoryStream();
+            ms.Write(data, 0, data.Length);
+            ms.Write(BitConverter.GetBytes(Crc16.ComputeChecksum(Crc16Algorithm.Modbus, data)));
+            return WriteRawData(COBS.NET.COBS.Encode(ms.ToArray()));
         }
         public void Close()
         {

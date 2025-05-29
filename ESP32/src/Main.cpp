@@ -307,6 +307,10 @@ void on_ffb_update(CANManager::FFBUpdate &update) {
 
 PacketSerial myPacketSerial;
 
+#include <FastCRC.h>
+
+FastCRC16 CRC16;
+
 /**********************************************************************************************/
 /*                                                                                            */
 /*                         setup function                                                     */
@@ -1308,21 +1312,28 @@ void on_serial_packet_received(const uint8_t *buffer, size_t size) {
                 }
             }
         } else {
-            TestMessageWithOptions msg = TestMessageWithOptions_init_zero;
-            pb_istream_t istream = pb_istream_from_buffer(buffer, size);
-            if (pb_decode(&istream, &TestMessageWithOptions_msg, &msg))
-            {
-                msg.num++;
-                uint8_t tx_buffer[100];
-                pb_ostream_t ostream = pb_ostream_from_buffer(tx_buffer, sizeof(tx_buffer));
-                if (pb_encode(&ostream, &TestMessageWithOptions_msg, &msg))
+            uint16_t crc = CRC16.modbus(buffer, size - sizeof(uint16_t));
+            if (crc == *reinterpret_cast<const uint16_t*>(buffer + size - sizeof(uint16_t))) {
+                TestMessageWithOptions msg = TestMessageWithOptions_init_zero;
+                pb_istream_t istream = pb_istream_from_buffer(buffer, size - sizeof(uint16_t));
+                if (pb_decode(&istream, &TestMessageWithOptions_msg, &msg))
                 {
-                    myPacketSerial.send(tx_buffer, ostream.bytes_written);
+                    msg.num++;
+                    uint8_t tx_buffer[100];
+                    pb_ostream_t ostream = pb_ostream_from_buffer(tx_buffer, sizeof(tx_buffer));
+                    if (pb_encode(&ostream, &TestMessageWithOptions_msg, &msg))
+                    {
+                        crc = CRC16.modbus(tx_buffer, ostream.bytes_written);
+                        memcpy(tx_buffer + ostream.bytes_written, &crc, sizeof(uint16_t));
+                        myPacketSerial.send(tx_buffer, ostream.bytes_written + sizeof(uint16_t));
+                    } else {
+                        Serial.printf("Encoding error!\n");
+                    }
                 } else {
-                    Serial.printf("Encoding error!\n");
+                    Serial.printf("Decoding error!\n");
                 }
             } else {
-                Serial.printf("Decoding error!\n");
+                Serial.printf("CRC error!\n");
             }
         }
     }
