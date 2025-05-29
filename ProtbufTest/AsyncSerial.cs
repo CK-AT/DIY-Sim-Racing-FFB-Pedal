@@ -1,70 +1,72 @@
-﻿using Duplicati.StreamUtil;
-using System;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.IO.Ports;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Threading.Tasks;
+﻿using System.IO.Ports;
 using System.Threading.Tasks.Dataflow;
+using COBS.NET;
 
 namespace ProtbufTest
 {
     public class AsyncSerial
     {
         SerialPort port;
-        byte[] rx_buffer = new byte[1024];
-        BufferBlock<byte> rx_fifo = new BufferBlock<byte>();
+        BufferBlock<Memory<byte>> rx_fifo = new BufferBlock<Memory<byte>>();
         CancellationTokenSource cts = new CancellationTokenSource();
-        Task rx_task;
+        bool _auto_reconnect = false;
 
         public AsyncSerial(string port_name, Int32 baud_rate)
         {
             port = new SerialPort(port_name, baud_rate);
         }
         
-        public bool Open()
+        public bool Open(bool auto_reconnect=false)
         {
+            _auto_reconnect=auto_reconnect;
+            cts.Cancel();
+            cts = new CancellationTokenSource();
             try
             {
                 port.Open();
             }
-            catch (System.IO.FileNotFoundException)
+            catch (FileNotFoundException)
             {
                 return false;
             }
-            rx_task = Task.Run(async () => await RxTask());
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
+            Task.Run(async () => await RxTask());
             return true;
         }
         private async Task RxTask()
         {
-            while (true)
+            try
             {
-                var num_bytes = await port.BaseStream.ReadAsync(rx_buffer, 0, rx_buffer.Length, cts.Token);
-                for (int i = 0; i < num_bytes; i++)
+                while (true)
                 {
-                    rx_fifo.Post(rx_buffer[i]);
+                    var chunk = new Memory<byte>(new byte[32]);
+                    var num_bytes = await port.BaseStream.ReadAsync(chunk, cts.Token);
+                    rx_fifo.Post(chunk.Slice(0, num_bytes));
+                    if (cts.IsCancellationRequested) break;
                 }
-                if (cts.IsCancellationRequested) break;
             }
+            catch (UnauthorizedAccessException) { }
         }
 
-        public async Task<byte[]> ReceiveData(int max_size=500, int timeout=30)
+        public async Task<byte[]> ReceiveRawData(int max_size=500, int timeout=30)
         {
+            if (!port.IsOpen && _auto_reconnect)
+            {
+                Open(true);
+            }
             var ms = new MemoryStream();
-            byte[] val = new byte[1];
             int num_bytes = 0;
+            // use timeout for the first byte but reduce to 2ms for successive bytes
             TimeSpan curr_timeout = TimeSpan.FromMilliseconds(timeout);
             try
             {
                 while (num_bytes < max_size)
                 {
-                    val[0] = await rx_fifo.ReceiveAsync(curr_timeout);
-                    ms.Write(val);
+                    var chunk = await rx_fifo.ReceiveAsync(curr_timeout);
+                    ms.Write(chunk.Span);
                     curr_timeout = TimeSpan.FromMilliseconds(2);
                 }
             } catch (TimeoutException)
@@ -73,13 +75,36 @@ namespace ProtbufTest
             }
             return ms.ToArray();
         }
-
-        public void WriteData(byte[] data)
+        public async Task<byte[]> ReceiveFrame(int max_size = 500, int timeout = 30)
         {
-            port.Write(data, 0, data.Length);
+            try
+            {
+                return COBS.NET.COBS.Decode(await ReceiveRawData(max_size, timeout));
+            }
+            catch (ArgumentException) { }
+            return [];
+        }
+
+        public bool WriteRawData(byte[] data)
+        {
+            if (!port.IsOpen && _auto_reconnect)
+            {
+                if (!Open(true)) return false;
+            }
+            if (port.IsOpen)
+            {
+                port.Write(data, 0, data.Length);
+                return true;
+            }
+            return false;
+        }
+        public bool WriteFrame(byte[] data)
+        {
+            return WriteRawData(COBS.NET.COBS.Encode(data));
         }
         public void Close()
         {
+            _auto_reconnect = false;
             cts.Cancel();
             port.Close();
         }
