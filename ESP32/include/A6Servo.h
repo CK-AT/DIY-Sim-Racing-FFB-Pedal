@@ -42,7 +42,7 @@ class A6Servo : public Servo {
             ModbusMessage response;
             uint8_t retries = 3;
             while (retries) {
-                response = _modbus->syncRequest(request, 0);
+                response = _modbus->syncRequest(request, 0U);
                 if (response.getError() == Modbus::Error::SUCCESS) return Modbus::Error::SUCCESS;
                 retries--;
             }
@@ -60,7 +60,7 @@ class A6Servo : public Servo {
             ModbusMessage response;
             uint8_t retries = 3;
             while (retries) {
-                response = _modbus->syncRequest(request, 0);
+                response = _modbus->syncRequest(request, 0U);
                 if (response.getError() == Modbus::Error::SUCCESS) {
                     response.get(3, value);
                     return Modbus::Error::SUCCESS;

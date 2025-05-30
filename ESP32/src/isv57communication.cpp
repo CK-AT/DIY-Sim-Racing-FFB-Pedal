@@ -214,7 +214,9 @@ bool isv57communication::readCurrentAlarm() {
             Serial.print("Current iSV57 alarm: ");
             Serial.println(tmp, HEX);
         }
+        return true;
     }
+    return false;
 }
 
 bool isv57communication::readAlarmHistory() {
