@@ -4,7 +4,7 @@ using COBS.NET;
 using pb = global::Google.Protobuf;
 using ProtbufTest;
 
-AsyncSerial serial = new AsyncSerial("COM4", 921600);
+ProtobufSerial serial = new ProtobufSerial("COM4", 921600);
 while (serial.Open(true) == false)
 {
     Console.WriteLine("Failed to open port, retrying...");
@@ -16,45 +16,72 @@ int num_send_errors = 0;
 int num_mutation_errors = 0;
 int num_inner_loops = 100;
 int num_outer_loops = 10;
-TestMessageWithOptions test = new TestMessageWithOptions();
-test.Num = 22;
-test.Mac = pb.ByteString.CopyFrom(new byte[] { 0x10, 0x20, 0x30, 0x40 });
-test.Str = "Demo";
+FFBData test = new FFBData();
+Action action = new Action();
+action.TriggerAbs = true;
+test.Action = action;
+var axis_cfg = new AxisConfig();
+axis_cfg.AxisId = 0;
+axis_cfg.CoeffsForceFactorOverContactPointPos.Clear();
+axis_cfg.CoeffsForceFactorOverContactPointPos.AddRange([0.0, 1.1, 2.2, 3.3, 4.4]);
+axis_cfg.CoeffsSledPosOverContactPointPos.Clear();
+axis_cfg.CoeffsSledPosOverContactPointPos.AddRange([5.5, 6.6, 7.7, 8.8, 9.9]);
+axis_cfg.KinematicLinkLengths.Clear();
+//test.AxisCfg = axis_cfg;
 var watch = System.Diagnostics.Stopwatch.StartNew();
+int cnt = 0;
+while (true)
+{
+    if (cnt == 0)
+    {
+        serial.WriteMessage(test);
+    }
+    FFBData rx_msg = await serial.ReceiveMessage<FFBData>();
+    if (rx_msg != null)
+    {
+        if (rx_msg.PayloadCase == FFBData.PayloadOneofCase.LogMsg)
+        {
+            Console.WriteLine("Axis {0} : {1}", rx_msg.LogMsg.AxisId, rx_msg.LogMsg.Msg.TrimEnd());
+        }
+    }
+    cnt++;
+    if (cnt > 10) cnt = 0;
+}
 for (int outer_loop = 0; outer_loop < num_outer_loops;  outer_loop++)
 {
     for (int i = 0; i < num_inner_loops; i++)
     {
-        var memStream = new MemoryStream(test.CalculateSize());
-        test.WriteTo(memStream);
-        byte[] protobuf_data = memStream.ToArray();
+        //var memStream = new MemoryStream(test.CalculateSize());
+        //test.WriteTo(memStream);
+        //byte[] protobuf_data = memStream.ToArray();
         //Console.WriteLine("Demo protobuf encoded, size = {0} ( {1} )", test.CalculateSize(), BitConverter.ToString(protobuf_data).Replace("-", " "));
         //byte[] encodedData = COBS.NET.COBS.Encode(protobuf_data);
         //Console.WriteLine("COBS encoded, size = {0} ( {1} )", encodedData.Length, BitConverter.ToString(encodedData).Replace("-", " "));
         //serial.WriteRawData(encodedData);
-        if (serial.WriteFrame(protobuf_data))
+        if (serial.WriteMessage(test))
         {
-            byte[] decodedData = await serial.ReceiveFrame(500, 10);
-            if (decodedData.Length > 0)
+            FFBData rx_msg = await serial.ReceiveMessage<FFBData>();
+            if (rx_msg != null)
             {
-                test.MergeFrom(decodedData, 0, decodedData.Length);
-                if (test.Num != 23)
-                {
-                    //Console.WriteLine("Mutation error!");
-                    num_mutation_errors++;
-                }
-                else
-                {
-                    //Console.WriteLine("Echo OK.");
-                }
-                test.Num = 22;
-                //Console.WriteLine("COBS decoded, size = {0} ( {1} )", decodedData.Length, BitConverter.ToString(decodedData).Replace("-", " "));
+                //test.ClearPayload();
+                //test.MergeFrom(decodedData, 0, decodedData.Length);
+                //if (test.AxisCfg.AxisId != 1)
+                //{
+                //    //Console.WriteLine("Mutation error!");
+                //    num_mutation_errors++;
+                //}
+                //else
+                //{
+                //    //Console.WriteLine("Echo OK.");
+                //}
+                //test.AxisCfg.AxisId = 0;
+                ////Console.WriteLine("COBS decoded, size = {0} ( {1} )", decodedData.Length, BitConverter.ToString(decodedData).Replace("-", " "));
             }
             else
             {
                 num_read_errors++;
-                await Task.Delay(500);
-                Console.WriteLine("Nothing received!");
+                //await Task.Delay(500);
+                //Console.WriteLine("Nothing received!");
             }
         }
         else

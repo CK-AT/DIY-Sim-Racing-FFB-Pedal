@@ -1,14 +1,12 @@
 ﻿using System.IO.Ports;
 using System.Threading.Tasks.Dataflow;
-using COBS.NET;
-using NullFX.CRC;
 
 namespace ProtbufTest
 {
     public class AsyncSerial
     {
         SerialPort port;
-        BufferBlock<Memory<byte>> rx_fifo = new BufferBlock<Memory<byte>>();
+        BufferBlock<byte> rx_fifo = new BufferBlock<byte>();
         CancellationTokenSource cts = new CancellationTokenSource();
         bool _auto_reconnect = false;
 
@@ -37,6 +35,7 @@ namespace ProtbufTest
             Task.Run(async () => await RxTask());
             return true;
         }
+
         private async Task RxTask()
         {
             try
@@ -45,14 +44,17 @@ namespace ProtbufTest
                 {
                     var chunk = new Memory<byte>(new byte[32]);
                     var num_bytes = await port.BaseStream.ReadAsync(chunk, cts.Token);
-                    rx_fifo.Post(chunk.Slice(0, num_bytes));
+                    foreach (var item in chunk.ToArray().Take(num_bytes))
+                    {
+                        rx_fifo.Post(item);
+                    }
                     if (cts.IsCancellationRequested) break;
                 }
             }
             catch (UnauthorizedAccessException) { }
         }
 
-        public async Task<byte[]> ReceiveRawData(int max_size=500, int timeout=30)
+        public async Task<byte[]> ReceiveData(int max_size=500, int timeout=30)
         {
             if (!port.IsOpen && _auto_reconnect)
             {
@@ -66,9 +68,10 @@ namespace ProtbufTest
             {
                 while (num_bytes < max_size)
                 {
-                    var chunk = await rx_fifo.ReceiveAsync(curr_timeout);
-                    ms.Write(chunk.Span);
-                    curr_timeout = TimeSpan.FromMilliseconds(2);
+                    var item = await rx_fifo.ReceiveAsync(curr_timeout);
+                    ms.WriteByte(item);
+                    num_bytes++;
+                    curr_timeout = TimeSpan.FromMilliseconds(3);
                 }
             } catch (TimeoutException)
             {
@@ -76,26 +79,42 @@ namespace ProtbufTest
             }
             return ms.ToArray();
         }
-        public async Task<byte[]> ReceiveFrame(int max_size = 500, int timeout = 30)
+
+        public async Task<byte[]> ReceiveDataTill(byte break_char = 0x00, int max_size = 500, int timeout = 30)
         {
+            if (!port.IsOpen && _auto_reconnect)
+            {
+                Open(true);
+            }
+            var ms = new MemoryStream();
+            int num_bytes = 0;
+            bool break_char_received = false;
+            // use timeout for the first byte but reduce to 2ms for successive bytes
+            TimeSpan curr_timeout = TimeSpan.FromMilliseconds(timeout);
             try
             {
-                var decoded = COBS.NET.COBS.Decode(await ReceiveRawData(max_size, timeout));
-                var crc = Crc16.ComputeChecksum(Crc16Algorithm.Modbus, decoded, 0, decoded.Length - 2);
-                if (crc == BitConverter.ToUInt16(decoded, decoded.Length - 2))
+                while (num_bytes < max_size)
                 {
-                    return decoded.AsSpan(0, decoded.Length - 2).ToArray();
-                }
-                else
-                {
-                    return [];
+                    var item = await rx_fifo.ReceiveAsync(curr_timeout);
+                    if (item != 0)
+                    {
+                        ms.WriteByte(item);
+                        num_bytes++;
+                        break_char_received = true;
+                    }
+                    else if (break_char_received)
+                    {
+                        ms.WriteByte(item);
+                        break;
+                    }
+                    curr_timeout = TimeSpan.FromMilliseconds(3);
                 }
             }
-            catch (ArgumentException) { }
-            return [];
+            catch (TimeoutException) { }
+            return ms.ToArray();
         }
 
-        public bool WriteRawData(byte[] data)
+        public bool WriteData(byte[] data)
         {
             if (!port.IsOpen && _auto_reconnect)
             {
@@ -108,13 +127,7 @@ namespace ProtbufTest
             }
             return false;
         }
-        public bool WriteFrame(byte[] data)
-        {
-            MemoryStream ms = new MemoryStream();
-            ms.Write(data, 0, data.Length);
-            ms.Write(BitConverter.GetBytes(Crc16.ComputeChecksum(Crc16Algorithm.Modbus, data)));
-            return WriteRawData(COBS.NET.COBS.Encode(ms.ToArray()));
-        }
+
         public void Close()
         {
             _auto_reconnect = false;

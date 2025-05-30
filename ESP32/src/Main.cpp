@@ -21,9 +21,6 @@ bool isv57_not_live_b = false;
 
 // #define OTA_update
 
-#define PI 3.14159267
-#define DEG_TO_RAD PI / 180
-
 #include "Main.h"
 
 #include "Arduino.h"
@@ -289,21 +286,21 @@ void send_response(const uint8_t *data, uint32_t len, CommChannel comm_channel) 
 
 void on_gateway_payload(const uint8_t *data, uint32_t len) {
     // Just an echo as a proof of concept for now
-    LogOutput::printf("Received %d bytes of ISOTP payload\n", len);
+    LogOutput::printf("Received %d bytes of ISOTP payload", len);
     on_data_reception(data, len, CommChannel::ISOTP);
 }
 
 void on_ffb_update(CANManager::FFBUpdate &update) {
     if (update.trigger_abs) {
-        LogOutput::printf("ABS triggered\n");
+        LogOutput::printf("ABS triggered");
         absOscillation.trigger();
     }
 }
 
-#include "pb_encode.h"
-#include "pb_decode.h"
-#include "ffb_data_types.pb.h"
 #include "PacketSerial.h"
+#include "ffb_data_types.pb.h"
+#include "pb_decode.h"
+#include "pb_encode.h"
 
 PacketSerial myPacketSerial;
 
@@ -340,14 +337,22 @@ void setup() {
 #endif
     myPacketSerial.setStream(&Serial);
     myPacketSerial.setPacketHandler(&on_serial_packet_received);
-    Serial.println(" ");
-    Serial.println(" ");
-    Serial.println(" ");
+    // send some zero bytes to ensure proper COBS sync on the first message
+    Serial.print("\x00\x00\x00");
 
     // init controller
-    Serial.println("This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.");
-    Serial.println("Please check github repo for more detail: https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal");
+    LogOutput::printf("This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.");
+    LogOutput::printf("Please check github repo for more detail: https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal");
     // printout the github releasing version
+
+    // start serialCommunicationTask before initializing the stepper (it uses LogOutput)
+    xTaskCreatePinnedToCore(serialCommunicationTask, "serialCommunicationTask", 10000,
+                            // STACK_SIZE_FOR_TASK_2,
+                            NULL, 1, &SerialCommTask, 0);
+
+    LogOutput::printf("serialCommunicationTask created");
+
+    delay(100);
 
 #ifdef PEDAL_ASSIGNMENT
     uint8_t own_axis_id = 0;
@@ -369,10 +374,10 @@ void setup() {
     #endif
 
     if (own_axis_id < MAX_AXES) {
-        Serial.printf("Identified as axis %d (%s)\n", own_axis_id, axis_names[own_axis_id]);
+        LogOutput::printf("Identified as axis %d (%s)", own_axis_id, axis_names[own_axis_id]);
         dap_config_st.payLoadPedalConfig_.pedal_type = own_axis_id;
     } else {
-        Serial.printf("Assignment error, axis id = %d\n", own_axis_id);
+        LogOutput::printf("Assignment error, axis id = %d", own_axis_id);
     }
 
 #endif
@@ -395,35 +400,33 @@ void setup() {
     // mechanical config
     // if checks are successfull, overwrite global configuration struct
     if (verify_ffb_data_struct(&dap_mech_config_st_local, sizeof(dap_mech_config_st_local)) == FFBDataType::MECH_CONFIG) {
-        Serial.println("Updating mechanical pedal config from EEPROM");
+        LogOutput::printf("Updating mechanical pedal config from EEPROM");
         dap_mech_config_st = dap_mech_config_st_local;
     } else {
-        Serial.println("Couldn't load mechanical config from EPROM due to mismatch: ");
-        Serial.print("Payload type expected: ");
-        Serial.print(DAP_PAYLOAD_TYPE_MECH_CONFIG);
-        Serial.print(",   Payload type received: ");
-        Serial.println(dap_mech_config_st_local.payLoadHeader_.payloadType);
-        Serial.print("Target version: ");
-        Serial.print(DAP_VERSION_CONFIG);
-        Serial.print(",    Source version: ");
-        Serial.println(dap_mech_config_st_local.payLoadHeader_.version);
+        LogOutput::printf("Can't load mechanical config from EEPROM:");
+        if (DAP_PAYLOAD_TYPE_MECH_CONFIG != dap_mech_config_st_local.payLoadHeader_.payloadType) {
+            LogOutput::printf("  Payload type expected: %d, Payload type received: %d", DAP_PAYLOAD_TYPE_MECH_CONFIG,
+                              dap_mech_config_st_local.payLoadHeader_.payloadType);
+        }
+        if (DAP_VERSION_CONFIG, dap_mech_config_st_local.payLoadHeader_.version) {
+            LogOutput::printf("  Target version: %d,    Source version: %d", DAP_VERSION_CONFIG, dap_mech_config_st_local.payLoadHeader_.version);
+        }
     }
 
     // general config
     // if checks are successfull, overwrite global configuration struct
     if (verify_ffb_data_struct(&dap_config_st_local, sizeof(dap_config_st_local)) == FFBDataType::CONFIG) {
-        Serial.println("Updating general pedal config from EEPROM");
+        LogOutput::printf("Updating general pedal config from EEPROM");
         dap_config_st = dap_config_st_local;
     } else {
-        Serial.println("Couldn't load general config from EPROM due to mismatch: ");
-        Serial.print("Payload type expected: ");
-        Serial.print(DAP_PAYLOAD_TYPE_CONFIG);
-        Serial.print(",   Payload type received: ");
-        Serial.println(dap_config_st_local.payLoadHeader_.payloadType);
-        Serial.print("Target version: ");
-        Serial.print(DAP_VERSION_CONFIG);
-        Serial.print(",    Source version: ");
-        Serial.println(dap_config_st_local.payLoadHeader_.version);
+        LogOutput::printf("Can't load general config from EEPROM:");
+        if (DAP_PAYLOAD_TYPE_CONFIG != dap_config_st_local.payLoadHeader_.payloadType) {
+            LogOutput::printf("  Payload type expected: %d,   Payload type received: %d", DAP_VERSION_CONFIG,
+                              dap_config_st_local.payLoadHeader_.version);
+        }
+        if (DAP_VERSION_CONFIG != dap_config_st_local.payLoadHeader_.version) {
+            LogOutput::printf("  Target version: %d,    Source version: %d", DAP_VERSION_CONFIG, dap_config_st_local.payLoadHeader_.version);
+        }
     }
 
 #ifdef PEDAL_ASSIGNMENT
@@ -457,9 +460,8 @@ void setup() {
     // Serial.print("Max Position is "); Serial.println(stepper->getLimitMax());
 
     // setup Kalman filter
-    Serial.print("Given loadcell variance: ");
     float var_est = loadcell->getVarianceEstimate();
-    Serial.println(var_est);
+    LogOutput::printf("Given loadcell variance: %f", var_est);
     kalman = new KalmanFilter(var_est);
     kalman_2nd_order = new KalmanFilter_2nd_order(var_est);
 
@@ -477,25 +479,16 @@ void setup() {
     dap_mech_config_st_local = dap_mech_config_st;
 
     if (semaphore_updateJoystick == NULL) {
-        Serial.println("Could not create semaphore");
+        LogOutput::printf("Could not create semaphore");
         ESP.restart();
     }
     if (semaphore_updateConfig == NULL) {
-        Serial.println("Could not create semaphore");
+        LogOutput::printf("Could not create semaphore");
         ESP.restart();
     }
 
-    // start serialCommunicationTask before initializing the stepper (it uses LogOutput)
-    xTaskCreatePinnedToCore(serialCommunicationTask, "serialCommunicationTask", 10000,
-                            // STACK_SIZE_FOR_TASK_2,
-                            NULL, 1, &SerialCommTask, 0);
-
-    Serial.println("serialCommunicationTask created");
-
-    delay(100);
-
     if (!stepper->setup(1000, dap_mech_config_st.payLoadMechConfig_.spindlePitch_mmPerRev_u8)) {
-        LogOutput::printf("Failed to initialize the servo (check power and connections).\n");
+        LogOutput::printf("Failed to initialize the servo (check power and connections).");
     } else {
         stepper->enable();
         delay(100);
@@ -603,14 +596,14 @@ void setup() {
                             &PedalTask, /* Task handle to keep track of created task */
                             1);         /* pin task to core 1 */
 
-    LogOutput::printf("pedalUpdateTask created\n");
+    LogOutput::printf("pedalUpdateTask created");
 
     enableCore1WDT();
 
     attachInterrupt(PIN_DRDY, &adc_isr, FALLING);
-    LogOutput::printf("ADC DRDY ISR attached\n");
+    LogOutput::printf("ADC DRDY ISR attached");
 
-    LogOutput::printf("Setup end\n");
+    LogOutput::printf("Setup end");
 }
 
 /**********************************************************************************************/
@@ -640,7 +633,7 @@ void updatePedalCalcParameters() {
 /**********************************************************************************************/
 unsigned long joystick_state_last_update = millis();
 void loop() {
-    delay(10);
+    delay(1000);
 #ifdef RGB_LED
     if (stepper->get_state() == Servo::State::Disabled) {
         pixels.SetPixelColor(0, red);
@@ -1138,11 +1131,11 @@ void pedalUpdateTask(void *pvParameters) {
 }
 
 void update_mech_config(const void *data) {
-    LogOutput::printf("Updating mechanical config\n");
+    LogOutput::printf("Updating mechanical config");
     memcpy(&dap_mech_config_st, data, sizeof(dap_mech_config_st));
 
     if (true == dap_mech_config_st.payLoadHeader_.storeToEeprom) {
-        LogOutput::printf("Storing mech config to EEPROM\n");
+        LogOutput::printf("Storing mech config to EEPROM");
         dap_mech_config_st.payLoadHeader_.storeToEeprom = false;  // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
         uint16_t crc = checksumCalculator((uint8_t *)(&(dap_mech_config_st.payLoadHeader_)),
                                           sizeof(dap_mech_config_st.payLoadHeader_) + sizeof(dap_mech_config_st.payLoadMechConfig_));
@@ -1150,7 +1143,7 @@ void update_mech_config(const void *data) {
         dap_mech_config_st.storeConfigToEprom(dap_mech_config_st);  // store config to EEPROM
     }
 
-    LogOutput::printf("Updating the calc params\n");
+    LogOutput::printf("Updating the calc params");
 
     updatePedalCalcParameters();  // update the calc parameters
     sim.set_x_min(dap_calculationVariables_st.x_foot_min_curr);
@@ -1159,11 +1152,11 @@ void update_mech_config(const void *data) {
 }
 
 void update_config(const void *data) {
-    LogOutput::printf("Updating pedal config\n");
+    LogOutput::printf("Updating pedal config");
     memcpy(&dap_config_st, data, sizeof(dap_config_st));
 
     if (true == dap_config_st.payLoadHeader_.storeToEeprom) {
-        LogOutput::printf("Storing general config to EEPROM\n");
+        LogOutput::printf("Storing general config to EEPROM");
         dap_config_st.payLoadHeader_.storeToEeprom = false;  // set to false, thus at restart existing EEPROM config isn't restored to EEPROM
         uint16_t crc = checksumCalculator((uint8_t *)(&(dap_config_st.payLoadHeader_)),
                                           sizeof(dap_config_st.payLoadHeader_) + sizeof(dap_config_st.payLoadPedalConfig_));
@@ -1171,7 +1164,7 @@ void update_config(const void *data) {
         dap_config_st.storeConfigToEprom(dap_config_st);  // store config to EEPROM
     }
 
-    LogOutput::printf("Updating the calc params\n");
+    LogOutput::printf("Updating the calc params");
 
     updatePedalCalcParameters();  // update the calc parameters
     sim.set_x_min(dap_calculationVariables_st.x_foot_min_curr);
@@ -1226,114 +1219,159 @@ void process_action(const uint8_t *data, CommChannel comm_channel) {
     if (action->payloadPedalAction_.Rudder_action == 1) {
         if (dap_calculationVariables_st.Rudder_status == false) {
             dap_calculationVariables_st.Rudder_status = true;
-            LogOutput::printf("Rudder on\n");
+            LogOutput::printf("Rudder on");
             moveSlowlyToPosition_b = true;
         } else {
             dap_calculationVariables_st.Rudder_status = false;
-            LogOutput::printf("Rudder off\n");
+            LogOutput::printf("Rudder off");
             moveSlowlyToPosition_b = true;
         }
     }
     if (action->payloadPedalAction_.Rudder_brake_action == 1) {
         if (dap_calculationVariables_st.rudder_brake_status == false && dap_calculationVariables_st.Rudder_status == true) {
             dap_calculationVariables_st.rudder_brake_status = true;
-            LogOutput::printf("Rudder brake on\n");
+            LogOutput::printf("Rudder brake on");
         } else {
             dap_calculationVariables_st.rudder_brake_status = false;
-            LogOutput::printf("Rudder brake off\n");
+            LogOutput::printf("Rudder brake off");
         }
     }
 }
 
+bool Action_callback(pb_istream_t *istream, pb_ostream_t *ostream, const pb_field_t *field) {
+    if (field->tag == Action_trigger_abs_tag) {
+        LogOutput::printf("ABS trigger received");
+        pixels.SetPixelColor(0, green);
+        pixels.Show();
+    }
+    return true;
+}
+
+bool send_ffb_data_msg(FFBData *msg) {
+    uint8_t tx_buffer[FFB_DATA_TYPES_PB_H_MAX_SIZE + 2];
+    pb_ostream_t ostream = pb_ostream_from_buffer(tx_buffer, sizeof(tx_buffer));
+    if (pb_encode(&ostream, &FFBData_msg, msg)) {
+        uint16_t crc = CRC16.modbus(tx_buffer, ostream.bytes_written);
+        memcpy(tx_buffer + ostream.bytes_written, &crc, sizeof(uint16_t));
+        myPacketSerial.send(tx_buffer, ostream.bytes_written + sizeof(uint16_t));
+        return true;
+    }
+    return false;
+}
+
+void send_log_msg(const char *buff) {
+    FFBData log_msg = FFBData_init_zero;
+    log_msg.payload.log_msg.axis_id = dap_config_st.payLoadPedalConfig_.pedal_type;
+    log_msg.which_payload = FFBData_log_msg_tag;
+    strncpy(log_msg.payload.log_msg.msg, buff, sizeof(log_msg.payload.log_msg.msg) - 1);
+    send_ffb_data_msg(&log_msg);
+}
+
+template <typename... Params>
+void log(const char *fmt, Params &&...params) {
+    FFBData msg = FFBData_init_default;
+    msg.payload.log_msg.axis_id = dap_config_st.payLoadPedalConfig_.pedal_type;
+    msg.which_payload = FFBData_log_msg_tag;
+    snprintf(msg.payload.log_msg.msg, sizeof(msg.payload.log_msg.msg) - 1, fmt, std::forward<Params>(params)...);
+    send_ffb_data_msg(&msg);
+}
+
+void on_ffb_data_message(FFBData *msg, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg, CommChannel comm_channel) {
+    switch (msg->which_payload) {
+        case FFBData_axis_cfg_tag:
+            /* TODO: Process axis config */
+            LogOutput::printf("Axis config received");
+            break;
+        case FFBData_automotive_pedal_cfg_tag:
+            /* TODO: Process automotive pedal config */
+            LogOutput::printf("Automotive pedal config received");
+            break;
+        case FFBData_flight_pedal_cfg_tag:
+            /* TODO: Process flight pedal config */
+            LogOutput::printf("Flight pedal config received");
+            break;
+        case FFBData_action_tag:
+            /* TODO: Action received */
+            LogOutput::printf("Action received");
+            break;
+        default:
+            LogOutput::printf("Unknown FFBData received");
+            break;
+    }
+}
+
 void on_serial_packet_received(const uint8_t *buffer, size_t size) {
-    if (on_data_reception((uint8_t *)buffer, size, CommChannel::USB_SERIAL) == false) {
-        if (buffer[0] == '>') {
-            char *param = strtok((char *)buffer + 1, "=");
-            if (param) {
-                // Serial.printf("Param: %s\n", param);
-                char *val = strtok(NULL, "=");
-                if (val) {
-                    // Serial.printf("Val: %s\n", val);
-                    if (strcmp(param, "m") == 0) {
-                        float val_num = atof(val);
-                        sim.set_m(val_num);
-                        Serial.printf("Simulation mass set to %.3f kg\n", val_num);
-                    } else if (strcmp(param, "debug") == 0) {
-                        int flags = atoi(val);
-                        dap_config_st.payLoadPedalConfig_.debug_flags_0 = flags;
-                        Serial.printf("Debug flags set to %04X\n", flags);
-                    } else if (strcmp(param, "can_output_prescaler") == 0) {
-                        can_output_prescaler = max(atoi(val), 1);
-                        Serial.printf("can_output_prescaler set to %02X\n", can_output_prescaler);
-                    } else if (strcmp(param, "endstops") == 0) {
-                        if (atoi(val)) {
-                            endstops.enable();
-                            Serial.printf("Endstops enabled\n");
-                        } else {
-                            endstops.disable();
-                            Serial.printf("Endstops disabled\n");
-                        }
-                    } else if (strcmp(param, "fric") == 0) {
-                        float val_num = atof(val);
-                        friction1.set_f(val_num);
-                        Serial.printf("Friction set to %.3f N\n", val_num);
-                    } else if (strcmp(param, "spr") == 0) {
-                        float val_num = atof(val);
-                        spring1.set_k(val_num);
-                        Serial.printf("Spring set to %.3f N/mm\n", val_num);
-                    } else if (strcmp(param, "damp") == 0) {
-                        float val_num = atof(val);
-                        damper1.set_k(val_num);
-                        Serial.printf("Damper set to %.3f N/(mm/s)\n", val_num);
-                    } else if (strcmp(param, "damp_pos") == 0) {
-                        float val_num = atof(val);
-                        damper1.set_k_pos(val_num);
-                        Serial.printf("Positive damper set to %.3f N/(mm/s)\n", val_num);
-                    } else if (strcmp(param, "damp_neg") == 0) {
-                        float val_num = atof(val);
-                        damper1.set_k_neg(val_num);
-                        Serial.printf("Negative damper set to %.3f N/(mm/s)\n", val_num);
-                    } else {
-                        Serial.printf("Unknown param \"%s\"\n", param);
-                    }
-                } else {
-                    if (strncmp(param, "home", sizeof("home") - 1) == 0) {
-                        Serial.printf("Homing command received\n");
-                        stepper->home();
-                        // } else if (strncmp(param, "lock", sizeof("lock") - 1) == 0) {
-                        //   Serial.printf("Locking command received\n");
-                        //   stepper->lock_onto_curr_pos();
-                    } else if (strncmp(param, "restart", sizeof("restart") - 1) == 0) {
-                        Serial.printf("Restarting...\n");
-                        ESP.restart();
-                    } else {
-                        Serial.printf("Unknown param \"%s\"\n", param);
-                    }
-                }
-            }
+    uint16_t crc = CRC16.modbus(buffer, size - sizeof(uint16_t));
+    if (crc == *reinterpret_cast<const uint16_t *>(buffer + size - sizeof(uint16_t))) {
+        FFBData msg = FFBData_init_zero;
+        pb_istream_t istream = pb_istream_from_buffer(buffer, size - sizeof(uint16_t));
+        if (pb_decode(&istream, &FFBData_msg, &msg)) {
+            on_ffb_data_message(&msg, buffer, size - sizeof(uint16_t), CommChannel::USB_SERIAL);
         } else {
-            uint16_t crc = CRC16.modbus(buffer, size - sizeof(uint16_t));
-            if (crc == *reinterpret_cast<const uint16_t*>(buffer + size - sizeof(uint16_t))) {
-                TestMessageWithOptions msg = TestMessageWithOptions_init_zero;
-                pb_istream_t istream = pb_istream_from_buffer(buffer, size - sizeof(uint16_t));
-                if (pb_decode(&istream, &TestMessageWithOptions_msg, &msg))
-                {
-                    msg.num++;
-                    uint8_t tx_buffer[100];
-                    pb_ostream_t ostream = pb_ostream_from_buffer(tx_buffer, sizeof(tx_buffer));
-                    if (pb_encode(&ostream, &TestMessageWithOptions_msg, &msg))
-                    {
-                        crc = CRC16.modbus(tx_buffer, ostream.bytes_written);
-                        memcpy(tx_buffer + ostream.bytes_written, &crc, sizeof(uint16_t));
-                        myPacketSerial.send(tx_buffer, ostream.bytes_written + sizeof(uint16_t));
+            LogOutput::printf("Decoding error: %s", istream.errmsg);
+        }
+    } else if (buffer[0] == '>') {
+        char *param = strtok((char *)buffer + 1, "=");
+        if (param) {
+            // Serial.printf("Param: %s\n", param);
+            char *val = strtok(NULL, "=");
+            if (val) {
+                // Serial.printf("Val: %s\n", val);
+                if (strcmp(param, "m") == 0) {
+                    float val_num = atof(val);
+                    sim.set_m(val_num);
+                    Serial.printf("Simulation mass set to %.3f kg\n", val_num);
+                } else if (strcmp(param, "debug") == 0) {
+                    int flags = atoi(val);
+                    dap_config_st.payLoadPedalConfig_.debug_flags_0 = flags;
+                    Serial.printf("Debug flags set to %04X\n", flags);
+                } else if (strcmp(param, "can_output_prescaler") == 0) {
+                    can_output_prescaler = max(atoi(val), 1);
+                    Serial.printf("can_output_prescaler set to %02X\n", can_output_prescaler);
+                } else if (strcmp(param, "endstops") == 0) {
+                    if (atoi(val)) {
+                        endstops.enable();
+                        Serial.printf("Endstops enabled\n");
                     } else {
-                        Serial.printf("Encoding error!\n");
+                        endstops.disable();
+                        Serial.printf("Endstops disabled\n");
                     }
+                } else if (strcmp(param, "fric") == 0) {
+                    float val_num = atof(val);
+                    friction1.set_f(val_num);
+                    Serial.printf("Friction set to %.3f N\n", val_num);
+                } else if (strcmp(param, "spr") == 0) {
+                    float val_num = atof(val);
+                    spring1.set_k(val_num);
+                    Serial.printf("Spring set to %.3f N/mm\n", val_num);
+                } else if (strcmp(param, "damp") == 0) {
+                    float val_num = atof(val);
+                    damper1.set_k(val_num);
+                    Serial.printf("Damper set to %.3f N/(mm/s)\n", val_num);
+                } else if (strcmp(param, "damp_pos") == 0) {
+                    float val_num = atof(val);
+                    damper1.set_k_pos(val_num);
+                    Serial.printf("Positive damper set to %.3f N/(mm/s)\n", val_num);
+                } else if (strcmp(param, "damp_neg") == 0) {
+                    float val_num = atof(val);
+                    damper1.set_k_neg(val_num);
+                    Serial.printf("Negative damper set to %.3f N/(mm/s)\n", val_num);
                 } else {
-                    Serial.printf("Decoding error!\n");
+                    Serial.printf("Unknown param \"%s\"\n", param);
                 }
             } else {
-                Serial.printf("CRC error!\n");
+                if (strncmp(param, "home", sizeof("home") - 1) == 0) {
+                    Serial.printf("Homing command received\n");
+                    stepper->home();
+                    // } else if (strncmp(param, "lock", sizeof("lock") - 1) == 0) {
+                    //   Serial.printf("Locking command received\n");
+                    //   stepper->lock_onto_curr_pos();
+                } else if (strncmp(param, "restart", sizeof("restart") - 1) == 0) {
+                    Serial.printf("Restarting...\n");
+                    ESP.restart();
+                } else {
+                    Serial.printf("Unknown param \"%s\"\n", param);
+                }
             }
         }
     }
@@ -1377,7 +1415,7 @@ int64_t timeNow_serialCommunicationTask_l = 0;
 int64_t timePrevious_serialCommunicationTask_l = 0;
 #define REPETITION_INTERVAL_SERIALCOMMUNICATION_TASK (int64_t)10
 RTDebugOutputService debugOutput = RTDebugOutputService();
-LogOutputService logOutput = LogOutputService();
+LogOutputService logOutput = LogOutputService(send_log_msg);
 
 int32_t joystickNormalizedToInt32_local = 0;
 void serialCommunicationTask(void *pvParameters) {
@@ -1705,16 +1743,16 @@ void ESPNOW_SyncTask(void *pvParameters) {
             if (ESPNow_config_request) {
                 ESPNow.send_message(broadcast_mac, (uint8_t *)&dap_config_st, sizeof(dap_config_st));
                 ESPNow_config_request = false;
-                LogOutput::printf("ESPNow: Config sent\n");
+                LogOutput::printf("ESPNow: Config sent");
             }
             if (ESPNow_OTA_enable) {
-                LogOutput::printf("Get OTA command\n");
+                LogOutput::printf("Get OTA command");
                 OTA_enable_b = true;
                 OTA_enable_start = true;
                 ESPNow_OTA_enable = false;
             }
             if (OTA_update_action_b) {
-                LogOutput::printf("Get OTA command\n");
+                LogOutput::printf("Get OTA command");
                 OTA_enable_b = true;
                 OTA_enable_start = true;
                 ESPNow_OTA_enable = false;

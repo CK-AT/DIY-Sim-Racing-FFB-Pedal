@@ -1,7 +1,173 @@
 syntax = "proto3";
 
-message TestMessageWithOptions {
-  bytes mac = 1;
-  string str = 2;
-  int32 num = 3;
+message LogMessage {
+  // axis ID, source of this log message 
+  uint32 axis_id = 1;
+  // log message
+  string msg = 2;
+}
+
+enum KFModelOrder {
+  CONST_VEL = 0;
+  CONST_ACC = 1;
+}
+
+message AxisConfig {
+  // axis ID, only relevant for HW w/o ID DIP switches 
+  uint32 axis_id = 1;
+  // position resolution in steps/mm
+  uint32 steps_per_mm = 2;
+  // polynomial coefficients for the conversion factor
+  // from load cell force to pedal force over pedal position
+  repeated double coeffs_force_factor_over_contact_point_pos = 3;
+  // polynomial coefficients for the conversion
+  // from contact point position to sled position
+  repeated double coeffs_sled_pos_over_contact_point_pos = 4;
+  // minimum absolute contact point position (0.1mm/LSB)
+  int32 contact_point_pos_min_abs = 5;
+  // maximum absolute contact point position (0.1mm/LSB)
+  int32 contact_point_pos_max_abs = 6;
+  // loadcell rating in N
+  uint32 f_max_loadcell = 7;
+  // invert loadcell sign
+  bool b_loadcell_inverted = 8;
+  // invert motor direction
+  bool b_motor_inverted = 9;
+  // spindle pitch in mm/rev
+  uint32 mm_per_rev = 10;
+  // Kalman filter model noise scaling (divided by 255 to get a factor between 0 and 1)
+  uint32 kf_model_noise_scaling = 11;
+  // Kalman filter order (0 = const velocity; 1 = const acceleration)
+  KFModelOrder kf_model_order = 12;
+  // used by the Simhub Plugin to differentiate between kinematic setups (pedal/flight stick axis/...)
+  uint32 kinematic_type = 13;
+  // a list of kinematic link lengths in mm, meaning depends on kinematic_type
+  repeated uint32 kinematic_link_lengths = 14;
+  // enable ESPnow
+  bool b_esp_now_enabled = 15;
+}
+
+enum ControllerAxis {
+  X = 0;
+  Y = 1;
+  Z = 2;
+  R_X = 3;
+  R_Y = 4;
+  R_Z = 5;
+  RUD = 6;
+  THR = 7;
+  ACC = 8;
+  BRK = 9;
+  STEER = 10;
+}
+
+message FunctionBase {
+  // ID of the first additive (primary) axis (the only one for an automotive pedal/right pedal for flight pedals)
+  uint32 additive_axis_id_1 = 1;
+  // ID of the first subtractive axis (left pedal for flight pedals)
+  uint32 subtractive_axis_id_1 = 2;
+  // ID of the second additive axis (e.g. right co-pilot pedal for flight pedals)
+  uint32 additive_axis_id_2 = 3;
+  // ID of the second subtractive axis (e.g. left co-pilot pedal for flight pedals)
+  uint32 subtractive_axis_id_2 = 4;
+  // controller axis to output to
+  ControllerAxis controller_axis = 5;
+  // store to EEPROM
+  bool store = 6;
+}
+
+enum ABSPattern {
+  SINE = 0;
+  SAWTOOTH = 1;
+}
+
+enum Mode {
+  FORCE = 0;
+  TRAVEL = 1;
+}
+
+message AutomotivePedalConfig {
+  FunctionBase base = 1;
+  // pedal idle position and end position in mm
+  int32 pos_idle = 2;
+  int32 pos_end = 3;
+  // minimum and maximum pedal/foot force in N
+  float f_min = 4;
+  float f_max = 5;
+  // relative force in percent in 10% travel increments (used by Simhub Plugin to store the node positions)
+  repeated uint32 f_rel_points = 6; 
+  // damping in (N*s)/mm
+  float damping_press = 7;
+  float damping_pull = 8;
+  // ABS effect 
+  uint32 abs_freq = 9; // In Hz
+  uint32 abs_ampl = 10; // In N
+  ABSPattern abs_pattern = 11;
+  Mode   abs_mode = 12;
+  // Simulated ABS trigger level (in percent, active if > 0)
+  uint32 abs_sim_level = 13;
+  // RPM effect
+  uint32 rpm_max_freq = 14; //In Hz
+  uint32 rpm_min_freq = 15; //In Hz
+  uint32 rpm_amp = 16; //In N
+  // bite point effect
+  uint32 bp_trigger_value = 17;
+  uint32 bp_amp = 18;
+  uint32 bp_freq = 19;
+  uint32 bp_trigger = 20;
+  // G force effect
+  uint32 g_multi = 21;
+  uint32 g_window = 22;
+  // wheel slip effect
+  uint32 ws_amp = 23;
+  uint32 ws_freq = 24;
+  // Road impact effect
+  uint32 road_multi = 25;
+  uint32 road_window = 26;
+  // Custom Vibration 1
+  uint32 cv_amp_1 = 27;
+  uint32 cv_freq_1 = 28;
+  // Custom Vibration 2
+  uint32 cv_amp_2 = 29;
+  uint32 cv_freq_2 = 30;
+  // cubic spline parameters
+  float cubic_spline_params_a = 31;
+  float cubic_spline_params_b = 32;
+  // use force or travel as joystick output
+  Mode output_mode = 33;
+}
+
+message FlightPedalConfig {
+  FunctionBase base = 1;
+  // pedal idle position and end position in mm
+  int32 pos_idle = 2;
+  int32 pos_end = 3;
+  // damping in (N*s)/mm
+  float damping = 4;
+  // centering spring constant in N/mm
+  float centering_spring_const = 5;
+}
+
+message Action {
+  bool trigger_abs = 1;
+  bool restart = 2;
+  bool enable_ota = 3;
+  bool return_axis_config = 4;
+  bool return_function_config = 5;
+  uint32 rpm = 6;
+  uint32 g = 7;
+  uint32 ws = 8;
+  uint32 impact_value = 9;
+  bool trigger_cv_1 = 10;
+  bool trigger_cv_2 = 11;
+}
+
+message FFBData {
+  oneof payload {
+    LogMessage log_msg = 1;
+    AxisConfig axis_cfg = 2;
+    AutomotivePedalConfig automotive_pedal_cfg = 3;
+    FlightPedalConfig flight_pedal_cfg = 4;
+    Action action = 5;
+  }
 }

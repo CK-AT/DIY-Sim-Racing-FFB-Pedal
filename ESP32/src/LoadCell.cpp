@@ -4,6 +4,7 @@
 #include <SPI.h>
 
 #include "Main.h"
+#include "LogOutput.h"
 
 static const float ADC_CLOCK_MHZ = 7.68;  // crystal frequency used on ADS1256
 static const float ADC_VREF = 2.5;        // voltage reference
@@ -21,11 +22,11 @@ ADS1256& ADC() {
 
     static bool firstTime = true;
     if (firstTime) {
-        Serial.println("Starting ADC");
+       LogOutput::printf("Starting ADC");
         adc.initSpi(ADC_CLOCK_MHZ);
         delay(1000);
 
-        Serial.println("ADS: send SDATAC command");
+        LogOutput::printf("ADS: send SDATAC command");
         // adc.sendCommand(ADS1256_CMD_SDATAC);
 
         // start the ADS1256 with data rate of 15kSPS SPS and gain x64
@@ -33,7 +34,7 @@ ADS1256& ADC() {
         // adc.begin(ADS1256_DRATE_1000SPS,ADS1256_GAIN_64,false);
         adc.begin(ADC_SAMPLE_RATE, ADS1256_GAIN_64, false);
 
-        Serial.println("ADC Started");
+        LogOutput::printf("ADC Started");
 
         adc.waitDRDY();  // wait for DRDY to go low before changing multiplexer register
         if (fabs(CONVERSION_FACTOR) > 0.01) {
@@ -55,10 +56,7 @@ void LoadCell_ADS1256::setLoadcellRating(uint8_t loadcellRating_u8) const {
     if (LOADCELL_WEIGHT_RATING_KG > 0) {
         updatedConversionFactor_f64 = 2 * ((float)loadcellRating_u8) * (CONVERSION_FACTOR / LOADCELL_WEIGHT_RATING_KG);
     }
-    Serial.print("OrigConversionFactor: ");
-    Serial.print(originalConversionFactor_f64);
-    Serial.print(",     NewConversionFactor:");
-    Serial.println(updatedConversionFactor_f64);
+    LogOutput::printf("OrigConversionFactor: %f, NewConversionFactor: %f", originalConversionFactor_f64, updatedConversionFactor_f64);
 
     adc.setConversionFactor(updatedConversionFactor_f64);
 }
@@ -75,7 +73,7 @@ float LoadCell_ADS1256::getReadingKg() const {
 }
 
 void LoadCell_ADS1256::setZeroPoint() {
-    Serial.println("ADC: Identify loadcell offset");
+    LogOutput::printf("ADC: Identify loadcell offset");
 
     // Due to construction and gravity, the loadcell measures an initial voltage difference.
     // To compensate this difference, the difference is estimated by moving average filter.
@@ -85,8 +83,7 @@ void LoadCell_ADS1256::setZeroPoint() {
     }
     loadcellOffset /= NUMBER_OF_SAMPLES_FOR_LOADCELL_OFFFSET_ESTIMATION;
 
-    Serial.print("Offset ");
-    Serial.println(loadcellOffset, 10);
+    LogOutput::printf("Offset %f", loadcellOffset);
 
     _zeroPoint = loadcellOffset;
 }
@@ -94,7 +91,7 @@ void LoadCell_ADS1256::setZeroPoint() {
 void LoadCell_ADS1256::estimateVariance() {
     ADS1256& adc = ADC();
 
-    Serial.println("ADC: Identify loadcell variance");
+    LogOutput::printf("ADC: Identify loadcell variance");
     float varNormalizer = 1. / (float)(NUMBER_OF_SAMPLES_FOR_LOADCELL_OFFFSET_ESTIMATION - 1);
     float varEstimate = 0.0f;
     for (long i = 0; i < NUMBER_OF_SAMPLES_FOR_LOADCELL_OFFFSET_ESTIMATION; i++) {
@@ -105,11 +102,9 @@ void LoadCell_ADS1256::estimateVariance() {
 
     _standardDeviationEstimate = sqrt(varEstimate);
 
-    Serial.println("Variance est.:");
-    Serial.println(varEstimate);
+    LogOutput::printf("Variance est.: %f", varEstimate);
 
-    Serial.println("Stddev est.:");
-    Serial.println(_standardDeviationEstimate);
+    LogOutput::printf("Stddev est.: %f", _standardDeviationEstimate);
 
     // make sure estimate is nonzero
     if (varEstimate < LOADCELL_VARIANCE_MIN) {
