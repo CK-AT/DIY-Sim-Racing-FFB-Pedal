@@ -7,6 +7,21 @@
 
 class Sim;
 
+inline float normalize_value(float value, float minVal, float maxVal) {
+    float valRange = (maxVal - minVal);
+    if (abs(valRange) < 0.01) {
+        return 0.0;  // avoid div-by-zero
+    }
+    if (value <= minVal) {
+        return 0.0;
+    }
+    if (value >= maxVal) {
+        return 1.0;
+    }
+
+    return (value - minVal) / valRange;
+}
+
 class SimElement {
     public:
         virtual void update(Sim *sim, float &f_sum);
@@ -52,6 +67,12 @@ class Sim {
             if (immediate) {
                 _x_max = val;
             }
+        }
+        float get_x_min(void) {
+            return _x_min_tgt;
+        }
+        float get_x_max(void) {
+            return _x_max_tgt;
         }
         void set_v_min(float val) {
             _v_min = val;

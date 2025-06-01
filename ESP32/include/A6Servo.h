@@ -46,7 +46,7 @@ class A6Servo : public Servo {
                 if (response.getError() == Modbus::Error::SUCCESS) return Modbus::Error::SUCCESS;
                 retries--;
             }
-            LogOutput::printf("write_hold_register(0x%04X) failed after 3 retries!\n", addr);
+            LogOutput::printf("write_hold_register(0x%04X) failed after 3 retries!", addr);
             return response.getError();
         }
         template <typename T>
@@ -67,7 +67,7 @@ class A6Servo : public Servo {
                 }
                 retries--;
             }
-            LogOutput::printf("read_hold_register(0x%04X) failed after 3 retries!\n", addr);
+            LogOutput::printf("read_hold_register(0x%04X) failed after 3 retries!", addr);
             return response.getError();
         }
         void on_response(ModbusMessage msg, uint32_t token);

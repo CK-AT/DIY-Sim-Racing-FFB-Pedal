@@ -17,19 +17,27 @@ int num_mutation_errors = 0;
 int num_inner_loops = 100;
 int num_outer_loops = 10;
 FFBData test = new FFBData();
-Action action = new Action();
+FFBAction action = new FFBAction();
 action.TriggerAbs = true;
-test.Action = action;
+test.FfbAction = action;
+
 var axis_cfg = new AxisConfig();
-axis_cfg.AxisId = 0;
+axis_cfg.Store = false;
+axis_cfg.AxisId = AxisID.Axis1;
 axis_cfg.CoeffsForceFactorOverContactPointPos.Clear();
 axis_cfg.CoeffsForceFactorOverContactPointPos.AddRange([0.0, 1.1, 2.2, 3.3, 4.4]);
 axis_cfg.CoeffsSledPosOverContactPointPos.Clear();
 axis_cfg.CoeffsSledPosOverContactPointPos.AddRange([5.5, 6.6, 7.7, 8.8, 9.9]);
-axis_cfg.KinematicLinkLengths.Clear();
-//test.AxisCfg = axis_cfg;
+//test.AxisConfig = axis_cfg;
+
+AxisAction axis_action = new AxisAction();
+axis_action.Restart = true;
+//test.AxisAction = axis_action;
+
 var watch = System.Diagnostics.Stopwatch.StartNew();
 int cnt = 0;
+JsonFormatter json_fromatter = new JsonFormatter(JsonFormatter.Settings.Default);
+Console.WriteLine(json_fromatter.Format(test));
 while (true)
 {
     if (cnt == 0)
@@ -39,13 +47,13 @@ while (true)
     FFBData rx_msg = await serial.ReceiveMessage<FFBData>();
     if (rx_msg != null)
     {
-        if (rx_msg.PayloadCase == FFBData.PayloadOneofCase.LogMsg)
+        if (rx_msg.PayloadCase == FFBData.PayloadOneofCase.LogMessage)
         {
-            Console.WriteLine("Axis {0} : {1}", rx_msg.LogMsg.AxisId, rx_msg.LogMsg.Msg.TrimEnd());
+            Console.WriteLine("{0} : {1}", rx_msg.LogMessage.AxisId, rx_msg.LogMessage.Msg.TrimEnd());
         }
     }
     cnt++;
-    if (cnt > 10) cnt = 0;
+    if (cnt > 1000) cnt = 0;
 }
 for (int outer_loop = 0; outer_loop < num_outer_loops;  outer_loop++)
 {

@@ -1,11 +1,12 @@
 #pragma once
 #include <Arduino.h>
+#include <FFBDataTools.h>
 #include <isotp.h>
 
 #include <ESP32-TWAI-CAN.hpp>
 
-#define MAX_AXES 4
-#define ISOTP_BUFFER_SIZE 256
+#define MAX_AXES 8
+#define ISOTP_BUFFER_SIZE 512
 
 class CANManager {
     protected:
@@ -53,15 +54,10 @@ class CANManager {
         };
 
     public:
-        struct FFBUpdate {
-                bool trigger_abs : 1;
-        };
-
-    public:
-        bool get_force(int8_t axis_id, float &f_foot);
-        bool get_position(int8_t axis_id, float &x_foot);
-        bool get_position_limits(int8_t axis_id, float &x_foot_min, float &x_foot_max);
-        bool is_online(int8_t axis_id);
+        bool get_force(AxisID axis_id, float &f_foot);
+        bool get_position(AxisID axis_id, float &x_foot);
+        bool get_position_limits(AxisID axis_id, float &x_foot_min, float &x_foot_max);
+        bool is_online(AxisID axis_id);
 
     protected:
         virtual void process(void);
@@ -84,6 +80,17 @@ class CANManager {
         void switch_bus_state(BusState new_state) {
             switch_bus_state(micros(), new_state);
         }
+        AxisID axis_id_from_index(uint8_t axis_index) {
+            return AxisID(axis_index + 1);
+        }
+        uint8_t axis_index_from_id(AxisID axis_id) {
+            return uint8_t(axis_id - 1);
+        }
+        bool check_axis_id(AxisID axis_id) {
+            if (axis_id == AxisID_AXIS_UNDEFINED) return false;
+            if (axis_index_from_id(axis_id) < MAX_AXES) return true;
+            return false;
+        }
         AxisState axis_states[MAX_AXES] = {};
         uint8_t isotp_rx_buff[ISOTP_BUFFER_SIZE];
         uint32_t isotp_rx_size;
@@ -95,34 +102,35 @@ class CANManager {
 
 class AxisCANManager : public CANManager {
         typedef std::function<void(uint8_t *data, uint32_t len)> OnGatewayPayload;
-        typedef std::function<void(FFBUpdate &update)> OnFFBUpdate;
+        typedef std::function<void(FFBAction &action)> OnFFBAction;
 
     public:
         AxisCANManager(void) {};
-        void setup(int8_t axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBUpdate on_ffb_update);
+        void setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update);
         void process(void);
         void broadcast_position_limits(uint32_t now);
         void send_force_and_position(float &f_foot, float &x_foot);
         bool send_payload_to_gateway(const uint8_t *data, uint32_t len);
-        void send_position_limits(float &x_foot_min, float &x_foot_max);
+        void send_position_limits(float x_foot_min, float x_foot_max);
 
     private:
         bool try_process_isotp_can_frame(CanFrame &rx_frame);
         bool try_process_ffb_update_frame(CanFrame &rx_frame);
-        int8_t own_axis_id = -1;
+        AxisID own_axis_id = AxisID_AXIS_UNDEFINED;
+        int8_t own_axis_index = -1;
         IsotpState isotp_state;
         OnGatewayPayload on_gateway_payload = nullptr;
-        OnFFBUpdate on_ffb_update = nullptr;
+        OnFFBAction on_ffb_action = nullptr;
 };
 
 class GatewayCANManager : public CANManager {
-        typedef std::function<void(uint8_t axis_id, uint8_t *data, uint32_t len)> OnAxisPayload;
+        typedef std::function<void(AxisID axis_id, uint8_t *data, uint32_t len)> OnAxisPayload;
 
     public:
         GatewayCANManager(void) {};
         void setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnAxisPayload cb);
-        bool send_payload_to_axis(uint8_t axis_id, const uint8_t *data, uint32_t len);
-        void send_abs_trigger_to_axis(uint8_t axis_id);
+        bool send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len);
+        void send_abs_trigger_to_axis(AxisID axis_id);
 
     private:
         void process(void);

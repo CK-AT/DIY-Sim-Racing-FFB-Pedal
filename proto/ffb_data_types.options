@@ -1,6 +1,8 @@
 LogMessage.axis_id                          int_size:IS_8
 LogMessage.msg                              max_length:140
 
+DIYPedalKinematicConfig.l_*                 int_size:IS_16
+
 AxisConfig.axis_id                          int_size:IS_8
 AxisConfig.steps_per_mm                     int_size:IS_16
 AxisConfig.coeffs_force_factor_over_contact_point_pos       max_count:5 fixed_count:true
@@ -11,26 +13,35 @@ AxisConfig.f_max_loadcell                   int_size:IS_16
 AxisConfig.mm_per_rev                       int_size:IS_8
 AxisConfig.kf_model_noise_scaling           int_size:IS_8
 AxisConfig.kf_model_order                   int_size:IS_8
-AxisConfig.kinematic_type                   int_size:IS_8
-AxisConfig.kinematic_link_lengths           max_count:16 int_size:IS_16
 
 FunctionBase.*                              int_size:IS_8
 
-AutomotivePedalConfig.pos_*                 int_size:IS_16
-AutomotivePedalConfig.f_rel_points          max_count:5 fixed_count:true int_size:IS_8
-AutomotivePedalConfig.abs_*                 int_size:IS_8
-AutomotivePedalConfig.rpm_*                 int_size:IS_8
-AutomotivePedalConfig.cubic_spline_*        max_count:5 fixed_count:true
+SplineForceCurveConfig.pos_*                int_size:IS_16
+SplineForceCurveConfig.f_rel_points         max_count:6 fixed_count:true int_size:IS_8
+SplineForceCurveConfig.cubic_spline_*       max_count:5 fixed_count:true
+
+ABSEffectConfig.*                           int_size:IS_8
+
+RPMEffectConfig.*                           int_size:IS_8
+
+BitePointEffectConfig.*                     int_size:IS_8
+
+GForceEffectConfig.*                        int_size:IS_8
+
+WheelSlipEffectConfig.*                     int_size:IS_8
+
+RoadImpactEffectConfig.*                    int_size:IS_8
+
+CustomVibrationEffectConfig.*               int_size:IS_8
+
 AutomotivePedalConfig.*                     int_size:IS_8
 
 FlightPedalConfig.pos_*                     int_size:IS_16
 
-Action.*                                    int_size:IS_8
-Action.trigger_abs                          type:FT_CALLBACK callback_datatype:"uint8_t"
-Action.restart                              type:FT_CALLBACK callback_datatype:"uint8_t"
-Action.enable_ota                           type:FT_CALLBACK callback_datatype:"uint8_t"
-Action.return_axis_config                   type:FT_CALLBACK callback_datatype:"uint8_t"
-Action.return_function_config               type:FT_CALLBACK callback_datatype:"uint8_t"
-Action.trigger_cv_1                         type:FT_CALLBACK callback_datatype:"uint8_t"
-Action.trigger_cv_2                         type:FT_CALLBACK callback_datatype:"uint8_t"
+AxisAction.*                                int_size:IS_8
 
+AxisState.*                                 int_size:IS_16
+
+GatewayState.*                              int_size:IS_8
+
+FFBAction.*                                 int_size:IS_8

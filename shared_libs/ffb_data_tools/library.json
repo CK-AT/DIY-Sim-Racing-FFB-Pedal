@@ -1,0 +1,8 @@
+{
+    "name": "FFBDataTools",
+    "version": "1.0.0",
+    "dependencies": [
+        "nanopb/Nanopb@^0.4.8",
+        "frankboesing/FastCRC@^1.41"
+    ]
+}
