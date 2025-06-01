@@ -47,7 +47,7 @@ void ConfigManager::set_function_config_defaults(void) {
     _function_config.which_specific = FunctionConfig_automotive_pedal_tag;
     _function_config.specific.automotive_pedal.has_force_curve_config = true;
     _function_config.specific.automotive_pedal.force_curve_config.pos_min = 10;
-    _function_config.specific.automotive_pedal.force_curve_config.pos_max = 70;
+    _function_config.specific.automotive_pedal.force_curve_config.pos_max = 50;
     _function_config.specific.automotive_pedal.force_curve_config.f_min = 50.0f;
     _function_config.specific.automotive_pedal.force_curve_config.f_max = 150.0f;
     _function_config.specific.automotive_pedal.force_curve_config.f_rel_points[0] = 0;
@@ -61,7 +61,7 @@ void ConfigManager::set_function_config_defaults(void) {
     _function_config.specific.automotive_pedal.damper_config.positive_factor = 0.1f;
     _function_config.specific.automotive_pedal.damper_config.negative_factor = 0.1f;
     _function_config.specific.automotive_pedal.pos_idle = 10;
-    _function_config.specific.automotive_pedal.pos_end = 80;
+    _function_config.specific.automotive_pedal.pos_end = 50;
     _function_config.specific.automotive_pedal.output_mode = OutputMode_OUTPUT_MODE_FORCE;
 }
 
