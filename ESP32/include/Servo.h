@@ -38,6 +38,7 @@ class Servo {
             }
         }
         void pause(uint32_t pause_time) {
+            pause();
             ti_pause_end = esp_timer_get_time() + (pause_time * 1000);
         }
         void resume(void) {
