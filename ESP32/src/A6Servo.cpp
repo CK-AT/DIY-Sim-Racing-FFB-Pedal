@@ -177,12 +177,12 @@ void A6Servo::lock_onto_curr_pos(void) {
     write_trq_limit(_trq_open_loop);
     set_speed(150.0);
     LogOutput::printf("Locking onto last commanded position...");
-    uint8_t max_tries = 100;
+    uint16_t max_tries = 10000;
     bool is_locked = false;
     while (!is_locked && max_tries) {
         // FastNonAccelStepper does a maximum of 32767 steps at once for now
         move_to(get_target_pos(), true);
-        is_locked = abs(get_target_pos() - _stepper_engine->getCurrentPosition()) < 10;
+        is_locked = abs(get_target_pos() - read_position()) < 10;
         max_tries--;
         delay(2);
     }
