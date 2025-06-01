@@ -54,7 +54,7 @@ void LoadCell_ADS1256::setLoadcellRating(uint8_t loadcellRating_u8) const {
 
     float updatedConversionFactor_f64 = 1;
     if (LOADCELL_WEIGHT_RATING_KG > 0) {
-        updatedConversionFactor_f64 = 2 * ((float)loadcellRating_u8) * (CONVERSION_FACTOR / LOADCELL_WEIGHT_RATING_KG);
+        updatedConversionFactor_f64 = ((float)loadcellRating_u8) * (CONVERSION_FACTOR / LOADCELL_WEIGHT_RATING_KG);
     }
     LogOutput::printf("OrigConversionFactor: %f, NewConversionFactor: %f", originalConversionFactor_f64, updatedConversionFactor_f64);
 
