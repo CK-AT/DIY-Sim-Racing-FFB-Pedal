@@ -2,6 +2,10 @@
 #include <LogOutput.h>
 
 void A6Servo::periodic_task_func(void) {
+    if (ti_pause_end && (esp_timer_get_time() > ti_pause_end)) {
+        ti_pause_end = 0;
+        resume();
+    }
     if (_homing_state == HomingState::Pending && _state == State::Enabled) {
         do_homing();
     } else if (!_locking_blocked && _homing_state == HomingState::Homed && _state == State::Enabled) {
@@ -72,11 +76,11 @@ bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome) {
     int32_t min_pos = read_min_pos();
     if (min_pos == 0) {
         _pos_max = read_max_pos();
-        LogOutput::printf("Negative endstop @ %i, positive endstop @ %i, homed already.\n", min_pos, _pos_max);
+        LogOutput::printf("Negative endstop @ %i, positive endstop @ %i, homed already.", min_pos, _pos_max);
         _stepper_engine->setCurrentPosition(read_position());
         _homing_state = HomingState::Homed;
     } else {
-        LogOutput::printf("Negative endstop @ %i, not homed.\n", min_pos);
+        LogOutput::printf("Negative endstop @ %i, not homed.", min_pos);
         if (autohome) {
             _homing_state = HomingState::Pending;
         }
@@ -123,7 +127,7 @@ void A6Servo::do_homing(void) {
     write_hold_register<uint16_t>(0x1000, 0);        // homing off
     delay(100);
     write_hold_register<uint16_t>(0x1000, 1);  // homing on
-    LogOutput::printf("Waiting for negative endstop...\n");
+    LogOutput::printf("Waiting for negative endstop...");
     int num_zero_spd = 0;
     float speed;
     while (num_zero_spd < 20) {
@@ -135,13 +139,13 @@ void A6Servo::do_homing(void) {
             num_zero_spd = 0;
         }
     }
-    LogOutput::printf("Negative endstop found, moving to positive endstop...\n");
+    LogOutput::printf("Negative endstop found, moving to positive endstop...");
     _stepper_engine->keepRunningForward((_steps_per_mm * _mm_per_rev) / 0.6);
     num_zero_spd = 0;
     while (num_zero_spd < 5) {
         delay(100);
         speed = get_speed();
-        LogOutput::printf("%.3f mm @ %.0f rpm\n", float(read_position()) / float(_steps_per_mm), speed);
+        LogOutput::printf("%.3f mm @ %.0f rpm", float(read_position()) / float(_steps_per_mm), speed);
         if (abs(speed) < 2) {
             num_zero_spd++;
         } else {
@@ -151,7 +155,7 @@ void A6Servo::do_homing(void) {
     _stepper_engine->forceStop();
     int32_t pos_endstop = read_position();
     if ((float(pos_endstop) / float(_steps_per_mm)) > 20.0) {
-        LogOutput::printf("Positive endstop found @ %.3f mm\n", float(pos_endstop) / float(_steps_per_mm));
+        LogOutput::printf("Positive endstop found @ %.3f mm", float(pos_endstop) / float(_steps_per_mm));
         _pos_max = pos_endstop - 2500;
         _stepper_engine->moveTo(_pos_max, true);
         write_min_pos(0);
@@ -159,9 +163,9 @@ void A6Servo::do_homing(void) {
         write_hold_register<uint16_t>(0x1000, 0);  // reset homing command
         _homing_state = HomingState::Homed;
         _state = State::Enabled;
-        LogOutput::printf("Homing done.\n");
+        LogOutput::printf("Homing done.");
     } else {
-        LogOutput::printf("Homing failed, sled did not move far enough from negative endstop (only %.3f mm).\n",
+        LogOutput::printf("Homing failed, sled did not move far enough from negative endstop (only %.3f mm).",
                           float(pos_endstop) / float(_steps_per_mm));
         _homing_state = HomingState::HomeUnknown;
         _state = State::Enabled;
@@ -172,7 +176,7 @@ void A6Servo::do_homing(void) {
 void A6Servo::lock_onto_curr_pos(void) {
     write_trq_limit(_trq_open_loop);
     set_speed(150.0);
-    LogOutput::printf("Locking onto last commanded position...\n");
+    LogOutput::printf("Locking onto last commanded position...");
     uint8_t max_tries = 100;
     bool is_locked = false;
     while (!is_locked && max_tries) {
@@ -183,13 +187,13 @@ void A6Servo::lock_onto_curr_pos(void) {
         delay(2);
     }
     if (is_locked) {
-        LogOutput::printf("Locked in.\n");
+        LogOutput::printf("Locked in.");
         write_hold_register<uint32_t>(0x0600, 30000);  // tighten excessive local position deviation threshold
         set_speed(6000.0);
         write_trq_limit(_trq_locked_in);
         _homing_state = HomingState::LockedIn;
     } else {
-        LogOutput::printf("Failed to lock in, commanded position probably out of bounds.\n");
+        LogOutput::printf("Failed to lock in, commanded position probably out of bounds.");
         _homing_state = HomingState::LockingError;
     }
 }

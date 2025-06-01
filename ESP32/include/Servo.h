@@ -37,6 +37,9 @@ class Servo {
                 _homing_state = HomingState::LockingBlocked;
             }
         }
+        void pause(uint32_t pause_time) {
+            ti_pause_end = esp_timer_get_time() + (pause_time * 1000);
+        }
         void resume(void) {
             if (!_locking_blocked) return;
             _locking_blocked = false;
@@ -54,4 +57,5 @@ class Servo {
         bool _locking_blocked = false;
         State _state = State::Disabled;
         HomingState _homing_state = HomingState::HomeUnknown;
+        int64_t ti_pause_end = 0;
 };
