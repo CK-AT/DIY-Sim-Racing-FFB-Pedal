@@ -80,8 +80,22 @@ void ConfigManager::load_configs(void) {
     if (load_axis_config() == false) {
         set_axis_config_defaults();
         LogOutput::printf(" -> setting defaults");
+        if (_axis_id == AxisID_AXIS_UNDEFINED) {
+            LogOutput::printf("WARNING: This axis has no ID yet. Upload a valid axis config via USB serial to fix this.", _axis_config.axis_id, _axis_id);
+        }
     } else {
-        LogOutput::printf(" -> success");
+        if (_axis_config.axis_id == _axis_id) {
+            LogOutput::printf(" -> success");
+        } else {
+            if (_axis_id == AxisID_AXIS_UNDEFINED) {
+                update_axis_id(_axis_config.axis_id);
+                LogOutput::printf(" -> success (this is axis %d)", _axis_id);
+            } else {
+                LogOutput::printf(" -> success");
+                LogOutput::printf("WARNING: This axis' stored config references axis %d (this is axis %d).", _axis_config.axis_id, _axis_id);
+                _axis_config.axis_id = _axis_id;
+            }
+        }
     }
     LogOutput::printf("ConfigManager: trying to load function config from EEPROM...");
     if (load_function_config() == false) {
@@ -109,7 +123,7 @@ bool ConfigManager::load_axis_config(void) {
             }
         }
     } else {
-        LogOutput::printf(" -> invalid header");
+        LogOutput::printf(" -> invalid EEPROM header");
     }
     return false;
 }
@@ -129,7 +143,7 @@ bool ConfigManager::load_function_config(void) {
             }
         }
     } else {
-        LogOutput::printf(" -> invalid header");
+        LogOutput::printf(" -> invalid EEPROM header");
     }
     return false;
 }

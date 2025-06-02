@@ -77,6 +77,9 @@ class ConfigManager {
         void set_axis_config_defaults(void);
         bool load_function_config(void);
         void set_function_config_defaults(void);
+        void update_axis_id(AxisID new_axis_id) {
+            _axis_id = new_axis_id;
+        }
         AxisID _axis_id;
         AxisConfig _axis_config;
         FunctionConfig _function_config;

@@ -350,9 +350,11 @@ void setup() {
     pinMode(CFG4, INPUT_PULLUP);
     own_axis_index |= (~digitalRead(CFG4) << 3) & 0x08;
     #endif
+    config_manager.init(AxisID(own_axis_index + 1), on_config_update);
+#else
+    config_manager.init(AxisID_AXIS_UNDEFINED, on_config_update);
 #endif
 
-    config_manager.init(AxisID(own_axis_index + 1), on_config_update);
 
     // init controller
     LogOutput::printf("**************************************************************************************************************");
@@ -362,9 +364,9 @@ void setup() {
 
 #ifdef PEDAL_ASSIGNMENT
     if (own_axis_index < MAX_AXES) {
-        LogOutput::printf("Identified as axis %d", config_manager.get_axis_id());
+        LogOutput::printf("Identified as axis %d", own_axis_index + 1);
     } else {
-        LogOutput::printf("Assignment error, axis id = %d (max. 8)", config_manager.get_axis_id());
+        LogOutput::printf("Assignment error, axis id = %d (max. %d)", own_axis_index + 1, MAX_AXES);
     }
 #endif
 
