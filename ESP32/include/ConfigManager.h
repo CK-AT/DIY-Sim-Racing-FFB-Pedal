@@ -23,29 +23,13 @@ class ConfigManager {
             return _axis_id;
         }
         float get_x_contact_point_min(void) {
-            switch (_function_config.which_specific) {
-                case FunctionConfig_automotive_pedal_tag:
-                    return float(_function_config.specific.automotive_pedal.pos_idle);
-                case FunctionConfig_flight_pedal_tag:
-                    return float(_function_config.specific.flight_pedal.pos_near_lim);
-                default:
-                    return -1.0f;
-            }
+            return _x_contact_point_min;
         }
         float get_x_contact_point_max(void) {
-            switch (_function_config.which_specific) {
-                case FunctionConfig_automotive_pedal_tag:
-                    return float(_function_config.specific.automotive_pedal.pos_end);
-                case FunctionConfig_flight_pedal_tag:
-                    return float(_function_config.specific.flight_pedal.pos_far_lim);
-                default:
-                    return 1.0f;
-            }
+            return _x_contact_point_max;
         }
         float get_x_contact_point_center(void) {
-            float x_min = get_x_contact_point_min();
-            float x_max = get_x_contact_point_max();
-            return x_min + ((x_max - x_min) / 2.0f);
+            return _x_contact_point_center;
         }
         const FunctionConfig *get_function_config(void) {
             return &_function_config;
@@ -80,10 +64,31 @@ class ConfigManager {
         void update_axis_id(AxisID new_axis_id) {
             _axis_id = new_axis_id;
         }
+        void calc_x_contact_point_limits(void) {
+            switch (_function_config.which_specific) {
+                case FunctionConfig_automotive_pedal_tag:
+                    _x_contact_point_min = float(_function_config.specific.automotive_pedal.pos_idle);
+                    _x_contact_point_max = float(_function_config.specific.automotive_pedal.pos_end);
+                    break;
+                case FunctionConfig_flight_pedal_tag:
+                    _x_contact_point_min = float(_function_config.specific.flight_pedal.pos_near_lim);
+                    _x_contact_point_max = float(_function_config.specific.flight_pedal.pos_far_lim);
+                    break;
+                default:
+                    _x_contact_point_min = -1.0f;
+                    _x_contact_point_max = 1.0f;
+                    break;
+            }
+            _x_contact_point_center = _x_contact_point_min + ((_x_contact_point_max - _x_contact_point_min) / 2.0f);
+        }
+        void on_config_update(void);
         AxisID _axis_id;
         AxisConfig _axis_config;
         FunctionConfig _function_config;
         FFBData _temp_ffb_data;
         SemaphoreHandle_t _sem_cfg_update = xSemaphoreCreateMutex();
-        OnConfigUpdate _on_config_update;
+        OnConfigUpdate _on_config_update_callback;
+        float _x_contact_point_min = 0.0f;
+        float _x_contact_point_max = 0.0f; 
+        float _x_contact_point_center = 0.0f;  
 };

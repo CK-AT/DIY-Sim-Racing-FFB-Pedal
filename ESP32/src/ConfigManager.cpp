@@ -67,7 +67,7 @@ void ConfigManager::set_function_config_defaults(void) {
 
 void ConfigManager::init(AxisID axis_id, OnConfigUpdate config_update_callback) {
     _axis_id = axis_id;
-    _on_config_update = config_update_callback;
+    _on_config_update_callback = config_update_callback;
     _sem_cfg_update = xSemaphoreCreateMutex();
     if (!_sem_cfg_update) {
         LogOutput::printf("ConfigManager: failed to create config update semaphore!");
@@ -105,7 +105,7 @@ void ConfigManager::load_configs(void) {
         LogOutput::printf(" -> success");
     }
     LogOutput::printf("ConfigManager: init done");
-    _on_config_update();
+    on_config_update();
 }
 
 bool ConfigManager::load_axis_config(void) {
@@ -152,7 +152,7 @@ void ConfigManager::update_axis_config(AxisConfig &new_config, const uint8_t *pr
     LogOutput::printf("ConfigManager: trying to update axis config...");
     if (try_take_config_semaphore()) {
         _axis_config = new_config;
-        _on_config_update();
+        on_config_update();
         if (_axis_config.store) {
             LogOutput::printf(" -> storing to EEPROM...");
             EEPROMHeader header;
@@ -174,7 +174,7 @@ void ConfigManager::update_function_config(FunctionConfig &new_config, const uin
     LogOutput::printf("ConfigManager: trying to update function config...");
     if (try_take_config_semaphore()) {
         _function_config = new_config;
-        _on_config_update();
+        on_config_update();
         if (_function_config.base.store) {
             LogOutput::printf(" -> storing to EEPROM...");
             EEPROMHeader header;
@@ -200,4 +200,9 @@ void ConfigManager::get_axis_config(FFBData &message) {
 void ConfigManager::get_function_config(FFBData &message) {
     message.which_payload = FFBData_function_config_tag;
     message.payload.function_config = _function_config;
+}
+
+void ConfigManager::on_config_update(void) {
+    calc_x_contact_point_limits();
+    _on_config_update_callback();
 }
