@@ -5,6 +5,9 @@
 
 #include <ESP32-TWAI-CAN.hpp>
 
+#include "IAxisCommChannel.h"
+#include "IGatewayCommChannel.h"
+
 #define ISOTP_BUFFER_SIZE 512
 
 class CANManager {
@@ -88,18 +91,30 @@ class CANManager {
         BusState bus_state = BusState::PRE_ONLINE;
 };
 
-class AxisCANManager : public CANManager {
+class AxisCANManager : public CANManager, public IAxisCommChannel {
         typedef std::function<void(uint8_t *data, uint32_t len)> OnGatewayPayload;
         typedef std::function<void(FFBAction &action)> OnFFBAction;
 
     public:
         AxisCANManager(void) {};
         void setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update);
-        void process(void);
-        void broadcast_position_limits(uint32_t now);
-        void send_force_and_position(float &f_foot, float &x_foot);
-        bool send_payload_to_gateway(const uint8_t *data, uint32_t len);
-        void send_position_limits(float x_foot_min, float x_foot_max);
+        void process(void) override;
+        void broadcast_position_limits(uint32_t now) override;
+        void send_force_and_position(float &f_foot, float &x_foot) override;
+        bool send_payload_to_gateway(const uint8_t *data, uint32_t len) override;
+        void send_position_limits(float x_foot_min, float x_foot_max) override;
+        bool get_force(AxisID axis_id, float &f_foot) override {
+            return CANManager::get_force(axis_id, f_foot);
+        }
+        bool get_position(AxisID axis_id, float &x_foot) override {
+            return CANManager::get_position(axis_id, x_foot);
+        }
+        bool get_position_limits(AxisID axis_id, float &x_foot_min, float &x_foot_max) override {
+            return CANManager::get_position_limits(axis_id, x_foot_min, x_foot_max);
+        }
+        bool is_online(AxisID axis_id) override {
+            return CANManager::is_online(axis_id);
+        }
 
     private:
         bool try_process_isotp_can_frame(CanFrame &rx_frame);
@@ -111,13 +126,25 @@ class AxisCANManager : public CANManager {
         OnFFBAction on_ffb_action = nullptr;
 };
 
-class GatewayCANManager : public CANManager {
+class GatewayCANManager : public CANManager, public IGatewayCommChannel {
         typedef std::function<void(AxisID axis_id, uint8_t *data, uint32_t len)> OnAxisPayload;
 
     public:
         GatewayCANManager(void) {};
         void setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnAxisPayload cb);
-        void send_ffb_data_to_axis(AxisID axis_id, FFBData &ffb_data, const uint8_t *raw_data, uint32_t len_raw_data);
+        void send_ffb_data_to_axis(AxisID axis_id, FFBData &ffb_data, const uint8_t *raw_data, uint32_t len_raw_data) override;
+        bool get_force(AxisID axis_id, float &f_foot) override {
+            return CANManager::get_force(axis_id, f_foot);
+        }
+        bool get_position(AxisID axis_id, float &x_foot) override {
+            return CANManager::get_position(axis_id, x_foot);
+        }
+        bool get_position_limits(AxisID axis_id, float &x_foot_min, float &x_foot_max) override {
+            return CANManager::get_position_limits(axis_id, x_foot_min, x_foot_max);
+        }
+        bool is_online(AxisID axis_id) override {
+            return CANManager::is_online(axis_id);
+        }
 
     private:
         void process(void);
