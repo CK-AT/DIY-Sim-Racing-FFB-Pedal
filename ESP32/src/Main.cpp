@@ -350,7 +350,7 @@ void setup() {
     pinMode(CFG4, INPUT_PULLUP);
     own_axis_index |= (~digitalRead(CFG4) << 3) & 0x08;
     #endif
-    config_manager.init(AxisID(own_axis_index + 1), on_config_update);
+    config_manager.init(FFBDataTools::axis_id_from_index(own_axis_index), on_config_update);
 #else
     config_manager.init(AxisID_AXIS_UNDEFINED, on_config_update);
 #endif
@@ -363,10 +363,10 @@ void setup() {
     // printout the github releasing version
 
 #ifdef PEDAL_ASSIGNMENT
-    if (own_axis_index < MAX_AXES) {
+    if (own_axis_index < FFBDataTools::MAX_AXES_COUNT) {
         LogOutput::printf("Identified as axis %d", own_axis_index + 1);
     } else {
-        LogOutput::printf("Assignment error, axis id = %d (max. %d)", own_axis_index + 1, MAX_AXES);
+        LogOutput::printf("Assignment error, axis id = %d (max. %d)", own_axis_index + 1, FFBDataTools::MAX_AXES_COUNT);
     }
 #endif
 
@@ -420,7 +420,7 @@ void setup() {
 //     }
 
 // #ifdef PEDAL_ASSIGNMENT
-//     if (own_axis_id < MAX_AXES) {
+//     if (own_axis_id < FFBDataTools::MAX_AXES_COUNT) {
 //         dap_config_st.payLoadPedalConfig_.pedal_type = own_axis_id;
 //     }
 // #endif
@@ -1157,7 +1157,7 @@ void on_axis_action(AxisAction &axis_action, CommChannel comm_channel) {
 
 void send_log_msg(const char *buff) {
     FFBData log_msg = FFBData_init_zero;
-    log_msg.payload.log_message.axis_id = AxisID(config_manager.get_axis_id());
+    log_msg.payload.log_message.axis_id = config_manager.get_axis_id();
     log_msg.which_payload = FFBData_log_message_tag;
     strncpy(log_msg.payload.log_message.msg, buff, sizeof(log_msg.payload.log_message.msg) - 1);
     send_ffb_data_msg(log_msg, CommChannel::USB_SERIAL); // TODO: dispatch to appropriate comm channel

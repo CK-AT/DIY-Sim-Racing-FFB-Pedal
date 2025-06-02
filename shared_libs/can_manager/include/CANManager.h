@@ -5,7 +5,6 @@
 
 #include <ESP32-TWAI-CAN.hpp>
 
-#define MAX_AXES 8
 #define ISOTP_BUFFER_SIZE 512
 
 class CANManager {
@@ -80,18 +79,7 @@ class CANManager {
         void switch_bus_state(BusState new_state) {
             switch_bus_state(micros(), new_state);
         }
-        AxisID axis_id_from_index(uint8_t axis_index) {
-            return AxisID(axis_index + 1);
-        }
-        uint8_t axis_index_from_id(AxisID axis_id) {
-            return uint8_t(axis_id - 1);
-        }
-        bool check_axis_id(AxisID axis_id) {
-            if (axis_id == AxisID_AXIS_UNDEFINED) return false;
-            if (axis_index_from_id(axis_id) < MAX_AXES) return true;
-            return false;
-        }
-        AxisState axis_states[MAX_AXES] = {};
+        AxisState axis_states[FFBDataTools::MAX_AXES_COUNT] = {};
         uint8_t isotp_rx_buff[ISOTP_BUFFER_SIZE];
         uint32_t isotp_rx_size;
         uint32_t tx_err_cnt = 0;
@@ -129,12 +117,13 @@ class GatewayCANManager : public CANManager {
     public:
         GatewayCANManager(void) {};
         void setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnAxisPayload cb);
-        bool send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len);
-        void send_abs_trigger_to_axis(AxisID axis_id);
+        void send_ffb_data_to_axis(AxisID axis_id, FFBData &ffb_data, const uint8_t *raw_data, uint32_t len_raw_data);
 
     private:
         void process(void);
         bool try_process_isotp_can_frame(CanFrame &rx_frame);
-        IsotpState isotp_state[MAX_AXES];
+        bool send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len);
+        void send_abs_trigger_to_axis(AxisID axis_id);
+        IsotpState isotp_state[FFBDataTools::MAX_AXES_COUNT];
         OnAxisPayload on_axis_payload = nullptr;
 };
