@@ -284,6 +284,7 @@ void on_config_update(void) {
     if (stepper) stepper->pause(1000);
     sim.set_x_min(config_manager.get_x_contact_point_min(), true);
     sim.set_x_max(config_manager.get_x_contact_point_max(), true);
+    can_manager.send_position_limits(sim.get_x_min(), sim.get_x_max());
     const FunctionConfig *function_cfg = config_manager.get_function_config();
     switch (function_cfg->which_specific) {
         case FunctionConfig_automotive_pedal_tag:
@@ -371,6 +372,11 @@ void setup() {
 #endif
 
     config_manager.load_configs();
+
+#ifdef HAS_CAN
+    can_manager.setup(config_manager.get_axis_id(), 1000, CAN_TX, CAN_RX, [](const uint8_t *buffer, size_t size) { on_packet_received(buffer, size, CommChannel::ISOTP); }, on_ffb_action);
+    can_manager.send_position_limits(sim.get_x_min(), sim.get_x_max());
+#endif
 
 // check whether iSV57 communication can be established
 // and in case, (a) send tuned servo parameters and (b) prepare the servo for signal read
@@ -544,11 +550,6 @@ void setup() {
         MCP_status = true;
         // MCP.begin();
     }
-#endif
-
-#ifdef HAS_CAN
-    can_manager.setup(config_manager.get_axis_id(), 1000, CAN_TX, CAN_RX, [](const uint8_t *buffer, size_t size) { on_packet_received(buffer, size, CommChannel::ISOTP); }, on_ffb_action);
-    can_manager.send_position_limits(sim.get_x_min(), sim.get_x_max());
 #endif
 
 // enable ESP-NOW
