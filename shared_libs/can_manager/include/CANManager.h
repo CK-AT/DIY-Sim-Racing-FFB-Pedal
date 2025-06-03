@@ -99,7 +99,6 @@ class AxisCANManager : public CANManager, public IAxisCommChannel {
         AxisCANManager(void) {};
         void setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update);
         void process(void) override;
-        void broadcast_position_limits(uint32_t now) override;
         void send_force_and_position(float &f_foot, float &x_foot) override;
         bool send_payload_to_gateway(const uint8_t *data, uint32_t len) override;
         void send_position_limits(float x_foot_min, float x_foot_max) override;
@@ -119,11 +118,15 @@ class AxisCANManager : public CANManager, public IAxisCommChannel {
     private:
         bool try_process_isotp_can_frame(CanFrame &rx_frame);
         bool try_process_ffb_update_frame(CanFrame &rx_frame);
+        void broadcast_position_limits(void);
+        void broadcast_position_limits(uint32_t now);
         AxisID own_axis_id = AxisID_AXIS_UNDEFINED;
         int8_t own_axis_index = -1;
         IsotpState isotp_state;
         OnGatewayPayload on_gateway_payload = nullptr;
         OnFFBAction on_ffb_action = nullptr;
+        float _x_foot_min = 0.0f;
+        float _x_foot_max = 0.0f;
 };
 
 class GatewayCANManager : public CANManager, public IGatewayCommChannel {

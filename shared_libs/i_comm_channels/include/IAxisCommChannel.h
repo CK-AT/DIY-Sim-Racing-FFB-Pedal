@@ -9,7 +9,6 @@ class IAxisCommChannel {
 
     public:
         virtual void process(void) = 0;
-        virtual void broadcast_position_limits(uint32_t now) = 0;
         virtual void send_force_and_position(float &f_foot, float &x_foot) = 0;
         virtual bool send_payload_to_gateway(const uint8_t *data, uint32_t len) = 0;
         virtual void send_position_limits(float x_foot_min, float x_foot_max) = 0;

@@ -177,12 +177,16 @@ void AxisCANManager::process(void) {
     }
 }
 
-void AxisCANManager::broadcast_position_limits(uint32_t now) {
+void AxisCANManager::broadcast_position_limits(void) {
     if (own_axis_index < 0) return;
+    if (_x_foot_min < _x_foot_max) {
+        send_position_limits(_x_foot_min, _x_foot_max);
+    }
+}
+
+void AxisCANManager::broadcast_position_limits(uint32_t now) {
     if ((now - axis_states[own_axis_index].ti_last_limit_update) > 2000000) {
-        if (axis_states[own_axis_index].limits_valid) {
-            send_position_limits(axis_states[own_axis_index].position_limits.x_foot_min, axis_states[own_axis_index].position_limits.x_foot_max);
-        }
+        broadcast_position_limits();
     }
 }
 
@@ -197,6 +201,7 @@ void AxisCANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, in
         isotp_init_link(&(isotp_state.link), 0x710 + own_axis_index, isotp_state.isotp_link_tx_buff, ISOTP_BUFFER_SIZE,
                         isotp_state.isotp_link_rx_buff, ISOTP_BUFFER_SIZE);
         switch_bus_state(BusState::ONLINE);
+        broadcast_position_limits();
         LogOutput::printf("CANManager: Init done\n");
     }
 }
@@ -218,6 +223,8 @@ void AxisCANManager::send_force_and_position(float &f_foot, float &x_foot) {
 }
 
 void AxisCANManager::send_position_limits(float x_foot_min, float x_foot_max) {
+    _x_foot_min = x_foot_min;
+    _x_foot_max = x_foot_max;
     if (own_axis_index >= 0) {
         axis_states[own_axis_index].position_limits.x_foot_min = x_foot_min;
         axis_states[own_axis_index].position_limits.x_foot_max = x_foot_max;
