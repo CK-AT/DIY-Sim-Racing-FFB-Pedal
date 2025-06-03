@@ -15,7 +15,9 @@ namespace ProtbufTest
 
         public bool WriteMessage(IMessage msg)
         {
-            var ms = new MemoryStream(msg.CalculateSize());
+            var size = msg.CalculateSize();
+            if (size == 0) return false;
+            var ms = new MemoryStream(size);
             msg.WriteTo(ms);
             return WriteFrame(ms.ToArray());
         }
