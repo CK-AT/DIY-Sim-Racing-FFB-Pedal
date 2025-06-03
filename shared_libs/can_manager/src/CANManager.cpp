@@ -27,8 +27,8 @@ extern "C" void isotp_user_debug(const char *message, ...) {
 /* CANManager */
 /*****************************************************************************************************************/
 bool CANManager::get_force(AxisID axis_id, float &f_foot) {
-    if (!FFBDataTools::check_axis_id(axis_id)) return false;
-    uint8_t axis_idx = FFBDataTools::axis_index_from_id(axis_id);
+    if (!MessageTools::check_axis_id(axis_id)) return false;
+    uint8_t axis_idx = MessageTools::axis_index_from_id(axis_id);
     if (axis_states[axis_idx].online) {
         f_foot = axis_states[axis_idx].force_and_position.f_foot;
         return true;
@@ -37,8 +37,8 @@ bool CANManager::get_force(AxisID axis_id, float &f_foot) {
 }
 
 bool CANManager::get_position(AxisID axis_id, float &x_foot) {
-    if (!FFBDataTools::check_axis_id(axis_id)) return false;
-    uint8_t axis_idx = FFBDataTools::axis_index_from_id(axis_id);
+    if (!MessageTools::check_axis_id(axis_id)) return false;
+    uint8_t axis_idx = MessageTools::axis_index_from_id(axis_id);
     if (axis_states[axis_idx].online) {
         x_foot = axis_states[axis_idx].force_and_position.x_foot;
         return true;
@@ -47,8 +47,8 @@ bool CANManager::get_position(AxisID axis_id, float &x_foot) {
 }
 
 bool CANManager::get_position_limits(AxisID axis_id, float &x_foot_min, float &x_foot_max) {
-    if (!FFBDataTools::check_axis_id(axis_id)) return false;
-    uint8_t axis_idx = FFBDataTools::axis_index_from_id(axis_id);
+    if (!MessageTools::check_axis_id(axis_id)) return false;
+    uint8_t axis_idx = MessageTools::axis_index_from_id(axis_id);
     if (axis_states[axis_idx].online) {
         x_foot_min = axis_states[axis_idx].position_limits.x_foot_min;
         x_foot_max = axis_states[axis_idx].position_limits.x_foot_max;
@@ -58,8 +58,8 @@ bool CANManager::get_position_limits(AxisID axis_id, float &x_foot_min, float &x
 }
 
 bool CANManager::is_online(AxisID axis_id) {
-    if (!FFBDataTools::check_axis_id(axis_id)) return false;
-    return axis_states[FFBDataTools::axis_index_from_id(axis_id)].online;
+    if (!MessageTools::check_axis_id(axis_id)) return false;
+    return axis_states[MessageTools::axis_index_from_id(axis_id)].online;
 }
 
 bool CANManager::check_bus(uint32_t ti_now) {
@@ -106,7 +106,7 @@ bool CANManager::try_process_high_prio_axis_frame(CanFrame &rx_frame, uint32_t n
         axis_states[axis_idx].online = true;
         switch (frame_type) {
             case AxisFrameTypesHS::FORCE_AND_POSITION:
-                if (axis_idx < FFBDataTools::MAX_AXES_COUNT) {
+                if (axis_idx < MessageTools::MAX_AXES_COUNT) {
                     memcpy(&(axis_states[axis_idx].force_and_position), rx_frame.data, sizeof(ForceAndPosition));
                 }
                 break;
@@ -126,7 +126,7 @@ bool CANManager::try_process_low_prio_axis_frame(CanFrame &rx_frame, uint32_t no
         axis_states[axis_idx].limits_valid = true;
         switch (frame_type) {
             case AxisFrameTypesLS::POSITION_LIMITS:
-                if (axis_idx < FFBDataTools::MAX_AXES_COUNT) {
+                if (axis_idx < MessageTools::MAX_AXES_COUNT) {
                     memcpy(&(axis_states[axis_idx].position_limits), rx_frame.data, sizeof(PositionLimits));
                 }
                 break;
@@ -139,7 +139,7 @@ bool CANManager::try_process_low_prio_axis_frame(CanFrame &rx_frame, uint32_t no
 }
 
 void CANManager::update_timeouts(uint32_t now) {
-    for (int axis_idx = 0; axis_idx < FFBDataTools::MAX_AXES_COUNT; axis_idx++) {
+    for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
         if (axis_states[axis_idx].online && ((now - axis_states[axis_idx].ti_last_seen) > 5000)) {
             axis_states[axis_idx].online = false;
         }
@@ -213,9 +213,9 @@ void AxisCANManager::broadcast_position_limits(uint32_t now) {
 
 void AxisCANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload,
                            OnFFBAction on_ffb_action) {
-    if (FFBDataTools::check_axis_id(axis_id)) {
+    if (MessageTools::check_axis_id(axis_id)) {
         own_axis_id = axis_id;
-        own_axis_index = FFBDataTools::axis_index_from_id(axis_id);
+        own_axis_index = MessageTools::axis_index_from_id(axis_id);
         this->on_gateway_payload = on_gateway_payload;
         this->on_ffb_action = on_ffb_action;
         ESP32Can.begin(ESP32Can.convertSpeed(baud_rate), tx_pin, rx_pin, 40, 40);
@@ -268,7 +268,7 @@ bool AxisCANManager::send_payload_to_gateway(const uint8_t *data, uint32_t len) 
     return isotp_send(&(isotp_state.link), data, len) == ISOTP_RET_OK;
 }
 
-void AxisCANManager::send_ffb_data_to_gateway(const FFBData &ffb_data, const uint8_t *raw_data, uint32_t len_raw_data) {
+void AxisCANManager::send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
     send_payload_to_gateway(raw_data, len_raw_data);
 }
 
@@ -322,7 +322,7 @@ void GatewayCANManager::process(void) {
     if (check_bus(now) == false) {
         return;
     }
-    for (int axis_idx = 0; axis_idx < FFBDataTools::MAX_AXES_COUNT; axis_idx++) {
+    for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
         isotp_poll(&(isotp_state[axis_idx].link));
     }
     while (num_max_frames--) {
@@ -355,13 +355,13 @@ void GatewayCANManager::ping(uint32_t now) {
 bool GatewayCANManager::try_process_isotp_can_frame(CanFrame &rx_frame) {
     if ((rx_frame.identifier & 0xFF0) == 0x710) {
         uint8_t axis_idx = rx_frame.identifier & 0x00F;
-        if (axis_idx < FFBDataTools::MAX_AXES_COUNT) {
+        if (axis_idx < MessageTools::MAX_AXES_COUNT) {
             IsoTpLink *link = &(isotp_state[axis_idx].link);
             isotp_on_can_message(link, rx_frame.data, rx_frame.data_length_code);
             isotp_poll(link);
             if (isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
                 if (on_axis_payload) {
-                    on_axis_payload(FFBDataTools::axis_id_from_index(axis_idx), isotp_rx_buff, isotp_rx_size);
+                    on_axis_payload(MessageTools::axis_id_from_index(axis_idx), isotp_rx_buff, isotp_rx_size);
                 }
             }
         }
@@ -373,7 +373,7 @@ bool GatewayCANManager::try_process_isotp_can_frame(CanFrame &rx_frame) {
 void GatewayCANManager::setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnAxisPayload cb) {
     on_axis_payload = cb;
     ESP32Can.begin(ESP32Can.convertSpeed(baud_rate), tx_pin, rx_pin, 40, 40);
-    for (int i = 0; i < FFBDataTools::MAX_AXES_COUNT; i++) {
+    for (int i = 0; i < MessageTools::MAX_AXES_COUNT; i++) {
         isotp_init_link(&(isotp_state[i].link), 0x700 + i, isotp_state[i].isotp_link_tx_buff, ISOTP_BUFFER_SIZE, isotp_state[i].isotp_link_rx_buff,
                         ISOTP_BUFFER_SIZE);
     }
@@ -383,14 +383,14 @@ void GatewayCANManager::setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, 
 }
 
 bool GatewayCANManager::send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len) {
-    if (!FFBDataTools::check_axis_id(axis_id)) return false;
-    return isotp_send(&(isotp_state[FFBDataTools::axis_index_from_id(axis_id)].link), data, len) == ISOTP_RET_OK;
+    if (!MessageTools::check_axis_id(axis_id)) return false;
+    return isotp_send(&(isotp_state[MessageTools::axis_index_from_id(axis_id)].link), data, len) == ISOTP_RET_OK;
 }
 
 void GatewayCANManager::send_abs_trigger_to_axis(AxisID axis_id) {
-    if (!FFBDataTools::check_axis_id(axis_id)) return;
+    if (!MessageTools::check_axis_id(axis_id)) return;
     CanFrame tx_frame = {};
-    tx_frame.identifier = 0x200 + (FFBFrameTypes::ABS << 4) + FFBDataTools::axis_index_from_id(axis_id);
+    tx_frame.identifier = 0x200 + (FFBFrameTypes::ABS << 4) + MessageTools::axis_index_from_id(axis_id);
     tx_frame.data_length_code = 0;
     if (!ESP32Can.writeFrame(&tx_frame, 0)) {
         if (tx_err_cnt < 0xFFFFFFFF) {
@@ -399,10 +399,10 @@ void GatewayCANManager::send_abs_trigger_to_axis(AxisID axis_id) {
     }
 }
 
-void GatewayCANManager::send_ffb_data_to_axis(AxisID axis_id, const FFBData &ffb_data, const uint8_t *raw_data, uint32_t len_raw_data) {
-    switch (ffb_data.which_payload) {
-        case FFBData_ffb_action_tag:
-            if (ffb_data.payload.ffb_action.trigger_abs) {
+void GatewayCANManager::send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
+    switch (message.which_payload) {
+        case Message_ffb_action_tag:
+            if (message.payload.ffb_action.trigger_abs) {
                 send_abs_trigger_to_axis(axis_id);
             }
             break;

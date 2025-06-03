@@ -343,7 +343,7 @@ message FFBAction {
   bool trigger_cv_2 =8;
 }
 
-message FFBData {
+message Message {
   oneof payload {
     LogMessage log_message = 1;
     AxisConfig axis_config = 2;

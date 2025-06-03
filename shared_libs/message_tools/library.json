@@ -1,5 +1,5 @@
 {
-    "name": "FFBDataTools",
+    "name": "MessageTools",
     "version": "1.0.0",
     "dependencies": [
         "nanopb/Nanopb@^0.4.8",

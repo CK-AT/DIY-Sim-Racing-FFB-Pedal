@@ -172,14 +172,6 @@ static SemaphoreHandle_t semaphore_updatePedalStates = NULL;
 
 /**********************************************************************************************/
 /*                                                                                            */
-/*                         pedal mechanics definitions                                        */
-/*                                                                                            */
-/**********************************************************************************************/
-
-#include "PedalGeometry.h"
-
-/**********************************************************************************************/
-/*                                                                                            */
 /*                         Kalman filter definitions                                          */
 /*                                                                                            */
 /**********************************************************************************************/
@@ -262,7 +254,7 @@ Sim sim = Sim(m, x_min, x_max, v_min, v_max, a_min, a_max);
 // ForceMap force_map2 = ForceMap({0.0, 10.0, 90.0, 100.0}, {-100.0, 0.0, 0.0, 100.0});
 // DampingMap damping_map1 = DampingMap({0.0, 15.0, 85.0, 100.0}, {3.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 3.0});
 
-#include "FFBDataTools.h"
+#include "MessageTools.h"
 #include "PacketSerial.h"
 
 PacketSerial myPacketSerial;
@@ -351,7 +343,7 @@ void setup() {
     pinMode(CFG4, INPUT_PULLUP);
     own_axis_index |= (~digitalRead(CFG4) << 3) & 0x08;
     #endif
-    config_manager.init(FFBDataTools::axis_id_from_index(own_axis_index), on_config_update);
+    config_manager.init(MessageTools::axis_id_from_index(own_axis_index), on_config_update);
 #else
     config_manager.init(AxisID_AXIS_UNDEFINED, on_config_update);
 #endif
@@ -363,10 +355,10 @@ void setup() {
     // printout the github releasing version
 
 #ifdef PEDAL_ASSIGNMENT
-    if (own_axis_index < FFBDataTools::MAX_AXES_COUNT) {
+    if (own_axis_index < MessageTools::MAX_AXES_COUNT) {
         LogOutput::printf("Identified as axis %d", own_axis_index + 1);
     } else {
-        LogOutput::printf("Assignment error, axis id = %d (max. %d)", own_axis_index + 1, FFBDataTools::MAX_AXES_COUNT);
+        LogOutput::printf("Assignment error, axis id = %d (max. %d)", own_axis_index + 1, MessageTools::MAX_AXES_COUNT);
     }
 #endif
 
@@ -427,7 +419,7 @@ void setup() {
     //     }
 
     // #ifdef PEDAL_ASSIGNMENT
-    //     if (own_axis_id < FFBDataTools::MAX_AXES_COUNT) {
+    //     if (own_axis_id < MessageTools::MAX_AXES_COUNT) {
     //         dap_config_st.payLoadPedalConfig_.pedal_type = own_axis_id;
     //     }
     // #endif
@@ -1108,10 +1100,10 @@ void pedalUpdateTask(void *pvParameters) {
     }
 }
 
-bool send_ffb_data_msg(const FFBData &msg, CommChannel comm_channel) {
-    uint8_t tx_buffer[FFBDataTools::MAX_ENCODED_SIZE + 2];
+bool send_message(const Message &msg, CommChannel comm_channel) {
+    uint8_t tx_buffer[MessageTools::MAX_ENCODED_SIZE + 2];
     uint16_t crc;
-    uint16_t num_bytes_encoded = FFBDataTools::encode_ffb_data_and_calc_crc(msg, tx_buffer, FFBDataTools::MAX_ENCODED_SIZE, crc);
+    uint16_t num_bytes_encoded = MessageTools::encode_message_and_calc_crc(msg, tx_buffer, MessageTools::MAX_ENCODED_SIZE, crc);
     if (num_bytes_encoded) {
         memcpy(tx_buffer + num_bytes_encoded, &crc, sizeof(uint16_t));
         switch (comm_channel) {
@@ -1119,7 +1111,7 @@ bool send_ffb_data_msg(const FFBData &msg, CommChannel comm_channel) {
                 myPacketSerial.send(tx_buffer, num_bytes_encoded + sizeof(uint16_t));
                 break;
             case CommChannel::ISOTP:
-                can_manager.send_ffb_data_to_gateway(msg, tx_buffer, num_bytes_encoded + sizeof(uint16_t));
+                can_manager.send_message_to_gateway(msg, tx_buffer, num_bytes_encoded + sizeof(uint16_t));
                 break;
             default:
                 break;
@@ -1136,15 +1128,15 @@ void on_ffb_action(FFBAction &ffb_action) {
 }
 
 void send_axis_config(CommChannel comm_channel) {
-    FFBData msg;
+    Message msg;
     config_manager.get_axis_config(msg);
-    send_ffb_data_msg(msg, comm_channel);
+    send_message(msg, comm_channel);
 }
 
 void send_function_config(CommChannel comm_channel) {
-    FFBData msg;
+    Message msg;
     config_manager.get_function_config(msg);
-    send_ffb_data_msg(msg, comm_channel);
+    send_message(msg, comm_channel);
 }
 
 void on_axis_action(AxisAction &axis_action, CommChannel comm_channel) {
@@ -1166,38 +1158,38 @@ void on_axis_action(AxisAction &axis_action, CommChannel comm_channel) {
 }
 
 void send_log_msg(const char *buff) {
-    FFBData log_msg = FFBData_init_zero;
+    Message log_msg = Message_init_zero;
     log_msg.payload.log_message.axis_id = config_manager.get_axis_id();
-    log_msg.which_payload = FFBData_log_message_tag;
+    log_msg.which_payload = Message_log_message_tag;
     strncpy(log_msg.payload.log_message.msg, buff, sizeof(log_msg.payload.log_message.msg) - 1);
-    send_ffb_data_msg(log_msg, CommChannel::USB_SERIAL);  // TODO: dispatch to appropriate comm channel
+    send_message(log_msg, CommChannel::USB_SERIAL);  // TODO: dispatch to appropriate comm channel
 }
 
-void on_ffb_data_message(FFBData *msg, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg, CommChannel comm_channel) {
+void on_message(Message *msg, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg, CommChannel comm_channel) {
     switch (msg->which_payload) {
-        case FFBData_axis_config_tag:
+        case Message_axis_config_tag:
             config_manager.update_axis_config(msg->payload.axis_config, protobuf_msg, len_protobuf_msg);
             break;
-        case FFBData_function_config_tag:
+        case Message_function_config_tag:
             config_manager.update_function_config(msg->payload.function_config, protobuf_msg, len_protobuf_msg);
             break;
-        case FFBData_ffb_action_tag:
+        case Message_ffb_action_tag:
             on_ffb_action(msg->payload.ffb_action);
             break;
-        case FFBData_axis_action_tag:
+        case Message_axis_action_tag:
             on_axis_action(msg->payload.axis_action, comm_channel);
             break;
         default:
-            LogOutput::printf("Unknown FFBData received");
+            LogOutput::printf("Unknown Message received");
             break;
     }
 }
 
 void on_packet_received(const uint8_t *buffer, size_t size, CommChannel comm_channel) {
-    FFBData msg = FFBData_init_zero;
+    Message msg = Message_init_zero;
     uint16_t crc = *reinterpret_cast<const uint16_t *>(buffer + size - sizeof(uint16_t));
-    if (FFBDataTools::check_and_decode_ffb_data(msg, buffer, size - sizeof(uint16_t), crc)) {
-        on_ffb_data_message(&msg, buffer, size - sizeof(uint16_t), comm_channel);
+    if (MessageTools::check_and_decode_message(msg, buffer, size - sizeof(uint16_t), crc)) {
+        on_message(&msg, buffer, size - sizeof(uint16_t), comm_channel);
     }
     // else if (buffer[0] == '>') {
     //     char *param = strtok((char *)buffer + 1, "=");

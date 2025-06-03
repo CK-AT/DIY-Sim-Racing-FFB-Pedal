@@ -1,6 +1,6 @@
 #pragma once
 #include <Arduino.h>
-#include <FFBDataTools.h>
+#include <MessageTools.h>
 #include <isotp.h>
 
 #include <ESP32-TWAI-CAN.hpp>
@@ -82,7 +82,7 @@ class CANManager {
         void switch_bus_state(BusState new_state) {
             switch_bus_state(micros(), new_state);
         }
-        AxisState axis_states[FFBDataTools::MAX_AXES_COUNT] = {};
+        AxisState axis_states[MessageTools::MAX_AXES_COUNT] = {};
         uint8_t isotp_rx_buff[ISOTP_BUFFER_SIZE];
         uint32_t isotp_rx_size;
         uint32_t tx_err_cnt = 0;
@@ -101,7 +101,7 @@ class AxisCANManager : public CANManager, public IAxisCommChannel {
         void setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update);
         void process(void) override;
         void send_force_and_position(float &f_foot, float &x_foot) override;
-        void send_ffb_data_to_gateway(const FFBData &ffb_data, const uint8_t *raw_data, uint32_t len_raw_data) override;
+        void send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
         void send_position_limits(float x_foot_min, float x_foot_max) override;
         void update_force(float &f_foot) override {
             if (own_axis_index < 0) return;
@@ -148,7 +148,7 @@ class GatewayCANManager : public CANManager, public IGatewayCommChannel {
     public:
         GatewayCANManager(void) {};
         void setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnAxisPayload cb);
-        void send_ffb_data_to_axis(AxisID axis_id, const FFBData &ffb_data, const uint8_t *raw_data, uint32_t len_raw_data) override;
+        void send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
         bool get_force(AxisID axis_id, float &f_foot) override {
             return CANManager::get_force(axis_id, f_foot);
         }
@@ -168,6 +168,6 @@ class GatewayCANManager : public CANManager, public IGatewayCommChannel {
         bool try_process_isotp_can_frame(CanFrame &rx_frame);
         bool send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len);
         void send_abs_trigger_to_axis(AxisID axis_id);
-        IsotpState isotp_state[FFBDataTools::MAX_AXES_COUNT];
+        IsotpState isotp_state[MessageTools::MAX_AXES_COUNT];
         OnAxisPayload on_axis_payload = nullptr;
 };

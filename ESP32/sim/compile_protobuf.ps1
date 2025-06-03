@@ -1,1 +1,1 @@
-protoc --proto_path=../../proto --python_out=. ffb_data_types.proto
+protoc --proto_path=../../proto --python_out=. diy_ffb_protocol.proto

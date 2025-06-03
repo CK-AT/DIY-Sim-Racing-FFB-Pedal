@@ -2,7 +2,7 @@ import asyncio
 import serial_asyncio
 from cobs import cobs
 import modbus_crc
-import ffb_data_types_pb2 as ffb_data
+import diy_ffb_protocol_pb2 as ffb_protocol
 
 class OutputProtocol(asyncio.Protocol):
     def __init__(self):
@@ -30,7 +30,7 @@ class OutputProtocol(asyncio.Protocol):
             decoded = cobs.decode(frame)
             if modbus_crc.check_crc(decoded):
                 try:
-                    msg = ffb_data.FFBData().FromString(decoded[:-2])
+                    msg = ffb_protocol.Message().FromString(decoded[:-2])
                     self.msg_queue.put_nowait(msg)
                 except:
                     print(f'unknown frame received: {decoded[:-2].hex(' ')}')
@@ -62,22 +62,26 @@ class OutputProtocol(asyncio.Protocol):
 
 async def request_configs(protocol):
     await asyncio.sleep(2)
-    # msg = ffb_data.FFBData()
-    # msg.axis_action.return_axis_config = True
-    # protocol.send_message(msg)
-    # msg = ffb_data.FFBData()
-    # msg.axis_action.return_function_config = True
-    # protocol.send_message(msg)
-    msg = ffb_data.FFBData()
-    msg.function_config.base.function = ffb_data.FUNCTION_BRAKE
-    msg.function_config.base.linked_axes.append(ffb_data.AXIS_2)
+    msg = ffb_protocol.Message()
+    msg.axis_action.return_axis_config = True
+    protocol.send_message(msg)
+    msg = ffb_protocol.Message()
+    msg.axis_action.return_function_config = True
+    protocol.send_message(msg)
+    await asyncio.sleep(3)
+    msg = ffb_protocol.Message()
+    msg.function_config.base.function = ffb_protocol.FUNCTION_BRAKE
+    msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_2)
+    msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
+    msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
+    msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
     msg.function_config.base.store = False
-    msg.function_config.base.controller_output_axis = ffb_data.ControllerAxis_CONTROLLER_AXIS_BRK
-    msg.function_config.base.output_mode = ffb_data.OutputMode_OUTPUT_MODE_FORCE
+    msg.function_config.base.controller_output_axis = ffb_protocol.CONTROLLER_AXIS_BRK
+    msg.function_config.base.output_mode = ffb_protocol.OUTPUT_MODE_FORCE
     msg.function_config.base.output_min = 75.0
     msg.function_config.base.output_max = 115.0
     
-    msg.function_config.automotive_pedal.force_curve_config.pos_min = 0
+    msg.function_config.automotive_pedal.force_curve_config.pos_min = 10
     msg.function_config.automotive_pedal.force_curve_config.pos_max = 60
     msg.function_config.automotive_pedal.force_curve_config.f_min = 70.0
     msg.function_config.automotive_pedal.force_curve_config.f_max = 120.0
@@ -87,14 +91,14 @@ async def request_configs(protocol):
     msg.function_config.automotive_pedal.force_curve_config.f_rel_points.append(60)
     msg.function_config.automotive_pedal.force_curve_config.f_rel_points.append(80)
     msg.function_config.automotive_pedal.force_curve_config.f_rel_points.append(100)
-    msg.function_config.automotive_pedal.force_curve_config.force_direction = ffb_data.DIRECTION_SUBTRACT
+    msg.function_config.automotive_pedal.force_curve_config.force_direction = ffb_protocol.DIRECTION_SUBTRACT
     msg.function_config.automotive_pedal.damper_config.positive_factor = 0.1
     msg.function_config.automotive_pedal.damper_config.negative_factor = 0.1
-    msg.function_config.automotive_pedal.pos_idle = 0
+    msg.function_config.automotive_pedal.pos_idle = 10
     msg.function_config.automotive_pedal.pos_end = 60
     protocol.send_message(msg)
     await asyncio.sleep(3)
-    msg = ffb_data.FFBData()
+    msg = ffb_protocol.Message()
     msg.axis_action.return_function_config = True
     protocol.send_message(msg)
 
@@ -107,10 +111,10 @@ async def main():
         if payload_type == 'log_message':
             print(f'Axis {msg.log_message.axis_id} : {msg.log_message.msg.rstrip()}')
             if not msg_sent:
-                msg = ffb_data.FFBData()
+                msg = ffb_protocol.Message()
                 msg.axis_action.return_axis_config = True
                 protocol.send_message(msg)
-                msg = ffb_data.FFBData()
+                msg = ffb_protocol.Message()
                 msg.axis_action.return_function_config = True
                 protocol.send_message(msg)
                 msg_sent = True

@@ -116,9 +116,9 @@ bool ConfigManager::load_axis_config(void) {
     if (header.len < 500) {
         uint8_t buffer[header.len];
         EEPROM.readBytes(EEPROM_OFFSET_AXIS_CONFIG + sizeof(EEPROMHeader), buffer, header.len);
-        if (FFBDataTools::check_and_decode_ffb_data(_temp_ffb_data, buffer, header.len, header.crc)) {
-            if (_temp_ffb_data.which_payload == FFBData_axis_config_tag) {
-                _axis_config = _temp_ffb_data.payload.axis_config;
+        if (MessageTools::check_and_decode_message(_temp_message, buffer, header.len, header.crc)) {
+            if (_temp_message.which_payload == Message_axis_config_tag) {
+                _axis_config = _temp_message.payload.axis_config;
                 return true;
             } else {
                 LogOutput::printf(" -> not an axis config");
@@ -136,9 +136,9 @@ bool ConfigManager::load_function_config(void) {
     if (header.len < 500) {
         uint8_t buffer[header.len];
         EEPROM.readBytes(EEPROM_OFFSET_FUNCTION_CONFIG + sizeof(EEPROMHeader), buffer, header.len);
-        if (FFBDataTools::check_and_decode_ffb_data(_temp_ffb_data, buffer, header.len, header.crc)) {
-            if (_temp_ffb_data.which_payload == FFBData_function_config_tag) {
-                _function_config = _temp_ffb_data.payload.function_config;
+        if (MessageTools::check_and_decode_message(_temp_message, buffer, header.len, header.crc)) {
+            if (_temp_message.which_payload == Message_function_config_tag) {
+                _function_config = _temp_message.payload.function_config;
                 return true;
             } else {
                 LogOutput::printf(" -> not a function config");
@@ -158,7 +158,7 @@ void ConfigManager::update_axis_config(AxisConfig &new_config, const uint8_t *pr
         if (_axis_config.store) {
             LogOutput::printf(" -> storing to EEPROM...");
             EEPROMHeader header;
-            header.crc = FFBDataTools::calc_crc(protobuf_msg, len_protobuf_msg);
+            header.crc = MessageTools::calc_crc(protobuf_msg, len_protobuf_msg);
             header.len = len_protobuf_msg;
             EEPROM.put(EEPROM_OFFSET_AXIS_CONFIG, header);
             EEPROM.writeBytes(EEPROM_OFFSET_AXIS_CONFIG + sizeof(EEPROMHeader), protobuf_msg, len_protobuf_msg);
@@ -180,7 +180,7 @@ void ConfigManager::update_function_config(FunctionConfig &new_config, const uin
         if (_function_config.base.store) {
             LogOutput::printf(" -> storing to EEPROM...");
             EEPROMHeader header;
-            header.crc = FFBDataTools::calc_crc(protobuf_msg, len_protobuf_msg);
+            header.crc = MessageTools::calc_crc(protobuf_msg, len_protobuf_msg);
             header.len = len_protobuf_msg;
             EEPROM.put(EEPROM_OFFSET_FUNCTION_CONFIG, header);
             EEPROM.writeBytes(EEPROM_OFFSET_FUNCTION_CONFIG + sizeof(EEPROMHeader), protobuf_msg, len_protobuf_msg);
@@ -194,13 +194,13 @@ void ConfigManager::update_function_config(FunctionConfig &new_config, const uin
     }
 }
 
-void ConfigManager::get_axis_config(FFBData &message) {
-    message.which_payload = FFBData_axis_config_tag;
+void ConfigManager::get_axis_config(Message &message) {
+    message.which_payload = Message_axis_config_tag;
     message.payload.axis_config = _axis_config;
 }
 
-void ConfigManager::get_function_config(FFBData &message) {
-    message.which_payload = FFBData_function_config_tag;
+void ConfigManager::get_function_config(Message &message) {
+    message.which_payload = Message_function_config_tag;
     message.payload.function_config = _function_config;
 }
 

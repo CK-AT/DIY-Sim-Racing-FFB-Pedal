@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-#include "FFBDataTools.h"
+#include "MessageTools.h"
 
 class ConfigManager {
     private:
@@ -17,8 +17,8 @@ class ConfigManager {
         void load_configs(void);
         void update_axis_config(AxisConfig &new_config, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg);
         void update_function_config(FunctionConfig &new_config, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg);
-        void get_axis_config(FFBData &message);
-        void get_function_config(FFBData &message);
+        void get_axis_config(Message &message);
+        void get_function_config(Message &message);
         AxisID get_axis_id(void) {
             return _axis_id;
         }
@@ -85,7 +85,7 @@ class ConfigManager {
         AxisID _axis_id;
         AxisConfig _axis_config;
         FunctionConfig _function_config;
-        FFBData _temp_ffb_data;
+        Message _temp_message;
         SemaphoreHandle_t _sem_cfg_update = xSemaphoreCreateMutex();
         OnConfigUpdate _on_config_update_callback;
         float _x_contact_point_min = 0.0f;

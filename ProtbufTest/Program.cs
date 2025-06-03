@@ -16,7 +16,7 @@ int num_send_errors = 0;
 int num_mutation_errors = 0;
 int num_inner_loops = 100;
 int num_outer_loops = 10;
-FFBData test = new FFBData();
+Message test = new Message();
 FFBAction action = new FFBAction();
 action.TriggerAbs = true;
 //test.FfbAction = action;
@@ -46,10 +46,10 @@ while (true)
     {
         serial.WriteMessage(test);
     }
-    FFBData rx_msg = await serial.ReceiveMessage<FFBData>();
+    Message rx_msg = await serial.ReceiveMessage<Message>();
     if (rx_msg != null)
     {
-        if (rx_msg.PayloadCase == FFBData.PayloadOneofCase.LogMessage)
+        if (rx_msg.PayloadCase == Message.PayloadOneofCase.LogMessage)
         {
             Console.WriteLine("{0} : {1}", rx_msg.LogMessage.AxisId, rx_msg.LogMessage.Msg.TrimEnd());
         }
@@ -70,7 +70,7 @@ for (int outer_loop = 0; outer_loop < num_outer_loops;  outer_loop++)
         //serial.WriteRawData(encodedData);
         if (serial.WriteMessage(test))
         {
-            FFBData rx_msg = await serial.ReceiveMessage<FFBData>();
+            Message rx_msg = await serial.ReceiveMessage<Message>();
             if (rx_msg != null)
             {
                 //test.ClearPayload();

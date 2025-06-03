@@ -1,4 +1,3 @@
-LogMessage.axis_id                          int_size:IS_8
 LogMessage.msg                              max_length:140
 
 DIYPedalKinematicConfig.l_*                 int_size:IS_16

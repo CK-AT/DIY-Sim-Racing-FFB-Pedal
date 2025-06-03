@@ -25,4 +25,4 @@ SimHubPlugin/obj
 ProtbufTest/FfbDataTypes.cs
 ProtbufTest/bin
 ProtbufTest/obj
-ESP32/sim/ffb_data_types_pb2.py
+ESP32/sim/diy_ffb_protocol_pb2.py

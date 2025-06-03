@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="protoc -I../proto --csharp_out=. ../proto/ffb_data_types.proto" />
+    <Exec Command="protoc -I../proto --csharp_out=. ../proto/diy_ffb_protocol.proto" />
   </Target>
 
 </Project>
