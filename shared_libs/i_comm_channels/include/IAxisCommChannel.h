@@ -10,7 +10,7 @@ class IAxisCommChannel {
     public:
         virtual void process(void) = 0;
         virtual void send_force_and_position(float &f_foot, float &x_foot) = 0;
-        virtual bool send_payload_to_gateway(const uint8_t *data, uint32_t len) = 0;
+        virtual void send_ffb_data_to_gateway(const FFBData &ffb_data, const uint8_t *raw_data, uint32_t len_raw_data) = 0;
         virtual void send_position_limits(float x_foot_min, float x_foot_max) = 0;
         virtual bool get_force(AxisID axis_id, float &f_foot) = 0;
         virtual void update_force(float &x_foot) = 0;

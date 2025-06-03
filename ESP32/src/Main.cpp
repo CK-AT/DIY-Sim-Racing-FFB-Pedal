@@ -1119,7 +1119,7 @@ bool send_ffb_data_msg(const FFBData &msg, CommChannel comm_channel) {
                 myPacketSerial.send(tx_buffer, num_bytes_encoded + sizeof(uint16_t));
                 break;
             case CommChannel::ISOTP:
-                can_manager.send_payload_to_gateway(tx_buffer, num_bytes_encoded + sizeof(uint16_t));
+                can_manager.send_ffb_data_to_gateway(msg, tx_buffer, num_bytes_encoded + sizeof(uint16_t));
                 break;
             default:
                 break;

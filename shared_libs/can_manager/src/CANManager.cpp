@@ -268,6 +268,11 @@ bool AxisCANManager::send_payload_to_gateway(const uint8_t *data, uint32_t len) 
     return isotp_send(&(isotp_state.link), data, len) == ISOTP_RET_OK;
 }
 
+void AxisCANManager::send_ffb_data_to_gateway(const FFBData &ffb_data, const uint8_t *raw_data, uint32_t len_raw_data) {
+    send_payload_to_gateway(raw_data, len_raw_data);
+}
+
+
 bool AxisCANManager::try_process_isotp_can_frame(CanFrame &rx_frame) {
     if (own_axis_index < 0) return false;
     if (rx_frame.identifier == (0x700 + own_axis_index)) {
@@ -394,7 +399,7 @@ void GatewayCANManager::send_abs_trigger_to_axis(AxisID axis_id) {
     }
 }
 
-void GatewayCANManager::send_ffb_data_to_axis(AxisID axis_id, FFBData &ffb_data, const uint8_t *raw_data, uint32_t len_raw_data) {
+void GatewayCANManager::send_ffb_data_to_axis(AxisID axis_id, const FFBData &ffb_data, const uint8_t *raw_data, uint32_t len_raw_data) {
     switch (ffb_data.which_payload) {
         case FFBData_ffb_action_tag:
             if (ffb_data.payload.ffb_action.trigger_abs) {
