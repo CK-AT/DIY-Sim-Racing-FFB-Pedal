@@ -135,7 +135,7 @@ enum OutputMode {
 enum ForceDirection {
   DIRECTION_UNDEFINED = 0;
   DIRECTION_ADD = 1;
-  DIRECTION_SUBRTACT = 2;
+  DIRECTION_SUBTRACT = 2;
 }
 
 message SplineForceCurveConfig {
@@ -153,7 +153,7 @@ message SplineForceCurveConfig {
   repeated float cubic_spline_params_a = 6;
   // cubic spline "b" parameters
   repeated float cubic_spline_params_b = 7;
-  // force direction (DIRECTION_SUBRTACT for an automotive pedal)
+  // force direction (DIRECTION_SUBTRACT for an automotive pedal)
   ForceDirection force_direction = 8;
 }
 

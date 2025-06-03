@@ -83,7 +83,7 @@ async def request_configs(protocol):
     msg.function_config.automotive_pedal.force_curve_config.f_rel_points.append(60)
     msg.function_config.automotive_pedal.force_curve_config.f_rel_points.append(80)
     msg.function_config.automotive_pedal.force_curve_config.f_rel_points.append(100)
-    msg.function_config.automotive_pedal.force_curve_config.force_direction = ffb_data.DIRECTION_SUBRTACT
+    msg.function_config.automotive_pedal.force_curve_config.force_direction = ffb_data.DIRECTION_SUBTRACT
     msg.function_config.automotive_pedal.damper_config.positive_factor = 0.1
     msg.function_config.automotive_pedal.damper_config.negative_factor = 0.1
     msg.function_config.automotive_pedal.pos_idle = 0

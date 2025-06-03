@@ -56,7 +56,7 @@ void ConfigManager::set_function_config_defaults(void) {
     _function_config.specific.automotive_pedal.force_curve_config.f_rel_points[3] = 60;
     _function_config.specific.automotive_pedal.force_curve_config.f_rel_points[4] = 80;
     _function_config.specific.automotive_pedal.force_curve_config.f_rel_points[5] = 100;
-    _function_config.specific.automotive_pedal.force_curve_config.force_direction = ForceDirection_DIRECTION_SUBRTACT;
+    _function_config.specific.automotive_pedal.force_curve_config.force_direction = ForceDirection_DIRECTION_SUBTRACT;
     _function_config.specific.automotive_pedal.has_damper_config = true;
     _function_config.specific.automotive_pedal.damper_config.positive_factor = 0.1f;
     _function_config.specific.automotive_pedal.damper_config.negative_factor = 0.1f;

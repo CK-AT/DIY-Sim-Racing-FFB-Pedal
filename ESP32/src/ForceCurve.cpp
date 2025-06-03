@@ -41,7 +41,7 @@ void SplineForceCurve::update(Sim *sim, float &f_sum) {
         case ForceDirection_DIRECTION_ADD:
             f_sum += y;
             break;
-        case ForceDirection_DIRECTION_SUBRTACT:
+        case ForceDirection_DIRECTION_SUBTRACT:
             f_sum -= y;
             break;
         default:
