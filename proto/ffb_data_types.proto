@@ -10,19 +10,35 @@ enum AxisID {
   AXIS_6 = 6;
   AXIS_7 = 7;
   AXIS_8 = 8;
+  AXIS_ID_MASK = 15;      // masks out the significant bits to identify the axis
+  AXIS_SUBTRACTIVE = 128; // used for FunctionBase.linked_axes, treated as ADDITIVE if this bit is not set 
+}
+
+enum LogLevel {
+  LOG_LEVEL_UNDEFINED = 0;
+  LOG_LEVEL_DEBUG = 1;
+  LOG_LEVEL_INFO = 2;
+  LOG_LEVEL_WARNING = 3;
+  LOG_LEVEL_ERROR = 4;
 }
 
 message LogMessage {
   // axis ID, source of this log message 
   AxisID axis_id = 1;
+  // log level
+  LogLevel level = 2;
   // log message
-  string msg = 2;
+  string msg = 3;
 }
 
-enum KFModelOrder {
-  KF_UNDEFINED = 0;
-  KF_CONST_VEL = 1;
-  KF_CONST_ACC = 2;
+message KFConstVelConfig {
+  // noise scaling (divided by 255 to get a factor between 0 and 1)
+  uint32 noise_scaling = 1;
+}
+
+message KFConstAccelConfig {
+  // noise scaling (divided by 255 to get a factor between 0 and 1)
+  uint32 noise_scaling = 1;
 }
 
 message DIYPedalKinematicConfig {
@@ -61,14 +77,15 @@ message AxisConfig {
   bool b_motor_inverted = 9;
   // spindle pitch in mm/rev
   uint32 mm_per_rev = 10;
-  // Kalman filter model noise scaling (divided by 255 to get a factor between 0 and 1)
-  uint32 kf_model_noise_scaling = 11;
-  // Kalman filter order (0 = const velocity; 1 = const acceleration)
-  KFModelOrder kf_model_order = 12;
   // enable ESPnow
-  bool b_esp_now_enabled = 13;
+  bool b_esp_now_enabled = 11;
   // store to EEPROM
-  bool store = 14;
+  bool store = 12;
+  // load cell filter config
+  oneof load_cell_filter_config {
+    KFConstVelConfig kf_const_vel = 13;
+    KFConstAccelConfig kf_const_accel = 14;
+  }
   // used by the Simhub Plugin to store all required kinematic parameters
   oneof kinematic_config {
     DIYPedalKinematicConfig diy_pedal = 15;
@@ -98,19 +115,24 @@ enum Function {
   FUNCTION_FLIGHT_PEDALS = 4;
 }
 
+enum OutputMode {
+  OUTPUT_MODE_FORCE = 0;
+  OUTPUT_MODE_TRAVEL = 1;
+}
+
 message FunctionBase {
-  // assigned function
+  // assigned function (used by Simhub plugin for internal mapping)
   Function function = 1;
-  // ID of the first additive (primary) axis (the only one for an automotive pedal/right pedal for flight pedals)
-  AxisID additive_axis_id_1 = 2;
-  // ID of the first subtractive axis (left pedal for flight pedals)
-  AxisID subtractive_axis_id_1 = 3;
-  // ID of the second additive axis (e.g. right co-pilot pedal for flight pedals)
-  AxisID additive_axis_id_2 = 4;
-  // ID of the second subtractive axis (e.g. left co-pilot pedal for flight pedals)
-  AxisID subtractive_axis_id_2 = 5;
+  // a list of up to 4 axis IDs where the first value defines the primary axis, can be OR'ed with AXIS_SUBTRACTIVE (e.g. for a left flight pedal)
+  repeated AxisID linked_axes = 2;
   // controller axis to output to
-  ControllerAxis controller_axis = 6;
+  ControllerAxis controller_output_axis = 3;
+  // use force or travel as joystick output
+  OutputMode output_mode = 4;
+  // minimum force / position (0% up to this threshold)
+  float output_min = 5;
+  // maximum force / position (100% above this threshold)
+  float output_max = 6;
   // store to EEPROM
   bool store = 7;
 }
@@ -125,11 +147,6 @@ enum ABSMode {
   ABS_MODE_OFF = 0;
   ABS_MODE_FORCE = 1;
   ABS_MODE_TRAVEL = 2;
-}
-
-enum OutputMode {
-  OUTPUT_MODE_FORCE = 0;
-  OUTPUT_MODE_TRAVEL = 1;
 }
 
 enum ForceDirection {
@@ -234,24 +251,33 @@ message AutomotivePedalConfig {
   SplineForceCurveConfig force_curve_config = 3;
   // damper configuration
   DamperConfig damper_config = 4;
-  // use force or travel as joystick output
-  OutputMode output_mode = 5;
   // ABS effect configuration
-  ABSEffectConfig abs_effect_config = 6;
+  ABSEffectConfig abs_effect_config = 5;
   // RPM effect configuration
-  RPMEffectConfig rpm_effect_config = 7;
+  RPMEffectConfig rpm_effect_config = 6;
   // bite point effect configuration
-  BitePointEffectConfig bp_effect_config = 8;
+  BitePointEffectConfig bp_effect_config = 7;
   // G force effect configuration
-  GForceEffectConfig g_force_effect_config = 9;
+  GForceEffectConfig g_force_effect_config = 8;
   // wheel slip effect configuration
-  WheelSlipEffectConfig ws_effect_config = 10;
+  WheelSlipEffectConfig ws_effect_config = 9;
   // Road impact effect configuration
-  RoadImpactEffectConfig road_effect_config = 11;
+  RoadImpactEffectConfig road_effect_config = 10;
   // Custom Vibration 1 effect configuration
-  CustomVibrationEffectConfig cv_1_effect_config = 12;
+  CustomVibrationEffectConfig cv_1_effect_config = 11;
   // Custom Vibration 2 effect configuration
-  CustomVibrationEffectConfig cv_2_effect_config = 13;
+  CustomVibrationEffectConfig cv_2_effect_config = 12;
+}
+
+message RudderBrakeConfig {
+  // controller axis to output the left pedal brake value to
+  ControllerAxis controller_output_axis_left_pedal = 1;
+  // controller axis to output the right pedal brake value to
+  ControllerAxis controller_output_axis_right_pedal = 2;
+  // minimum total force for braking (0% up to this threshold)
+  float f_min = 3;
+  // maximum total force for braking (100% above this threshold)
+  float f_max = 4;
 }
 
 message FlightPedalConfig {
@@ -263,6 +289,8 @@ message FlightPedalConfig {
   float damping = 3;
   // centering spring constant in N/mm
   float centering_spring_const = 4;
+  // rudder brake config
+  RudderBrakeConfig rudder_brake_config = 5;
 }
 
 message FunctionConfig {

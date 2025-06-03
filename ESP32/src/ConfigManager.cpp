@@ -23,8 +23,8 @@ void ConfigManager::set_axis_config_defaults(void) {
     _axis_config.contact_point_pos_min_abs = -1200;
     _axis_config.contact_point_pos_max_abs = 900;
     _axis_config.f_max_loadcell = 200.0f * 9.81f;
-    _axis_config.kf_model_order = KFModelOrder_KF_CONST_VEL;
-    _axis_config.kf_model_noise_scaling = 128;
+    _axis_config.which_load_cell_filter_config = AxisConfig_kf_const_vel_tag;
+    _axis_config.load_cell_filter_config.kf_const_vel.noise_scaling = 128;
     _axis_config.mm_per_rev = 5;
     _axis_config.steps_per_mm = 1000;
     _axis_config.store = false;
@@ -40,9 +40,12 @@ void ConfigManager::set_axis_config_defaults(void) {
 void ConfigManager::set_function_config_defaults(void) {
     _function_config = FunctionConfig_init_default;
     _function_config.base.function = Function_FUNCTION_BRAKE;
-    _function_config.base.additive_axis_id_1 = _axis_id;
+    _function_config.base.linked_axes[0] = _axis_id;
     _function_config.base.store = false;
-    _function_config.base.controller_axis = ControllerAxis_CONTROLLER_AXIS_BRK;
+    _function_config.base.controller_output_axis = ControllerAxis_CONTROLLER_AXIS_BRK;
+    _function_config.base.output_mode = OutputMode_OUTPUT_MODE_FORCE;
+    _function_config.base.output_min = 55.0f;
+    _function_config.base.output_max = 145.0f;
 
     _function_config.which_specific = FunctionConfig_automotive_pedal_tag;
     _function_config.specific.automotive_pedal.has_force_curve_config = true;
@@ -62,7 +65,6 @@ void ConfigManager::set_function_config_defaults(void) {
     _function_config.specific.automotive_pedal.damper_config.negative_factor = 0.1f;
     _function_config.specific.automotive_pedal.pos_idle = 10;
     _function_config.specific.automotive_pedal.pos_end = 50;
-    _function_config.specific.automotive_pedal.output_mode = OutputMode_OUTPUT_MODE_FORCE;
 }
 
 void ConfigManager::init(AxisID axis_id, OnConfigUpdate config_update_callback) {

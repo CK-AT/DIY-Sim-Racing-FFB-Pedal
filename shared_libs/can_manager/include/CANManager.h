@@ -103,6 +103,11 @@ class AxisCANManager : public CANManager, public IAxisCommChannel {
         void send_force_and_position(float &f_foot, float &x_foot) override;
         bool send_payload_to_gateway(const uint8_t *data, uint32_t len) override;
         void send_position_limits(float x_foot_min, float x_foot_max) override;
+        void update_force(float &f_foot) override {
+            if (own_axis_index < 0) return;
+            axis_states[own_axis_index].force_and_position.f_foot = f_foot;
+            axis_states[own_axis_index].online = true;
+        }
         bool get_force(AxisID axis_id, float &f_foot) override {
             return CANManager::get_force(axis_id, f_foot);
         }

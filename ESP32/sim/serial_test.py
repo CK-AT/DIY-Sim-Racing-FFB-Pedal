@@ -70,9 +70,13 @@ async def request_configs(protocol):
     # protocol.send_message(msg)
     msg = ffb_data.FFBData()
     msg.function_config.base.function = ffb_data.FUNCTION_BRAKE
-    msg.function_config.base.additive_axis_id_1 = ffb_data.AXIS_2
+    msg.function_config.base.linked_axes.append(ffb_data.AXIS_2)
     msg.function_config.base.store = False
-    msg.function_config.base.controller_axis = ffb_data.CONTROLLER_AXIS_BRK
+    msg.function_config.base.controller_output_axis = ffb_data.ControllerAxis_CONTROLLER_AXIS_BRK
+    msg.function_config.base.output_mode = ffb_data.OutputMode_OUTPUT_MODE_FORCE
+    msg.function_config.base.output_min = 75.0
+    msg.function_config.base.output_max = 115.0
+    
     msg.function_config.automotive_pedal.force_curve_config.pos_min = 0
     msg.function_config.automotive_pedal.force_curve_config.pos_max = 60
     msg.function_config.automotive_pedal.force_curve_config.f_min = 70.0
@@ -88,7 +92,6 @@ async def request_configs(protocol):
     msg.function_config.automotive_pedal.damper_config.negative_factor = 0.1
     msg.function_config.automotive_pedal.pos_idle = 0
     msg.function_config.automotive_pedal.pos_end = 60
-    msg.function_config.automotive_pedal.output_mode = ffb_data.OUTPUT_MODE_FORCE
     protocol.send_message(msg)
     await asyncio.sleep(3)
     msg = ffb_data.FFBData()

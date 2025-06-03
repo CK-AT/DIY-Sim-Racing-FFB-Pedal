@@ -13,6 +13,7 @@ class IAxisCommChannel {
         virtual bool send_payload_to_gateway(const uint8_t *data, uint32_t len) = 0;
         virtual void send_position_limits(float x_foot_min, float x_foot_max) = 0;
         virtual bool get_force(AxisID axis_id, float &f_foot) = 0;
+        virtual void update_force(float &x_foot) = 0;
         virtual bool get_position(AxisID axis_id, float &x_foot) = 0;
         virtual bool get_position_limits(AxisID axis_id, float &x_foot_min, float &x_foot_max) = 0;
         virtual bool is_online(AxisID axis_id) = 0;

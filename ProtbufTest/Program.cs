@@ -19,7 +19,7 @@ int num_outer_loops = 10;
 FFBData test = new FFBData();
 FFBAction action = new FFBAction();
 action.TriggerAbs = true;
-test.FfbAction = action;
+//test.FfbAction = action;
 
 var axis_cfg = new AxisConfig();
 axis_cfg.Store = false;
@@ -28,6 +28,8 @@ axis_cfg.CoeffsForceFactorOverContactPointPos.Clear();
 axis_cfg.CoeffsForceFactorOverContactPointPos.AddRange([0.0, 1.1, 2.2, 3.3, 4.4]);
 axis_cfg.CoeffsSledPosOverContactPointPos.Clear();
 axis_cfg.CoeffsSledPosOverContactPointPos.AddRange([5.5, 6.6, 7.7, 8.8, 9.9]);
+axis_cfg.KfConstVel = new KFConstVelConfig();
+axis_cfg.KfConstVel.NoiseScaling = 128;
 //test.AxisConfig = axis_cfg;
 
 AxisAction axis_action = new AxisAction();

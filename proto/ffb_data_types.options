@@ -3,7 +3,10 @@ LogMessage.msg                              max_length:140
 
 DIYPedalKinematicConfig.l_*                 int_size:IS_16
 
-AxisConfig.axis_id                          int_size:IS_8
+KFConstVelConfig.noise_scaling              int_size:IS_8
+
+KFConstAccelConfig.noise_scaling            int_size:IS_8
+
 AxisConfig.steps_per_mm                     int_size:IS_16
 AxisConfig.coeffs_force_factor_over_contact_point_pos       max_count:5 fixed_count:true
 AxisConfig.coeffs_sled_pos_over_contact_point_pos           max_count:5 fixed_count:true
@@ -11,10 +14,8 @@ AxisConfig.contact_point_pos_min_abs        int_size:IS_16
 AxisConfig.contact_point_pos_max_abs        int_size:IS_16
 AxisConfig.f_max_loadcell                   int_size:IS_16
 AxisConfig.mm_per_rev                       int_size:IS_8
-AxisConfig.kf_model_noise_scaling           int_size:IS_8
-AxisConfig.kf_model_order                   int_size:IS_8
 
-FunctionBase.*                              int_size:IS_8
+FunctionBase.linked_axes                    max_count:4 fixed_count:true
 
 SplineForceCurveConfig.pos_*                int_size:IS_16
 SplineForceCurveConfig.f_rel_points         max_count:6 fixed_count:true int_size:IS_8

@@ -356,7 +356,6 @@ void setup() {
     config_manager.init(AxisID_AXIS_UNDEFINED, on_config_update);
 #endif
 
-
     // init controller
     LogOutput::printf("**************************************************************************************************************");
     LogOutput::printf("This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.");
@@ -374,7 +373,9 @@ void setup() {
     config_manager.load_configs();
 
 #ifdef HAS_CAN
-    can_manager.setup(config_manager.get_axis_id(), 1000, CAN_TX, CAN_RX, [](const uint8_t *buffer, size_t size) { on_packet_received(buffer, size, CommChannel::ISOTP); }, on_ffb_action);
+    can_manager.setup(
+        config_manager.get_axis_id(), 1000, CAN_TX, CAN_RX,
+        [](const uint8_t *buffer, size_t size) { on_packet_received(buffer, size, CommChannel::ISOTP); }, on_ffb_action);
 #endif
 
 // check whether iSV57 communication can be established
@@ -383,65 +384,67 @@ void setup() {
     pinMode(Pairing_GPIO, INPUT_PULLUP);
 #endif
 
-//     // initialize configuration and update local variables
-//     dap_config_st.initialiseDefaults();
-//     dap_mech_config_st.initialiseDefaults();
+    //     // initialize configuration and update local variables
+    //     dap_config_st.initialiseDefaults();
+    //     dap_mech_config_st.initialiseDefaults();
 
-//     // Load config from EEPROM, if valid, overwrite initial config
-//     EEPROM.begin(2048);
-//     dap_mech_config_st.loadConfigFromEprom(dap_mech_config_st_local);
-//     dap_config_st.loadConfigFromEprom(dap_config_st_local);
+    //     // Load config from EEPROM, if valid, overwrite initial config
+    //     EEPROM.begin(2048);
+    //     dap_mech_config_st.loadConfigFromEprom(dap_mech_config_st_local);
+    //     dap_config_st.loadConfigFromEprom(dap_config_st_local);
 
-//     // mechanical config
-//     // if checks are successfull, overwrite global configuration struct
-//     if (verify_ffb_data_struct(&dap_mech_config_st_local, sizeof(dap_mech_config_st_local)) == FFBDataType::MECH_CONFIG) {
-//         LogOutput::printf("Updating mechanical pedal config from EEPROM");
-//         dap_mech_config_st = dap_mech_config_st_local;
-//     } else {
-//         LogOutput::printf("Can't load mechanical config from EEPROM:");
-//         if (DAP_PAYLOAD_TYPE_MECH_CONFIG != dap_mech_config_st_local.payLoadHeader_.payloadType) {
-//             LogOutput::printf("  Payload type expected: %d, Payload type received: %d", DAP_PAYLOAD_TYPE_MECH_CONFIG,
-//                               dap_mech_config_st_local.payLoadHeader_.payloadType);
-//         }
-//         if (DAP_VERSION_CONFIG, dap_mech_config_st_local.payLoadHeader_.version) {
-//             LogOutput::printf("  Target version: %d,    Source version: %d", DAP_VERSION_CONFIG, dap_mech_config_st_local.payLoadHeader_.version);
-//         }
-//     }
+    //     // mechanical config
+    //     // if checks are successfull, overwrite global configuration struct
+    //     if (verify_ffb_data_struct(&dap_mech_config_st_local, sizeof(dap_mech_config_st_local)) == FFBDataType::MECH_CONFIG) {
+    //         LogOutput::printf("Updating mechanical pedal config from EEPROM");
+    //         dap_mech_config_st = dap_mech_config_st_local;
+    //     } else {
+    //         LogOutput::printf("Can't load mechanical config from EEPROM:");
+    //         if (DAP_PAYLOAD_TYPE_MECH_CONFIG != dap_mech_config_st_local.payLoadHeader_.payloadType) {
+    //             LogOutput::printf("  Payload type expected: %d, Payload type received: %d", DAP_PAYLOAD_TYPE_MECH_CONFIG,
+    //                               dap_mech_config_st_local.payLoadHeader_.payloadType);
+    //         }
+    //         if (DAP_VERSION_CONFIG, dap_mech_config_st_local.payLoadHeader_.version) {
+    //             LogOutput::printf("  Target version: %d,    Source version: %d", DAP_VERSION_CONFIG,
+    //             dap_mech_config_st_local.payLoadHeader_.version);
+    //         }
+    //     }
 
-//     // general config
-//     // if checks are successfull, overwrite global configuration struct
-//     if (verify_ffb_data_struct(&dap_config_st_local, sizeof(dap_config_st_local)) == FFBDataType::CONFIG) {
-//         LogOutput::printf("Updating general pedal config from EEPROM");
-//         dap_config_st = dap_config_st_local;
-//     } else {
-//         LogOutput::printf("Can't load general config from EEPROM:");
-//         if (DAP_PAYLOAD_TYPE_CONFIG != dap_config_st_local.payLoadHeader_.payloadType) {
-//             LogOutput::printf("  Payload type expected: %d,   Payload type received: %d", DAP_VERSION_CONFIG,
-//                               dap_config_st_local.payLoadHeader_.version);
-//         }
-//         if (DAP_VERSION_CONFIG != dap_config_st_local.payLoadHeader_.version) {
-//             LogOutput::printf("  Target version: %d,    Source version: %d", DAP_VERSION_CONFIG, dap_config_st_local.payLoadHeader_.version);
-//         }
-//     }
+    //     // general config
+    //     // if checks are successfull, overwrite global configuration struct
+    //     if (verify_ffb_data_struct(&dap_config_st_local, sizeof(dap_config_st_local)) == FFBDataType::CONFIG) {
+    //         LogOutput::printf("Updating general pedal config from EEPROM");
+    //         dap_config_st = dap_config_st_local;
+    //     } else {
+    //         LogOutput::printf("Can't load general config from EEPROM:");
+    //         if (DAP_PAYLOAD_TYPE_CONFIG != dap_config_st_local.payLoadHeader_.payloadType) {
+    //             LogOutput::printf("  Payload type expected: %d,   Payload type received: %d", DAP_VERSION_CONFIG,
+    //                               dap_config_st_local.payLoadHeader_.version);
+    //         }
+    //         if (DAP_VERSION_CONFIG != dap_config_st_local.payLoadHeader_.version) {
+    //             LogOutput::printf("  Target version: %d,    Source version: %d", DAP_VERSION_CONFIG, dap_config_st_local.payLoadHeader_.version);
+    //         }
+    //     }
 
-// #ifdef PEDAL_ASSIGNMENT
-//     if (own_axis_id < FFBDataTools::MAX_AXES_COUNT) {
-//         dap_config_st.payLoadPedalConfig_.pedal_type = own_axis_id;
-//     }
-// #endif
+    // #ifdef PEDAL_ASSIGNMENT
+    //     if (own_axis_id < FFBDataTools::MAX_AXES_COUNT) {
+    //         dap_config_st.payLoadPedalConfig_.pedal_type = own_axis_id;
+    //     }
+    // #endif
 
-//     // interprete config values
-//     dap_calculationVariables_st.updateFromMechConfig(dap_mech_config_st);
-//     dap_calculationVariables_st.updateFromConfig(dap_config_st);
+    //     // interprete config values
+    //     dap_calculationVariables_st.updateFromMechConfig(dap_mech_config_st);
+    //     dap_calculationVariables_st.updateFromConfig(dap_config_st);
 
     const AxisConfig *axis_cfg = config_manager.get_axis_config();
 
 #ifdef A6SERVO
-    stepper = new A6Servo(stepPinStepper, dirPinStepper, !axis_cfg->b_motor_inverted, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN, ISV57_DEPIN, false);
+    stepper = new A6Servo(stepPinStepper, dirPinStepper, !axis_cfg->b_motor_inverted, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN,
+                          ISV57_DEPIN, false);
 #endif
     loadcell = new LoadCell_ADS1256();
 
-    loadcell->setLoadcellRating(axis_cfg->f_max_loadcell / 9.81f); // from N to kg
+    loadcell->setLoadcellRating(axis_cfg->f_max_loadcell / 9.81f);  // from N to kg
 
     loadcell->setZeroPoint();
 #ifdef ESTIMATE_LOADCELL_VARIANCE
@@ -624,49 +627,57 @@ void calc_poly(const float &in, float &out, const double *coeffs) {
 }
 
 float get_input_force_sum(float own_force) {
-    float f_sum = own_force;
-    float temp;
+    can_manager.update_force(own_force);
     const FunctionBase &func_base = config_manager.get_function_config()->base;
-    if (func_base.additive_axis_id_1 != config_manager.get_axis_id()) return 0.0f;
-    if (func_base.subtractive_axis_id_1 != AxisID_AXIS_UNDEFINED) {
-        if (can_manager.get_force(func_base.subtractive_axis_id_1, temp)) {
+    float f_sum = 0.0f;
+    float temp;
+    bool is_subtractive_axis = false;
+    AxisID own_axis_id = config_manager.get_axis_id();
+    for (uint8_t idx = 0; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
+        AxisID axis_id = AxisID(func_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
+        if (axis_id == AxisID_AXIS_UNDEFINED) break;
+        temp = 0.0f;
+        can_manager.get_force(axis_id, temp);  // get_force won't touch temp if the associated axis is not online, no need to check the return value
+        if (func_base.linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) {
+            if (axis_id == own_axis_id) is_subtractive_axis = true;
             f_sum -= temp;
-        }
-    }
-    if (func_base.additive_axis_id_2 != AxisID_AXIS_UNDEFINED) {
-        if (can_manager.get_force(func_base.additive_axis_id_2, temp)) {
+        } else {
             f_sum += temp;
         }
     }
-    if (func_base.subtractive_axis_id_2 != AxisID_AXIS_UNDEFINED) {
-        if (can_manager.get_force(func_base.subtractive_axis_id_2, temp)) {
-            f_sum -= temp;
-        }
+    if (is_subtractive_axis) {
+        f_sum *= -1.0f;
     }
     return f_sum;
 }
 
-float get_final_position(float own_position) {
-    float other_position;
+bool get_final_position(float own_position, float &final_position) {
     const FunctionBase &func_base = config_manager.get_function_config()->base;
+    float other_position;
+    AxisID primary_axis_id = AxisID(func_base.linked_axes[0] & AxisID_AXIS_ID_MASK);
     AxisID own_axis_id = config_manager.get_axis_id();
-    if (func_base.additive_axis_id_1 == own_axis_id) return own_position;
-    if (func_base.subtractive_axis_id_1 == own_axis_id) {
-        if (can_manager.get_position(func_base.additive_axis_id_1, other_position)) {
-            return config_manager.get_x_contact_point_center() - other_position;
+    if (primary_axis_id == own_axis_id) {
+        // we are the primary axis -> own_position is the final position
+        final_position = own_position;
+        return true;
+    } else if (can_manager.get_position(primary_axis_id, other_position)) {
+        // we are NOT the primary axis, start at idx 1
+        for (uint8_t idx = 1; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
+            AxisID axis_id = AxisID(func_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
+            if (axis_id == own_axis_id) {
+                if (func_base.linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) {
+                    final_position = config_manager.get_x_contact_point_center() - other_position;
+                    return true;
+                } else {
+                    final_position = other_position;
+                    return true;
+                }
+            } else if (axis_id == AxisID_AXIS_UNDEFINED) {
+                break;
+            }
         }
     }
-    if (func_base.additive_axis_id_2 == own_axis_id) {
-        if (can_manager.get_position(func_base.additive_axis_id_1, other_position)) {
-            return other_position;
-        }
-    }
-    if (func_base.subtractive_axis_id_2 == own_axis_id) {
-        if (can_manager.get_position(func_base.additive_axis_id_1, other_position)) {
-            return config_manager.get_x_contact_point_center() - other_position;
-        }
-    }
-    return 0.0f;
+    return false;
 }
 
 /**********************************************************************************************/
@@ -791,13 +802,13 @@ void pedalUpdateTask(void *pvParameters) {
         float changeVelocity = 0;
 
         // const velocity model denoising filter
-        switch (axis_cfg->kf_model_order) {
-            case KFModelOrder_KF_CONST_VEL:
-                filteredReading = kalman->filteredValue(loadcellReading, 0, axis_cfg->kf_model_noise_scaling);
+        switch (axis_cfg->which_load_cell_filter_config) {
+            case AxisConfig_kf_const_vel_tag:
+                filteredReading = kalman->filteredValue(loadcellReading, 0, axis_cfg->load_cell_filter_config.kf_const_vel.noise_scaling);
                 changeVelocity = kalman->changeVelocity();
                 break;
-            case KFModelOrder_KF_CONST_ACC:
-                filteredReading = kalman_2nd_order->filteredValue(loadcellReading, 0, axis_cfg->kf_model_noise_scaling);
+            case AxisConfig_kf_const_accel_tag:
+                filteredReading = kalman_2nd_order->filteredValue(loadcellReading, 0, axis_cfg->load_cell_filter_config.kf_const_accel.noise_scaling);
                 changeVelocity = kalman->changeVelocity();
                 break;
             default:
@@ -838,7 +849,7 @@ void pedalUpdateTask(void *pvParameters) {
 
         sim.update(dt, f_in);
 
-        x_foot = get_final_position(sim.get_x());
+        get_final_position(sim.get_x(), x_foot);
 
         float x_sled;
         calc_poly(x_foot, x_sled, axis_cfg->coeffs_sled_pos_over_contact_point_pos);
@@ -850,12 +861,11 @@ void pedalUpdateTask(void *pvParameters) {
         // #define DEBUG_FILTER
         if (debug_flags & DEBUG_INFO_0_LOADCELL_READING) {
             static uint16_t loop_cnt = 0;
-            static RTDebugOutput<10> rtDebugFilter({"raw", "flt", "f_in", "f_foot", "f_sum", "a", "v", "x", "x_sled"});
+            static RTDebugOutput<9> rtDebugFilter({"raw", "flt", "f_in", "f_foot", "f_sum", "a", "v", "x", "x_sled"});
             loop_cnt++;
             if (loop_cnt >= 20) {
                 loop_cnt = 0;
-                rtDebugFilter.offerData(
-                    {loadcellReading, filteredReading, f_in, f_foot, sim.get_f_sum(), sim.get_a(), sim.get_v(), x_foot, x_sled});
+                rtDebugFilter.offerData({loadcellReading, filteredReading, f_in, f_foot, sim.get_f_sum(), sim.get_a(), sim.get_v(), x_foot, x_sled});
             }
         }
 
@@ -1160,7 +1170,7 @@ void send_log_msg(const char *buff) {
     log_msg.payload.log_message.axis_id = config_manager.get_axis_id();
     log_msg.which_payload = FFBData_log_message_tag;
     strncpy(log_msg.payload.log_message.msg, buff, sizeof(log_msg.payload.log_message.msg) - 1);
-    send_ffb_data_msg(log_msg, CommChannel::USB_SERIAL); // TODO: dispatch to appropriate comm channel
+    send_ffb_data_msg(log_msg, CommChannel::USB_SERIAL);  // TODO: dispatch to appropriate comm channel
 }
 
 void on_ffb_data_message(FFBData *msg, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg, CommChannel comm_channel) {

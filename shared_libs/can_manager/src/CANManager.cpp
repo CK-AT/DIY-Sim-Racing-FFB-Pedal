@@ -231,6 +231,7 @@ void AxisCANManager::send_force_and_position(float &f_foot, float &x_foot) {
     if (own_axis_index >= 0) {
         axis_states[own_axis_index].force_and_position.f_foot = f_foot;
         axis_states[own_axis_index].force_and_position.x_foot = x_foot;
+        axis_states[own_axis_index].online = true;
         CanFrame tx_frame = {};
         tx_frame.identifier = 0x100 + (AxisFrameTypesHS::FORCE_AND_POSITION << 4) + own_axis_index;
         memcpy(tx_frame.data, &(axis_states[own_axis_index].force_and_position), sizeof(ForceAndPosition));
