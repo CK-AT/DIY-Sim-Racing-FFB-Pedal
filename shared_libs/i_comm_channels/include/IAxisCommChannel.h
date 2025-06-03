@@ -16,4 +16,5 @@ class IAxisCommChannel {
         virtual bool get_position(AxisID axis_id, float &x_foot) = 0;
         virtual bool get_position_limits(AxisID axis_id, float &x_foot_min, float &x_foot_max) = 0;
         virtual bool is_online(AxisID axis_id) = 0;
+        virtual bool is_gateway_online(void) = 0;
 };

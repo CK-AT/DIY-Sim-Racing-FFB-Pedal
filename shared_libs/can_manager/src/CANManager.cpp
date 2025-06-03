@@ -68,7 +68,7 @@ bool CANManager::check_bus(uint32_t ti_now) {
         case BusState::ONLINE:
             if (can_state == TWAI_STATE_BUS_OFF) {
                 switch_bus_state(ti_now, BusState::BUS_OFF);
-                LogOutput::printf("CANManager: BUS_OFF\n");
+                LogOutput::printf("CANManager: BUS_OFF");
             }
             break;
         case BusState::BUS_OFF:
@@ -86,13 +86,13 @@ bool CANManager::check_bus(uint32_t ti_now) {
                     ESP32Can.restart();
                 } else {
                     switch_bus_state(ti_now, BusState::ONLINE);
-                    LogOutput::printf("CANManager: Online\n");
+                    LogOutput::printf("CANManager: Online");
                 }
             }
             break;
         default:
             switch_bus_state(ti_now, BusState::PRE_ONLINE);
-            LogOutput::printf("CANManager: Error: Unknown BusState (0x%02X)!\n", bus_state);
+            LogOutput::printf("CANManager: Error: Unknown BusState (0x%02X)!", bus_state);
             break;
     }
     return bus_state == BusState::ONLINE;
@@ -138,7 +138,7 @@ bool CANManager::try_process_low_prio_axis_frame(CanFrame &rx_frame, uint32_t no
     return false;
 }
 
-void CANManager::update_axis_timeouts(uint32_t now) {
+void CANManager::update_timeouts(uint32_t now) {
     for (int axis_idx = 0; axis_idx < FFBDataTools::MAX_AXES_COUNT; axis_idx++) {
         if (axis_states[axis_idx].online && ((now - axis_states[axis_idx].ti_last_seen) > 5000)) {
             axis_states[axis_idx].online = false;
@@ -156,7 +156,7 @@ void AxisCANManager::process(void) {
     CanFrame rx_frame;
     uint8_t num_max_frames = 40;
     uint32_t now = micros();
-    update_axis_timeouts(now);
+    update_timeouts(now);
     broadcast_position_limits(now);
     if (check_bus(now) == false) {
         return;
@@ -168,6 +168,7 @@ void AxisCANManager::process(void) {
             if (try_process_ffb_update_frame(rx_frame)) continue;
             if (try_process_low_prio_axis_frame(rx_frame, now)) continue;
             if (try_process_isotp_can_frame(rx_frame)) continue;
+            if (try_process_ping_frame(rx_frame, now)) continue;;
         } else {
             return;
         }
@@ -175,6 +176,26 @@ void AxisCANManager::process(void) {
     if (rx_err_cnt < 0xFFFFFFFF) {
         rx_err_cnt++;
     }
+}
+
+void AxisCANManager::update_timeouts(uint32_t now) {
+    CANManager::update_timeouts(now);
+    if (_gateway_online && ((now - ti_last_ping) > 1100000)) {
+        LogOutput::printf("CANManager: Gateway offline");
+        _gateway_online = false;
+    }
+}
+
+bool AxisCANManager::try_process_ping_frame(CanFrame &rx_frame, uint32_t now) {
+    if (rx_frame.identifier == 0x7FE) {
+        ti_last_ping = now;
+        if (!_gateway_online) {
+            LogOutput::printf("CANManager: Gateway online");
+            _gateway_online = true;
+        }
+        return true;
+    }
+    return false;
 }
 
 void AxisCANManager::broadcast_position_limits(void) {
@@ -202,7 +223,7 @@ void AxisCANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, in
                         isotp_state.isotp_link_rx_buff, ISOTP_BUFFER_SIZE);
         switch_bus_state(BusState::ONLINE);
         broadcast_position_limits();
-        LogOutput::printf("CANManager: Init done\n");
+        LogOutput::printf("CANManager: Init done");
     }
 }
 
@@ -291,7 +312,7 @@ void GatewayCANManager::process(void) {
     CanFrame rx_frame;
     uint8_t num_max_frames = 40;
     uint32_t now = micros();
-    update_axis_timeouts(now);
+    update_timeouts(now);
     if (check_bus(now) == false) {
         return;
     }
@@ -309,6 +330,19 @@ void GatewayCANManager::process(void) {
     }
     if (rx_err_cnt < 0xFFFFFFFF) {
         rx_err_cnt++;
+    }
+}
+
+void GatewayCANManager::ping(uint32_t now) {
+    if ((now - ti_last_ping) > 1000000) {
+        CanFrame tx_frame = {};
+        tx_frame.identifier = 0x7FE;
+        tx_frame.data_length_code = 0;
+        if (!ESP32Can.writeFrame(&tx_frame, 0)) {
+            if (tx_err_cnt < 0xFFFFFFFF) {
+                tx_err_cnt++;
+            }
+        }
     }
 }
 
@@ -339,7 +373,7 @@ void GatewayCANManager::setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, 
     }
     switch_bus_state(BusState::ONLINE);
     xTaskCreatePinnedToCore(this->task_func, "CANManagerTask", 5000, this, 1, NULL, 0);
-    LogOutput::printf("CANManager: Init done\n");
+    LogOutput::printf("CANManager: Init done");
 }
 
 bool GatewayCANManager::send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len) {

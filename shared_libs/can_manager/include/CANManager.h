@@ -72,7 +72,7 @@ class CANManager {
             }
         }
         bool check_bus(uint32_t ti_now);
-        void update_axis_timeouts(uint32_t now);
+        void update_timeouts(uint32_t now);
         bool try_process_high_prio_axis_frame(CanFrame &rx_frame, uint32_t now);
         bool try_process_low_prio_axis_frame(CanFrame &rx_frame, uint32_t now);
         void switch_bus_state(uint32_t ti_now, BusState new_state) {
@@ -89,6 +89,7 @@ class CANManager {
         uint32_t rx_err_cnt = 0;
         uint32_t ti_state_change = 0;
         BusState bus_state = BusState::PRE_ONLINE;
+        uint32_t ti_last_ping = 0;
 };
 
 class AxisCANManager : public CANManager, public IAxisCommChannel {
@@ -114,12 +115,17 @@ class AxisCANManager : public CANManager, public IAxisCommChannel {
         bool is_online(AxisID axis_id) override {
             return CANManager::is_online(axis_id);
         }
+        bool is_gateway_online(void) override {
+            return _gateway_online;
+        };
 
     private:
         bool try_process_isotp_can_frame(CanFrame &rx_frame);
         bool try_process_ffb_update_frame(CanFrame &rx_frame);
+        bool try_process_ping_frame(CanFrame &rx_frame, uint32_t now);
         void broadcast_position_limits(void);
         void broadcast_position_limits(uint32_t now);
+        void update_timeouts(uint32_t now);
         AxisID own_axis_id = AxisID_AXIS_UNDEFINED;
         int8_t own_axis_index = -1;
         IsotpState isotp_state;
@@ -127,6 +133,7 @@ class AxisCANManager : public CANManager, public IAxisCommChannel {
         OnFFBAction on_ffb_action = nullptr;
         float _x_foot_min = 0.0f;
         float _x_foot_max = 0.0f;
+        bool _gateway_online = false;
 };
 
 class GatewayCANManager : public CANManager, public IGatewayCommChannel {
@@ -151,6 +158,7 @@ class GatewayCANManager : public CANManager, public IGatewayCommChannel {
 
     private:
         void process(void);
+        void ping(uint32_t now);
         bool try_process_isotp_can_frame(CanFrame &rx_frame);
         bool send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len);
         void send_abs_trigger_to_axis(AxisID axis_id);
