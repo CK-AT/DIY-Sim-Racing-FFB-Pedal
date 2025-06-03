@@ -7,7 +7,7 @@ class MessageTools {
         static bool check_and_decode_message(Message &message, const uint8_t *buffer, uint16_t len, uint16_t crc_expected);
         static uint16_t encode_message_and_calc_crc(const Message &message, uint8_t *buffer, uint16_t len, uint16_t &crc);
         static const uint16_t MAX_ENCODED_SIZE = DIY_FFB_PROTOCOL_PB_H_MAX_SIZE;
-        static const uint16_t MAX_AXES_COUNT = _AxisID_MAX;
+        static const uint16_t MAX_AXES_COUNT = 8; // Can't use _AxisID_MAX because it includes AxisID_AXIS_SUBTRACTIVE, which is a flag encoded into bit 7
         static uint16_t calc_crc(const uint8_t *buffer, uint16_t len);
         static AxisID axis_id_from_index(uint8_t axis_index) {
             return AxisID(axis_index + 1);
