@@ -83,7 +83,8 @@ void ConfigManager::load_configs(void) {
         set_axis_config_defaults();
         LogOutput::printf(" -> setting defaults");
         if (_axis_id == AxisID_AXIS_UNDEFINED) {
-            LogOutput::printf("WARNING: This axis has no ID yet. Upload a valid axis config via USB serial to fix this.", _axis_config.axis_id, _axis_id);
+            LogOutput::printf(" -> WARNING: This axis has no ID yet. Upload a valid axis config via USB serial to fix this.", _axis_config.axis_id,
+                              _axis_id);
         }
     } else {
         if (_axis_config.axis_id == _axis_id) {
@@ -94,7 +95,7 @@ void ConfigManager::load_configs(void) {
                 LogOutput::printf(" -> success (this is axis %d)", _axis_id);
             } else {
                 LogOutput::printf(" -> success");
-                LogOutput::printf("WARNING: This axis' stored config references axis %d (this is axis %d).", _axis_config.axis_id, _axis_id);
+                LogOutput::printf(" -> WARNING: This axis' stored config references axis %d (this is axis %d).", _axis_config.axis_id, _axis_id);
                 _axis_config.axis_id = _axis_id;
             }
         }

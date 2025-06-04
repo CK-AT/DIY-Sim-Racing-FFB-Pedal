@@ -38,30 +38,32 @@ bool A6Servo::check_required_registers(void) {
         return false;
     }
     if (value != 0) {
-        LogOutput::printf("Register 0x0A05 (store RS485 register writes to EEPROM) is not 0!");
+        LogOutput::printf(" -> Register 0x0A05 (store RS485 register writes to EEPROM) is not 0!");
         success = false;
     }
     if (read_hold_register<uint16_t>(0x0A06, value) != Modbus::Error::SUCCESS) {
         return false;
     }
     if (value != 1) {
-        LogOutput::printf("Register 0x0A06 (register order) is not 1!");
+        LogOutput::printf(" -> Register 0x0A06 (register order) is not 1!");
         success = false;
     }
     if (read_hold_register<uint16_t>(0x0022, value) != Modbus::Error::SUCCESS) {
         return false;
     }
     if (value != 1) {
-        LogOutput::printf("Register 0x0022 (pulse channel selection) is not 1!");
+        LogOutput::printf(" -> A6Servo: Register 0x0022 (pulse channel selection) is not 1!");
         success = false;
     }
     return success;
 }
 
 bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome) {
+    LogOutput::printf("A6Servo: Performing setup...");
     _steps_per_mm = steps_per_mm;
     _mm_per_rev = mm_per_rev;
     if (!check_required_registers()) {
+        LogOutput::printf(" -> failed");
         return false;
     }
     disable();
@@ -76,16 +78,17 @@ bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome) {
     int32_t min_pos = read_min_pos();
     if (min_pos == 0) {
         _pos_max = read_max_pos();
-        LogOutput::printf("Negative endstop @ %i, positive endstop @ %i, homed already.", min_pos, _pos_max);
+        LogOutput::printf(" -> Negative endstop @ %i, positive endstop @ %i, homed already.", min_pos, _pos_max);
         _stepper_engine->setCurrentPosition(read_position());
         _homing_state = HomingState::Homed;
     } else {
-        LogOutput::printf("Negative endstop @ %i, not homed.", min_pos);
+        LogOutput::printf(" -> Negative endstop @ %i, not homed.", min_pos);
         if (autohome) {
             _homing_state = HomingState::Pending;
         }
     }
     xTaskCreatePinnedToCore(this->task_func, "A6ServoTask", 5000, this, 1, NULL, 0);
+    LogOutput::printf(" -> done");
     return true;
 }
 
@@ -127,7 +130,7 @@ void A6Servo::do_homing(void) {
     write_hold_register<uint16_t>(0x1000, 0);        // homing off
     delay(100);
     write_hold_register<uint16_t>(0x1000, 1);  // homing on
-    LogOutput::printf("Waiting for negative endstop...");
+    LogOutput::printf("A6Servo: Waiting for negative endstop...");
     int num_zero_spd = 0;
     float speed;
     while (num_zero_spd < 20) {
@@ -139,13 +142,13 @@ void A6Servo::do_homing(void) {
             num_zero_spd = 0;
         }
     }
-    LogOutput::printf("Negative endstop found, moving to positive endstop...");
+    LogOutput::printf("A6Servo: Negative endstop found, moving to positive endstop...");
     _stepper_engine->keepRunningForward((_steps_per_mm * _mm_per_rev) / 0.6);
     num_zero_spd = 0;
     while (num_zero_spd < 5) {
         delay(100);
         speed = get_speed();
-        LogOutput::printf("%.3f mm @ %.0f rpm", float(read_position()) / float(_steps_per_mm), speed);
+        // LogOutput::printf("%.3f mm @ %.0f rpm", float(read_position()) / float(_steps_per_mm), speed);
         if (abs(speed) < 2) {
             num_zero_spd++;
         } else {
@@ -155,7 +158,7 @@ void A6Servo::do_homing(void) {
     _stepper_engine->forceStop();
     int32_t pos_endstop = read_position();
     if ((float(pos_endstop) / float(_steps_per_mm)) > 20.0) {
-        LogOutput::printf("Positive endstop found @ %.3f mm", float(pos_endstop) / float(_steps_per_mm));
+        LogOutput::printf("A6Servo: Positive endstop found @ %.3f mm", float(pos_endstop) / float(_steps_per_mm));
         _pos_max = pos_endstop - 2500;
         _stepper_engine->moveTo(_pos_max, true);
         write_min_pos(0);
@@ -163,9 +166,9 @@ void A6Servo::do_homing(void) {
         write_hold_register<uint16_t>(0x1000, 0);  // reset homing command
         _homing_state = HomingState::Homed;
         _state = State::Enabled;
-        LogOutput::printf("Homing done.");
+        LogOutput::printf("A6Servo: Homing done.");
     } else {
-        LogOutput::printf("Homing failed, sled did not move far enough from negative endstop (only %.3f mm).",
+        LogOutput::printf("A6Servo: Homing failed, sled did not move far enough from negative endstop (only %.3f mm).",
                           float(pos_endstop) / float(_steps_per_mm));
         _homing_state = HomingState::HomeUnknown;
         _state = State::Enabled;
@@ -176,7 +179,7 @@ void A6Servo::do_homing(void) {
 void A6Servo::lock_onto_curr_pos(void) {
     write_trq_limit(_trq_open_loop);
     set_speed(150.0);
-    LogOutput::printf("Locking onto last commanded position...");
+    LogOutput::printf("A6Servo: Locking onto last commanded position...");
     uint16_t max_tries = 10000;
     bool is_locked = false;
     while (!is_locked && max_tries) {
@@ -187,13 +190,13 @@ void A6Servo::lock_onto_curr_pos(void) {
         delay(2);
     }
     if (is_locked) {
-        LogOutput::printf("Locked in.");
+        LogOutput::printf("A6Servo: Locked in.");
         write_hold_register<uint32_t>(0x0600, 30000);  // tighten excessive local position deviation threshold
         set_speed(6000.0);
         write_trq_limit(_trq_locked_in);
         _homing_state = HomingState::LockedIn;
     } else {
-        LogOutput::printf("Failed to lock in, commanded position probably out of bounds.");
+        LogOutput::printf("A6Servo: Failed to lock in, commanded position probably out of bounds.");
         _homing_state = HomingState::LockingError;
     }
 }
