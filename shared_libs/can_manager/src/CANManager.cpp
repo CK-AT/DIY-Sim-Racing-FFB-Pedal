@@ -138,21 +138,7 @@ bool CANManager::try_process_low_prio_axis_frame(CanFrame &rx_frame, uint32_t no
     return false;
 }
 
-void CANManager::update_timeouts(uint32_t now) {
-    for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
-        if (axis_states[axis_idx].online && ((now - axis_states[axis_idx].ti_last_seen) > 5000)) {
-            axis_states[axis_idx].online = false;
-        }
-        if (axis_states[axis_idx].limits_valid && ((now - axis_states[axis_idx].ti_last_limit_update) > 5000000)) {
-            axis_states[axis_idx].limits_valid = false;
-        }
-    }
-}
-
-/*****************************************************************************************************************/
-/* AxisCANManager */
-/*****************************************************************************************************************/
-void AxisCANManager::process(void) {
+void CANManager::process(void) {
     CanFrame rx_frame;
     uint8_t num_max_frames = 40;
     uint32_t now = micros();
@@ -161,14 +147,26 @@ void AxisCANManager::process(void) {
     if (check_bus(now) == false) {
         return;
     }
-    isotp_poll(&(isotp_state.link));
+    if (!_is_gateway) {
+        isotp_poll(&(gateway_isotp_state.link));
+    } else {
+        send_ping_frame(now);
+        for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
+            isotp_poll(&(isotp_state[axis_idx].link));
+        }
+    }
     while (num_max_frames--) {
         if (ESP32Can.readFrame(&rx_frame, 0)) {
             if (try_process_high_prio_axis_frame(rx_frame, now)) continue;
-            if (try_process_ffb_update_frame(rx_frame)) continue;
+            if (!_is_gateway) {
+                if (try_process_ffb_update_frame(rx_frame)) continue;
+            }
             if (try_process_low_prio_axis_frame(rx_frame, now)) continue;
-            if (try_process_isotp_can_frame(rx_frame)) continue;
+            if (try_process_gateway_isotp_can_frame(rx_frame)) continue;
             if (try_process_ping_frame(rx_frame, now)) continue;
+            if (_is_gateway) {
+                if (try_process_axis_isotp_can_frame(rx_frame)) continue;
+            }
         } else {
             return;
         }
@@ -178,51 +176,76 @@ void AxisCANManager::process(void) {
     }
 }
 
-void AxisCANManager::update_timeouts(uint32_t now) {
-    CANManager::update_timeouts(now);
-    if (_gateway_online && ((now - ti_last_ping) > 1100000)) {
-        LogOutput::printf("CANManager: Gateway offline");
-        _gateway_online = false;
+void CANManager::update_timeouts(uint32_t now) {
+    for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
+        if (axis_states[axis_idx].online && ((now - axis_states[axis_idx].ti_last_seen) > 5000)) {
+            axis_states[axis_idx].online = false;
+        }
+        if (axis_states[axis_idx].limits_valid && ((now - axis_states[axis_idx].ti_last_limit_update) > 5000000)) {
+            axis_states[axis_idx].limits_valid = false;
+        }
+    }
+    if (!_is_gateway) {
+        if (_gateway_online && ((now - ti_last_ping) > 1100000)) {
+            LogOutput::printf("CANManager: Gateway offline");
+            _gateway_online = false;
+        }
     }
 }
 
-bool AxisCANManager::try_process_ping_frame(CanFrame &rx_frame, uint32_t now) {
+void CANManager::shared_setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin) {
+    ESP32Can.begin(ESP32Can.convertSpeed(baud_rate), tx_pin, rx_pin, 40, 40);
+    isotp_init_link(&(gateway_isotp_state.link), 0x710 + own_axis_index, gateway_isotp_state.isotp_link_tx_buff, ISOTP_BUFFER_SIZE,
+                    gateway_isotp_state.isotp_link_rx_buff, ISOTP_BUFFER_SIZE);
+    for (int i = 0; i < MessageTools::MAX_AXES_COUNT; i++) {
+        isotp_init_link(&(isotp_state[i].link), 0x700 + i, isotp_state[i].isotp_link_tx_buff, ISOTP_BUFFER_SIZE, isotp_state[i].isotp_link_rx_buff,
+                        ISOTP_BUFFER_SIZE);
+    }
+    switch_bus_state(BusState::ONLINE);
+}
+
+/*****************************************************************************************************************/
+/* AxisCANManager */
+/*****************************************************************************************************************/
+bool CANManager::try_process_ping_frame(CanFrame &rx_frame, uint32_t now) {
     if (rx_frame.identifier == 0x7FE) {
         ti_last_ping = now;
         if (!_gateway_online) {
             LogOutput::printf("CANManager: Gateway online");
             _gateway_online = true;
+            if (own_axis_index > 0) {
+                _is_gateway = false;
+                LogOutput::printf(" -> giving up Gateway role");
+            }
         }
         return true;
     }
     return false;
 }
 
-void AxisCANManager::broadcast_position_limits(void) {
+void CANManager::broadcast_position_limits(void) {
     if (own_axis_index < 0) return;
     if (_x_foot_min < _x_foot_max) {
         send_position_limits(_x_foot_min, _x_foot_max);
     }
 }
 
-void AxisCANManager::broadcast_position_limits(uint32_t now) {
+void CANManager::broadcast_position_limits(uint32_t now) {
     if ((now - axis_states[own_axis_index].ti_last_limit_update) > 2000000) {
         broadcast_position_limits();
     }
 }
 
-bool AxisCANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload,
-                           OnFFBAction on_ffb_action) {
-    LogOutput::printf("CANManager: Performing setup...");
+bool CANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload,
+                       OnFFBAction on_ffb_action, OnAxisPayload on_axis_payload) {
+    LogOutput::printf("CANManager: Performing setup (axis mode)...");
     if (MessageTools::check_axis_id(axis_id)) {
         own_axis_id = axis_id;
         own_axis_index = MessageTools::axis_index_from_id(axis_id);
         this->on_gateway_payload = on_gateway_payload;
         this->on_ffb_action = on_ffb_action;
-        ESP32Can.begin(ESP32Can.convertSpeed(baud_rate), tx_pin, rx_pin, 40, 40);
-        isotp_init_link(&(isotp_state.link), 0x710 + own_axis_index, isotp_state.isotp_link_tx_buff, ISOTP_BUFFER_SIZE,
-                        isotp_state.isotp_link_rx_buff, ISOTP_BUFFER_SIZE);
-        switch_bus_state(BusState::ONLINE);
+        this->on_axis_payload = on_axis_payload;
+        shared_setup(baud_rate, tx_pin, rx_pin);
         broadcast_position_limits();
         LogOutput::printf(" -> done");
         return true;
@@ -232,7 +255,7 @@ bool AxisCANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, in
     }
 }
 
-bool AxisCANManager::send_force_and_position(float &f_foot, float &x_foot) {
+bool CANManager::send_force_and_position(float &f_foot, float &x_foot) {
     if (own_axis_index < 0) return false;
     axis_states[own_axis_index].force_and_position.f_foot = f_foot;
     axis_states[own_axis_index].force_and_position.x_foot = x_foot;
@@ -250,7 +273,7 @@ bool AxisCANManager::send_force_and_position(float &f_foot, float &x_foot) {
     return true;
 }
 
-bool AxisCANManager::send_position_limits(float x_foot_min, float x_foot_max) {
+bool CANManager::send_position_limits(float x_foot_min, float x_foot_max) {
     _x_foot_min = x_foot_min;
     _x_foot_max = x_foot_max;
     if (own_axis_index < 0) return false;
@@ -271,18 +294,18 @@ bool AxisCANManager::send_position_limits(float x_foot_min, float x_foot_max) {
     return true;
 }
 
-bool AxisCANManager::send_payload_to_gateway(const uint8_t *data, uint32_t len) {
-    return isotp_send(&(isotp_state.link), data, len) == ISOTP_RET_OK;
+bool CANManager::send_payload_to_gateway(const uint8_t *data, uint32_t len) {
+    return isotp_send(&(gateway_isotp_state.link), data, len) == ISOTP_RET_OK;
 }
 
-bool AxisCANManager::send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
+bool CANManager::send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
     return send_payload_to_gateway(raw_data, len_raw_data);
 }
 
-bool AxisCANManager::try_process_isotp_can_frame(CanFrame &rx_frame) {
+bool CANManager::try_process_gateway_isotp_can_frame(CanFrame &rx_frame) {
     if (own_axis_index < 0) return false;
     if (rx_frame.identifier == (0x700 + own_axis_index)) {
-        IsoTpLink *link = &(isotp_state.link);
+        IsoTpLink *link = &(gateway_isotp_state.link);
         isotp_on_can_message(link, rx_frame.data, rx_frame.data_length_code);
         isotp_poll(link);
         if (isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
@@ -295,7 +318,7 @@ bool AxisCANManager::try_process_isotp_can_frame(CanFrame &rx_frame) {
     return false;
 }
 
-bool AxisCANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
+bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
     if (own_axis_index < 0) return false;
     if ((rx_frame.identifier & 0xF00) == 0x200) {
         uint8_t axis_idx = rx_frame.identifier & 0x00F;
@@ -320,32 +343,8 @@ bool AxisCANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
 /*****************************************************************************************************************/
 /* GatewayCANManager */
 /*****************************************************************************************************************/
-void GatewayCANManager::process(void) {
-    CanFrame rx_frame;
-    uint8_t num_max_frames = 40;
-    uint32_t now = micros();
-    update_timeouts(now);
-    if (check_bus(now) == false) {
-        return;
-    }
-    for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
-        isotp_poll(&(isotp_state[axis_idx].link));
-    }
-    while (num_max_frames--) {
-        if (ESP32Can.readFrame(&rx_frame, 0)) {
-            if (try_process_high_prio_axis_frame(rx_frame, now)) continue;
-            if (try_process_low_prio_axis_frame(rx_frame, now)) continue;
-            if (try_process_isotp_can_frame(rx_frame)) continue;
-        } else {
-            return;
-        }
-    }
-    if (rx_err_cnt < 0xFFFFFFFF) {
-        rx_err_cnt++;
-    }
-}
-
-void GatewayCANManager::ping(uint32_t now) {
+void CANManager::send_ping_frame(uint32_t now) {
+    _gateway_online = true;
     if ((now - ti_last_ping) > 1000000) {
         CanFrame tx_frame = {};
         tx_frame.identifier = 0x7FE;
@@ -358,7 +357,7 @@ void GatewayCANManager::ping(uint32_t now) {
     }
 }
 
-bool GatewayCANManager::try_process_isotp_can_frame(CanFrame &rx_frame) {
+bool CANManager::try_process_axis_isotp_can_frame(CanFrame &rx_frame) {
     if ((rx_frame.identifier & 0xFF0) == 0x710) {
         uint8_t axis_idx = rx_frame.identifier & 0x00F;
         if (axis_idx < MessageTools::MAX_AXES_COUNT) {
@@ -376,26 +375,22 @@ bool GatewayCANManager::try_process_isotp_can_frame(CanFrame &rx_frame) {
     return false;
 }
 
-bool GatewayCANManager::setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnAxisPayload cb) {
-    LogOutput::printf("CANManager: Performing setup...");
+bool CANManager::setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnAxisPayload cb) {
+    LogOutput::printf("CANManager: Performing setup (gateway only mode)...");
+    _is_gateway = true;
     on_axis_payload = cb;
-    ESP32Can.begin(ESP32Can.convertSpeed(baud_rate), tx_pin, rx_pin, 40, 40);
-    for (int i = 0; i < MessageTools::MAX_AXES_COUNT; i++) {
-        isotp_init_link(&(isotp_state[i].link), 0x700 + i, isotp_state[i].isotp_link_tx_buff, ISOTP_BUFFER_SIZE, isotp_state[i].isotp_link_rx_buff,
-                        ISOTP_BUFFER_SIZE);
-    }
-    switch_bus_state(BusState::ONLINE);
+    shared_setup(baud_rate, tx_pin, rx_pin);
     xTaskCreatePinnedToCore(this->task_func, "CANManagerTask", 5000, this, 1, NULL, 0);
     LogOutput::printf(" -> done");
     return true;
 }
 
-bool GatewayCANManager::send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len) {
+bool CANManager::send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len) {
     if (!MessageTools::check_axis_id(axis_id)) return false;
     return isotp_send(&(isotp_state[MessageTools::axis_index_from_id(axis_id)].link), data, len) == ISOTP_RET_OK;
 }
 
-bool GatewayCANManager::send_abs_trigger_to_axis(AxisID axis_id) {
+bool CANManager::send_abs_trigger_to_axis(AxisID axis_id) {
     if (!MessageTools::check_axis_id(axis_id)) return false;
     CanFrame tx_frame = {};
     tx_frame.identifier = 0x200 + (FFBFrameTypes::ABS << 4) + MessageTools::axis_index_from_id(axis_id);
@@ -409,7 +404,7 @@ bool GatewayCANManager::send_abs_trigger_to_axis(AxisID axis_id) {
     return true;
 }
 
-bool GatewayCANManager::send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
+bool CANManager::send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
     switch (message.which_payload) {
         case Message_ffb_action_tag:
             if (message.payload.ffb_action.trigger_abs) {

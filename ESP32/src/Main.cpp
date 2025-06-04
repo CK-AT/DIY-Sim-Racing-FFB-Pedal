@@ -38,12 +38,6 @@ int current_use_mcp_index;
 bool MCP_status = false;
 #endif
 
-enum CommChannel {
-    USB_SERIAL,
-    ISOTP,
-    ESP_NOW
-};
-
 // #define ALLOW_SYSTEM_IDENTIFICATION
 
 /**********************************************************************************************/
@@ -131,7 +125,7 @@ uint8_t debug_flags = 0;
 
 #ifdef HAS_CAN
     #include <CANManager.h>
-AxisCANManager can_manager;
+CANManager can_manager;
 #endif
 
 // #define PRINT_USED_STACK_SIZE
@@ -254,10 +248,12 @@ Sim sim = Sim(m, x_min, x_max, v_min, v_max, a_min, a_max);
 // ForceMap force_map2 = ForceMap({0.0, 10.0, 90.0, 100.0}, {-100.0, 0.0, 0.0, 100.0});
 // DampingMap damping_map1 = DampingMap({0.0, 15.0, 85.0, 100.0}, {3.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 3.0});
 
+#include "CommManager.h"
+
 #include "MessageTools.h"
 #include "PacketSerial.h"
 
-PacketSerial myPacketSerial;
+AxisCommManager comm_manager;
 
 ConfigManager config_manager;
 
@@ -269,8 +265,8 @@ void IRAM_ATTR adc_isr(void) {
     }
 }
 
-void on_packet_received(const uint8_t *buffer, size_t size, CommChannel comm_channel);
-void on_ffb_action(FFBAction &ffb_action);
+void on_ffb_action(const FFBAction &ffb_action);
+void on_axis_action(AxisAction &axis_action, CommChannel comm_channel);
 
 void on_config_update(void) {
     if (stepper) stepper->pause(1000);
@@ -313,17 +309,9 @@ void setup() {
     Serial.begin(921600);
     Serial.setTimeout(5);
 #endif
-    myPacketSerial.setStream(&Serial);
-    myPacketSerial.setPacketHandler([](const uint8_t *buffer, size_t size) { on_packet_received(buffer, size, CommChannel::USB_SERIAL); });
-    // send some zero bytes to ensure proper COBS sync on the first message
-    Serial.print("\x00\x00\x00");
 
-    // start serialCommunicationTask early to support LogOutput
-    xTaskCreatePinnedToCore(serialCommunicationTask, "serialCommunicationTask", 10000,
-                            // STACK_SIZE_FOR_TASK_2,
-                            NULL, 1, &SerialCommTask, 0);
-
-    delay(100);
+    comm_manager.setup(&config_manager, on_ffb_action, on_axis_action);
+    comm_manager.setup_serial(&Serial);
 
 #ifdef PEDAL_ASSIGNMENT
     uint8_t own_axis_index = 0;
@@ -365,9 +353,7 @@ void setup() {
     config_manager.load_configs();
 
 #ifdef HAS_CAN
-    can_manager.setup(
-        config_manager.get_axis_id(), 1000, CAN_TX, CAN_RX,
-        [](const uint8_t *buffer, size_t size) { on_packet_received(buffer, size, CommChannel::ISOTP); }, on_ffb_action);
+    comm_manager.setup_can(config_manager.get_axis_id(), 1000, CAN_TX, CAN_RX);
 #endif
 
 // check whether iSV57 communication can be established
@@ -1100,28 +1086,7 @@ void pedalUpdateTask(void *pvParameters) {
     }
 }
 
-bool send_message(const Message &msg, CommChannel comm_channel) {
-    uint8_t tx_buffer[MessageTools::MAX_ENCODED_SIZE + 2];
-    uint16_t crc;
-    uint16_t num_bytes_encoded = MessageTools::encode_message_and_calc_crc(msg, tx_buffer, MessageTools::MAX_ENCODED_SIZE, crc);
-    if (num_bytes_encoded) {
-        memcpy(tx_buffer + num_bytes_encoded, &crc, sizeof(uint16_t));
-        switch (comm_channel) {
-            case CommChannel::USB_SERIAL:
-                myPacketSerial.send(tx_buffer, num_bytes_encoded + sizeof(uint16_t));
-                break;
-            case CommChannel::ISOTP:
-                can_manager.send_message_to_gateway(msg, tx_buffer, num_bytes_encoded + sizeof(uint16_t));
-                break;
-            default:
-                break;
-        }
-        return true;
-    }
-    return false;
-}
-
-void on_ffb_action(FFBAction &ffb_action) {
+void on_ffb_action(const FFBAction &ffb_action) {
     if (ffb_action.trigger_abs) {
         automotive_pedal_function.trigger_abs();
     }
@@ -1130,13 +1095,13 @@ void on_ffb_action(FFBAction &ffb_action) {
 void send_axis_config(CommChannel comm_channel) {
     Message msg;
     config_manager.get_axis_config(msg);
-    send_message(msg, comm_channel);
+    comm_manager.send_message(msg, comm_channel);
 }
 
 void send_function_config(CommChannel comm_channel) {
     Message msg;
     config_manager.get_function_config(msg);
-    send_message(msg, comm_channel);
+    comm_manager.send_message(msg, comm_channel);
 }
 
 void on_axis_action(AxisAction &axis_action, CommChannel comm_channel) {
@@ -1162,101 +1127,81 @@ void send_log_msg(const char *buff) {
     log_msg.payload.log_message.axis_id = config_manager.get_axis_id();
     log_msg.which_payload = Message_log_message_tag;
     strncpy(log_msg.payload.log_message.msg, buff, sizeof(log_msg.payload.log_message.msg) - 1);
-    send_message(log_msg, CommChannel::USB_SERIAL);  // TODO: dispatch to appropriate comm channel
+    comm_manager.send_message(log_msg, CommChannel::USB_SERIAL);  // TODO: dispatch to appropriate comm channel
 }
 
-void on_message(Message *msg, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg, CommChannel comm_channel) {
-    switch (msg->which_payload) {
-        case Message_axis_config_tag:
-            config_manager.update_axis_config(msg->payload.axis_config, protobuf_msg, len_protobuf_msg);
-            break;
-        case Message_function_config_tag:
-            config_manager.update_function_config(msg->payload.function_config, protobuf_msg, len_protobuf_msg);
-            break;
-        case Message_ffb_action_tag:
-            on_ffb_action(msg->payload.ffb_action);
-            break;
-        case Message_axis_action_tag:
-            on_axis_action(msg->payload.axis_action, comm_channel);
-            break;
-        default:
-            LogOutput::printf("Unknown Message received");
-            break;
-    }
-}
-
-void on_packet_received(const uint8_t *buffer, size_t size, CommChannel comm_channel) {
-    Message msg = Message_init_zero;
-    uint16_t crc = *reinterpret_cast<const uint16_t *>(buffer + size - sizeof(uint16_t));
-    if (MessageTools::check_and_decode_message(msg, buffer, size - sizeof(uint16_t), crc)) {
-        on_message(&msg, buffer, size - sizeof(uint16_t), comm_channel);
-    }
-    // else if (buffer[0] == '>') {
-    //     char *param = strtok((char *)buffer + 1, "=");
-    //     if (param) {
-    //         // Serial.printf("Param: %s\n", param);
-    //         char *val = strtok(NULL, "=");
-    //         if (val) {
-    //             // Serial.printf("Val: %s\n", val);
-    //             if (strcmp(param, "m") == 0) {
-    //                 float val_num = atof(val);
-    //                 sim.set_m(val_num);
-    //                 Serial.printf("Simulation mass set to %.3f kg\n", val_num);
-    //             } else if (strcmp(param, "debug") == 0) {
-    //                 int flags = atoi(val);
-    //                 dap_config_st.payLoadPedalConfig_.debug_flags_0 = flags;
-    //                 Serial.printf("Debug flags set to %04X\n", flags);
-    //             } else if (strcmp(param, "can_output_prescaler") == 0) {
-    //                 can_output_prescaler = max(atoi(val), 1);
-    //                 Serial.printf("can_output_prescaler set to %02X\n", can_output_prescaler);
-    //             } else if (strcmp(param, "endstops") == 0) {
-    //                 if (atoi(val)) {
-    //                     endstops.enable();
-    //                     Serial.printf("Endstops enabled\n");
-    //                 } else {
-    //                     endstops.disable();
-    //                     Serial.printf("Endstops disabled\n");
-    //                 }
-    //             } else if (strcmp(param, "fric") == 0) {
-    //                 float val_num = atof(val);
-    //                 friction1.set_f(val_num);
-    //                 Serial.printf("Friction set to %.3f N\n", val_num);
-    //             } else if (strcmp(param, "spr") == 0) {
-    //                 float val_num = atof(val);
-    //                 spring1.set_k(val_num);
-    //                 Serial.printf("Spring set to %.3f N/mm\n", val_num);
-    //             } else if (strcmp(param, "damp") == 0) {
-    //                 float val_num = atof(val);
-    //                 damper1.set_k(val_num);
-    //                 Serial.printf("Damper set to %.3f N/(mm/s)\n", val_num);
-    //             } else if (strcmp(param, "damp_pos") == 0) {
-    //                 float val_num = atof(val);
-    //                 damper1.set_k_pos(val_num);
-    //                 Serial.printf("Positive damper set to %.3f N/(mm/s)\n", val_num);
-    //             } else if (strcmp(param, "damp_neg") == 0) {
-    //                 float val_num = atof(val);
-    //                 damper1.set_k_neg(val_num);
-    //                 Serial.printf("Negative damper set to %.3f N/(mm/s)\n", val_num);
-    //             } else {
-    //                 Serial.printf("Unknown param \"%s\"\n", param);
-    //             }
-    //         } else {
-    //             if (strncmp(param, "home", sizeof("home") - 1) == 0) {
-    //                 Serial.printf("Homing command received\n");
-    //                 stepper->home();
-    //                 // } else if (strncmp(param, "lock", sizeof("lock") - 1) == 0) {
-    //                 //   Serial.printf("Locking command received\n");
-    //                 //   stepper->lock_onto_curr_pos();
-    //             } else if (strncmp(param, "restart", sizeof("restart") - 1) == 0) {
-    //                 Serial.printf("Restarting...\n");
-    //                 ESP.restart();
-    //             } else {
-    //                 Serial.printf("Unknown param \"%s\"\n", param);
-    //             }
-    //         }
-    //     }
-    // }
-}
+// void on_packet_received(const uint8_t *buffer, size_t size, CommChannel comm_channel) {
+//     Message msg = Message_init_zero;
+//     uint16_t crc = *reinterpret_cast<const uint16_t *>(buffer + size - sizeof(uint16_t));
+//     if (MessageTools::check_and_decode_message(msg, buffer, size - sizeof(uint16_t), crc)) {
+//         on_message(&msg, buffer, size - sizeof(uint16_t), comm_channel);
+//     }
+//     // else if (buffer[0] == '>') {
+//     //     char *param = strtok((char *)buffer + 1, "=");
+//     //     if (param) {
+//     //         // Serial.printf("Param: %s\n", param);
+//     //         char *val = strtok(NULL, "=");
+//     //         if (val) {
+//     //             // Serial.printf("Val: %s\n", val);
+//     //             if (strcmp(param, "m") == 0) {
+//     //                 float val_num = atof(val);
+//     //                 sim.set_m(val_num);
+//     //                 Serial.printf("Simulation mass set to %.3f kg\n", val_num);
+//     //             } else if (strcmp(param, "debug") == 0) {
+//     //                 int flags = atoi(val);
+//     //                 dap_config_st.payLoadPedalConfig_.debug_flags_0 = flags;
+//     //                 Serial.printf("Debug flags set to %04X\n", flags);
+//     //             } else if (strcmp(param, "can_output_prescaler") == 0) {
+//     //                 can_output_prescaler = max(atoi(val), 1);
+//     //                 Serial.printf("can_output_prescaler set to %02X\n", can_output_prescaler);
+//     //             } else if (strcmp(param, "endstops") == 0) {
+//     //                 if (atoi(val)) {
+//     //                     endstops.enable();
+//     //                     Serial.printf("Endstops enabled\n");
+//     //                 } else {
+//     //                     endstops.disable();
+//     //                     Serial.printf("Endstops disabled\n");
+//     //                 }
+//     //             } else if (strcmp(param, "fric") == 0) {
+//     //                 float val_num = atof(val);
+//     //                 friction1.set_f(val_num);
+//     //                 Serial.printf("Friction set to %.3f N\n", val_num);
+//     //             } else if (strcmp(param, "spr") == 0) {
+//     //                 float val_num = atof(val);
+//     //                 spring1.set_k(val_num);
+//     //                 Serial.printf("Spring set to %.3f N/mm\n", val_num);
+//     //             } else if (strcmp(param, "damp") == 0) {
+//     //                 float val_num = atof(val);
+//     //                 damper1.set_k(val_num);
+//     //                 Serial.printf("Damper set to %.3f N/(mm/s)\n", val_num);
+//     //             } else if (strcmp(param, "damp_pos") == 0) {
+//     //                 float val_num = atof(val);
+//     //                 damper1.set_k_pos(val_num);
+//     //                 Serial.printf("Positive damper set to %.3f N/(mm/s)\n", val_num);
+//     //             } else if (strcmp(param, "damp_neg") == 0) {
+//     //                 float val_num = atof(val);
+//     //                 damper1.set_k_neg(val_num);
+//     //                 Serial.printf("Negative damper set to %.3f N/(mm/s)\n", val_num);
+//     //             } else {
+//     //                 Serial.printf("Unknown param \"%s\"\n", param);
+//     //             }
+//     //         } else {
+//     //             if (strncmp(param, "home", sizeof("home") - 1) == 0) {
+//     //                 Serial.printf("Homing command received\n");
+//     //                 stepper->home();
+//     //                 // } else if (strncmp(param, "lock", sizeof("lock") - 1) == 0) {
+//     //                 //   Serial.printf("Locking command received\n");
+//     //                 //   stepper->lock_onto_curr_pos();
+//     //             } else if (strncmp(param, "restart", sizeof("restart") - 1) == 0) {
+//     //                 Serial.printf("Restarting...\n");
+//     //                 ESP.restart();
+//     //             } else {
+//     //                 Serial.printf("Unknown param \"%s\"\n", param);
+//     //             }
+//     //         }
+//     //     }
+//     // }
+// }
 
 /**********************************************************************************************/
 /*                                                                                            */
@@ -1280,7 +1225,7 @@ void serialCommunicationTask(void *pvParameters) {
 
         delay(SERIAL_COOMUNICATION_TASK_DELAY_IN_MS);
 
-        myPacketSerial.update();
+        // myPacketSerial.update();
 
         // // read serial input
         // uint8_t n = Serial.available();

@@ -314,14 +314,12 @@ message AxisAction {
 }
 
 message AxisState {
-  // axis ID of the affected axis
+  // ID of the axis this message represents
   AxisID axis_id = 1;
-  // relative position, UINT16
-  uint32 position = 2;
-  // relative force, UINT16
-  uint32 force = 3;
-  // controller output, UINT16
-  uint32 controller_output = 4;
+  // relative position
+  float position = 2;
+  // relative force
+  float force = 3;
 }
 
 message GatewayState {

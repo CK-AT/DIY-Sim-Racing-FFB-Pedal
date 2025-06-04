@@ -1,0 +1,7 @@
+{
+    "name": "SerialManager",
+    "version": "1.0.0",
+    "dependencies": [
+        "bakercp/PacketSerial @ ^1.4.0"
+    ]
+}

@@ -19,7 +19,7 @@ class ConfigManager {
         void update_function_config(FunctionConfig &new_config, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg);
         void get_axis_config(Message &message);
         void get_function_config(Message &message);
-        AxisID get_axis_id(void) {
+        AxisID get_axis_id(void) const {
             return _axis_id;
         }
         float get_x_contact_point_min(void) {
