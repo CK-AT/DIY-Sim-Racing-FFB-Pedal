@@ -98,15 +98,16 @@ class AxisCANManager : public CANManager, public IAxisCommChannel {
 
     public:
         AxisCANManager(void) {};
-        void setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update);
+        bool setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update);
         void process(void) override;
-        void send_force_and_position(float &f_foot, float &x_foot) override;
-        void send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
-        void send_position_limits(float x_foot_min, float x_foot_max) override;
-        void update_force(float &f_foot) override {
-            if (own_axis_index < 0) return;
+        bool send_force_and_position(float &f_foot, float &x_foot) override;
+        bool send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
+        bool send_position_limits(float x_foot_min, float x_foot_max) override;
+        bool update_force(float &f_foot) override {
+            if (own_axis_index < 0) return false;
             axis_states[own_axis_index].force_and_position.f_foot = f_foot;
             axis_states[own_axis_index].online = true;
+            return true;
         }
         bool get_force(AxisID axis_id, float &f_foot) override {
             return CANManager::get_force(axis_id, f_foot);
@@ -147,8 +148,8 @@ class GatewayCANManager : public CANManager, public IGatewayCommChannel {
 
     public:
         GatewayCANManager(void) {};
-        void setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnAxisPayload cb);
-        void send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
+        bool setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnAxisPayload cb);
+        bool send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
         bool get_force(AxisID axis_id, float &f_foot) override {
             return CANManager::get_force(axis_id, f_foot);
         }
@@ -167,7 +168,7 @@ class GatewayCANManager : public CANManager, public IGatewayCommChannel {
         void ping(uint32_t now);
         bool try_process_isotp_can_frame(CanFrame &rx_frame);
         bool send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len);
-        void send_abs_trigger_to_axis(AxisID axis_id);
+        bool send_abs_trigger_to_axis(AxisID axis_id);
         IsotpState isotp_state[MessageTools::MAX_AXES_COUNT];
         OnAxisPayload on_axis_payload = nullptr;
 };
