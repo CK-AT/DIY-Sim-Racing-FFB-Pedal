@@ -22,9 +22,16 @@ enum LogLevel {
   LOG_LEVEL_ERROR = 4;
 }
 
-message LogMessage {
+message AxisLogMessage {
   // axis ID, source of this log message 
   AxisID axis_id = 1;
+  // log level
+  LogLevel level = 2;
+  // log message
+  string msg = 3;
+}
+
+message GatewayLogMessage {
   // log level
   LogLevel level = 2;
   // log message
@@ -343,12 +350,13 @@ message FFBAction {
 
 message Message {
   oneof payload {
-    LogMessage log_message = 1;
+    AxisLogMessage axis_log_message = 1;
     AxisConfig axis_config = 2;
     FunctionConfig function_config = 3;
     AxisAction axis_action = 4;
     AxisState axis_state = 5;
     GatewayState gateway_state = 6;
     FFBAction ffb_action = 7;
+    GatewayLogMessage gateway_log_message = 8;
   }
 }

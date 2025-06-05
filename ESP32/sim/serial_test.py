@@ -103,13 +103,14 @@ async def request_configs(protocol):
     protocol.send_message(msg)
 
 async def main():
-    transport, protocol = await serial_asyncio.create_serial_connection(loop, OutputProtocol, '/dev/ttyACM0', baudrate=921600)
+    transport, protocol = await serial_asyncio.create_serial_connection(loop, OutputProtocol, 'COM4', baudrate=921600)
     msg_sent = True
     asyncio.create_task(request_configs(protocol))
     async for msg in protocol.get_messages():
         payload_type = msg.WhichOneof("payload")
-        if payload_type == 'log_message':
-            print(f'Axis {msg.log_message.axis_id} : {msg.log_message.msg.rstrip()}')
+        if payload_type == 'axis_log_message':
+            log_msg = msg.axis_log_message
+            print(f'{ffb_protocol.AxisID.Name(log_msg.axis_id)} : {log_msg.msg.rstrip()}')
             if not msg_sent:
                 msg = ffb_protocol.Message()
                 msg.axis_action.return_axis_config = True
@@ -118,6 +119,8 @@ async def main():
                 msg.axis_action.return_function_config = True
                 protocol.send_message(msg)
                 msg_sent = True
+        elif payload_type == 'axis_state':
+            pass
         else:
             print(f'unhandled message received: {msg}')
 

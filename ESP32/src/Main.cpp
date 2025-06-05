@@ -45,33 +45,15 @@ bool MCP_status = false;
 /*                         function declarations                                              */
 /*                                                                                            */
 /**********************************************************************************************/
-void updatePedalCalcParameters();
-void pedalUpdateTask(void *pvParameters);
-void serialCommunicationTask(void *pvParameters);
-void servoCommunicationTask(void *pvParameters);
+void physics_task(void *pvParameters);
 void OTATask(void *pvParameters);
 void ESPNOW_SyncTask(void *pvParameters);
-// https://www.tutorialspoint.com/cyclic-redundancy-check-crc-in-arduino
-uint16_t checksumCalculator(uint8_t *data, uint16_t length) {
-    uint16_t curr_crc = 0x0000;
-    uint8_t sum1 = (uint8_t)curr_crc;
-    uint8_t sum2 = (uint8_t)(curr_crc >> 8);
-    int index;
-    for (index = 0; index < length; index = index + 1) {
-        sum1 = (sum1 + data[index]) % 255;
-        sum2 = (sum2 + sum1) % 255;
-    }
-    return (sum2 << 8) | sum1;
-}
 
 bool systemIdentificationMode_b = false;
 
 int16_t servoPos_i16 = 0;
 
 bool splineDebug_b = false;
-
-#include <EEPROM.h>
-#define EEPROM_offset 15
 
 #include "AutomotivePedalFunction.h"
 
@@ -123,18 +105,12 @@ uint8_t debug_flags = 0;
     #include "soc/rtc_wdt.h"
 #endif
 
-#ifdef HAS_CAN
-    #include <CANManager.h>
-CANManager can_manager;
-#endif
-
 // #define PRINT_USED_STACK_SIZE
 //  https://stackoverflow.com/questions/55998078/freertos-task-priority-and-stack-size
 #define STACK_SIZE_FOR_TASK_1 0.2 * (configTOTAL_HEAP_SIZE / 4)
 #define STACK_SIZE_FOR_TASK_2 0.2 * (configTOTAL_HEAP_SIZE / 4)
 
 TaskHandle_t PedalTask;
-TaskHandle_t SerialCommTask;
 
 // static SemaphoreHandle_t semaphore_updateConfig = NULL;
 // DAP_config_st dap_config_st_local;
@@ -142,13 +118,6 @@ TaskHandle_t SerialCommTask;
 
 static SemaphoreHandle_t semaphore_updateJoystick = NULL;
 int32_t joystickNormalizedToInt32 = 0;  // semaphore protected data
-
-static SemaphoreHandle_t semaphore_resetServoPos = NULL;
-bool resetPedalPosition = false;
-
-static SemaphoreHandle_t semaphore_readServoValues = NULL;
-
-static SemaphoreHandle_t semaphore_updatePedalStates = NULL;
 
 /**********************************************************************************************/
 /*                                                                                            */
@@ -187,14 +156,14 @@ LoadCell_ADS1256 *loadcell = NULL;
 
 /**********************************************************************************************/
 /*                                                                                            */
-/*                         stepper motor definitions                                          */
+/*                         servo motor definitions                                          */
 /*                                                                                            */
 /**********************************************************************************************/
 
 #ifdef A6SERVO
     #include "A6Servo.h"
 #endif
-Servo *stepper = NULL;
+Servo *servo = NULL;
 // static const int32_t MIN_STEPS = 5;
 
 // #include "StepperMovementStrategy.h"
@@ -249,10 +218,9 @@ Sim sim = Sim(m, x_min, x_max, v_min, v_max, a_min, a_max);
 // DampingMap damping_map1 = DampingMap({0.0, 15.0, 85.0, 100.0}, {3.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 3.0});
 
 #include "CommManager.h"
+#include "ConfigManager.h"
 
 #include "MessageTools.h"
-#include "PacketSerial.h"
-
 AxisCommManager comm_manager;
 
 ConfigManager config_manager;
@@ -266,13 +234,13 @@ void IRAM_ATTR adc_isr(void) {
 }
 
 void on_ffb_action(const FFBAction &ffb_action);
-void on_axis_action(AxisAction &axis_action, CommChannel comm_channel);
+void on_axis_action(AxisAction &axis_action);
 
 void on_config_update(void) {
-    if (stepper) stepper->pause(1000);
+    if (servo) servo->pause(1000);
     sim.set_x_min(config_manager.get_x_contact_point_min(), true);
     sim.set_x_max(config_manager.get_x_contact_point_max(), true);
-    can_manager.send_position_limits(sim.get_x_min(), sim.get_x_max());
+    comm_manager.send_position_limits(sim.get_x_min(), sim.get_x_max());
     const FunctionConfig *function_cfg = config_manager.get_function_config();
     switch (function_cfg->which_specific) {
         case FunctionConfig_automotive_pedal_tag:
@@ -311,6 +279,12 @@ void setup() {
 #endif
 
     comm_manager.setup(&config_manager, on_ffb_action, on_axis_action);
+
+    LogOutput::printf("**************************************************************************************************************");
+    LogOutput::printf("This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.");
+    LogOutput::printf("Please check github repo for more detail: https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal");
+    // TODO: printout the github releasing version
+
     comm_manager.setup_serial(&Serial);
 
 #ifdef PEDAL_ASSIGNMENT
@@ -336,17 +310,11 @@ void setup() {
     config_manager.init(AxisID_AXIS_UNDEFINED, on_config_update);
 #endif
 
-    // init controller
-    LogOutput::printf("**************************************************************************************************************");
-    LogOutput::printf("This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.");
-    LogOutput::printf("Please check github repo for more detail: https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal");
-    // printout the github releasing version
-
 #ifdef PEDAL_ASSIGNMENT
     if (own_axis_index < MessageTools::MAX_AXES_COUNT) {
-        LogOutput::printf("Identified as axis %d", own_axis_index + 1);
+        LogOutput::printf("Setup: Identified as axis %d", own_axis_index + 1);
     } else {
-        LogOutput::printf("Assignment error, axis id = %d (max. %d)", own_axis_index + 1, MessageTools::MAX_AXES_COUNT);
+        LogOutput::printf("Setup: Assignment error, axis id = %d (max. %d)", own_axis_index + 1, MessageTools::MAX_AXES_COUNT);
     }
 #endif
 
@@ -356,68 +324,10 @@ void setup() {
     comm_manager.setup_can(config_manager.get_axis_id(), 1000, CAN_TX, CAN_RX);
 #endif
 
-// check whether iSV57 communication can be established
-// and in case, (a) send tuned servo parameters and (b) prepare the servo for signal read
-#ifdef ESPNow_Pairing_function
-    pinMode(Pairing_GPIO, INPUT_PULLUP);
-#endif
-
-    //     // initialize configuration and update local variables
-    //     dap_config_st.initialiseDefaults();
-    //     dap_mech_config_st.initialiseDefaults();
-
-    //     // Load config from EEPROM, if valid, overwrite initial config
-    //     EEPROM.begin(2048);
-    //     dap_mech_config_st.loadConfigFromEprom(dap_mech_config_st_local);
-    //     dap_config_st.loadConfigFromEprom(dap_config_st_local);
-
-    //     // mechanical config
-    //     // if checks are successfull, overwrite global configuration struct
-    //     if (verify_ffb_data_struct(&dap_mech_config_st_local, sizeof(dap_mech_config_st_local)) == FFBDataType::MECH_CONFIG) {
-    //         LogOutput::printf("Updating mechanical pedal config from EEPROM");
-    //         dap_mech_config_st = dap_mech_config_st_local;
-    //     } else {
-    //         LogOutput::printf("Can't load mechanical config from EEPROM:");
-    //         if (DAP_PAYLOAD_TYPE_MECH_CONFIG != dap_mech_config_st_local.payLoadHeader_.payloadType) {
-    //             LogOutput::printf("  Payload type expected: %d, Payload type received: %d", DAP_PAYLOAD_TYPE_MECH_CONFIG,
-    //                               dap_mech_config_st_local.payLoadHeader_.payloadType);
-    //         }
-    //         if (DAP_VERSION_CONFIG, dap_mech_config_st_local.payLoadHeader_.version) {
-    //             LogOutput::printf("  Target version: %d,    Source version: %d", DAP_VERSION_CONFIG,
-    //             dap_mech_config_st_local.payLoadHeader_.version);
-    //         }
-    //     }
-
-    //     // general config
-    //     // if checks are successfull, overwrite global configuration struct
-    //     if (verify_ffb_data_struct(&dap_config_st_local, sizeof(dap_config_st_local)) == FFBDataType::CONFIG) {
-    //         LogOutput::printf("Updating general pedal config from EEPROM");
-    //         dap_config_st = dap_config_st_local;
-    //     } else {
-    //         LogOutput::printf("Can't load general config from EEPROM:");
-    //         if (DAP_PAYLOAD_TYPE_CONFIG != dap_config_st_local.payLoadHeader_.payloadType) {
-    //             LogOutput::printf("  Payload type expected: %d,   Payload type received: %d", DAP_VERSION_CONFIG,
-    //                               dap_config_st_local.payLoadHeader_.version);
-    //         }
-    //         if (DAP_VERSION_CONFIG != dap_config_st_local.payLoadHeader_.version) {
-    //             LogOutput::printf("  Target version: %d,    Source version: %d", DAP_VERSION_CONFIG, dap_config_st_local.payLoadHeader_.version);
-    //         }
-    //     }
-
-    // #ifdef PEDAL_ASSIGNMENT
-    //     if (own_axis_id < MessageTools::MAX_AXES_COUNT) {
-    //         dap_config_st.payLoadPedalConfig_.pedal_type = own_axis_id;
-    //     }
-    // #endif
-
-    //     // interprete config values
-    //     dap_calculationVariables_st.updateFromMechConfig(dap_mech_config_st);
-    //     dap_calculationVariables_st.updateFromConfig(dap_config_st);
-
     const AxisConfig *axis_cfg = config_manager.get_axis_config();
 
 #ifdef A6SERVO
-    stepper = new A6Servo(stepPinStepper, dirPinStepper, !axis_cfg->b_motor_inverted, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN,
+    servo = new A6Servo(stepPinStepper, dirPinStepper, !axis_cfg->b_motor_inverted, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN,
                           ISV57_DEPIN, false);
 #endif
     loadcell = new LoadCell_ADS1256();
@@ -429,34 +339,24 @@ void setup() {
     loadcell->estimateVariance();  // automatically identify sensor noise for KF parameterization
 #endif
 
-    // Serial.print("Min Position is "); Serial.println(stepper->getLimitMin());
-    // Serial.print("Max Position is "); Serial.println(stepper->getLimitMax());
-
     // setup Kalman filter
     float var_est = loadcell->getVarianceEstimate();
-    LogOutput::printf("Given loadcell variance: %f", var_est);
     kalman = new KalmanFilter(var_est);
     kalman_2nd_order = new KalmanFilter_2nd_order(var_est);
 
     // setup multi tasking
     semaphore_updateJoystick = xSemaphoreCreateMutex();
-    semaphore_resetServoPos = xSemaphoreCreateMutex();
-    semaphore_updatePedalStates = xSemaphoreCreateMutex();
     delay(10);
 
-    // activate parameter update in first cycle
-    // update_config();
-    // equalize pedal config for both tasks
-
     if (semaphore_updateJoystick == NULL) {
-        LogOutput::printf("Could not create semaphore");
+        LogOutput::printf("Setup: Could not create semaphore");
         ESP.restart();
     }
 
-    if (!stepper->setup(axis_cfg->steps_per_mm, axis_cfg->mm_per_rev)) {
-        LogOutput::printf("Failed to initialize the servo (check power and connections).");
+    if (!servo->setup(axis_cfg->steps_per_mm, axis_cfg->mm_per_rev)) {
+        LogOutput::printf("Setup: Failed to initialize the servo (check power and connections)");
     } else {
-        stepper->enable();
+        servo->enable();
         delay(100);
     }
 
@@ -473,7 +373,6 @@ void setup() {
     // sim.add_element(&absOscillation);
     // sim.add_element(&friction1);
 
-// Serial.begin(115200);
 #ifdef OTA_update
 
     switch (dap_config_st.payLoadPedalConfig_.pedal_type) {
@@ -549,8 +448,8 @@ void setup() {
 
 #endif
 
-    xTaskCreatePinnedToCore(pedalUpdateTask,   /* Task function. */
-                            "pedalUpdateTask", /* name of task. */
+    xTaskCreatePinnedToCore(physics_task,   /* Task function. */
+                            "PhysicsTask", /* name of task. */
                             10000,             /* Stack size of task */
                             // STACK_SIZE_FOR_TASK_1,
                             NULL,       /* parameter of the task */
@@ -558,14 +457,11 @@ void setup() {
                             &PedalTask, /* Task handle to keep track of created task */
                             1);         /* pin task to core 1 */
 
-    LogOutput::printf("pedalUpdateTask created");
-
     enableCore1WDT();
 
     attachInterrupt(PIN_DRDY, &adc_isr, FALLING);
-    LogOutput::printf("ADC DRDY ISR attached");
 
-    LogOutput::printf("Setup end");
+    LogOutput::printf("Setup: done");
 }
 
 /**********************************************************************************************/
@@ -577,9 +473,9 @@ unsigned long joystick_state_last_update = millis();
 void loop() {
     delay(1000);
 #ifdef RGB_LED
-    if (stepper->get_state() == Servo::State::Disabled) {
+    if (servo->get_state() == Servo::State::Disabled) {
         pixels.SetPixelColor(0, red);
-    } else if (stepper->is_locked_in()) {
+    } else if (servo->is_locked_in()) {
         pixels.SetPixelColor(0, green);
     } else {
         pixels.SetPixelColor(0, yellow);
@@ -605,7 +501,7 @@ void calc_poly(const float &in, float &out, const double *coeffs) {
 }
 
 float get_input_force_sum(float own_force) {
-    can_manager.update_force(own_force);
+    comm_manager.update_force(own_force);
     const FunctionBase &func_base = config_manager.get_function_config()->base;
     float f_sum = 0.0f;
     float temp;
@@ -615,7 +511,7 @@ float get_input_force_sum(float own_force) {
         AxisID axis_id = AxisID(func_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
         if (axis_id == AxisID_AXIS_UNDEFINED) break;
         temp = 0.0f;
-        can_manager.get_force(axis_id, temp);  // get_force won't touch temp if the associated axis is not online, no need to check the return value
+        comm_manager.get_force(axis_id, temp);  // get_force won't touch temp if the associated axis is not online, no need to check the return value
         if (func_base.linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) {
             if (axis_id == own_axis_id) is_subtractive_axis = true;
             f_sum -= temp;
@@ -638,7 +534,7 @@ bool get_final_position(float own_position, float &final_position) {
         // we are the primary axis -> own_position is the final position
         final_position = own_position;
         return true;
-    } else if (can_manager.get_position(primary_axis_id, other_position)) {
+    } else if (comm_manager.get_position(primary_axis_id, other_position)) {
         // we are NOT the primary axis, start at idx 1
         for (uint8_t idx = 1; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
             AxisID axis_id = AxisID(func_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
@@ -684,7 +580,7 @@ uint8_t can_output_loop_cnt = 0;
 uint8_t can_output_prescaler = 2;
 
 // void loop()
-void pedalUpdateTask(void *pvParameters) {
+void physics_task(void *pvParameters) {
     float dt = 1000.0;
     const AxisConfig *axis_cfg = config_manager.get_axis_config();
     const FunctionConfig *function_cfg = config_manager.get_function_config();
@@ -820,7 +716,7 @@ void pedalUpdateTask(void *pvParameters) {
 #ifdef HAS_CAN
         /* AxisCANManager is designed to run its main processing from within the pedal task to ensure minimum latency on other axes' position and
          * force values */
-        can_manager.process();
+        comm_manager.process();
 #endif
 
         float f_in = get_input_force_sum(f_foot);
@@ -834,7 +730,7 @@ void pedalUpdateTask(void *pvParameters) {
 
         config_manager.release_config_semaphore();
 
-        stepper->move_to(x_sled);
+        servo->move_to(x_sled);
 
         // #define DEBUG_FILTER
         if (debug_flags & DEBUG_INFO_0_LOADCELL_READING) {
@@ -851,7 +747,7 @@ void pedalUpdateTask(void *pvParameters) {
         can_output_loop_cnt++;
         if ((can_output_loop_cnt % can_output_prescaler) == 0) {
             can_output_loop_cnt = 0;
-            can_manager.send_force_and_position(f_foot, x_foot);
+            comm_manager.send_force_and_position(f_foot, x_foot);
         }
 #endif
         /*
@@ -1092,42 +988,34 @@ void on_ffb_action(const FFBAction &ffb_action) {
     }
 }
 
-void send_axis_config(CommChannel comm_channel) {
+void send_axis_config(void) {
     Message msg;
     config_manager.get_axis_config(msg);
-    comm_manager.send_message(msg, comm_channel);
+    comm_manager.send_message_to_gateway(msg);
 }
 
-void send_function_config(CommChannel comm_channel) {
+void send_function_config(void) {
     Message msg;
     config_manager.get_function_config(msg);
-    comm_manager.send_message(msg, comm_channel);
+    comm_manager.send_message_to_gateway(msg);
 }
 
-void on_axis_action(AxisAction &axis_action, CommChannel comm_channel) {
+void on_axis_action(AxisAction &axis_action) {
     switch (axis_action.which_action) {
         case AxisAction_restart_tag:
             ESP.restart();
             break;
         case AxisAction_return_axis_config_tag:
-            send_axis_config(comm_channel);
+            send_axis_config();
             break;
         case AxisAction_return_function_config_tag:
-            send_function_config(comm_channel);
+            send_function_config();
             break;
         case AxisAction_debug_flags_tag:
             debug_flags = axis_action.action.debug_flags;
         default:
             break;
     }
-}
-
-void send_log_msg(const char *buff) {
-    Message log_msg = Message_init_zero;
-    log_msg.payload.log_message.axis_id = config_manager.get_axis_id();
-    log_msg.which_payload = Message_log_message_tag;
-    strncpy(log_msg.payload.log_message.msg, buff, sizeof(log_msg.payload.log_message.msg) - 1);
-    comm_manager.send_message(log_msg, CommChannel::USB_SERIAL);  // TODO: dispatch to appropriate comm channel
 }
 
 // void on_packet_received(const uint8_t *buffer, size_t size, CommChannel comm_channel) {
@@ -1212,8 +1100,6 @@ void send_log_msg(const char *buff) {
 int64_t timeNow_serialCommunicationTask_l = 0;
 int64_t timePrevious_serialCommunicationTask_l = 0;
 #define REPETITION_INTERVAL_SERIALCOMMUNICATION_TASK (int64_t)10
-RTDebugOutputService debugOutput = RTDebugOutputService();
-LogOutputService logOutput = LogOutputService(send_log_msg);
 
 int32_t joystickNormalizedToInt32_local = 0;
 void serialCommunicationTask(void *pvParameters) {
@@ -1304,8 +1190,8 @@ void serialCommunicationTask(void *pvParameters) {
         SetControllerOutputValue_rudder(int32_t(x_foot * 100.0), int32_t(f_in * 10.0));
 #endif
 
-        debugOutput.pump(2);
-        logOutput.pump(5);
+        // debugOutput.pump(2);
+        // logOutput.pump(5);
 
         if (debug_flags & DEBUG_INFO_0_CYCLE_TIMER) {
             timerSC.BumpEnd();

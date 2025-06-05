@@ -1,4 +1,4 @@
-LogMessage.msg                              max_length:140
+*LogMessage.msg                              max_length:140
 
 DIYPedalKinematicConfig.l_*                 int_size:IS_16
 

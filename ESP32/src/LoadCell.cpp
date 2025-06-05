@@ -102,13 +102,17 @@ void LoadCell_ADS1256::estimateVariance() {
 
     _standardDeviationEstimate = sqrt(varEstimate);
 
-    LogOutput::printf(" -> variance est. = %.3f; stddev est. = %.5f", varEstimate, _standardDeviationEstimate);
-
     // make sure estimate is nonzero
     if (varEstimate < LOADCELL_VARIANCE_MIN) {
         varEstimate = LOADCELL_VARIANCE_MIN;
     }
+
+    LogOutput::printf(" -> variance est. = %.3f", varEstimate);
+    LogOutput::printf(" -> stddev est. = %.5f", _standardDeviationEstimate);
+
     varEstimate *= 9;  // The variance is 1*sigma --> to make it 3*sigma, we have to multiply by 3*3
+    
+    LogOutput::printf(" -> 3 sigma est. = %.5f", varEstimate);
 
     _varianceEstimate = varEstimate;
 }

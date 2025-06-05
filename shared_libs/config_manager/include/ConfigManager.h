@@ -1,6 +1,6 @@
 #pragma once
 #include <Arduino.h>
-
+#include "ConfigManager.fwd.h"
 #include "MessageTools.h"
 
 class ConfigManager {

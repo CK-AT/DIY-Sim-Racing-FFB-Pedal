@@ -43,7 +43,7 @@ class LogOutputService {
     static void logOutputTask(void* pvParameters) {
       LogOutputService* logOutput = (LogOutputService*) pvParameters;
       for (;;) {
-        logOutput->pump(1000, 1000);
+        logOutput->pump(100, 5);
       }
     }
 };

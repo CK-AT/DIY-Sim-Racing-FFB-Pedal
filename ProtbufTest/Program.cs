@@ -49,10 +49,15 @@ while (true)
     Message rx_msg = await serial.ReceiveMessage<Message>();
     if (rx_msg != null)
     {
-        if (rx_msg.PayloadCase == Message.PayloadOneofCase.LogMessage)
+        if (rx_msg.PayloadCase == Message.PayloadOneofCase.AxisLogMessage)
         {
-            Console.WriteLine("{0} : {1}", rx_msg.LogMessage.AxisId, rx_msg.LogMessage.Msg.TrimEnd());
+            Console.WriteLine("{0} : {1}", rx_msg.AxisLogMessage.AxisId, rx_msg.AxisLogMessage.Msg.TrimEnd());
         }
+        else if (rx_msg.PayloadCase == Message.PayloadOneofCase.AxisState)
+        {
+            Console.WriteLine("{0} : f = {1}N, x = {2}mm", rx_msg.AxisState.AxisId, rx_msg.AxisState.Force, rx_msg.AxisState.Position);
+        }
+
     }
     cnt++;
     if (cnt > 1000) cnt = 0;

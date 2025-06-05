@@ -1,6 +1,6 @@
 #include <SerialManager.h>
 #include <LogOutput.h>
-#include <Physics.h>
+#include <CommManager.h>
 
 /*****************************************************************************************************************/
 /* AxisSerialManager */
@@ -31,7 +31,6 @@ bool AxisSerialManager::setup(Stream *serial, AxisCommManager *comm_manager, ICo
     LogOutput::printf("AxisSerialManager: Performing setup...");
     this->comm_manager = comm_manager;
     _on_gateway_payload = on_gateway_payload;
-    state_message = Message_init_default;
     state_message.which_payload = Message_axis_state_tag;
     packet_serial.setStream(serial);
     packet_serial.setPacketHandler(_on_gateway_payload_wrapper);

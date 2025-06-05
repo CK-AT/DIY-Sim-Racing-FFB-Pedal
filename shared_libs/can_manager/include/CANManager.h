@@ -4,7 +4,7 @@
 #include <isotp.h>
 
 #include <ESP32-TWAI-CAN.hpp>
-
+#include "CANManager.fwd.h"
 #include "ICommChannel.h"
 
 #define ISOTP_BUFFER_SIZE 512

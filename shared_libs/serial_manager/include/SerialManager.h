@@ -1,9 +1,10 @@
 #pragma once
 #include <Arduino.h>
 #include <MessageTools.h>
+#include "CommManager.fwd.h"
+#include "SerialManager.fwd.h"
 #include <PacketSerial.h>
 #include "ICommChannel.h"
-#include "CommManager.h"
 
 class AxisSerialManager {
     public:
@@ -26,7 +27,7 @@ class AxisSerialManager {
         float _f_contact_point = 0.0f;
         float _x_contact_point = 0.0f;
         PacketSerial packet_serial;
-        Message state_message;
+        Message state_message = Message_init_default;
         AxisCommManager *comm_manager;
 };
 
