@@ -14,6 +14,12 @@ enum AxisID {
   AXIS_SUBTRACTIVE = 128; // used for FunctionBase.linked_axes, treated as ADDITIVE if this bit is not set 
 }
 
+enum GatewayID {
+  GATEWAY_UNDEFINED = 0;
+  GATEWAY_1 = 1;
+  GATEWAY_2 = 2;
+}
+
 enum LogLevel {
   LOG_LEVEL_UNDEFINED = 0;
   LOG_LEVEL_DEBUG = 1;
@@ -32,6 +38,8 @@ message AxisLogMessage {
 }
 
 message GatewayLogMessage {
+  // axis ID, source of this log message 
+  GatewayID gateway_id = 1;
   // log level
   LogLevel level = 2;
   // log message

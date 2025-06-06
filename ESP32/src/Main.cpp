@@ -15,10 +15,6 @@
 #define DEBUG_INFO_0_STATE_EXTENDED_INFO_STRUCT 64
 #define DEBUG_INFO_0_CONTROL_LOOP_ALGO 128
 
-bool resetServoEncoder = true;
-bool isv57LifeSignal_b = false;
-bool isv57_not_live_b = false;
-
 // #define OTA_update
 
 #include "Main.h"
@@ -45,56 +41,19 @@ bool MCP_status = false;
 /*                         function declarations                                              */
 /*                                                                                            */
 /**********************************************************************************************/
-void physics_task(void *pvParameters);
+void physics_task_func(void *pvParameters);
 void OTATask(void *pvParameters);
 void ESPNOW_SyncTask(void *pvParameters);
-
-bool systemIdentificationMode_b = false;
-
-int16_t servoPos_i16 = 0;
-
-bool splineDebug_b = false;
 
 #include "AutomotivePedalFunction.h"
 
 AutomotivePedalFunction automotive_pedal_function = {};
-
-// #include "ABSOscillation.h"
-// ABSOscillation absOscillation;
-// RPMOscillation _RPMOscillation;
-// BitePointOscillation _BitePointOscillation;
-// G_force_effect _G_force_effect;
-// WSOscillation _WSOscillation;
-// Road_impact_effect _Road_impact_effect;
-// Custom_vibration CV1;
-// Custom_vibration CV2;
-// Rudder _rudder;
-// Rudder_G_Force _rudder_g_force;
-// #define ABS_OSCILLATION
-
-// #include "DiyActivePedal_types.h"
-// DAP_config_st dap_config_st;
-// DAP_mech_config_st dap_mech_config_st;
-// DAP_calculationVariables_st dap_calculationVariables_st;
-// DAP_state_basic_st dap_state_basic_st;
-// DAP_state_extended_st dap_state_extended_st;
-// DAP_ESPPairing_st dap_esppairing_st;   // saving
-// DAP_ESPPairing_st dap_esppairing_lcl;  // sending
 
 #include "CycleTimer.h"
 #include "LogOutput.h"
 #include "RTDebugOutput.h"
 
 uint8_t debug_flags = 0;
-
-/**********************************************************************************************/
-/*                                                                                            */
-/*                         iterpolation  definitions                                          */
-/*                                                                                            */
-/**********************************************************************************************/
-
-// #include "ForceCurve.h"
-// ForceCurve_Interpolated forceCurve;
 
 /**********************************************************************************************/
 /*                                                                                            */
@@ -105,19 +64,7 @@ uint8_t debug_flags = 0;
     #include "soc/rtc_wdt.h"
 #endif
 
-// #define PRINT_USED_STACK_SIZE
-//  https://stackoverflow.com/questions/55998078/freertos-task-priority-and-stack-size
-#define STACK_SIZE_FOR_TASK_1 0.2 * (configTOTAL_HEAP_SIZE / 4)
-#define STACK_SIZE_FOR_TASK_2 0.2 * (configTOTAL_HEAP_SIZE / 4)
-
-TaskHandle_t PedalTask;
-
-// static SemaphoreHandle_t semaphore_updateConfig = NULL;
-// DAP_config_st dap_config_st_local;
-// DAP_mech_config_st dap_mech_config_st_local;
-
-static SemaphoreHandle_t semaphore_updateJoystick = NULL;
-int32_t joystickNormalizedToInt32 = 0;  // semaphore protected data
+TaskHandle_t physics_task_handle;
 
 /**********************************************************************************************/
 /*                                                                                            */
@@ -164,11 +111,7 @@ LoadCell_ADS1256 *loadcell = NULL;
     #include "A6Servo.h"
 #endif
 Servo *servo = NULL;
-// static const int32_t MIN_STEPS = 5;
 
-// #include "StepperMovementStrategy.h"
-
-bool moveSlowlyToPosition_b = false;
 /**********************************************************************************************/
 /*                                                                                            */
 /*                         OTA                                                                */
@@ -219,22 +162,22 @@ Sim sim = Sim(m, x_min, x_max, v_min, v_max, a_min, a_max);
 
 #include "CommManager.h"
 #include "ConfigManager.h"
-
 #include "MessageTools.h"
+
 AxisCommManager comm_manager;
 
 ConfigManager config_manager;
 
 void IRAM_ATTR adc_isr(void) {
-    if (PedalTask) {
+    if (physics_task_handle) {
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        vTaskNotifyGiveFromISR(PedalTask, &xHigherPriorityTaskWoken);
+        vTaskNotifyGiveFromISR(physics_task_handle, &xHigherPriorityTaskWoken);
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
 }
 
 void on_ffb_action(const FFBAction &ffb_action);
-void on_axis_action(AxisAction &axis_action);
+void on_axis_action(const AxisAction &axis_action);
 
 void on_config_update(void) {
     if (servo) servo->pause(1000);
@@ -262,10 +205,6 @@ void setup() {
     pixels.Show();
 #endif
 
-// Serial.begin(115200);
-// Serial.begin(921600);
-// Serial.begin(512000);
-//
 #ifdef USB_JOYSTICK
     SetupController();
     delay(100);
@@ -274,8 +213,9 @@ void setup() {
 #if PCB_VERSION == 6
     Serial.setTxTimeoutMs(0);
 #else
-    Serial.begin(921600);
+    Serial.setRxBufferSize(1024);
     Serial.setTimeout(5);
+    Serial.begin(3000000);
 #endif
 
     comm_manager.setup(&config_manager, on_ffb_action, on_axis_action);
@@ -305,73 +245,81 @@ void setup() {
     pinMode(CFG4, INPUT_PULLUP);
     own_axis_index |= (~digitalRead(CFG4) << 3) & 0x08;
     #endif
-    config_manager.init(MessageTools::axis_id_from_index(own_axis_index), on_config_update);
-#else
-    config_manager.init(AxisID_AXIS_UNDEFINED, on_config_update);
-#endif
-
-#ifdef PEDAL_ASSIGNMENT
-    if (own_axis_index < MessageTools::MAX_AXES_COUNT) {
+    if (own_axis_index & 0x0C) {
+        // bits 2 and 3 are set, this is a Gateway
+        GatewayID gateway_id = GatewayID((own_axis_index & 0x03) + 1);
+        config_manager.init(gateway_id);
+    } else if (own_axis_index < MessageTools::MAX_AXES_COUNT) {
         LogOutput::printf("Setup: Identified as axis %d", own_axis_index + 1);
+        config_manager.init(AxisID(own_axis_index + 1), true, on_config_update);
     } else {
         LogOutput::printf("Setup: Assignment error, axis id = %d (max. %d)", own_axis_index + 1, MessageTools::MAX_AXES_COUNT);
     }
+#else
+    config_manager.init(AxisID_AXIS_UNDEFINED, false, on_config_update);
 #endif
-
-    config_manager.load_configs();
 
 #ifdef HAS_CAN
-    comm_manager.setup_can(config_manager.get_axis_id(), 1000, CAN_TX, CAN_RX);
+    /* do this AFTER config_manager.init() has been called, loading a config from EEPROM might change the axis ID */
+    comm_manager.setup_can(1000, CAN_TX, CAN_RX);
 #endif
 
-    const AxisConfig *axis_cfg = config_manager.get_axis_config();
+    if (config_manager.get_axis_id() != AxisID_AXIS_UNDEFINED) {
+        // an undefined axis ID at this point means that this is either a (dedicated) gateway or an axis w/o ID DIP switches missing a proper
+        // AxisConfig, there is no point in setting up things like servo or ADC
+
+        const AxisConfig *axis_cfg = config_manager.get_axis_config();
 
 #ifdef A6SERVO
-    servo = new A6Servo(stepPinStepper, dirPinStepper, !axis_cfg->b_motor_inverted, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN,
-                          ISV57_DEPIN, false);
+        servo = new A6Servo(stepPinStepper, dirPinStepper, !axis_cfg->b_motor_inverted, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN,
+                            ISV57_DEPIN, false);
 #endif
-    loadcell = new LoadCell_ADS1256();
+        loadcell = new LoadCell_ADS1256();
 
-    loadcell->setLoadcellRating(axis_cfg->f_max_loadcell / 9.81f);  // from N to kg
+        loadcell->setLoadcellRating(axis_cfg->f_max_loadcell / 9.81f);  // from N to kg
 
-    loadcell->setZeroPoint();
+        loadcell->setZeroPoint();
 #ifdef ESTIMATE_LOADCELL_VARIANCE
-    loadcell->estimateVariance();  // automatically identify sensor noise for KF parameterization
+        loadcell->estimateVariance();  // automatically identify sensor noise for KF parameterization
 #endif
 
-    // setup Kalman filter
-    float var_est = loadcell->getVarianceEstimate();
-    kalman = new KalmanFilter(var_est);
-    kalman_2nd_order = new KalmanFilter_2nd_order(var_est);
+        // setup Kalman filter
+        float var_est = loadcell->getVarianceEstimate();
+        kalman = new KalmanFilter(var_est);
+        kalman_2nd_order = new KalmanFilter_2nd_order(var_est);
 
-    // setup multi tasking
-    semaphore_updateJoystick = xSemaphoreCreateMutex();
-    delay(10);
+        if (!servo->setup(axis_cfg->steps_per_mm, axis_cfg->mm_per_rev)) {
+            LogOutput::printf("Setup: Failed to initialize the servo (check power and connections)");
+        } else {
+            servo->enable();
+            delay(100);
+        }
 
-    if (semaphore_updateJoystick == NULL) {
-        LogOutput::printf("Setup: Could not create semaphore");
-        ESP.restart();
+        sim.add_element(&automotive_pedal_function);
+        // sim.add_element(&spring1);
+        // spring1.disable();
+        // sim.add_element(&damper1);
+        // sim.add_element(&force_map1);
+        // force_map1.disable();
+        // endstops.add_element(&force_map2);
+        // endstops.add_element(&damping_map1);
+        // endstops.disable();
+        // sim.add_element(&endstops);
+        // sim.add_element(&absOscillation);
+        // sim.add_element(&friction1);
+
+        xTaskCreatePinnedToCore(physics_task_func,    /* Task function. */
+                                "PhysicsTask",        /* name of task. */
+                                10000,                /* Stack size of task */
+                                NULL,                 /* parameter of the task */
+                                10,                   /* priority of the task */
+                                &physics_task_handle, /* Task handle to keep track of created task */
+                                1);                   /* pin task to core 1 */
+
+        enableCore1WDT();
+
+        attachInterrupt(PIN_DRDY, &adc_isr, FALLING);
     }
-
-    if (!servo->setup(axis_cfg->steps_per_mm, axis_cfg->mm_per_rev)) {
-        LogOutput::printf("Setup: Failed to initialize the servo (check power and connections)");
-    } else {
-        servo->enable();
-        delay(100);
-    }
-
-    sim.add_element(&automotive_pedal_function);
-    // sim.add_element(&spring1);
-    // spring1.disable();
-    // sim.add_element(&damper1);
-    // sim.add_element(&force_map1);
-    // force_map1.disable();
-    // endstops.add_element(&force_map2);
-    // endstops.add_element(&damping_map1);
-    // endstops.disable();
-    // sim.add_element(&endstops);
-    // sim.add_element(&absOscillation);
-    // sim.add_element(&friction1);
 
 #ifdef OTA_update
 
@@ -448,19 +396,6 @@ void setup() {
 
 #endif
 
-    xTaskCreatePinnedToCore(physics_task,   /* Task function. */
-                            "PhysicsTask", /* name of task. */
-                            10000,             /* Stack size of task */
-                            // STACK_SIZE_FOR_TASK_1,
-                            NULL,       /* parameter of the task */
-                            10,         /* priority of the task */
-                            &PedalTask, /* Task handle to keep track of created task */
-                            1);         /* pin task to core 1 */
-
-    enableCore1WDT();
-
-    attachInterrupt(PIN_DRDY, &adc_isr, FALLING);
-
     LogOutput::printf("Setup: done");
 }
 
@@ -473,12 +408,22 @@ unsigned long joystick_state_last_update = millis();
 void loop() {
     delay(1000);
 #ifdef RGB_LED
-    if (servo->get_state() == Servo::State::Disabled) {
-        pixels.SetPixelColor(0, red);
-    } else if (servo->is_locked_in()) {
+    if (config_manager.get_mode() == ConfigManager::MODE_GATEWAY_ONLY) {
         pixels.SetPixelColor(0, green);
+    } else if (config_manager.is_axis_config_valid()) {
+        if (servo) {
+            if (servo->get_state() == Servo::State::Disabled) {
+                pixels.SetPixelColor(0, red);
+            } else if (servo->is_locked_in()) {
+                pixels.SetPixelColor(0, green);
+            } else {
+                pixels.SetPixelColor(0, yellow);
+            }
+        } else {
+            pixels.SetPixelColor(0, red);
+        }
     } else {
-        pixels.SetPixelColor(0, yellow);
+        pixels.SetPixelColor(0, red);
     }
     pixels.Show();
 #endif
@@ -561,39 +506,15 @@ bool get_final_position(float own_position, float &final_position) {
 /**********************************************************************************************/
 
 // long lastCallTime = micros();
-unsigned long cycleTimeLastCall = micros();
-unsigned long minCyclesForFirToInit = 1000;
-unsigned long firCycleIncrementer = 0;
-
-float filteredReading_exp_filter = 0;
-unsigned long printCycleCounter = 0;
-
-uint printCntr = 0;
-float x_foot = 0.0;
-float f_foot = 0.0;
-
-int64_t timeNow_pedalUpdateTask_l = 0;
-int64_t timePrevious_pedalUpdateTask_l = 0;
-#define REPETITION_INTERVAL_PEDALUPDATE_TASK (int64_t)1
-
-uint8_t can_output_loop_cnt = 0;
-uint8_t can_output_prescaler = 2;
-
-// void loop()
-void physics_task(void *pvParameters) {
+void physics_task_func(void *pvParameters) {
+    uint32_t ti_prev = micros();
     float dt = 1000.0;
     const AxisConfig *axis_cfg = config_manager.get_axis_config();
     const FunctionConfig *function_cfg = config_manager.get_function_config();
+    float x_foot = 0.0;
+    float f_foot = 0.0;
 
     for (;;) {
-// system identification mode
-#ifdef ALLOW_SYSTEM_IDENTIFICATION
-        if (systemIdentificationMode_b == true) {
-            measureStepResponse(stepper, &dap_calculationVariables_st, &dap_config_st, loadcell);
-            systemIdentificationMode_b = false;
-        }
-#endif
-
         if (ulTaskNotifyTake(pdTRUE, 10) == 0) {
             continue;
         }
@@ -608,103 +529,32 @@ void physics_task(void *pvParameters) {
             timerPU.BumpStart();
         }
 
-        /*
-            //#define RECALIBRATE_POSITION
-            #ifdef RECALIBRATE_POSITION
-              stepper->checkLimitsAndResetIfNecessary();
-            #endif
-
-            // compute pedal oscillation, when ABS is active
-            float absForceOffset_fl32 = 0.0f;
-        */
-        float absForceOffset = 0;
-        float absPosOffset = 0;
-#ifdef ABS_OSCILLATION
-        absOscillation.forceOffset(config_manager.get_automotive_pedal_config()->abs_effect_config);
-        // _RPMOscillation.trigger();
-        // _RPMOscillation.forceOffset(&dap_calculationVariables_st);
-        // _BitePointOscillation.forceOffset(&dap_calculationVariables_st);
-        // _G_force_effect.forceOffset(&dap_calculationVariables_st, dap_config_st.payLoadPedalConfig_.G_multi);
-        // _WSOscillation.forceOffset(&dap_calculationVariables_st);
-        // _Road_impact_effect.forceOffset(&dap_calculationVariables_st, dap_config_st.payLoadPedalConfig_.Road_multi);
-        // CV1.forceOffset(dap_config_st.payLoadPedalConfig_.CV_freq_1,dap_config_st.payLoadPedalConfig_.CV_amp_1);
-        // CV2.forceOffset(dap_config_st.payLoadPedalConfig_.CV_freq_2,dap_config_st.payLoadPedalConfig_.CV_amp_2);
-        // _rudder.offset_calculate(&dap_calculationVariables_st);
-        //_rudder.force_offset_calculate(&dap_calculationVariables_st);
-#endif
-        /*
-            //update max force with G force effect
-            movingAverageFilter.dataPointsCount = dap_config_st.payLoadPedalConfig_.G_window;
-            movingAverageFilter_roadimpact.dataPointsCount = dap_config_st.payLoadPedalConfig_.Road_window;
-            dap_calculationVariables_st.reset_maxforce();
-            dap_calculationVariables_st.Force_Max += _G_force_effect.G_force;
-            dap_calculationVariables_st.Force_Max += _Road_impact_effect.Road_Impact_force;
-            dap_calculationVariables_st.dynamic_update();
-            dap_calculationVariables_st.updateStiffness();
-            dap_calculationVariables_st.update_stepperpos(_rudder.offset_filter);
-
-        */
-
         // Get the loadcell reading
         float loadcellReading = loadcell->getReadingKg();
 
         unsigned long now = micros();
-        dt = (now - cycleTimeLastCall) / 1000.0;
-        cycleTimeLastCall = now;
+        dt = (now - ti_prev) / 1000.0;
+        ti_prev = now;
 
         // Invert the loadcell reading digitally if desired
         if (axis_cfg->b_loadcell_inverted) {
             loadcellReading *= -1.0;
         }
 
-        /*
-            // Convert loadcell reading to pedal force
-            float sledPosition = 0.0; // sledPositionInMM(stepper, dap_config_st);
-            float pedalInclineAngleInDeg_fl32 = pedalInclineAngleDeg(sledPosition, dap_config_st);
-            float pedalForce_fl32 = convertToPedalForce(loadcellReading, sledPosition, dap_config_st);
-            float d_phi_d_x = convertToPedalForceGain(sledPosition, dap_config_st);
-
-            // compute gain for horizontal foot model
-            float b = dap_config_st.payLoadPedalConfig_.lengthPedal_b;
-            float d = dap_config_st.payLoadPedalConfig_.lengthPedal_d;
-            float d_x_hor_d_phi = -(b+d) * sinf(pedalInclineAngleInDeg_fl32 * DEG_TO_RAD);
-
-        */
-
         // Do the loadcell signal filtering
         float filteredReading = 0;
-        float changeVelocity = 0;
 
         // const velocity model denoising filter
         switch (axis_cfg->which_load_cell_filter_config) {
             case AxisConfig_kf_const_vel_tag:
                 filteredReading = kalman->filteredValue(loadcellReading, 0, axis_cfg->load_cell_filter_config.kf_const_vel.noise_scaling);
-                changeVelocity = kalman->changeVelocity();
                 break;
             case AxisConfig_kf_const_accel_tag:
                 filteredReading = kalman_2nd_order->filteredValue(loadcellReading, 0, axis_cfg->load_cell_filter_config.kf_const_accel.noise_scaling);
-                changeVelocity = kalman->changeVelocity();
                 break;
             default:
                 break;
         }
-
-        /*
-            // exponential denoising filter
-            if (dap_config_st.payLoadPedalConfig_.kf_modelOrder == 2)
-            {
-              float alpha_exp_filter = 1.0f - ( (float)dap_config_st.payLoadPedalConfig_.kf_modelNoise) / 5000.0f;
-              float filteredReading_exp_filter = filteredReading_exp_filter * alpha_exp_filter + pedalForce_fl32 * (1.0-alpha_exp_filter);
-              filteredReading = filteredReading_exp_filter;
-            }
-        */
-        // if (stepper->get_homing_state() == Servo::HomingState::Homed) {
-        //   sim.set_x_min(0.0);
-        //   sim.set_x_max(100.0);
-        // } else {
-        //   sim.set_x_min(50.0, true);
-        //   sim.set_x_max(50.0, true);
-        // }
 
         float f_loadcell = filteredReading * 9.81;
 
@@ -743,238 +593,7 @@ void physics_task(void *pvParameters) {
             }
         }
 
-#ifdef HAS_CAN
-        can_output_loop_cnt++;
-        if ((can_output_loop_cnt % can_output_prescaler) == 0) {
-            can_output_loop_cnt = 0;
-            comm_manager.send_force_and_position(f_foot, x_foot);
-        }
-#endif
-        /*
-
-            //Add effect by force
-            float effect_force = absForceOffset + _BitePointOscillation.BitePoint_Force_offset + _WSOscillation.WS_Force_offset + CV1.CV_Force_offset
-           + CV2.CV_Force_offset;
-            // float stepperPosFraction = stepper->getCurrentPositionFraction();
-            int32_t Position_Next = 0;
-
-
-
-
-
-
-            // select control loop algo
-            if (dap_config_st.payLoadPedalConfig_.control_strategy_b <= 1)
-            {
-              // Position_Next = MoveByPidStrategy(filteredReading, stepperPosFraction, stepper, &forceCurve, &dap_calculationVariables_st,
-           &dap_config_st, 0, changeVelocity);
-            }
-
-            if (dap_config_st.payLoadPedalConfig_.control_strategy_b == 2)
-            {
-              // Position_Next = MoveByForceTargetingStrategy(filteredReading, stepper, &forceCurve, &dap_calculationVariables_st, &dap_config_st, 0,
-           changeVelocity, d_phi_d_x, d_x_hor_d_phi);
-            }
-
-
-
-
-            // add dampening
-            if (dap_calculationVariables_st.dampingPress  > 0.0001)
-            {
-              // dampening is proportional to velocity --> D-gain for stability
-              Position_Next -= dap_calculationVariables_st.dampingPress * changeVelocity * dap_calculationVariables_st.springStiffnesssInv;
-            }
-
-
-
-            // clip target position to configured target interval with RPM effect movement in the endstop
-            Position_Next = (int32_t)constrain(Position_Next, dap_calculationVariables_st.stepperPosMin, dap_calculationVariables_st.stepperPosMax);
-
-
-            //Adding effects
-            int32_t Position_effect= effect_force/dap_calculationVariables_st.Force_Range*dap_calculationVariables_st.stepperPosRange;
-            Position_Next -=_RPMOscillation.RPM_position_offset;
-            Position_Next -= absPosOffset;
-            Position_Next -= Position_effect;
-            Position_Next = (int32_t)constrain(Position_Next, dap_calculationVariables_st.stepperPosMinEndstop,
-           dap_calculationVariables_st.stepperPosMaxEndstop);
-
-            //bitepoint trigger
-            int32_t BP_trigger_value = dap_config_st.payLoadPedalConfig_.BP_trigger_value;
-            int32_t BP_trigger_min = (BP_trigger_value-4);
-            int32_t BP_trigger_max = (BP_trigger_value+4);
-            int32_t Position_check = 100*((Position_Next-dap_calculationVariables_st.stepperPosMin) / dap_calculationVariables_st.stepperPosRange);
-
-
-            dap_calculationVariables_st.current_pedal_position = Position_Next;
-
-
-            //Serial.println(Position_check);
-            if(dap_config_st.payLoadPedalConfig_.BP_trigger==1)
-            {
-              if(Position_check > BP_trigger_min)
-              {
-                if(Position_check < BP_trigger_max)
-                {
-                  _BitePointOscillation.trigger();
-                }
-              }
-            }
-
-            // if pedal in min position, recalibrate position
-
-            // Move to new position
-            if (!moveSlowlyToPosition_b)
-            {
-              // stepper->moveTo(Position_Next, false);
-            }
-            else
-            {
-              moveSlowlyToPosition_b = false;
-              // stepper->moveSlowlyToPos(Position_Next);
-            }
-
-
-            // compute controller output
-            dap_calculationVariables_st.StepperPos_setback();
-            dap_calculationVariables_st.reset_maxforce();
-            dap_calculationVariables_st.dynamic_update();
-            dap_calculationVariables_st.updateStiffness();
-
-
-            // set joystick value
-            // if(semaphore_updateJoystick!=NULL)
-            // {
-            //   if(xSemaphoreTake(semaphore_updateJoystick, (TickType_t)1)==pdTRUE) {
-
-
-            //     if(dap_calculationVariables_st.Rudder_status&&dap_calculationVariables_st.rudder_brake_status)
-            //     {
-            //       if (1 == dap_config_st.payLoadPedalConfig_.travelAsJoystickOutput_u8)
-            //       {
-            //         //joystickNormalizedToInt32 = NormalizeControllerOutputValue((Position_Next-dap_calculationVariables_st.stepperPosRange/2),
-           dap_calculationVariables_st.stepperPosMin, dap_calculationVariables_st.stepperPosMin+dap_calculationVariables_st.stepperPosRange/2,
-           dap_config_st.payLoadPedalConfig_.maxGameOutput);
-            //         joystickNormalizedToInt32 = NormalizeControllerOutputValue((Position_Next-dap_calculationVariables_st.stepperPosRange/2),
-           dap_calculationVariables_st.stepperPosMin, dap_calculationVariables_st.stepperPosMin+dap_calculationVariables_st.stepperPosRange/2,
-           dap_config_st.payLoadPedalConfig_.maxGameOutput);
-            //         joystickNormalizedToInt32 = constrain(joystickNormalizedToInt32,0,JOYSTICK_MAX_VALUE);
-            //       }
-            //       else
-            //       {
-            //         //joystickNormalizedToInt32 = NormalizeControllerOutputValue(loadcellReading, dap_calculationVariables_st.Force_Min,
-           dap_calculationVariables_st.Force_Max, dap_config_st.payLoadPedalConfig_.maxGameOutput);
-            //         joystickNormalizedToInt32 = NormalizeControllerOutputValue((filteredReading), dap_calculationVariables_st.Force_Min,
-           dap_calculationVariables_st.Force_Max, dap_config_st.payLoadPedalConfig_.maxGameOutput);
-            //       }
-            //     }
-            //     else
-            //     {
-            //       if (1 == dap_config_st.payLoadPedalConfig_.travelAsJoystickOutput_u8)
-            //       {
-            //         joystickNormalizedToInt32 = NormalizeControllerOutputValue(Position_Next, dap_calculationVariables_st.stepperPosMin,
-           dap_calculationVariables_st.stepperPosMax, dap_config_st.payLoadPedalConfig_.maxGameOutput);
-            //       }
-            //       else
-            //       {
-            //         joystickNormalizedToInt32 = NormalizeControllerOutputValue(filteredReading, dap_calculationVariables_st.Force_Min,
-           dap_calculationVariables_st.Force_Max, dap_config_st.payLoadPedalConfig_.maxGameOutput);
-            //       }
-            //     }
-
-            //     xSemaphoreGive(semaphore_updateJoystick);
-            //   }
-            // }
-            // else
-            // {
-            //   semaphore_updateJoystick = xSemaphoreCreateMutex();
-            // }
-
-            // provide joystick output on PIN
-            #ifdef Using_analog_output
-              int dac_value=(int)(joystickNormalizedToInt32*255/10000);
-              dacWrite(D_O,dac_value);
-            #endif
-
-            #ifdef Using_analog_output_ESP32_S3
-              if(MCP_status)
-              {
-                int dac_value=(int)(joystickNormalizedToInt32*4096*0.9/10000);//limit the max to 5V*0.9=4.5V to prevent the overvolatage
-                dac.setVoltage(dac_value, false);
-              }
-            #endif
-
-
-            float normalizedPedalReading_fl32 = 0;
-            if ( fabs(dap_calculationVariables_st.Force_Range) > 0.01)
-            {
-                normalizedPedalReading_fl32 = constrain((filteredReading - dap_calculationVariables_st.Force_Min) /
-           dap_calculationVariables_st.Force_Range, 0, 1);
-            }
-
-            // simulate ABS trigger
-            if(dap_config_st.payLoadPedalConfig_.Simulate_ABS_trigger==1)
-            {
-              int32_t ABS_trigger_value=dap_config_st.payLoadPedalConfig_.Simulate_ABS_value;
-              if( (normalizedPedalReading_fl32*100) > ABS_trigger_value)
-              {
-                absOscillation.trigger();
-              }
-            }
-
-          */
-
-        // update pedal states
-        // if (semaphore_updatePedalStates != NULL) {
-        //     if (xSemaphoreTake(semaphore_updatePedalStates, (TickType_t)0) == pdTRUE) {
-        //         // update basic pedal state struct
-        //         dap_state_basic_st.payloadPedalState_Basic_.pedalForce_u16 =
-        //             uint16_t(normalize_value(f_foot, dap_calculationVariables_st.Force_Min, dap_calculationVariables_st.Force_Max) * 65535.0f);
-        //         dap_state_basic_st.payloadPedalState_Basic_.pedalPosition_u16 = uint16_t(x_foot_norm * 65535.0f);
-        //         dap_state_basic_st.payloadPedalState_Basic_.joystickOutput_u16 = 1000;  // 65535;
-
-        //         dap_state_basic_st.payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_STATE_BASIC;
-        //         dap_state_basic_st.payLoadHeader_.version = DAP_VERSION_CONFIG;
-        //         dap_state_basic_st.payLoadHeader_.PedalTag = dap_config_st.payLoadPedalConfig_.pedal_type;
-
-        //         // error code
-        //         dap_state_basic_st.payloadPedalState_Basic_.error_code_u8 = 0;
-        //         // if(ESPNow_error_code!=0)
-        //         // {
-        //         //   dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=ESPNow_error_code;
-        //         //   ESPNow_error_code=0;
-        //         // }
-        //         // dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=200;
-        //         // if(isv57_not_live_b)
-        //         // {
-        //         //   dap_state_basic_st.payloadPedalState_Basic_.erroe_code_u8=12;
-        //         //   isv57_not_live_b=false;
-        //         // }
-        //         dap_state_basic_st.payloadFooter_.checkSum =
-        //             checksumCalculator((uint8_t *)(&(dap_state_basic_st.payLoadHeader_)),
-        //                                sizeof(dap_state_basic_st.payLoadHeader_) + sizeof(dap_state_basic_st.payloadPedalState_Basic_));
-
-        //         // update extended struct
-        //         dap_state_extended_st.payloadPedalState_Extended_.timeInMs_u32 = millis();
-        //         dap_state_extended_st.payloadPedalState_Extended_.pedalForce_raw_fl32 = loadcellReading;
-        //         dap_state_extended_st.payloadPedalState_Extended_.pedalForce_filtered_fl32 = filteredReading;
-        //         dap_state_extended_st.payloadPedalState_Extended_.forceVel_est_fl32 = changeVelocity;
-
-        //         // dap_state_extended_st.payloadPedalState_Extended_.servoPositionTarget_i16 = stepper->getCurrentPositionFromMin();
-        //         dap_state_extended_st.payLoadHeader_.PedalTag = dap_config_st.payLoadPedalConfig_.pedal_type;
-        //         dap_state_extended_st.payLoadHeader_.payloadType = DAP_PAYLOAD_TYPE_STATE_EXTENDED;
-        //         dap_state_extended_st.payLoadHeader_.version = DAP_VERSION_CONFIG;
-        //         dap_state_extended_st.payloadFooter_.checkSum =
-        //             checksumCalculator((uint8_t *)(&(dap_state_extended_st.payLoadHeader_)),
-        //                                sizeof(dap_state_extended_st.payLoadHeader_) + sizeof(dap_state_extended_st.payloadPedalState_Extended_));
-
-        //         // release semaphore
-        //         xSemaphoreGive(semaphore_updatePedalStates);
-        //     }
-        // } else {
-        //     semaphore_updatePedalStates = xSemaphoreCreateMutex();
-        // }
+        comm_manager.send_force_and_position(f_foot, x_foot);
 
         if (debug_flags & DEBUG_INFO_0_CYCLE_TIMER) {
             timerPU.BumpEnd();
@@ -1000,7 +619,7 @@ void send_function_config(void) {
     comm_manager.send_message_to_gateway(msg);
 }
 
-void on_axis_action(AxisAction &axis_action) {
+void on_axis_action(const AxisAction &axis_action) {
     switch (axis_action.which_action) {
         case AxisAction_restart_tag:
             ESP.restart();
@@ -1018,186 +637,6 @@ void on_axis_action(AxisAction &axis_action) {
     }
 }
 
-// void on_packet_received(const uint8_t *buffer, size_t size, CommChannel comm_channel) {
-//     Message msg = Message_init_zero;
-//     uint16_t crc = *reinterpret_cast<const uint16_t *>(buffer + size - sizeof(uint16_t));
-//     if (MessageTools::check_and_decode_message(msg, buffer, size - sizeof(uint16_t), crc)) {
-//         on_message(&msg, buffer, size - sizeof(uint16_t), comm_channel);
-//     }
-//     // else if (buffer[0] == '>') {
-//     //     char *param = strtok((char *)buffer + 1, "=");
-//     //     if (param) {
-//     //         // Serial.printf("Param: %s\n", param);
-//     //         char *val = strtok(NULL, "=");
-//     //         if (val) {
-//     //             // Serial.printf("Val: %s\n", val);
-//     //             if (strcmp(param, "m") == 0) {
-//     //                 float val_num = atof(val);
-//     //                 sim.set_m(val_num);
-//     //                 Serial.printf("Simulation mass set to %.3f kg\n", val_num);
-//     //             } else if (strcmp(param, "debug") == 0) {
-//     //                 int flags = atoi(val);
-//     //                 dap_config_st.payLoadPedalConfig_.debug_flags_0 = flags;
-//     //                 Serial.printf("Debug flags set to %04X\n", flags);
-//     //             } else if (strcmp(param, "can_output_prescaler") == 0) {
-//     //                 can_output_prescaler = max(atoi(val), 1);
-//     //                 Serial.printf("can_output_prescaler set to %02X\n", can_output_prescaler);
-//     //             } else if (strcmp(param, "endstops") == 0) {
-//     //                 if (atoi(val)) {
-//     //                     endstops.enable();
-//     //                     Serial.printf("Endstops enabled\n");
-//     //                 } else {
-//     //                     endstops.disable();
-//     //                     Serial.printf("Endstops disabled\n");
-//     //                 }
-//     //             } else if (strcmp(param, "fric") == 0) {
-//     //                 float val_num = atof(val);
-//     //                 friction1.set_f(val_num);
-//     //                 Serial.printf("Friction set to %.3f N\n", val_num);
-//     //             } else if (strcmp(param, "spr") == 0) {
-//     //                 float val_num = atof(val);
-//     //                 spring1.set_k(val_num);
-//     //                 Serial.printf("Spring set to %.3f N/mm\n", val_num);
-//     //             } else if (strcmp(param, "damp") == 0) {
-//     //                 float val_num = atof(val);
-//     //                 damper1.set_k(val_num);
-//     //                 Serial.printf("Damper set to %.3f N/(mm/s)\n", val_num);
-//     //             } else if (strcmp(param, "damp_pos") == 0) {
-//     //                 float val_num = atof(val);
-//     //                 damper1.set_k_pos(val_num);
-//     //                 Serial.printf("Positive damper set to %.3f N/(mm/s)\n", val_num);
-//     //             } else if (strcmp(param, "damp_neg") == 0) {
-//     //                 float val_num = atof(val);
-//     //                 damper1.set_k_neg(val_num);
-//     //                 Serial.printf("Negative damper set to %.3f N/(mm/s)\n", val_num);
-//     //             } else {
-//     //                 Serial.printf("Unknown param \"%s\"\n", param);
-//     //             }
-//     //         } else {
-//     //             if (strncmp(param, "home", sizeof("home") - 1) == 0) {
-//     //                 Serial.printf("Homing command received\n");
-//     //                 stepper->home();
-//     //                 // } else if (strncmp(param, "lock", sizeof("lock") - 1) == 0) {
-//     //                 //   Serial.printf("Locking command received\n");
-//     //                 //   stepper->lock_onto_curr_pos();
-//     //             } else if (strncmp(param, "restart", sizeof("restart") - 1) == 0) {
-//     //                 Serial.printf("Restarting...\n");
-//     //                 ESP.restart();
-//     //             } else {
-//     //                 Serial.printf("Unknown param \"%s\"\n", param);
-//     //             }
-//     //         }
-//     //     }
-//     // }
-// }
-
-/**********************************************************************************************/
-/*                                                                                            */
-/*                         communication task                                                 */
-/*                                                                                            */
-/**********************************************************************************************/
-
-int64_t timeNow_serialCommunicationTask_l = 0;
-int64_t timePrevious_serialCommunicationTask_l = 0;
-#define REPETITION_INTERVAL_SERIALCOMMUNICATION_TASK (int64_t)10
-
-int32_t joystickNormalizedToInt32_local = 0;
-void serialCommunicationTask(void *pvParameters) {
-    for (;;) {
-        static CycleTimer timerSC("SC cycle time");
-        if (debug_flags & DEBUG_INFO_0_CYCLE_TIMER) {
-            timerSC.BumpStart();
-        }
-
-        delay(SERIAL_COOMUNICATION_TASK_DELAY_IN_MS);
-
-        // myPacketSerial.update();
-
-        // // read serial input
-        // uint8_t n = Serial.available();
-
-        // if (n) {
-        //     char buffer[n];
-        //     Serial.readBytes(buffer, n);
-        // }
-
-        // // send pedal state structs
-        // // update pedal states
-        // printCycleCounter++;
-        // DAP_state_basic_st dap_state_basic_st_lcl;
-        // DAP_state_extended_st dap_state_extended_st_lcl;
-
-        // if(semaphore_updatePedalStates!=NULL)
-        // {
-
-        //   if(xSemaphoreTake(semaphore_updatePedalStates, (TickType_t)1)==pdTRUE)
-        //   {
-
-        //     // UPDATE basic pedal state struct
-        //     dap_state_basic_st_lcl = dap_state_basic_st;
-
-        //     // UPDATE extended pedal state struct
-        //     dap_state_extended_st_lcl = dap_state_extended_st;
-
-        //     // release semaphore
-        //     xSemaphoreGive(semaphore_updatePedalStates);
-
-        //   }
-        // }
-        // else
-        // {
-        //   semaphore_updatePedalStates = xSemaphoreCreateMutex();
-        // }
-
-        // send the pedal state structs
-        // send basic pedal state struct
-        // if ( !(dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_STATE_BASIC_INFO_STRUCT) )
-        // {
-        //   if (printCycleCounter >= 2)
-        //   {
-        //     printCycleCounter = 0;
-        //     Serial.write((char*)&dap_state_basic_st_lcl, sizeof(DAP_state_basic_st));
-        //     Serial.print("\r\n");
-        //   }
-        // }
-
-        // if ( (dap_config_st.payLoadPedalConfig_.debug_flags_0 & DEBUG_INFO_0_STATE_EXTENDED_INFO_STRUCT) )
-        // {
-        //   Serial.write((char*)&dap_state_extended_st_lcl, sizeof(DAP_state_extended_st));
-        //   Serial.print("\r\n");
-        // }
-
-        // delay( SERIAL_COOMUNICATION_TASK_DELAY_IN_MS );
-        // if(semaphore_updateJoystick!=NULL)
-        // {
-        //   if(xSemaphoreTake(semaphore_updateJoystick, (TickType_t)1)==pdTRUE)
-        //   {
-        //      //Serial.print(" 3");
-        //     joystickNormalizedToInt32_local = joystickNormalizedToInt32;
-        //     xSemaphoreGive(semaphore_updateJoystick);
-        //   }
-        // }
-        // if (IsControllerReady())
-        // {
-        //   if(dap_calculationVariables_st.Rudder_status==false)
-        //   {
-        //     //general output
-        //     SetControllerOutputValue(joystickNormalizedToInt32_local);
-        //   }
-        // }
-
-#ifdef USB_JOYSTICK
-        SetControllerOutputValue_rudder(int32_t(x_foot * 100.0), int32_t(f_in * 10.0));
-#endif
-
-        // debugOutput.pump(2);
-        // logOutput.pump(5);
-
-        if (debug_flags & DEBUG_INFO_0_CYCLE_TIMER) {
-            timerSC.BumpEnd();
-        }
-    }
-}
 // OTA multitask
 
 uint16_t OTA_count = 0;

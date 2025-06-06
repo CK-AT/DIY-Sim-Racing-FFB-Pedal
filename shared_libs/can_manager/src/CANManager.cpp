@@ -238,21 +238,16 @@ void CANManager::broadcast_position_limits(uint32_t now) {
 
 bool CANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload,
                        OnFFBAction on_ffb_action, OnAxisPayload on_axis_payload) {
-    LogOutput::printf("CANManager: Performing setup (axis mode)...");
-    if (MessageTools::check_axis_id(axis_id)) {
-        own_axis_id = axis_id;
-        own_axis_index = MessageTools::axis_index_from_id(axis_id);
-        this->on_gateway_payload = on_gateway_payload;
-        this->on_ffb_action = on_ffb_action;
-        this->on_axis_payload = on_axis_payload;
-        shared_setup(baud_rate, tx_pin, rx_pin);
-        broadcast_position_limits();
-        LogOutput::printf(" -> done");
-        return true;
-    } else {
-        LogOutput::printf(" -> failed, %d is not a valid axis ID!", axis_id);
-        return false;
-    }
+    LogOutput::printf("CANManager: Performing setup...");
+    own_axis_id = axis_id;
+    own_axis_index = MessageTools::axis_index_from_id(axis_id);
+    this->on_gateway_payload = on_gateway_payload;
+    this->on_ffb_action = on_ffb_action;
+    this->on_axis_payload = on_axis_payload;
+    shared_setup(baud_rate, tx_pin, rx_pin);
+    broadcast_position_limits();
+    LogOutput::printf(" -> done");
+    return true;
 }
 
 bool CANManager::send_force_and_position(float &f_foot, float &x_foot) {
@@ -260,15 +255,20 @@ bool CANManager::send_force_and_position(float &f_foot, float &x_foot) {
     axis_states[own_axis_index].force_and_position.f_foot = f_foot;
     axis_states[own_axis_index].force_and_position.x_foot = x_foot;
     axis_states[own_axis_index].online = true;
-    CanFrame tx_frame = {};
-    tx_frame.identifier = 0x100 + (AxisFrameTypesHS::FORCE_AND_POSITION << 4) + own_axis_index;
-    memcpy(tx_frame.data, &(axis_states[own_axis_index].force_and_position), sizeof(ForceAndPosition));
-    tx_frame.data_length_code = sizeof(ForceAndPosition);
-    if (!ESP32Can.writeFrame(&tx_frame, 0)) {
-        if (tx_err_cnt < 0xFFFFFFFF) {
-            tx_err_cnt++;
+    fast_update_cnt++;
+    /* send the CAN frame on every second call only to keep bus load reasonable even with eight axes */
+    if (fast_update_cnt == 2) {
+        fast_update_cnt = 0;
+        CanFrame tx_frame = {};
+        tx_frame.identifier = 0x100 + (AxisFrameTypesHS::FORCE_AND_POSITION << 4) + own_axis_index;
+        memcpy(tx_frame.data, &(axis_states[own_axis_index].force_and_position), sizeof(ForceAndPosition));
+        tx_frame.data_length_code = sizeof(ForceAndPosition);
+        if (!ESP32Can.writeFrame(&tx_frame, 0)) {
+            if (tx_err_cnt < 0xFFFFFFFF) {
+                tx_err_cnt++;
+            }
+            return false;
         }
-        return false;
     }
     return true;
 }
@@ -344,7 +344,6 @@ bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
 /* GatewayCANManager */
 /*****************************************************************************************************************/
 void CANManager::send_ping_frame(uint32_t now) {
-    _gateway_online = true;
     if ((now - ti_last_ping) > 1000000) {
         CanFrame tx_frame = {};
         tx_frame.identifier = 0x7FE;
@@ -380,7 +379,6 @@ bool CANManager::setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnAxisP
     _is_gateway = true;
     on_axis_payload = cb;
     shared_setup(baud_rate, tx_pin, rx_pin);
-    xTaskCreatePinnedToCore(this->task_func, "CANManagerTask", 5000, this, 1, NULL, 0);
     LogOutput::printf(" -> done");
     return true;
 }

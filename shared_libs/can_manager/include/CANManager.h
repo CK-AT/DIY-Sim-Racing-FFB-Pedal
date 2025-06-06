@@ -130,4 +130,5 @@ class CANManager : public ICommChannel {
         bool send_abs_trigger_to_axis(AxisID axis_id);
         IsotpState isotp_state[MessageTools::MAX_AXES_COUNT];
         OnAxisPayload on_axis_payload = nullptr;
+        uint8_t fast_update_cnt = 0;
 };

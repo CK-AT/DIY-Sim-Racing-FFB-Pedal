@@ -111,14 +111,9 @@ async def main():
         if payload_type == 'axis_log_message':
             log_msg = msg.axis_log_message
             print(f'{ffb_protocol.AxisID.Name(log_msg.axis_id)} : {log_msg.msg.rstrip()}')
-            if not msg_sent:
-                msg = ffb_protocol.Message()
-                msg.axis_action.return_axis_config = True
-                protocol.send_message(msg)
-                msg = ffb_protocol.Message()
-                msg.axis_action.return_function_config = True
-                protocol.send_message(msg)
-                msg_sent = True
+        elif payload_type == 'gateway_log_message':
+            log_msg = msg.gateway_log_message
+            print(f'{ffb_protocol.GatewayID.Name(log_msg.gateway_id)} : {log_msg.msg.rstrip()}')
         elif payload_type == 'axis_state':
             pass
         else:
