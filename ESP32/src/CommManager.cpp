@@ -34,9 +34,9 @@ void AxisCommManager::periodic_task_func(void) {
 }
 
 void AxisCommManager::setup(ConfigManager *config_manager, OnFFBAction on_ffb_action, OnAxisAction on_axis_action) {
-    this->config_manager = config_manager;
-    this->on_ffb_action = on_ffb_action;
-    this->on_axis_action = on_axis_action;
+    _config_manager = config_manager;
+    _on_ffb_action = on_ffb_action;
+    _on_axis_action = on_axis_action;
     _log_queue_data = xQueueCreate(20, MAX_LOG_LINE_LENGTH);
     xTaskCreatePinnedToCore(this->periodic_task, "CommManagerTask", 2000, this, 1, NULL, 0);
 }
@@ -87,7 +87,7 @@ void AxisCommManager::on_gateway_message(const Message &msg, const uint8_t *prot
     switch (msg.which_payload) {
         case Message_axis_config_tag:
             update_result =
-                config_manager->update_axis_config(msg.payload.axis_config, protobuf_msg, len_protobuf_msg, comm_channel == CommChannel::USB_SERIAL);
+                _config_manager->update_axis_config(msg.payload.axis_config, protobuf_msg, len_protobuf_msg, comm_channel == CommChannel::USB_SERIAL);
             if (update_result == ConfigManager::UpdateResult::UPDATE_OTHER_AXIS) {
                 if (active_gateway_channel) {
                     active_gateway_channel->send_message_to_axis(msg.payload.axis_config.axis_id, msg, protobuf_msg, len_protobuf_msg);
@@ -95,8 +95,8 @@ void AxisCommManager::on_gateway_message(const Message &msg, const uint8_t *prot
             }
             break;
         case Message_function_config_tag:
-            if ((config_manager->get_axis_id() != AxisID_AXIS_UNDEFINED)) {
-                config_manager->update_function_config(msg.payload.function_config, protobuf_msg, len_protobuf_msg);
+            if ((_config_manager->get_axis_id() != AxisID_AXIS_UNDEFINED)) {
+                _config_manager->update_function_config(msg.payload.function_config, protobuf_msg, len_protobuf_msg);
             }
             if (active_gateway_channel && (comm_channel == CommChannel::USB_SERIAL)) {
                 const AxisID *linked_axes = msg.payload.function_config.base.linked_axes;
@@ -107,7 +107,7 @@ void AxisCommManager::on_gateway_message(const Message &msg, const uint8_t *prot
             }
             break;
         case Message_ffb_action_tag:
-            if ((config_manager->get_axis_id() != AxisID_AXIS_UNDEFINED) && on_ffb_action) {
+            if ((_config_manager->get_axis_id() != AxisID_AXIS_UNDEFINED)) {
                 on_ffb_action(msg.payload.ffb_action);
             }
             if (active_gateway_channel && (comm_channel == CommChannel::USB_SERIAL)) {
@@ -119,8 +119,8 @@ void AxisCommManager::on_gateway_message(const Message &msg, const uint8_t *prot
             }
             break;
         case Message_axis_action_tag:
-            if ((config_manager->get_axis_id() != AxisID_AXIS_UNDEFINED) && on_axis_action) {
-                on_axis_action(msg.payload.axis_action);
+            if ((_config_manager->get_axis_id() != AxisID_AXIS_UNDEFINED) && _on_axis_action) {
+                _on_axis_action(msg.payload.axis_action);
             }
             if (active_gateway_channel && (comm_channel == CommChannel::USB_SERIAL)) {
                 if (active_gateway_channel->is_online(msg.payload.axis_config.axis_id)) {
@@ -148,7 +148,7 @@ void AxisCommManager::on_axis_message(AxisID axis_id, const Message &msg, const 
                                       CommChannel comm_channel) {
     switch (msg.which_payload) {
         case Message_function_config_tag:
-            config_manager->update_function_config_lut(msg.payload.function_config);
+            _config_manager->update_function_config_lut(msg.payload.function_config);
             serial_manager.send_message_to_host(msg, protobuf_msg, len_protobuf_msg);
             break;
         case Message_axis_log_message_tag:
@@ -168,7 +168,8 @@ bool AxisCommManager::setup_can(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin
     _is_gateway = !_is_axis;
     return can_manager.setup(
         axis_id, baud_rate, tx_pin, rx_pin,
-        [this](const uint8_t *buffer, size_t size) { on_gateway_packet_received(buffer, size, CommChannel::ISOTP); }, on_ffb_action,
+        [this](const uint8_t *buffer, size_t size) { on_gateway_packet_received(buffer, size, CommChannel::ISOTP); },
+        [this](const FFBAction &ffb_action) { on_ffb_action(ffb_action); },
         [this](AxisID axis_id, const uint8_t *buffer, size_t size) { on_axis_packet_received(axis_id, buffer, size, CommChannel::ISOTP); });
 }
 
@@ -242,9 +243,16 @@ bool AxisCommManager::send_message_to_axis(AxisID axis_id, const Message &messag
 }
 
 AxisID AxisCommManager::get_axis_id(void) {
-    return config_manager->get_axis_id();
+    return _config_manager->get_axis_id();
 }
 
 GatewayID AxisCommManager::get_gateway_id(void) {
-    return config_manager->get_gateway_id();
+    return _config_manager->get_gateway_id();
+}
+
+void AxisCommManager::on_ffb_action(const FFBAction &ffb_action) {
+    if (ffb_action.function_id != _config_manager->get_function_id()) return;
+    if (_on_ffb_action) {
+        _on_ffb_action(ffb_action);
+    }
 }

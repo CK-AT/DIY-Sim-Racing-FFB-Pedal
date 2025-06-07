@@ -321,15 +321,14 @@ bool CANManager::try_process_gateway_isotp_can_frame(CanFrame &rx_frame) {
 bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
     if (own_axis_index < 0) return false;
     if ((rx_frame.identifier & 0xF00) == 0x200) {
-        uint8_t axis_idx = rx_frame.identifier & 0x00F;
-        if (axis_idx != own_axis_index) {
-            return false;
-        }
+        uint8_t function_id = rx_frame.identifier & 0x00F;
         uint8_t frame_type = (rx_frame.identifier >> 4) & 0x00F;
         FFBAction action = FFBAction_init_default;
         switch (frame_type) {
             case FFBFrameTypes::ABS:
-                action.trigger_abs = true;
+                action.function_id = FunctionID(function_id);
+                action.which_function = FFBAction_automotive_pedal_tag;
+                action.function.automotive_pedal.trigger_abs = true;
                 on_ffb_action(action);
                 break;
             default:
@@ -388,10 +387,9 @@ bool CANManager::send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint3
     return isotp_send(&(isotp_state[MessageTools::axis_index_from_id(axis_id)].link), data, len) == ISOTP_RET_OK;
 }
 
-bool CANManager::send_abs_trigger_to_axis(AxisID axis_id) {
-    if (!MessageTools::check_axis_id(axis_id)) return false;
+bool CANManager::send_abs_trigger(const FFBAction &action) {
     CanFrame tx_frame = {};
-    tx_frame.identifier = 0x200 + (FFBFrameTypes::ABS << 4) + MessageTools::axis_index_from_id(axis_id);
+    tx_frame.identifier = 0x200 + (FFBFrameTypes::ABS << 4) + action.function_id;
     tx_frame.data_length_code = 0;
     if (!ESP32Can.writeFrame(&tx_frame, 0)) {
         if (tx_err_cnt < 0xFFFFFFFF) {
@@ -405,8 +403,10 @@ bool CANManager::send_abs_trigger_to_axis(AxisID axis_id) {
 bool CANManager::send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
     switch (message.which_payload) {
         case Message_ffb_action_tag:
-            if (message.payload.ffb_action.trigger_abs) {
-                return send_abs_trigger_to_axis(axis_id);
+            if ((message.payload.ffb_action.which_function == FFBAction_automotive_pedal_tag) && message.payload.ffb_action.function.automotive_pedal.trigger_abs) {
+                return send_abs_trigger(message.payload.ffb_action);
+            } else {
+                return send_payload_to_axis(axis_id, raw_data, len_raw_data);
             }
             break;
         default:

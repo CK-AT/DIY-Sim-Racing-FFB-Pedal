@@ -31,17 +31,17 @@ class ConfigManager {
         const uint8_t MODE_AXIS_MASK = MODE_AXIS_ONLY;
         const uint8_t MODE_GATEWAY_MASK = MODE_GATEWAY_ONLY;
 
-        typedef std::function<IFunction *(void)> OnConfigUpdate;
+        typedef std::function<IFunction *(IFunction *active_function, const FunctionConfig *function_cfg)> OnConfigUpdate;
 
         void init(AxisID axis_id, bool fixed_id, OnConfigUpdate config_update_callback);
         void init(GatewayID gateway_id);
         UpdateResult update_axis_config(const AxisConfig &new_config, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg, bool force = false);
         UpdateResult update_function_config(const FunctionConfig &new_config, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg);
         void update_function_config_lut(const FunctionConfig &new_config) {
-            function_lut[new_config.base.function] = new_config.base;
+            function_lut[new_config.base.function_id] = new_config.base;
         }
-        void get_axis_config(Message &message);
-        void get_function_config(Message &message);
+        void get_axis_config_as_message(Message &message);
+        void get_function_config_as_message(Message &message);
         AxisID get_axis_id(void) const {
             if (_mode & MODE_AXIS_MASK) return _axis_id;
             return AxisID_AXIS_UNDEFINED;
@@ -81,6 +81,9 @@ class ConfigManager {
         }
         const FunctionConfig *get_function_config(void) {
             return &_function_config;
+        }
+        FunctionID get_function_id(void) {
+            return _function_config.base.function_id;
         }
         const AutomotivePedalConfig *get_automotive_pedal_config(void) {
             if (_function_config.which_specific == FunctionConfig_automotive_pedal_tag) {
@@ -134,7 +137,7 @@ class ConfigManager {
         Mode _mode = MODE_UNDEFINED;
         AxisConfig _axis_config;
         FunctionConfig _function_config;
-        std::map<Function, FunctionBase> function_lut = {};
+        std::map<FunctionID, FunctionBase> function_lut = {};
         Message _temp_message;
         SemaphoreHandle_t _sem_cfg_update = xSemaphoreCreateMutex();
         OnConfigUpdate _on_config_update_callback = nullptr;

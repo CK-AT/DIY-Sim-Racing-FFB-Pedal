@@ -8,24 +8,29 @@ AutomotivePedalFunction::AutomotivePedalFunction(void) {
 }
 
 void AutomotivePedalFunction::update_config(const AutomotivePedalConfig &config) {
-    _config = &config;
-    if (config.has_force_curve_config) {
-        force_curve.set_config(config.force_curve_config);
+    _config = config;
+    if (_config.has_force_curve_config) {
+        force_curve.set_config(_config.force_curve_config);
         force_curve.enable();
     } else {
         force_curve.disable();
     }
-    if (config.has_abs_effect_config) {
-        abs_effect.set_config(config.abs_effect_config);
+    if (_config.has_abs_effect_config) {
+        abs_effect.set_config(_config.abs_effect_config);
         abs_effect.enable();
     } else {
         abs_effect.disable();
     }
-    if (config.has_damper_config) {
-        damper.set_k_pos(config.damper_config.positive_factor);
-        damper.set_k_neg(config.damper_config.negative_factor);
+    if (_config.has_damper_config) {
+        damper.set_k_pos(_config.damper_config.positive_factor);
+        damper.set_k_neg(_config.damper_config.negative_factor);
     } else {
         /* fall back to a reasonable damper setting */
         damper.set_k(0.1f);
     }
 }
+
+void AutomotivePedalFunction::on_ffb_action(const FFBAction &ffb_action) {
+    if (ffb_action.function.automotive_pedal.trigger_abs) trigger_abs();
+}
+

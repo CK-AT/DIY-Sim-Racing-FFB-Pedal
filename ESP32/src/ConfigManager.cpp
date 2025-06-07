@@ -41,7 +41,7 @@ void ConfigManager::set_axis_config_defaults(void) {
 
 void ConfigManager::set_function_config_defaults(void) {
     _function_config = FunctionConfig_init_default;
-    _function_config.base.function = Function_FUNCTION_BRAKE;
+    _function_config.base.function_id = FunctionID_FUNCTION_BRAKE;
     _function_config.base.linked_axes[0] = _axis_id;
     _function_config.base.store = false;
     _function_config.base.controller_output_axis = ControllerAxis_CONTROLLER_AXIS_BRK;
@@ -235,19 +235,19 @@ ConfigManager::UpdateResult ConfigManager::update_function_config(const Function
     }
 }
 
-void ConfigManager::get_axis_config(Message &message) {
+void ConfigManager::get_axis_config_as_message(Message &message) {
     message.which_payload = Message_axis_config_tag;
     message.payload.axis_config = _axis_config;
 }
 
-void ConfigManager::get_function_config(Message &message) {
+void ConfigManager::get_function_config_as_message(Message &message) {
     message.which_payload = Message_function_config_tag;
     message.payload.function_config = _function_config;
 }
 
 void ConfigManager::on_config_update(void) {
     if (_on_config_update_callback) {
-        _active_funtion = _on_config_update_callback();
+        _active_funtion = _on_config_update_callback(_active_funtion, &_function_config);
     }
     update_x_contact_point_limits();
 }

@@ -40,6 +40,7 @@ class AxisCommManager {
         void send_axis_log_msg(const char *buff);
         void send_gateway_log_msg(const char *buff);
         void pump_log(int max_samples, int timeout = 0);
+        void on_ffb_action(const FFBAction &ffb_action);
         void periodic_task_func(void);
         static void periodic_task(void *pvParameters) {
             AxisCommManager *logOutput = (AxisCommManager *)pvParameters;
@@ -51,11 +52,11 @@ class AxisCommManager {
 
         AxisSerialManager serial_manager;
         CANManager can_manager;
-        ConfigManager *config_manager;
+        ConfigManager *_config_manager;
         float _f_foot_own = 0.0f;
         float _x_foot_own = 0.0f;
-        OnFFBAction on_ffb_action;
-        OnAxisAction on_axis_action;
+        OnFFBAction _on_ffb_action;
+        OnAxisAction _on_axis_action;
         Message log_msg = Message_init_zero;
         ICommChannel *active_gateway_channel = nullptr;
         ICommChannel *active_intercom_channel = nullptr;

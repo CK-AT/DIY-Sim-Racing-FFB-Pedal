@@ -127,7 +127,7 @@ class CANManager : public ICommChannel {
         void send_ping_frame(uint32_t now);
         bool try_process_axis_isotp_can_frame(CanFrame &rx_frame);
         bool send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len);
-        bool send_abs_trigger_to_axis(AxisID axis_id);
+        bool send_abs_trigger(const FFBAction &action);
         IsotpState isotp_state[MessageTools::MAX_AXES_COUNT];
         OnAxisPayload on_axis_payload = nullptr;
         uint8_t fast_update_cnt = 0;

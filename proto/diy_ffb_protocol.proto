@@ -122,7 +122,7 @@ enum ControllerAxis {
   CONTROLLER_AXIS_STEER = 11;
 }
 
-enum Function {
+enum FunctionID {
   FUNCTION_UNDEFINED = 0;
   FUNCTION_BRAKE = 1;
   FUNCTION_ACCELERATOR = 2;
@@ -137,7 +137,7 @@ enum OutputMode {
 
 message FunctionBase {
   // assigned function (used by Simhub plugin for internal mapping)
-  Function function = 1;
+  FunctionID function_id = 1;
   // a list of up to 4 axis IDs where the first value defines the primary axis, can be OR'ed with AXIS_SUBTRACTIVE (e.g. for a left flight pedal)
   repeated AxisID linked_axes = 2;
   // controller axis to output to
@@ -344,16 +344,22 @@ message GatewayState {
   uint32 axes_present = 2;
 }
 
+message AutomotivePedalFFBAction {
+  bool trigger_abs = 1;
+  uint32 rpm = 2;
+  uint32 g = 3;
+  bool trigger_ws = 4;
+  uint32 impact_value = 5;
+  bool trigger_cv_1 = 6;
+  bool trigger_cv_2 = 7;
+}
+
 message FFBAction {
   // targeted function, will be used by gateways to dispatch to the correct axis
-  Function function = 1;
-  bool trigger_abs = 2;
-  uint32 rpm = 3;
-  uint32 g = 4;
-  bool trigger_ws = 5;
-  uint32 impact_value = 6;
-  bool trigger_cv_1 = 7;
-  bool trigger_cv_2 =8;
+  FunctionID function_id = 1;
+  oneof function {
+    AutomotivePedalFFBAction automotive_pedal = 2;
+  }
 }
 
 message Message {

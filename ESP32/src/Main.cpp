@@ -180,13 +180,11 @@ void IRAM_ATTR adc_isr(void) {
 void on_ffb_action(const FFBAction &ffb_action);
 void on_axis_action(const AxisAction &axis_action);
 
-IFunction *on_config_update(void) {
+IFunction *on_config_update(IFunction *active_function, const FunctionConfig *function_cfg) {
     if (servo) servo->pause(1000);
-    IFunction *active_function = config_manager.get_active_function();
     if (active_function) {
         active_function->disable();
     }
-    const FunctionConfig *function_cfg = config_manager.get_function_config();
     switch (function_cfg->which_specific) {
         case FunctionConfig_automotive_pedal_tag:
             automotive_pedal_function.update_config(function_cfg->specific.automotive_pedal);
@@ -611,20 +609,21 @@ void physics_task_func(void *pvParameters) {
 }
 
 void on_ffb_action(const FFBAction &ffb_action) {
-    if (ffb_action.trigger_abs) {
-        automotive_pedal_function.trigger_abs();
+    IFunction *active_function = config_manager.get_active_function();
+    if (active_function) {
+        active_function->on_ffb_action(ffb_action);
     }
 }
 
 void send_axis_config(void) {
     Message msg;
-    config_manager.get_axis_config(msg);
+    config_manager.get_axis_config_as_message(msg);
     comm_manager.send_message_to_gateway(msg);
 }
 
 void send_function_config(void) {
     Message msg;
-    config_manager.get_function_config(msg);
+    config_manager.get_function_config_as_message(msg);
     comm_manager.send_message_to_gateway(msg);
 }
 

@@ -14,17 +14,16 @@ class AutomotivePedalFunction : public IFunction {
             abs_effect.trigger();
         }
         float get_x_contact_point_min(void) override {
-            if (_config) return _config->pos_idle;
-            return -1.0f;
+            return _config.pos_idle;
         }
         float get_x_contact_point_max(void) override {
-            if (_config) return _config->pos_end;
-            return 1.0f;
+            return _config.pos_end;
         }
+        void on_ffb_action(const FFBAction &ffb_action) override;
 
     private:
         SplineForceCurve force_curve = {};
         Damper damper = Damper(1.0);
         ABSOscillation abs_effect = {};
-        const AutomotivePedalConfig *_config = nullptr;
+        AutomotivePedalConfig _config = AutomotivePedalConfig_init_default;
 };
