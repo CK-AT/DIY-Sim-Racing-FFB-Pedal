@@ -21,6 +21,7 @@
 
 #include "Arduino.h"
 #include "ConfigManager.h"
+#include "IFunction.h"
 #include "Physics.h"
 #include "Version_Board.h"
 
@@ -179,18 +180,26 @@ void IRAM_ATTR adc_isr(void) {
 void on_ffb_action(const FFBAction &ffb_action);
 void on_axis_action(const AxisAction &axis_action);
 
-void on_config_update(void) {
+IFunction *on_config_update(void) {
     if (servo) servo->pause(1000);
-    sim.set_x_min(config_manager.get_x_contact_point_min(), true);
-    sim.set_x_max(config_manager.get_x_contact_point_max(), true);
-    comm_manager.send_position_limits(sim.get_x_min(), sim.get_x_max());
+    IFunction *active_function = config_manager.get_active_function();
+    if (active_function) {
+        active_function->disable();
+    }
     const FunctionConfig *function_cfg = config_manager.get_function_config();
     switch (function_cfg->which_specific) {
         case FunctionConfig_automotive_pedal_tag:
             automotive_pedal_function.update_config(function_cfg->specific.automotive_pedal);
-            automotive_pedal_function.enable();
+            active_function = &automotive_pedal_function;
             break;
     }
+    if (active_function) {
+        sim.set_x_min(active_function->get_x_contact_point_min(), true);
+        sim.set_x_max(active_function->get_x_contact_point_max(), true);
+        comm_manager.send_position_limits(sim.get_x_min(), sim.get_x_max());
+        active_function->enable();
+    }
+    return active_function;
 }
 
 /**********************************************************************************************/

@@ -8,6 +8,7 @@ AutomotivePedalFunction::AutomotivePedalFunction(void) {
 }
 
 void AutomotivePedalFunction::update_config(const AutomotivePedalConfig &config) {
+    _config = &config;
     if (config.has_force_curve_config) {
         force_curve.set_config(config.force_curve_config);
         force_curve.enable();

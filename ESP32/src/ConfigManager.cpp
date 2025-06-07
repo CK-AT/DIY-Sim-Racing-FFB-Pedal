@@ -246,8 +246,8 @@ void ConfigManager::get_function_config(Message &message) {
 }
 
 void ConfigManager::on_config_update(void) {
-    calc_x_contact_point_limits();
     if (_on_config_update_callback) {
-        _on_config_update_callback();
+        _active_funtion = _on_config_update_callback();
     }
+    update_x_contact_point_limits();
 }
