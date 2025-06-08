@@ -165,7 +165,7 @@ Sim sim = Sim(m, x_min, x_max, v_min, v_max, a_min, a_max);
 #include "ConfigManager.h"
 #include "MessageTools.h"
 
-AxisCommManager comm_manager;
+CommManager comm_manager;
 
 ConfigManager config_manager;
 
@@ -194,7 +194,7 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
     if (active_function) {
         sim.set_x_min(active_function->get_x_contact_point_min(), true);
         sim.set_x_max(active_function->get_x_contact_point_max(), true);
-        comm_manager.send_position_limits(sim.get_x_min(), sim.get_x_max());
+        comm_manager.update_position_limits(sim.get_x_min(), sim.get_x_max());
         active_function->enable();
     }
     return active_function;

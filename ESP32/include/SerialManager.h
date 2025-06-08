@@ -8,7 +8,7 @@
 
 class AxisSerialManager {
     public:
-        bool setup(Stream *serial, AxisCommManager *comm_manager, ICommChannel::OnGatewayPayload on_gateway_payload);
+        bool setup(Stream *serial, CommManager *comm_manager, ICommChannel::OnGatewayPayload on_gateway_payload);
         void update_force_and_position(float &f_contact_point, float &x_contact_point);
         bool send_message_to_host(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data);
 
@@ -28,7 +28,7 @@ class AxisSerialManager {
         float _x_contact_point = 0.0f;
         PacketSerial packet_serial;
         Message state_message = Message_init_default;
-        AxisCommManager *comm_manager;
+        CommManager *comm_manager;
 };
 
 // class GatewaySerialManager {
@@ -42,7 +42,7 @@ class AxisSerialManager {
 //         bool setup(AxisID axis_id, Stream *serial, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update);
 //         bool send_force_and_position(float &f_foot, float &x_foot) override;
 //         bool send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
-//         bool send_position_limits(float x_foot_min, float x_foot_max) override;
+//         bool update_position_limits(float x_foot_min, float x_foot_max) override;
 //         bool update_force(float &f_foot) override {
 //             return false;
 //         }

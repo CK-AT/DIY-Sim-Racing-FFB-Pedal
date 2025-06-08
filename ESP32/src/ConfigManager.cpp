@@ -154,7 +154,7 @@ bool ConfigManager::load_function_config(void) {
         if (MessageTools::check_and_decode_message(_temp_message, buffer, header.len, header.crc)) {
             if (_temp_message.which_payload == Message_function_config_tag) {
                 _function_config = _temp_message.payload.function_config;
-                update_function_config_lut(_function_config);
+                update_function_config_base_lut(_function_config);
                 return true;
             } else {
                 LogOutput::printf(" -> not a function config");
@@ -208,7 +208,7 @@ ConfigManager::UpdateResult ConfigManager::update_function_config(const Function
             affecting_this_axis = true;
         }
     }
-    update_function_config_lut(new_config);
+    update_function_config_base_lut(new_config);
     if (!affecting_this_axis) {
         LogOutput::printf(" -> not targeting this axis");
         return ConfigManager::UPDATE_OTHER_AXIS;

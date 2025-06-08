@@ -5,4 +5,4 @@ enum CommChannel {
     ESP_NOW
 };
 
-class AxisCommManager;
+class CommManager;

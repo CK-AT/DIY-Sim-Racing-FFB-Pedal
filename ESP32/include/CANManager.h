@@ -22,7 +22,8 @@ class CANManager : public ICommChannel {
         };
 
         enum AxisFrameTypesLS {
-            POSITION_LIMITS = 0
+            POSITION_LIMITS = 0,
+            FUNCTION_ID = 1
         };
 
         enum FFBFrameTypes {
@@ -42,10 +43,11 @@ class CANManager : public ICommChannel {
         struct AxisState {
                 ForceAndPosition force_and_position;
                 PositionLimits position_limits;
+                FunctionID function_id;
                 uint32_t ti_last_seen;
-                uint32_t ti_last_limit_update;
+                uint32_t ti_last_status_update;
                 bool online;
-                bool limits_valid;
+                bool status_valid;
         };
 
         struct IsotpState {
@@ -58,13 +60,15 @@ class CANManager : public ICommChannel {
         bool get_force(AxisID axis_id, float &f_foot) override;
         bool get_position(AxisID axis_id, float &x_foot) override;
         bool get_position_limits(AxisID axis_id, float &x_foot_min, float &x_foot_max) override;
+        bool get_function_id(AxisID axis_id, FunctionID &function_id) override;
         bool is_online(AxisID axis_id) override;
         void process(void) override;
         /* Axis related */
         bool setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update, OnAxisPayload cb);
         bool send_force_and_position(float &f_foot, float &x_foot) override;
         bool send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
-        bool send_position_limits(float x_foot_min, float x_foot_max) override;
+        bool update_position_limits(float x_foot_min, float x_foot_max) override;
+        bool update_function_id(FunctionID function_id) override;
         bool update_force(float &f_foot) override {
             if (own_axis_index < 0) return false;
             axis_states[own_axis_index].force_and_position.f_foot = f_foot;
@@ -112,8 +116,8 @@ class CANManager : public ICommChannel {
         bool try_process_ffb_update_frame(CanFrame &rx_frame);
         bool try_process_ping_frame(CanFrame &rx_frame, uint32_t now);
         bool send_payload_to_gateway(const uint8_t *data, uint32_t len);
-        void broadcast_position_limits(void);
-        void broadcast_position_limits(uint32_t now);
+        void broadcast_state_updates(void);
+        void broadcast_state_updates(uint32_t now);
         AxisID own_axis_id = AxisID_AXIS_UNDEFINED;
         int8_t own_axis_index = -1;
         IsotpState gateway_isotp_state;
@@ -121,6 +125,7 @@ class CANManager : public ICommChannel {
         OnFFBAction on_ffb_action = nullptr;
         float _x_foot_min = 0.0f;
         float _x_foot_max = 0.0f;
+        FunctionID _function_id = FunctionID_FUNCTION_UNDEFINED;
         bool _gateway_online = false;
         /* Gateway related */
         bool _is_gateway = false;

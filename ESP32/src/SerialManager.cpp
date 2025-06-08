@@ -27,7 +27,7 @@ void AxisSerialManager::process(void) {
     }
 }
 
-bool AxisSerialManager::setup(Stream *serial, AxisCommManager *comm_manager, ICommChannel::OnGatewayPayload on_gateway_payload) {
+bool AxisSerialManager::setup(Stream *serial, CommManager *comm_manager, ICommChannel::OnGatewayPayload on_gateway_payload) {
     LogOutput::printf("AxisSerialManager: Performing setup...");
     this->comm_manager = comm_manager;
     _on_gateway_payload = on_gateway_payload;

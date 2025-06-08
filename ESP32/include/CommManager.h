@@ -8,7 +8,7 @@
 #include "ICommChannel.h"
 #include "SerialManager.h"
 
-class AxisCommManager {
+class CommManager {
     public:
         typedef std::function<void(const FFBAction &ffb_action)> OnFFBAction;
         typedef std::function<void(const AxisAction &axis_action)> OnAxisAction;
@@ -23,11 +23,13 @@ class AxisCommManager {
         bool send_message_to_gateway(const Message &message) {
             return send_message(message);
         }
-        bool send_position_limits(float x_foot_min, float x_foot_max);
+        bool update_position_limits(float x_foot_min, float x_foot_max);
+        bool update_function_id(FunctionID function_id);
         bool get_force(AxisID axis_id, float &f_foot);
         bool update_force(float &f_foot);
         bool get_position(AxisID axis_id, float &x_foot);
         bool get_position_limits(AxisID axis_id, float &x_foot_min, float &x_foot_max);
+        bool get_function_id(AxisID axis_id, FunctionID &function_id);
         bool is_online(AxisID axis_id);
         bool is_gateway_online(void);
         bool send_message_to_axis(AxisID axis_id, const Message &message);
@@ -43,7 +45,7 @@ class AxisCommManager {
         void on_ffb_action(const FFBAction &ffb_action);
         void periodic_task_func(void);
         static void periodic_task(void *pvParameters) {
-            AxisCommManager *logOutput = (AxisCommManager *)pvParameters;
+            CommManager *logOutput = (CommManager *)pvParameters;
             for (;;) {
                 logOutput->periodic_task_func();
                 delay(1);

@@ -57,6 +57,16 @@ bool CANManager::get_position_limits(AxisID axis_id, float &x_foot_min, float &x
     return false;
 }
 
+bool CANManager::get_function_id(AxisID axis_id, FunctionID &function_id) {
+    if (!MessageTools::check_axis_id(axis_id)) return false;
+    uint8_t axis_idx = MessageTools::axis_index_from_id(axis_id);
+    if (axis_states[axis_idx].online) {
+        function_id = axis_states[axis_idx].function_id;
+        return true;
+    }
+    return false;
+}
+
 bool CANManager::is_online(AxisID axis_id) {
     if (!MessageTools::check_axis_id(axis_id)) return false;
     return axis_states[MessageTools::axis_index_from_id(axis_id)].online;
@@ -122,12 +132,17 @@ bool CANManager::try_process_low_prio_axis_frame(CanFrame &rx_frame, uint32_t no
     if ((rx_frame.identifier & 0xF00) == 0x300) {
         uint8_t axis_idx = rx_frame.identifier & 0x00F;
         uint8_t frame_type = (rx_frame.identifier >> 4) & 0x00F;
-        axis_states[axis_idx].ti_last_limit_update = now;
-        axis_states[axis_idx].limits_valid = true;
+        axis_states[axis_idx].ti_last_status_update = now;
+        axis_states[axis_idx].status_valid = true;
         switch (frame_type) {
             case AxisFrameTypesLS::POSITION_LIMITS:
                 if (axis_idx < MessageTools::MAX_AXES_COUNT) {
                     memcpy(&(axis_states[axis_idx].position_limits), rx_frame.data, sizeof(PositionLimits));
+                }
+                break;
+            case AxisFrameTypesLS::FUNCTION_ID:
+                if (axis_idx < MessageTools::MAX_AXES_COUNT) {
+                    memcpy(&(axis_states[axis_idx].function_id), rx_frame.data, sizeof(FunctionID));
                 }
                 break;
             default:
@@ -143,7 +158,7 @@ void CANManager::process(void) {
     uint8_t num_max_frames = 40;
     uint32_t now = micros();
     update_timeouts(now);
-    broadcast_position_limits(now);
+    broadcast_state_updates(now);
     if (check_bus(now) == false) {
         return;
     }
@@ -181,8 +196,8 @@ void CANManager::update_timeouts(uint32_t now) {
         if (axis_states[axis_idx].online && ((now - axis_states[axis_idx].ti_last_seen) > 5000)) {
             axis_states[axis_idx].online = false;
         }
-        if (axis_states[axis_idx].limits_valid && ((now - axis_states[axis_idx].ti_last_limit_update) > 5000000)) {
-            axis_states[axis_idx].limits_valid = false;
+        if (axis_states[axis_idx].status_valid && ((now - axis_states[axis_idx].ti_last_status_update) > 5000000)) {
+            axis_states[axis_idx].status_valid = false;
         }
     }
     if (!_is_gateway) {
@@ -223,16 +238,16 @@ bool CANManager::try_process_ping_frame(CanFrame &rx_frame, uint32_t now) {
     return false;
 }
 
-void CANManager::broadcast_position_limits(void) {
+void CANManager::broadcast_state_updates(void) {
     if (own_axis_index < 0) return;
     if (_x_foot_min < _x_foot_max) {
-        send_position_limits(_x_foot_min, _x_foot_max);
+        update_position_limits(_x_foot_min, _x_foot_max);
     }
 }
 
-void CANManager::broadcast_position_limits(uint32_t now) {
-    if ((now - axis_states[own_axis_index].ti_last_limit_update) > 2000000) {
-        broadcast_position_limits();
+void CANManager::broadcast_state_updates(uint32_t now) {
+    if ((now - axis_states[own_axis_index].ti_last_status_update) > 2000000) {
+        broadcast_state_updates();
     }
 }
 
@@ -245,7 +260,7 @@ bool CANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t
     this->on_ffb_action = on_ffb_action;
     this->on_axis_payload = on_axis_payload;
     shared_setup(baud_rate, tx_pin, rx_pin);
-    broadcast_position_limits();
+    broadcast_state_updates();
     LogOutput::printf(" -> done");
     return true;
 }
@@ -273,18 +288,37 @@ bool CANManager::send_force_and_position(float &f_foot, float &x_foot) {
     return true;
 }
 
-bool CANManager::send_position_limits(float x_foot_min, float x_foot_max) {
+bool CANManager::update_position_limits(float x_foot_min, float x_foot_max) {
     _x_foot_min = x_foot_min;
     _x_foot_max = x_foot_max;
     if (own_axis_index < 0) return false;
     axis_states[own_axis_index].position_limits.x_foot_min = x_foot_min;
     axis_states[own_axis_index].position_limits.x_foot_max = x_foot_max;
-    axis_states[own_axis_index].ti_last_limit_update = micros();
-    axis_states[own_axis_index].limits_valid = true;
+    axis_states[own_axis_index].ti_last_status_update = micros();
+    axis_states[own_axis_index].status_valid = true;
     CanFrame tx_frame = {};
     tx_frame.identifier = 0x300 + (AxisFrameTypesLS::POSITION_LIMITS << 4) + own_axis_index;
     memcpy(tx_frame.data, &(axis_states[own_axis_index].position_limits), sizeof(PositionLimits));
     tx_frame.data_length_code = sizeof(PositionLimits);
+    if (!ESP32Can.writeFrame(&tx_frame, 0)) {
+        if (tx_err_cnt < 0xFFFFFFFF) {
+            tx_err_cnt++;
+        }
+        return false;
+    }
+    return true;
+}
+
+bool CANManager::update_function_id(FunctionID function_id) {
+    _function_id = function_id;
+    if (own_axis_index < 0) return false;
+    axis_states[own_axis_index].function_id = _function_id;
+    axis_states[own_axis_index].ti_last_status_update = micros();
+    axis_states[own_axis_index].status_valid = true;
+    CanFrame tx_frame = {};
+    tx_frame.identifier = 0x300 + (AxisFrameTypesLS::FUNCTION_ID << 4) + own_axis_index;
+    memcpy(tx_frame.data, &(axis_states[own_axis_index].function_id), sizeof(FunctionID));
+    tx_frame.data_length_code = sizeof(FunctionID);
     if (!ESP32Can.writeFrame(&tx_frame, 0)) {
         if (tx_err_cnt < 0xFFFFFFFF) {
             tx_err_cnt++;

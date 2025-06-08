@@ -9,7 +9,7 @@
 // RTDebugOutputService debugOutput = RTDebugOutputService();
 QueueHandle_t _log_queue_data;
 
-bool AxisCommManager::send_message(const Message &msg, bool broadcast) {
+bool CommManager::send_message(const Message &msg, bool broadcast) {
     uint8_t tx_buffer[MessageTools::MAX_ENCODED_SIZE + 2];
     uint16_t crc;
     uint16_t num_bytes_encoded = MessageTools::encode_message_and_calc_crc(msg, tx_buffer, MessageTools::MAX_ENCODED_SIZE, crc);
@@ -25,7 +25,7 @@ bool AxisCommManager::send_message(const Message &msg, bool broadcast) {
     return false;
 }
 
-void AxisCommManager::periodic_task_func(void) {
+void CommManager::periodic_task_func(void) {
     if (get_axis_id() == AxisID_AXIS_UNDEFINED) {
         // process() is usualy called by the physics update task but we are not an axis right now, so call it here
         process();
@@ -33,7 +33,7 @@ void AxisCommManager::periodic_task_func(void) {
     pump_log(5);
 }
 
-void AxisCommManager::setup(ConfigManager *config_manager, OnFFBAction on_ffb_action, OnAxisAction on_axis_action) {
+void CommManager::setup(ConfigManager *config_manager, OnFFBAction on_ffb_action, OnAxisAction on_axis_action) {
     _config_manager = config_manager;
     _on_ffb_action = on_ffb_action;
     _on_axis_action = on_axis_action;
@@ -41,7 +41,7 @@ void AxisCommManager::setup(ConfigManager *config_manager, OnFFBAction on_ffb_ac
     xTaskCreatePinnedToCore(this->periodic_task, "CommManagerTask", 2000, this, 1, NULL, 0);
 }
 
-void AxisCommManager::pump_log(int max_samples, int timeout) {
+void CommManager::pump_log(int max_samples, int timeout) {
     char buff[MAX_LOG_LINE_LENGTH];
     while (max_samples && (pdTRUE == xQueueReceive(_log_queue_data, buff, /*xTicksToWait=*/timeout))) {
         if (_is_gateway) {
@@ -53,7 +53,7 @@ void AxisCommManager::pump_log(int max_samples, int timeout) {
     }
 }
 
-void AxisCommManager::send_axis_log_msg(const char *buff) {
+void CommManager::send_axis_log_msg(const char *buff) {
     log_msg.payload.axis_log_message.axis_id = get_axis_id();
     log_msg.which_payload = Message_axis_log_message_tag;
     memset(log_msg.payload.axis_log_message.msg, 0, sizeof(log_msg.payload.axis_log_message.msg));
@@ -61,7 +61,7 @@ void AxisCommManager::send_axis_log_msg(const char *buff) {
     send_message(log_msg, true);
 }
 
-void AxisCommManager::send_gateway_log_msg(const char *buff) {
+void CommManager::send_gateway_log_msg(const char *buff) {
     log_msg.payload.gateway_log_message.gateway_id = get_gateway_id();
     log_msg.which_payload = Message_gateway_log_message_tag;
     memset(log_msg.payload.gateway_log_message.msg, 0, sizeof(log_msg.payload.gateway_log_message.msg));
@@ -69,12 +69,12 @@ void AxisCommManager::send_gateway_log_msg(const char *buff) {
     send_message(log_msg, true);
 }
 
-bool AxisCommManager::setup_serial(Stream *serial) {
+bool CommManager::setup_serial(Stream *serial) {
     return serial_manager.setup(serial, this,
                                 [this](const uint8_t *buffer, size_t size) { on_gateway_packet_received(buffer, size, CommChannel::USB_SERIAL); });
 };
 
-void AxisCommManager::on_gateway_packet_received(const uint8_t *buffer, size_t size, CommChannel comm_channel) {
+void CommManager::on_gateway_packet_received(const uint8_t *buffer, size_t size, CommChannel comm_channel) {
     Message msg = Message_init_zero;
     uint16_t crc = *reinterpret_cast<const uint16_t *>(buffer + size - sizeof(uint16_t));
     if (MessageTools::check_and_decode_message(msg, buffer, size - sizeof(uint16_t), crc)) {
@@ -82,7 +82,7 @@ void AxisCommManager::on_gateway_packet_received(const uint8_t *buffer, size_t s
     }
 }
 
-void AxisCommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg, CommChannel comm_channel) {
+void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg, CommChannel comm_channel) {
     ConfigManager::UpdateResult update_result;
     switch (msg.which_payload) {
         case Message_axis_config_tag:
@@ -136,7 +136,7 @@ void AxisCommManager::on_gateway_message(const Message &msg, const uint8_t *prot
     }
 }
 
-void AxisCommManager::on_axis_packet_received(AxisID axis_id, const uint8_t *data, size_t len, CommChannel comm_channel) {
+void CommManager::on_axis_packet_received(AxisID axis_id, const uint8_t *data, size_t len, CommChannel comm_channel) {
     Message msg = Message_init_zero;
     uint16_t crc = *reinterpret_cast<const uint16_t *>(data + len - sizeof(uint16_t));
     if (MessageTools::check_and_decode_message(msg, data, len - sizeof(uint16_t), crc)) {
@@ -144,11 +144,11 @@ void AxisCommManager::on_axis_packet_received(AxisID axis_id, const uint8_t *dat
     }
 }
 
-void AxisCommManager::on_axis_message(AxisID axis_id, const Message &msg, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg,
+void CommManager::on_axis_message(AxisID axis_id, const Message &msg, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg,
                                       CommChannel comm_channel) {
     switch (msg.which_payload) {
         case Message_function_config_tag:
-            _config_manager->update_function_config_lut(msg.payload.function_config);
+            _config_manager->update_function_config_base_lut(msg.payload.function_config);
             serial_manager.send_message_to_host(msg, protobuf_msg, len_protobuf_msg);
             break;
         case Message_axis_log_message_tag:
@@ -162,7 +162,7 @@ void AxisCommManager::on_axis_message(AxisID axis_id, const Message &msg, const 
     }
 }
 
-bool AxisCommManager::setup_can(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin) {
+bool CommManager::setup_can(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin) {
     AxisID axis_id = get_axis_id();
     _is_axis = MessageTools::check_axis_id(axis_id);
     _is_gateway = !_is_axis;
@@ -173,26 +173,31 @@ bool AxisCommManager::setup_can(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin
         [this](AxisID axis_id, const uint8_t *buffer, size_t size) { on_axis_packet_received(axis_id, buffer, size, CommChannel::ISOTP); });
 }
 
-void AxisCommManager::process(void) {
+void CommManager::process(void) {
     can_manager.process();
     if (can_manager.is_gateway_online()) {
         active_intercom_channel = &can_manager;
     }
 }
 
-bool AxisCommManager::send_force_and_position(float &f_foot, float &x_foot) {
+bool CommManager::send_force_and_position(float &f_foot, float &x_foot) {
     _f_foot_own = f_foot;
     _x_foot_own = x_foot;
     can_manager.send_force_and_position(f_foot, x_foot);
     return true;
 }
 
-bool AxisCommManager::send_position_limits(float x_foot_min, float x_foot_max) {
-    can_manager.send_position_limits(x_foot_min, x_foot_max);
+bool CommManager::update_position_limits(float x_foot_min, float x_foot_max) {
+    can_manager.update_position_limits(x_foot_min, x_foot_max);
     return true;
 }
 
-bool AxisCommManager::get_force(AxisID axis_id, float &f_foot) {
+bool CommManager::update_function_id(FunctionID function_id) {
+    can_manager.update_function_id(function_id);
+    return true;   
+}
+
+bool CommManager::get_force(AxisID axis_id, float &f_foot) {
     if (axis_id == get_axis_id()) {
         f_foot = _f_foot_own;
         return true;
@@ -201,12 +206,12 @@ bool AxisCommManager::get_force(AxisID axis_id, float &f_foot) {
     return active_intercom_channel->get_force(axis_id, f_foot);
 }
 
-bool AxisCommManager::update_force(float &f_foot) {
+bool CommManager::update_force(float &f_foot) {
     _f_foot_own = f_foot;
     return true;
 }
 
-bool AxisCommManager::get_position(AxisID axis_id, float &x_foot) {
+bool CommManager::get_position(AxisID axis_id, float &x_foot) {
     if (axis_id == get_axis_id()) {
         x_foot = _x_foot_own;
         return true;
@@ -215,22 +220,27 @@ bool AxisCommManager::get_position(AxisID axis_id, float &x_foot) {
     return active_intercom_channel->get_position(axis_id, x_foot);
 }
 
-bool AxisCommManager::get_position_limits(AxisID axis_id, float &x_foot_min, float &x_foot_max) {
+bool CommManager::get_position_limits(AxisID axis_id, float &x_foot_min, float &x_foot_max) {
     if (!active_intercom_channel) return false;
     return active_intercom_channel->get_position_limits(axis_id, x_foot_min, x_foot_max);
 }
 
-bool AxisCommManager::is_online(AxisID axis_id) {
+bool CommManager::get_function_id(AxisID axis_id, FunctionID &function_id) {
+    if (!active_intercom_channel) return false;
+    return active_intercom_channel->get_function_id(axis_id, function_id);
+}
+
+bool CommManager::is_online(AxisID axis_id) {
     if (axis_id == get_axis_id()) return true;
     if (!active_intercom_channel) return false;
     return active_intercom_channel->is_online(axis_id);
 }
 
-bool AxisCommManager::is_gateway_online(void) {
+bool CommManager::is_gateway_online(void) {
     return active_gateway_channel != nullptr;
 }
 
-bool AxisCommManager::send_message_to_axis(AxisID axis_id, const Message &message) {
+bool CommManager::send_message_to_axis(AxisID axis_id, const Message &message) {
     if (!active_gateway_channel) return false;
     uint8_t tx_buffer[MessageTools::MAX_ENCODED_SIZE + 2];
     uint16_t crc;
@@ -242,15 +252,15 @@ bool AxisCommManager::send_message_to_axis(AxisID axis_id, const Message &messag
     return false;
 }
 
-AxisID AxisCommManager::get_axis_id(void) {
+AxisID CommManager::get_axis_id(void) {
     return _config_manager->get_axis_id();
 }
 
-GatewayID AxisCommManager::get_gateway_id(void) {
+GatewayID CommManager::get_gateway_id(void) {
     return _config_manager->get_gateway_id();
 }
 
-void AxisCommManager::on_ffb_action(const FFBAction &ffb_action) {
+void CommManager::on_ffb_action(const FFBAction &ffb_action) {
     if (ffb_action.function_id != _config_manager->get_function_id()) return;
     if (_on_ffb_action) {
         _on_ffb_action(ffb_action);

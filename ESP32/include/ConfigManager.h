@@ -37,8 +37,8 @@ class ConfigManager {
         void init(GatewayID gateway_id);
         UpdateResult update_axis_config(const AxisConfig &new_config, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg, bool force = false);
         UpdateResult update_function_config(const FunctionConfig &new_config, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg);
-        void update_function_config_lut(const FunctionConfig &new_config) {
-            function_lut[new_config.base.function_id] = new_config.base;
+        void update_function_config_base_lut(const FunctionConfig &new_config) {
+            _function_lut[new_config.base.function_id] = new_config.base;
         }
         void get_axis_config_as_message(Message &message);
         void get_function_config_as_message(Message &message);
@@ -84,6 +84,18 @@ class ConfigManager {
         }
         FunctionID get_function_id(void) {
             return _function_config.base.function_id;
+        }
+        FunctionBase *get_function_base(FunctionID function_id) {
+            auto result = _function_lut.find(function_id);
+            if (result != _function_lut.end()) return &result->second;
+            return nullptr;
+        }
+        AxisID get_primary_axis_id(FunctionID function_id) {
+            FunctionBase *function_base = get_function_base(function_id);
+            if (function_base) {
+                return AxisID(function_base->linked_axes[0] & AxisID_AXIS_ID_MASK);
+            }
+            return AxisID_AXIS_UNDEFINED;
         }
         const AutomotivePedalConfig *get_automotive_pedal_config(void) {
             if (_function_config.which_specific == FunctionConfig_automotive_pedal_tag) {
@@ -137,7 +149,7 @@ class ConfigManager {
         Mode _mode = MODE_UNDEFINED;
         AxisConfig _axis_config;
         FunctionConfig _function_config;
-        std::map<FunctionID, FunctionBase> function_lut = {};
+        std::map<FunctionID, FunctionBase> _function_lut = {};
         Message _temp_message;
         SemaphoreHandle_t _sem_cfg_update = xSemaphoreCreateMutex();
         OnConfigUpdate _on_config_update_callback = nullptr;
