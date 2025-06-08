@@ -97,6 +97,8 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
         case Message_function_config_tag:
             if ((_config_manager->get_axis_id() != AxisID_AXIS_UNDEFINED)) {
                 _config_manager->update_function_config(msg.payload.function_config, protobuf_msg, len_protobuf_msg);
+            } else {
+                _config_manager->update_function_config_base_lut(msg.payload.function_config);
             }
             if (active_gateway_channel && (comm_channel == CommChannel::USB_SERIAL)) {
                 const AxisID *linked_axes = msg.payload.function_config.base.linked_axes;
@@ -111,10 +113,10 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
                 on_ffb_action(msg.payload.ffb_action);
             }
             if (active_gateway_channel && (comm_channel == CommChannel::USB_SERIAL)) {
-                const AxisID *linked_axes = config_manager->get_function_config()->base.linked_axes;
-                for (uint8_t idx = 0; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
-                    auto linked_axis_id = AxisID(linked_axes[idx] & AxisID_AXIS_ID_MASK);
-                    active_gateway_channel->send_message_to_axis(linked_axis_id, msg, protobuf_msg, len_protobuf_msg);
+                // only the primary axis will process FFB actions, no need to send it to other axes
+                AxisID primary_axis_id = _config_manager->get_primary_axis_id(msg.payload.ffb_action.function_id);
+                if (MessageTools::check_axis_id(primary_axis_id)) {
+                    active_gateway_channel->send_message_to_axis(primary_axis_id, msg, protobuf_msg, len_protobuf_msg);
                 }
             }
             break;
