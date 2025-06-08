@@ -178,7 +178,7 @@ void IRAM_ATTR adc_isr(void) {
 }
 
 void on_ffb_action(const FFBAction &ffb_action);
-void on_axis_action(const AxisAction &axis_action);
+void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel);
 
 IFunction *on_config_update(IFunction *active_function, const FunctionConfig *function_cfg) {
     if (servo) servo->pause(1000);
@@ -225,14 +225,18 @@ void setup() {
     Serial.begin(3000000);
 #endif
 
-    comm_manager.setup(&config_manager, on_ffb_action, on_axis_action);
+    CommManager::CANConfig can_config = {
+        .baud_rate = 1000,
+        .tx_pin = CAN_TX,
+        .rx_pin = CAN_RX
+    };
+
+    comm_manager.setup(&Serial, can_config, &config_manager, on_ffb_action, on_axis_action);
 
     LogOutput::printf("**************************************************************************************************************");
     LogOutput::printf("This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.");
     LogOutput::printf("Please check github repo for more detail: https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal");
     // TODO: printout the github releasing version
-
-    comm_manager.setup_serial(&Serial);
 
 #ifdef PEDAL_ASSIGNMENT
     uint8_t own_axis_index = 0;
@@ -266,15 +270,8 @@ void setup() {
     config_manager.init(AxisID_AXIS_UNDEFINED, false, on_config_update);
 #endif
 
-#ifdef HAS_CAN
-    /* do this AFTER config_manager.init() has been called, loading a config from EEPROM might change the axis ID */
-    comm_manager.setup_can(1000, CAN_TX, CAN_RX);
-#endif
-
-    if (config_manager.get_axis_id() != AxisID_AXIS_UNDEFINED) {
-        // an undefined axis ID at this point means that this is either a (dedicated) gateway or an axis w/o ID DIP switches missing a proper
-        // AxisConfig, there is no point in setting up things like servo or ADC
-
+    if (config_manager.is_axis()) {
+        // we are an axis right now, seeting up ADC, servo and physics task
         const AxisConfig *axis_cfg = config_manager.get_axis_config();
 
 #ifdef A6SERVO
@@ -326,6 +323,11 @@ void setup() {
         enableCore1WDT();
 
         attachInterrupt(PIN_DRDY, &adc_isr, FALLING);
+    } else {
+        // we are NOT an axis right now but either a (dedicated) gateway or an axis w/o ID DIP switches missing a proper
+        // AxisConfig, there is no point in setting up things like servo or ADC
+        // Wait a bit to allow CommManager to initialize CANManager properly before ending setup()
+        delay(500);
     }
 
 #ifdef OTA_update
@@ -615,28 +617,28 @@ void on_ffb_action(const FFBAction &ffb_action) {
     }
 }
 
-void send_axis_config(void) {
+void send_axis_config(CommChannel comm_channel) {
     Message msg;
     config_manager.get_axis_config_as_message(msg);
-    comm_manager.send_message_to_gateway(msg);
+    comm_manager.send_message_to_gateway(msg, comm_channel);
 }
 
-void send_function_config(void) {
+void send_function_config(CommChannel comm_channel) {
     Message msg;
     config_manager.get_function_config_as_message(msg);
-    comm_manager.send_message_to_gateway(msg);
+    comm_manager.send_message_to_gateway(msg, comm_channel);
 }
 
-void on_axis_action(const AxisAction &axis_action) {
+void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel) {
     switch (axis_action.which_action) {
         case AxisAction_restart_tag:
             ESP.restart();
             break;
         case AxisAction_return_axis_config_tag:
-            send_axis_config();
+            send_axis_config(comm_channel);
             break;
         case AxisAction_return_function_config_tag:
-            send_function_config();
+            send_function_config(comm_channel);
             break;
         case AxisAction_debug_flags_tag:
             debug_flags = axis_action.action.debug_flags;

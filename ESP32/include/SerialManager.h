@@ -6,7 +6,7 @@
 #include <PacketSerial.h>
 #include "ICommChannel.h"
 
-class AxisSerialManager {
+class SerialManager {
     public:
         bool setup(Stream *serial, CommManager *comm_manager, ICommChannel::OnGatewayPayload on_gateway_payload);
         void update_force_and_position(float &f_contact_point, float &x_contact_point);
@@ -15,7 +15,7 @@ class AxisSerialManager {
     protected:
         void process(void);
         static void task_func(void *pvParameters) {
-            AxisSerialManager *manager = (AxisSerialManager *)pvParameters;
+            SerialManager *manager = (SerialManager *)pvParameters;
             delay(1000);
             for (;;) {
                 manager->process();

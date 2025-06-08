@@ -162,14 +162,6 @@ void CANManager::process(void) {
     if (check_bus(now) == false) {
         return;
     }
-    if (!_is_gateway) {
-        isotp_poll(&(gateway_isotp_state.link));
-    } else {
-        send_ping_frame(now);
-        for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
-            isotp_poll(&(isotp_state[axis_idx].link));
-        }
-    }
     while (num_max_frames--) {
         if (ESP32Can.readFrame(&rx_frame, 0)) {
             if (try_process_high_prio_axis_frame(rx_frame, now)) continue;
@@ -188,6 +180,27 @@ void CANManager::process(void) {
     }
     if (rx_err_cnt < 0xFFFFFFFF) {
         rx_err_cnt++;
+    }
+}
+
+void CANManager::process_isotp(void) {
+    if (!_is_gateway) {
+        isotp_poll(&(gateway_isotp_state.link));
+        if (isotp_receive(&(gateway_isotp_state.link), isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
+            if (on_gateway_payload) {
+                on_gateway_payload(isotp_rx_buff, isotp_rx_size);
+            }
+        }
+    } else {
+        send_ping_frame(micros());
+        for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
+            isotp_poll(&(isotp_state[axis_idx].link));
+            if (isotp_receive(&(isotp_state[axis_idx].link), isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
+                if (on_axis_payload) {
+                    on_axis_payload(MessageTools::axis_id_from_index(axis_idx), isotp_rx_buff, isotp_rx_size);
+                }
+            }
+        }
     }
 }
 
@@ -341,12 +354,6 @@ bool CANManager::try_process_gateway_isotp_can_frame(CanFrame &rx_frame) {
     if (rx_frame.identifier == (0x700 + own_axis_index)) {
         IsoTpLink *link = &(gateway_isotp_state.link);
         isotp_on_can_message(link, rx_frame.data, rx_frame.data_length_code);
-        isotp_poll(link);
-        if (isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
-            if (on_gateway_payload) {
-                on_gateway_payload(isotp_rx_buff, isotp_rx_size);
-            }
-        }
         return true;
     }
     return false;
@@ -378,6 +385,7 @@ bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
 /*****************************************************************************************************************/
 void CANManager::send_ping_frame(uint32_t now) {
     if ((now - ti_last_ping) > 1000000) {
+        ti_last_ping = now;
         CanFrame tx_frame = {};
         tx_frame.identifier = 0x7FE;
         tx_frame.data_length_code = 0;
@@ -395,12 +403,6 @@ bool CANManager::try_process_axis_isotp_can_frame(CanFrame &rx_frame) {
         if (axis_idx < MessageTools::MAX_AXES_COUNT) {
             IsoTpLink *link = &(isotp_state[axis_idx].link);
             isotp_on_can_message(link, rx_frame.data, rx_frame.data_length_code);
-            isotp_poll(link);
-            if (isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
-                if (on_axis_payload) {
-                    on_axis_payload(MessageTools::axis_id_from_index(axis_idx), isotp_rx_buff, isotp_rx_size);
-                }
-            }
         }
         return true;
     }

@@ -63,6 +63,7 @@ class CANManager : public ICommChannel {
         bool get_function_id(AxisID axis_id, FunctionID &function_id) override;
         bool is_online(AxisID axis_id) override;
         void process(void) override;
+        void process_isotp(void);
         /* Axis related */
         bool setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update, OnAxisPayload cb);
         bool send_force_and_position(float &f_foot, float &x_foot) override;
@@ -81,6 +82,9 @@ class CANManager : public ICommChannel {
         /* Gateway related */
         bool setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnAxisPayload cb);
         bool send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
+        void set_gateway_mode(bool enable) override {
+            _is_gateway = enable;
+        }
 
     protected:
         static void task_func(void *pvParameters) {

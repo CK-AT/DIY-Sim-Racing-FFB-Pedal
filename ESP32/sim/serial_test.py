@@ -63,15 +63,18 @@ class OutputProtocol(asyncio.Protocol):
 async def request_configs(protocol):
     await asyncio.sleep(2)
     msg = ffb_protocol.Message()
+    msg.axis_action.axis_id = ffb_protocol.AXIS_1
     msg.axis_action.return_axis_config = True
     protocol.send_message(msg)
+    await asyncio.sleep(0.2)
     msg = ffb_protocol.Message()
+    msg.axis_action.axis_id = ffb_protocol.AXIS_1
     msg.axis_action.return_function_config = True
     protocol.send_message(msg)
-    await asyncio.sleep(3)
+    await asyncio.sleep(0.2)
     msg = ffb_protocol.Message()
-    msg.function_config.base.function = ffb_protocol.FUNCTION_BRAKE
-    msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_2)
+    msg.function_config.base.function_id = ffb_protocol.FUNCTION_BRAKE
+    msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_1)
     msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
     msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
     msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
@@ -97,13 +100,14 @@ async def request_configs(protocol):
     msg.function_config.automotive_pedal.pos_idle = 10
     msg.function_config.automotive_pedal.pos_end = 60
     protocol.send_message(msg)
-    await asyncio.sleep(3)
+    await asyncio.sleep(0.2)
     msg = ffb_protocol.Message()
+    msg.axis_action.axis_id = ffb_protocol.AXIS_1
     msg.axis_action.return_function_config = True
     protocol.send_message(msg)
 
-async def main():
-    transport, protocol = await serial_asyncio.create_serial_connection(loop, OutputProtocol, 'COM4', baudrate=921600)
+async def main(port):
+    transport, protocol = await serial_asyncio.create_serial_connection(loop, OutputProtocol, port, baudrate=3000000)
     msg_sent = True
     asyncio.create_task(request_configs(protocol))
     async for msg in protocol.get_messages():
@@ -116,10 +120,14 @@ async def main():
             print(f'{ffb_protocol.GatewayID.Name(log_msg.gateway_id)} : {log_msg.msg.rstrip()}')
         elif payload_type == 'axis_state':
             pass
+        elif payload_type == 'gateway_state':
+            pass
         else:
             print(f'unhandled message received: {msg}')
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+if __name__ == "__main__":
+    import sys
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main(sys.argv[1]))
+    loop.close()

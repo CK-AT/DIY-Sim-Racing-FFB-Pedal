@@ -9,36 +9,62 @@
 // RTDebugOutputService debugOutput = RTDebugOutputService();
 QueueHandle_t _log_queue_data;
 
-bool CommManager::send_message(const Message &msg, bool broadcast) {
-    uint8_t tx_buffer[MessageTools::MAX_ENCODED_SIZE + 2];
-    uint16_t crc;
-    uint16_t num_bytes_encoded = MessageTools::encode_message_and_calc_crc(msg, tx_buffer, MessageTools::MAX_ENCODED_SIZE, crc);
-    if (num_bytes_encoded) {
-        memcpy(tx_buffer + num_bytes_encoded, &crc, sizeof(uint16_t));
-        if (can_manager.is_gateway_online()) {
-            can_manager.send_message_to_gateway(msg, tx_buffer, num_bytes_encoded + sizeof(uint16_t));
-            if (!broadcast) return true;
-        }
-        serial_manager.send_message_to_host(msg, tx_buffer, num_bytes_encoded + sizeof(uint16_t));
-        return true;
-    }
-    return false;
-}
-
 void CommManager::periodic_task_func(void) {
-    if (get_axis_id() == AxisID_AXIS_UNDEFINED) {
-        // process() is usualy called by the physics update task but we are not an axis right now, so call it here
-        process();
+    if (!_config_manager_initialized && (_config_manager->get_mode() != ConfigManager::MODE_UNDEFINED)) {
+        setup_can(_can_config);
+        _config_manager_initialized = true;
+    } else {
+        if (!_config_manager->is_axis()) {
+            // process() is usualy called by the physics update task but we are not an axis right now, so call it here
+            process();
+        }
+        can_manager.process_isotp();
+        uint32_t now = micros();
+        if ((now - ti_last_state_updates) > 100000) {
+            ti_last_state_updates = now;
+            uint8_t online_flags = 0;
+            if (is_gateway()) {
+                for (uint8_t axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
+                    AxisID axis_id = MessageTools::axis_id_from_index(axis_idx);
+                    send_axis_state_message(axis_id, online_flags);
+                }
+            } else {
+                send_axis_state_message(get_axis_id(), online_flags);
+            }
+            send_gateway_state_message(online_flags);
+        }
     }
     pump_log(5);
 }
 
-void CommManager::setup(ConfigManager *config_manager, OnFFBAction on_ffb_action, OnAxisAction on_axis_action) {
+void CommManager::send_gateway_state_message(uint8_t online_flags) {
+    _state_message.which_payload = Message_gateway_state_tag;
+    _state_message.payload.gateway_state.axes_present = online_flags;
+    _state_message.payload.gateway_state.rssi = 255;  // TODO: make this depend on active_intercom_channel
+    send_message_to_host(_state_message);
+}
+
+bool CommManager::send_axis_state_message(AxisID axis_id, uint8_t &online_flags) {
+    if (!MessageTools::check_axis_id(axis_id)) return false;
+    if (is_online(axis_id)) {
+        online_flags |= (1 << MessageTools::axis_index_from_id(axis_id));
+        _state_message.which_payload = Message_axis_state_tag;
+        _state_message.payload.axis_state.axis_id = axis_id;
+        get_force(axis_id, _state_message.payload.axis_state.force);
+        get_position(axis_id, _state_message.payload.axis_state.position);
+        send_message_to_host(_state_message);
+    }
+    return true;
+}
+
+void CommManager::setup(Stream *serial, CANConfig &can_config, ConfigManager *config_manager, OnFFBAction on_ffb_action, OnAxisAction on_axis_action) {
     _config_manager = config_manager;
     _on_ffb_action = on_ffb_action;
     _on_axis_action = on_axis_action;
+    _can_config = can_config;
     _log_queue_data = xQueueCreate(20, MAX_LOG_LINE_LENGTH);
-    xTaskCreatePinnedToCore(this->periodic_task, "CommManagerTask", 2000, this, 1, NULL, 0);
+    setup_serial(serial);
+    xTaskCreatePinnedToCore(this->periodic_task, "CommManagerTask", 4000, this, 1, NULL, 0);
 }
 
 void CommManager::pump_log(int max_samples, int timeout) {
@@ -58,7 +84,7 @@ void CommManager::send_axis_log_msg(const char *buff) {
     log_msg.which_payload = Message_axis_log_message_tag;
     memset(log_msg.payload.axis_log_message.msg, 0, sizeof(log_msg.payload.axis_log_message.msg));
     strncpy(log_msg.payload.axis_log_message.msg, buff, sizeof(log_msg.payload.axis_log_message.msg) - 1);
-    send_message(log_msg, true);
+    send_message_to_host(log_msg);
 }
 
 void CommManager::send_gateway_log_msg(const char *buff) {
@@ -66,7 +92,7 @@ void CommManager::send_gateway_log_msg(const char *buff) {
     log_msg.which_payload = Message_gateway_log_message_tag;
     memset(log_msg.payload.gateway_log_message.msg, 0, sizeof(log_msg.payload.gateway_log_message.msg));
     strncpy(log_msg.payload.gateway_log_message.msg, buff, sizeof(log_msg.payload.gateway_log_message.msg) - 1);
-    send_message(log_msg, true);
+    send_message_to_host(log_msg);
 }
 
 bool CommManager::setup_serial(Stream *serial) {
@@ -89,45 +115,42 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
             update_result =
                 _config_manager->update_axis_config(msg.payload.axis_config, protobuf_msg, len_protobuf_msg, comm_channel == CommChannel::USB_SERIAL);
             if (update_result == ConfigManager::UpdateResult::UPDATE_OTHER_AXIS) {
-                if (active_gateway_channel) {
-                    active_gateway_channel->send_message_to_axis(msg.payload.axis_config.axis_id, msg, protobuf_msg, len_protobuf_msg);
-                }
+                send_message_to_axis(msg.payload.axis_config.axis_id, msg, protobuf_msg, len_protobuf_msg);
             }
             break;
         case Message_function_config_tag:
-            if ((_config_manager->get_axis_id() != AxisID_AXIS_UNDEFINED)) {
+            if (_config_manager->is_axis()) {
                 _config_manager->update_function_config(msg.payload.function_config, protobuf_msg, len_protobuf_msg);
             } else {
+                // gateway only, no need to call _config_manager->update_function_config()
                 _config_manager->update_function_config_base_lut(msg.payload.function_config);
             }
-            if (active_gateway_channel && (comm_channel == CommChannel::USB_SERIAL)) {
+            if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
                 const AxisID *linked_axes = msg.payload.function_config.base.linked_axes;
                 for (uint8_t idx = 0; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
                     auto linked_axis_id = AxisID(linked_axes[idx] & AxisID_AXIS_ID_MASK);
-                    active_gateway_channel->send_message_to_axis(linked_axis_id, msg, protobuf_msg, len_protobuf_msg);
+                    send_message_to_axis(linked_axis_id, msg, protobuf_msg, len_protobuf_msg);
                 }
             }
             break;
         case Message_ffb_action_tag:
-            if ((_config_manager->get_axis_id() != AxisID_AXIS_UNDEFINED)) {
+            if (_config_manager->is_axis()) {
                 on_ffb_action(msg.payload.ffb_action);
             }
-            if (active_gateway_channel && (comm_channel == CommChannel::USB_SERIAL)) {
+            if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
                 // only the primary axis will process FFB actions, no need to send it to other axes
                 AxisID primary_axis_id = _config_manager->get_primary_axis_id(msg.payload.ffb_action.function_id);
                 if (MessageTools::check_axis_id(primary_axis_id)) {
-                    active_gateway_channel->send_message_to_axis(primary_axis_id, msg, protobuf_msg, len_protobuf_msg);
+                    send_message_to_axis(primary_axis_id, msg, protobuf_msg, len_protobuf_msg);
                 }
             }
             break;
         case Message_axis_action_tag:
-            if ((_config_manager->get_axis_id() != AxisID_AXIS_UNDEFINED) && _on_axis_action) {
-                _on_axis_action(msg.payload.axis_action);
+            if (_config_manager->is_axis() && _on_axis_action && (msg.payload.axis_config.axis_id == _config_manager->get_axis_id())) {
+                _on_axis_action(msg.payload.axis_action, comm_channel);
             }
-            if (active_gateway_channel && (comm_channel == CommChannel::USB_SERIAL)) {
-                if (active_gateway_channel->is_online(msg.payload.axis_config.axis_id)) {
-                    active_gateway_channel->send_message_to_axis(msg.payload.axis_config.axis_id, msg, protobuf_msg, len_protobuf_msg);
-                } else {
+            if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
+                if (!send_message_to_axis(msg.payload.axis_config.axis_id, msg, protobuf_msg, len_protobuf_msg)) {
                     LogOutput::printf("Can't forward AxisAction: axis %d is offline", msg.payload.axis_config.axis_id);
                 }
             }
@@ -147,44 +170,41 @@ void CommManager::on_axis_packet_received(AxisID axis_id, const uint8_t *data, s
 }
 
 void CommManager::on_axis_message(AxisID axis_id, const Message &msg, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg,
-                                      CommChannel comm_channel) {
+                                  CommChannel comm_channel) {
     switch (msg.which_payload) {
         case Message_function_config_tag:
             _config_manager->update_function_config_base_lut(msg.payload.function_config);
-            serial_manager.send_message_to_host(msg, protobuf_msg, len_protobuf_msg);
-            break;
-        case Message_axis_log_message_tag:
-            serial_manager.send_message_to_host(msg, protobuf_msg, len_protobuf_msg);
-            break;
-        case Message_axis_state_tag:
-            serial_manager.send_message_to_host(msg, protobuf_msg, len_protobuf_msg);
-            break;
-        default:
             break;
     }
+    serial_manager.send_message_to_host(msg, protobuf_msg, len_protobuf_msg);
 }
 
-bool CommManager::setup_can(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin) {
+bool CommManager::setup_can(CANConfig &config) {
     AxisID axis_id = get_axis_id();
     _is_axis = MessageTools::check_axis_id(axis_id);
     _is_gateway = !_is_axis;
-    return can_manager.setup(
-        axis_id, baud_rate, tx_pin, rx_pin,
+    can_manager.setup(
+        axis_id, config.baud_rate, config.tx_pin, config.rx_pin,
         [this](const uint8_t *buffer, size_t size) { on_gateway_packet_received(buffer, size, CommChannel::ISOTP); },
         [this](const FFBAction &ffb_action) { on_ffb_action(ffb_action); },
         [this](AxisID axis_id, const uint8_t *buffer, size_t size) { on_axis_packet_received(axis_id, buffer, size, CommChannel::ISOTP); });
+    active_intercom_channel = &can_manager;
+    if (_is_gateway) {
+        active_downlink_channel = &can_manager;
+        can_manager.set_gateway_mode(true);
+    } else {
+        active_uplink_channel = &can_manager;
+    }
+    return true;
 }
 
 void CommManager::process(void) {
     can_manager.process();
-    if (can_manager.is_gateway_online()) {
-        active_intercom_channel = &can_manager;
-    }
 }
 
 bool CommManager::send_force_and_position(float &f_foot, float &x_foot) {
-    _f_foot_own = f_foot;
-    _x_foot_own = x_foot;
+    _f_contact_point_own = f_foot;
+    _x_contact_point_own = x_foot;
     can_manager.send_force_and_position(f_foot, x_foot);
     return true;
 }
@@ -196,12 +216,12 @@ bool CommManager::update_position_limits(float x_foot_min, float x_foot_max) {
 
 bool CommManager::update_function_id(FunctionID function_id) {
     can_manager.update_function_id(function_id);
-    return true;   
+    return true;
 }
 
 bool CommManager::get_force(AxisID axis_id, float &f_foot) {
     if (axis_id == get_axis_id()) {
-        f_foot = _f_foot_own;
+        f_foot = _f_contact_point_own;
         return true;
     }
     if (!active_intercom_channel) return false;
@@ -209,13 +229,13 @@ bool CommManager::get_force(AxisID axis_id, float &f_foot) {
 }
 
 bool CommManager::update_force(float &f_foot) {
-    _f_foot_own = f_foot;
+    _f_contact_point_own = f_foot;
     return true;
 }
 
 bool CommManager::get_position(AxisID axis_id, float &x_foot) {
     if (axis_id == get_axis_id()) {
-        x_foot = _x_foot_own;
+        x_foot = _x_contact_point_own;
         return true;
     }
     if (!active_intercom_channel) return false;
@@ -238,20 +258,48 @@ bool CommManager::is_online(AxisID axis_id) {
     return active_intercom_channel->is_online(axis_id);
 }
 
-bool CommManager::is_gateway_online(void) {
-    return active_gateway_channel != nullptr;
-}
-
 bool CommManager::send_message_to_axis(AxisID axis_id, const Message &message) {
-    if (!active_gateway_channel) return false;
+    if (!is_gateway()) return false;
+    if (!active_downlink_channel->is_online(axis_id)) return false;
     uint8_t tx_buffer[MessageTools::MAX_ENCODED_SIZE + 2];
     uint16_t crc;
     uint16_t num_bytes_encoded = MessageTools::encode_message_and_calc_crc(message, tx_buffer, MessageTools::MAX_ENCODED_SIZE, crc);
     if (num_bytes_encoded) {
         memcpy(tx_buffer + num_bytes_encoded, &crc, sizeof(uint16_t));
-        return active_gateway_channel->send_message_to_axis(axis_id, message, tx_buffer, num_bytes_encoded + sizeof(uint16_t));
+        return active_downlink_channel->send_message_to_axis(axis_id, message, tx_buffer, num_bytes_encoded + sizeof(uint16_t));
     }
     return false;
+}
+
+bool CommManager::send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
+    if (!is_gateway()) return false;
+    if (!active_downlink_channel->is_online(axis_id)) return false;
+    return active_downlink_channel->send_message_to_axis(axis_id, message, raw_data, len_raw_data);
+}
+
+bool CommManager::send_message_to_gateway(const Message &message, CommChannel comm_channel) {
+    uint8_t tx_buffer[MessageTools::MAX_ENCODED_SIZE + 2];
+    uint16_t crc;
+    uint16_t num_bytes_encoded = MessageTools::encode_message_and_calc_crc(message, tx_buffer, MessageTools::MAX_ENCODED_SIZE, crc);
+    if (!num_bytes_encoded) return false;
+    memcpy(tx_buffer + num_bytes_encoded, &crc, sizeof(uint16_t));
+    if (comm_channel == CommChannel::USB_SERIAL) {
+        return serial_manager.send_message_to_host(message, tx_buffer, num_bytes_encoded + sizeof(uint16_t));
+    }
+    bool result = false;
+    if (has_gateway()) {
+        result = active_uplink_channel->send_message_to_gateway(message, tx_buffer, num_bytes_encoded + sizeof(uint16_t));
+    }
+    return result;
+}
+
+bool CommManager::send_message_to_host(const Message &message) {
+    uint8_t tx_buffer[MessageTools::MAX_ENCODED_SIZE + 2];
+    uint16_t crc;
+    uint16_t num_bytes_encoded = MessageTools::encode_message_and_calc_crc(message, tx_buffer, MessageTools::MAX_ENCODED_SIZE, crc);
+    memcpy(tx_buffer + num_bytes_encoded, &crc, sizeof(uint16_t));
+    if (!num_bytes_encoded) return false;
+    return serial_manager.send_message_to_host(message, tx_buffer, num_bytes_encoded + sizeof(uint16_t));
 }
 
 AxisID CommManager::get_axis_id(void) {
@@ -267,4 +315,23 @@ void CommManager::on_ffb_action(const FFBAction &ffb_action) {
     if (_on_ffb_action) {
         _on_ffb_action(ffb_action);
     }
+}
+
+bool CommManager::calc_controller_output_value(FunctionBase &function_base, float &controller_output) {
+    AxisID primary_axis_id = AxisID(function_base.linked_axes[0] & AxisID_AXIS_ID_MASK);
+    float src_value;
+    bool success = false;
+    switch (function_base.output_mode) {
+        case OutputMode_OUTPUT_MODE_FORCE:
+            success = get_force(primary_axis_id, src_value);
+            break;
+        case OutputMode_OUTPUT_MODE_TRAVEL:
+            success = get_position(primary_axis_id, src_value);
+            break;
+        default:
+            break;
+    }
+    if (!success) return false;
+    controller_output = normalize_value(src_value, function_base.output_min, function_base.output_max);
+    return true;
 }

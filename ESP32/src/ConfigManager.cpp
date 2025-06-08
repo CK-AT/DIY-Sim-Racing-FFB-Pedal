@@ -41,6 +41,7 @@ void ConfigManager::set_axis_config_defaults(void) {
 
 void ConfigManager::set_function_config_defaults(void) {
     _function_config = FunctionConfig_init_default;
+    _function_config.has_base = true;
     _function_config.base.function_id = FunctionID_FUNCTION_BRAKE;
     _function_config.base.linked_axes[0] = _axis_id;
     _function_config.base.store = false;
@@ -73,7 +74,6 @@ void ConfigManager::init(AxisID axis_id, bool fixed_id, OnConfigUpdate config_up
     LogOutput::printf("ConfigManager: init (axis only)");
     _axis_id = axis_id;
     _fixed_id = fixed_id;
-    _mode = MODE_AXIS_ONLY;
     _on_config_update_callback = config_update_callback;
     _sem_cfg_update = xSemaphoreCreateMutex();
     if (!_sem_cfg_update) {
@@ -81,6 +81,7 @@ void ConfigManager::init(AxisID axis_id, bool fixed_id, OnConfigUpdate config_up
         return;
     }
     load_configs();
+    _mode = MODE_AXIS_ONLY;
     LogOutput::printf(" -> init done");
 }
 

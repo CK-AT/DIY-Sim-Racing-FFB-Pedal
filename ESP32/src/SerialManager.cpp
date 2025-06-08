@@ -3,50 +3,37 @@
 #include <CommManager.h>
 
 /*****************************************************************************************************************/
-/* AxisSerialManager */
+/* SerialManager */
 /*****************************************************************************************************************/
 
-static ICommChannel::OnGatewayPayload _on_gateway_payload;
+static ICommChannel::OnGatewayPayload _on_host_payload;
 
 static void _on_gateway_payload_wrapper(const uint8_t *data, size_t len) {
-    _on_gateway_payload(data, len);
+    _on_host_payload(data, len);
 }
 
-void AxisSerialManager::process(void) {
+void SerialManager::process(void) {
     packet_serial.update();
-    uint32_t now = micros();
-    if ((now - ti_last_state_frame) > 100000) {
-        ti_last_state_frame = now;
-        if (state_message.payload.axis_state.axis_id == AxisID_AXIS_UNDEFINED) {
-            state_message.payload.axis_state.axis_id = comm_manager->get_axis_id();
-        } else {
-            state_message.payload.axis_state.force = _f_contact_point;
-            state_message.payload.axis_state.position = _x_contact_point;
-            comm_manager->send_message(state_message, CommChannel::USB_SERIAL);
-        }
-    }
 }
 
-bool AxisSerialManager::setup(Stream *serial, CommManager *comm_manager, ICommChannel::OnGatewayPayload on_gateway_payload) {
-    LogOutput::printf("AxisSerialManager: Performing setup...");
+bool SerialManager::setup(Stream *serial, CommManager *comm_manager, ICommChannel::OnGatewayPayload on_host_payload) {
     this->comm_manager = comm_manager;
-    _on_gateway_payload = on_gateway_payload;
+    _on_host_payload = on_host_payload;
     state_message.which_payload = Message_axis_state_tag;
     packet_serial.setStream(serial);
     packet_serial.setPacketHandler(_on_gateway_payload_wrapper);
     // send some zero bytes to ensure proper COBS sync on the first message
     serial->print("\x00\x00\x00");
     xTaskCreatePinnedToCore(this->task_func, "SerialManagerTask", 5000, this, 1, NULL, 0);
-    LogOutput::printf(" -> done");
     return true;
 }
 
-void AxisSerialManager::update_force_and_position(float &f_contact_point, float &x_contact_point) {
+void SerialManager::update_force_and_position(float &f_contact_point, float &x_contact_point) {
     _f_contact_point = f_contact_point;
     _x_contact_point = x_contact_point;
 }
 
-bool AxisSerialManager::send_message_to_host(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
+bool SerialManager::send_message_to_host(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
     packet_serial.send(raw_data, len_raw_data);
     return true;
 }

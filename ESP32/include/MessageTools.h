@@ -10,11 +10,11 @@ class MessageTools {
         static const uint16_t MAX_AXES_COUNT = 8; // Can't use _AxisID_MAX because it includes AxisID_AXIS_SUBTRACTIVE, which is a flag encoded into bit 7
         static uint16_t calc_crc(const uint8_t *buffer, uint16_t len);
         static AxisID axis_id_from_index(uint8_t axis_index) {
-            return AxisID(axis_index + 1);
+            return AxisID(constrain(axis_index, 0, MAX_AXES_COUNT- 1) + 1);
         }
         static uint8_t axis_index_from_id(AxisID axis_id) {
             /* limit to zero */
-            return uint8_t(max(axis_id - 1, 0));
+            return uint8_t(constrain(axis_id - 1, 0, MAX_AXES_COUNT- 1));
         }
         static bool check_axis_id(AxisID axis_id) {
             if (axis_id == AxisID_AXIS_UNDEFINED) return false;

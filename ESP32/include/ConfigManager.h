@@ -46,6 +46,9 @@ class ConfigManager {
             if (_mode & MODE_AXIS_MASK) return _axis_id;
             return AxisID_AXIS_UNDEFINED;
         }
+        bool is_axis(void) {
+            return get_axis_id() != AxisID_AXIS_UNDEFINED;
+        }
         GatewayID get_gateway_id(void) const {
             if (_mode & MODE_GATEWAY_MASK) return _gateway_id;
             return GatewayID_GATEWAY_UNDEFINED;

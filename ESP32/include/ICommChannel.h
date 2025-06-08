@@ -22,4 +22,5 @@ class ICommChannel {
         virtual bool send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, size_t len_raw_data) = 0;
         virtual bool update_function_id(FunctionID function_id) = 0;
         virtual bool get_function_id(AxisID axis_id, FunctionID &function_id) = 0;
+        virtual void set_gateway_mode(bool enable) = 0;
     };
