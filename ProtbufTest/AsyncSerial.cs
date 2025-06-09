@@ -42,7 +42,7 @@ namespace ProtbufTest
             {
                 while (true)
                 {
-                    var chunk = new Memory<byte>(new byte[32]);
+                    var chunk = new Memory<byte>(new byte[256]);
                     var num_bytes = await port.BaseStream.ReadAsync(chunk, cts.Token);
                     foreach (var item in chunk.ToArray().Take(num_bytes))
                     {
