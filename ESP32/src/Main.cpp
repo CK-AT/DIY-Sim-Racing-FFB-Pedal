@@ -192,8 +192,12 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
             break;
     }
     if (active_function) {
-        sim.set_x_min(active_function->get_x_contact_point_min(), true);
-        sim.set_x_max(active_function->get_x_contact_point_max(), true);
+        float x_curr;
+        comm_manager.get_position(comm_manager.get_axis_id(), x_curr);
+        sim.set_x_min(x_curr, true);
+        sim.set_x_max(x_curr, true);
+        sim.set_x_min(active_function->get_x_contact_point_min());
+        sim.set_x_max(active_function->get_x_contact_point_max());
         comm_manager.update_position_limits(sim.get_x_min(), sim.get_x_max());
         comm_manager.update_function_id(function_cfg->base.function_id);
         active_function->enable();
