@@ -4,7 +4,7 @@ using COBS.NET;
 using pb = global::Google.Protobuf;
 using ProtbufTest;
 
-ProtobufSerial serial = new ProtobufSerial("COM4", 921600);
+ProtobufSerial serial = new ProtobufSerial("COM3", 3000000);
 while (serial.Open(true) == false)
 {
     Console.WriteLine("Failed to open port, retrying...");
@@ -18,7 +18,9 @@ int num_inner_loops = 100;
 int num_outer_loops = 10;
 Message test = new Message();
 FFBAction action = new FFBAction();
-action.TriggerAbs = true;
+action.FunctionId = FunctionID.FunctionBrake;
+action.AutomotivePedal = new AutomotivePedalFFBAction();
+action.AutomotivePedal.TriggerAbs = true;
 //test.FfbAction = action;
 
 var axis_cfg = new AxisConfig();
@@ -36,15 +38,43 @@ AxisAction axis_action = new AxisAction();
 axis_action.Restart = true;
 //test.AxisAction = axis_action;
 
+FunctionConfig function_config = new FunctionConfig();
+function_config.Base = new FunctionBase();
+function_config.Base.OutputMin = -2.0f;
+function_config.Base.OutputMax = 2.0f;
+function_config.Base.ControllerOutputAxis = ControllerAxis.RZ;
+function_config.Base.FunctionId = FunctionID.FunctionBrake;
+function_config.Base.LinkedAxes.AddRange([AxisID.Axis1, AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined]);
+function_config.Base.OutputMode = OutputMode.Force;
+function_config.Base.Store = false;
+function_config.AutomotivePedal = new AutomotivePedalConfig();
+function_config.AutomotivePedal.DamperConfig = new DamperConfig();
+function_config.AutomotivePedal.DamperConfig.PositiveFactor = 0.1f;
+function_config.AutomotivePedal.DamperConfig.NegativeFactor = 0.1f;
+function_config.AutomotivePedal.PosEnd = 100;
+function_config.AutomotivePedal.PosIdle = 150;
+function_config.AutomotivePedal.ForceCurveConfig = new SplineForceCurveConfig();
+function_config.AutomotivePedal.ForceCurveConfig.PosMin = 100;
+function_config.AutomotivePedal.ForceCurveConfig.PosMax = 150;
+function_config.AutomotivePedal.ForceCurveConfig.FMin = 70;
+function_config.AutomotivePedal.ForceCurveConfig.FMax = 500;
+function_config.AutomotivePedal.ForceCurveConfig.ForceDirection = ForceDirection.DirectionSubtract;
+function_config.AutomotivePedal.ForceCurveConfig.FRelPoints.AddRange([0, 20, 40, 60, 80, 100]);
+function_config.AutomotivePedal.ForceCurveConfig.CubicSplineParamsA.AddRange([0.0f, 0.0f, 0.0f, 0.0f, 0.0f]);
+function_config.AutomotivePedal.ForceCurveConfig.CubicSplineParamsB.AddRange([0.0f, 0.0f, 0.0f, 0.0f, 0.0f]);
+test.FunctionConfig = function_config;
+
+
 var watch = System.Diagnostics.Stopwatch.StartNew();
 int cnt = 0;
 JsonFormatter json_fromatter = new JsonFormatter(JsonFormatter.Settings.Default);
 Console.WriteLine(json_fromatter.Format(test));
+//serial.WriteMessage(test);
 while (true)
 {
     if (cnt == 0)
     {
-        serial.WriteMessage(test);
+        //serial.WriteMessage(test);
     }
     Message rx_msg = await serial.ReceiveMessage<Message>();
     if (rx_msg != null)
@@ -55,7 +85,19 @@ while (true)
         }
         else if (rx_msg.PayloadCase == Message.PayloadOneofCase.AxisState)
         {
-            Console.WriteLine("{0} : f = {1}N, x = {2}mm", rx_msg.AxisState.AxisId, rx_msg.AxisState.Force, rx_msg.AxisState.Position);
+            //Console.WriteLine("{0} : f = {1}N, x = {2}mm", rx_msg.AxisState.AxisId, rx_msg.AxisState.Force, rx_msg.AxisState.Position);
+        }
+        else if (rx_msg.PayloadCase == Message.PayloadOneofCase.GatewayLogMessage)
+        {
+            Console.WriteLine("{0} : {1}", rx_msg.GatewayLogMessage.GatewayId, rx_msg.GatewayLogMessage.Msg.TrimEnd());
+        }
+        else if (rx_msg.PayloadCase == Message.PayloadOneofCase.GatewayState)
+        {
+            //Console.WriteLine("axes_present: 0x{0:X2}", rx_msg.GatewayState.AxesPresent);
+        }
+        else
+        {
+            Console.WriteLine("{0}", rx_msg);
         }
 
     }
