@@ -13,6 +13,7 @@ class OutputProtocol(asyncio.Protocol):
     def connection_made(self, transport):
         self.transport = transport
         print('port opened', transport)
+        transport.write(b'\x00\x00\x00')
 
     def data_received(self, data):
         last_idx = 0

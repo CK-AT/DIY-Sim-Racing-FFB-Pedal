@@ -9,6 +9,8 @@
 FastCRC16 CRC16;
 
 bool MessageTools::check_and_decode_message(Message &message, const uint8_t *buffer, uint16_t len, uint16_t crc_expected) {
+    if (len < 3) return false;
+    if (len > (MAX_ENCODED_SIZE + 2)) return false;
     uint16_t crc = CRC16.modbus(buffer, len);
     if (crc == crc_expected) {
         pb_istream_t istream = pb_istream_from_buffer(buffer, len);
