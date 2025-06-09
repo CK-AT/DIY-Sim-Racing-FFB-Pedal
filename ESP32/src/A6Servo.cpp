@@ -74,7 +74,7 @@ bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome) {
     write_hold_register<uint16_t>(0x0607, 2);                          // limit active after homing
     write_hold_register<uint32_t>(0x0600, 1000000);                    // relax excessive local position deviation threshold
     write_trq_limit(_trq_open_loop);
-    set_speed(100.0);
+    set_speed(_spd_open_loop);
     int32_t min_pos = read_min_pos();
     if (min_pos == 0) {
         _pos_max = read_max_pos();
@@ -124,9 +124,10 @@ void A6Servo::do_homing(void) {
     write_max_pos(20000000);
     write_trq_limit(_trq_open_loop);
     write_homing_trq_limit(_trq_open_loop);
-    set_speed(100.0);
+    set_speed(_spd_open_loop);
     write_hold_register<uint32_t>(0x0600, 1000000);  // relax excessive local position deviation threshold
     write_hold_register<int16_t>(0x1001, -1);        // homing mode = search for mechanical limit in negative direction
+    write_hold_register<int16_t>(0x1002, _spd_open_loop / 2.0); // set initial homing speed to half of the open loop speed to avoid getting stuck
     write_hold_register<uint16_t>(0x1000, 0);        // homing off
     delay(100);
     write_hold_register<uint16_t>(0x1000, 1);  // homing on
@@ -143,7 +144,7 @@ void A6Servo::do_homing(void) {
         }
     }
     LogOutput::printf("A6Servo: Negative endstop found, moving to positive endstop...");
-    _stepper_engine->keepRunningForward((_steps_per_mm * _mm_per_rev) / 0.6);
+    _stepper_engine->keepRunningForward((_steps_per_mm * _mm_per_rev) * _spd_open_loop / 60.0);
     num_zero_spd = 0;
     while (num_zero_spd < 5) {
         delay(100);
@@ -178,7 +179,7 @@ void A6Servo::do_homing(void) {
 
 void A6Servo::lock_onto_curr_pos(void) {
     write_trq_limit(_trq_open_loop);
-    set_speed(150.0);
+    set_speed(_spd_open_loop);
     LogOutput::printf("A6Servo: Locking onto last commanded position...");
     uint16_t max_tries = 10000;
     bool is_locked = false;
@@ -192,7 +193,7 @@ void A6Servo::lock_onto_curr_pos(void) {
     if (is_locked) {
         LogOutput::printf("A6Servo: Locked in.");
         write_hold_register<uint32_t>(0x0600, 30000);  // tighten excessive local position deviation threshold
-        set_speed(6000.0);
+        set_speed(_spd_locked_in);
         write_trq_limit(_trq_locked_in);
         _homing_state = HomingState::LockedIn;
     } else {
@@ -244,9 +245,9 @@ int32_t A6Servo::read_max_pos(void) {
 }
 
 void A6Servo::move_to_slow(int32_t position) {
-    set_speed(10.0);
+    set_speed(_spd_open_loop);
     _stepper_engine->moveTo(constrain(position, 0, _pos_max), true);
-    set_speed(6000.0);
+    set_speed(_spd_locked_in);
 }
 
 bool A6Servo::move_to(int32_t position, bool blocking) {
