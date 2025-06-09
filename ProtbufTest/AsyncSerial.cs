@@ -13,13 +13,12 @@ namespace ProtbufTest
         public AsyncSerial(string port_name, Int32 baud_rate)
         {
             port = new SerialPort(port_name, baud_rate);
+            Task.Run(async () => await RxTask());
         }
         
         public bool Open(bool auto_reconnect=false)
         {
             _auto_reconnect=auto_reconnect;
-            cts.Cancel();
-            cts = new CancellationTokenSource();
             try
             {
                 port.Open();
@@ -32,15 +31,14 @@ namespace ProtbufTest
             {
                 return false;
             }
-            Task.Run(async () => await RxTask());
             return true;
         }
 
         private async Task RxTask()
         {
-            try
+            while (true)
             {
-                while (true)
+                try
                 {
                     var chunk = new Memory<byte>(new byte[256]);
                     var num_bytes = await port.BaseStream.ReadAsync(chunk, cts.Token);
@@ -50,8 +48,8 @@ namespace ProtbufTest
                     }
                     if (cts.IsCancellationRequested) break;
                 }
+                catch (Exception) { }
             }
-            catch (UnauthorizedAccessException) { }
         }
 
         public async Task<byte[]> ReceiveData(int max_size=500, int timeout=30)
