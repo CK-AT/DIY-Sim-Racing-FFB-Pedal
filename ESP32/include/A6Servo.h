@@ -90,7 +90,9 @@ class A6Servo : public Servo {
         uint32_t _mm_per_rev;
         int32_t _pos_max = 0;
         float _trq_locked_in = 300.0;
+        float _spd_locked_in = 6000.0;
         float _trq_open_loop = 10.0;
+        float _spd_open_loop = 200.0;
         static void task_func(void* pvParameters) {
             A6Servo* servo = (A6Servo*)pvParameters;
             delay(1000);

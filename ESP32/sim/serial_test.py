@@ -3,6 +3,11 @@ import serial_asyncio
 from cobs import cobs
 import modbus_crc
 import diy_ffb_protocol_pb2 as ffb_protocol
+import brake_wolf
+import accelerator_wolf
+import flight_pedals
+import brake_alerio
+import accelerator_alerio
 
 class OutputProtocol(asyncio.Protocol):
     def __init__(self):
@@ -62,50 +67,39 @@ class OutputProtocol(asyncio.Protocol):
         self.transport.write(data)
 
 async def request_configs(protocol):
-    await asyncio.sleep(2)
-    msg = ffb_protocol.Message()
-    msg.axis_action.axis_id = ffb_protocol.AXIS_1
-    msg.axis_action.return_axis_config = True
-    protocol.send_message(msg)
-    await asyncio.sleep(0.2)
-    msg = ffb_protocol.Message()
-    msg.axis_action.axis_id = ffb_protocol.AXIS_1
-    msg.axis_action.return_function_config = True
-    protocol.send_message(msg)
-    await asyncio.sleep(0.2)
-    msg = ffb_protocol.Message()
-    msg.function_config.base.function_id = ffb_protocol.FUNCTION_BRAKE
-    msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_1)
-    msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
-    msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
-    msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
-    msg.function_config.base.store = False
-    msg.function_config.base.controller_output_axis = ffb_protocol.CONTROLLER_AXIS_BRK
-    msg.function_config.base.output_mode = ffb_protocol.OUTPUT_MODE_FORCE
-    msg.function_config.base.output_min = 75.0
-    msg.function_config.base.output_max = 115.0
-    
-    msg.function_config.automotive_pedal.force_curve_config.pos_min = 10
-    msg.function_config.automotive_pedal.force_curve_config.pos_max = 60
-    msg.function_config.automotive_pedal.force_curve_config.f_min = 70.0
-    msg.function_config.automotive_pedal.force_curve_config.f_max = 120.0
-    msg.function_config.automotive_pedal.force_curve_config.f_rel_points.append(0)
-    msg.function_config.automotive_pedal.force_curve_config.f_rel_points.append(20)
-    msg.function_config.automotive_pedal.force_curve_config.f_rel_points.append(40)
-    msg.function_config.automotive_pedal.force_curve_config.f_rel_points.append(60)
-    msg.function_config.automotive_pedal.force_curve_config.f_rel_points.append(80)
-    msg.function_config.automotive_pedal.force_curve_config.f_rel_points.append(100)
-    msg.function_config.automotive_pedal.force_curve_config.force_direction = ffb_protocol.DIRECTION_SUBTRACT
-    msg.function_config.automotive_pedal.damper_config.positive_factor = 0.1
-    msg.function_config.automotive_pedal.damper_config.negative_factor = 0.1
-    msg.function_config.automotive_pedal.pos_idle = 10
-    msg.function_config.automotive_pedal.pos_end = 60
-    protocol.send_message(msg)
-    await asyncio.sleep(0.2)
-    msg = ffb_protocol.Message()
-    msg.axis_action.axis_id = ffb_protocol.AXIS_1
-    msg.axis_action.return_function_config = True
-    protocol.send_message(msg)
+    await asyncio.sleep(1)
+    # msg = ffb_protocol.Message()
+    # msg.axis_action.axis_id = ffb_protocol.AXIS_3
+    # msg.axis_action.return_axis_config = True
+    # protocol.send_message(msg)
+    # await asyncio.sleep(0.2)
+    # msg = ffb_protocol.Message()
+    # msg.axis_action.axis_id = ffb_protocol.AXIS_3
+    # msg.axis_action.return_function_config = True
+    # protocol.send_message(msg)
+    # await asyncio.sleep(0.2)
+    # while True:
+    #     await asyncio.sleep(0.1)
+    #     msg = ffb_protocol.Message()
+    #     msg.ffb_action.function_id = ffb_protocol.FUNCTION_BRAKE
+    #     msg.ffb_action.automotive_pedal.trigger_abs = True
+    #     protocol.send_message(msg)
+    # msg = ffb_protocol.Message()
+    # msg.axis_action.axis_id = ffb_protocol.AXIS_2
+    # msg.axis_action.restart = True
+    # protocol.send_message(msg)
+    # await asyncio.sleep(0.5)
+    # msg = ffb_protocol.Message()
+    # msg.axis_action.axis_id = ffb_protocol.AXIS_3
+    # msg.axis_action.restart = True
+    # protocol.send_message(msg)
+    # await accelerator_wolf.load_config(protocol)
+    # await asyncio.sleep(0.2)
+    # await brake_wolf.load_config(protocol)
+    await flight_pedals.load_config(protocol)
+    # await accelerator_alerio.load_config(protocol)
+    # await asyncio.sleep(0.2)
+    # await brake_alerio.load_config(protocol)
 
 async def main(port):
     transport, protocol = await serial_asyncio.create_serial_connection(loop, OutputProtocol, port, baudrate=3000000)

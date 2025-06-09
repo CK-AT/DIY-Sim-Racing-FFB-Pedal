@@ -47,8 +47,10 @@ void OTATask(void *pvParameters);
 void ESPNOW_SyncTask(void *pvParameters);
 
 #include "AutomotivePedalFunction.h"
+#include "FlightPedalFunction.h"
 
 AutomotivePedalFunction automotive_pedal_function = {};
+FlightPedalFunction flight_pedal_function = {};
 
 #include "CycleTimer.h"
 #include "LogOutput.h"
@@ -190,10 +192,18 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
             automotive_pedal_function.update_config(function_cfg->specific.automotive_pedal);
             active_function = &automotive_pedal_function;
             break;
+        case FunctionConfig_flight_pedal_tag:
+            flight_pedal_function.update_config(function_cfg->specific.flight_pedal);
+            active_function = &flight_pedal_function;
+            break;
     }
     if (active_function) {
-        sim.set_x_min(active_function->get_x_contact_point_min(), true);
-        sim.set_x_max(active_function->get_x_contact_point_max(), true);
+        float x_curr;
+        comm_manager.get_position(comm_manager.get_axis_id(), x_curr);
+        sim.set_x_min(x_curr, true);
+        sim.set_x_max(x_curr, true);
+        sim.set_x_min(active_function->get_x_contact_point_min());
+        sim.set_x_max(active_function->get_x_contact_point_max());
         comm_manager.update_position_limits(sim.get_x_min(), sim.get_x_max());
         comm_manager.update_function_id(function_cfg->base.function_id);
         active_function->enable();
@@ -304,17 +314,7 @@ void setup() {
         }
 
         sim.add_element(&automotive_pedal_function);
-        // sim.add_element(&spring1);
-        // spring1.disable();
-        // sim.add_element(&damper1);
-        // sim.add_element(&force_map1);
-        // force_map1.disable();
-        // endstops.add_element(&force_map2);
-        // endstops.add_element(&damping_map1);
-        // endstops.disable();
-        // sim.add_element(&endstops);
-        // sim.add_element(&absOscillation);
-        // sim.add_element(&friction1);
+        sim.add_element(&flight_pedal_function);
 
         xTaskCreatePinnedToCore(physics_task_func,    /* Task function. */
                                 "PhysicsTask",        /* name of task. */
