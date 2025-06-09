@@ -195,6 +195,7 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
         sim.set_x_min(active_function->get_x_contact_point_min(), true);
         sim.set_x_max(active_function->get_x_contact_point_max(), true);
         comm_manager.update_position_limits(sim.get_x_min(), sim.get_x_max());
+        comm_manager.update_function_id(function_cfg->base.function_id);
         active_function->enable();
     }
     return active_function;
