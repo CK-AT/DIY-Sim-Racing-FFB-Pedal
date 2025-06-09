@@ -102,8 +102,8 @@ void Sim::update(float &dt, float &f_in, bool final_f) {
         }
     }
 
-    _x_min += constrain(_x_min_tgt - _x_min, -10.0 * dt / 1000.0, 10.0 * dt / 1000.0);
-    _x_max += constrain(_x_max_tgt - _x_max, -10.0 * dt / 1000.0, 10.0 * dt / 1000.0);
+    _x_min += constrain(_x_min_tgt - _x_min, -20.0 * dt / 1000.0, 20.0 * dt / 1000.0);
+    _x_max += constrain(_x_max_tgt - _x_max, -20.0 * dt / 1000.0, 20.0 * dt / 1000.0);
 
     float a_raw = f_sum / _m * 1000.0;
     float a_lim = constrain(a_raw, _a_min, _a_max);
