@@ -278,6 +278,9 @@ void setup() {
 #ifdef A6SERVO
         servo = new A6Servo(stepPinStepper, dirPinStepper, !axis_cfg->b_motor_inverted, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN,
                             ISV57_DEPIN, false);
+        // disable servo to reduce noise floor for loadcell calibration (might be enabled after a restart)
+        servo->disable();
+        delay(100);
 #endif
         loadcell = new LoadCell_ADS1256();
 
@@ -633,6 +636,7 @@ void send_function_config(CommChannel comm_channel) {
 void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel) {
     switch (axis_action.which_action) {
         case AxisAction_restart_tag:
+            if (servo) servo->pause();
             ESP.restart();
             break;
         case AxisAction_return_axis_config_tag:

@@ -9,7 +9,7 @@
 static const float ADC_CLOCK_MHZ = 7.68;  // crystal frequency used on ADS1256
 static const float ADC_VREF = 2.5;        // voltage reference
 
-static const int NUMBER_OF_SAMPLES_FOR_LOADCELL_OFFFSET_ESTIMATION = 1000;
+static const int NUMBER_OF_SAMPLES_FOR_LOADCELL_OFFFSET_ESTIMATION = 10000;
 static const float DEFAULT_VARIANCE_ESTIMATE = 0.2f * 0.2f;
 static const float LOADCELL_VARIANCE_MIN = 0.001f;
 // static const float CONVERSION_FACTOR = LOADCELL_WEIGHT_RATING_KG / (LOADCELL_EXCITATION_V * (LOADCELL_SENSITIVITY_MV_V/1000));
