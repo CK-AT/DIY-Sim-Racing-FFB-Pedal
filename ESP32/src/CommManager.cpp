@@ -59,7 +59,6 @@ void CommManager::setup_joystick() {
     } else {
         snprintf(_usb_product_name, sizeof(_usb_product_name) - 1, "DIY-FFB-Axis-%d", get_axis_id());
     }
-    LogOutput::printf("_usb_product_name = %s", _usb_product_name);
     USB.productName(_usb_product_name);
     USB.manufacturerName("OpenSource");
     USB.begin();
@@ -245,7 +244,8 @@ bool CommManager::setup_can(CANConfig &config) {
         axis_id, config.baud_rate, config.tx_pin, config.rx_pin,
         [this](const uint8_t *buffer, size_t size) { on_gateway_packet_received(buffer, size, CommChannel::ISOTP); },
         [this](const FFBAction &ffb_action) { on_ffb_action(ffb_action); },
-        [this](AxisID axis_id, const uint8_t *buffer, size_t size) { on_axis_packet_received(axis_id, buffer, size, CommChannel::ISOTP); });
+        [this](AxisID axis_id, const uint8_t *buffer, size_t size) { on_axis_packet_received(axis_id, buffer, size, CommChannel::ISOTP); },
+        [this](AxisID axis_id, bool is_online) { on_axis_state_change(axis_id, is_online); });
     active_intercom_channel = &can_manager;
     if (_is_gateway) {
         active_downlink_channel = &can_manager;
@@ -254,6 +254,22 @@ bool CommManager::setup_can(CANConfig &config) {
         active_uplink_channel = &can_manager;
     }
     return true;
+}
+
+void CommManager::on_axis_state_change(AxisID axis_id, bool is_online) {
+    if (axis_id == get_axis_id()) return;
+    if (is_online) {
+        LogOutput::printf("Axis %d online, requesting function config", axis_id);
+        if (!is_gateway()) return;
+        Message msg = Message_init_default;
+        msg.which_payload = Message_axis_action_tag;
+        msg.payload.axis_action.axis_id = axis_id;
+        msg.payload.axis_action.which_action = AxisAction_return_function_config_tag;
+        msg.payload.axis_action.action.return_function_config = true;
+        send_message_to_axis(axis_id, msg);
+    } else {
+        LogOutput::printf("Axis %d offline", axis_id);
+    }
 }
 
 void CommManager::process(void) {

@@ -113,7 +113,12 @@ bool CANManager::try_process_high_prio_axis_frame(CanFrame &rx_frame, uint32_t n
         uint8_t axis_idx = rx_frame.identifier & 0x00F;
         uint8_t frame_type = (rx_frame.identifier >> 4) & 0x00F;
         axis_states[axis_idx].ti_last_seen = now;
-        axis_states[axis_idx].online = true;
+        if (!axis_states[axis_idx].online) {
+            axis_states[axis_idx].online = true;
+            if (on_axis_state_change) {
+                on_axis_state_change(MessageTools::axis_id_from_index(axis_idx), true);
+            }
+        }
         switch (frame_type) {
             case AxisFrameTypesHS::FORCE_AND_POSITION:
                 if (axis_idx < MessageTools::MAX_AXES_COUNT) {
@@ -207,7 +212,12 @@ void CANManager::process_isotp(void) {
 void CANManager::update_timeouts(uint32_t now) {
     for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
         if (axis_states[axis_idx].online && ((now - axis_states[axis_idx].ti_last_seen) > 5000)) {
-            axis_states[axis_idx].online = false;
+            if (axis_states[axis_idx].online) {
+                axis_states[axis_idx].online = false;
+                if (on_axis_state_change) {
+                    on_axis_state_change(MessageTools::axis_id_from_index(axis_idx), false);
+                }
+            }
         }
         if (axis_states[axis_idx].status_valid && ((now - axis_states[axis_idx].ti_last_status_update) > 5000000)) {
             axis_states[axis_idx].status_valid = false;
@@ -268,13 +278,14 @@ void CANManager::broadcast_state_updates(uint32_t now) {
 }
 
 bool CANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload,
-                       OnFFBAction on_ffb_action, OnAxisPayload on_axis_payload) {
+                       OnFFBAction on_ffb_action, OnAxisPayload on_axis_payload, OnAxisStateChange on_axis_state_change) {
     LogOutput::printf("CANManager: Performing setup...");
     own_axis_id = axis_id;
     own_axis_index = MessageTools::axis_index_from_id(axis_id);
     this->on_gateway_payload = on_gateway_payload;
     this->on_ffb_action = on_ffb_action;
     this->on_axis_payload = on_axis_payload;
+    this->on_axis_state_change = on_axis_state_change;
     shared_setup(baud_rate, tx_pin, rx_pin);
     broadcast_state_updates();
     LogOutput::printf(" -> done");

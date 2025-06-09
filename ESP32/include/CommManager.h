@@ -71,6 +71,7 @@ class CommManager {
             _joystick_state = new_state;
             _ti_joystick_state = micros();
         }
+        void on_axis_state_change(AxisID axis_id, bool is_online);
         static void periodic_task(void *pvParameters) {
             CommManager *logOutput = (CommManager *)pvParameters;
             for (;;) {

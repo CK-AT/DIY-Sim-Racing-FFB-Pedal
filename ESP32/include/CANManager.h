@@ -65,7 +65,7 @@ class CANManager : public ICommChannel {
         void process(void) override;
         void process_isotp(void);
         /* Axis related */
-        bool setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update, OnAxisPayload cb);
+        bool setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update, OnAxisPayload cb, OnAxisStateChange on_axis_state_change);
         bool send_force_and_position(float &f_foot, float &x_foot) override;
         bool send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
         bool update_position_limits(float x_foot_min, float x_foot_max) override;
@@ -139,5 +139,6 @@ class CANManager : public ICommChannel {
         bool send_abs_trigger(const FFBAction &action);
         IsotpState isotp_state[MessageTools::MAX_AXES_COUNT];
         OnAxisPayload on_axis_payload = nullptr;
+        OnAxisStateChange on_axis_state_change = nullptr;
         uint8_t fast_update_cnt = 0;
 };
