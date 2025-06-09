@@ -131,8 +131,9 @@ enum FunctionID {
 }
 
 enum OutputMode {
-  OUTPUT_MODE_FORCE = 0;
-  OUTPUT_MODE_TRAVEL = 1;
+  OUTPUT_MODE_UNDEFINED = 0;
+  OUTPUT_MODE_FORCE = 1;
+  OUTPUT_MODE_TRAVEL = 2;
 }
 
 message FunctionBase {
