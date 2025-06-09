@@ -498,7 +498,7 @@ bool get_final_position(float own_position, float &final_position) {
             AxisID axis_id = AxisID(func_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
             if (axis_id == own_axis_id) {
                 if (func_base.linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) {
-                    final_position = config_manager.get_x_contact_point_center() - other_position;
+                    final_position = (config_manager.get_x_contact_point_center() * 2.0f) - other_position;
                     return true;
                 } else {
                     final_position = other_position;
