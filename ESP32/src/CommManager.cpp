@@ -5,13 +5,22 @@
 #include <SerialManager.h>
 
 #include "queue.h"
+#include <Joystick_ESP32S2.h>
 
 // RTDebugOutputService debugOutput = RTDebugOutputService();
 QueueHandle_t _log_queue_data;
 
+Joystick_ _joystick = Joystick_(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD, 1, 0,  // Button Count, Hat Switch Count
+                    true, true, true,                                         // X, Y, Z
+                    true, true, true,                                         // Rx, Ry, Rz
+                    true, true,                                               // rudder, throttle
+                    true, true, true);                                        // accelerator, brake, steering
+
+
 void CommManager::periodic_task_func(void) {
     if (!_config_manager_initialized && (_config_manager->get_mode() != ConfigManager::MODE_UNDEFINED)) {
         setup_can(_can_config);
+        setup_joystick();
         _config_manager_initialized = true;
     } else {
         if (!_config_manager->is_axis()) {
@@ -33,8 +42,57 @@ void CommManager::periodic_task_func(void) {
             }
             send_gateway_state_message(online_flags);
         }
+        if ((now - ti_last_joystick_update) > 10000) {
+            ti_last_joystick_update = now;
+            send_joystick_values();
+        }
     }
+    update_joystick_state();
     pump_log(5);
+}
+
+void CommManager::setup_joystick() {
+    USB.PID(0x8211);
+    USB.VID(0x303b);
+    if (_is_gateway) {
+        snprintf(_usb_product_name, sizeof(_usb_product_name) - 1, "DIY-FFB-Gateway-%d", get_gateway_id());
+    } else {
+        snprintf(_usb_product_name, sizeof(_usb_product_name) - 1, "DIY-FFB-Axis-%d", get_axis_id());
+    }
+    LogOutput::printf("_usb_product_name = %s", _usb_product_name);
+    USB.productName(_usb_product_name);
+    USB.manufacturerName("OpenSource");
+    USB.begin();
+    switch_joystick_state(JOYSTICK_USB_UP);
+}
+
+void CommManager::update_joystick_state() {
+    switch (_joystick_state)
+    {
+        case JOYSTICK_USB_UP:
+            if ((micros() - _ti_joystick_state) > 1000000) {
+                _joystick.setXAxisRange(JOYSTICK_MIN, JOYSTICK_MAX);
+                _joystick.setYAxisRange(JOYSTICK_MIN, JOYSTICK_MAX);
+                _joystick.setZAxisRange(JOYSTICK_MIN, JOYSTICK_MAX);
+                _joystick.setRxAxisRange(JOYSTICK_MIN, JOYSTICK_MAX);
+                _joystick.setRyAxisRange(JOYSTICK_MIN, JOYSTICK_MAX);
+                _joystick.setRzAxisRange(JOYSTICK_MIN, JOYSTICK_MAX);
+                _joystick.setRudderRange(JOYSTICK_MIN, JOYSTICK_MAX);
+                _joystick.setThrottleRange(JOYSTICK_MIN, JOYSTICK_MAX);
+                _joystick.setAcceleratorRange(JOYSTICK_MIN, JOYSTICK_MAX);
+                _joystick.setBrakeRange(JOYSTICK_MIN, JOYSTICK_MAX);
+                _joystick.setSteeringRange(JOYSTICK_MIN, JOYSTICK_MAX);
+                _joystick.begin(false);
+                switch_joystick_state(JOYSTICK_PRE_READY);
+            }
+            break;
+        case JOYSTICK_PRE_READY:
+            if ((micros() - _ti_joystick_state) > 100000) {
+                switch_joystick_state(JOYSTICK_READY);
+            }
+        default:
+            break;
+    }
 }
 
 void CommManager::send_gateway_state_message(uint8_t online_flags) {
@@ -334,4 +392,69 @@ bool CommManager::calc_controller_output_value(FunctionBase &function_base, floa
     if (!success) return false;
     controller_output = normalize_value(src_value, function_base.output_min, function_base.output_max);
     return true;
+}
+
+void CommManager::set_controller_axis(ControllerAxis controller_axis, float &value) {
+    uint16_t final_value = uint16_t(value * 65536.0f);
+    switch(controller_axis) {
+        case ControllerAxis_CONTROLLER_AXIS_X:
+            _joystick.setXAxis(final_value);
+            break;
+        case ControllerAxis_CONTROLLER_AXIS_Y:
+            _joystick.setYAxis(final_value);
+            break;
+        case ControllerAxis_CONTROLLER_AXIS_Z:
+            _joystick.setZAxis(final_value);
+            break;
+        case ControllerAxis_CONTROLLER_AXIS_R_X:
+            _joystick.setRxAxis(final_value);
+            break;
+        case ControllerAxis_CONTROLLER_AXIS_R_Y:
+            _joystick.setRyAxis(final_value);
+            break;
+        case ControllerAxis_CONTROLLER_AXIS_R_Z:
+            _joystick.setRzAxis(final_value);
+            break;
+        case ControllerAxis_CONTROLLER_AXIS_RUD:
+            _joystick.setRudder(final_value);
+            break;
+        case ControllerAxis_CONTROLLER_AXIS_THR:
+            _joystick.setThrottle(final_value);
+            break;
+        case ControllerAxis_CONTROLLER_AXIS_ACC:
+            _joystick.setAccelerator(final_value);
+            break;
+        case ControllerAxis_CONTROLLER_AXIS_BRK:
+            _joystick.setBrake(final_value);
+            break;
+        case ControllerAxis_CONTROLLER_AXIS_STEER:
+            _joystick.setSteering(final_value);
+            break;
+        default:
+            break;
+    }
+}
+
+void CommManager::send_joystick_values(void) {
+    if (_joystick_state != JOYSTICK_READY) return;
+    uint16_t function_flags;
+    FunctionID function_id;
+    for (uint8_t axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
+        if (get_function_id(MessageTools::axis_id_from_index(axis_idx), function_id)) {
+            function_flags |= 1 << function_id;
+        }
+    }
+    float output_value;
+    for (uint8_t function_idx = 0; function_idx < _FunctionID_MAX; function_idx++) {
+        function_id = FunctionID(function_idx + 1);
+        if (function_flags & (1 << function_id)) {
+            FunctionBase *function_base = _config_manager->get_function_base(function_id);
+            if (function_base && function_base->controller_output_axis) {
+                if (calc_controller_output_value(*function_base, output_value)) {
+                    set_controller_axis(function_base->controller_output_axis, output_value);
+                }
+            }
+        }
+    }
+    _joystick.sendState();
 }

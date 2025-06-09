@@ -43,6 +43,12 @@ class CommManager {
         }
 
     private:
+        enum JoystickState {
+            JOYSTICK_PRE_INIT,
+            JOYSTICK_USB_UP,
+            JOYSTICK_PRE_READY,
+            JOYSTICK_READY
+        };
         bool setup_can(CANConfig &can_config);
         bool setup_serial(Stream *serial);
         void on_gateway_packet_received(const uint8_t *buffer, size_t size, CommChannel comm_channel);
@@ -57,6 +63,14 @@ class CommManager {
         void periodic_task_func(void);
         void send_gateway_state_message(uint8_t online_flags);
         bool send_axis_state_message(AxisID axis_id, uint8_t &online_flags);
+        void send_joystick_values(void);
+        void set_controller_axis(ControllerAxis controller_axis, float &value);
+        void setup_joystick(void);
+        void update_joystick_state();
+        void switch_joystick_state(CommManager::JoystickState new_state) {
+            _joystick_state = new_state;
+            _ti_joystick_state = micros();
+        }
         static void periodic_task(void *pvParameters) {
             CommManager *logOutput = (CommManager *)pvParameters;
             for (;;) {
@@ -71,6 +85,7 @@ class CommManager {
         float _f_contact_point_own = 0.0f;
         float _x_contact_point_own = 0.0f;
         uint32_t ti_last_state_updates = 0;
+        uint32_t ti_last_joystick_update = 0;
         OnFFBAction _on_ffb_action;
         OnAxisAction _on_axis_action;
         Message log_msg = Message_init_zero;
@@ -82,4 +97,9 @@ class CommManager {
         bool _is_gateway = false;
         bool _config_manager_initialized = false;
         CANConfig _can_config;
+        char _usb_product_name[30] = {};
+        const uint16_t JOYSTICK_MIN = 0;
+        const uint16_t JOYSTICK_MAX = 65535;
+        JoystickState _joystick_state = JOYSTICK_PRE_INIT;
+        uint32_t _ti_joystick_state;
 };
