@@ -99,8 +99,8 @@ class CommManager {
         bool _config_manager_initialized = false;
         CANConfig _can_config;
         char _usb_product_name[30] = {};
-        const uint16_t JOYSTICK_MIN = 0;
-        const uint16_t JOYSTICK_MAX = 65535;
+        static const uint16_t JOYSTICK_MIN = 0;
+        static const uint16_t JOYSTICK_MAX = 65535;
         JoystickState _joystick_state = JOYSTICK_PRE_INIT;
         uint32_t _ti_joystick_state;
 };

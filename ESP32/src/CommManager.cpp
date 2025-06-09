@@ -411,7 +411,7 @@ bool CommManager::calc_controller_output_value(FunctionBase &function_base, floa
 }
 
 void CommManager::set_controller_axis(ControllerAxis controller_axis, float &value) {
-    uint16_t final_value = uint16_t(value * 65536.0f);
+    uint16_t final_value = uint16_t(value * float(JOYSTICK_MAX));
     switch(controller_axis) {
         case ControllerAxis_CONTROLLER_AXIS_X:
             _joystick.setXAxis(final_value);
