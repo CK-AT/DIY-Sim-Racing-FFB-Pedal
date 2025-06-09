@@ -256,7 +256,9 @@ void CANManager::broadcast_state_updates(void) {
     if (_x_foot_min < _x_foot_max) {
         update_position_limits(_x_foot_min, _x_foot_max);
     }
-    update_function_id(_function_id);
+    if (_function_id != FunctionID_FUNCTION_UNDEFINED) {
+        update_function_id(_function_id);
+    }
 }
 
 void CANManager::broadcast_state_updates(uint32_t now) {
