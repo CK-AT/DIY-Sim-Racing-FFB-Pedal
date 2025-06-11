@@ -282,6 +282,10 @@ void setup() {
 #endif
 
     if (config_manager.is_axis()) {
+        // wait 200ms for a CAN gateway to be detected (ping interval is 100ms)
+        // log messages will be forwarded once a gateway has been detected
+        delay(200);
+
         // we are an axis right now, seeting up ADC, servo and physics task
         const AxisConfig *axis_cfg = config_manager.get_axis_config();
 
