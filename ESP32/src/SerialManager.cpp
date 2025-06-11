@@ -24,6 +24,7 @@ bool SerialManager::setup(Stream *serial, CommManager *comm_manager, ICommChanne
     packet_serial.setPacketHandler(_on_gateway_payload_wrapper);
     // send some zero bytes to ensure proper COBS sync on the first message
     serial->print("\x00\x00\x00");
+    _sem_write = xSemaphoreCreateMutex();
     xTaskCreatePinnedToCore(this->task_func, "SerialManagerTask", 5000, this, 1, NULL, 0);
     return true;
 }
@@ -34,8 +35,12 @@ void SerialManager::update_force_and_position(float &f_contact_point, float &x_c
 }
 
 bool SerialManager::send_message_to_host(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
-    packet_serial.send(raw_data, len_raw_data);
-    return true;
+    if (_sem_write && xSemaphoreTake(_sem_write, (TickType_t)2)) {
+        packet_serial.send(raw_data, len_raw_data);
+        xSemaphoreGive(_sem_write);
+        return true;
+    }
+    return false;
 }
 
 // void CANManager::send_ping_frame(uint32_t now) {

@@ -29,6 +29,7 @@ class SerialManager {
         PacketSerial packet_serial;
         Message state_message = Message_init_default;
         CommManager *comm_manager;
+        SemaphoreHandle_t _sem_write = xSemaphoreCreateMutex();
 };
 
 // class GatewaySerialManager {
