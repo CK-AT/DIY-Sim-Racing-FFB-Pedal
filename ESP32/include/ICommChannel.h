@@ -14,6 +14,7 @@ class ICommChannel {
         virtual void process(void) = 0;
         virtual bool send_force_and_position(float &f_foot, float &x_foot) = 0;
         virtual bool send_message_to_gateway(const Message &message, const uint8_t *raw_data, size_t len_raw_data) = 0;
+        virtual bool ready_to_receive_log_message(void) = 0;
         virtual bool update_position_limits(float x_foot_min, float x_foot_max) = 0;
         virtual bool get_force(AxisID axis_id, float &f_foot) = 0;
         virtual bool update_force(float &f_foot) = 0;

@@ -200,21 +200,40 @@ void CANManager::process(void) {
 }
 
 void CANManager::process_isotp(void) {
+    IsoTpLink *link;
     if (!_is_gateway) {
-        isotp_poll(&(gateway_isotp_state.link));
-        if (isotp_receive(&(gateway_isotp_state.link), isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
+        link = &(gateway_isotp_state.link);
+        isotp_poll(link);
+        if (isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
             if (on_gateway_payload) {
                 on_gateway_payload(isotp_rx_buff, isotp_rx_size);
+            }
+        }
+        link = &(outbound_logging_isotp_state.link);
+        isotp_poll(link);
+        if (isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
+            if ((isotp_rx_size == 1) && (isotp_rx_buff[0] == 0xAA)) {
+                _last_log_ack_received = true;
             }
         }
     } else {
         send_ping_frame(micros());
         for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
-            isotp_poll(&(isotp_state[axis_idx].link));
-            if (isotp_receive(&(isotp_state[axis_idx].link), isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
+            link = &(isotp_state[axis_idx].link);
+            isotp_poll(link);
+            if (isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
                 if (on_axis_payload) {
                     on_axis_payload(MessageTools::axis_id_from_index(axis_idx), isotp_rx_buff, isotp_rx_size);
                 }
+            }
+            link = &(inbound_logging_isotp_states[axis_idx].link);
+            isotp_poll(link);
+            if (isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
+                if (on_axis_payload) {
+                    on_axis_payload(MessageTools::axis_id_from_index(axis_idx), isotp_rx_buff, isotp_rx_size);
+                }
+                uint8_t token = 0xAA;
+                isotp_send(link, &token, sizeof(token));
             }
         }
     }
@@ -243,16 +262,26 @@ void CANManager::update_timeouts(uint32_t now) {
                 on_gateway_state_change(this, false);
             }
         }
+        if (!_last_log_ack_received) {
+            if ((now - ti_last_log_sent) > 100000) {
+                _last_log_ack_received = true;
+                LogOutput::printf("CANManager: log ACK not received");
+            }
+        }
     }
 }
 
 void CANManager::shared_setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin) {
     ESP32Can.begin(ESP32Can.convertSpeed(baud_rate), tx_pin, rx_pin, 40, 40);
-    isotp_init_link(&(gateway_isotp_state.link), 0x710 + own_axis_index, gateway_isotp_state.isotp_link_tx_buff, ISOTP_BUFFER_SIZE,
-                    gateway_isotp_state.isotp_link_rx_buff, ISOTP_BUFFER_SIZE);
+    isotp_init_link(&(gateway_isotp_state.link), 0x710 + own_axis_index, gateway_isotp_state.isotp_link_tx_buff, sizeof(IsotpState::isotp_link_tx_buff),
+                    gateway_isotp_state.isotp_link_rx_buff, sizeof(IsotpState::isotp_link_rx_buff));
+    isotp_init_link(&(outbound_logging_isotp_state.link), 0x730 + own_axis_index, outbound_logging_isotp_state.isotp_link_tx_buff, sizeof(IsotpStateOutboundLogging::isotp_link_tx_buff),
+                    outbound_logging_isotp_state.isotp_link_rx_buff, sizeof(IsotpStateOutboundLogging::isotp_link_rx_buff));
     for (int i = 0; i < MessageTools::MAX_AXES_COUNT; i++) {
-        isotp_init_link(&(isotp_state[i].link), 0x700 + i, isotp_state[i].isotp_link_tx_buff, ISOTP_BUFFER_SIZE, isotp_state[i].isotp_link_rx_buff,
-                        ISOTP_BUFFER_SIZE);
+        isotp_init_link(&(isotp_state[i].link), 0x700 + i, isotp_state[i].isotp_link_tx_buff, sizeof(IsotpState::isotp_link_tx_buff), isotp_state[i].isotp_link_rx_buff,
+                        sizeof(IsotpState::isotp_link_rx_buff));
+        isotp_init_link(&(inbound_logging_isotp_states[i].link), 0x720 + i, inbound_logging_isotp_states[i].isotp_link_tx_buff, sizeof(IsotpStateInboundLogging::isotp_link_tx_buff), inbound_logging_isotp_states[i].isotp_link_rx_buff,
+                        sizeof(IsotpStateInboundLogging::isotp_link_rx_buff));
     }
     switch_bus_state(BusState::ONLINE);
 }
@@ -380,14 +409,26 @@ bool CANManager::send_payload_to_gateway(const uint8_t *data, uint32_t len) {
 }
 
 bool CANManager::send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
-    return send_payload_to_gateway(raw_data, len_raw_data);
+    if (message.which_payload == Message_axis_log_message_tag) {
+        _last_log_ack_received = false;
+        ti_last_log_sent = micros();
+        return isotp_send(&(outbound_logging_isotp_state.link), raw_data, len_raw_data) == ISOTP_RET_OK;
+    } else {
+        return send_payload_to_gateway(raw_data, len_raw_data);
+    }
+}
+
+bool CANManager::ready_to_receive_log_message(void) {
+    return _last_log_ack_received;
 }
 
 bool CANManager::try_process_gateway_isotp_can_frame(CanFrame &rx_frame) {
     if (own_axis_index < 0) return false;
     if (rx_frame.identifier == (0x700 + own_axis_index)) {
-        IsoTpLink *link = &(gateway_isotp_state.link);
-        isotp_on_can_message(link, rx_frame.data, rx_frame.data_length_code);
+        isotp_on_can_message(&(gateway_isotp_state.link), rx_frame.data, rx_frame.data_length_code);
+        return true;
+    } else if (rx_frame.identifier == (0x720 + own_axis_index)) {
+        isotp_on_can_message(&(outbound_logging_isotp_state.link), rx_frame.data, rx_frame.data_length_code);
         return true;
     }
     return false;
@@ -439,7 +480,15 @@ bool CANManager::try_process_axis_isotp_can_frame(CanFrame &rx_frame) {
             isotp_on_can_message(&(isotp_state[axis_idx].link), rx_frame.data, rx_frame.data_length_code);
         }
         return true;
+    } else if ((rx_frame.identifier & 0xFF0) == 0x730) {
+        uint8_t axis_idx = rx_frame.identifier & 0x00F;
+        if (axis_idx < MessageTools::MAX_AXES_COUNT) {
+            on_axis_seen(axis_idx);
+            isotp_on_can_message(&(inbound_logging_isotp_states[axis_idx].link), rx_frame.data, rx_frame.data_length_code);
+        }
+        return true;
     }
+
     return false;
 }
 

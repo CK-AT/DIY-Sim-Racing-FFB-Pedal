@@ -4,10 +4,12 @@
 #include <isotp.h>
 
 #include <ESP32-TWAI-CAN.hpp>
+
 #include "CANManager.fwd.h"
 #include "ICommChannel.h"
 
 #define ISOTP_BUFFER_SIZE 512
+#define ISOTP_LOG_BUFFER_SIZE 160 // AxisLogMessage_size + some Message overhead
 
 class CANManager : public ICommChannel {
     protected:
@@ -56,6 +58,16 @@ class CANManager : public ICommChannel {
                 uint8_t isotp_link_rx_buff[ISOTP_BUFFER_SIZE];
                 uint8_t isotp_link_tx_buff[ISOTP_BUFFER_SIZE];
         };
+        struct IsotpStateOutboundLogging {
+                IsoTpLink link;
+                uint8_t isotp_link_rx_buff[1];
+                uint8_t isotp_link_tx_buff[ISOTP_LOG_BUFFER_SIZE];
+        };
+        struct IsotpStateInboundLogging {
+                IsoTpLink link;
+                uint8_t isotp_link_rx_buff[ISOTP_LOG_BUFFER_SIZE];
+                uint8_t isotp_link_tx_buff[1];
+        };
 
     public:
         bool get_force(AxisID axis_id, float &f_foot) override;
@@ -70,6 +82,7 @@ class CANManager : public ICommChannel {
                    OnAxisPayload on_axis_payload, OnAxisStateChange on_axis_state_change, OnGatewayStateChange on_gateway_state_change);
         bool send_force_and_position(float &f_foot, float &x_foot) override;
         bool send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
+        bool ready_to_receive_log_message(void) override;
         bool update_position_limits(float x_foot_min, float x_foot_max) override;
         bool update_function_id(FunctionID function_id) override;
         bool update_force(float &f_foot) override {
@@ -120,6 +133,7 @@ class CANManager : public ICommChannel {
         uint32_t ti_state_change = 0;
         BusState bus_state = BusState::PRE_ONLINE;
         uint32_t ti_last_ping = 0;
+        uint32_t ti_last_log_sent = 0;
         /* Axis related */
         bool try_process_gateway_isotp_can_frame(CanFrame &rx_frame);
         bool try_process_ffb_update_frame(CanFrame &rx_frame);
@@ -130,6 +144,7 @@ class CANManager : public ICommChannel {
         AxisID own_axis_id = AxisID_AXIS_UNDEFINED;
         int8_t own_axis_index = -1;
         IsotpState gateway_isotp_state;
+        IsotpStateOutboundLogging outbound_logging_isotp_state;
         OnGatewayPayload on_gateway_payload = nullptr;
         OnFFBAction on_ffb_action = nullptr;
         float _x_foot_min = 0.0f;
@@ -138,11 +153,13 @@ class CANManager : public ICommChannel {
         bool _gateway_online = false;
         /* Gateway related */
         bool _is_gateway = false;
+        bool _last_log_ack_received = true;
         void send_ping_frame(uint32_t now);
         bool try_process_axis_isotp_can_frame(CanFrame &rx_frame);
         bool send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len);
         bool send_abs_trigger(const FFBAction &action);
         IsotpState isotp_state[MessageTools::MAX_AXES_COUNT];
+        IsotpStateInboundLogging inbound_logging_isotp_states[MessageTools::MAX_AXES_COUNT];
         OnAxisPayload on_axis_payload = nullptr;
         OnAxisStateChange on_axis_state_change = nullptr;
         OnGatewayStateChange on_gateway_state_change = nullptr;
