@@ -126,11 +126,18 @@ void CommManager::setup(Stream *serial, CANConfig &can_config, ConfigManager *co
 
 void CommManager::pump_log(int max_samples, int timeout) {
     char buff[MAX_LOG_LINE_LENGTH];
-    while (max_samples && (pdTRUE == xQueueReceive(_log_queue_data, buff, /*xTicksToWait=*/timeout))) {
-        if (_is_gateway) {
-            send_gateway_log_msg(buff);
+    while (max_samples) {
+        if (has_gateway()) {
+            if (!active_uplink_channel->ready_to_receive_log_message()) return;
+        }
+        if (pdTRUE == xQueueReceive(_log_queue_data, buff, /*xTicksToWait=*/timeout)) {
+            if (_is_gateway) {
+                send_gateway_log_msg(buff);
+            } else {
+                send_axis_log_msg(buff);
+            }
         } else {
-            send_axis_log_msg(buff);
+            break;
         }
         max_samples--;
     }
@@ -141,6 +148,9 @@ void CommManager::send_axis_log_msg(const char *buff) {
     log_msg.which_payload = Message_axis_log_message_tag;
     memset(log_msg.payload.axis_log_message.msg, 0, sizeof(log_msg.payload.axis_log_message.msg));
     strncpy(log_msg.payload.axis_log_message.msg, buff, sizeof(log_msg.payload.axis_log_message.msg) - 1);
+    if (has_gateway()) {
+        send_message_to_gateway(log_msg, CommChannel::ISOTP);
+    }
     send_message_to_host(log_msg);
 }
 
