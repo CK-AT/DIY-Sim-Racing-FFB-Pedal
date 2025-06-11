@@ -8,6 +8,7 @@ class ICommChannel {
         typedef std::function<void(AxisID axis_id, const uint8_t *data, size_t len)> OnAxisPayload;
         typedef std::function<void(const FFBAction &action)> OnFFBAction;
         typedef std::function<void(AxisID axis_id, bool is_online)> OnAxisStateChange;
+        typedef std::function<void(ICommChannel *comm_channel, bool is_online)> OnGatewayStateChange;
 
     public:
         virtual void process(void) = 0;

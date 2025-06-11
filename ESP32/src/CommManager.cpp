@@ -23,8 +23,8 @@ void CommManager::periodic_task_func(void) {
         setup_joystick();
         _config_manager_initialized = true;
     } else {
-        if (!_config_manager->is_axis()) {
-            // process() is usualy called by the physics update task but we are not an axis right now, so call it here
+        if (!_physics_task_started) {
+            // process() is usualy called by the physics task but it has not been started (yet), so call process() here
             process();
         }
         can_manager.process_isotp();
@@ -242,24 +242,25 @@ bool CommManager::setup_can(CANConfig &config) {
     _is_gateway = !_is_axis;
     can_manager.setup(
         axis_id, config.baud_rate, config.tx_pin, config.rx_pin,
-        [this](const uint8_t *buffer, size_t size) { on_gateway_packet_received(buffer, size, CommChannel::ISOTP); },
-        [this](const FFBAction &ffb_action) { on_ffb_action(ffb_action); },
-        [this](AxisID axis_id, const uint8_t *buffer, size_t size) { on_axis_packet_received(axis_id, buffer, size, CommChannel::ISOTP); },
-        [this](AxisID axis_id, bool is_online) { on_axis_state_change(axis_id, is_online); });
+        std::bind(&CommManager::on_gateway_packet_received, this, std::placeholders::_1, std::placeholders::_2, CommChannel::ISOTP),
+        std::bind(&CommManager::on_ffb_action, this, std::placeholders::_1),
+        std::bind(&CommManager::on_axis_packet_received, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, CommChannel::ISOTP),
+        std::bind(&CommManager::on_axis_state_change, this, std::placeholders::_1, std::placeholders::_2),
+        std::bind(&CommManager::on_gateway_state_change, this, std::placeholders::_1, std::placeholders::_2)
+    );
     active_intercom_channel = &can_manager;
     if (_is_gateway) {
         active_downlink_channel = &can_manager;
         can_manager.set_gateway_mode(true);
-    } else {
-        active_uplink_channel = &can_manager;
     }
     return true;
 }
 
 void CommManager::on_axis_state_change(AxisID axis_id, bool is_online) {
     if (axis_id == get_axis_id()) return;
+    if (!is_gateway()) return;
     if (is_online) {
-        LogOutput::printf("Axis %d online, requesting function config", axis_id);
+        LogOutput::printf("CommManager: Axis %d online, requesting function config", axis_id);
         if (!is_gateway()) return;
         Message msg = Message_init_default;
         msg.which_payload = Message_axis_action_tag;
@@ -268,7 +269,19 @@ void CommManager::on_axis_state_change(AxisID axis_id, bool is_online) {
         msg.payload.axis_action.action.return_function_config = true;
         send_message_to_axis(axis_id, msg);
     } else {
-        LogOutput::printf("Axis %d offline", axis_id);
+        LogOutput::printf("CommManager: Axis %d offline", axis_id);
+    }
+}
+
+void CommManager::on_gateway_state_change(ICommChannel *comm_channel, bool is_online) {
+    if (is_online) {
+        if (!active_uplink_channel) {
+            LogOutput::printf("CommManager: Uplink online");
+            active_uplink_channel = comm_channel;
+        }
+    } else if (active_uplink_channel == comm_channel) {
+        LogOutput::printf("CommManager: Uplink lost");
+        active_uplink_channel = nullptr;
     }
 }
 

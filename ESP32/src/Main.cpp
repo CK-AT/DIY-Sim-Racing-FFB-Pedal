@@ -527,6 +527,8 @@ void physics_task_func(void *pvParameters) {
     float x_foot = 0.0;
     float f_foot = 0.0;
 
+    comm_manager.on_physics_task_start();
+    
     for (;;) {
         if (ulTaskNotifyTake(pdTRUE, 10) == 0) {
             continue;

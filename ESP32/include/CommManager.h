@@ -41,6 +41,9 @@ class CommManager {
         bool has_gateway(void) {
             return active_uplink_channel != nullptr;
         }
+        void on_physics_task_start(void) {
+            _physics_task_started = true;
+        }
 
     private:
         enum JoystickState {
@@ -72,6 +75,7 @@ class CommManager {
             _ti_joystick_state = micros();
         }
         void on_axis_state_change(AxisID axis_id, bool is_online);
+        void on_gateway_state_change(ICommChannel *comm_channel, bool is_online);
         static void periodic_task(void *pvParameters) {
             CommManager *logOutput = (CommManager *)pvParameters;
             for (;;) {
@@ -103,4 +107,5 @@ class CommManager {
         static const uint16_t JOYSTICK_MAX = 65535;
         JoystickState _joystick_state = JOYSTICK_PRE_INIT;
         uint32_t _ti_joystick_state;
+        bool _physics_task_started = false;
 };

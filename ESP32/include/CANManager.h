@@ -46,6 +46,7 @@ class CANManager : public ICommChannel {
                 FunctionID function_id;
                 uint32_t ti_last_seen;
                 uint32_t ti_last_status_update;
+                uint32_t ti_timeout;
                 bool online;
                 bool status_valid;
         };
@@ -65,7 +66,8 @@ class CANManager : public ICommChannel {
         void process(void) override;
         void process_isotp(void);
         /* Axis related */
-        bool setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update, OnAxisPayload cb, OnAxisStateChange on_axis_state_change);
+        bool setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update,
+                   OnAxisPayload on_axis_payload, OnAxisStateChange on_axis_state_change, OnGatewayStateChange on_gateway_state_change);
         bool send_force_and_position(float &f_foot, float &x_foot) override;
         bool send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
         bool update_position_limits(float x_foot_min, float x_foot_max) override;
@@ -80,7 +82,6 @@ class CANManager : public ICommChannel {
             return _gateway_online;
         };
         /* Gateway related */
-        bool setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnAxisPayload cb);
         bool send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
         void set_gateway_mode(bool enable) override {
             _is_gateway = enable;
@@ -99,6 +100,10 @@ class CANManager : public ICommChannel {
         bool check_bus(uint32_t ti_now);
         void update_timeouts(uint32_t now);
         bool try_process_high_prio_axis_frame(CanFrame &rx_frame, uint32_t now);
+        void on_axis_seen(uint8_t axis_idx, uint32_t now, bool from_high_prio_frame = false);
+        void on_axis_seen(uint8_t axis_idx) {
+            on_axis_seen(axis_idx, micros());
+        }
         bool try_process_low_prio_axis_frame(CanFrame &rx_frame, uint32_t now);
         void switch_bus_state(uint32_t ti_now, BusState new_state) {
             ti_state_change = ti_now;
@@ -140,5 +145,6 @@ class CANManager : public ICommChannel {
         IsotpState isotp_state[MessageTools::MAX_AXES_COUNT];
         OnAxisPayload on_axis_payload = nullptr;
         OnAxisStateChange on_axis_state_change = nullptr;
+        OnGatewayStateChange on_gateway_state_change = nullptr;
         uint8_t fast_update_cnt = 0;
 };

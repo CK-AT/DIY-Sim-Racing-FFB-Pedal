@@ -112,13 +112,7 @@ bool CANManager::try_process_high_prio_axis_frame(CanFrame &rx_frame, uint32_t n
     if ((rx_frame.identifier & 0xF00) == 0x100) {
         uint8_t axis_idx = rx_frame.identifier & 0x00F;
         uint8_t frame_type = (rx_frame.identifier >> 4) & 0x00F;
-        axis_states[axis_idx].ti_last_seen = now;
-        if (!axis_states[axis_idx].online) {
-            axis_states[axis_idx].online = true;
-            if (on_axis_state_change) {
-                on_axis_state_change(MessageTools::axis_id_from_index(axis_idx), true);
-            }
-        }
+        on_axis_seen(axis_idx, now, true);
         switch (frame_type) {
             case AxisFrameTypesHS::FORCE_AND_POSITION:
                 if (axis_idx < MessageTools::MAX_AXES_COUNT) {
@@ -133,10 +127,27 @@ bool CANManager::try_process_high_prio_axis_frame(CanFrame &rx_frame, uint32_t n
     return false;
 }
 
+void CANManager::on_axis_seen(uint8_t axis_idx, uint32_t now, bool from_high_prio_frame) {
+    axis_states[axis_idx].ti_last_seen = now;
+    if (from_high_prio_frame) {
+        axis_states[axis_idx].ti_timeout = 5000;
+    }
+    if (!axis_states[axis_idx].online) {
+        axis_states[axis_idx].online = true;
+        if (!from_high_prio_frame) {
+            axis_states[axis_idx].ti_timeout = 2000000;
+        }
+        if (on_axis_state_change) {
+            on_axis_state_change(MessageTools::axis_id_from_index(axis_idx), true);
+        }
+    }
+}
+
 bool CANManager::try_process_low_prio_axis_frame(CanFrame &rx_frame, uint32_t now) {
     if ((rx_frame.identifier & 0xF00) == 0x300) {
         uint8_t axis_idx = rx_frame.identifier & 0x00F;
         uint8_t frame_type = (rx_frame.identifier >> 4) & 0x00F;
+        on_axis_seen(axis_idx, now);
         axis_states[axis_idx].ti_last_status_update = now;
         axis_states[axis_idx].status_valid = true;
         switch (frame_type) {
@@ -211,12 +222,13 @@ void CANManager::process_isotp(void) {
 
 void CANManager::update_timeouts(uint32_t now) {
     for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
-        if (axis_states[axis_idx].online && ((now - axis_states[axis_idx].ti_last_seen) > 5000)) {
+        if (axis_states[axis_idx].online && ((now - axis_states[axis_idx].ti_last_seen) > axis_states[axis_idx].ti_timeout)) {
             if (axis_states[axis_idx].online) {
                 axis_states[axis_idx].online = false;
                 if (on_axis_state_change) {
                     on_axis_state_change(MessageTools::axis_id_from_index(axis_idx), false);
                 }
+                axis_states[axis_idx].ti_timeout = 2000000;
             }
         }
         if (axis_states[axis_idx].status_valid && ((now - axis_states[axis_idx].ti_last_status_update) > 5000000)) {
@@ -224,9 +236,12 @@ void CANManager::update_timeouts(uint32_t now) {
         }
     }
     if (!_is_gateway) {
-        if (_gateway_online && ((now - ti_last_ping) > 1100000)) {
+        if (_gateway_online && ((now - ti_last_ping) > 200000)) {
             LogOutput::printf("CANManager: Gateway offline");
             _gateway_online = false;
+            if (on_gateway_state_change) {
+                on_gateway_state_change(this, false);
+            }
         }
     }
 }
@@ -255,6 +270,9 @@ bool CANManager::try_process_ping_frame(CanFrame &rx_frame, uint32_t now) {
                 _is_gateway = false;
                 LogOutput::printf(" -> giving up Gateway role");
             }
+            if (on_gateway_state_change) {
+                on_gateway_state_change(this, true);
+            }
         }
         return true;
     }
@@ -278,7 +296,8 @@ void CANManager::broadcast_state_updates(uint32_t now) {
 }
 
 bool CANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload,
-                       OnFFBAction on_ffb_action, OnAxisPayload on_axis_payload, OnAxisStateChange on_axis_state_change) {
+                       OnFFBAction on_ffb_action, OnAxisPayload on_axis_payload, OnAxisStateChange on_axis_state_change,
+                       OnGatewayStateChange on_gateway_state_change) {
     LogOutput::printf("CANManager: Performing setup...");
     own_axis_id = axis_id;
     own_axis_index = MessageTools::axis_index_from_id(axis_id);
@@ -286,6 +305,7 @@ bool CANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t
     this->on_ffb_action = on_ffb_action;
     this->on_axis_payload = on_axis_payload;
     this->on_axis_state_change = on_axis_state_change;
+    this->on_gateway_state_change = on_gateway_state_change;
     shared_setup(baud_rate, tx_pin, rx_pin);
     broadcast_state_updates();
     LogOutput::printf(" -> done");
@@ -398,7 +418,7 @@ bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
 /* GatewayCANManager */
 /*****************************************************************************************************************/
 void CANManager::send_ping_frame(uint32_t now) {
-    if ((now - ti_last_ping) > 1000000) {
+    if ((now - ti_last_ping) > 100000) {
         ti_last_ping = now;
         CanFrame tx_frame = {};
         tx_frame.identifier = 0x7FE;
@@ -415,21 +435,12 @@ bool CANManager::try_process_axis_isotp_can_frame(CanFrame &rx_frame) {
     if ((rx_frame.identifier & 0xFF0) == 0x710) {
         uint8_t axis_idx = rx_frame.identifier & 0x00F;
         if (axis_idx < MessageTools::MAX_AXES_COUNT) {
-            IsoTpLink *link = &(isotp_state[axis_idx].link);
-            isotp_on_can_message(link, rx_frame.data, rx_frame.data_length_code);
+            on_axis_seen(axis_idx);
+            isotp_on_can_message(&(isotp_state[axis_idx].link), rx_frame.data, rx_frame.data_length_code);
         }
         return true;
     }
     return false;
-}
-
-bool CANManager::setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnAxisPayload cb) {
-    LogOutput::printf("CANManager: Performing setup (gateway only mode)...");
-    _is_gateway = true;
-    on_axis_payload = cb;
-    shared_setup(baud_rate, tx_pin, rx_pin);
-    LogOutput::printf(" -> done");
-    return true;
 }
 
 bool CANManager::send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len) {
@@ -453,7 +464,8 @@ bool CANManager::send_abs_trigger(const FFBAction &action) {
 bool CANManager::send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
     switch (message.which_payload) {
         case Message_ffb_action_tag:
-            if ((message.payload.ffb_action.which_function == FFBAction_automotive_pedal_tag) && message.payload.ffb_action.function.automotive_pedal.trigger_abs) {
+            if ((message.payload.ffb_action.which_function == FFBAction_automotive_pedal_tag) &&
+                message.payload.ffb_action.function.automotive_pedal.trigger_abs) {
                 return send_abs_trigger(message.payload.ffb_action);
             } else {
                 return send_payload_to_axis(axis_id, raw_data, len_raw_data);
