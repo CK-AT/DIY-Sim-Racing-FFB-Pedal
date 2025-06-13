@@ -71,39 +71,44 @@ message DIYPedalKinematicConfig {
   uint32 l_sled_stroke = 6; 
 }
 
-message AxisConfig {
-  // axis ID, will be used by gateways to dispatch to the correct axis and as the ID definition for HW w/o ID DIP switches
-  AxisID axis_id = 1;
-  // position resolution in steps/mm
-  uint32 steps_per_mm = 2;
-  // five polynomial coefficients for the conversion factor from load cell force to pedal force over pedal position
+message KinematicParameters {
+  // minimum absolute contact point position (0.1mm/LSB)
+  int32 contact_point_pos_min_abs = 1;
+  // maximum absolute contact point position (0.1mm/LSB)
+  int32 contact_point_pos_max_abs = 2;
+  // polynomial coefficients for the conversion factor from load cell force to contact point force over contact point position
   repeated double coeffs_force_factor_over_contact_point_pos = 3;
   // five polynomial coefficients for the conversion from contact point position to sled position
   repeated double coeffs_sled_pos_over_contact_point_pos = 4;
-  // minimum absolute contact point position (0.1mm/LSB)
-  int32 contact_point_pos_min_abs = 5;
-  // maximum absolute contact point position (0.1mm/LSB)
-  int32 contact_point_pos_max_abs = 6;
+}
+
+message AxisConfig {
+  // axis ID, will be used by gateways to dispatch to the correct axis and as the ID definition for HW w/o ID DIP switches
+  AxisID axis_id = 1;
+  // all kinematic parameters required to convert positions and forces including physical position limits
+  KinematicParameters kinematic_parameters = 2;
+  // position resolution in steps/mm
+  uint32 steps_per_mm = 3;
   // loadcell rating in N
-  uint32 f_max_loadcell = 7;
+  uint32 f_max_loadcell = 4;
   // invert loadcell sign
-  bool b_loadcell_inverted = 8;
+  bool b_loadcell_inverted = 5;
   // invert motor direction
-  bool b_motor_inverted = 9;
+  bool b_motor_inverted = 6;
   // spindle pitch in mm/rev
-  uint32 mm_per_rev = 10;
+  uint32 mm_per_rev = 7;
   // enable ESPnow
-  bool b_esp_now_enabled = 11;
+  bool b_esp_now_enabled = 8;
   // store to EEPROM
-  bool store = 12;
+  bool store = 9;
   // load cell filter config
   oneof load_cell_filter_config {
-    KFConstVelConfig kf_const_vel = 13;
-    KFConstAccelConfig kf_const_accel = 14;
+    KFConstVelConfig kf_const_vel = 10;
+    KFConstAccelConfig kf_const_accel = 11;
   }
-  // used by the Simhub Plugin to store all required kinematic parameters
+  // used by the Simhub Plugin to store all required kinematic model parameters
   oneof kinematic_config {
-    DIYPedalKinematicConfig diy_pedal = 15;
+    DIYPedalKinematicConfig diy_pedal = 12;
   }
 }
 
@@ -286,14 +291,25 @@ message AutomotivePedalConfig {
 }
 
 message RudderBrakeConfig {
+  // controller axis of the associated flight pedals, this is required to calculate left/right brake balance
+  ControllerAxis controller_output_axis_flight_pedals = 1;
   // controller axis to output the left pedal brake value to
-  ControllerAxis controller_output_axis_left_pedal = 1;
+  ControllerAxis controller_output_axis_left_pedal = 2;
   // controller axis to output the right pedal brake value to
-  ControllerAxis controller_output_axis_right_pedal = 2;
+  ControllerAxis controller_output_axis_right_pedal = 3;
   // minimum total force for braking (0% up to this threshold)
-  float f_min = 3;
+  float f_min = 4;
   // maximum total force for braking (100% above this threshold)
-  float f_max = 4;
+  float f_max = 5;
+}
+
+message AuxFunctionConfig {
+  // a list of up to 4 axis IDs where the first value defines the primary axis, can be OR'ed with AXIS_SUBTRACTIVE (e.g. for a left flight pedal)
+  repeated AxisID linked_axes = 1;
+  // controller axis to output to
+  oneof specific {
+    RudderBrakeConfig rudder_brake = 2;
+  }
 }
 
 message FlightPedalConfig {
@@ -305,8 +321,6 @@ message FlightPedalConfig {
   float damping = 3;
   // centering spring constant in N/mm
   float centering_spring_const = 4;
-  // rudder brake config
-  RudderBrakeConfig rudder_brake_config = 5;
 }
 
 message FunctionConfig {
@@ -315,6 +329,7 @@ message FunctionConfig {
     AutomotivePedalConfig automotive_pedal = 2;
     FlightPedalConfig flight_pedal = 3;
   }
+  AuxFunctionConfig aux_function = 4;
 }
 
 message AxisAction {

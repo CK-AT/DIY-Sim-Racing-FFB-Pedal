@@ -578,7 +578,7 @@ void physics_task_func(void *pvParameters) {
         float f_loadcell = filteredReading * 9.81;
 
         float r_conv;
-        calc_poly(x_foot, r_conv, axis_cfg->coeffs_force_factor_over_contact_point_pos);
+        calc_poly(x_foot, r_conv, axis_cfg->kinematic_parameters.coeffs_force_factor_over_contact_point_pos);
 
         f_foot = f_loadcell * r_conv;
 
@@ -595,7 +595,7 @@ void physics_task_func(void *pvParameters) {
         get_final_position(sim.get_x(), x_foot);
 
         float x_sled;
-        calc_poly(x_foot, x_sled, axis_cfg->coeffs_sled_pos_over_contact_point_pos);
+        calc_poly(x_foot, x_sled, axis_cfg->kinematic_parameters.coeffs_sled_pos_over_contact_point_pos);
 
         config_manager.release_config_semaphore();
 

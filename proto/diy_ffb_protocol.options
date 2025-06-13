@@ -6,11 +6,12 @@ KFConstVelConfig.noise_scaling              int_size:IS_8
 
 KFConstAccelConfig.noise_scaling            int_size:IS_8
 
+KinematicParameters.coeffs_force_factor_over_contact_point_pos       max_count:5 fixed_count:true
+KinematicParameters.coeffs_sled_pos_over_contact_point_pos           max_count:5 fixed_count:true
+KinematicParameters.contact_point_pos_min_abs        int_size:IS_16
+KinematicParameters.contact_point_pos_max_abs        int_size:IS_16
+
 AxisConfig.steps_per_mm                     int_size:IS_16
-AxisConfig.coeffs_force_factor_over_contact_point_pos       max_count:5 fixed_count:true
-AxisConfig.coeffs_sled_pos_over_contact_point_pos           max_count:5 fixed_count:true
-AxisConfig.contact_point_pos_min_abs        int_size:IS_16
-AxisConfig.contact_point_pos_max_abs        int_size:IS_16
 AxisConfig.f_max_loadcell                   int_size:IS_16
 AxisConfig.mm_per_rev                       int_size:IS_8
 

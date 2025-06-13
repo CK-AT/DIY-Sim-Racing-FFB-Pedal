@@ -12,18 +12,19 @@ void ConfigManager::set_axis_config_defaults(void) {
     if (_fixed_id) {
         _axis_config.axis_id = _axis_id;
     }
-    _axis_config.coeffs_force_factor_over_contact_point_pos[0] = 6.20184902e-01;
-    _axis_config.coeffs_force_factor_over_contact_point_pos[1] = -1.71372506e-03;
-    _axis_config.coeffs_force_factor_over_contact_point_pos[2] = 1.07828479e-05;
-    _axis_config.coeffs_force_factor_over_contact_point_pos[3] = 2.71382634e-09;
-    _axis_config.coeffs_force_factor_over_contact_point_pos[4] = 7.34203389e-11;
-    _axis_config.coeffs_sled_pos_over_contact_point_pos[0] = 5.50622588e+01;
-    _axis_config.coeffs_sled_pos_over_contact_point_pos[1] = 5.55488175e-01;
-    _axis_config.coeffs_sled_pos_over_contact_point_pos[2] = 7.59065219e-04;
-    _axis_config.coeffs_sled_pos_over_contact_point_pos[3] = -2.81513616e-06;
-    _axis_config.coeffs_sled_pos_over_contact_point_pos[4] = -1.11220289e-08;
-    _axis_config.contact_point_pos_min_abs = -1200;
-    _axis_config.contact_point_pos_max_abs = 900;
+    _axis_config.has_kinematic_parameters = true;
+    _axis_config.kinematic_parameters.coeffs_force_factor_over_contact_point_pos[0] = 6.20184902e-01;
+    _axis_config.kinematic_parameters.coeffs_force_factor_over_contact_point_pos[1] = -1.71372506e-03;
+    _axis_config.kinematic_parameters.coeffs_force_factor_over_contact_point_pos[2] = 1.07828479e-05;
+    _axis_config.kinematic_parameters.coeffs_force_factor_over_contact_point_pos[3] = 2.71382634e-09;
+    _axis_config.kinematic_parameters.coeffs_force_factor_over_contact_point_pos[4] = 7.34203389e-11;
+    _axis_config.kinematic_parameters.coeffs_sled_pos_over_contact_point_pos[0] = 5.50622588e+01;
+    _axis_config.kinematic_parameters.coeffs_sled_pos_over_contact_point_pos[1] = 5.55488175e-01;
+    _axis_config.kinematic_parameters.coeffs_sled_pos_over_contact_point_pos[2] = 7.59065219e-04;
+    _axis_config.kinematic_parameters.coeffs_sled_pos_over_contact_point_pos[3] = -2.81513616e-06;
+    _axis_config.kinematic_parameters.coeffs_sled_pos_over_contact_point_pos[4] = -1.11220289e-08;
+    _axis_config.kinematic_parameters.contact_point_pos_min_abs = -1200;
+    _axis_config.kinematic_parameters.contact_point_pos_max_abs = 900;
     _axis_config.f_max_loadcell = 200.0f * 9.81f;
     _axis_config.which_load_cell_filter_config = AxisConfig_kf_const_vel_tag;
     _axis_config.load_cell_filter_config.kf_const_vel.noise_scaling = 128;
