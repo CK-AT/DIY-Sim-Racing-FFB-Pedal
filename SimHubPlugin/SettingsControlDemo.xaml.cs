@@ -228,150 +228,76 @@ namespace User.PluginSdkDemo
         }
 
 
-        private void DrawGridLines()
-        {
-            // Specify the number of rows and columns for the grid
-            int rowCount = 5;
-            int columnCount = 5;
-
-            // Calculate the width and height of each cell
-            double cellWidth = canvas.Width / columnCount;
-            double cellHeight = canvas.Height / rowCount;
 
 
-            
-            // Draw horizontal gridlines
-            for (int i = 1; i < rowCount; i++)
-            {
-                Line line = new Line
-                {
-                    X1 = 0,
-                    Y1 = i * cellHeight,
-                    X2 = canvas.Width,
-                    Y2 = i * cellHeight,
-                    //Stroke = Brush.Black,
-                    Stroke = System.Windows.Media.Brushes.LightSteelBlue,
-                    StrokeThickness = 1,
-                    Opacity = 0.1
+        //private void DrawGridLines_kinematicCanvas(double OX, double OY, double scale_i)
+        //{
 
-                };
-                Line line2 = new Line
-                {
-                    X1 = 0,
-                    Y1 = i * cellHeight,
-                    X2 = canvas.Width,
-                    Y2 = i * cellHeight,
-                    //Stroke = Brush.Black,
-                    Stroke = System.Windows.Media.Brushes.LightSteelBlue,
-                    StrokeThickness = 1,
-                    Opacity = 0.1
+        //    if (gridline_kinematic_count_original > 0)
+        //    {
+        //        for (int i = 0; i < gridline_kinematic_count_original; i++)
+        //        {
+        //            if (canvas_kinematic.Children.Count != 0)
+        //            {
+        //                canvas_kinematic.Children.RemoveAt(canvas_kinematic.Children.Count - 1);
+        //            }
+        //        }                
+        //    }
+        //    double scale = scale_i;
+        //    double gridlineSpacing = 50 / scale;
 
-                };
-                canvas.Children.Add(line);
-                canvas_rudder_curve.Children.Add(line2);
-            }
+        //    double cellWidth = gridlineSpacing ;
+        //    double cellHeight = gridlineSpacing ;
 
-            // Draw vertical gridlines
-            for (int i = 1; i < columnCount; i++)
-            {
-                Line line = new Line
-                {
-                    X1 = i * cellWidth,
-                    Y1 = 0,
-                    X2 = i * cellWidth,
-                    Y2 = canvas.Height,
-                    //Stroke = Brushes.Black,
-                    Stroke = System.Windows.Media.Brushes.LightSteelBlue,
-                    StrokeThickness = 1,
-                    Opacity = 0.1
-                };
-                Line line2 = new Line
-                {
-                    X1 = i * cellWidth,
-                    Y1 = 0,
-                    X2 = i * cellWidth,
-                    Y2 = canvas.Height,
-                    //Stroke = Brushes.Black,
-                    Stroke = System.Windows.Media.Brushes.LightSteelBlue,
-                    StrokeThickness = 1,
-                    Opacity = 0.1
-                };
-                canvas.Children.Add(line);
-                canvas_rudder_curve.Children.Add(line2);
-
-            }
-        }
+        //    // we want the gridlines to be centered at pedal position O
+        //    // --> calculate an offset
+        //    double xOffset = OX % gridlineSpacing;
+        //    double yOffset = OY % gridlineSpacing;
 
 
-
-        private void DrawGridLines_kinematicCanvas(double OX, double OY, double scale_i)
-        {
-
-            if (gridline_kinematic_count_original > 0)
-            {
-                for (int i = 0; i < gridline_kinematic_count_original; i++)
-                {
-                    if (canvas_kinematic.Children.Count != 0)
-                    {
-                        canvas_kinematic.Children.RemoveAt(canvas_kinematic.Children.Count - 1);
-                    }
-                }                
-            }
-            double scale = scale_i;
-            double gridlineSpacing = 50 / scale;
-
-            double cellWidth = gridlineSpacing ;
-            double cellHeight = gridlineSpacing ;
-
-            // we want the gridlines to be centered at pedal position O
-            // --> calculate an offset
-            double xOffset = OX % gridlineSpacing;
-            double yOffset = OY % gridlineSpacing;
+        //    int rowCount = (int)Math.Floor((canvas.Height - 0 * yOffset) / gridlineSpacing);
+        //    int columnCount = (int)Math.Floor((canvas.Width - 0 * xOffset) / gridlineSpacing);
 
 
-            int rowCount = (int)Math.Floor((canvas.Height - 0 * yOffset) / gridlineSpacing);
-            int columnCount = (int)Math.Floor((canvas.Width - 0 * xOffset) / gridlineSpacing);
+        //    // Draw horizontal gridlines
+        //    for (int i = 0; i < rowCount; i++)
+        //    {
 
+        //        Line line2 = new Line
+        //        {
+        //            X1 = 0,
+        //            Y1 = canvas_kinematic.Height - (yOffset + i * cellHeight),
+        //            X2 = 400,
+        //            Y2 = canvas_kinematic.Height - (yOffset + i * cellHeight),
+        //            //Stroke = Brush.Black,
+        //            Stroke = System.Windows.Media.Brushes.LightSteelBlue,
+        //            StrokeThickness = 1,
+        //            Opacity = 0.1
 
-            // Draw horizontal gridlines
-            for (int i = 0; i < rowCount; i++)
-            {
+        //        };
+        //        canvas_kinematic.Children.Add(line2);
+        //    }
 
-                Line line2 = new Line
-                {
-                    X1 = 0,
-                    Y1 = canvas_kinematic.Height - (yOffset + i * cellHeight),
-                    X2 = 400,
-                    Y2 = canvas_kinematic.Height - (yOffset + i * cellHeight),
-                    //Stroke = Brush.Black,
-                    Stroke = System.Windows.Media.Brushes.LightSteelBlue,
-                    StrokeThickness = 1,
-                    Opacity = 0.1
+        //    // Draw vertical gridlines
+        //    for (int i = 0; i < columnCount; i++)
+        //    {
 
-                };
-                canvas_kinematic.Children.Add(line2);
-            }
+        //        Line line2 = new Line
+        //        {
+        //            X1 = xOffset + i * cellWidth,
+        //            Y1 = 0,
+        //            X2 = xOffset + i * cellWidth,
+        //            Y2 = canvas_kinematic.Height,
+        //            //Stroke = Brushes.Black,
+        //            Stroke = System.Windows.Media.Brushes.LightSteelBlue,
+        //            StrokeThickness = 1,
+        //            Opacity = 0.1
+        //        };
+        //        canvas_kinematic.Children.Add(line2);
 
-            // Draw vertical gridlines
-            for (int i = 0; i < columnCount; i++)
-            {
-
-                Line line2 = new Line
-                {
-                    X1 = xOffset + i * cellWidth,
-                    Y1 = 0,
-                    X2 = xOffset + i * cellWidth,
-                    Y2 = canvas_kinematic.Height,
-                    //Stroke = Brushes.Black,
-                    Stroke = System.Windows.Media.Brushes.LightSteelBlue,
-                    StrokeThickness = 1,
-                    Opacity = 0.1
-                };
-                canvas_kinematic.Children.Add(line2);
-
-            }
-            gridline_kinematic_count_original = columnCount + rowCount;
-        }
+        //    }
+        //    gridline_kinematic_count_original = columnCount + rowCount;
+        //}
 
         private void InitReadStructFromJson()
         {
@@ -753,10 +679,9 @@ namespace User.PluginSdkDemo
             RSSI_4.Fill = color_RSSI_4;
             //Plugin.simhub_theme_color=defaultcolor.ToString();            
             // Call this method to generate gridlines on the Canvas
-            DrawGridLines();
-            DrawGridLines_kinematicCanvas(100,20,1.5);
+            //DrawGridLines();
+            //DrawGridLines_kinematicCanvas(100,20,1.5);
             Label_RSSI.Visibility= Visibility.Hidden;
-            Rangeslider_force_range.TickFrequency = 1;
             TextBox_debug_count.Visibility= Visibility.Hidden;
             text_rudder_log.Visibility=Visibility.Hidden;
             Online_profile = new Profile_Online();
@@ -771,7 +696,9 @@ namespace User.PluginSdkDemo
 
         }
 
+        public SolidColorBrush MouseDownColor { get { return lightcolor; } }
 
+        public SolidColorBrush MouseUpColor { get { return defaultcolor; } }
 
         public byte[] getBytesPayload(payloadPedalConfig aux)
         {
@@ -909,6 +836,7 @@ namespace User.PluginSdkDemo
             this.Plugin = plugin;
             plugin.testValue = 1;
             plugin.wpfHandle = this;
+            AutomotivePedal_SplineForceCurve.SetGui(this);
 
 
             UpdateSerialPortList_click();
@@ -1300,34 +1228,6 @@ namespace User.PluginSdkDemo
             {
                 dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition=95;
             }
-            Rangeslider_travel_range.LowerValue = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition;
-            Rangeslider_travel_range.UpperValue = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition;
-            
-            if (Plugin != null)
-            {
-                Label_min_pos.Content = "MIN\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition + "%\n" + Math.Round(pedal_pos_min + ((pedal_pos_range * (double)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition)) / 100.0)) + "mm";
-                Label_max_pos.Content = "MAX\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition + "%\n" + Math.Round(pedal_pos_min + ((pedal_pos_range * (double)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition)) / 100.0)) + "mm";
-            }
-
-
-
-
-
-            Rangeslider_force_range.UpperValue = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.maxForce;
-            Rangeslider_force_range.LowerValue = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.preloadForce;
-            if (indexOfSelectedPedal_u != 1)
-            {
-                Rangeslider_force_range.Maximum = 50;
-            }
-            else
-            {
-                Rangeslider_force_range.Maximum = 200;
-            }
-            if (Plugin != null)
-            {
-                Label_max_force.Content = "Max force:\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.maxForce  + "kg";
-                Label_min_force.Content = "Preload:\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.preloadForce  + "kg";
-            }
 
             label_damping.Content = "Damping factor: " + (float)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.dampingPress * 0.00015f)+"s";
             Slider_damping.Value = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.dampingPress;
@@ -1475,7 +1375,6 @@ namespace User.PluginSdkDemo
 
 
             
-            Update_BrakeForceCurve();
             //Simulated ABS trigger
             if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.Simulate_ABS_trigger == 1)
             {
@@ -1502,58 +1401,6 @@ namespace User.PluginSdkDemo
 
 
 
-            //set control point position
-            text_point_pos.Visibility = Visibility.Hidden;
-            double control_rect_value_max = 100;
-            double dyy = canvas.Height / control_rect_value_max;
-            Canvas.SetTop(rect0, canvas.Height - dyy * dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p000 - rect0.Height / 2);
-            Canvas.SetLeft(rect0, 0 * canvas.Width / 5 - rect0.Width / 2);
-            Canvas.SetTop(rect1, canvas.Height - dyy * dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p020 - rect0.Height / 2);
-            Canvas.SetLeft(rect1, 1 * canvas.Width / 5 - rect1.Width / 2);
-            Canvas.SetTop(rect2, canvas.Height - dyy * dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p040 - rect0.Height / 2);
-            Canvas.SetLeft(rect2, 2 * canvas.Width / 5 - rect2.Width / 2);
-            Canvas.SetTop(rect3, canvas.Height - dyy * dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p060 - rect0.Height / 2);
-            Canvas.SetLeft(rect3, 3 * canvas.Width / 5 - rect3.Width / 2);
-            Canvas.SetTop(rect4, canvas.Height - dyy * dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p080 - rect0.Height / 2);
-            Canvas.SetLeft(rect4, 4 * canvas.Width / 5 - rect4.Width / 2);
-            Canvas.SetTop(rect5, canvas.Height - dyy * dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p100 - rect0.Height / 2);
-            Canvas.SetLeft(rect5, 5 * canvas.Width / 5 - rect5.Width / 2);
-            if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.debug_flags_0 != 32)
-            {
-                rect_State.Visibility = Visibility.Visible;
-                text_state.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                rect_State.Visibility = Visibility.Hidden;
-                text_state.Visibility = Visibility.Hidden;
-            }
-            Canvas.SetTop(rect_State, canvas.Height - rect_State.Height / 2);
-            Canvas.SetLeft(rect_State, -rect_State.Width / 2);
-            Canvas.SetLeft(text_state, Canvas.GetLeft(rect_State) /*+ rect_State.Width*/);
-            Canvas.SetTop(text_state, Canvas.GetTop(rect_State) - rect_State.Height);
-            text_state.Text = "0%";
-            //set for ABS slider
-            Canvas.SetTop(rect_SABS_Control, (control_rect_value_max - dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.Simulate_ABS_value) * dyy - rect_SABS_Control.Height / 2);
-            Canvas.SetLeft(rect_SABS_Control, 0);
-            Canvas.SetTop(rect_SABS, 0);
-            Canvas.SetLeft(rect_SABS, 0);
-            rect_SABS.Height = canvas.Height - dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.Simulate_ABS_value * dyy;
-            Canvas.SetTop(text_SABS, Canvas.GetTop(rect_SABS_Control) - text_SABS.Height - rect_SABS_Control.Height);
-            Canvas.SetLeft(text_SABS, canvas.Width - text_SABS.Width);
-            text_SABS.Text = "ABS trigger value: " + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.Simulate_ABS_value + "%";
-            if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.Simulate_ABS_trigger == 1)
-            {
-                rect_SABS.Visibility = Visibility.Visible;
-                rect_SABS_Control.Visibility = Visibility.Visible;
-                text_SABS.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                rect_SABS.Visibility = Visibility.Hidden;
-                rect_SABS_Control.Visibility = Visibility.Hidden;
-                text_SABS.Visibility = Visibility.Hidden;
-            }
             //set for travel slider;
             double dx = 0;
 
@@ -1595,13 +1442,6 @@ namespace User.PluginSdkDemo
             {
             }
 
-            //Bite point control
-            double BP_max = 100;
-            dx = (double)canvas.Width / BP_max;
-            text_BP.Text = "Bite Point:\n" + ((float)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.BP_trigger_value) + "%";
-            Canvas.SetLeft(rect_BP_Control, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.BP_trigger_value * dx - rect_BP_Control.Width / 2);
-            Canvas.SetLeft(text_BP, Canvas.GetLeft(rect_BP_Control) + rect_BP_Control.Width + 3);
-            Canvas.SetTop(text_BP, canvas.Height - text_BP.Height-15);
             //// Select serial port accordingly
             string tmp = (string)Plugin._serialPort[indexOfSelectedPedal_u].PortName;
             try
@@ -1650,16 +1490,12 @@ namespace User.PluginSdkDemo
             if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.BP_trigger == 1)
             {
                 checkbox_enable_bite_point.IsChecked = true;
-                text_BP.Visibility = Visibility.Visible;
-                rect_BP_Control.Visibility = Visibility.Visible;
                 checkbox_enable_bite_point.Content = "Bite Point Vibration Enabled";
 
             }
             else
             {
                 checkbox_enable_bite_point.IsChecked = false;
-                text_BP.Visibility = Visibility.Hidden;
-                rect_BP_Control.Visibility = Visibility.Hidden;
                 checkbox_enable_bite_point.Content = "Bite Point Vibration Disabled";
             }
 
@@ -1817,7 +1653,7 @@ namespace User.PluginSdkDemo
                 label_RPM_AMP_rudder.Content = "Effect Amplitude: " + (float)(dap_config_st_rudder.payloadPedalConfig_.RPM_AMP) / 100.0f + "kg";
 
                 // rect position
-                double dyy_rudder = canvas_rudder_curve.Height / control_rect_value_max;
+                double dyy_rudder = canvas_rudder_curve.Height / 100;
                 Canvas.SetTop(rect0_rudder, canvas_rudder_curve.Height - dyy_rudder * dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 - rect0_rudder.Height / 2);
                 Canvas.SetLeft(rect0_rudder, 0 * canvas_rudder_curve.Width / 5 - rect0_rudder.Width / 2);
 
@@ -1977,116 +1813,6 @@ namespace User.PluginSdkDemo
 
 
 
-
-        private void Update_BrakeForceCurve()
-        {
-
-            double[] x = new double[6];
-            double[] y = new double[6];
-            double x_quantity = 100;
-            double y_max = 100;
-            double dx = canvas.Width / x_quantity;
-            double dy = canvas.Height / y_max;
-            //draw pedal force-travel curve
-            x[0] = 0;
-            x[1] = 20;
-            x[2] = 40;
-            x[3] = 60;
-            x[4] = 80;
-            x[5] = 100;
-
-            y[0] = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p000;
-            y[1] = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p020;
-            y[2] = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p040;
-            y[3] = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p060;
-            y[4] = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p080;
-            y[5] = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p100;
-
-            // Use cubic interpolation to smooth the original data
-            (double[] xs2, double[] ys2, double[] a, double[] b) = Cubic.Interpolate1D(x, y, 100);
-
-
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.cubic_spline_param_a_0 = (float)a[0];
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.cubic_spline_param_a_1 = (float)a[1];
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.cubic_spline_param_a_2 = (float)a[2];
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.cubic_spline_param_a_3 = (float)a[3];
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.cubic_spline_param_a_4 = (float)a[4];
-
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.cubic_spline_param_b_0 = (float)b[0];
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.cubic_spline_param_b_1 = (float)b[1];
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.cubic_spline_param_b_2 = (float)b[2];
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.cubic_spline_param_b_3 = (float)b[3];
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.cubic_spline_param_b_4 = (float)b[4];
-
-
-            //TextBox_debugOutput.Text = "";
-            //for (uint i = 0; i < a.Length; i++)
-            //{
-            //    TextBox_debugOutput.Text += "\na[" + i + "]: " + a[i] + "      b[" + i + "]: " + b[i];
-            //}
-
-
-            System.Windows.Media.PointCollection myPointCollection2 = new System.Windows.Media.PointCollection();
-
-
-            for (int pointIdx = 0; pointIdx < 100; pointIdx++)
-            {
-                System.Windows.Point Pointlcl = new System.Windows.Point(dx * xs2[pointIdx], dy * ys2[pointIdx]);
-                myPointCollection2.Add(Pointlcl);
-                Force_curve_Y[pointIdx] = dy * ys2[pointIdx];
-            }            
-            this.Polyline_BrakeForceCurve.Points = myPointCollection2;
-
-
-            //draw rudder curve
-            x[0] = 0;
-            x[1] = 20;
-            x[2] = 40;
-            x[3] = 60;
-            x[4] = 80;
-            x[5] = 100;
-
-            y[0] = dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000;
-            y[1] = dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020;
-            y[2] = dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040;
-            y[3] = dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060;
-            y[4] = dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080;
-            y[5] = dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100;
-
-            // Use cubic interpolation to smooth the original data
-            (double[] xs2_rudder, double[] ys2_rudder, double[] a_rudder, double[] b_rudder) = Cubic.Interpolate1D(x, y, 100);
-
-
-            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_0 = (float)a_rudder[0];
-            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_1 = (float)a_rudder[1];
-            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_2 = (float)a_rudder[2];
-            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_3 = (float)a_rudder[3];
-            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_a_4 = (float)a_rudder[4];
-
-            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_0 = (float)b_rudder[0];
-            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_1 = (float)b_rudder[1];
-            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_2 = (float)b_rudder[2];
-            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_3 = (float)b_rudder[3];
-            dap_config_st_rudder.payloadPedalConfig_.cubic_spline_param_b_4 = (float)b_rudder[4];
-
-
-            System.Windows.Media.PointCollection myPointCollection3 = new System.Windows.Media.PointCollection();
-
-
-            for (int pointIdx = 0; pointIdx < 100; pointIdx++)
-            {
-                System.Windows.Point Pointlcl = new System.Windows.Point(dx * xs2_rudder[pointIdx], dy * ys2_rudder[pointIdx]);
-                myPointCollection3.Add(Pointlcl);
-                //Force_curve_Y[pointIdx] = dy * ys2_rudder[pointIdx];
-            }
-
-            this.Polyline_RudderForceCurve.Points = myPointCollection3;
-
-            
-
-
-
-        }
 
         private void update_plot_ABS()
         {
@@ -3526,39 +3252,39 @@ namespace User.PluginSdkDemo
 
                                         pedalStateHasAlreadyBeenUpdated_b = true;
 
-                                        text_point_pos.Visibility = Visibility.Hidden;
-                                        double control_rect_value_max = 65535;
-                                        double dyy = canvas.Height / control_rect_value_max;
-                                        double dxx = canvas.Width / control_rect_value_max;
+                                        //text_point_pos.Visibility = Visibility.Hidden;
+                                        //double control_rect_value_max = 65535;
+                                        //double dyy = canvas.Height / control_rect_value_max;
+                                        //double dxx = canvas.Width / control_rect_value_max;
 
-                                        if (debug_flag)
-                                        {
-                                            Canvas.SetLeft(rect_State, dxx * pedalState_read_st.payloadPedalBasicState_.pedalPosition_u16 - rect_State.Width / 2 );
-                                            Canvas.SetTop(rect_State, canvas.Height - dyy * pedalState_read_st.payloadPedalBasicState_.pedalForce_u16 - rect_State.Height / 2);
+                                        //if (debug_flag)
+                                        //{
+                                        //    Canvas.SetLeft(rect_State, dxx * pedalState_read_st.payloadPedalBasicState_.pedalPosition_u16 - rect_State.Width / 2 );
+                                        //    Canvas.SetTop(rect_State, canvas.Height - dyy * pedalState_read_st.payloadPedalBasicState_.pedalForce_u16 - rect_State.Height / 2);
 
-                                            Canvas.SetLeft(text_state, Canvas.GetLeft(rect_State) /*+ rect_State.Width*/);
-                                            Canvas.SetTop(text_state, Canvas.GetTop(rect_State) - rect_State.Height);
-                                            text_state.Text = Math.Round(pedalState_read_st.payloadPedalBasicState_.pedalForce_u16 / control_rect_value_max * 100) + "%";
-                                            int round_x = (int)(100 * pedalState_read_st.payloadPedalBasicState_.pedalPosition_u16 / control_rect_value_max) - 1;
-                                            int x_showed = round_x + 1;
+                                        //    Canvas.SetLeft(text_state, Canvas.GetLeft(rect_State) /*+ rect_State.Width*/);
+                                        //    Canvas.SetTop(text_state, Canvas.GetTop(rect_State) - rect_State.Height);
+                                        //    text_state.Text = Math.Round(pedalState_read_st.payloadPedalBasicState_.pedalForce_u16 / control_rect_value_max * 100) + "%";
+                                        //    int round_x = (int)(100 * pedalState_read_st.payloadPedalBasicState_.pedalPosition_u16 / control_rect_value_max) - 1;
+                                        //    int x_showed = round_x + 1;
                                             
-                                            current_pedal_travel_state = x_showed;
-                                            Plugin.pedal_state_in_ratio = (byte)current_pedal_travel_state;
-                                        }
-                                        else
-                                        {
-                                            Canvas.SetLeft(rect_State, dxx * pedalState_read_st.payloadPedalBasicState_.pedalPosition_u16 - rect_State.Width / 2 );
-                                            int round_x = (int)(100 * pedalState_read_st.payloadPedalBasicState_.pedalPosition_u16 / control_rect_value_max) - 1;
-                                            int x_showed = round_x + 1;
-                                            round_x = Math.Max(0, Math.Min(round_x, 99));
-                                            current_pedal_travel_state = x_showed;
-                                            Plugin.pedal_state_in_ratio = (byte)current_pedal_travel_state;
-                                            Canvas.SetTop(rect_State, canvas.Height - Force_curve_Y[round_x] - rect_State.Height / 2);
-                                            Canvas.SetLeft(text_state, Canvas.GetLeft(rect_State) /*+ rect_State.Width*/);
-                                            Canvas.SetTop(text_state, Canvas.GetTop(rect_State) - rect_State.Height);
-                                            text_state.Text = x_showed + "%";
-                                            Pedal_joint_draw();
-                                        }
+                                        //    current_pedal_travel_state = x_showed;
+                                        //    Plugin.pedal_state_in_ratio = (byte)current_pedal_travel_state;
+                                        //}
+                                        //else
+                                        //{
+                                        //    Canvas.SetLeft(rect_State, dxx * pedalState_read_st.payloadPedalBasicState_.pedalPosition_u16 - rect_State.Width / 2 );
+                                        //    int round_x = (int)(100 * pedalState_read_st.payloadPedalBasicState_.pedalPosition_u16 / control_rect_value_max) - 1;
+                                        //    int x_showed = round_x + 1;
+                                        //    round_x = Math.Max(0, Math.Min(round_x, 99));
+                                        //    current_pedal_travel_state = x_showed;
+                                        //    Plugin.pedal_state_in_ratio = (byte)current_pedal_travel_state;
+                                        //    Canvas.SetTop(rect_State, canvas.Height - Force_curve_Y[round_x] - rect_State.Height / 2);
+                                        //    Canvas.SetLeft(text_state, Canvas.GetLeft(rect_State) /*+ rect_State.Width*/);
+                                        //    Canvas.SetTop(text_state, Canvas.GetTop(rect_State) - rect_State.Height);
+                                        //    text_state.Text = x_showed + "%";
+                                        //    Pedal_joint_draw();
+                                        //}
 
                                     }
 
@@ -4462,18 +4188,18 @@ namespace User.PluginSdkDemo
         {
             dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.Simulate_ABS_trigger = 1;
             TextBox_debugOutput.Text = "simulateABS: on";
-            rect_SABS.Visibility = Visibility.Visible;
-            rect_SABS_Control.Visibility = Visibility.Visible;
-            text_SABS.Visibility = Visibility.Visible;
+            //rect_SABS.Visibility = Visibility.Visible;
+            //rect_SABS_Control.Visibility = Visibility.Visible;
+            //text_SABS.Visibility = Visibility.Visible;
 
         }
         private void Simulate_ABS_check_Unchecked(object sender, RoutedEventArgs e)
         {
             dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.Simulate_ABS_trigger = 0;
             TextBox_debugOutput.Text = "simulateABS: off";
-            rect_SABS.Visibility = Visibility.Hidden;
-            rect_SABS_Control.Visibility = Visibility.Hidden;
-            text_SABS.Visibility = Visibility.Hidden;
+            //rect_SABS.Visibility = Visibility.Hidden;
+            //rect_SABS_Control.Visibility = Visibility.Hidden;
+            //text_SABS.Visibility = Visibility.Hidden;
 
         }
 
@@ -4510,72 +4236,6 @@ namespace User.PluginSdkDemo
 
         }
 
-        private void Rectangle_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (isDragging)
-            {
-                var rectangle = sender as Rectangle;
-                //double x = e.GetPosition(canvas).X - offset.X;
-                double y = e.GetPosition(canvas).Y - offset.Y;
-
-                // Ensure the rectangle stays within the canvas
-                //x = Math.Max(0, Math.Min(x, canvas.ActualWidth - rectangle.ActualWidth));
-                y = Math.Max(-1*rectangle.Height/2, Math.Min(y, canvas.Height - rectangle.Height/2));
-
-                //Canvas.SetLeft(rectangle, x);
-                Canvas.SetTop(rectangle, y);
-                double y_max = 100;
-                double dx = canvas.Height / y_max;
-                double y_actual = (canvas.Height - y -rectangle.Height/2)/dx;
-                if (rectangle.Name == "rect0")
-                {
-                    dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p000 = Convert.ToByte(y_actual);
-                    text_point_pos.Text = "Travel:0%";
-                    text_point_pos.Text += "\nForce: "+(int)y_actual+"%";
-                    
-                }
-                if (rectangle.Name == "rect1")
-                {
-
-                    dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p020 = Convert.ToByte(y_actual);
-                    text_point_pos.Text = "Travel:20%";
-                    text_point_pos.Text += "\nForce: " + (int)y_actual + "%";
-                }
-                if (rectangle.Name == "rect2")
-                {
-                    dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p040 = Convert.ToByte(y_actual);
-                    text_point_pos.Text = "Travel:40%";
-                    text_point_pos.Text += "\nForce: " + (int)y_actual + "%";
-                }
-                if (rectangle.Name == "rect3")
-                {
-                    dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p060 = Convert.ToByte(y_actual);
-                    text_point_pos.Text = "Travel:60%";
-                    text_point_pos.Text += "\nForce: " + (int)y_actual + "%";
-                }
-                if (rectangle.Name == "rect4")
-                {
-                    dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p080 = Convert.ToByte(y_actual);
-                    text_point_pos.Text = "Travel:80%";
-                    text_point_pos.Text += "\nForce: " + (int)y_actual + "%";
-                }
-                if (rectangle.Name == "rect5")
-                {
-                    dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p100 = Convert.ToByte(y_actual);
-                    text_point_pos.Text = "Travel:100%";
-                    text_point_pos.Text += "\nForce: " + (int)y_actual + "%";
-                }
-                
-                text_point_pos.Visibility = Visibility.Visible; ;
-
-                Update_BrakeForceCurve();
-
-
-
-                // Update the position in the dictionary
-                //rectanglePositions[rectangle.Name] = new Point(x, y);
-            }
-        }
         private void Rectangle_MouseMove_Rudder(object sender, MouseEventArgs e)
         {
             if (isDragging)
@@ -4636,7 +4296,6 @@ namespace User.PluginSdkDemo
                 }
                 text_point_pos_rudder.Visibility = Visibility.Visible;
 
-                Update_BrakeForceCurve();
 
 
 
@@ -4645,61 +4304,6 @@ namespace User.PluginSdkDemo
             }
         }
 
-
-
-        private void Rectangle_MouseMove_ABS(object sender, MouseEventArgs e)
-        {
-            if (isDragging)
-            {
-                var rectangle = sender as Rectangle;
-                //double x = e.GetPosition(canvas).X - offset.X;
-                double y = e.GetPosition(canvas).Y - offset.Y;
-
-                // Ensure the rectangle stays within the canvas
-                double dy = canvas.Height / 100;
-                double min_posiiton = 5 * dy;
-                double max_position = 50 * dy;
-                //min position: 50%, max 95%
-                //double dx = 100 / (canvas_horz_slider.Width - 10);
-                y = Math.Max(min_posiiton, Math.Min(y, max_position));
-                //Canvas.SetTop(rect_SABS, y);
-                rect_SABS.Height = y;
-                double actual_y = (canvas.Height -y)/dy;
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.Simulate_ABS_value = Convert.ToByte(actual_y);
-                TextBox_debugOutput.Text = "ABS trigger value: " + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.Simulate_ABS_value+"%";
-                text_SABS.Text = "ABS trigger value: " + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.Simulate_ABS_value + "%";
-                Canvas.SetTop(text_SABS, y - rect_SABS_Control.Height-text_SABS.Height);
-                Canvas.SetTop(rectangle, y-rect_SABS_Control.Height/2);
-
-            }
-        }
-        private void Rectangle_MouseMove_sigle_slider_H(object sender, MouseEventArgs e)
-        {
-            if (isDragging)
-            {
-                var rectangle = sender as Rectangle;
-                //Bite point control
-                if (rectangle.Name == "rect_BP_Control")
-                {
-                    // Ensure the rectangle stays within the canvas
-                    double x = e.GetPosition(canvas).X - offset.X;
-                    double BP_max = 100;
-                    double dx = (canvas.Width) / BP_max;
-                    double min_position = 10 * dx - rect_BP_Control.Width / 2;
-                    double max_position = (BP_max - 10) * dx - rect_BP_Control.Width / 2;
-
-                    x = Math.Max(min_position, Math.Min(x, max_position));
-                    double actual_x = (x + rect_BP_Control.Width / 2) / dx;
-                    dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.BP_trigger_value = (byte)(actual_x);
-
-                    text_BP.Text = "Bite Point:\n" + ((float)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.BP_trigger_value) + "%";
-                    Canvas.SetLeft(rectangle, x);
-                    Canvas.SetLeft(text_BP, Canvas.GetLeft(rect_BP_Control) + rect_BP_Control.Width + 3);
-                    Canvas.SetTop(text_BP, canvas.Height - text_BP.Height-15);
-
-                }
-            }
-        }
         private void Rectangle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             if (isDragging)
@@ -4707,8 +4311,6 @@ namespace User.PluginSdkDemo
                 var rectangle = sender as Rectangle;
                 isDragging = false;
                 rectangle.ReleaseMouseCapture();
-                text_point_pos.Visibility = Visibility.Hidden;
-                text_point_pos_rudder.Visibility = Visibility.Hidden;
                 //SolidColorBrush buttonBackground = btn_update.Background as SolidColorBrush;
                 //Color color = Color.FromArgb(150, buttonBackground.Color.R, buttonBackground.Color.G, buttonBackground.Color.B);
                 //rectangle.Fill = btn_update.Background;
@@ -4750,7 +4352,6 @@ namespace User.PluginSdkDemo
             //Line_H_HeaderTab.X2 = 1128;
 
             Slider_LC_rate.TickFrequency = 1;
-            Rangeslider_force_range.TickFrequency = 0.1;
             TextBox_debug_count.Visibility=Visibility.Visible;
 
 
@@ -4776,7 +4377,6 @@ namespace User.PluginSdkDemo
             //Line_H_HeaderTab.X2 = 763;
 
             Slider_LC_rate.TickFrequency = 10;
-            Rangeslider_force_range.TickFrequency = 1;
             TextBox_debug_count.Visibility = Visibility.Hidden;
         }
 
@@ -5037,8 +4637,6 @@ namespace User.PluginSdkDemo
         {
 
             dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.BP_trigger = 1;
-            text_BP.Visibility = Visibility.Visible;
-            rect_BP_Control.Visibility = Visibility.Visible;
             checkbox_enable_bite_point.Content = "Bite Point Vibration Enabled";
 
 
@@ -5048,8 +4646,6 @@ namespace User.PluginSdkDemo
         {
 
             dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.BP_trigger = 0;
-            text_BP.Visibility = Visibility.Hidden;
-            rect_BP_Control.Visibility = Visibility.Hidden;
             checkbox_enable_bite_point.Content = "Bite Point Vibration Disabled";
 
 
@@ -5320,50 +4916,6 @@ namespace User.PluginSdkDemo
             // see https://learn.microsoft.com/dotnet/api/system.diagnostics.processstartinfo.useshellexecute#property-value
             Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri));
             e.Handled = true;
-        }
-        private void btn_scurve_Click(object sender, RoutedEventArgs e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p000 = 0;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p020 = 7;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p040 = 28;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p060 = 70;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p080 = 93;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p100 = 100;
-            Update_BrakeForceCurve();
-            updateTheGuiFromConfig();
-        }
-        private void btn_10xcurve_Click(object sender, RoutedEventArgs e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p000 = 0;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p020 = 43;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p040 = 69;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p060 = 85;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p080 = 95;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p100 = 100;
-            Update_BrakeForceCurve();
-            updateTheGuiFromConfig();
-        }
-        private void btn_logcurve_Click(object sender, RoutedEventArgs e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p000 = 0;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p020 = 6;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p040 = 17;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p060 = 33;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p080 = 59;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p100 = 100;
-            Update_BrakeForceCurve();
-            updateTheGuiFromConfig();
-        }
-        private void btn_linearcurve_Click(object sender, RoutedEventArgs e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p000 = 0;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p020 = 20;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p040 = 40;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p060 = 60;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p080 = 80;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.relativeForce_p100 = 100;
-            Update_BrakeForceCurve();
-            updateTheGuiFromConfig();
         }
         /*
         private void OTA_update_check_Unchecked(object sender, RoutedEventArgs e)
@@ -5892,7 +5444,7 @@ namespace User.PluginSdkDemo
             if (Plugin.Settings.kinematicDiagram_zeroPos_scale > 0.7)
             {
                 Plugin.Settings.kinematicDiagram_zeroPos_scale = Plugin.Settings.kinematicDiagram_zeroPos_scale - 0.1;
-                DrawGridLines_kinematicCanvas(Plugin.Settings.kinematicDiagram_zeroPos_OX, Plugin.Settings.kinematicDiagram_zeroPos_OY, Plugin.Settings.kinematicDiagram_zeroPos_scale);
+                //DrawGridLines_kinematicCanvas(Plugin.Settings.kinematicDiagram_zeroPos_OX, Plugin.Settings.kinematicDiagram_zeroPos_OY, Plugin.Settings.kinematicDiagram_zeroPos_scale);
                 Pedal_joint_draw();
                 //Label_kinematic_scale.Content = Plugin.Settings.kinematicDiagram_zeroPos_scale;
             }
@@ -5903,7 +5455,7 @@ namespace User.PluginSdkDemo
             if (Plugin.Settings.kinematicDiagram_zeroPos_scale < 2)
             {
                 Plugin.Settings.kinematicDiagram_zeroPos_scale = Plugin.Settings.kinematicDiagram_zeroPos_scale + 0.1;
-                DrawGridLines_kinematicCanvas(Plugin.Settings.kinematicDiagram_zeroPos_OX, Plugin.Settings.kinematicDiagram_zeroPos_OY, Plugin.Settings.kinematicDiagram_zeroPos_scale);
+                //DrawGridLines_kinematicCanvas(Plugin.Settings.kinematicDiagram_zeroPos_OX, Plugin.Settings.kinematicDiagram_zeroPos_OY, Plugin.Settings.kinematicDiagram_zeroPos_scale);
                 Pedal_joint_draw();
                 //Label_kinematic_scale.Content = Plugin.Settings.kinematicDiagram_zeroPos_scale;
             }
@@ -6134,45 +5686,6 @@ namespace User.PluginSdkDemo
                     break;
             }
             update_plot_ABS();
-        }
-
-        private void Rangeslider_travel_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition = (byte)e.NewValue;
-            if (Plugin != null)
-            {
-                Label_min_pos.Content = "MIN\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition + "%\n" + Math.Round((pedal_pos_min + ((pedal_pos_range * (double)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition)) / 100.0))) + "mm";         
-            }
-            
-
-        }
-
-        private void Rangeslider_travel_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition = (byte)e.NewValue;
-            if (Plugin != null)
-            { 
-                Label_max_pos.Content = "MAX\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition + "%\n" + Math.Round((pedal_pos_min + ((pedal_pos_range * (double)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition)) / 100.0))) + "mm";
-
-            }
-        }
-
-        private void Rangeslider_force_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.maxForce = (float)e.NewValue;
-            if (Plugin != null)
-            {
-                Label_max_force.Content = "Max force:\n" + (float)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.maxForce + "kg";
-            }
-        }
-
-        private void Rangeslider_force_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.preloadForce = (float)e.NewValue;
-            if (Plugin != null)
-            {
-                Label_min_force.Content = "Preload:\n" + (float)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.preloadForce + "kg";
-            }
         }
 
         private void Slider_damping_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -6534,39 +6047,7 @@ namespace User.PluginSdkDemo
             //    TextBox2.Text = "Pedal:" + pedalState_read_st.payloadHeader_.PedalTag + " ErrorCode" + pedalState_read_st.payloadPedalBasicState_.error_code_u8;
 
             //}
-            text_point_pos.Visibility = Visibility.Hidden;
-            double control_rect_value_max = 65535;
-            double dyy = canvas.Height / control_rect_value_max;
-            double dxx = canvas.Width / control_rect_value_max;
-
-            if (debug_flag)
-            {
-                Canvas.SetLeft(rect_State, dxx * axis_state.Position - rect_State.Width / 2);
-                Canvas.SetTop(rect_State, canvas.Height - dyy * axis_state.Force - rect_State.Height / 2);
-
-                Canvas.SetLeft(text_state, Canvas.GetLeft(rect_State));
-                Canvas.SetTop(text_state, Canvas.GetTop(rect_State) - rect_State.Height);
-                text_state.Text = Math.Round(axis_state.Force / control_rect_value_max * 100) + "%";
-                int round_x = (int)(100 * axis_state.Position / control_rect_value_max) - 1;
-                int x_showed = round_x + 1;
-
-                current_pedal_travel_state = x_showed;
-                Plugin.pedal_state_in_ratio = (byte)current_pedal_travel_state;
-            }
-            else
-            {
-                Canvas.SetLeft(rect_State, dxx * axis_state.Position - rect_State.Width / 2);
-                int round_x = (int)(100 * axis_state.Position / control_rect_value_max) - 1;
-                int x_showed = round_x + 1;
-                round_x = Math.Max(0, Math.Min(round_x, 99));
-                current_pedal_travel_state = x_showed;
-                Plugin.pedal_state_in_ratio = (byte)current_pedal_travel_state;
-                Canvas.SetTop(rect_State, canvas.Height - Force_curve_Y[round_x] - rect_State.Height / 2);
-                Canvas.SetLeft(text_state, Canvas.GetLeft(rect_State));
-                Canvas.SetTop(text_state, Canvas.GetTop(rect_State) - rect_State.Height);
-                text_state.Text = x_showed + "%";
-                Pedal_joint_draw();
-            }
+            AutomotivePedal_SplineForceCurve.OnAxisStateUpdate(axis_state);
         }
 
         private void ProcessExtendedState()
@@ -7297,7 +6778,6 @@ namespace User.PluginSdkDemo
             dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = 70;
             dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = 93;
             dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = 100;
-            Update_BrakeForceCurve();
             updateTheGuiFromConfig();
         }
         private void btn_10xcurve_rudder_Click(object sender, RoutedEventArgs e)
@@ -7308,7 +6788,6 @@ namespace User.PluginSdkDemo
             dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = 85;
             dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = 95;
             dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = 100;
-            Update_BrakeForceCurve();
             updateTheGuiFromConfig();
         }
         private void btn_logcurve_rudder_Click(object sender, RoutedEventArgs e)
@@ -7319,7 +6798,6 @@ namespace User.PluginSdkDemo
             dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = 33;
             dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = 59;
             dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = 100;
-            Update_BrakeForceCurve();
             updateTheGuiFromConfig();
         }
         private void btn_linearcurve_rudder_Click(object sender, RoutedEventArgs e)
@@ -7330,7 +6808,6 @@ namespace User.PluginSdkDemo
             dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = 60;
             dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = 80;
             dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = 100;
-            Update_BrakeForceCurve();
             updateTheGuiFromConfig();
         }
         //Rudder initialize procee
@@ -7936,71 +7413,6 @@ namespace User.PluginSdkDemo
             string var1 = "";
             var1 = Plugin.Ncalc_reading(textBox_CV2_string.Text.ToString());
             Label_NCALC_CUS2.Content = var1;
-        }
-
-        private void btn_plus_maxforce_Click(object sender, RoutedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                if (Plugin.Settings.advanced_b)
-                {
-                    Rangeslider_force_range.UpperValue = Rangeslider_force_range.UpperValue + 0.1;
-                }
-                else
-                {
-                    Rangeslider_force_range.UpperValue = Rangeslider_force_range.UpperValue + 1;
-                }
-                
-            }
-
-        }
-
-        private void btn_minus_maxforce_Click(object sender, RoutedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                if (Plugin.Settings.advanced_b)
-                {
-                    Rangeslider_force_range.UpperValue = Rangeslider_force_range.UpperValue - 0.1;
-                }
-                else
-                {
-                    Rangeslider_force_range.UpperValue = Rangeslider_force_range.UpperValue - 1;
-                }
-
-            }
-        }
-
-        private void btn_plus_preload_Click(object sender, RoutedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                if (Plugin.Settings.advanced_b)
-                {
-                    Rangeslider_force_range.LowerValue = Rangeslider_force_range.LowerValue + 0.1;
-                }
-                else
-                {
-                    Rangeslider_force_range.LowerValue = Rangeslider_force_range.LowerValue + 1;
-                }
-
-            }
-        }
-
-        private void btn_minus_preload_Click(object sender, RoutedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                if (Plugin.Settings.advanced_b)
-                {
-                    Rangeslider_force_range.LowerValue = Rangeslider_force_range.LowerValue - 0.1;
-                }
-                else
-                {
-                    Rangeslider_force_range.LowerValue = Rangeslider_force_range.LowerValue - 1;
-                }
-
-            }
         }
 
         private void Slider_MPC_1st_gain_rudder_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
