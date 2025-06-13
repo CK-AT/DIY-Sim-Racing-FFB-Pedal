@@ -129,7 +129,7 @@ namespace User.PluginSdkDemo
         private double[] Pedal_position_reading=new double[3];
         private bool[] Serial_connect_status = new bool[3] { false,false,false};
         public byte Bridge_RSSI = 0;
-        public bool[] Pedal_wireless_connection_update_b = new bool[3] { false,false,false};
+        public bool[] Pedal_wireless_connection_update_b = new bool[8];
         public int Bridge_baudrate = 3000000;
         public bool Fanatec_mode = false;
         public bool Update_Profile_Checkbox_b = false;
@@ -6679,66 +6679,21 @@ namespace User.PluginSdkDemo
 
             string connection_tmp = "";
             bool wireless_connection_update = false;
-            if ((state.AxesPresent & 0x01) != (last_gateway_state.AxesPresent & 0x01))
+            for (int axis_idx = 0; axis_idx < axis_configs.Length; axis_idx++)
             {
-
-                if ((last_gateway_state.AxesPresent & 0x01) == 0)
+                int axis_flag = 1 << axis_idx;
+                if ((state.AxesPresent & axis_flag) != (last_gateway_state.AxesPresent & axis_flag))
                 {
-                    //ToastNotification("Wireless Clutch", "Connected");
-                    connection_tmp += "Clutch Connected";
-                    wireless_connection_update = true;
-                    Pedal_wireless_connection_update_b[0] = true;
-
+                    if ((state.AxesPresent & axis_flag) != 0) {
+                        connection_tmp += String.Format("Axis {0} Connected", axis_idx + 1);
+                        wireless_connection_update = true;
+                        Pedal_wireless_connection_update_b[axis_idx] = true;
+                    } else
+                    {
+                        connection_tmp += String.Format("Axis {0} Disconnected", axis_idx + 1);
+                        wireless_connection_update = true;
+                    }
                 }
-                else
-                {
-                    ///ToastNotification("Wireless Clutch", "Disconnected");
-                    connection_tmp += "Clutch Disconnected";
-                    wireless_connection_update = true;
-                }
-                //updateTheGuiFromConfig();
-            }
-
-
-            if ((state.AxesPresent & 0x02) != (last_gateway_state.AxesPresent & 0x02))
-            {
-
-                if ((last_gateway_state.AxesPresent & 0x02) == 0)
-                {
-                    //ToastNotification("Wireless Brake", "Connected");
-                    connection_tmp += " Brake Connected";
-                    wireless_connection_update = true;
-                    Pedal_wireless_connection_update_b[1] = true;
-
-
-                }
-                else
-                {
-                    //ToastNotification("Wireless Brake", "Disconnected");
-                    connection_tmp += " Brake Disconnected";
-                    wireless_connection_update = true;
-                }
-                //updateTheGuiFromConfig();
-            }
-
-            if ((state.AxesPresent & 0x04) != (last_gateway_state.AxesPresent & 0x04))
-            {
-
-                if ((last_gateway_state.AxesPresent & 0x04) == 0)
-                {
-                    //ToastNotification("Wireless Throttle", "Connected");
-                    connection_tmp += " Throttle Connected";
-                    wireless_connection_update = true;
-                    Pedal_wireless_connection_update_b[2] = true;
-
-                }
-                else
-                {
-                    //ToastNotification("Wireless Throttle", "Disconnected");
-                    connection_tmp += " Throttle Disconnected";
-                    wireless_connection_update = true;
-                }
-
             }
             if (wireless_connection_update)
             {

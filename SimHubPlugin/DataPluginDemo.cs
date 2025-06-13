@@ -427,16 +427,6 @@ namespace User.PluginSdkDemo
         public string LeftMenuTitle => "DIY FFB Dashboard";
         //public string LeftMenuTitle => "DIY FFB Pedal";
 
-        /// <summary>
-        /// Called one time per game data update, contains all normalized game data,
-        /// raw data are intentionnally "hidden" under a generic object type (A plugin SHOULD NOT USE IT)
-        ///
-        /// This method is on the critical path, it must execute as fast as possible and avoid throwing any error
-        ///
-        /// </summary>
-        /// <param name="pluginManager"></param>
-        /// <param name="data">Current game data, including current and previous data frame.</param>
-        /// 
         unsafe public UInt16 checksumCalc(byte* data, int length)
         {
 
@@ -525,7 +515,17 @@ namespace User.PluginSdkDemo
 
             return value;
         }
-        unsafe public void DataUpdate(PluginManager pluginManager, ref GameData data)
+        /// <summary>
+        /// Called one time per game data update, contains all normalized game data,
+        /// raw data are intentionnally "hidden" under a generic object type (A plugin SHOULD NOT USE IT)
+        ///
+        /// This method is on the critical path, it must execute as fast as possible and avoid throwing any error
+        ///
+        /// </summary>
+        /// <param name="pluginManager"></param>
+        /// <param name="data">Current game data, including current and previous data frame.</param>
+        /// 
+        public void DataUpdate(PluginManager pluginManager, ref GameData data)
         {
 			
 			bool sendAbsSignal_local_b = false;
@@ -1009,13 +1009,13 @@ namespace User.PluginSdkDemo
 
                 for (uint PIDX = 1; PIDX < 3; PIDX++)
                 {
-                    tmp.payloadHeader_.PedalTag = (byte)PIDX;
-                    DAP_action_st* v = &tmp;
-                    byte* p = (byte*)v;
-                    tmp.payloadFooter_.checkSum = checksumCalc(p, sizeof(payloadHeader) + sizeof(payloadPedalAction));
-                    int length = sizeof(DAP_action_st);
-                    byte[] newBuffer = new byte[length];
-                    newBuffer = getBytes_Action(tmp);
+                    //tmp.payloadHeader_.PedalTag = (byte)PIDX;
+                    //DAP_action_st* v = &tmp;
+                    //byte* p = (byte*)v;
+                    //tmp.payloadFooter_.checkSum = checksumCalc(p, sizeof(payloadHeader) + sizeof(payloadPedalAction));
+                    //int length = sizeof(DAP_action_st);
+                    //byte[] newBuffer = new byte[length];
+                    //newBuffer = getBytes_Action(tmp);
                     
                     
                     if (Settings.Pedal_ESPNow_Sync_flag[PIDX])
@@ -1168,19 +1168,19 @@ namespace User.PluginSdkDemo
                             {
                                 for (uint PIDX = 1; PIDX < 3; PIDX++)
                                 {
-                                    tmp.payloadHeader_.PedalTag = (byte)PIDX;
-                                    DAP_action_st* v = &tmp;
-                                    byte* p = (byte*)v;
-                                    tmp.payloadFooter_.checkSum = checksumCalc(p, sizeof(payloadHeader) + sizeof(payloadPedalAction));
-                                    int length = sizeof(DAP_action_st);
-                                    byte[] newBuffer = new byte[length];
-                                    newBuffer = getBytes_Action(tmp);
-                                    if (ESPsync_serialPort.IsOpen)
-                                    {
-                                        //ESPsync_serialPort.DiscardInBuffer();
-                                        //ESPsync_serialPort.Write(newBuffer, 0, newBuffer.Length);
-                                        System.Threading.Thread.Sleep(7);
-                                    }
+                                    //tmp.payloadHeader_.PedalTag = (byte)PIDX;
+                                    //DAP_action_st* v = &tmp;
+                                    //byte* p = (byte*)v;
+                                    //tmp.payloadFooter_.checkSum = checksumCalc(p, sizeof(payloadHeader) + sizeof(payloadPedalAction));
+                                    //int length = sizeof(DAP_action_st);
+                                    //byte[] newBuffer = new byte[length];
+                                    //newBuffer = getBytes_Action(tmp);
+                                    //if (ESPsync_serialPort.IsOpen)
+                                    //{
+                                    //    //ESPsync_serialPort.DiscardInBuffer();
+                                    //    //ESPsync_serialPort.Write(newBuffer, 0, newBuffer.Length);
+                                    //    System.Threading.Thread.Sleep(7);
+                                    //}
                                 }
                                 Rudder_Effect_update_b = false;
                             }
@@ -1221,13 +1221,13 @@ namespace User.PluginSdkDemo
 
                 for (uint PIDX = 1; PIDX < 3; PIDX++)
                 {
-                    tmp.payloadHeader_.PedalTag = (byte)PIDX;
-                    DAP_action_st* v = &tmp;
-                    byte* p = (byte*)v;
-                    tmp.payloadFooter_.checkSum = checksumCalc(p, sizeof(payloadHeader) + sizeof(payloadPedalAction));
-                    int length = sizeof(DAP_action_st);
-                    byte[] newBuffer = new byte[length];
-                    newBuffer = getBytes_Action(tmp);
+                    //tmp.payloadHeader_.PedalTag = (byte)PIDX;
+                    //DAP_action_st* v = &tmp;
+                    //byte* p = (byte*)v;
+                    //tmp.payloadFooter_.checkSum = checksumCalc(p, sizeof(payloadHeader) + sizeof(payloadPedalAction));
+                    //int length = sizeof(DAP_action_st);
+                    //byte[] newBuffer = new byte[length];
+                    //newBuffer = getBytes_Action(tmp);
                     if (Settings.Pedal_ESPNow_Sync_flag[PIDX])
                     {
                         if (ESPsync_serialPort.IsOpen)
@@ -1245,7 +1245,7 @@ namespace User.PluginSdkDemo
                             _serialPort[PIDX].DiscardInBuffer();
 
                             // send query command
-                            _serialPort[PIDX].Write(newBuffer, 0, newBuffer.Length);
+                            //_serialPort[PIDX].Write(newBuffer, 0, newBuffer.Length);
                         }
 
                     }
