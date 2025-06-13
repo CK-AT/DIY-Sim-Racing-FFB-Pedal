@@ -2,22 +2,22 @@ syntax = "proto3";
 
 enum AxisID {
   AXIS_UNDEFINED = 0;
-  AXIS_1 = 1;
-  AXIS_2 = 2;
-  AXIS_3 = 3;
-  AXIS_4 = 4;
-  AXIS_5 = 5;
-  AXIS_6 = 6;
-  AXIS_7 = 7;
-  AXIS_8 = 8;
+  AXIS_ID_1 = 1;
+  AXIS_ID_2 = 2;
+  AXIS_ID_3 = 3;
+  AXIS_ID_4 = 4;
+  AXIS_ID_5 = 5;
+  AXIS_ID_6 = 6;
+  AXIS_ID_7 = 7;
+  AXIS_ID_8 = 8;
   AXIS_ID_MASK = 15;      // masks out the significant bits to identify the axis
   AXIS_SUBTRACTIVE = 128; // used for FunctionBase.linked_axes, treated as ADDITIVE if this bit is not set 
 }
 
 enum GatewayID {
   GATEWAY_UNDEFINED = 0;
-  GATEWAY_1 = 1;
-  GATEWAY_2 = 2;
+  GATEWAY_ID_1 = 1;
+  GATEWAY_ID_2 = 2;
 }
 
 enum LogLevel {
@@ -123,11 +123,11 @@ enum ControllerAxis {
 }
 
 enum FunctionID {
-  FUNCTION_UNDEFINED = 0;
-  FUNCTION_BRAKE = 1;
-  FUNCTION_ACCELERATOR = 2;
-  FUNCTION_CLUTCH = 3;
-  FUNCTION_FLIGHT_PEDALS = 4;
+  FUNCTION_ID_UNDEFINED = 0;
+  FUNCTION_ID_BRAKE = 1;
+  FUNCTION_ID_ACCELERATOR = 2;
+  FUNCTION_ID_CLUTCH = 3;
+  FUNCTION_ID_FLIGHT_PEDALS = 4;
 }
 
 enum OutputMode {
@@ -166,9 +166,9 @@ enum ABSMode {
 }
 
 enum ForceDirection {
-  DIRECTION_UNDEFINED = 0;
-  DIRECTION_ADD = 1;
-  DIRECTION_SUBTRACT = 2;
+  FORCE_DIRECTION_UNDEFINED = 0;
+  FORCE_DIRECTION_ADD = 1;
+  FORCE_DIRECTION_SUBTRACT = 2;
 }
 
 message SplineForceCurveConfig {
@@ -220,7 +220,7 @@ message RPMEffectConfig {
 }
 
 message BitePointEffectConfig {
-  // bite point effect trigger threshold
+  // bite point effect trigger threshold in percent of travel
   uint32 trigger_value = 1;
   // bite point effect amplitude in N
   uint32 amp = 2;

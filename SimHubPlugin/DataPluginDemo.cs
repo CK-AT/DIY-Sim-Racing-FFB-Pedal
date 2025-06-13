@@ -887,7 +887,7 @@ namespace User.PluginSdkDemo
                             {
                                 if (ESPsync_serialPort.IsOpen)
                                 {
-                                    tmp.FfbAction.FunctionId = FunctionID.FunctionBrake; // TODO: set correctly
+                                    tmp.FfbAction.FunctionId = FunctionID.Brake; // TODO: set correctly
                                     ESPsync_serialPort.WriteMessage(tmp);
                                     //ESPsync_serialPort.DiscardInBuffer();
                                     //ESPsync_serialPort.Write(newBuffer, 0, newBuffer.Length);
@@ -958,7 +958,7 @@ namespace User.PluginSdkDemo
 
                 for (uint PIDX = 1; PIDX < 3; PIDX++)
                 {
-                    tmp.FfbAction.FunctionId = FunctionID.FunctionBrake; // TODO: set correctly
+                    tmp.FfbAction.FunctionId = FunctionID.Brake; // TODO: set correctly
 
                     if (Settings.Pedal_ESPNow_Sync_flag[PIDX])
                     {
@@ -1266,7 +1266,7 @@ namespace User.PluginSdkDemo
 
                 for (uint pedalIdx = 0; pedalIdx < 3; pedalIdx++)
                 {
-                    tmp.FfbAction.FunctionId = FunctionID.FunctionBrake; // TODO: set correctly
+                    tmp.FfbAction.FunctionId = FunctionID.Brake; // TODO: set correctly
                     if (Settings.Pedal_ESPNow_Sync_flag[pedalIdx])
                     {
                         if (ESPsync_serialPort.IsOpen)

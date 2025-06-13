@@ -149,7 +149,7 @@ class CANManager : public ICommChannel {
         OnFFBAction on_ffb_action = nullptr;
         float _x_foot_min = 0.0f;
         float _x_foot_max = 0.0f;
-        FunctionID _function_id = FunctionID_FUNCTION_UNDEFINED;
+        FunctionID _function_id = FunctionID_FUNCTION_ID_UNDEFINED;
         bool _gateway_online = false;
         /* Gateway related */
         bool _is_gateway = false;

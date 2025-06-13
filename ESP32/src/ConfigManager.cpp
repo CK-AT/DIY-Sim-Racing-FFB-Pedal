@@ -42,7 +42,7 @@ void ConfigManager::set_axis_config_defaults(void) {
 void ConfigManager::set_function_config_defaults(void) {
     _function_config = FunctionConfig_init_default;
     _function_config.has_base = true;
-    _function_config.base.function_id = FunctionID_FUNCTION_BRAKE;
+    _function_config.base.function_id = FunctionID_FUNCTION_ID_BRAKE;
     _function_config.base.linked_axes[0] = _axis_id;
     _function_config.base.store = false;
     _function_config.base.controller_output_axis = ControllerAxis_CONTROLLER_AXIS_BRK;
@@ -62,7 +62,7 @@ void ConfigManager::set_function_config_defaults(void) {
     _function_config.specific.automotive_pedal.force_curve_config.f_rel_points[3] = 60;
     _function_config.specific.automotive_pedal.force_curve_config.f_rel_points[4] = 80;
     _function_config.specific.automotive_pedal.force_curve_config.f_rel_points[5] = 100;
-    _function_config.specific.automotive_pedal.force_curve_config.force_direction = ForceDirection_DIRECTION_SUBTRACT;
+    _function_config.specific.automotive_pedal.force_curve_config.force_direction = ForceDirection_FORCE_DIRECTION_SUBTRACT;
     _function_config.specific.automotive_pedal.has_damper_config = true;
     _function_config.specific.automotive_pedal.damper_config.positive_factor = 0.1f;
     _function_config.specific.automotive_pedal.damper_config.negative_factor = 0.1f;
