@@ -76,9 +76,9 @@ message AxisConfig {
   AxisID axis_id = 1;
   // position resolution in steps/mm
   uint32 steps_per_mm = 2;
-  // polynomial coefficients for the conversion factor from load cell force to pedal force over pedal position
+  // five polynomial coefficients for the conversion factor from load cell force to pedal force over pedal position
   repeated double coeffs_force_factor_over_contact_point_pos = 3;
-  // polynomial coefficients for the conversion from contact point position to sled position
+  // five polynomial coefficients for the conversion from contact point position to sled position
   repeated double coeffs_sled_pos_over_contact_point_pos = 4;
   // minimum absolute contact point position (0.1mm/LSB)
   int32 contact_point_pos_min_abs = 5;
@@ -139,7 +139,7 @@ enum OutputMode {
 message FunctionBase {
   // assigned function (used by Simhub plugin for internal mapping)
   FunctionID function_id = 1;
-  // a list of up to 4 axis IDs where the first value defines the primary axis, can be OR'ed with AXIS_SUBTRACTIVE (e.g. for a left flight pedal)
+  // a list four axis IDs where the first value defines the primary axis, can be OR'ed with AXIS_SUBTRACTIVE (e.g. for a left flight pedal)
   repeated AxisID linked_axes = 2;
   // controller axis to output to
   ControllerAxis controller_output_axis = 3;
@@ -180,11 +180,11 @@ message SplineForceCurveConfig {
   float f_min = 3;
   // maximum force in N
   float f_max = 4;
-  // relative force in percent in 20% relative position increments
+  // relative force in percent in 20% relative position increments (six points)
   repeated uint32 f_rel_points = 5;
-  // cubic spline "a" parameters
+  // cubic spline "a" parameters (5 points)
   repeated float cubic_spline_params_a = 6;
-  // cubic spline "b" parameters
+  // cubic spline "b" parameters (5 points)
   repeated float cubic_spline_params_b = 7;
   // force direction (DIRECTION_SUBTRACT for an automotive pedal)
   ForceDirection force_direction = 8;
