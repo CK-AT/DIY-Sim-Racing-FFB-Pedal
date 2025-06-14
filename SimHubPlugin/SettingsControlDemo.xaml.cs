@@ -125,11 +125,10 @@ namespace User.PluginSdkDemo
         private string info_text_connection;
         private string system_info_text_connection;
         private int current_pedal_travel_state= 0;
-        private int gridline_kinematic_count_original = 0;
         private double[] Pedal_position_reading=new double[3];
         private bool[] Serial_connect_status = new bool[3] { false,false,false};
         public byte Bridge_RSSI = 0;
-        public bool[] Pedal_wireless_connection_update_b = new bool[8];
+        public bool[] axis_wireless_connection_state = new bool[8];
         public int Bridge_baudrate = 3000000;
         public bool Fanatec_mode = false;
         public bool Update_Profile_Checkbox_b = false;
@@ -230,74 +229,6 @@ namespace User.PluginSdkDemo
 
 
 
-        //private void DrawGridLines_kinematicCanvas(double OX, double OY, double scale_i)
-        //{
-
-        //    if (gridline_kinematic_count_original > 0)
-        //    {
-        //        for (int i = 0; i < gridline_kinematic_count_original; i++)
-        //        {
-        //            if (canvas_kinematic.Children.Count != 0)
-        //            {
-        //                canvas_kinematic.Children.RemoveAt(canvas_kinematic.Children.Count - 1);
-        //            }
-        //        }                
-        //    }
-        //    double scale = scale_i;
-        //    double gridlineSpacing = 50 / scale;
-
-        //    double cellWidth = gridlineSpacing ;
-        //    double cellHeight = gridlineSpacing ;
-
-        //    // we want the gridlines to be centered at pedal position O
-        //    // --> calculate an offset
-        //    double xOffset = OX % gridlineSpacing;
-        //    double yOffset = OY % gridlineSpacing;
-
-
-        //    int rowCount = (int)Math.Floor((canvas.Height - 0 * yOffset) / gridlineSpacing);
-        //    int columnCount = (int)Math.Floor((canvas.Width - 0 * xOffset) / gridlineSpacing);
-
-
-        //    // Draw horizontal gridlines
-        //    for (int i = 0; i < rowCount; i++)
-        //    {
-
-        //        Line line2 = new Line
-        //        {
-        //            X1 = 0,
-        //            Y1 = canvas_kinematic.Height - (yOffset + i * cellHeight),
-        //            X2 = 400,
-        //            Y2 = canvas_kinematic.Height - (yOffset + i * cellHeight),
-        //            //Stroke = Brush.Black,
-        //            Stroke = System.Windows.Media.Brushes.LightSteelBlue,
-        //            StrokeThickness = 1,
-        //            Opacity = 0.1
-
-        //        };
-        //        canvas_kinematic.Children.Add(line2);
-        //    }
-
-        //    // Draw vertical gridlines
-        //    for (int i = 0; i < columnCount; i++)
-        //    {
-
-        //        Line line2 = new Line
-        //        {
-        //            X1 = xOffset + i * cellWidth,
-        //            Y1 = 0,
-        //            X2 = xOffset + i * cellWidth,
-        //            Y2 = canvas_kinematic.Height,
-        //            //Stroke = Brushes.Black,
-        //            Stroke = System.Windows.Media.Brushes.LightSteelBlue,
-        //            StrokeThickness = 1,
-        //            Opacity = 0.1
-        //        };
-        //        canvas_kinematic.Children.Add(line2);
-
-        //    }
-        //    gridline_kinematic_count_original = columnCount + rowCount;
-        //}
 
         private void InitReadStructFromJson()
         {
@@ -836,7 +767,10 @@ namespace User.PluginSdkDemo
             this.Plugin = plugin;
             plugin.testValue = 1;
             plugin.wpfHandle = this;
-            AutomotivePedal_SplineForceCurve.SetGui(this);
+            AutomotivePedal_SplineForceCurve.SetGui(this, plugin);
+            DiyPedalKinematicsControl.KinematicParametersChanged += DiyPedalKinematicsControl_KinematicParametersChanged;
+            DiyPedalKinematicsControl.KinematicParametersChanged += AutomotivePedal_SplineForceCurve.OnKinematicParametersChanged;
+            DiyPedalKinematicsControl.SetGui(this, plugin);
 
 
             UpdateSerialPortList_click();
@@ -1069,8 +1003,11 @@ namespace User.PluginSdkDemo
 
         }
 
-
-
+        private void DiyPedalKinematicsControl_KinematicParametersChanged(KinematicParameters parameters)
+        {
+            pedal_pos_min = parameters.ContactPointPosMinAbs / 10.0;
+            pedal_pos_max = parameters.ContactPointPosMaxAbs / 10.0;
+        }
 
         public void updateTheGuiFromConfig()
         {
@@ -1123,22 +1060,9 @@ namespace User.PluginSdkDemo
                 if (Plugin.ESPsync_serialPort.IsOpen)
                 {
                     system_info_text = "Connected";
-                    if (Plugin.Settings.Pedal_ESPNow_Sync_flag[indexOfSelectedPedal_u])
+                    if (axis_wireless_connection_state[indexOfSelectedPedal_u])
                     {
-                        
-                        if (dap_bridge_state_st.payloadBridgeState_.Pedal_availability_0 == 1 && indexOfSelectedPedal_u == 0)
-                        {
-                            info_text = "Wireless";
-                        }
-                        if (dap_bridge_state_st.payloadBridgeState_.Pedal_availability_1 == 1 && indexOfSelectedPedal_u == 1)
-                        {
-                            info_text = "Wireless";
-                        }
-                        if (dap_bridge_state_st.payloadBridgeState_.Pedal_availability_2 == 1 && indexOfSelectedPedal_u == 2)
-                        {
-                            info_text = "Wireless";
-                        }
-
+                        info_text = "Wireless";
                     }
                 }
                 else
@@ -1629,9 +1553,6 @@ namespace User.PluginSdkDemo
             Label_vjoy_order.Content = Plugin.Settings.vjoy_order;
             textbox_profile_name.Text = Plugin.Settings.Profile_name[profile_select];
 
-
-            //pedal joint draw
-            Pedal_joint_draw();
 
 
             //Rudder UI initialized
@@ -2701,17 +2622,17 @@ namespace User.PluginSdkDemo
             }
             info_text_connection = tmp;
             system_info_text_connection=tmp;
-            for (uint pedal_idex = 0; pedal_idex < 3; pedal_idex++)
-            {
-                if (Pedal_wireless_connection_update_b[pedal_idex])
-                {
-                    Pedal_wireless_connection_update_b[pedal_idex] = false;
-                    if (Plugin.Settings.reading_config == 1)
-                    {
-                        Reading_config_auto(pedal_idex);
-                    }
-                }
-            }
+            //for (uint pedal_idex = 0; pedal_idex < 3; pedal_idex++)
+            //{
+            //    if (axis_wireless_connection_state[pedal_idex])
+            //    {
+            //        axis_wireless_connection_state[pedal_idex] = false;
+            //        if (Plugin.Settings.reading_config == 1)
+            //        {
+            //            Reading_config_auto(pedal_idex);
+            //        }
+            //    }
+            //}
 
             
 
@@ -4996,582 +4917,6 @@ namespace User.PluginSdkDemo
             updateTheGuiFromConfig();
         }
 
-
-
-        private void rect_joint_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (isDragging)
-            {
-                var rectangle = sender as Rectangle;
-                double y = e.GetPosition(canvas_kinematic).Y - offset.Y;
-                double x = e.GetPosition(canvas_kinematic).X - offset.X;
-                //double y = e.GetPosition(canvas).Y - offset.Y;
-
-
-                /*
-                if (rectangle.Name == "rect8")
-                {
-                    // Ensure the rectangle stays within the canvas
-                    double dy = 250 / (canvas_vert_slider.Height);
-                    double min_position = Canvas.GetTop(rect8) - rectangle.Height / 2;
-                    double max_position = Canvas.GetTop(rect9) + rectangle.Height / 2;
-                    double min_limit = canvas_vert_slider.Height - 0 / dy;
-                    double max_limit = canvas_vert_slider.Height - 250 / dy;
-                }
-                */
-            }
-        }
-
-        private void Pedal_joint_draw()
-        {
-            //A= kinematic joint C
-            //B= Kinematic joint A
-            //C= Kinematic joint B
-            //O=O
-            //D=D
-
-            Label_kinematic_b_canvas.Text = ""+dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-            Label_kinematic_c_hort_canvas.Text = ""+dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-            Label_kinematic_c_vert_canvas.Text = "" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-            Label_kinematic_a_canvas.Text = "" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-            Label_kinematic_d_canvas.Text = "" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_d;
-            Label_travel_canvas.Text = "" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel;
-            Label_kinematic_scale.Content = Math.Round(Plugin.Settings.kinematicDiagram_zeroPos_scale,1);
-            
-            //parameter calculation
-            double OA_length = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-            double OB_length = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-            double BC_length = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-            double Travel_length = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel;
-            double CA_length = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-            double OD_length = OA_length + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_d;
-            double Current_travel_position;
-            double OC_length;
-            double pedal_angle_1;
-            double pedal_angle_2;
-            double pedal_angle;
-            if (OA_length != 0 && OB_length != 0 && BC_length != 0 && CA_length != 0)
-            {
-
-                Current_travel_position = Travel_length / 100 * (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition - dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition) / 100 * current_pedal_travel_state + Travel_length / 100 * dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition;
-                OC_length = Math.Sqrt((OB_length + Current_travel_position) * (OB_length + Current_travel_position) + BC_length * BC_length);
-                pedal_angle_1 = Math.Acos((OA_length * OA_length + OC_length * OC_length - CA_length * CA_length) / (2 * OA_length * OC_length));
-                pedal_angle_2 = Math.Atan2(BC_length, (OB_length + Current_travel_position));
-                pedal_angle = pedal_angle_1 + pedal_angle_2;
-            }
-            else 
-            {
-                OA_length = 220;
-                OB_length = 215;
-                BC_length = 60;
-                CA_length = 220;
-                Travel_length = 60;
-                Current_travel_position = Travel_length / 100 * (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition - dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition) / 100 * current_pedal_travel_state + Travel_length / 100 * dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition;
-                OC_length = Math.Sqrt((OB_length + Current_travel_position) * (OB_length + Current_travel_position) + BC_length * BC_length);
-                pedal_angle_1 = Math.Acos((OA_length * OA_length + OC_length * OC_length - CA_length * CA_length) / (2 * OA_length * OC_length));
-                pedal_angle_2 = Math.Atan2(BC_length, (OB_length + Current_travel_position));
-                pedal_angle = pedal_angle_1 + pedal_angle_2;
-            }
-            double OB_Max = OB_length + Travel_length;
-            double OC_Max = Math.Sqrt((OB_Max) * (OB_Max) + BC_length * BC_length);
-            double min_angle_1= Math.Acos((OA_length * OA_length + OC_Max * OC_Max - CA_length * CA_length) / (2 * OA_length * OC_Max));
-            double min_angle_2= Math.Atan2(BC_length, OB_Max);
-            double OC_Min = Math.Sqrt((OB_length) * (OB_length) + BC_length * BC_length);
-            double max_angle_1= Math.Acos((OA_length * OA_length + OC_Min * OC_Min - CA_length * CA_length) / (2 * OA_length * OC_Min));
-            double max_angle_2= Math.Atan2(BC_length, OB_length);
-
-            pedal_pos_min = ((Math.PI / 2.0) - (max_angle_1 + max_angle_2)) * OD_length;
-            pedal_pos_max = ((Math.PI / 2.0) - (min_angle_1 + min_angle_2)) * OD_length;
-            pedal_pos_range = pedal_pos_max - pedal_pos_min;
-
-            // only draw when pedal kinematic tab is selected
-            if (pedalKinematicTab.IsSelected == false)
-            {
-                return;
-            }
-
-            Label_kinematic_pedal_angle.Content = "Current Pedal Angle: " + Math.Round(pedal_angle/Math.PI*180)+ "°,";
-            Label_kinematic_pedal_angle.Content = Label_kinematic_pedal_angle.Content + " Max Pedal Angle:" + Math.Round((max_angle_1+max_angle_2) / Math.PI * 180) + "°,";
-            Label_kinematic_pedal_angle.Content = Label_kinematic_pedal_angle.Content + " Min Pedal Angle:" + Math.Round((min_angle_1 + min_angle_2) / Math.PI * 180) + "°,";
-            Label_kinematic_pedal_angle.Content = Label_kinematic_pedal_angle.Content + " Angle Travel:" + Math.Round((max_angle_1 + max_angle_2-min_angle_1-min_angle_2) / Math.PI * 180) + "°";
-
-
-            double A_X = OA_length * Math.Cos(pedal_angle);
-            double A_Y = OA_length * Math.Sin(pedal_angle);
-            double D_X = OD_length * Math.Cos(pedal_angle);
-            double D_Y = OD_length * Math.Sin(pedal_angle);
-            double scale_factor = Plugin.Settings.kinematicDiagram_zeroPos_scale;
-            double shifting_OX = Plugin.Settings.kinematicDiagram_zeroPos_OX;
-            double shifting_OY = Plugin.Settings.kinematicDiagram_zeroPos_OY;
-            //set rect position
-            Canvas.SetLeft(rect_joint_O, shifting_OX - rect_joint_O.Width / 2);
-            Canvas.SetTop(rect_joint_O, canvas_kinematic.Height - shifting_OY - rect_joint_O.Height / 2);
-            Canvas.SetLeft(rect_joint_C, A_X / scale_factor - rect_joint_C.Width / 2 + shifting_OX);
-            Canvas.SetTop(rect_joint_C, canvas_kinematic.Height - A_Y / scale_factor - rect_joint_C.Height / 2 - shifting_OY);
-            Canvas.SetLeft(rect_joint_A, OB_length / scale_factor - rect_joint_A.Width / 2 + shifting_OX);
-            Canvas.SetTop(rect_joint_A, canvas_kinematic.Height - 0 / scale_factor - rect_joint_A.Height / 2 - shifting_OY);
-            Canvas.SetLeft(rect_joint_B, OB_length / scale_factor - rect_joint_B.Width / 2 + Current_travel_position / scale_factor + shifting_OX);
-            Canvas.SetTop(rect_joint_B, canvas_kinematic.Height - BC_length / scale_factor - rect_joint_B.Height / 2 - shifting_OY);
-            Canvas.SetLeft(rect_joint_D, D_X / scale_factor - rect_joint_A.Width / 2 + shifting_OX);
-            Canvas.SetTop(rect_joint_D, canvas_kinematic.Height - D_Y / scale_factor - rect_joint_A.Height / 2 - shifting_OY);
-
-            Canvas.SetLeft(Label_joint_C, Canvas.GetLeft(rect_joint_C) - Label_joint_C.Width);
-            Canvas.SetTop(Label_joint_C, Canvas.GetTop(rect_joint_C));
-            Canvas.SetLeft(Label_joint_A, Canvas.GetLeft(rect_joint_A)+rect_joint_A.Width/2-Label_joint_A.Width/2);
-            Canvas.SetTop(Label_joint_A, Canvas.GetTop(rect_joint_A)-Label_joint_A.Height);
-            Canvas.SetLeft(Label_joint_B, Canvas.GetLeft(rect_joint_B) + Label_joint_B.Width);
-            Canvas.SetTop(Label_joint_B, Canvas.GetTop(rect_joint_B));
-            Canvas.SetLeft(Label_joint_D, Canvas.GetLeft(rect_joint_D) - Label_joint_D.Width);
-            Canvas.SetTop(Label_joint_D, Canvas.GetTop(rect_joint_D));
-            Canvas.SetLeft(Label_joint_O, Canvas.GetLeft(rect_joint_O) - Label_joint_O.Width);
-            Canvas.SetTop(Label_joint_O, Canvas.GetTop(rect_joint_O));
-
-            Canvas.SetLeft(SP_kinematic_b_canvas, (Canvas.GetLeft(rect_joint_C) + shifting_OX) / 2 - SP_kinematic_b_canvas.Width / 2 - Label_kinematic_b_canvas.Width / 2);
-            Canvas.SetTop(SP_kinematic_b_canvas, (Canvas.GetTop(rect_joint_C) + canvas_kinematic.Height - shifting_OY) / 2 - Label_kinematic_b_canvas.Height / 2);
-            Canvas.SetLeft(SP_kinematic_c_hort_canvas, (Canvas.GetLeft(rect_joint_A) + shifting_OX) / 2 - SP_kinematic_c_hort_canvas.Width / 2 -5);
-            Canvas.SetTop(SP_kinematic_c_hort_canvas, (Canvas.GetTop(rect_joint_A) + canvas_kinematic.Height - shifting_OY) / 2 + Label_kinematic_c_hort_canvas.Height / 2 -5);
-            Canvas.SetLeft(SP_kinematic_c_vert_canvas, Canvas.GetLeft(rect_joint_B) - rect_joint_B.Width - SP_kinematic_c_vert_canvas.Width / 2 + Label_kinematic_c_vert_canvas.Width);
-            Canvas.SetTop(SP_kinematic_c_vert_canvas, (Canvas.GetTop(rect_joint_A) + Canvas.GetTop(rect_joint_B)) / 2 - Label_kinematic_c_vert_canvas.Height / 2 +5);
-            Canvas.SetLeft(SP_kinematic_a_canvas, (Canvas.GetLeft(rect_joint_A) + Canvas.GetLeft(rect_joint_C)) / 2 - SP_kinematic_a_canvas.Width / 2 + Label_kinematic_a_canvas.Width / 2);
-            Canvas.SetTop(SP_kinematic_a_canvas, (Canvas.GetTop(rect_joint_A) + Canvas.GetTop(rect_joint_C)) / 2 - Label_kinematic_a_canvas.Height);
-            Canvas.SetLeft(SP_kinematic_d_canvas, (Canvas.GetLeft(rect_joint_C) + Canvas.GetLeft(rect_joint_D)) / 2 - SP_kinematic_d_canvas.Width / 2 - Label_kinematic_d_canvas.Width / 2);
-            Canvas.SetTop(SP_kinematic_d_canvas, (Canvas.GetTop(rect_joint_C) + +Canvas.GetTop(rect_joint_D)) / 2 - Label_kinematic_d_canvas.Height / 2 );
-            Canvas.SetLeft(SP_travel_canvas, (Canvas.GetLeft(rect_joint_A) + (OB_length + Travel_length) / scale_factor + shifting_OX) / 2 - SP_travel_canvas.Width / 2);
-            Canvas.SetTop(SP_travel_canvas, (Canvas.GetTop(rect_joint_A) + canvas_kinematic.Height - shifting_OY) / 2 + Label_travel_canvas.Height / 2 -5);
-
-            this.Line_kinematic_b.X1 = shifting_OX;
-            this.Line_kinematic_b.Y1 = canvas_kinematic.Height - shifting_OY;
-            this.Line_kinematic_b.X2 = A_X / scale_factor + shifting_OX;
-            this.Line_kinematic_b.Y2 = canvas_kinematic.Height - A_Y / scale_factor - shifting_OY;
-
-            this.Line_kinematic_c_hort.X1 = shifting_OX;
-            this.Line_kinematic_c_hort.Y1 = canvas_kinematic.Height - shifting_OY;
-            this.Line_kinematic_c_hort.X2 = OB_length / scale_factor + shifting_OX;
-            this.Line_kinematic_c_hort.Y2 = canvas_kinematic.Height - shifting_OY;
-
-            this.Line_kinematic_c_vert.X1 = (OB_length + Current_travel_position) / scale_factor + shifting_OX;
-            this.Line_kinematic_c_vert.Y1 = canvas_kinematic.Height - shifting_OY;
-            this.Line_kinematic_c_vert.X2 = (OB_length + Current_travel_position) / scale_factor + shifting_OX;
-            this.Line_kinematic_c_vert.Y2 = canvas_kinematic.Height - BC_length / scale_factor - shifting_OY;
-
-            this.Line_kinematic_a.X1 = (OB_length + Current_travel_position) / scale_factor + shifting_OX;
-            this.Line_kinematic_a.Y1 = canvas_kinematic.Height - BC_length / scale_factor - shifting_OY;
-            this.Line_kinematic_a.X2 = A_X / scale_factor + shifting_OX;
-            this.Line_kinematic_a.Y2 = canvas_kinematic.Height - A_Y / scale_factor - shifting_OY;
-
-            this.Line_kinematic_d.X1 = A_X / scale_factor + shifting_OX;
-            this.Line_kinematic_d.Y1 = canvas_kinematic.Height - A_Y / scale_factor - shifting_OY;
-            this.Line_kinematic_d.X2 = D_X / scale_factor + shifting_OX;
-            this.Line_kinematic_d.Y2 = canvas_kinematic.Height - D_Y / scale_factor - shifting_OY;
-
-            this.Line_Pedal_Travel.X1 = OB_length / scale_factor + shifting_OX;
-            this.Line_Pedal_Travel.Y1 = canvas_kinematic.Height - shifting_OY;
-            this.Line_Pedal_Travel.X2 = (OB_length + Travel_length) / scale_factor + shifting_OX;
-            this.Line_Pedal_Travel.Y2 = canvas_kinematic.Height - shifting_OY;
-
-
-
-
-
-
-
-
-
-        }
-
-        private bool Kinematic_check(double OA, double OB, double BC, double CA, double travel)
-        {
-            
-            double OC= Math.Sqrt((OB+travel) * (OB + travel) + BC * BC);
-            double pedal_angle_1 = Math.Acos((OA * OA + OC * OC - CA * CA) / (2 * OA * OC));
-            double pedal_angle_2 = Math.Atan2(BC, (OB + travel));
-
-
-            double pedal_angle = pedal_angle_1 + pedal_angle_2;
-            if (pedal_angle_1 != double.NaN && pedal_angle_2 != double.NaN)
-            {
-                if (pedal_angle <= Math.PI * 0.6)
-                {
-                    if ((OA + CA) > OC)
-                    {
-                        return true;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                return false;
-            }
-            
-
-            
-        }
-
-        private void btn_plus_OA_Click(object sender, RoutedEventArgs e)
-        {
-            double OA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-            double OB = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-            double BC = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-            double CA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-            if (Kinematic_check(OA + 1, OB, BC, CA, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel))
-            {
-                
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b = (Int16)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b + 1);
-                updateTheGuiFromConfig();
-            }
-            else
-            {
-                TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-            }
-        }
-
-        private void btn_minus_OA_Click(object sender, RoutedEventArgs e)
-        {
-            double OA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-            double OB = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-            double BC = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-            double CA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-            if (Kinematic_check(OA -1 , OB, BC, CA, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel))
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b = (Int16)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b - 1);
-                updateTheGuiFromConfig();
-            }
-            else
-            {
-                TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-            }
-        }
-
-        private void btn_plus_OB_Click(object sender, RoutedEventArgs e)
-        {
-            double OA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-            double OB = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-            double BC = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-            double CA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-            if (Kinematic_check(OA , OB+1, BC, CA, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel))
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal = (Int16)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal + 1);
-                updateTheGuiFromConfig();
-            }
-            else
-            {
-                TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-            }
-        }
-
-        private void btn_minus_OB_Click(object sender, RoutedEventArgs e)
-        {
-            double OA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-            double OB = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-            double BC = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-            double CA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-            if (Kinematic_check(OA , OB-1, BC, CA, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel))
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal = (Int16)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal - 1);
-                updateTheGuiFromConfig();
-            }
-            else
-            {
-                TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-            }
-        }
-
-        private void btn_plus_BC_Click(object sender, RoutedEventArgs e)
-        {
-            double OA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-            double OB = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-            double BC = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-            double CA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-            if (Kinematic_check(OA, OB, BC+1, CA, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel))
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical = (Int16)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical + 1);
-                updateTheGuiFromConfig();
-            }
-            else
-            {
-                TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-            }
-        }
-
-        private void btn_minus_BC_Click(object sender, RoutedEventArgs e)
-        {
-            double OA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-            double OB = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-            double BC = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-            double CA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-            if (Kinematic_check(OA, OB, BC-1, CA, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel))
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical = (Int16)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical - 1);
-                updateTheGuiFromConfig();
-            }
-            else
-            {
-                TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-            }
-        }
-
-        private void btn_plus_CA_Click(object sender, RoutedEventArgs e)
-        {
-            double OA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-            double OB = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-            double BC = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-            double CA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-            if (Kinematic_check(OA, OB, BC, CA+1, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel))
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a = (Int16)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a + 1);
-                updateTheGuiFromConfig();
-            }
-            else
-            {
-                TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-            }
-        }
-
-        private void btn_minus_CA_Click(object sender, RoutedEventArgs e)
-        {
-            double OA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-            double OB = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-            double BC = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-            double CA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-            if (Kinematic_check(OA, OB, BC, CA-1, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel))
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a = (Int16)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a - 1);
-                updateTheGuiFromConfig();
-            }
-            else
-            {
-                TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-            }
-        }
-
-        private void btn_plus_AD_Click(object sender, RoutedEventArgs e)
-        {
-            if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_d > 1)
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_d = (Int16)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_d + 1);
-                updateTheGuiFromConfig();
-            }
-            else
-            {
-                TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-            }
-
-        }
-
-        private void btn_minus_AD_Click(object sender, RoutedEventArgs e)
-        {
-            if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_d > 2)
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_d = (Int16)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_d - 1);
-                updateTheGuiFromConfig();
-            }
-            else
-            {
-                TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-            }
-        }
-
-        private void btn_plus_travel_Click(object sender, RoutedEventArgs e)
-        {
-            if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel <= 200)
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel = (Int16)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel + 1);
-                updateTheGuiFromConfig();
-            }
-            else
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel = 200;
-            }
-
-        }
-
-        private void btn_minus_travel_Click(object sender, RoutedEventArgs e)
-        {
-            if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel >= 30)
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel = (Int16)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel - 1);
-                updateTheGuiFromConfig();
-            }
-            else
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel = 30;
-            }
-
-        }
-
-
-        private void SP_canvas_MouseEnter(object sender, MouseEventArgs e)
-        {
-            btn_plus_kinematic_b_canvas.Visibility = Visibility.Visible;
-            btn_minus_kinematic_b_canvas.Visibility = Visibility.Visible;
-            btn_plus_kinematic_c_hort_canvas.Visibility = Visibility.Visible;
-            btn_minus_kinematic_c_hort_canvas.Visibility = Visibility.Visible;
-            btn_plus_kinematic_c_vert_canvas.Visibility = Visibility.Visible;
-            btn_minus_kinematic_c_vert_canvas.Visibility = Visibility.Visible;
-            btn_plus_kinematic_a_canvas.Visibility = Visibility.Visible;
-            btn_minus_kinematic_a_canvas.Visibility = Visibility.Visible;
-            btn_plus_kinematic_d_canvas.Visibility = Visibility.Visible;
-            btn_minus_kinematic_d_canvas.Visibility = Visibility.Visible;
-            btn_plus_travel_canvas.Visibility = Visibility.Visible;
-            btn_minus_travel_canvas.Visibility = Visibility.Visible;
-        }
-        private void SP_canvas_MouseLeave(object sender, MouseEventArgs e)
-        {
-            btn_plus_kinematic_b_canvas.Visibility = Visibility.Hidden;
-            btn_minus_kinematic_b_canvas.Visibility = Visibility.Hidden;
-            btn_plus_kinematic_c_hort_canvas.Visibility = Visibility.Hidden;
-            btn_minus_kinematic_c_hort_canvas.Visibility = Visibility.Hidden;
-            btn_plus_kinematic_c_vert_canvas.Visibility = Visibility.Hidden;
-            btn_minus_kinematic_c_vert_canvas.Visibility = Visibility.Hidden;
-            btn_plus_kinematic_a_canvas.Visibility = Visibility.Hidden;
-            btn_minus_kinematic_a_canvas.Visibility = Visibility.Hidden;
-            btn_plus_kinematic_d_canvas.Visibility = Visibility.Hidden;
-            btn_minus_kinematic_d_canvas.Visibility = Visibility.Hidden;
-            btn_plus_travel_canvas.Visibility = Visibility.Hidden;
-            btn_minus_travel_canvas.Visibility = Visibility.Hidden;
-        }
-
-        private void btn_minus_kinematic_scale_Click(object sender, RoutedEventArgs e)
-        {
-            if (Plugin.Settings.kinematicDiagram_zeroPos_scale > 0.7)
-            {
-                Plugin.Settings.kinematicDiagram_zeroPos_scale = Plugin.Settings.kinematicDiagram_zeroPos_scale - 0.1;
-                //DrawGridLines_kinematicCanvas(Plugin.Settings.kinematicDiagram_zeroPos_OX, Plugin.Settings.kinematicDiagram_zeroPos_OY, Plugin.Settings.kinematicDiagram_zeroPos_scale);
-                Pedal_joint_draw();
-                //Label_kinematic_scale.Content = Plugin.Settings.kinematicDiagram_zeroPos_scale;
-            }
-        }
-
-        private void btn_plus_kinematic_scale_Click(object sender, RoutedEventArgs e)
-        {
-            if (Plugin.Settings.kinematicDiagram_zeroPos_scale < 2)
-            {
-                Plugin.Settings.kinematicDiagram_zeroPos_scale = Plugin.Settings.kinematicDiagram_zeroPos_scale + 0.1;
-                //DrawGridLines_kinematicCanvas(Plugin.Settings.kinematicDiagram_zeroPos_OX, Plugin.Settings.kinematicDiagram_zeroPos_OY, Plugin.Settings.kinematicDiagram_zeroPos_scale);
-                Pedal_joint_draw();
-                //Label_kinematic_scale.Content = Plugin.Settings.kinematicDiagram_zeroPos_scale;
-            }
-        }
-
-        private void Kinematic_TextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            var textbox = sender as System.Windows.Controls.TextBox;
-            if (textbox.Name == "Label_kinematic_b_canvas")
-            {
-                if (int.TryParse(textbox.Text, out int result))
-                {
-                    double OA = result;
-                    double OB = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-                    double BC = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-                    double CA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-                    if (Kinematic_check(OA, OB, BC, CA, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel))
-                    {
-                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b = (Int16)(result);
-                        Pedal_joint_draw();
-                    }
-                    else
-                    {
-                        TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-                    }
-                }
-            }
-            if (textbox.Name == "Label_kinematic_c_hort_canvas")
-            {
-                if (int.TryParse(textbox.Text, out int result))
-                {
-                    double OA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-                    double OB = result;
-                    double BC = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-                    double CA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-                    if (Kinematic_check(OA, OB, BC, CA, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel))
-                    {
-                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal = (Int16)(result);
-                        Pedal_joint_draw();
-                    }
-                    else
-                    {
-                        TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-                    }
-                }
-            }
-            if (textbox.Name == "Label_kinematic_c_vert_canvas")
-            {
-                if (int.TryParse(textbox.Text, out int result))
-                {
-                    double OA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-                    double OB = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-                    double BC = result;
-                    double CA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a;
-                    if (Kinematic_check(OA, OB, BC, CA, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel))
-                    {
-                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical = (Int16)(result);
-                        Pedal_joint_draw();
-                    }
-                    else
-                    {
-                        TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-                    }
-                }
-            }
-            if (textbox.Name == "Label_kinematic_a_canvas")
-            {
-                if (int.TryParse(textbox.Text, out int result))
-                {
-                    double OA = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_b;
-                    double OB = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_horizontal;
-                    double BC = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_c_vertical;
-                    double CA = result;
-                    if (Kinematic_check(OA, OB, BC, CA, dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel))
-                    {
-                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_a = (Int16)(result);
-                        Pedal_joint_draw();
-                    }
-                    else
-                    {
-                        TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-                    }
-                }
-            }
-            if (textbox.Name == "Label_kinematic_d_canvas")
-            {
-                if (int.TryParse(textbox.Text, out int result))
-                {
-                    if (result >= 0 && result <= 100)
-                    {
-                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_d = (Int16)result;
-                        Pedal_joint_draw();
-                    }
-                    else
-                    {
-                        TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-                    }
-                }
-            }
-            if (textbox.Name == "Label_travel_canvas")
-            {
-                if (int.TryParse(textbox.Text, out int result))
-                {
-                    if (result >= 10 && result <= 200)
-                    {
-                        dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.lengthPedal_travel = (Int16)result;
-                        Pedal_joint_draw();
-                    }
-                    else
-                    {
-                        TextBox_debugOutput.Text = "Pedal Kinematic calculation error";
-                    }
-                }
-            }
-        }
-
         private void Tab_main_1_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             updateTheGuiFromConfig();
@@ -6168,11 +5513,12 @@ namespace User.PluginSdkDemo
                     if ((state.AxesPresent & axis_flag) != 0) {
                         connection_tmp += String.Format("Axis {0} Connected", axis_idx + 1);
                         wireless_connection_update = true;
-                        Pedal_wireless_connection_update_b[axis_idx] = true;
+                        axis_wireless_connection_state[axis_idx] = true;
                     } else
                     {
                         connection_tmp += String.Format("Axis {0} Disconnected", axis_idx + 1);
                         wireless_connection_update = true;
+                        axis_wireless_connection_state[axis_idx] = false;
                     }
                 }
             }

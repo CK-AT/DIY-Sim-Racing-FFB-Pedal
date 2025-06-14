@@ -1,4 +1,6 @@
 ﻿
+using System.Windows.Controls;
+
 namespace User.PluginSdkDemo
 {
     internal class Tools
@@ -19,6 +21,14 @@ namespace User.PluginSdkDemo
                 return 1;
             }
             return (value - min) / range;
+        }
+    }
+
+    internal static class TextBoxExtension
+    {
+        public static void SetTextWithoutEvent(this TextBox textbox, string text)
+        {
+            textbox.GetType().GetProperty("Text").SetValue(textbox, text, null);
         }
     }
 }

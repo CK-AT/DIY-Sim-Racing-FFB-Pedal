@@ -1,19 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 using System.Windows.Shapes;
-using FMOD;
 using MahApps.Metro.Controls;
 
 namespace User.PluginSdkDemo
@@ -24,8 +16,8 @@ namespace User.PluginSdkDemo
     public partial class SplineForceCurve : UserControl
     {
         private SettingsControlDemo gui;
+        private DIY_FFB plugin;
         private SplineForceCurveConfig config;
-        private double[] Force_curve_Y = new double[100];
         bool is_dragging;
         private Point offset;
         public delegate void ThresoldChangedEventHandler(double new_threshold);
@@ -38,9 +30,10 @@ namespace User.PluginSdkDemo
             InitializeComponent();
         }
 
-        public void SetGui(SettingsControlDemo gui)
+        public void SetGui(SettingsControlDemo gui, DIY_FFB plugin)
         {
             this.gui = gui;
+            this.plugin = plugin;
             UpdateConfig(GetDefaultConfig());
             DrawGridLines();
             UpdateSpline();
@@ -54,10 +47,15 @@ namespace User.PluginSdkDemo
             new_config.CubicSplineParamsB.AddRange(new float[] { 0, 0, 0, 0, 0 });
             new_config.PosMin = 10;
             new_config.PosMax = 70;
-            new_config.FMin = 70;
-            new_config.FMax = 500;
+            new_config.FMin = 7.0f * 9.81f;
+            new_config.FMax = 50.0f * 9.81f;
             new_config.ForceDirection = ForceDirection.Subtract;
             return new_config;
+        }
+        public void OnKinematicParametersChanged(KinematicParameters parameters)
+        {
+            Rangeslider_travel_range.Minimum = parameters.ContactPointPosMinAbs / 10.0;
+            Rangeslider_travel_range.Maximum = parameters.ContactPointPosMaxAbs / 10.0;
         }
 
         public void UpdateConfig(SplineForceCurveConfig new_config)
@@ -65,19 +63,9 @@ namespace User.PluginSdkDemo
             config = new_config;
             Rangeslider_travel_range.LowerValue = config.PosMin;
             Rangeslider_travel_range.UpperValue = config.PosMax;
-            //if (Plugin != null)
-            //{
-            //    Label_min_pos.Content = "MIN\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition + "%\n" + Math.Round(pedal_pos_min + ((pedal_pos_range * (double)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalStartPosition)) / 100.0)) + "mm";
-            //    Label_max_pos.Content = "MAX\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition + "%\n" + Math.Round(pedal_pos_min + ((pedal_pos_range * (double)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition)) / 100.0)) + "mm";
-            //}
-            Rangeslider_force_range.UpperValue = config.FMax;
-            Rangeslider_force_range.LowerValue = config.FMin;
-            //if (Plugin != null)
-            //{
-            //    Label_max_force.Content = "Max force:\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.maxForce + "kg";
-            //    Label_min_force.Content = "Preload:\n" + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.preloadForce + "kg";
-            //}
-            //set control point position
+            Rangeslider_force_range.UpperValue = config.FMax / 9.81;
+            Rangeslider_force_range.LowerValue = config.FMin / 9.81;
+
             text_point_pos.Visibility = Visibility.Hidden;
 
             rect_State.Visibility = Visibility.Visible;
@@ -243,22 +231,21 @@ namespace User.PluginSdkDemo
             {
                 System.Windows.Point Pointlcl = new System.Windows.Point(dx * xs2[pointIdx], dy * ys2[pointIdx]);
                 myPointCollection2.Add(Pointlcl);
-                Force_curve_Y[pointIdx] = dy * ys2[pointIdx];
             }
 
             Polyline_BrakeForceCurve.Points = myPointCollection2;
             double dyy = canvas.Height / 100;
             Canvas.SetTop(rect0, canvas.Height - dyy * config.FRelPoints[0] - rect0.Height / 2);
             Canvas.SetLeft(rect0, 0 * canvas.Width / 5 - rect0.Width / 2);
-            Canvas.SetTop(rect1, canvas.Height - dyy * config.FRelPoints[1] - rect0.Height / 2);
+            Canvas.SetTop(rect1, canvas.Height - dyy * config.FRelPoints[1] - rect1.Height / 2);
             Canvas.SetLeft(rect1, 1 * canvas.Width / 5 - rect1.Width / 2);
-            Canvas.SetTop(rect2, canvas.Height - dyy * config.FRelPoints[2] - rect0.Height / 2);
+            Canvas.SetTop(rect2, canvas.Height - dyy * config.FRelPoints[2] - rect2.Height / 2);
             Canvas.SetLeft(rect2, 2 * canvas.Width / 5 - rect2.Width / 2);
-            Canvas.SetTop(rect3, canvas.Height - dyy * config.FRelPoints[3] - rect0.Height / 2);
+            Canvas.SetTop(rect3, canvas.Height - dyy * config.FRelPoints[3] - rect3.Height / 2);
             Canvas.SetLeft(rect3, 3 * canvas.Width / 5 - rect3.Width / 2);
-            Canvas.SetTop(rect4, canvas.Height - dyy * config.FRelPoints[4] - rect0.Height / 2);
+            Canvas.SetTop(rect4, canvas.Height - dyy * config.FRelPoints[4] - rect4.Height / 2);
             Canvas.SetLeft(rect4, 4 * canvas.Width / 5 - rect4.Width / 2);
-            Canvas.SetTop(rect5, canvas.Height - dyy * config.FRelPoints[5] - rect0.Height / 2);
+            Canvas.SetTop(rect5, canvas.Height - dyy * config.FRelPoints[5] - rect5.Height / 2);
             Canvas.SetLeft(rect5, 5 * canvas.Width / 5 - rect5.Width / 2);
         }
 
@@ -272,7 +259,6 @@ namespace User.PluginSdkDemo
         public double OnAxisStateUpdate(AxisState axis_state)
         {
             text_point_pos.Visibility = Visibility.Hidden;
-            double control_rect_value_max = config.FMax;
             double pos_norm = Tools.Normalize(axis_state.Position, config.PosMin, config.PosMax);
             double f_norm = Tools.Normalize(axis_state.Force, config.FMin, config.FMax);
             text_state.Text = String.Format("{0}%", Math.Round(pos_norm * 100.0));
@@ -461,19 +447,19 @@ namespace User.PluginSdkDemo
 
         private void Rangeslider_force_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
         {
-            config.FMax = (float)e.NewValue;
+            config.FMax = (float)(e.NewValue * 9.81);
             if (Label_max_force != null)
             {
-                Label_max_force.Content = String.Format("Max force:\n{0:F1}kg", config.FMax / 9.81);
+                Label_max_force.Content = String.Format("Max force:\n{0:F1}kg", e.NewValue);
             }
         }
 
         private void Rangeslider_force_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
         {
-            config.FMin = (float)e.NewValue;
+            config.FMin = (float)(e.NewValue * 9.81);
             if (Label_min_force != null)
             {
-                Label_min_force.Content = String.Format("Preload:\n{0:F1}kg", config.FMin / 9.81);
+                Label_min_force.Content = String.Format("Preload:\n{0:F1}kg", e.NewValue);
             }
         }
 
