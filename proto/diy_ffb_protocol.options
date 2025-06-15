@@ -17,6 +17,8 @@ AxisConfig.mm_per_rev                       int_size:IS_8
 
 FunctionBase.linked_axes                    max_count:4 fixed_count:true
 
+AuxFunctionConfig.linked_axes               max_count:4 fixed_count:true
+
 SplineForceCurveConfig.pos_*                int_size:IS_16
 SplineForceCurveConfig.f_rel_points         max_count:6 fixed_count:true int_size:IS_8
 SplineForceCurveConfig.cubic_spline_*       max_count:5 fixed_count:true

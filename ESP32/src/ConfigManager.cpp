@@ -71,11 +71,12 @@ void ConfigManager::set_function_config_defaults(void) {
     _function_config.specific.automotive_pedal.pos_end = 50;
 }
 
-void ConfigManager::init(AxisID axis_id, bool fixed_id, OnConfigUpdate config_update_callback) {
+void ConfigManager::init(AxisID axis_id, bool fixed_id, OnConfigUpdate config_update_callback, GetAuxFunction get_aux_function_callback) {
     LogOutput::printf("ConfigManager: init (axis only)");
     _axis_id = axis_id;
     _fixed_id = fixed_id;
     _on_config_update_callback = config_update_callback;
+    _get_aux_function_callback = get_aux_function_callback;
     _sem_cfg_update = xSemaphoreCreateMutex();
     if (!_sem_cfg_update) {
         LogOutput::printf(" -> failed to create config update semaphore!");
@@ -86,9 +87,10 @@ void ConfigManager::init(AxisID axis_id, bool fixed_id, OnConfigUpdate config_up
     LogOutput::printf(" -> init done");
 }
 
-void ConfigManager::init(GatewayID gateway_id) {
+void ConfigManager::init(GatewayID gateway_id, GetAuxFunction get_aux_function_callback) {
     LogOutput::printf("ConfigManager: init (gateway only)");
     _gateway_id = gateway_id;
+    _get_aux_function_callback = get_aux_function_callback;
     _mode = MODE_GATEWAY_ONLY;
     LogOutput::printf(" -> done");
 }
@@ -157,6 +159,7 @@ bool ConfigManager::load_function_config(void) {
             if (_temp_message.which_payload == Message_function_config_tag) {
                 _function_config = _temp_message.payload.function_config;
                 update_function_config_base_lut(_function_config);
+                update_aux_function_lut(_function_config);
                 return true;
             } else {
                 LogOutput::printf(" -> not a function config");
@@ -211,6 +214,7 @@ ConfigManager::UpdateResult ConfigManager::update_function_config(const Function
         }
     }
     update_function_config_base_lut(new_config);
+    update_aux_function_lut(new_config);
     if (!affecting_this_axis) {
         LogOutput::printf(" -> not targeting this axis");
         return ConfigManager::UPDATE_OTHER_AXIS;

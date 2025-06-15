@@ -191,6 +191,7 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
             } else {
                 // gateway only, no need to call _config_manager->update_function_config()
                 _config_manager->update_function_config_base_lut(msg.payload.function_config);
+                _config_manager->update_aux_function_lut(msg.payload.function_config);
             }
             if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
                 const AxisID *linked_axes = msg.payload.function_config.base.linked_axes;
@@ -241,6 +242,7 @@ void CommManager::on_axis_message(AxisID axis_id, const Message &msg, const uint
     switch (msg.which_payload) {
         case Message_function_config_tag:
             _config_manager->update_function_config_base_lut(msg.payload.function_config);
+            _config_manager->update_aux_function_lut(msg.payload.function_config);
             break;
     }
     serial_manager.send_message_to_host(msg, protobuf_msg, len_protobuf_msg);
@@ -498,7 +500,15 @@ void CommManager::send_joystick_values(void) {
             }
         }
     }
-    // TODO: process aux functions here
+    for (uint8_t function_idx = 0; function_idx < _FunctionID_MAX; function_idx++) {
+        function_id = FunctionID(function_idx + 1);
+        if (function_flags & (1 << function_id)) {
+            auto result = _config_manager->get_aux_function(function_id);
+            if (std::get<0>(result)) {
+                std::get<0>(result)->process(*this, std::get<1>(result));
+            }
+        }
+    }
     for (uint8_t controller_axis_idx = 0; controller_axis_idx < _ControllerAxis_MAX; controller_axis_idx++) {
         ControllerAxis controller_axis = MessageTools::controller_axis_id_from_index(controller_axis_idx);
         set_controller_axis(controller_axis, controller_axis_values[controller_axis_idx]);
@@ -506,17 +516,17 @@ void CommManager::send_joystick_values(void) {
     _joystick.sendState();
 }
 
-bool CommManager::calc_input_force_sum(const FunctionBase &function_base, float &input_force) {
+bool CommManager::calc_input_force_sum(const AxisID *linked_axes, float &input_force) {
     float f_sum = 0.0f;
     float temp;
     bool is_subtractive_axis = false;
     AxisID own_axis_id = get_axis_id();
     for (uint8_t idx = 0; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
-        AxisID axis_id = AxisID(function_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
+        AxisID axis_id = AxisID(linked_axes[idx] & AxisID_AXIS_ID_MASK);
         if (axis_id == AxisID_AXIS_UNDEFINED) break;
         temp = 0.0f;
         get_force(axis_id, temp);  // get_force won't touch temp if the associated axis is not online, no need to check the return value
-        if (function_base.linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) {
+        if (linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) {
             if (axis_id == own_axis_id) is_subtractive_axis = true;
             f_sum -= temp;
         } else {
@@ -528,7 +538,7 @@ bool CommManager::calc_input_force_sum(const FunctionBase &function_base, float 
 }
 
 bool CommManager::calc_input_force_sum(float &input_force) {
-    return calc_input_force_sum(_config_manager->get_function_config()->base, input_force);
+    return calc_input_force_sum(_config_manager->get_function_config()->base.linked_axes, input_force);
 }
 
 

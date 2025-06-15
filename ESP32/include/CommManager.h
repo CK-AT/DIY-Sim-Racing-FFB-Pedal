@@ -44,14 +44,19 @@ class CommManager {
         void on_physics_task_start(void) {
             _physics_task_started = true;
         }
-        bool calc_input_force_sum(const FunctionBase &function_base, float &input_force);
+        bool calc_input_force_sum(const AxisID *linked_axes, float &input_force);
         bool calc_input_force_sum(float &input_force);
         bool calc_input_force_sum(float own_force, float &input_force) {
             update_force(own_force);
             return calc_input_force_sum(input_force);
         }
         bool calc_final_position(float own_position, float &final_position);
-
+        float get_controller_output_value(ControllerAxis controller_axis) {
+            return controller_axis_values[MessageTools::controller_axis_index_from_id(controller_axis)];
+        }
+        void set_controller_output_value(ControllerAxis controller_axis, float &value) {
+            controller_axis_values[MessageTools::controller_axis_index_from_id(controller_axis)] = value;
+        }
 
     private:
         enum JoystickState {

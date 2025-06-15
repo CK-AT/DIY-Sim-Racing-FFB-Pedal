@@ -48,9 +48,11 @@ void ESPNOW_SyncTask(void *pvParameters);
 
 #include "AutomotivePedalFunction.h"
 #include "FlightPedalsFunction.h"
+#include "RudderBrake.h"
 
 AutomotivePedalFunction automotive_pedal_function = {};
 FlightPedalsFunction flight_pedals_function = {};
+RudderBrake rudder_brake = {};
 
 #include "CycleTimer.h"
 #include "LogOutput.h"
@@ -182,6 +184,18 @@ void IRAM_ATTR adc_isr(void) {
 void on_ffb_action(const FFBAction &ffb_action);
 void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel);
 
+IAuxFunction *get_aux_function(const FunctionConfig *func_cfg) {
+    if (!func_cfg->has_aux_function) return nullptr;
+    switch (func_cfg->aux_function.which_specific) {
+        case AuxFunctionConfig_rudder_brake_tag:
+            return &rudder_brake;
+            break;
+        default:
+            break;
+    }
+    return nullptr;
+}
+
 IFunction *on_config_update(IFunction *active_function, const FunctionConfig *function_cfg) {
     if (servo) servo->pause(1000);
     if (active_function) {
@@ -270,10 +284,10 @@ void setup() {
     if (own_axis_index & 0x0C) {
         // bits 2 and 3 are set, this is a Gateway
         GatewayID gateway_id = GatewayID((own_axis_index & 0x03) + 1);
-        config_manager.init(gateway_id);
+        config_manager.init(gateway_id, get_aux_function);
     } else if (own_axis_index < MessageTools::MAX_AXES_COUNT) {
         LogOutput::printf("Setup: Identified as axis %d", own_axis_index + 1);
-        config_manager.init(AxisID(own_axis_index + 1), true, on_config_update);
+        config_manager.init(AxisID(own_axis_index + 1), true, on_config_update, get_aux_function);
     } else {
         LogOutput::printf("Setup: Assignment error, axis id = %d (max. %d)", own_axis_index + 1, MessageTools::MAX_AXES_COUNT);
     }

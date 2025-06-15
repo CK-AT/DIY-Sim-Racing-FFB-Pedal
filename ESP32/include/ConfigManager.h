@@ -7,6 +7,7 @@
 #include "IFunction.h"
 #include "LogOutput.h"
 #include "MessageTools.h"
+#include "IAuxFunction.h"
 
 class ConfigManager {
     private:
@@ -32,13 +33,26 @@ class ConfigManager {
         const uint8_t MODE_GATEWAY_MASK = MODE_GATEWAY_ONLY;
 
         typedef std::function<IFunction *(IFunction *active_function, const FunctionConfig *function_cfg)> OnConfigUpdate;
+        typedef std::function<IAuxFunction *(const FunctionConfig *func_cfg)> GetAuxFunction;
 
-        void init(AxisID axis_id, bool fixed_id, OnConfigUpdate config_update_callback);
-        void init(GatewayID gateway_id);
+        void init(AxisID axis_id, bool fixed_id, OnConfigUpdate config_update_callback, GetAuxFunction get_aux_function_callback);
+        void init(GatewayID gateway_id, GetAuxFunction get_aux_function_callback);
         UpdateResult update_axis_config(const AxisConfig &new_config, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg, bool force = false);
         UpdateResult update_function_config(const FunctionConfig &new_config, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg);
         void update_function_config_base_lut(const FunctionConfig &new_config) {
             _function_lut[new_config.base.function_id] = new_config.base;
+        }
+        void update_aux_function_lut(const FunctionConfig &new_config) {
+            if (new_config.has_aux_function) {
+                if (_get_aux_function_callback) {
+                    IAuxFunction *aux_function = _get_aux_function_callback(&new_config);
+                    if (aux_function) {
+                        _aux_function_lut[new_config.base.function_id] = {aux_function, new_config.aux_function};
+                        return;
+                    }
+                }
+            }
+            _aux_function_lut[new_config.base.function_id] = {nullptr, {}};
         }
         void get_axis_config_as_message(Message &message);
         void get_function_config_as_message(Message &message);
@@ -92,6 +106,11 @@ class ConfigManager {
             auto result = _function_lut.find(function_id);
             if (result != _function_lut.end()) return &result->second;
             return nullptr;
+        }
+        std::tuple<IAuxFunction*,AuxFunctionConfig> get_aux_function(FunctionID function_id) {
+            auto result = _aux_function_lut.find(function_id);
+            if (result != _aux_function_lut.end()) return result->second;
+            return {nullptr, {}};
         }
         AxisID get_primary_axis_id(FunctionID function_id) {
             FunctionBase *function_base = get_function_base(function_id);
@@ -153,9 +172,11 @@ class ConfigManager {
         AxisConfig _axis_config;
         FunctionConfig _function_config;
         std::map<FunctionID, FunctionBase> _function_lut = {};
+        std::map<FunctionID, std::tuple<IAuxFunction*, AuxFunctionConfig>> _aux_function_lut = {};
         Message _temp_message;
         SemaphoreHandle_t _sem_cfg_update = xSemaphoreCreateMutex();
         OnConfigUpdate _on_config_update_callback = nullptr;
+        GetAuxFunction _get_aux_function_callback = nullptr;
         IFunction *_active_funtion = nullptr;
         float _x_contact_point_min = 0.0f;
         float _x_contact_point_max = 0.0f;

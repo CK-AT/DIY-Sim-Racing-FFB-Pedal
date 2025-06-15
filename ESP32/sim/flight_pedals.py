@@ -18,6 +18,16 @@ async def load_config(serial, store=False):
     msg.function_config.flight_pedals.pos_far_lim = 70
     msg.function_config.flight_pedals.damping = 0.15
     msg.function_config.flight_pedals.centering_spring_const = 1.5
+    msg.function_config.aux_function.linked_axes.append(ffb_protocol.AXIS_ID_3)
+    msg.function_config.aux_function.linked_axes.append(ffb_protocol.AXIS_ID_2)
+    msg.function_config.aux_function.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
+    msg.function_config.aux_function.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
+    msg.function_config.aux_function.rudder_brake.f_min = 150
+    msg.function_config.aux_function.rudder_brake.f_max = 400
+    msg.function_config.aux_function.rudder_brake.controller_output_axis_flight_pedals = ffb_protocol.CONTROLLER_AXIS_X
+    msg.function_config.aux_function.rudder_brake.controller_output_axis_left_pedal = ffb_protocol.CONTROLLER_AXIS_Y
+    msg.function_config.aux_function.rudder_brake.controller_output_axis_right_pedal = ffb_protocol.CONTROLLER_AXIS_Z
+
     serial.send_message(msg)
     await asyncio.sleep(0.5)
     msg = ffb_protocol.Message()
