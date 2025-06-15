@@ -214,6 +214,7 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
     if (active_function) {
         float x_curr;
         comm_manager.get_position(comm_manager.get_axis_id(), x_curr);
+        sim.set_m(max(function_cfg->simulated_mass, 0.05f));
         sim.set_x_min(x_curr, true);
         sim.set_x_max(x_curr, true);
         sim.set_x_min(active_function->get_x_contact_point_min());

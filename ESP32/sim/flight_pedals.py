@@ -13,10 +13,11 @@ async def load_config(serial, store=False):
     msg.function_config.base.output_mode = ffb_protocol.OUTPUT_MODE_TRAVEL
     msg.function_config.base.output_min = 30.0
     msg.function_config.base.output_max = 70.0
+    msg.function_config.simulated_mass = 1.0
     
     msg.function_config.flight_pedals.pos_near_lim = 30
     msg.function_config.flight_pedals.pos_far_lim = 70
-    msg.function_config.flight_pedals.damping = 0.15
+    msg.function_config.flight_pedals.damping = 0.5
     msg.function_config.flight_pedals.centering_spring_const = 1.5
     msg.function_config.aux_function.linked_axes.append(ffb_protocol.AXIS_ID_3)
     msg.function_config.aux_function.linked_axes.append(ffb_protocol.AXIS_ID_2)

@@ -13,6 +13,7 @@ async def load_config(serial, store=False):
     msg.function_config.base.output_mode = ffb_protocol.OUTPUT_MODE_FORCE
     msg.function_config.base.output_min = 30.0
     msg.function_config.base.output_max = 500.0
+    msg.function_config.simulated_mass = 0.5
     
     msg.function_config.automotive_pedal.force_curve_config.pos_min = 34
     msg.function_config.automotive_pedal.force_curve_config.pos_max = 73

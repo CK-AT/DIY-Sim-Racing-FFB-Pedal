@@ -350,6 +350,7 @@ message FunctionConfig {
     FlightPedalsConfig flight_pedals = 3;
   }
   AuxFunctionConfig aux_function = 4;
+  float simulated_mass = 5;
 }
 
 message AxisAction {
