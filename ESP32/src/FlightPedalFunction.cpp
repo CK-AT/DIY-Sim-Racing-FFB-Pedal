@@ -1,12 +1,12 @@
-#include "FlightPedalFunction.h"
+#include "FlightPedalsFunction.h"
 
-FlightPedalFunction::FlightPedalFunction(void) {
+FlightPedalsFunction::FlightPedalsFunction(void) {
     disable();
     add_element(&centering_spring);
     add_element(&damper);
 }
 
-void FlightPedalFunction::update_config(const FlightPedalConfig &config) {
+void FlightPedalsFunction::update_config(const FlightPedalsConfig &config) {
     _config = config;
     damper.set_k(_config.damping);
     centering_spring.set_k(_config.centering_spring_const);
@@ -14,6 +14,6 @@ void FlightPedalFunction::update_config(const FlightPedalConfig &config) {
     centering_spring.set_offset(center);
 }
 
-void FlightPedalFunction::on_ffb_action(const FFBAction &ffb_action) {
+void FlightPedalsFunction::on_ffb_action(const FFBAction &ffb_action) {
 }
 

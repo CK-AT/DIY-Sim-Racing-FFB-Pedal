@@ -47,10 +47,10 @@ void OTATask(void *pvParameters);
 void ESPNOW_SyncTask(void *pvParameters);
 
 #include "AutomotivePedalFunction.h"
-#include "FlightPedalFunction.h"
+#include "FlightPedalsFunction.h"
 
 AutomotivePedalFunction automotive_pedal_function = {};
-FlightPedalFunction flight_pedal_function = {};
+FlightPedalsFunction flight_pedals_function = {};
 
 #include "CycleTimer.h"
 #include "LogOutput.h"
@@ -192,9 +192,9 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
             automotive_pedal_function.update_config(function_cfg->specific.automotive_pedal);
             active_function = &automotive_pedal_function;
             break;
-        case FunctionConfig_flight_pedal_tag:
-            flight_pedal_function.update_config(function_cfg->specific.flight_pedal);
-            active_function = &flight_pedal_function;
+        case FunctionConfig_flight_pedals_tag:
+            flight_pedals_function.update_config(function_cfg->specific.flight_pedals);
+            active_function = &flight_pedals_function;
             break;
     }
     if (active_function) {
@@ -318,7 +318,7 @@ void setup() {
         }
 
         sim.add_element(&automotive_pedal_function);
-        sim.add_element(&flight_pedal_function);
+        sim.add_element(&flight_pedals_function);
 
         xTaskCreatePinnedToCore(physics_task_func,    /* Task function. */
                                 "PhysicsTask",        /* name of task. */

@@ -165,6 +165,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsyncSerial.cs" />
+    <Compile Include="AutomotivePedalEffects.xaml.cs">
+      <DependentUpon>AutomotivePedalEffects.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Tools.cs" />
     <Compile Include="CubicSpline.cs" />
     <Compile Include="DataPluginDemo.cs" />
@@ -195,6 +198,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Page Include="AutomotivePedalEffects.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="OnlineProfile.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

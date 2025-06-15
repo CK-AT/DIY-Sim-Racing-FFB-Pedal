@@ -1,25 +1,16 @@
 ﻿using GameReaderCommon;
-using log4net.Plugin;
 using NCalc;
 using ProtbufTest;
 
 
 //using log4net.Plugin;
 using SimHub.Plugins;
-using SimHub.Plugins.DataPlugins.DataCore;
-using SimHub.Plugins.DataPlugins.RGBMatrixDriver.Settings;
-using SimHub.Plugins.DataPlugins.ShakeItV3.UI.Effects;
-using SimHub.Plugins.OutputPlugins.Dash.GLCDTemplating;
 using System;
 using System.IO.Ports;
 using System.Media;
-using System.Runtime;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Windows.Controls;
 using System.Windows.Media;
 using Windows.UI.Notifications;
-using static System.Net.Mime.MediaTypeNames;
 using IPlugin = SimHub.Plugins.IPlugin;
 
 
@@ -683,7 +674,7 @@ namespace User.PluginSdkDemo
                         tmp.FfbAction = new FFBAction();
                         tmp.FfbAction.AutomotivePedal = new AutomotivePedalFFBAction();
 
-                        if (Settings.G_force_enable_flag[pedalIdx] == 1)
+                        if (Settings.function_settings[pedalIdx].G_force_enabled)
                         {
                             tmp.FfbAction.AutomotivePedal.G = (Byte)g_force_last_value;
                         }
@@ -693,7 +684,7 @@ namespace User.PluginSdkDemo
                         }
 
 
-                        if (Settings.RPM_enable_flag[pedalIdx] == 1)
+                        if (Settings.function_settings[pedalIdx].RPM_enabled)
                         {
 
                             if (Math.Abs(RPM_value - rpm_last_value) > 3)
@@ -724,7 +715,7 @@ namespace User.PluginSdkDemo
                             {
                                 GTrigger_lastTime = DateTime.Now;
                             }
-                            if (Settings.G_force_enable_flag[pedalIdx] == 1)
+                            if (Settings.function_settings[pedalIdx].G_force_enabled)
                             {
                                 //double value_check_g = 1 - _G_force / ((double)g_force_last_value);
                                 double value_check_g = (_G_force - (double)g_force_last_value);
@@ -740,7 +731,7 @@ namespace User.PluginSdkDemo
 
                         //Wheel slip
                         
-                        if (Settings.WS_enable_flag[pedalIdx] == 1)
+                        if (Settings.function_settings[pedalIdx].WS_enabled)
                         {
                             if (pluginManager.GetPropertyValue(Settings.WSeffect_bind) != null)
                             {
@@ -758,7 +749,7 @@ namespace User.PluginSdkDemo
                             }
                         }
                         //Road impact
-                        if (Settings.Road_impact_enable_flag[pedalIdx] == 1)
+                        if (Settings.function_settings[pedalIdx].Road_impact_enabled)
                         {
                             if (pluginManager.GetPropertyValue(Settings.Road_impact_bind) != null)
                             {
@@ -791,10 +782,10 @@ namespace User.PluginSdkDemo
                             }
                         }
                      //custom effcts
-                     if (Settings.CV1_enable_flag[pedalIdx] == true)
+                     if (Settings.function_settings[pedalIdx].CV1_enabled == true)
                      {
                         //CV1_value = Convert.ToByte(pluginManager.GetPropertyValue(Settings.CV1_bindings[pedalIdx]));
-                        string temp_string = Ncalc_reading(Settings.CV1_bindings[pedalIdx]);
+                        string temp_string = Ncalc_reading(Settings.function_settings[pedalIdx].CV1_binding);
                         if (temp_string != "Error")
                         {
                             CV1_value = Convert.ToByte(temp_string);
@@ -806,17 +797,17 @@ namespace User.PluginSdkDemo
                         }
 
 
-                        if (CV1_value > (Settings.CV1_trigger[pedalIdx]))
+                        if (CV1_value > (Settings.function_settings[pedalIdx].CV1_trigger_level))
                         {
                             tmp.FfbAction.AutomotivePedal.TriggerCv1 = true;
                             update_flag = true;
                         }
                     }
-                     if (Settings.CV2_enable_flag[pedalIdx] == true)
+                     if (Settings.function_settings[pedalIdx].CV2_enabled == true)
                      {
 
                         //CV2_value = Convert.ToByte(pluginManager.GetPropertyValue(Settings.CV2_bindings[pedalIdx]));
-                        string temp_string = Ncalc_reading(Settings.CV2_bindings[pedalIdx]);
+                        string temp_string = Ncalc_reading(Settings.function_settings[pedalIdx].CV2_binding);
                         if (temp_string != "Error")
                         {
                             CV2_value = Convert.ToByte(temp_string);
@@ -826,7 +817,7 @@ namespace User.PluginSdkDemo
                             CV2_value = 0;
                             SimHub.Logging.Current.Error("CV2 Reading error");
                         }
-                        if (CV2_value > (Settings.CV2_trigger[pedalIdx]))
+                        if (CV2_value > (Settings.function_settings[pedalIdx].CV2_trigger_level))
                         {
                             tmp.FfbAction.AutomotivePedal.TriggerCv2 = true;
                             update_flag = true;
@@ -839,7 +830,7 @@ namespace User.PluginSdkDemo
 
                         if (pedalIdx == 1)
                         {
-                            if (sendAbsSignal_local_b && Settings.ABS_enable_flag[pedalIdx] ==1)
+                            if (sendAbsSignal_local_b && Settings.function_settings[pedalIdx].ABS_enabled)
                             {
                             //_serialPort[1].Write("2");
 
@@ -851,7 +842,7 @@ namespace User.PluginSdkDemo
                         }
                         if (pedalIdx == 2)
                         {
-                            if (sendTcSignal_local_b && Settings.ABS_enable_flag[pedalIdx] == 1)
+                            if (sendTcSignal_local_b && Settings.function_settings[pedalIdx].ABS_enabled)
                             {
                             // compute checksum
 
@@ -866,7 +857,7 @@ namespace User.PluginSdkDemo
                         Action_currentTime[pedalIdx] = DateTime.Now;
                         TimeSpan diff_action = Action_currentTime[pedalIdx] - Action_lastTime[pedalIdx];
                         int millisceonds_action = (int)diff_action.TotalMilliseconds;
-                        if (millisceonds_action <= Settings.Pedal_action_interval[pedalIdx])
+                        if (millisceonds_action <= Settings.function_settings[pedalIdx].action_interval)
                         {
                             update_flag = false;
                         }
@@ -883,7 +874,7 @@ namespace User.PluginSdkDemo
                     if (update_flag)
                     {
 
-                            if (Settings.Pedal_ESPNow_Sync_flag[pedalIdx])
+                            if (Settings.axis_settings[pedalIdx].via_gateway)
                             {
                                 if (ESPsync_serialPort.IsOpen)
                                 {
@@ -956,11 +947,11 @@ namespace User.PluginSdkDemo
                 tmp.FfbAction.AutomotivePedal.G = 128;
                 tmp.FfbAction.AutomotivePedal.TriggerAbs = true;
 
-                for (uint PIDX = 1; PIDX < 3; PIDX++)
+                for (uint PIDX = 0; PIDX < Settings.axis_settings.Length; PIDX++)
                 {
                     tmp.FfbAction.FunctionId = FunctionID.Brake; // TODO: set correctly
 
-                    if (Settings.Pedal_ESPNow_Sync_flag[PIDX])
+                    if (Settings.axis_settings[PIDX].via_gateway)
                     {
                         if (ESPsync_serialPort.IsOpen) 
                         {
@@ -1018,7 +1009,7 @@ namespace User.PluginSdkDemo
                     //newBuffer = getBytes_Action(tmp);
                     
                     
-                    if (Settings.Pedal_ESPNow_Sync_flag[PIDX])
+                    if (Settings.axis_settings[PIDX].via_gateway)
                     {
                         if (ESPsync_serialPort.IsOpen)
                         {
@@ -1228,7 +1219,7 @@ namespace User.PluginSdkDemo
                     //int length = sizeof(DAP_action_st);
                     //byte[] newBuffer = new byte[length];
                     //newBuffer = getBytes_Action(tmp);
-                    if (Settings.Pedal_ESPNow_Sync_flag[PIDX])
+                    if (Settings.axis_settings[PIDX].via_gateway)
                     {
                         if (ESPsync_serialPort.IsOpen)
                         {
@@ -1267,7 +1258,7 @@ namespace User.PluginSdkDemo
                 for (uint pedalIdx = 0; pedalIdx < 3; pedalIdx++)
                 {
                     tmp.FfbAction.FunctionId = FunctionID.Brake; // TODO: set correctly
-                    if (Settings.Pedal_ESPNow_Sync_flag[pedalIdx])
+                    if (Settings.axis_settings[pedalIdx].via_gateway)
                     {
                         if (ESPsync_serialPort.IsOpen)
                         {
@@ -1297,11 +1288,11 @@ namespace User.PluginSdkDemo
             this.AttachDelegate("CurrentProfile", () => current_profile);
             pluginManager.SetPropertyValue("SelectedPedal", this.GetType(), current_pedal);
             pluginManager.SetPropertyValue("Action", this.GetType(), current_action);
-            pluginManager.SetPropertyValue("ABS_effect_status", this.GetType(), Settings.ABS_enable_flag[Settings.table_selected]);
-            pluginManager.SetPropertyValue("RPM_effect_status", this.GetType(), Settings.RPM_enable_flag[Settings.table_selected]);
-            pluginManager.SetPropertyValue("Gforce_effect_status", this.GetType(), Settings.G_force_enable_flag[Settings.table_selected]);
-            pluginManager.SetPropertyValue("WheelSlip_effect_status", this.GetType(), Settings.WS_enable_flag[Settings.table_selected]);
-            pluginManager.SetPropertyValue("RoadImpact_effect_status", this.GetType(), Settings.Road_impact_enable_flag[Settings.table_selected]);
+            pluginManager.SetPropertyValue("ABS_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].ABS_enabled);
+            pluginManager.SetPropertyValue("RPM_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].RPM_enabled);
+            pluginManager.SetPropertyValue("Gforce_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].G_force_enabled);
+            pluginManager.SetPropertyValue("WheelSlip_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].WS_enabled);
+            pluginManager.SetPropertyValue("RoadImpact_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].Road_impact_enabled);
             pluginManager.SetPropertyValue("Overlay_display", this.GetType(), overlay_display);
             pluginManager.SetPropertyValue("Theme_color", this.GetType(), simhub_theme_color);
             pluginManager.SetPropertyValue("ProfileIndex", this.GetType(), profile_index);
@@ -1707,11 +1698,11 @@ namespace User.PluginSdkDemo
             pluginManager.AddProperty("ProfileIndex", this.GetType(), profile_index);
             pluginManager.AddProperty("SelectedPedal", this.GetType(), current_pedal);
             pluginManager.AddProperty("Action", this.GetType(), current_action);
-            pluginManager.AddProperty("ABS_effect_status", this.GetType(), Settings.ABS_enable_flag[Settings.table_selected]);
-            pluginManager.AddProperty("RPM_effect_status", this.GetType(), Settings.RPM_enable_flag[Settings.table_selected]);
-            pluginManager.AddProperty("Gforce_effect_status", this.GetType(), Settings.G_force_enable_flag[Settings.table_selected]);
-            pluginManager.AddProperty("WheelSlip_effect_status", this.GetType(), Settings.WS_enable_flag[Settings.table_selected]);
-            pluginManager.AddProperty("RoadImpact_effect_status", this.GetType(), Settings.Road_impact_enable_flag[Settings.table_selected]);
+            pluginManager.AddProperty("ABS_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].ABS_enabled);
+            pluginManager.AddProperty("RPM_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].RPM_enabled);
+            pluginManager.AddProperty("Gforce_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].G_force_enabled);
+            pluginManager.AddProperty("WheelSlip_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].WS_enabled);
+            pluginManager.AddProperty("RoadImpact_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].Road_impact_enabled);
             pluginManager.AddProperty("Overlay_display", this.GetType(), overlay_display);
             pluginManager.AddProperty("Theme_color", this.GetType(), simhub_theme_color);
             pluginManager.AddProperty("debugvalue", this.GetType(), debug_value);
@@ -1878,15 +1869,15 @@ namespace User.PluginSdkDemo
             });
             this.AddAction("ABStoggle", (a, b) =>
             {
-                if (Settings.ABS_enable_flag[Settings.table_selected] == 0)
+                if (!Settings.function_settings[Settings.table_selected].ABS_enabled)
                 {
-                    Settings.ABS_enable_flag[Settings.table_selected] = 1;
+                    Settings.function_settings[Settings.table_selected].ABS_enabled = true;
                     SimHub.Logging.Current.Info("ABS on");
                     current_action = "ABS On";
                 }
                 else
                 {
-                    Settings.ABS_enable_flag[Settings.table_selected] = 0;
+                    Settings.function_settings[Settings.table_selected].ABS_enabled = false;
                     SimHub.Logging.Current.Info("ABS off");
                     current_action = "ABS Off";
                 }
@@ -1894,15 +1885,15 @@ namespace User.PluginSdkDemo
             });
             this.AddAction("RPMtoggle", (a, b) =>
             {
-                if (Settings.RPM_enable_flag[Settings.table_selected] == 0)
+                if (!Settings.function_settings[Settings.table_selected].RPM_enabled)
                 {
-                    Settings.RPM_enable_flag[Settings.table_selected] = 1;
+                    Settings.function_settings[Settings.table_selected].RPM_enabled = true;
                     SimHub.Logging.Current.Info("RPM on");
                     current_action = "RPM On";
                 }
                 else
                 {
-                    Settings.RPM_enable_flag[Settings.table_selected] = 0;
+                    Settings.function_settings[Settings.table_selected].RPM_enabled = false;
                     SimHub.Logging.Current.Info("RPM off");
                     current_action = "RPM Off";
                 }
@@ -1912,15 +1903,15 @@ namespace User.PluginSdkDemo
             {
                 if (Settings.table_selected == 1)
                 {
-                    if (Settings.G_force_enable_flag[Settings.table_selected] == 0)
+                    if (!Settings.function_settings[Settings.table_selected].G_force_enabled)
                     {
-                        Settings.G_force_enable_flag[Settings.table_selected] = 1;
+                        Settings.function_settings[Settings.table_selected].G_force_enabled = true;
                         SimHub.Logging.Current.Info("Gforce on");
                         current_action = "Gforce On";
                     }
                     else
                     {
-                        Settings.G_force_enable_flag[Settings.table_selected] = 0;
+                        Settings.function_settings[Settings.table_selected].G_force_enabled = false;
                         SimHub.Logging.Current.Info("Gforce off");
                         current_action = "Gforce Off";
                     }
@@ -1930,15 +1921,15 @@ namespace User.PluginSdkDemo
             });
             this.AddAction("WheelSliptoggle", (a, b) =>
             {
-                if (Settings.WS_enable_flag[Settings.table_selected] == 0)
+                if (!Settings.function_settings[Settings.table_selected].WS_enabled)
                 {
-                    Settings.WS_enable_flag[Settings.table_selected] = 1;
+                    Settings.function_settings[Settings.table_selected].WS_enabled = true;
                     SimHub.Logging.Current.Info("WheelSlip on");
                     current_action = "Wheel Slip On";
                 }
                 else
                 {
-                    Settings.WS_enable_flag[Settings.table_selected] = 0;
+                    Settings.function_settings[Settings.table_selected].WS_enabled = false;
                     SimHub.Logging.Current.Info("WheelSlip off");
                     current_action = "Wheel Slip Off";
                 }
@@ -1947,15 +1938,15 @@ namespace User.PluginSdkDemo
 
             this.AddAction("RoadImpacttoggle", (a, b) =>
             {
-                if (Settings.Road_impact_enable_flag[Settings.table_selected] == 0)
+                if (!Settings.function_settings[Settings.table_selected].Road_impact_enabled)
                 {
-                    Settings.Road_impact_enable_flag[Settings.table_selected] = 1;
+                    Settings.function_settings[Settings.table_selected].Road_impact_enabled = true;
                     SimHub.Logging.Current.Info("RoadImpact on");
                     current_action = "Wheel Slip On";
                 }
                 else
                 {
-                    Settings.Road_impact_enable_flag[Settings.table_selected] = 0;
+                    Settings.function_settings[Settings.table_selected].Road_impact_enabled = false;
                     SimHub.Logging.Current.Info("RoadImpact off");
                     current_action = "RoadImpact Off";
                 }
@@ -2021,58 +2012,58 @@ namespace User.PluginSdkDemo
 
                     try
                     {
-                        _serialPort[pedalIdx].PortName = Settings.selectedComPortNames[pedalIdx];
+                        _serialPort[pedalIdx].PortName = Settings.axis_settings[pedalIdx].com_port_name; ;
                     }
                     catch (Exception caughtEx)
                     {
                     }
                     
-                    //try connect back to com port
-                    if (Settings.auto_connect_flag[pedalIdx] == 1)
-                    {
+                    ////try connect back to com port
+                    //if (Settings.axis_settings[pedalIdx].auto_connect_flag == 1)
+                    //{
 
-                        if (Settings.connect_status[pedalIdx] == 1)
-                        {
-                            //_serialPort[pedalIdx].PortName = Settings.selectedComPortNames[pedalIdx];
-                            //SerialPort.GetPortNames
-                            if (PortExists(_serialPort[pedalIdx].PortName))
-                            {
-                                if (_serialPort[pedalIdx].IsOpen == false)
-                                {
-                                    //if (wpfHandle != null)
-                                    //{
-                                    //    wpfHandle.openSerialAndAddReadCallback(pedalIdx);
-                                    //}
+                    //    if (Settings.connect_status[pedalIdx] == 1)
+                    //    {
+                    //        //_serialPort[pedalIdx].PortName = Settings.selectedComPortNames[pedalIdx];
+                    //        //SerialPort.GetPortNames
+                    //        if (PortExists(_serialPort[pedalIdx].PortName))
+                    //        {
+                    //            if (_serialPort[pedalIdx].IsOpen == false)
+                    //            {
+                    //                //if (wpfHandle != null)
+                    //                //{
+                    //                //    wpfHandle.openSerialAndAddReadCallback(pedalIdx);
+                    //                //}
 
-                                    connectSerialPort[pedalIdx] = true;
-                                }
-                                else
-                                {
-                                    //if (wpfHandle != null)
-                                    //{
-                                    //    wpfHandle.closeSerialAndStopReadCallback(pedalIdx);
-                                    //}
-                                    //ConnectToPedal.IsChecked = false;
-                                    //TextBox_debugOutput.Text = "Serialport already open, close it";
-                                    //Settings.connect_status[pedalIdx] = 0;
-                                    connectSerialPort[pedalIdx] = false;
-                                }
+                    //                connectSerialPort[pedalIdx] = true;
+                    //            }
+                    //            else
+                    //            {
+                    //                //if (wpfHandle != null)
+                    //                //{
+                    //                //    wpfHandle.closeSerialAndStopReadCallback(pedalIdx);
+                    //                //}
+                    //                //ConnectToPedal.IsChecked = false;
+                    //                //TextBox_debugOutput.Text = "Serialport already open, close it";
+                    //                //Settings.connect_status[pedalIdx] = 0;
+                    //                connectSerialPort[pedalIdx] = false;
+                    //            }
 
 
-                            }
-                            else
-                            {
-                                //Settings.connect_status[pedalIdx] = 0;
-                                connectSerialPort[pedalIdx] = false;
-                            }
-                        }
-                        else
-                        {
-                            //Settings.connect_status[pedalIdx] = 0;
-                            connectSerialPort[pedalIdx] = false;
-                        }
+                    //        }
+                    //        else
+                    //        {
+                    //            //Settings.connect_status[pedalIdx] = 0;
+                    //            connectSerialPort[pedalIdx] = false;
+                    //        }
+                    //    }
+                    //    else
+                    //    {
+                    //        //Settings.connect_status[pedalIdx] = 0;
+                    //        connectSerialPort[pedalIdx] = false;
+                    //    }
 
-                    }
+                    //}
                     
 
                 }

@@ -6,10 +6,10 @@
 #include "IFunction.h"
 #include "Physics.h"
 
-class FlightPedalFunction : public IFunction {
+class FlightPedalsFunction : public IFunction {
     public:
-        FlightPedalFunction(void);
-        void update_config(const FlightPedalConfig &config);
+        FlightPedalsFunction(void);
+        void update_config(const FlightPedalsConfig &config);
         float get_x_contact_point_min(void) override {
             return _config.pos_near_lim;
         }
@@ -21,5 +21,5 @@ class FlightPedalFunction : public IFunction {
     private:
         Spring centering_spring = Spring(0.0, 0.0);
         Damper damper = Damper(1.0);
-        FlightPedalConfig _config = FlightPedalConfig_init_default;
+        FlightPedalsConfig _config = FlightPedalsConfig_init_default;
 };

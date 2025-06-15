@@ -106,9 +106,9 @@ class ConfigManager {
             }
             return nullptr;
         }
-        const FlightPedalConfig *get_flight_pedal_config(void) {
-            if (_function_config.which_specific == FunctionConfig_flight_pedal_tag) {
-                return &_function_config.specific.flight_pedal;
+        const FlightPedalsConfig *get_flight_pedal_config(void) {
+            if (_function_config.which_specific == FunctionConfig_flight_pedals_tag) {
+                return &_function_config.specific.flight_pedals;
             }
             return nullptr;
         }

@@ -37,7 +37,7 @@ CustomVibrationEffectConfig.*               int_size:IS_8
 
 AutomotivePedalConfig.*                     int_size:IS_8
 
-FlightPedalConfig.pos_*                     int_size:IS_16
+FlightPedalsConfig.pos_*                     int_size:IS_16
 
 AxisAction.*                                int_size:IS_8
 

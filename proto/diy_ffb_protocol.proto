@@ -203,64 +203,84 @@ message DamperConfig {
 }
 
 message ABSEffectConfig {
-  // frequency in Hz
-  uint32 freq = 1;
-  // amplitude in N
-  uint32 ampl = 2;
-  // effect pattern
-  ABSPattern pattern = 3;
+  // effect enabled
+  bool enabled = 1;
   // mode
-  ABSMode mode = 4;
+  ABSMode mode = 2;
+  // frequency in Hz
+  uint32 freq = 3;
+  // amplitude in N
+  uint32 ampl = 4;
+  // effect pattern
+  ABSPattern pattern = 5;
   // Simulated ABS trigger level (in percent, active if > 0)
-  uint32 sim_level = 5;
+  uint32 sim_level = 6;
+}
+
+enum RPMEffectType {
+  RPM_EFFECT_UNDEFINED = 0;
+  RPM_EFFECT_RPM = 1;
+  RPM_EFFECT_SPEED_RUMBLE = 2;
 }
 
 message RPMEffectConfig {
+  // effect enabled
+  bool enabled = 1;
   // maximum frquency in Hz
-  uint32 max_freq = 1;
+  uint32 max_freq = 2;
   // minimum frquency in Hz
-  uint32 min_freq = 2;
+  uint32 min_freq = 3;
   // amplitude in N
-  uint32 amp = 3;
+  uint32 amp = 4;
+  // effect type
+  RPMEffectType type = 5;
 }
 
 message BitePointEffectConfig {
+  // effect enabled
+  bool enabled = 1;
   // bite point effect trigger threshold in percent of travel
-  uint32 trigger_value = 1;
+  uint32 trigger_value = 2;
   // bite point effect amplitude in N
-  uint32 amp = 2;
+  uint32 amp = 3;
   // bite point effect frequency in Hz
-  uint32 freq = 3;
-  // bite point effect enabled
-  bool enabled = 4;
+  uint32 freq = 4;
 }
 
 message GForceEffectConfig {
+  // effect enabled
+  bool enabled = 1;
   // multiplier in percent
-  uint32 multi = 1;
+  uint32 multi = 2;
   // filter window width in number of samples
-  uint32 window = 2;
+  uint32 window = 3;
 }
 
 message WheelSlipEffectConfig {
+  // effect enabled
+  bool enabled = 1;
   // amplitude in N
-  uint32 amp = 1;
+  uint32 amp = 2;
   // frequency in Hz
-  uint32 freq = 2;
+  uint32 freq = 3;
 }
 
 message RoadImpactEffectConfig {
+  // effect enabled
+  bool enabled = 1;
   // multiplier in percent
-  uint32 multi = 1;
+  uint32 multi = 2;
   // filter window width in number of samples
-  uint32 window = 2;
+  uint32 window = 3;
 }
 
 message CustomVibrationEffectConfig {
+  // effect enabled
+  bool enabled = 1;
   // amplitude in N
-  uint32 amp = 1;
+  uint32 amp = 2;
   // frequency in Hz
-  uint32 freq = 2;
+  uint32 freq = 3;
 }
 
 message AutomotivePedalConfig {
@@ -277,13 +297,13 @@ message AutomotivePedalConfig {
   // RPM effect configuration
   RPMEffectConfig rpm_effect_config = 6;
   // bite point effect configuration
-  BitePointEffectConfig bp_effect_config = 7;
+  BitePointEffectConfig bite_point_effect_config = 7;
   // G force effect configuration
   GForceEffectConfig g_force_effect_config = 8;
   // wheel slip effect configuration
-  WheelSlipEffectConfig ws_effect_config = 9;
+  WheelSlipEffectConfig wheel_slip_effect_config = 9;
   // Road impact effect configuration
-  RoadImpactEffectConfig road_effect_config = 10;
+  RoadImpactEffectConfig road_impact_effect_config = 10;
   // Custom Vibration 1 effect configuration
   CustomVibrationEffectConfig cv_1_effect_config = 11;
   // Custom Vibration 2 effect configuration
@@ -312,7 +332,7 @@ message AuxFunctionConfig {
   }
 }
 
-message FlightPedalConfig {
+message FlightPedalsConfig {
    // pedal near position limit in mm
   int32 pos_near_lim = 1;
    // pedal far position limit in mm
@@ -327,7 +347,7 @@ message FunctionConfig {
   FunctionBase base = 1;
   oneof specific {
     AutomotivePedalConfig automotive_pedal = 2;
-    FlightPedalConfig flight_pedal = 3;
+    FlightPedalsConfig flight_pedals = 3;
   }
   AuxFunctionConfig aux_function = 4;
 }
