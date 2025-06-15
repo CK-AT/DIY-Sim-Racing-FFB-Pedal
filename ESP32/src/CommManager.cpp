@@ -484,16 +484,80 @@ void CommManager::send_joystick_values(void) {
         }
     }
     float output_value;
+    memset(controller_axis_values, 0, sizeof(controller_axis_values));
     for (uint8_t function_idx = 0; function_idx < _FunctionID_MAX; function_idx++) {
         function_id = FunctionID(function_idx + 1);
         if (function_flags & (1 << function_id)) {
             FunctionBase *function_base = _config_manager->get_function_base(function_id);
             if (function_base && function_base->controller_output_axis) {
                 if (calc_controller_output_value(*function_base, output_value)) {
-                    set_controller_axis(function_base->controller_output_axis, output_value);
+                    if (MessageTools::check_controller_axis_id(function_base->controller_output_axis)) {
+                        controller_axis_values[MessageTools::controller_axis_index_from_id(function_base->controller_output_axis)] = output_value;
+                    }
                 }
             }
         }
     }
+    // TODO: process aux functions here
+    for (uint8_t controller_axis_idx = 0; controller_axis_idx < _ControllerAxis_MAX; controller_axis_idx++) {
+        ControllerAxis controller_axis = MessageTools::controller_axis_id_from_index(controller_axis_idx);
+        set_controller_axis(controller_axis, controller_axis_values[controller_axis_idx]);
+    }
     _joystick.sendState();
 }
+
+bool CommManager::calc_input_force_sum(const FunctionBase &function_base, float &input_force) {
+    float f_sum = 0.0f;
+    float temp;
+    bool is_subtractive_axis = false;
+    AxisID own_axis_id = get_axis_id();
+    for (uint8_t idx = 0; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
+        AxisID axis_id = AxisID(function_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
+        if (axis_id == AxisID_AXIS_UNDEFINED) break;
+        temp = 0.0f;
+        get_force(axis_id, temp);  // get_force won't touch temp if the associated axis is not online, no need to check the return value
+        if (function_base.linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) {
+            if (axis_id == own_axis_id) is_subtractive_axis = true;
+            f_sum -= temp;
+        } else {
+            f_sum += temp;
+        }
+    }
+    input_force = f_sum;
+    return is_subtractive_axis;
+}
+
+bool CommManager::calc_input_force_sum(float &input_force) {
+    return calc_input_force_sum(_config_manager->get_function_config()->base, input_force);
+}
+
+
+bool CommManager::calc_final_position(float own_position, float &final_position) {
+    const FunctionBase &func_base = _config_manager->get_function_config()->base;
+    float other_position;
+    AxisID primary_axis_id = AxisID(func_base.linked_axes[0] & AxisID_AXIS_ID_MASK);
+    AxisID own_axis_id = get_axis_id();
+    if (primary_axis_id == own_axis_id) {
+        // we are the primary axis -> own_position is the final position
+        final_position = own_position;
+        return true;
+    } else if (get_position(primary_axis_id, other_position)) {
+        // we are NOT the primary axis, start at idx 1
+        for (uint8_t idx = 1; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
+            AxisID axis_id = AxisID(func_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
+            if (axis_id == own_axis_id) {
+                if (func_base.linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) {
+                    final_position = (_config_manager->get_x_contact_point_center() * 2.0f) - other_position;
+                    return true;
+                } else {
+                    final_position = other_position;
+                    return true;
+                }
+            } else if (axis_id == AxisID_AXIS_UNDEFINED) {
+                break;
+            }
+        }
+    }
+    return false;
+}
+

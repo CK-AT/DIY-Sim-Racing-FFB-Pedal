@@ -44,6 +44,14 @@ class CommManager {
         void on_physics_task_start(void) {
             _physics_task_started = true;
         }
+        bool calc_input_force_sum(const FunctionBase &function_base, float &input_force);
+        bool calc_input_force_sum(float &input_force);
+        bool calc_input_force_sum(float own_force, float &input_force) {
+            update_force(own_force);
+            return calc_input_force_sum(input_force);
+        }
+        bool calc_final_position(float own_position, float &final_position);
+
 
     private:
         enum JoystickState {
@@ -108,4 +116,5 @@ class CommManager {
         JoystickState _joystick_state = JOYSTICK_PRE_INIT;
         uint32_t _ti_joystick_state;
         bool _physics_task_started = false;
+        float controller_axis_values[_ControllerAxis_MAX] = {};
 };

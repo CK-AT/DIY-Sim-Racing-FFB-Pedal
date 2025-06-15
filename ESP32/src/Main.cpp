@@ -462,60 +462,6 @@ void calc_poly(const float &in, float &out, const double *coeffs) {
     out = result;
 }
 
-float get_input_force_sum(float own_force) {
-    comm_manager.update_force(own_force);
-    const FunctionBase &func_base = config_manager.get_function_config()->base;
-    float f_sum = 0.0f;
-    float temp;
-    bool is_subtractive_axis = false;
-    AxisID own_axis_id = config_manager.get_axis_id();
-    for (uint8_t idx = 0; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
-        AxisID axis_id = AxisID(func_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
-        if (axis_id == AxisID_AXIS_UNDEFINED) break;
-        temp = 0.0f;
-        comm_manager.get_force(axis_id, temp);  // get_force won't touch temp if the associated axis is not online, no need to check the return value
-        if (func_base.linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) {
-            if (axis_id == own_axis_id) is_subtractive_axis = true;
-            f_sum -= temp;
-        } else {
-            f_sum += temp;
-        }
-    }
-    if (is_subtractive_axis) {
-        f_sum *= -1.0f;
-    }
-    return f_sum;
-}
-
-bool get_final_position(float own_position, float &final_position) {
-    const FunctionBase &func_base = config_manager.get_function_config()->base;
-    float other_position;
-    AxisID primary_axis_id = AxisID(func_base.linked_axes[0] & AxisID_AXIS_ID_MASK);
-    AxisID own_axis_id = config_manager.get_axis_id();
-    if (primary_axis_id == own_axis_id) {
-        // we are the primary axis -> own_position is the final position
-        final_position = own_position;
-        return true;
-    } else if (comm_manager.get_position(primary_axis_id, other_position)) {
-        // we are NOT the primary axis, start at idx 1
-        for (uint8_t idx = 1; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
-            AxisID axis_id = AxisID(func_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
-            if (axis_id == own_axis_id) {
-                if (func_base.linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) {
-                    final_position = (config_manager.get_x_contact_point_center() * 2.0f) - other_position;
-                    return true;
-                } else {
-                    final_position = other_position;
-                    return true;
-                }
-            } else if (axis_id == AxisID_AXIS_UNDEFINED) {
-                break;
-            }
-        }
-    }
-    return false;
-}
-
 /**********************************************************************************************/
 /*                                                                                            */
 /*                         pedal update task                                                  */
@@ -588,11 +534,15 @@ void physics_task_func(void *pvParameters) {
         comm_manager.process();
 #endif
 
-        float f_in = get_input_force_sum(f_foot);
+        float f_in;
+        if (comm_manager.calc_input_force_sum(f_foot, f_in)) {
+            // calc_input_force_sum returns true if this is a subractive axis -> invert result
+            f_in *= -1.0f;
+        }
 
         sim.update(dt, f_in);
 
-        get_final_position(sim.get_x(), x_foot);
+        comm_manager.calc_final_position(sim.get_x(), x_foot);
 
         float x_sled;
         calc_poly(x_foot, x_sled, axis_cfg->kinematic_parameters.coeffs_sled_pos_over_contact_point_pos);

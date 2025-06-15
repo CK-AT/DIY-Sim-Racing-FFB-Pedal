@@ -18,7 +18,19 @@ class MessageTools {
         }
         static bool check_axis_id(AxisID axis_id) {
             if (axis_id == AxisID_AXIS_UNDEFINED) return false;
-            if (MessageTools::axis_index_from_id(axis_id) < MAX_AXES_COUNT) return true;
+            if ((axis_id - 1) < MAX_AXES_COUNT) return true;
+            return false;
+        }
+        static ControllerAxis controller_axis_id_from_index(uint8_t controller_axis_index) {
+            return ControllerAxis(constrain(controller_axis_index, 0,  _ControllerAxis_MAX - 1) + 1);
+        }
+        static uint8_t controller_axis_index_from_id(ControllerAxis controller_axis) {
+            /* limit to zero */
+            return uint8_t(constrain(controller_axis - 1, 0, _ControllerAxis_MAX - 1));
+        }
+        static bool check_controller_axis_id(ControllerAxis controller_axis) {
+            if (controller_axis == ControllerAxis_CONTROLLER_AXIS_UNDEFINED) return false;
+            if ((controller_axis - 1) < _ControllerAxis_MAX) return true;
             return false;
         }
 };

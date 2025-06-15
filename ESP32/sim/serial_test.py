@@ -69,28 +69,28 @@ class OutputProtocol(asyncio.Protocol):
 async def request_configs(protocol):
     await asyncio.sleep(1)
     # msg = ffb_protocol.Message()
-    # msg.axis_action.axis_id = ffb_protocol.AXIS_3
+    # msg.axis_action.axis_id = ffb_protocol.AXIS_ID_3
     # msg.axis_action.return_axis_config = True
     # protocol.send_message(msg)
     # await asyncio.sleep(0.2)
     # msg = ffb_protocol.Message()
-    # msg.axis_action.axis_id = ffb_protocol.AXIS_3
+    # msg.axis_action.axis_id = ffb_protocol.AXIS_ID_3
     # msg.axis_action.return_function_config = True
     # protocol.send_message(msg)
     # await asyncio.sleep(0.2)
     # while True:
     #     await asyncio.sleep(0.1)
     #     msg = ffb_protocol.Message()
-    #     msg.ffb_action.function_id = ffb_protocol.FUNCTION_BRAKE
+    #     msg.ffb_action.function_id = ffb_protocol.FUNCTION_ID_BRAKE
     #     msg.ffb_action.automotive_pedal.trigger_abs = True
     #     protocol.send_message(msg)
     # msg = ffb_protocol.Message()
-    # msg.axis_action.axis_id = ffb_protocol.AXIS_2
+    # msg.axis_action.axis_id = ffb_protocol.AXIS_ID_2
     # msg.axis_action.restart = True
     # protocol.send_message(msg)
     # await asyncio.sleep(0.5)
     # msg = ffb_protocol.Message()
-    # msg.axis_action.axis_id = ffb_protocol.AXIS_3
+    # msg.axis_action.axis_id = ffb_protocol.AXIS_ID_3
     # msg.axis_action.restart = True
     # protocol.send_message(msg)
     # await accelerator_wolf.load_config(protocol)
@@ -117,6 +117,10 @@ async def main(port):
             pass
         elif payload_type == 'gateway_state':
             pass
+        elif payload_type == 'function_config':
+            print(f'----> Function config received')
+        elif payload_type == 'axis_config':
+            print(f'----> Axis config received')
         else:
             print(f'unhandled message received: {msg}')
 

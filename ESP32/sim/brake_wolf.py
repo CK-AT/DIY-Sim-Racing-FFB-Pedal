@@ -3,8 +3,8 @@ import asyncio
 
 async def load_config(serial, store=False):
     msg = ffb_protocol.Message()
-    msg.function_config.base.function_id = ffb_protocol.FUNCTION_BRAKE
-    msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_2)
+    msg.function_config.base.function_id = ffb_protocol.FUNCTION_ID_BRAKE
+    msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_ID_2)
     msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
     msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
     msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
@@ -34,7 +34,7 @@ async def load_config(serial, store=False):
     msg.function_config.automotive_pedal.force_curve_config.cubic_spline_params_b.append(5.11961746)
     msg.function_config.automotive_pedal.force_curve_config.cubic_spline_params_b.append(10.8229666)
     msg.function_config.automotive_pedal.force_curve_config.cubic_spline_params_b.append(2.58851671)
-    msg.function_config.automotive_pedal.force_curve_config.force_direction = ffb_protocol.DIRECTION_SUBTRACT
+    msg.function_config.automotive_pedal.force_curve_config.force_direction = ffb_protocol.FORCE_DIRECTION_SUBTRACT
     msg.function_config.automotive_pedal.damper_config.positive_factor = 0.1
     msg.function_config.automotive_pedal.damper_config.negative_factor = 0.1
     msg.function_config.automotive_pedal.pos_idle = 34
@@ -46,6 +46,6 @@ async def load_config(serial, store=False):
     serial.send_message(msg)
     await asyncio.sleep(0.5)
     msg = ffb_protocol.Message()
-    msg.axis_action.axis_id = ffb_protocol.AXIS_2
+    msg.axis_action.axis_id = ffb_protocol.AXIS_ID_2
     msg.axis_action.return_function_config = True
     serial.send_message(msg)
