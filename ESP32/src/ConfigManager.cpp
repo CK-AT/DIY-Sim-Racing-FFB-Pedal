@@ -158,8 +158,7 @@ bool ConfigManager::load_function_config(void) {
         if (MessageTools::check_and_decode_message(_temp_message, buffer, header.len, header.crc)) {
             if (_temp_message.which_payload == Message_function_config_tag) {
                 _function_config = _temp_message.payload.function_config;
-                update_function_config_base_lut(_function_config);
-                update_aux_function_lut(_function_config);
+                update_lookup_tables(_function_config);
                 return true;
             } else {
                 LogOutput::printf(" -> not a function config");
@@ -213,8 +212,7 @@ ConfigManager::UpdateResult ConfigManager::update_function_config(const Function
             affecting_this_axis = true;
         }
     }
-    update_function_config_base_lut(new_config);
-    update_aux_function_lut(new_config);
+    update_lookup_tables(new_config);
     if (!affecting_this_axis) {
         LogOutput::printf(" -> not targeting this axis");
         return ConfigManager::UPDATE_OTHER_AXIS;
@@ -256,4 +254,18 @@ void ConfigManager::on_config_update(void) {
         _active_funtion = _on_config_update_callback(_active_funtion, &_function_config);
     }
     update_x_contact_point_limits();
+}
+
+void ConfigManager::update_lookup_tables(const FunctionConfig &new_config) {
+    _function_lut[new_config.base.function_id] = new_config.base;
+    if (new_config.has_aux_function) {
+        if (_get_aux_function_callback) {
+            IAuxFunction *aux_function = _get_aux_function_callback(&new_config);
+            if (aux_function) {
+                _aux_function_lut[new_config.base.function_id] = {aux_function, new_config.aux_function};
+                return;
+            }
+        }
+    }
+    _aux_function_lut[new_config.base.function_id] = {nullptr, {}};
 }

@@ -190,8 +190,7 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
                 _config_manager->update_function_config(msg.payload.function_config, protobuf_msg, len_protobuf_msg);
             } else {
                 // gateway only, no need to call _config_manager->update_function_config()
-                _config_manager->update_function_config_base_lut(msg.payload.function_config);
-                _config_manager->update_aux_function_lut(msg.payload.function_config);
+                _config_manager->update_lookup_tables(msg.payload.function_config);
             }
             if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
                 const AxisID *linked_axes = msg.payload.function_config.base.linked_axes;
@@ -241,8 +240,7 @@ void CommManager::on_axis_message(AxisID axis_id, const Message &msg, const uint
                                   CommChannel comm_channel) {
     switch (msg.which_payload) {
         case Message_function_config_tag:
-            _config_manager->update_function_config_base_lut(msg.payload.function_config);
-            _config_manager->update_aux_function_lut(msg.payload.function_config);
+            _config_manager->update_lookup_tables(msg.payload.function_config);
             break;
     }
     serial_manager.send_message_to_host(msg, protobuf_msg, len_protobuf_msg);

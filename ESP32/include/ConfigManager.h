@@ -39,21 +39,7 @@ class ConfigManager {
         void init(GatewayID gateway_id, GetAuxFunction get_aux_function_callback);
         UpdateResult update_axis_config(const AxisConfig &new_config, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg, bool force = false);
         UpdateResult update_function_config(const FunctionConfig &new_config, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg);
-        void update_function_config_base_lut(const FunctionConfig &new_config) {
-            _function_lut[new_config.base.function_id] = new_config.base;
-        }
-        void update_aux_function_lut(const FunctionConfig &new_config) {
-            if (new_config.has_aux_function) {
-                if (_get_aux_function_callback) {
-                    IAuxFunction *aux_function = _get_aux_function_callback(&new_config);
-                    if (aux_function) {
-                        _aux_function_lut[new_config.base.function_id] = {aux_function, new_config.aux_function};
-                        return;
-                    }
-                }
-            }
-            _aux_function_lut[new_config.base.function_id] = {nullptr, {}};
-        }
+        void update_lookup_tables(const FunctionConfig &new_config);
         void get_axis_config_as_message(Message &message);
         void get_function_config_as_message(Message &message);
         AxisID get_axis_id(void) const {
@@ -118,18 +104,6 @@ class ConfigManager {
                 return AxisID(function_base->linked_axes[0] & AxisID_AXIS_ID_MASK);
             }
             return AxisID_AXIS_UNDEFINED;
-        }
-        const AutomotivePedalConfig *get_automotive_pedal_config(void) {
-            if (_function_config.which_specific == FunctionConfig_automotive_pedal_tag) {
-                return &_function_config.specific.automotive_pedal;
-            }
-            return nullptr;
-        }
-        const FlightPedalsConfig *get_flight_pedal_config(void) {
-            if (_function_config.which_specific == FunctionConfig_flight_pedals_tag) {
-                return &_function_config.specific.flight_pedals;
-            }
-            return nullptr;
         }
         const AxisConfig *get_axis_config(void) {
             return &_axis_config;
