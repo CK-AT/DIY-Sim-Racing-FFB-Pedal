@@ -4533,46 +4533,25 @@ namespace User.PluginSdkDemo
         {
             if (Plugin.Sync_esp_connection_flag)
             {
-                if (Plugin.ESPsync_serialPort.IsOpen)
-                {
-                    if (ESP_host_serial_timer_cts != null)
-                    {
-                        ESP_host_serial_timer_cts.Cancel();
-                    }
-                    //Plugin.ESPsync_serialPort.DiscardInBuffer();
-                    //Plugin.ESPsync_serialPort.DiscardOutBuffer();
-                    Plugin.ESPsync_serialPort.OnMessage -= OnMessage;
-                    Plugin.ESPsync_serialPort.Close();
-                    Plugin.Sync_esp_connection_flag = false;
-                    btn_connect_espnow_port.Content = "Connect";
-                    SystemSounds.Beep.Play();
-                    Plugin.Settings.Pedal_ESPNow_auto_connect_flag = false;
-                    updateTheGuiFromConfig();
-                }
+                Plugin.ESPsync_serialPort.OnMessage -= OnMessage;
+                Plugin.ESPsync_serialPort.Close();
+                Plugin.Sync_esp_connection_flag = false;
+                btn_connect_espnow_port.Content = "Connect";
+                SystemSounds.Beep.Play();
+                Plugin.Settings.Pedal_ESPNow_auto_connect_flag = false;
+                updateTheGuiFromConfig();
             }
             else
             {
                 try
                 {
-                    //// serial port settings
-                    //Plugin.ESPsync_serialPort.Handshake = Handshake.None;
-                    //Plugin.ESPsync_serialPort.Parity = Parity.None;
-                    ////_serialPort[pedalIdx].StopBits = StopBits.None;
-                    //Plugin.ESPsync_serialPort.BaudRate = Bridge_baudrate;
-
-                    //Plugin.ESPsync_serialPort.ReadTimeout = 2000;
-                    //Plugin.ESPsync_serialPort.WriteTimeout = 500;
-
-                    //// https://stackoverflow.com/questions/7178655/serialport-encoding-how-do-i-get-8-bit-ascii
-                    //Plugin.ESPsync_serialPort.Encoding = System.Text.Encoding.GetEncoding(28591);
-                    //Plugin.ESPsync_serialPort.NewLine = "\r\n";
-                    //Plugin.ESPsync_serialPort.ReadBufferSize = 40960;
                     if (Plugin.PortExists(Plugin.Settings.ESPNow_port))
                     {
                         Plugin.ESPsync_serialPort = new ProtobufSerial<Message>(Plugin.Settings.ESPNow_port, 3000000);
                         try
                         {
-                            Plugin.ESPsync_serialPort.Open();
+                            Plugin.ESPsync_serialPort.OnMessage += OnMessage;
+                            Plugin.ESPsync_serialPort.Open(true);
                             System.Threading.Thread.Sleep(200);
                             // ESP32 S3
                             if (Plugin.Settings.Using_CDC_bridge)
@@ -4586,39 +4565,16 @@ namespace User.PluginSdkDemo
                             SystemSounds.Beep.Play();
                             Plugin.Sync_esp_connection_flag = true;
                             btn_connect_espnow_port.Content = "Disconnect";
-                            //Plugin.Settings.connect_status[3] = 1;
-                            // read callback
-                            /*
-                            if (pedal_serial_read_timer[3] != null)
-                            {
-                                pedal_serial_read_timer[3].Stop();
-                                pedal_serial_read_timer[3].Dispose();
-                            }
-                            */
-                            Plugin.ESPsync_serialPort.OnMessage += OnMessage;
-                            System.Threading.Thread.Sleep(100);
                             if (Plugin.Settings.Pedal_ESPNow_auto_connect_flag)
                             {
                                 Plugin.Settings.ESPNow_port = Plugin.ESPsync_serialPort.PortName;
                             }
                             updateTheGuiFromConfig();
-                            
-                            
                         }
                         catch (Exception ex)
                         {
                             TextBox2.Text = ex.Message;
-                            //Serial_connect_status[3] = false;
                         }
-
-
-                    }
-                    else
-                    {
-                        //Plugin.Settings.connect_status[pedalIdx] = 0;
-                        //Plugin.connectSerialPort[pedalIdx] = false;
-                        //Serial_connect_status[pedalIdx] = false;
-
                     }
                 }
                 catch (Exception ex)
@@ -4626,7 +4582,6 @@ namespace User.PluginSdkDemo
                     TextBox2.Text = ex.Message;
                 }
             }
-            
         }
 
 
@@ -4863,14 +4818,14 @@ namespace User.PluginSdkDemo
                         string axis_log_line;
                         if (msg.AxisLogMessage.AxisId != AxisID.AxisUndefined)
                         {
-                            axis_log_line = String.Format("Axis {0} : {1}\n", (int)msg.AxisLogMessage.AxisId, msg.AxisLogMessage.Msg);
+                            axis_log_line = String.Format("A{0} : {1}", (int)msg.AxisLogMessage.AxisId, msg.AxisLogMessage.Msg);
                         } else
                         {
-                            axis_log_line = String.Format("Unknown Axis : {0}\n", msg.AxisLogMessage.Msg);
+                            axis_log_line = String.Format("A? : {0}", msg.AxisLogMessage.Msg);
                         }
-                        TextBox_serialMonitor_bridge.Text += axis_log_line;
+                        TextBox_serialMonitor_bridge.Text += axis_log_line + "\n";
                         TextBox_serialMonitor_bridge.ScrollToEnd();
-                        SimHub.Logging.Current.Info(axis_log_line);
+                        SimHub.Logging.Current.Info(String.Format("DIY_FFB : {0}", axis_log_line));
                         if (_serial_monitor_window != null)
                         {
                             _serial_monitor_window.TextBox_SerialMonitor.Text += axis_log_line;
@@ -4878,10 +4833,18 @@ namespace User.PluginSdkDemo
                         }
                         break;
                     case Message.PayloadOneofCase.GatewayLogMessage:
-                        var gateway_log_line = String.Format("{0} : {1}\n", msg.GatewayLogMessage.GatewayId, msg.GatewayLogMessage.Msg);
-                        TextBox_serialMonitor_bridge.Text += gateway_log_line;
+                        string gateway_log_line;
+                        if (msg.GatewayLogMessage.GatewayId != GatewayID.GatewayUndefined)
+                        {
+                            gateway_log_line = String.Format("G{0} : {1}", (int)msg.GatewayLogMessage.GatewayId, msg.GatewayLogMessage.Msg);
+                        }
+                        else
+                        {
+                            gateway_log_line = String.Format("G? : {0}", msg.GatewayLogMessage.Msg);
+                        }
+                        TextBox_serialMonitor_bridge.Text += gateway_log_line + "\n";
                         TextBox_serialMonitor_bridge.ScrollToEnd();
-                        SimHub.Logging.Current.Info(gateway_log_line);
+                        SimHub.Logging.Current.Info(String.Format("DIY_FFB : {0}", gateway_log_line));
                         if (_serial_monitor_window != null)
                         {
                             _serial_monitor_window.TextBox_SerialMonitor.Text += gateway_log_line;
