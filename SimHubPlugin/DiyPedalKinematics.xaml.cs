@@ -27,6 +27,11 @@ namespace User.PluginSdkDemo
         public delegate void KinematicParametersChangedEventHandler(KinematicParameters parameters);
         public event KinematicParametersChangedEventHandler KinematicParametersChanged;
 
+        private void SendDebugMessage(string msg)
+        {
+            DebugMessage?.Invoke(msg);
+        }
+
         public DiyPedalKinematics()
         {
             config = GetDefaultConfig();
@@ -41,7 +46,7 @@ namespace User.PluginSdkDemo
             UpdateConfig(GetDefaultConfig());
         }
 
-        public DIYPedalKinematicConfig GetDefaultConfig()
+        public static DIYPedalKinematicConfig GetDefaultConfig()
         {
             DIYPedalKinematicConfig new_config = new DIYPedalKinematicConfig();
             new_config.LPivotFoot = 180;
@@ -51,6 +56,12 @@ namespace User.PluginSdkDemo
             new_config.LPivotSledXMin = 82;
             new_config.LSledStroke = 114;
             return new_config;
+        }
+
+        public static KinematicParameters CalcKinematicParameters(DIYPedalKinematicConfig config)
+        {
+            var result = CalcParameters(config, 0);
+            return result.Item3;
         }
 
         public void UpdateConfig(DIYPedalKinematicConfig new_config)
@@ -124,21 +135,13 @@ namespace User.PluginSdkDemo
             }
         }
 
-        private void UpdateJointDrawing()
+        private static (double, double, KinematicParameters, double, double) CalcParameters(DIYPedalKinematicConfig config, double position)
         {
             //A= kinematic joint C
             //B= Kinematic joint A
             //C= Kinematic joint B
             //O=O
             //D=D
-
-            Label_kinematic_b_canvas.Text = "" + config.LPivotLink;
-            Label_kinematic_c_hort_canvas.Text = "" + config.LPivotSledXMin;
-            Label_kinematic_c_vert_canvas.Text = "" + config.LPivotSledY;
-            Label_kinematic_a_canvas.Text = "" +  config.LLink;
-            Label_kinematic_d_canvas.Text = "" +  (config.LPivotFoot - config.LPivotLink);
-            Label_travel_canvas.Text = "" +  config.LSledStroke;
-            Label_kinematic_scale.Content = Math.Round(plugin.Settings.kinematicDiagram_zeroPos_scale, 1);
 
             //parameter calculation
             double l_pivot_link = config.LPivotLink;
@@ -147,14 +150,15 @@ namespace User.PluginSdkDemo
             double Travel_length = config.LSledStroke;
             double l_link = config.LLink;
             double l_pivot_foot = config.LPivotFoot;
-            
+
 
             double[] l_sled = Generate.LinearSpaced(1000, 0.0, Travel_length);
             double[] x_contact_point = new double[1000];
             double[] r_force_link_foot = new double[1000];
             double[] angles = new double[1000];
 
-            for (int i = 0; i < l_sled.Length; i++) {
+            for (int i = 0; i < l_sled.Length; i++)
+            {
                 double l_pivot_sled_x = l_pivot_sled_x_min + l_sled[i]; // horizontal position of the sled connection point relative to the pivot/origin
                 double phi_pivot_sled = Math.Atan2(l_pivot_sled_y, l_pivot_sled_x); // angle of the connecting line between pivot and sled connection point (from horizontal axis)
                 double l_pivot_sled = Math.Sqrt(l_pivot_sled_y * l_pivot_sled_y + l_pivot_sled_x * l_pivot_sled_x); // length of the connecting line between pivot and sled connection point
@@ -180,15 +184,44 @@ namespace User.PluginSdkDemo
             new_parameters.CoeffsForceFactorOverContactPointPos.AddRange(coeffs_force_factor_over_contact_point_pos);
             new_parameters.ContactPointPosMinAbs = (int)(x_contact_point.First() * 10.0);
             new_parameters.ContactPointPosMaxAbs = (int)(x_contact_point.Last() * 10.0);
-            KinematicParametersChanged(new_parameters);
 
-            double pedal_angle = angles[500]; // TODO: interpolate from current position
-            double Current_travel_position = l_sled[500];
+            double angle = Interpolate.Linear(x_contact_point, angles).Interpolate(position);
+            double linear_pos = Interpolate.Linear(x_contact_point, l_sled).Interpolate(position);
+            return (angle,  linear_pos, new_parameters, angles.First(), angles.Last());
+        }
+
+        private void UpdateJointDrawing()
+        {
+            double l_pivot_link = config.LPivotLink;
+            double l_pivot_sled_x_min = config.LPivotSledXMin;
+            double l_pivot_sled_y = config.LPivotSledY;
+            double Travel_length = config.LSledStroke;
+            double l_link = config.LLink;
+            double l_pivot_foot = config.LPivotFoot;
+
+            Label_kinematic_b_canvas.Text = "" + config.LPivotLink;
+            Label_kinematic_c_hort_canvas.Text = "" + config.LPivotSledXMin;
+            Label_kinematic_c_vert_canvas.Text = "" + config.LPivotSledY;
+            Label_kinematic_a_canvas.Text = "" + config.LLink;
+            Label_kinematic_d_canvas.Text = "" + (config.LPivotFoot - config.LPivotLink);
+            Label_travel_canvas.Text = "" + config.LSledStroke;
+
+            var result = CalcParameters(config, 50.0); // TODO: interpolate from current position
+            double pedal_angle = result.Item1;
+            double Current_travel_position = result.Item2;
+            var new_parameters = result.Item3;
+            double min_angle = result.Item4;
+            double max_angle = result.Item5;
+            KinematicParametersChanged?.Invoke(new_parameters);
 
             Label_kinematic_pedal_angle.Content = "Current Pedal Angle: " + Math.Round(pedal_angle / Math.PI * 180) + "°,";
-            Label_kinematic_pedal_angle.Content = Label_kinematic_pedal_angle.Content + " Max Pedal Angle:" + Math.Round(angles.Last() / Math.PI * 180) + "°,";
-            Label_kinematic_pedal_angle.Content = Label_kinematic_pedal_angle.Content + " Min Pedal Angle:" + Math.Round(angles.First() / Math.PI * 180) + "°,";
-            Label_kinematic_pedal_angle.Content = Label_kinematic_pedal_angle.Content + " Angle Travel:" + Math.Round((angles.Last() - angles.First()) / Math.PI * 180) + "°";
+            Label_kinematic_pedal_angle.Content = Label_kinematic_pedal_angle.Content + " Max Pedal Angle:" + Math.Round(max_angle / Math.PI * 180) + "°,";
+            Label_kinematic_pedal_angle.Content = Label_kinematic_pedal_angle.Content + " Min Pedal Angle:" + Math.Round(min_angle / Math.PI * 180) + "°,";
+            Label_kinematic_pedal_angle.Content = Label_kinematic_pedal_angle.Content + " Angle Travel:" + Math.Round((max_angle - min_angle) / Math.PI * 180) + "°";
+
+            if (plugin == null) return;
+
+            Label_kinematic_scale.Content = Math.Round(plugin.Settings.kinematicDiagram_zeroPos_scale, 1);
 
             double pedal_angle_from_horizontal = (Math.PI / 2.0) - pedal_angle;
             double A_X = l_pivot_link * Math.Cos(pedal_angle_from_horizontal);
@@ -388,7 +421,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                DebugMessage("Pedal Kinematic calculation error");
+                SendDebugMessage("Pedal Kinematic calculation error");
             }
         }
 
@@ -405,7 +438,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                DebugMessage("Pedal Kinematic calculation error");
+                SendDebugMessage("Pedal Kinematic calculation error");
             }
         }
 
@@ -422,7 +455,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                DebugMessage("Pedal Kinematic calculation error");
+                SendDebugMessage("Pedal Kinematic calculation error");
             }
         }
 
@@ -439,7 +472,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                DebugMessage("Pedal Kinematic calculation error");
+                SendDebugMessage("Pedal Kinematic calculation error");
             }
         }
 
@@ -456,7 +489,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                DebugMessage("Pedal Kinematic calculation error");
+                SendDebugMessage("Pedal Kinematic calculation error");
             }
         }
 
@@ -473,7 +506,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                DebugMessage("Pedal Kinematic calculation error");
+                SendDebugMessage("Pedal Kinematic calculation error");
             }
         }
 
@@ -490,7 +523,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                DebugMessage("Pedal Kinematic calculation error");
+                SendDebugMessage("Pedal Kinematic calculation error");
             }
         }
 
@@ -507,7 +540,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                DebugMessage("Pedal Kinematic calculation error");
+                SendDebugMessage("Pedal Kinematic calculation error");
             }
         }
 
@@ -526,7 +559,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                DebugMessage("Pedal Kinematic calculation error");
+                SendDebugMessage("Pedal Kinematic calculation error");
             }
         }
 
@@ -630,7 +663,7 @@ namespace User.PluginSdkDemo
                     }
                     else
                     {
-                        DebugMessage("Pedal Kinematic calculation error");
+                        SendDebugMessage("Pedal Kinematic calculation error");
                     }
                 }
             }
@@ -649,7 +682,7 @@ namespace User.PluginSdkDemo
                     }
                     else
                     {
-                        DebugMessage("Pedal Kinematic calculation error");
+                        SendDebugMessage("Pedal Kinematic calculation error");
                     }
                 }
             }
@@ -668,7 +701,7 @@ namespace User.PluginSdkDemo
                     }
                     else
                     {
-                        DebugMessage("Pedal Kinematic calculation error");
+                        SendDebugMessage("Pedal Kinematic calculation error");
                     }
                 }
             }
@@ -687,7 +720,7 @@ namespace User.PluginSdkDemo
                     }
                     else
                     {
-                        DebugMessage("Pedal Kinematic calculation error");
+                        SendDebugMessage("Pedal Kinematic calculation error");
                     }
                 }
             }
@@ -702,7 +735,7 @@ namespace User.PluginSdkDemo
                     }
                     else
                     {
-                        DebugMessage("Pedal Kinematic calculation error");
+                        SendDebugMessage("Pedal Kinematic calculation error");
                     }
                 }
             }
@@ -717,7 +750,7 @@ namespace User.PluginSdkDemo
                     }
                     else
                     {
-                        DebugMessage("Pedal Kinematic calculation error");
+                        SendDebugMessage("Pedal Kinematic calculation error");
                     }
                 }
             }

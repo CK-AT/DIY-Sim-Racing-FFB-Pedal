@@ -328,7 +328,7 @@ namespace User.PluginSdkDemo
                 text_SABS.Text = String.Format("ABS trigger value: {0}%", threshold * 100.0);
                 Canvas.SetTop(text_SABS, y - rect_SABS_Control.Height - text_SABS.Height);
                 Canvas.SetTop(rectangle, y - rect_SABS_Control.Height / 2);
-                ABSThresoldChanged(threshold * 100.0);
+                ABSThresoldChanged?.Invoke(threshold * 100.0);
             }
         }
 
@@ -351,7 +351,7 @@ namespace User.PluginSdkDemo
                     Canvas.SetLeft(rectangle, x);
                     Canvas.SetLeft(text_BP, Canvas.GetLeft(rect_BP_Control) + rect_BP_Control.Width + 3);
                     Canvas.SetTop(text_BP, canvas.Height - text_BP.Height - 15);
-                    BitePointThresoldChanged(threshold);
+                    BitePointThresoldChanged?.Invoke(threshold);
                 }
             }
         }
@@ -374,35 +374,35 @@ namespace User.PluginSdkDemo
                 if (rectangle.Name == "rect0")
                 {
                     config.FRelPoints[0] = Convert.ToUInt16(y_actual * 100);
-                    text_point_pos.Text = String.Format("Travel:0%\nForce: {0}%", Math.Round(y_actual));
+                    text_point_pos.Text = String.Format("Travel:0%\nForce: {0}%", Math.Round(y_actual * 100.0));
                 }
                 if (rectangle.Name == "rect1")
                 {
                     config.FRelPoints[1] = Convert.ToUInt16(y_actual * 100);
-                    text_point_pos.Text = String.Format("Travel:20%\nForce: {0}%", Math.Round(y_actual));
+                    text_point_pos.Text = String.Format("Travel:20%\nForce: {0}%", Math.Round(y_actual * 100.0));
                 }
                 if (rectangle.Name == "rect2")
                 {
                     config.FRelPoints[2] = Convert.ToUInt16(y_actual * 100);
-                    text_point_pos.Text = String.Format("Travel:40%\nForce: {0}%", Math.Round(y_actual));
+                    text_point_pos.Text = String.Format("Travel:40%\nForce: {0}%", Math.Round(y_actual * 100.0));
                 }
                 if (rectangle.Name == "rect3")
                 {
                     config.FRelPoints[3] = Convert.ToUInt16(y_actual * 100);
-                    text_point_pos.Text = String.Format("Travel:60%\nForce: {0}%", Math.Round(y_actual));
+                    text_point_pos.Text = String.Format("Travel:60%\nForce: {0}%", Math.Round(y_actual * 100.0));
                 }
                 if (rectangle.Name == "rect4")
                 {
                     config.FRelPoints[4] = Convert.ToUInt16(y_actual * 100);
-                    text_point_pos.Text = String.Format("Travel:80%\nForce: {0}%", Math.Round(y_actual));
+                    text_point_pos.Text = String.Format("Travel:80%\nForce: {0}%", Math.Round(y_actual * 100.0));
                 }
                 if (rectangle.Name == "rect5")
                 {
                     config.FRelPoints[5] = Convert.ToUInt16(y_actual * 100);
-                    text_point_pos.Text = String.Format("Travel:100%\nForce: {0}%", Math.Round(y_actual));
+                    text_point_pos.Text = String.Format("Travel:100%\nForce: {0}%", Math.Round(y_actual * 100.0));
                 }
 
-                text_point_pos.Visibility = Visibility.Visible; ;
+                text_point_pos.Visibility = Visibility.Visible;
                 UpdateSpline();
             }
         }

@@ -377,7 +377,10 @@ namespace User.PluginSdkDemo
 
 
         //https://www.c-sharpcorner.com/uploadfile/eclipsed4utoo/communicating-with-serial-port-in-C-Sharp/
-        public SerialPort[] _serialPort = new SerialPort[4] {new SerialPort("COM7", 921600, Parity.None, 8, StopBits.One),
+        public SerialPort[] _serialPort = new SerialPort[8] {new SerialPort("COM7", 921600, Parity.None, 8, StopBits.One),
+            new SerialPort("COM7", 921600, Parity.None, 8, StopBits.One),
+            new SerialPort("COM7", 921600, Parity.None, 8, StopBits.One),new SerialPort("COM7", 921600, Parity.None, 8, StopBits.One),
+        new SerialPort("COM7", 921600, Parity.None, 8, StopBits.One),
             new SerialPort("COM7", 921600, Parity.None, 8, StopBits.One),
             new SerialPort("COM7", 921600, Parity.None, 8, StopBits.One),new SerialPort("COM7", 921600, Parity.None, 8, StopBits.One)};
 

@@ -19,18 +19,30 @@ namespace User.PluginSdkDemo
     /// <summary>
     /// Interaction logic for AutomotivePedalEffects.xaml
     /// </summary>
-    public partial class AutomotivePedalEffects : UserControl
+    public partial class AutomotivePedalConfigControl : UserControl
     {
         public delegate void DebugMessageEventHandler(string message);
         public event DebugMessageEventHandler DebugMessage;
         public delegate void ABSTestStateChangeEventHandler(bool state);
         public event ABSTestStateChangeEventHandler ABSTestStateChange;
+        public delegate void SimulatedMassChangeEventHandler(float mass);
+        public event SimulatedMassChangeEventHandler SimulatedMassChange;
+        public delegate void LinkedAxesChangedEventHandler(AxisID[] linked_axes);
+        public event LinkedAxesChangedEventHandler LinkedAxesChanged;
         private SettingsControlDemo gui;
         private DIY_FFB plugin;
         private AutomotivePedalConfig config;
         private FunctionID current_function_id;
         private bool update_lockout = false;
-        public AutomotivePedalEffects()
+        private void SendDebugMessage(string msg)
+        {
+            if (DebugMessage != null)
+            {
+                DebugMessage(msg);
+            }
+        }
+
+        public AutomotivePedalConfigControl()
         {
             config = GetDefaultConfig();
             InitializeComponent();
@@ -39,11 +51,24 @@ namespace User.PluginSdkDemo
         {
             this.gui = gui;
             this.plugin = plugin;
-            UpdateConfig(FunctionID.Undefined, config);
+            AutomotivePedal_SplineForceCurve.SetGui(gui, plugin);
         }
+        public void OnKinematicParametersChanged(KinematicParameters parameters)
+        {
+            AutomotivePedal_SplineForceCurve.OnKinematicParametersChanged(parameters);
+        }
+
+        public double OnAxisStateUpdate(AxisState axis_state)
+        {
+            return AutomotivePedal_SplineForceCurve.OnAxisStateUpdate(axis_state);
+        }
+
         public AutomotivePedalConfig GetDefaultConfig()
         {
             AutomotivePedalConfig new_config = new AutomotivePedalConfig();
+            new_config.DamperConfig = new DamperConfig();
+            new_config.DamperConfig.PositiveFactor = 0.25f;
+            new_config.DamperConfig.NegativeFactor = 0.25f;
             new_config.AbsEffectConfig = new ABSEffectConfig();
             new_config.AbsEffectConfig.Enabled = false;
             new_config.RpmEffectConfig = new RPMEffectConfig();
@@ -62,15 +87,28 @@ namespace User.PluginSdkDemo
             new_config.Cv2EffectConfig.Enabled = false;
             return new_config;
         }
-        public void UpdateConfig(FunctionID function_id, AutomotivePedalConfig new_config)
+        public void UpdateConfig(FunctionConfig function_config)
         {
-            config = new_config;
-            current_function_id = function_id;
+            config = function_config.AutomotivePedal;
+            current_function_id = function_config.Base.FunctionId;
 
             if (plugin == null) return;
-            if (function_id == FunctionID.Undefined) return;
+            if (current_function_id == FunctionID.Undefined) return;
 
             update_lockout = true;
+
+            AutomotivePedal_AxisSelector.Value = function_config.Base.LinkedAxes[0];
+
+            Slider_simulated_mass.Value = function_config.SimulatedMass;
+
+            if (config.DamperConfig == null)
+            {
+                config.DamperConfig = new DamperConfig();
+                config.DamperConfig.PositiveFactor = 0.25f;
+                config.DamperConfig.NegativeFactor = 0.25f;
+            }
+            Slider_damping_push.Value = config.DamperConfig.PositiveFactor;
+            Slider_damping_push.Value = config.DamperConfig.NegativeFactor;
 
             if (config.RoadImpactEffectConfig == null) config.RoadImpactEffectConfig = new RoadImpactEffectConfig();
             Slider_impact_smoothness.Value = config.RoadImpactEffectConfig.Window;
@@ -200,7 +238,7 @@ namespace User.PluginSdkDemo
                 checkbox_enable_bite_point.Content = "Bite Point Vibration Disabled";
             }
 
-            if (function_id == FunctionID.Brake)
+            if (current_function_id == FunctionID.Brake)
             {
                 checkbox_enable_G_force.IsEnabled = true;
                 if (config.GForceEffectConfig.Enabled)
@@ -253,14 +291,14 @@ namespace User.PluginSdkDemo
             if (TestAbs_check.IsChecked == false)
             {
                 TestAbs_check.IsChecked = true;
-                ABSTestStateChange(true);
-                DebugMessage("ABS-Test begin");
+                ABSTestStateChange?.Invoke(true);
+                SendDebugMessage("ABS-Test begin");
             }
             else
             {
                 TestAbs_check.IsChecked = false;
-                ABSTestStateChange(false);
-                DebugMessage("ABS-Test stopped");
+                ABSTestStateChange?.Invoke(false);
+                SendDebugMessage("ABS-Test stopped");
             }
 
         }
@@ -372,7 +410,7 @@ namespace User.PluginSdkDemo
         private void Simulate_ABS_check_Checked(object sender, RoutedEventArgs e)
         {
             config.AbsEffectConfig.SimLevel = 1;
-            DebugMessage("simulateABS: on");
+            SendDebugMessage("simulateABS: on");
             //rect_SABS.Visibility = Visibility.Visible;
             //rect_SABS_Control.Visibility = Visibility.Visible;
             //text_SABS.Visibility = Visibility.Visible;
@@ -381,7 +419,7 @@ namespace User.PluginSdkDemo
         private void Simulate_ABS_check_Unchecked(object sender, RoutedEventArgs e)
         {
             config.AbsEffectConfig.SimLevel = 0;
-            DebugMessage("simulateABS: off");
+            SendDebugMessage("simulateABS: off");
             //rect_SABS.Visibility = Visibility.Hidden;
             //rect_SABS_Control.Visibility = Visibility.Hidden;
             //text_SABS.Visibility = Visibility.Hidden;
@@ -818,11 +856,32 @@ namespace User.PluginSdkDemo
             catch (Exception caughtEx)
             {
                 string errorMessage = caughtEx.Message;
-                DebugMessage(errorMessage);
+                SendDebugMessage(errorMessage);
             }
 
         }
 
+        private void OnPushDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            config.DamperConfig.NegativeFactor = (float)e.NewValue;
+            label_damping_push.Content = String.Format("Damping (Push): {0:F2}N*mm/s", e.NewValue);
+        }
 
+        private void OnPullDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            config.DamperConfig.PositiveFactor = (float)e.NewValue;
+            label_damping_pull.Content = String.Format("Damping (Pull): {0:F2}N*mm/s", e.NewValue);
+        }
+
+        private void OnSimulatedMassChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", e.NewValue);
+            SimulatedMassChange?.Invoke((float)e.NewValue);
+        }
+
+        private void AutomotivePedal_AxisSelector_AxisIDChanged(object sender, AxisSelector.AxisIDChangedEventArgs e)
+        {
+            LinkedAxesChanged?.Invoke(new AxisID[4] { e.Value, AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined });
+        }
     }
 }

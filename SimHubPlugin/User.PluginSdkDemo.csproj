@@ -168,8 +168,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsyncSerial.cs" />
-    <Compile Include="AutomotivePedalEffects.xaml.cs">
-      <DependentUpon>AutomotivePedalEffects.xaml</DependentUpon>
+    <Compile Include="AutomotivePedalConfigControl.xaml.cs">
+      <DependentUpon>AutomotivePedalConfigControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="AxisConfigControl.xaml.cs">
+      <DependentUpon>AxisConfigControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="AxisSelector.xaml.cs">
+      <DependentUpon>AxisSelector.xaml</DependentUpon>
     </Compile>
     <Compile Include="Tools.cs" />
     <Compile Include="CubicSpline.cs" />
@@ -201,7 +207,15 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Page Include="AutomotivePedalEffects.xaml">
+    <Page Include="AutomotivePedalConfigControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="AxisConfigControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="AxisSelector.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

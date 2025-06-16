@@ -1,63 +1,63 @@
 ﻿//using SimHub.Plugins.OutputPlugins.Dash.GLCDTemplating;
-using System;
-using System.Collections.Generic;
-using System.IO.Ports;
-using System.Runtime.InteropServices;
-using System.Windows;
-using System.Windows.Controls;
-
-using System.Windows.Media.TextFormatting;
-using System.Text.Json;
 using FMOD;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Json;
-using System.IO;
-using System.Text;
-using System.Web;
+using log4net.Plugin;
 using MahApps.Metro.Controls;
-using System.Runtime.CompilerServices;
-using System.CodeDom.Compiler;
-using System.Windows.Forms;
-using static System.Net.Mime.MediaTypeNames;
-using System.Runtime.InteropServices.ComTypes;
 using Microsoft.Win32;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
-using System.Windows.Input;
-using System.Windows.Shapes;
-using MouseEventArgs = System.Windows.Input.MouseEventArgs;
+using NCalc.Domain;
+using Newtonsoft.Json;
+using ProtbufTest;
+using SimHub.Plugins;
+using SimHub.Plugins.DataPlugins.ShakeItV3.Settings;
+using SimHub.Plugins.OutputPlugins.GraphicalDash.Behaviors.DoubleText.Imp;
 using SimHub.Plugins.OutputPlugins.GraphicalDash.PSE;
 using SimHub.Plugins.Styles;
-using System.Windows.Media;
-using System.Runtime.Remoting.Messaging;
-using SimHub.Plugins.OutputPlugins.GraphicalDash.Behaviors.DoubleText.Imp;
+using System;
+using System.CodeDom;
+using System.CodeDom.Compiler;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.IO.Ports;
+using System.Linq;
+using System.Media;
+using System.Net.Http;
 using System.Reflection;
+//using vJoy.Wrapper;
+using System.Runtime;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+using System.Runtime.Remoting.Messaging;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
+using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using Newtonsoft.Json;
-using System.Threading;
 using System.Text.RegularExpressions;
-using SimHub.Plugins;
-using log4net.Plugin;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Web;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Forms;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Effects;
+using System.Windows.Media.TextFormatting;
+//using System.Diagnostics;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+using System.Windows.Threading;
 //using System.Drawing;
 
 using vJoyInterfaceWrap;
-//using vJoy.Wrapper;
-using System.Runtime;
-using SimHub.Plugins.DataPlugins.ShakeItV3.Settings;
-using System.Windows.Media.Effects;
-using System.Diagnostics;
-using System.Collections;
-using System.Linq;
 using Windows.UI.Notifications;
-//using System.Diagnostics;
-using System.Windows.Navigation;
-using System.CodeDom;
-using System.Media;
-using System.Windows.Threading;
-using System.Net.Http;
-using System.Threading.Tasks;
-using ProtbufTest;
+using static System.Net.Mime.MediaTypeNames;
 using static System.Windows.Forms.AxHost;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 
 // Win 11 install, see https://github.com/jshafer817/vJoy/releases
 //using vJoy.Wrapper;
@@ -87,7 +87,8 @@ namespace User.PluginSdkDemo
         public GatewayState last_gateway_state = new GatewayState();
         public AxisConfig[] axis_configs = new AxisConfig[8];
         public FunctionConfig[] function_configs = new FunctionConfig[8];
-        private FunctionID selected_function_id = FunctionID.Undefined; 
+        private FunctionID selected_function_id = FunctionID.Undefined;
+        private AxisID selected_axis_id = AxisID.AxisUndefined;
 
         public DAP_config_st[] dap_config_st = new DAP_config_st[8];
         public DAP_config_st dap_config_st_rudder;
@@ -614,7 +615,6 @@ namespace User.PluginSdkDemo
             //DrawGridLines_kinematicCanvas(100,20,1.5);
             Label_RSSI.Visibility= Visibility.Hidden;
             TextBox_debug_count.Visibility= Visibility.Hidden;
-            text_rudder_log.Visibility=Visibility.Hidden;
             Online_profile = new Profile_Online();
             Online_profile.Basic_Config=new BasicConfig();
 
@@ -771,18 +771,21 @@ namespace User.PluginSdkDemo
             this.Plugin = plugin;
             plugin.testValue = 1;
             plugin.wpfHandle = this;
-            AutomotivePedal_SplineForceCurve.SetGui(this, plugin);
-            DiyPedalKinematicsControl.KinematicParametersChanged += DiyPedalKinematicsControl_KinematicParametersChanged;
-            DiyPedalKinematicsControl.KinematicParametersChanged += AutomotivePedal_SplineForceCurve.OnKinematicParametersChanged;
-            DiyPedalKinematicsControl.SetGui(this, plugin);
-            AutomotivePedalEffectsConfig.SetGui(this, plugin);
-            AutomotivePedalEffectsConfig.ABSTestStateChange += OnABSTestStateChange;
+            AutomotivePedalConfig.ABSTestStateChange += OnABSTestStateChange;
+            AxisConfigCtrl.KinematicParametersChanged += OnKinematicParametersChanged;
+            AutomotivePedalConfig.LinkedAxesChanged += OnLinkedAxesChanged;
+            AutomotivePedalConfig.SetGui(this, plugin);
+            AxisConfigCtrl.SetGui(this, plugin);
+            //DiyPedalKinematicsControl.KinematicParametersChanged += OnKinematicParametersChanged;
+            //DiyPedalKinematicsControl.KinematicParametersChanged += AutomotivePedalConfig.OnKinematicParametersChanged;
+            //DiyPedalKinematicsControl.SetGui(this, plugin);
             for (int i = 0; i < function_configs.Length; i++)
             {
                 function_configs[i] = new FunctionConfig();
                 function_configs[i].Base = new FunctionBase();
                 function_configs[i].Base.FunctionId = (FunctionID)(i + 1);
-                switch(function_configs[i].Base.FunctionId)
+                function_configs[i].Base.LinkedAxes.AddRange(new AxisID[4] { AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined });
+                switch (function_configs[i].Base.FunctionId)
                 {
                     case FunctionID.Brake:
                         function_configs[i].AutomotivePedal = new AutomotivePedalConfig();
@@ -797,6 +800,11 @@ namespace User.PluginSdkDemo
                         function_configs[i].FlightPedals = new FlightPedalsConfig();
                         break;
                 }
+            }
+            for (int i = 0; i < axis_configs.Length; i++)
+            {
+                axis_configs[i] = AxisConfigControl.GetDefaultConfig();
+                axis_configs[i].AxisId = (AxisID)(i + 1);
             }
 
             UpdateSerialPortList_click();
@@ -955,7 +963,7 @@ namespace User.PluginSdkDemo
                 checkbox_pedal_read.IsChecked = false;
             }
             indexOfSelectedPedal_u = plugin.Settings.table_selected;
-            MyTab.SelectedIndex = (int)indexOfSelectedPedal_u;
+            tc_function_selection.SelectedIndex = (int)indexOfSelectedPedal_u;
 
             //reconnect to com port
             if (plugin.Settings.axis_settings[indexOfSelectedPedal_u].auto_connect)
@@ -1027,12 +1035,6 @@ namespace User.PluginSdkDemo
             }
 
 
-        }
-
-        private void DiyPedalKinematicsControl_KinematicParametersChanged(KinematicParameters parameters)
-        {
-            pedal_pos_min = parameters.ContactPointPosMinAbs / 10.0;
-            pedal_pos_max = parameters.ContactPointPosMaxAbs / 10.0;
         }
 
         public void updateTheGuiFromConfig()
@@ -1140,36 +1142,6 @@ namespace User.PluginSdkDemo
             {
                 dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.pedalEndPosition=95;
             }
-
-            label_damping.Content = "Damping factor: " + (float)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.dampingPress * 0.00015f)+"s";
-            Slider_damping.Value = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.dampingPress;
-            Slider_LC_rate.Value = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.loadcell_rating * 2;
-            label_LC_rate.Content = "Loadcell rate: " + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.loadcell_rating*2+"kg";
-
-            Slider_maxgame_output.Value= dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.maxGameOutput;
-            label_maxgame_output.Content = "Max Game Output: " + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.maxGameOutput + "%";
-
-            Slider_KF.Value= dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.kf_modelNoise;
-            label_KF.Content = "KF: " + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.kf_modelNoise;
-
-            Slider_MPC_0th_gain.Value= dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_0th_order_gain;
-            label_MPC_0th_gain.Content = "Foot spring stiffness: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_0th_order_gain, 2) + "kg/mm";
-
-            //Slider_MPC_1st_gain.Value = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_1st_order_gain;
-            //label_MPC_1st_gain.Content = "Foot spring damping: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_1st_order_gain, 2) + "kg*s/mm";
-
-            Slider_Pgain.Value= dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_p_gain;
-            label_Pgain.Content = "P-Gain: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_p_gain, 2);
-
-            Slider_Igain.Value = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_i_gain;
-            label_Igain.Content = "I-Gain: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_i_gain, 2);
-
-            Slider_Dgain.Value = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_d_gain;
-            label_Dgain.Content = "D-Gain: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_d_gain, 4);
-
-            Slider_VFgain.Value= dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_velocity_feedforward_gain;
-            label_VFgain.Content = "Feed Forward Gain: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_velocity_feedforward_gain, 1);
-
             
             if (Plugin != null)
             {
@@ -1233,52 +1205,9 @@ namespace User.PluginSdkDemo
                 
             }
 
-            
-           
-
-
-
-            
-
-
-            if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.control_strategy_b == 0)
-            {
-                ControlStrategy_Sel_1.IsChecked = true;
-            }
-            if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.control_strategy_b == 1)
-            {
-                ControlStrategy_Sel_2.IsChecked = true;
-            }
-            if (dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.control_strategy_b == 2)
-            {
-                ControlStrategy_Sel_3.IsChecked = true;
-            }
-
-
-
             //set for travel slider;
             double dx = 0;
 
-
-            // spindle pitch
-            try
-            {
-                SpindlePitch.SelectedIndex = (byte)dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.spindlePitch_mmPerRev_u8;
-            }
-            catch (Exception caughtEx)
-            {
-            }
-
-
-
-            // Filter type
-            try
-            {
-                KF_filter_order.SelectedIndex = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.kf_modelOrder;
-            }
-            catch (Exception caughtEx)
-            {
-            }
 
             //// Select serial port accordingly
             string tmp = (string)Plugin._serialPort[indexOfSelectedPedal_u].PortName;
@@ -1337,25 +1266,6 @@ namespace User.PluginSdkDemo
                 Gas_file_check.IsChecked = false;
             }
             
-            if ( ((dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.stepLossFunctionFlags_u8 >> 0) & 1) == 1)
-            {
-                EnableStepLossRecov_check.IsChecked = true;
-            }
-            else
-            {
-                EnableStepLossRecov_check.IsChecked = false;
-            }
-
-            if (((dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.stepLossFunctionFlags_u8 >> 1) & 1) == 1)
-            {
-                EnableCrashDetection_check.IsChecked = true;
-            }
-            else
-            {
-                EnableCrashDetection_check.IsChecked = false;
-            }
-
-
 
             if (Plugin.Settings.axis_settings[indexOfSelectedPedal_u].RTSDTR_False == true)
             {
@@ -1375,146 +1285,11 @@ namespace User.PluginSdkDemo
                 checkbox_auto_connect.IsChecked= false;
             }
 
-            //TextBox2.Text = "" + Plugin.Settings.selectedComPortNames[0] + Plugin.Settings.selectedComPortNames[1] + Plugin.Settings.selectedComPortNames[2];
-            JoystickOutput_check.IsChecked = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.travelAsJoystickOutput_u8 == 1;
-            InvertLoadcellReading_check.IsChecked = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.invertLoadcellReading_u8 == 1;
-            InvertMotorDir_check.IsChecked = dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.invertMotorDirection_u8 == 1;
-
             
             Label_vjoy_order.Content = Plugin.Settings.vjoy_order;
             textbox_profile_name.Text = Plugin.Settings.Profile_name[profile_select];
 
 
-
-            //Rudder UI initialized
-            if (Plugin != null)
-            {
-                Rangeslider_rudder_force_range.LowerValue = dap_config_st_rudder.payloadPedalConfig_.preloadForce;
-                Rangeslider_rudder_force_range.UpperValue = dap_config_st_rudder.payloadPedalConfig_.maxForce;
-                Rangeslider_rudder_travel_range.LowerValue= dap_config_st_rudder.payloadPedalConfig_.pedalStartPosition;
-                Rangeslider_rudder_travel_range.UpperValue = dap_config_st_rudder.payloadPedalConfig_.pedalEndPosition;
-                Label_min_pos_rudder.Content = "MIN\n" + dap_config_st_rudder.payloadPedalConfig_.pedalStartPosition + "%";
-                Label_max_pos_rudder.Content = "MAX\n" + dap_config_st_rudder.payloadPedalConfig_.pedalEndPosition + "%" ;
-                Label_max_force_rudder.Content = "Max force:\n" + dap_config_st_rudder.payloadPedalConfig_.maxForce + "kg";
-                Label_min_force_rudder.Content = "Preload:\n" + dap_config_st_rudder.payloadPedalConfig_.preloadForce + "kg";
-                Rangeslider_RPM_freq_rudder.LowerValue = dap_config_st_rudder.payloadPedalConfig_.RPM_min_freq;
-                Rangeslider_RPM_freq_rudder.UpperValue = dap_config_st_rudder.payloadPedalConfig_.RPM_max_freq;
-                label_RPM_freq_max_rudder.Content = "MAX:" + dap_config_st_rudder.payloadPedalConfig_.RPM_max_freq + "Hz";
-                label_RPM_freq_min_rudder.Content = "MIN:" + dap_config_st_rudder.payloadPedalConfig_.RPM_min_freq + "Hz";
-                Slider_RPM_AMP_rudder.Value = (float)(dap_config_st_rudder.payloadPedalConfig_.RPM_AMP) / 100.0f;
-                label_RPM_AMP_rudder.Content = "Effect Amplitude: " + (float)(dap_config_st_rudder.payloadPedalConfig_.RPM_AMP) / 100.0f + "kg";
-
-                // rect position
-                double dyy_rudder = canvas_rudder_curve.Height / 100;
-                Canvas.SetTop(rect0_rudder, canvas_rudder_curve.Height - dyy_rudder * dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 - rect0_rudder.Height / 2);
-                Canvas.SetLeft(rect0_rudder, 0 * canvas_rudder_curve.Width / 5 - rect0_rudder.Width / 2);
-
-                Canvas.SetTop(rect1_rudder, canvas_rudder_curve.Height - dyy_rudder * dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020 - rect1_rudder.Height / 2);
-                Canvas.SetLeft(rect1_rudder, 1 * canvas_rudder_curve.Width / 5 - rect1_rudder.Width / 2);
-
-                Canvas.SetTop(rect2_rudder, canvas_rudder_curve.Height - dyy_rudder * dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040 - rect2_rudder.Height / 2);
-                Canvas.SetLeft(rect2_rudder, 2 * canvas_rudder_curve.Width / 5 - rect2_rudder.Width / 2);
-
-                Canvas.SetTop(rect3_rudder, canvas_rudder_curve.Height - dyy_rudder * dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 - rect3_rudder.Height / 2);
-                Canvas.SetLeft(rect3_rudder, 3 * canvas_rudder_curve.Width / 5 - rect3_rudder.Width / 2);
-
-                Canvas.SetTop(rect4_rudder, canvas_rudder_curve.Height - dyy_rudder * dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 - rect4_rudder.Height / 2);
-                Canvas.SetLeft(rect4_rudder, 4 * canvas_rudder_curve.Width / 5 - rect4_rudder.Width / 2);
-
-                Canvas.SetTop(rect5_rudder, canvas_rudder_curve.Height - dyy_rudder * dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 - rect5_rudder.Height / 2);
-                Canvas.SetLeft(rect5_rudder, 5 * canvas_rudder_curve.Width / 5 - rect5_rudder.Width / 2);
-                text_point_pos_rudder.Visibility = Visibility.Hidden;
-                if (Plugin.Rudder_status)
-                {
-                    btn_rudder_initialize.Content = "Disable Rudder";
-                    //text_rudder_log.Visibility= Visibility.Visible;
-                }
-                else
-                {
-                    btn_rudder_initialize.Content = "Enable Rudder";
-                    //text_rudder_log.Visibility = Visibility.Hidden;
-                }
-
-
-                //Rudder text
-                info_rudder_label.Content = "Bridge State:\nBRK Pedal:\nGAS Pedal:\nRudder:";
-                if (Plugin.ESPsync_serialPort.IsOpen)
-                {
-                    info_rudder_label_2.Content = "Online\n";
-                }
-                else
-                {
-                    info_rudder_label_2.Content = "Offline\n";
-                }
-                if (dap_bridge_state_st.payloadBridgeState_.Pedal_availability_1 == 1)
-                {
-                    info_rudder_label_2.Content += "Online\n";
-                }
-                else
-                {
-                    info_rudder_label_2.Content += "Offline\n";
-                }
-                if (dap_bridge_state_st.payloadBridgeState_.Pedal_availability_2 == 1)
-                {
-                    info_rudder_label_2.Content += "Online\n";
-                }
-                else
-                {
-                    info_rudder_label_2.Content += "Offline\n";
-                }
-                if (Plugin.Rudder_status)
-                {
-                    info_rudder_label_2.Content += "In action";
-                }
-                else
-                {
-                    info_rudder_label_2.Content += "Off";
-                }
-
-                if (Plugin.Settings.Rudder_RPM_effect_b)
-                {
-                    checkbox_enable_RPM_rudder.IsChecked = true;
-                }
-                else
-                {
-                    checkbox_enable_RPM_rudder.IsChecked = false;
-                }
-
-                if (Plugin.Settings.Rudder_ACC_effect_b)
-                {
-                    checkbox_Rudder_ACC_effect.IsChecked = true;
-                }
-                else
-                {
-                    checkbox_Rudder_ACC_effect.IsChecked = false;
-                }
-
-                if (Plugin.Settings.Rudder_ACC_WindForce)
-                {
-                    Checkbox_Rudder_ACC_WindForce.IsChecked = true;
-                }
-                else
-                {
-                    Checkbox_Rudder_ACC_WindForce.IsChecked = false;
-                }
-
-                Slider_MPC_0th_gain_rudder.Value = dap_config_st_rudder.payloadPedalConfig_.MPC_0th_order_gain;
-                label_MPC_0th_gain_rudder.Content = "MPC Foot spring stiffness: " + Math.Round(dap_config_st_rudder.payloadPedalConfig_.MPC_0th_order_gain, 2) + "kg/mm";
-                Slider_MPC_1st_gain_rudder.Value = dap_config_st_rudder.payloadPedalConfig_.MPC_1st_order_gain;
-                label_MPC_1st_gain_rudder.Content = "Foot spring damping: " + Math.Round(dap_config_st_rudder.payloadPedalConfig_.MPC_1st_order_gain, 2) + "kg*s/mm";
-
-
-                //Slider_MPC_1st_gain_rudder.Value = dap_config_st_rudder.payloadPedalConfig_.MPC_1st_order_gain;
-                //label_MPC_1st_gain_rudder.Content = "MPC Foot spring dampening: " + Math.Round(dap_config_st_rudder.payloadPedalConfig_.MPC_1st_order_gain, 2) + "kg*s/mm";
-
-                label_damping_rudder.Content = "Damping factor: " + (float)(dap_config_st_rudder.payloadPedalConfig_.dampingPress * 0.00015f) + "s";
-                Slider_damping_rudder.Value = dap_config_st_rudder.payloadPedalConfig_.dampingPress;
-
-
-
-            }
-
-            //system UI
 
             if (Plugin != null)
             {
@@ -1584,20 +1359,26 @@ namespace User.PluginSdkDemo
 
         // Select which pedal to config
         // see https://stackoverflow.com/questions/772841/is-there-selected-tab-changed-event-in-the-standard-wpf-tab-control
-        private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void FunctionSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-
-            // update the sliders & serial port selection accordingly
             if (Plugin != null)
             {
-                selected_function_id = (FunctionID)MyTab.SelectedIndex + 1;
+                selected_function_id = (FunctionID)tc_function_selection.SelectedIndex + 1;
                 TextBox_debugOutput.Text = String.Format("Function ID: {0}", selected_function_id);
-                Plugin.Settings.table_selected = (uint)MyTab.SelectedIndex;
-                FunctionConfig function = function_configs[MyTab.SelectedIndex];
+                Plugin.Settings.table_selected = (uint)tc_function_selection.SelectedIndex;
+                FunctionConfig function = function_configs[tc_function_selection.SelectedIndex];
+                float simulated_mass = 0.1f;
                 switch (function.SpecificCase)
                 {
                     case FunctionConfig.SpecificOneofCase.AutomotivePedal:
-                        AutomotivePedalEffectsConfig.UpdateConfig(selected_function_id, function.AutomotivePedal);
+                        AutomotivePedalConfig.UpdateConfig(function);
+                        if (function.Base.LinkedAxes.Count > 0)
+                        {
+                            if (function.Base.LinkedAxes[0] != AxisID.AxisUndefined)
+                            {
+                                AutomotivePedalConfig.OnKinematicParametersChanged(axis_configs[(int)(function.Base.LinkedAxes[0] - 1)].KinematicParameters);
+                            }
+                        }
                         break;
                     case FunctionConfig.SpecificOneofCase.FlightPedals:
                         break;
@@ -1607,7 +1388,45 @@ namespace User.PluginSdkDemo
             }
         }
 
+        private void AxisSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                selected_axis_id = (AxisID)tc_axis_selection.SelectedIndex + 1;
+                Plugin.Settings.table_selected = (uint)tc_axis_selection.SelectedIndex;
+                AxisConfig axis_cfg = axis_configs[tc_axis_selection.SelectedIndex];
+                AxisConfigCtrl.UpdateConfig(selected_axis_id, axis_cfg);
+            }
+        }
 
+
+        private void OnLinkedAxesChanged(AxisID[] linked_axes)
+        {
+            if (selected_function_id != FunctionID.Undefined)
+            {
+                function_configs[(int)selected_function_id - 1].Base.LinkedAxes.Clear();
+                function_configs[(int)selected_function_id - 1].Base.LinkedAxes.AddRange(linked_axes);
+                AxisID primary_axis = linked_axes[0];
+                if (primary_axis != AxisID.AxisUndefined)
+                {
+                    AutomotivePedalConfig.OnKinematicParametersChanged(axis_configs[(int)(primary_axis - 1)].KinematicParameters);
+                }
+            }
+        }
+
+        private void OnKinematicParametersChanged(KinematicParameters parameters)
+        {
+            pedal_pos_min = parameters.ContactPointPosMinAbs / 10.0;
+            pedal_pos_max = parameters.ContactPointPosMaxAbs / 10.0;
+            if (selected_axis_id == AxisID.AxisUndefined) return;
+            if (selected_function_id == FunctionID.Undefined) return;
+            if (function_configs[(int)selected_function_id - 1].Base.LinkedAxes.Count == 0) return;
+            AxisID primary_axis = function_configs[(int)selected_function_id - 1].Base.LinkedAxes[0];
+            if (selected_axis_id == primary_axis)
+            {
+                AutomotivePedalConfig.OnKinematicParametersChanged(parameters);
+            }
+        }
 
 
 
@@ -1615,7 +1434,7 @@ namespace User.PluginSdkDemo
         /*							Slider callbacks																		*/
         /********************************************************************************************************************/
 
- 
+
 
 
 
@@ -2568,7 +2387,7 @@ namespace User.PluginSdkDemo
             {
                 Profile_change(Plugin.profile_index);
                 Plugin.Page_update_flag = false;
-                MyTab.SelectedIndex = (int)Plugin.Settings.table_selected;
+                tc_function_selection.SelectedIndex = (int)Plugin.Settings.table_selected;
                 Plugin.pedal_select_update_flag = false;
                 Plugin.simhub_theme_color = defaultcolor.ToString();
                 switch (Plugin.Settings.table_selected)
@@ -3271,34 +3090,6 @@ namespace User.PluginSdkDemo
 
 
 
-        public void KF_filter_order_changed(object sender, SelectionChangedEventArgs e)
-        {
-            try
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.kf_modelOrder = (byte)KF_filter_order.SelectedIndex;
-            }
-            catch (Exception caughtEx)
-            {
-                string errorMessage = caughtEx.Message;
-                TextBox_debugOutput.Text = errorMessage;
-            }
-        }
-
-        public void SpindlePitchChanged(object sender, SelectionChangedEventArgs e)
-        {
-            try
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.spindlePitch_mmPerRev_u8 = (byte)SpindlePitch.SelectedIndex;
-            }
-            catch (Exception caughtEx)
-            {
-                string errorMessage = caughtEx.Message;
-                TextBox_debugOutput.Text = errorMessage;
-            }
-        }
-
-
-
 
 
 
@@ -3794,100 +3585,6 @@ namespace User.PluginSdkDemo
 
         }
 
-        private void Rectangle_MouseMove_Rudder(object sender, MouseEventArgs e)
-        {
-            if (isDragging)
-            {
-                var rectangle = sender as Rectangle;
-                //double x = e.GetPosition(canvas).X - offset.X;
-                double y = e.GetPosition(canvas_rudder_curve).Y - offset.Y;
-
-                // Ensure the rectangle stays within the canvas
-                //x = Math.Max(0, Math.Min(x, canvas.ActualWidth - rectangle.ActualWidth));
-                y = Math.Max(-1 * rectangle.Height / 2, Math.Min(y, canvas_rudder_curve.Height - rectangle.Height / 2));
-
-                //Canvas.SetLeft(rectangle, x);
-                Canvas.SetTop(rectangle, y);
-                double y_max = 100;
-                double dx = canvas_rudder_curve.Height / y_max;
-                double y_actual = (canvas_rudder_curve.Height - y - rectangle.Height / 2) / dx;
-                
-                
-                //rudder
-                if (rectangle.Name == "rect0_rudder")
-                {
-                    dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 = Convert.ToByte(y_actual);
-                    text_point_pos_rudder.Text = "Travel:0%";
-                    text_point_pos_rudder.Text += "\nForce: " + (int)y_actual + "%";
-
-                }
-                if (rectangle.Name == "rect1_rudder")
-                {
-
-                    dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020 = Convert.ToByte(y_actual);
-                    text_point_pos_rudder.Text = "Travel:20%";
-                    text_point_pos_rudder.Text += "\nForce: " + (int)y_actual + "%";
-                }
-                if (rectangle.Name == "rect2_rudder")
-                {
-                    dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040 = Convert.ToByte(y_actual);
-                    text_point_pos_rudder.Text = "Travel:40%";
-                    text_point_pos_rudder.Text += "\nForce: " + (int)y_actual + "%";
-                }
-                if (rectangle.Name == "rect3_rudder")
-                {
-                    dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = Convert.ToByte(y_actual);
-                    text_point_pos_rudder.Text = "Travel:60%";
-                    text_point_pos_rudder.Text += "\nForce: " + (int)y_actual + "%";
-                }
-                if (rectangle.Name == "rect4_rudder")
-                {
-                    dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = Convert.ToByte(y_actual);
-                    text_point_pos_rudder.Text = "Travel:80%";
-                    text_point_pos_rudder.Text += "\nForce: " + (int)y_actual + "%";
-                }
-                if (rectangle.Name == "rect5_rudder")
-                {
-                    dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = Convert.ToByte(y_actual);
-                    text_point_pos_rudder.Text = "Travel:100%";
-                    text_point_pos_rudder.Text += "\nForce: " + (int)y_actual + "%";
-                }
-                text_point_pos_rudder.Visibility = Visibility.Visible;
-
-
-
-
-                // Update the position in the dictionary
-                //rectanglePositions[rectangle.Name] = new Point(x, y);
-            }
-        }
-
-        private void Rectangle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            if (isDragging)
-            {
-                var rectangle = sender as Rectangle;
-                isDragging = false;
-                rectangle.ReleaseMouseCapture();
-                //SolidColorBrush buttonBackground = btn_update.Background as SolidColorBrush;
-                //Color color = Color.FromArgb(150, buttonBackground.Color.R, buttonBackground.Color.G, buttonBackground.Color.B);
-                //rectangle.Fill = btn_update.Background;
-                if (rectangle.Name != "rect_SABS_Control" & rectangle.Name != "rect_BP_Control")
-                {
-                    var dropShadowEffect = new DropShadowEffect
-                    {
-                        ShadowDepth = 0,
-                        BlurRadius = 20,
-                        Color = Colors.White,
-                        Opacity = 0
-                    };
-                    rectangle.Fill = defaultcolor;
-                    rectangle.Effect = dropShadowEffect;
-                }
-
-                //rectangle.Fill = new SolidColorBrush(color);
-            }
-        }
         private void Debug_checkbox_Checked(object sender, RoutedEventArgs e)
         {
 
@@ -3909,7 +3606,6 @@ namespace User.PluginSdkDemo
             btn_test.Visibility = Visibility.Visible;
             //Line_H_HeaderTab.X2 = 1128;
 
-            Slider_LC_rate.TickFrequency = 1;
             TextBox_debug_count.Visibility=Visibility.Visible;
 
 
@@ -3934,7 +3630,6 @@ namespace User.PluginSdkDemo
             btn_test.Visibility = Visibility.Hidden;
             //Line_H_HeaderTab.X2 = 763;
 
-            Slider_LC_rate.TickFrequency = 10;
             TextBox_debug_count.Visibility = Visibility.Hidden;
         }
 
@@ -3947,26 +3642,6 @@ namespace User.PluginSdkDemo
         private void JoystickOutput_unchecked(object sender, RoutedEventArgs e)
         {
             dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.travelAsJoystickOutput_u8 = 0;
-        }
-
-
-        private void InvertLoadcellReading_checked(object sender, RoutedEventArgs e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.invertLoadcellReading_u8 = 1;
-        }
-        private void InvertLoadcellReading_unchecked(object sender, RoutedEventArgs e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.invertLoadcellReading_u8 = 0;
-        }
-
-
-        private void InvertMotorDir_checked(object sender, RoutedEventArgs e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.invertMotorDirection_u8 = 1;
-        }
-        private void InvertMotorDir_unchecked(object sender, RoutedEventArgs e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.invertMotorDirection_u8 = 0;
         }
 
 
@@ -4141,26 +3816,6 @@ namespace User.PluginSdkDemo
         {
             DAP_config_set_default(indexOfSelectedPedal_u);
             updateTheGuiFromConfig();
-        }
-
-        // for ocntrol strategy
-        private void StrategySel(object sender, RoutedEventArgs e)
-        {
-            if (ControlStrategy_Sel_1.IsChecked == true)
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.control_strategy_b = 0;
-            }
-
-            if (ControlStrategy_Sel_2.IsChecked == true)
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.control_strategy_b = 1;
-            }
-
-            if (ControlStrategy_Sel_3.IsChecked == true)
-            {
-                dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.control_strategy_b = 2;
-            }
-
         }
 
         private void TabControl_file_path(object sender, SelectionChangedEventArgs e)
@@ -4409,67 +4064,6 @@ namespace User.PluginSdkDemo
         }
 
 
-        private void Slider_damping_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.dampingPress = (Byte)e.NewValue;
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.dampingPull = (Byte)e.NewValue;
-            label_damping.Content = "Damping factor: " + (float)(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.dampingPress * 0.00015f) + "s";
-        }
-
-        private void Slider_LC_rate_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.loadcell_rating= (Byte)(e.NewValue/2);
-            label_LC_rate.Content = "Loadcell rate: " + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.loadcell_rating*2+"kg";
-        }
-
-        private void Slider_maxgame_output_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.maxGameOutput = (Byte)(e.NewValue);
-            label_maxgame_output.Content = "Max Game Output: " + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.maxGameOutput + "%";
-        }
-
-        private void Slider_KF_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.kf_modelNoise = (byte)e.NewValue;
-            label_KF.Content = "KF: " + dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.kf_modelNoise;
-        }
-
-        private void Slider_MPC_0th_gain_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_0th_order_gain = (float)e.NewValue;
-            label_MPC_0th_gain.Content = "Foot spring stiffness: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_0th_order_gain, 2)+ "kg/mm";
-        }
-
-        //private void Slider_MPC_1st_gain_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        //{
-        //    dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_1st_order_gain = (float)e.NewValue;
-        //    label_MPC_1st_gain.Content = "Foot spring damping: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.MPC_1st_order_gain, 2) + "kg*s/mm";
-        //}
-
-        private void Slider_Pgain_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_p_gain = (float)e.NewValue;
-            label_Pgain.Content = "P-Gain: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_p_gain, 2);
-        }
-
-        private void Slider_Igain_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_i_gain = (float)e.NewValue;
-            label_Igain.Content = "I-Gain: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_i_gain, 2);
-        }
-
-        private void Slider_Dgain_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_d_gain = (float)e.NewValue;
-            label_Dgain.Content = "D-Gain: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_d_gain, 4);
-        }
-
-        private void Slider_VFgain_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_velocity_feedforward_gain = (float)e.NewValue;
-            label_VFgain.Content = "Feed Forward Gain: " + Math.Round(dap_config_st[indexOfSelectedPedal_u].payloadPedalConfig_.PID_velocity_feedforward_gain, 1);
-        }
-
         private void CheckBox_rudder_Checked(object sender, RoutedEventArgs e)
         {
             Plugin.Rudder_enable_flag = true;
@@ -4614,7 +4208,7 @@ namespace User.PluginSdkDemo
             //    TextBox2.Text = "Pedal:" + pedalState_read_st.payloadHeader_.PedalTag + " ErrorCode" + pedalState_read_st.payloadPedalBasicState_.error_code_u8;
 
             //}
-            AutomotivePedal_SplineForceCurve.OnAxisStateUpdate(axis_state);
+            AutomotivePedalConfig.OnAxisStateUpdate(axis_state);
         }
 
         private void ProcessExtendedState()
@@ -5316,83 +4910,6 @@ namespace User.PluginSdkDemo
             }
         }
 
-        private void Rangeslider_rudder_travel_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                dap_config_st_rudder.payloadPedalConfig_.pedalStartPosition= (byte)e.NewValue;
-                Label_min_pos_rudder.Content = "MIN\n" + dap_config_st_rudder.payloadPedalConfig_.pedalStartPosition + "%";                
-            }
-        }
-
-        private void Rangeslider_rudder_force_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                dap_config_st_rudder.payloadPedalConfig_.preloadForce = (float)e.NewValue;
-                Label_min_force_rudder.Content = "Preload:\n" + dap_config_st_rudder.payloadPedalConfig_.preloadForce + "kg";
-            }      
-            
-        }
-
-        private void Rangeslider_rudder_force_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                dap_config_st_rudder.payloadPedalConfig_.maxForce = (float)e.NewValue;
-                Label_max_force_rudder.Content = "Max force:\n" + dap_config_st_rudder.payloadPedalConfig_.maxForce + "kg";
-            }
-        }
-
-        private void Rangeslider_rudder_travel_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                dap_config_st_rudder.payloadPedalConfig_.pedalEndPosition = (byte)e.NewValue;
-                Label_max_pos_rudder.Content = "MAX\n" + dap_config_st_rudder.payloadPedalConfig_.pedalEndPosition + "%";
-            }
-        }
-
-        private void btn_Scurve_rudder_Click(object sender, RoutedEventArgs e)
-        {
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 = 0;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020 = 7;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040 = 28;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = 70;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = 93;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = 100;
-            updateTheGuiFromConfig();
-        }
-        private void btn_10xcurve_rudder_Click(object sender, RoutedEventArgs e)
-        {
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 = 0;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020 = 43;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040 = 69;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = 85;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = 95;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = 100;
-            updateTheGuiFromConfig();
-        }
-        private void btn_logcurve_rudder_Click(object sender, RoutedEventArgs e)
-        {
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 = 0;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020 = 6;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040 = 17;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = 33;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = 59;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = 100;
-            updateTheGuiFromConfig();
-        }
-        private void btn_linearcurve_rudder_Click(object sender, RoutedEventArgs e)
-        {
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p000 = 0;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p020 = 20;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p040 = 40;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p060 = 60;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p080 = 80;
-            dap_config_st_rudder.payloadPedalConfig_.relativeForce_p100 = 100;
-            updateTheGuiFromConfig();
-        }
         //Rudder initialize procee
         public void DelayCall(int msec, Action fn)
         {
@@ -5408,191 +4925,6 @@ namespace User.PluginSdkDemo
                 // back on the original thread
                 d.BeginInvoke(fn);
             }).Start();
-        }
-        private void Rudder_Initialized()
-        {
-
-            DelayCall(400, () =>
-            {
-                Reading_config_auto(1);//read brk config from pedal
-                text_rudder_log.Text += "Read Config from BRK Pedal\n";              
-            });
-
-            DelayCall(600, () =>
-            {
-                Reading_config_auto(2);//read gas config from pedal
-                text_rudder_log.Text += "Read Config from GAS Pedal\n";               
-            });
-            /*
-            text_rudder_log.Text += "Read Config from BRK Pedal\n";
-            Reading_config_auto(1);//read brk config from pedal
-            System.Threading.Thread.Sleep(500);
-            text_rudder_log.Text += "Read Config from GAS Pedal\n";
-            Reading_config_auto(2);//read gas config from pedal
-            System.Threading.Thread.Sleep(500);
-            */
-
-
-
-
-                //System.Threading.Thread.Sleep(200);
-                DelayCall((int)(900), () =>
-                {
-                    for (uint i = 1; i < 3; i++)
-                    {
-                        text_rudder_log.Visibility = Visibility.Visible;
-                        //read pedal kinematic
-                        text_rudder_log.Text += "Create Rudder config for Pedal: " + i + "\n";
-                        dap_config_st_rudder.payloadPedalConfig_.lengthPedal_a = dap_config_st[i].payloadPedalConfig_.lengthPedal_a;
-                        dap_config_st_rudder.payloadPedalConfig_.lengthPedal_b = dap_config_st[i].payloadPedalConfig_.lengthPedal_b;
-                        dap_config_st_rudder.payloadPedalConfig_.lengthPedal_c_horizontal = dap_config_st[i].payloadPedalConfig_.lengthPedal_c_horizontal;
-                        dap_config_st_rudder.payloadPedalConfig_.lengthPedal_c_vertical = dap_config_st[i].payloadPedalConfig_.lengthPedal_c_vertical;
-                        dap_config_st_rudder.payloadPedalConfig_.lengthPedal_travel = dap_config_st[i].payloadPedalConfig_.lengthPedal_travel;
-                        dap_config_st_rudder.payloadPedalConfig_.spindlePitch_mmPerRev_u8 = dap_config_st[i].payloadPedalConfig_.spindlePitch_mmPerRev_u8;
-                        dap_config_st_rudder.payloadPedalConfig_.invertLoadcellReading_u8 = dap_config_st[i].payloadPedalConfig_.invertLoadcellReading_u8;
-                        dap_config_st_rudder.payloadPedalConfig_.invertMotorDirection_u8 = dap_config_st[i].payloadPedalConfig_.invertMotorDirection_u8;
-                        dap_config_st_rudder.payloadPedalConfig_.loadcell_rating = dap_config_st[i].payloadPedalConfig_.loadcell_rating;
-                        dap_config_st_rudder.payloadPedalConfig_.stepLossFunctionFlags_u8 = dap_config_st[i].payloadPedalConfig_.stepLossFunctionFlags_u8;
-                        //dap_config_st_rudder.payloadPedalConfig_.Simulate_ABS_trigger = 0;
-                        dap_config_st_rudder.payloadPedalConfig_.Simulate_ABS_value = dap_config_st[i].payloadPedalConfig_.Simulate_ABS_value;
-                        Sendconfig_Rudder(i);
-                        System.Threading.Thread.Sleep(200);
-                        text_rudder_log.Text += "Send Rudder config to Pedal: " + i + "\n";
-                    }
-                });
-
-                /*
-                text_rudder_log.Text += "Send Rudder config to Pedal: "+i+"\n";
-                Sendconfig_Rudder(i);
-                System.Threading.Thread.Sleep(300);
-                */
-
-            
-
-
-
-
-
-
-
-        }
-
-
-
-        private void btn_rudder_initialize_Click(object sender, RoutedEventArgs e)
-        {
-            if (Plugin.ESPsync_serialPort.IsOpen)
-            {
-                if (dap_bridge_state_st.payloadBridgeState_.Pedal_availability_1 == 1 && dap_bridge_state_st.payloadBridgeState_.Pedal_availability_2 == 1)
-                {
-                    if (Plugin.Rudder_status)
-                    {
-                        
-
-                        text_rudder_log.Clear();
-                        text_rudder_log.Visibility = Visibility.Visible;
-                        Plugin.Rudder_enable_flag = true;
-                        //Plugin.Rudder_status = false;
-                        text_rudder_log.Text += "Disabling Rudder\n";
-                        btn_rudder_initialize.Content = "Enable Rudder";
-                                             
-                        DelayCall(300, () =>
-                        {
-                            text_rudder_log.Visibility = Visibility.Visible;
-                            Sendconfig(1);
-                            text_rudder_log.Text += "Send Original config back to Brk Pedal\n";
-                            
-                        });
-                        DelayCall(600, () =>
-                        {
-                            text_rudder_log.Visibility = Visibility.Visible;
-                            Sendconfig(2);
-                            text_rudder_log.Text += "Send Original config back to Gas Pedal\n";
-                            
-                        });
-                        DelayCall(1600, () =>
-                        {
-                            text_rudder_log.Visibility = Visibility.Hidden;
-                        });
-                        //resent config back
-                        /*
-                        text_rudder_log.Text += "Send Original config back to Brk Pedal\n";
-                        System.Threading.Thread.Sleep(300);
-                        
-                        Sendconfig(1);
-                        text_rudder_log.Text += "Send Original config back to Gas Pedal\n";
-                        System.Threading.Thread.Sleep(300);
-                        
-                        Sendconfig(2);
-                        */
-
-                    }
-                    else
-                    {
-                        
-
-                        if (Plugin.MSFS_Plugin_Status == false && Plugin.Version_Check_Simhub_MSFS==false)
-                        {
-                            String MSG_tmp;
-                            MSG_tmp = "No MSFS simconnect plugin detected, please install the plugin or update simhub verison above 9.6.0 then try again.";
-                            System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        }
-
-                        text_rudder_log.Clear();
-                        text_rudder_log.Visibility = Visibility.Visible;
-                        DelayCall(100, () =>
-                        {
-                            text_rudder_log.Visibility = Visibility.Visible;
-                            text_rudder_log.Text += "Initializing Rudder\n";
-                        });
-                        Rudder_Initialized();
-                        DelayCall(1300, () =>
-                        {
-                            text_rudder_log.Visibility = Visibility.Visible;
-                            text_rudder_log.Text += "Rudder initialized\n";
-                            Plugin.Rudder_enable_flag = true;
-                            //Plugin.Rudder_status = true;
-                            btn_rudder_initialize.Content = "Disable Rudder";
-                        });
-                        
-
-                    }
-                }
-                else
-                {
-                    String MSG_tmp;
-                    MSG_tmp = "BRK or GAS pedal didnt connect to Bridge, please connect pedal to via Bridge then try again.";
-                    System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-
-            }
-            else
-            {
-                String MSG_tmp;
-                MSG_tmp = "No Bridge conneted, please connect to Bridge and try again.";
-                System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-
-            }
-
-            
-        }
-
-        private void Slider_RPM_AMP_rudder_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            dap_config_st_rudder.payloadPedalConfig_.RPM_AMP = (Byte)(e.NewValue * 100);
-            label_RPM_AMP_rudder.Content = "Effect Amplitude: " + (float)(dap_config_st_rudder.payloadPedalConfig_.RPM_AMP) / 100.0f + "kg";
-        }
-
-        private void Rangeslider_RPM_freq_rudder_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
-        {
-            dap_config_st_rudder.payloadPedalConfig_.RPM_min_freq = (byte)e.NewValue;
-            label_RPM_freq_min_rudder.Content = "MIN:" + dap_config_st_rudder.payloadPedalConfig_.RPM_min_freq + "Hz";
-        }
-
-        private void Rangeslider_RPM_freq_rudder_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
-        {
-            dap_config_st_rudder.payloadPedalConfig_.RPM_max_freq = (byte)e.NewValue;
-            label_RPM_freq_max_rudder.Content = "MAX:" + dap_config_st_rudder.payloadPedalConfig_.RPM_max_freq + "Hz";
         }
 
         private void SHButtonPrimary_Click(object sender, RoutedEventArgs e)
@@ -5736,68 +5068,6 @@ namespace User.PluginSdkDemo
             }
         }
 
-        private void checkbox_enable_RPM_rudder_Checked(object sender, RoutedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                Plugin.Settings.Rudder_RPM_effect_b = true;
-            }
-        }
-
-        private void checkbox_enable_RPM_rudder_Unchecked(object sender, RoutedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                Plugin.Settings.Rudder_RPM_effect_b = false;
-            }
-        }
-
-        private void checkbox_Rudder_ACC_effect_Checked(object sender, RoutedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                Plugin.Settings.Rudder_ACC_effect_b = true;
-            }
-        }
-
-        private void checkbox_Rudder_ACC_effect_Unchecked(object sender, RoutedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                Plugin.Settings.Rudder_ACC_effect_b = false;
-            }
-        }
-
-        private void Slider_damping_rudder_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            dap_config_st_rudder.payloadPedalConfig_.dampingPress = (Byte)e.NewValue;
-            dap_config_st_rudder.payloadPedalConfig_.dampingPull = (Byte)e.NewValue;
-            label_damping_rudder.Content = "Damping factor: " + (float)(dap_config_st_rudder.payloadPedalConfig_.dampingPress * 0.00015f) + "s";
-        }
-
-        private void Slider_MPC_0th_gain_rudder_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            dap_config_st_rudder.payloadPedalConfig_.MPC_0th_order_gain = (float)e.NewValue;
-            label_MPC_0th_gain_rudder.Content = "MPC Foot spring stiffness: " + Math.Round(dap_config_st_rudder.payloadPedalConfig_.MPC_0th_order_gain, 2) + "kg/mm";
-
-        }
-
-        private void Checkbox_Rudder_ACC_WindForce_Checked(object sender, RoutedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                Plugin.Settings.Rudder_ACC_WindForce = true;
-            }
-        }
-
-        private void Checkbox_Rudder_ACC_WindForce_Unchecked(object sender, RoutedEventArgs e)
-        {
-            if (Plugin != null)
-            {
-                Plugin.Settings.Rudder_ACC_WindForce = true;
-            }
-
-        }
 
         private void btn_serial_clear_bridge_Click(object sender, RoutedEventArgs e)
         {
@@ -5975,14 +5245,6 @@ namespace User.PluginSdkDemo
             }
         }
 
-        private void Slider_MPC_1st_gain_rudder_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (Plugin != null)
-            {
-                dap_config_st_rudder.payloadPedalConfig_.MPC_1st_order_gain = (float)e.NewValue;
-                label_MPC_1st_gain_rudder.Content = "Foot spring damping: " + Math.Round(dap_config_st_rudder.payloadPedalConfig_.MPC_1st_order_gain, 2) + "kg*s/mm";
-            }
-        }
 
         private void OpenProfileWindow_Click(object sender, RoutedEventArgs e)
         {
