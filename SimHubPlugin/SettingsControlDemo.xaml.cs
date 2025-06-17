@@ -787,13 +787,13 @@ namespace User.PluginSdkDemo
                 switch (function_configs[i].Base.FunctionId)
                 {
                     case FunctionID.Brake:
-                        function_configs[i].AutomotivePedal = new AutomotivePedalConfig();
+                        function_configs[i].AutomotivePedal = AutomotivePedalConfigControl.GetDefaultConfig();
                         break;
                     case FunctionID.Clutch:
-                        function_configs[i].AutomotivePedal = new AutomotivePedalConfig();
+                        function_configs[i].AutomotivePedal = AutomotivePedalConfigControl.GetDefaultConfig();
                         break;
                     case FunctionID.Accelerator:
-                        function_configs[i].AutomotivePedal = new AutomotivePedalConfig();
+                        function_configs[i].AutomotivePedal = AutomotivePedalConfigControl.GetDefaultConfig();
                         break;
                     case FunctionID.FlightPedals:
                         function_configs[i].FlightPedals = new FlightPedalsConfig();
@@ -1366,7 +1366,6 @@ namespace User.PluginSdkDemo
                 TextBox_debugOutput.Text = String.Format("Function ID: {0}", selected_function_id);
                 Plugin.Settings.table_selected = (uint)tc_function_selection.SelectedIndex;
                 FunctionConfig function = function_configs[tc_function_selection.SelectedIndex];
-                float simulated_mass = 0.1f;
                 switch (function.SpecificCase)
                 {
                     case FunctionConfig.SpecificOneofCase.AutomotivePedal:

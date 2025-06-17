@@ -23,6 +23,8 @@ namespace User.PluginSdkDemo
         public delegate void ThresoldChangedEventHandler(double new_threshold);
         public event ThresoldChangedEventHandler ABSThresoldChanged;
         public event ThresoldChangedEventHandler BitePointThresoldChanged;
+        public delegate void RangeSettingsChangedEventHandler(SplineForceCurve spline_force_curve);
+        public event RangeSettingsChangedEventHandler RangeSettingsChanged;
 
         public SplineForceCurve()
         {
@@ -60,6 +62,7 @@ namespace User.PluginSdkDemo
 
         public void UpdateConfig(SplineForceCurveConfig new_config)
         {
+            if (gui == null) return;
             config = new_config;
             Rangeslider_travel_range.LowerValue = config.PosMin;
             Rangeslider_travel_range.UpperValue = config.PosMax;
@@ -434,6 +437,7 @@ namespace User.PluginSdkDemo
             {
                 Label_min_pos.Content = String.Format("MIN\n{0}mm", config.PosMin);
             }
+            RangeSettingsChanged?.Invoke(this);
         }
 
         private void Rangeslider_travel_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -443,6 +447,7 @@ namespace User.PluginSdkDemo
             {
                 Label_max_pos.Content = String.Format("MAX\n{0}mm", config.PosMax);
             }
+            RangeSettingsChanged?.Invoke(this);
         }
 
         private void Rangeslider_force_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -452,6 +457,7 @@ namespace User.PluginSdkDemo
             {
                 Label_max_force.Content = String.Format("Max force:\n{0:F1}kg", e.NewValue);
             }
+            RangeSettingsChanged?.Invoke(this);
         }
 
         private void Rangeslider_force_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -461,6 +467,7 @@ namespace User.PluginSdkDemo
             {
                 Label_min_force.Content = String.Format("Preload:\n{0:F1}kg", e.NewValue);
             }
+            RangeSettingsChanged?.Invoke(this);
         }
 
         private void Rectangle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

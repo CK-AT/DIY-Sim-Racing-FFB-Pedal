@@ -49,7 +49,26 @@ namespace User.PluginSdkDemo
             this.gui = gui;
             this.plugin = plugin;
             AutomotivePedal_SplineForceCurve.SetGui(gui, plugin);
+            AutomotivePedal_SplineForceCurve.RangeSettingsChanged += OnRangeSettingsChanged;
         }
+
+        private void OnRangeSettingsChanged(SplineForceCurve spline_force_curve)
+        {
+            switch (function_config.Base.OutputMode)
+            {
+                case OutputMode.Force:
+                    function_config.Base.OutputMin = config.ForceCurveConfig.FMin;
+                    function_config.Base.OutputMax = config.ForceCurveConfig.FMax;
+                    break;
+                case OutputMode.Travel:
+                    function_config.Base.OutputMin = config.ForceCurveConfig.PosMin;
+                    function_config.Base.OutputMax = config.ForceCurveConfig.PosMax;
+                    break;
+            }
+            config.PosIdle = config.ForceCurveConfig.PosMin;
+            config.PosEnd = config.ForceCurveConfig.PosMax;
+        }
+
         public void OnKinematicParametersChanged(KinematicParameters parameters)
         {
             AutomotivePedal_SplineForceCurve.OnKinematicParametersChanged(parameters);
@@ -60,9 +79,10 @@ namespace User.PluginSdkDemo
             return AutomotivePedal_SplineForceCurve.OnAxisStateUpdate(axis_state);
         }
 
-        public AutomotivePedalConfig GetDefaultConfig()
+        public static AutomotivePedalConfig GetDefaultConfig()
         {
             AutomotivePedalConfig new_config = new AutomotivePedalConfig();
+            new_config.ForceCurveConfig = new SplineForceCurveConfig();
             new_config.DamperConfig = new DamperConfig();
             new_config.DamperConfig.PositiveFactor = 0.25f;
             new_config.DamperConfig.NegativeFactor = 0.25f;
@@ -112,6 +132,8 @@ namespace User.PluginSdkDemo
             }
 
             AutomotivePedal_ControllerAxisSelector.Value = function_config.Base.ControllerOutputAxis;
+
+            AutomotivePedal_SplineForceCurve.UpdateConfig(config.ForceCurveConfig);
 
             if (config.DamperConfig == null)
             {
@@ -903,14 +925,18 @@ namespace User.PluginSdkDemo
 
         private void cb_controller_output_mode_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (function_config.Base == null) function_config.Base = new FunctionBase();
+            if (function_config.Base == null) return;
             switch (cb_controller_output_mode.SelectedIndex)
             {
                 case 0:
                     function_config.Base.OutputMode = OutputMode.Force;
+                    function_config.Base.OutputMin = config.ForceCurveConfig.FMin;
+                    function_config.Base.OutputMax = config.ForceCurveConfig.FMax;
                     break;
                 case 1:
                     function_config.Base.OutputMode = OutputMode.Travel;
+                    function_config.Base.OutputMin = config.ForceCurveConfig.PosMin;
+                    function_config.Base.OutputMax = config.ForceCurveConfig.PosMax;
                     break;
                 default:
                     break;
