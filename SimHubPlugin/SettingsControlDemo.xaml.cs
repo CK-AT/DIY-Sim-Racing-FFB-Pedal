@@ -773,7 +773,6 @@ namespace User.PluginSdkDemo
             plugin.wpfHandle = this;
             AutomotivePedalConfig.ABSTestStateChange += OnABSTestStateChange;
             AxisConfigCtrl.KinematicParametersChanged += OnKinematicParametersChanged;
-            AutomotivePedalConfig.LinkedAxesChanged += OnLinkedAxesChanged;
             AutomotivePedalConfig.SetGui(this, plugin);
             AxisConfigCtrl.SetGui(this, plugin);
             //DiyPedalKinematicsControl.KinematicParametersChanged += OnKinematicParametersChanged;
@@ -1399,19 +1398,13 @@ namespace User.PluginSdkDemo
             }
         }
 
-
-        private void OnLinkedAxesChanged(AxisID[] linked_axes)
+        public KinematicParameters GetKinematicParameters(AxisID axis_id)
         {
-            if (selected_function_id != FunctionID.Undefined)
+            if (axis_id != AxisID.AxisUndefined)
             {
-                function_configs[(int)selected_function_id - 1].Base.LinkedAxes.Clear();
-                function_configs[(int)selected_function_id - 1].Base.LinkedAxes.AddRange(linked_axes);
-                AxisID primary_axis = linked_axes[0];
-                if (primary_axis != AxisID.AxisUndefined)
-                {
-                    AutomotivePedalConfig.OnKinematicParametersChanged(axis_configs[(int)(primary_axis - 1)].KinematicParameters);
-                }
+                return axis_configs[(int)(axis_id - 1)].KinematicParameters;
             }
+            return null;
         }
 
         private void OnKinematicParametersChanged(KinematicParameters parameters)

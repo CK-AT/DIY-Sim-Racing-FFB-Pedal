@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="User.PluginSdkDemo.AxisSelector"
+﻿<UserControl x:Class="User.PluginSdkDemo.ControllerAxisSelector"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -11,14 +11,17 @@
     <Grid>
         <ComboBox x:Name="cb_axis_id" SelectionChanged="cb_axis_id_SelectionChanged" FontSize="10" SelectedIndex="0" MinHeight="20" BorderThickness="0,0,0,0" Width="90">
             <ComboBoxItem Content="Unassigned" />
-            <ComboBoxItem Content="Axis 1" />
-            <ComboBoxItem Content="Axis 2"/>
-            <ComboBoxItem Content="Axis 3"/>
-            <ComboBoxItem Content="Axis 4"/>
-            <ComboBoxItem Content="Axis 5"/>
-            <ComboBoxItem Content="Axis 6"/>
-            <ComboBoxItem Content="Axis 7"/>
-            <ComboBoxItem Content="Axis 8"/>
+            <ComboBoxItem Content="X" />
+            <ComboBoxItem Content="Y" />
+            <ComboBoxItem Content="Z" />
+            <ComboBoxItem Content="Rot. X" />
+            <ComboBoxItem Content="Rot. Y" />
+            <ComboBoxItem Content="Rot. Z" />
+            <ComboBoxItem Content="RUDDER" />
+            <ComboBoxItem Content="THROTTLE" />
+            <ComboBoxItem Content="ACCELERATOR" />
+            <ComboBoxItem Content="BRAKE" />
+            <ComboBoxItem Content="STEERING" />
         </ComboBox>
     </Grid>
 </UserControl>

@@ -25,13 +25,10 @@ namespace User.PluginSdkDemo
         public event DebugMessageEventHandler DebugMessage;
         public delegate void ABSTestStateChangeEventHandler(bool state);
         public event ABSTestStateChangeEventHandler ABSTestStateChange;
-        public delegate void SimulatedMassChangeEventHandler(float mass);
-        public event SimulatedMassChangeEventHandler SimulatedMassChange;
-        public delegate void LinkedAxesChangedEventHandler(AxisID[] linked_axes);
-        public event LinkedAxesChangedEventHandler LinkedAxesChanged;
         private SettingsControlDemo gui;
         private DIY_FFB plugin;
         private AutomotivePedalConfig config;
+        private FunctionConfig function_config = new FunctionConfig();
         private FunctionID current_function_id;
         private bool update_lockout = false;
         private void SendDebugMessage(string msg)
@@ -89,6 +86,7 @@ namespace User.PluginSdkDemo
         }
         public void UpdateConfig(FunctionConfig function_config)
         {
+            this.function_config = function_config;
             config = function_config.AutomotivePedal;
             current_function_id = function_config.Base.FunctionId;
 
@@ -100,6 +98,20 @@ namespace User.PluginSdkDemo
             AutomotivePedal_AxisSelector.Value = function_config.Base.LinkedAxes[0];
 
             Slider_simulated_mass.Value = function_config.SimulatedMass;
+
+            switch (function_config.Base.OutputMode)
+            {
+                case OutputMode.Force:
+                    cb_controller_output_mode.SelectedIndex = 0;
+                    break;
+                case OutputMode.Travel:
+                    cb_controller_output_mode.SelectedIndex = 1;
+                    break;
+                default:
+                    break;
+            }
+
+            AutomotivePedal_ControllerAxisSelector.Value = function_config.Base.ControllerOutputAxis;
 
             if (config.DamperConfig == null)
             {
@@ -876,12 +888,40 @@ namespace User.PluginSdkDemo
         private void OnSimulatedMassChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", e.NewValue);
-            SimulatedMassChange?.Invoke((float)e.NewValue);
+            function_config.SimulatedMass = (float)e.NewValue;
         }
 
         private void AutomotivePedal_AxisSelector_AxisIDChanged(object sender, AxisSelector.AxisIDChangedEventArgs e)
         {
-            LinkedAxesChanged?.Invoke(new AxisID[4] { e.Value, AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined });
+            function_config.Base.LinkedAxes.Clear();
+            function_config.Base.LinkedAxes.AddRange(new AxisID[4] { e.Value, AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined });
+            var kinematic_parameters = gui.GetKinematicParameters(e.Value);
+            if (kinematic_parameters != null) {
+                OnKinematicParametersChanged(kinematic_parameters);
+            }
+        }
+
+        private void cb_controller_output_mode_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (function_config.Base == null) function_config.Base = new FunctionBase();
+            switch (cb_controller_output_mode.SelectedIndex)
+            {
+                case 0:
+                    function_config.Base.OutputMode = OutputMode.Force;
+                    break;
+                case 1:
+                    function_config.Base.OutputMode = OutputMode.Travel;
+                    break;
+                default:
+                    break;
+            }
+
+
+        }
+
+        private void AutomotivePedal_ControllerAxisSelector_ControllerAxisChanged(object sender, ControllerAxisSelector.ControllerAxisChangedEventArgs e)
+        {
+            function_config.Base.ControllerOutputAxis = e.Value;
         }
     }
 }
