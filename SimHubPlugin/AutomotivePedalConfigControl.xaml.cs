@@ -1,17 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using MahApps.Metro.Controls;
 
 namespace User.PluginSdkDemo
@@ -82,7 +71,7 @@ namespace User.PluginSdkDemo
         public static AutomotivePedalConfig GetDefaultConfig()
         {
             AutomotivePedalConfig new_config = new AutomotivePedalConfig();
-            new_config.ForceCurveConfig = new SplineForceCurveConfig();
+            new_config.ForceCurveConfig = SplineForceCurve.GetDefaultConfig();
             new_config.DamperConfig = new DamperConfig();
             new_config.DamperConfig.PositiveFactor = 0.25f;
             new_config.DamperConfig.NegativeFactor = 0.25f;
@@ -110,12 +99,18 @@ namespace User.PluginSdkDemo
             config = function_config.AutomotivePedal;
             current_function_id = function_config.Base.FunctionId;
 
-            if (plugin == null) return;
-            if (current_function_id == FunctionID.Undefined) return;
-
             update_lockout = true;
 
             AutomotivePedal_AxisSelector.Value = function_config.Base.LinkedAxes[0];
+
+            if (function_config.Base.LinkedAxes[0] != AxisID.AxisUndefined)
+            {
+                var kinematic_parameters = gui.GetKinematicParameters(function_config.Base.LinkedAxes[0]);
+                if (kinematic_parameters != null)
+                {
+                    OnKinematicParametersChanged(kinematic_parameters);
+                }
+            }
 
             Slider_simulated_mass.Value = function_config.SimulatedMass;
 

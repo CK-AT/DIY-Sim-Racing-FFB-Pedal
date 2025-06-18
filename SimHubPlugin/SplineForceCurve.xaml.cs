@@ -36,12 +36,10 @@ namespace User.PluginSdkDemo
         {
             this.gui = gui;
             this.plugin = plugin;
-            UpdateConfig(GetDefaultConfig());
             DrawGridLines();
-            UpdateSpline();
         }
 
-        public SplineForceCurveConfig GetDefaultConfig()
+        public static SplineForceCurveConfig GetDefaultConfig()
         {
             SplineForceCurveConfig new_config = new SplineForceCurveConfig();
             new_config.FRelPoints.AddRange(new uint[] { 0, 20, 40, 60, 80, 100 });
@@ -62,7 +60,6 @@ namespace User.PluginSdkDemo
 
         public void UpdateConfig(SplineForceCurveConfig new_config)
         {
-            if (gui == null) return;
             config = new_config;
             Rangeslider_travel_range.LowerValue = config.PosMin;
             Rangeslider_travel_range.UpperValue = config.PosMax;
@@ -86,6 +83,8 @@ namespace User.PluginSdkDemo
 
             text_BP.Visibility = Visibility.Hidden;
             rect_BP_Control.Visibility = Visibility.Hidden;
+
+            UpdateSpline();
         }
 
         public void OnABSConfigUpdate(ABSEffectConfig abs_config)

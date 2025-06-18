@@ -802,8 +802,7 @@ namespace User.PluginSdkDemo
             }
             for (int i = 0; i < axis_configs.Length; i++)
             {
-                axis_configs[i] = AxisConfigControl.GetDefaultConfig();
-                axis_configs[i].AxisId = (AxisID)(i + 1);
+                axis_configs[i] = AxisConfigControl.GetDefaultConfig((AxisID)(i + 1));
             }
 
             UpdateSerialPortList_click();
@@ -961,8 +960,10 @@ namespace User.PluginSdkDemo
             {
                 checkbox_pedal_read.IsChecked = false;
             }
-            indexOfSelectedPedal_u = plugin.Settings.table_selected;
+
+            indexOfSelectedPedal_u = plugin.Settings.function_tab_selected;
             tc_function_selection.SelectedIndex = (int)indexOfSelectedPedal_u;
+            tc_axis_selection.SelectedIndex = (int)plugin.Settings.axis_tab_selected;
 
             //reconnect to com port
             if (plugin.Settings.axis_settings[indexOfSelectedPedal_u].auto_connect)
@@ -1364,19 +1365,12 @@ namespace User.PluginSdkDemo
             {
                 selected_function_id = (FunctionID)tc_function_selection.SelectedIndex + 1;
                 TextBox_debugOutput.Text = String.Format("Function ID: {0}", selected_function_id);
-                Plugin.Settings.table_selected = (uint)tc_function_selection.SelectedIndex;
+                Plugin.Settings.function_tab_selected = (uint)tc_function_selection.SelectedIndex;
                 FunctionConfig function = function_configs[tc_function_selection.SelectedIndex];
                 switch (function.SpecificCase)
                 {
                     case FunctionConfig.SpecificOneofCase.AutomotivePedal:
                         AutomotivePedalConfig.UpdateConfig(function);
-                        if (function.Base.LinkedAxes.Count > 0)
-                        {
-                            if (function.Base.LinkedAxes[0] != AxisID.AxisUndefined)
-                            {
-                                AutomotivePedalConfig.OnKinematicParametersChanged(axis_configs[(int)(function.Base.LinkedAxes[0] - 1)].KinematicParameters);
-                            }
-                        }
                         break;
                     case FunctionConfig.SpecificOneofCase.FlightPedals:
                         break;
@@ -1391,9 +1385,9 @@ namespace User.PluginSdkDemo
             if (Plugin != null)
             {
                 selected_axis_id = (AxisID)tc_axis_selection.SelectedIndex + 1;
-                Plugin.Settings.table_selected = (uint)tc_axis_selection.SelectedIndex;
+                Plugin.Settings.axis_tab_selected = (uint)tc_axis_selection.SelectedIndex;
                 AxisConfig axis_cfg = axis_configs[tc_axis_selection.SelectedIndex];
-                AxisConfigCtrl.UpdateConfig(selected_axis_id, axis_cfg);
+                AxisConfigCtrl.UpdateConfig(axis_cfg);
             }
         }
 
@@ -2379,10 +2373,10 @@ namespace User.PluginSdkDemo
             {
                 Profile_change(Plugin.profile_index);
                 Plugin.Page_update_flag = false;
-                tc_function_selection.SelectedIndex = (int)Plugin.Settings.table_selected;
+                tc_function_selection.SelectedIndex = (int)Plugin.Settings.function_tab_selected;
                 Plugin.pedal_select_update_flag = false;
                 Plugin.simhub_theme_color = defaultcolor.ToString();
-                switch (Plugin.Settings.table_selected)
+                switch (Plugin.Settings.function_tab_selected)
                 {
                     case 0:
                         Plugin.current_pedal = "Clutch";

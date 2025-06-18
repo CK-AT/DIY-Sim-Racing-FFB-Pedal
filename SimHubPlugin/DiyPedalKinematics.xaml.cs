@@ -43,7 +43,6 @@ namespace User.PluginSdkDemo
             this.gui = gui;
             this.plugin = plugin;
             DrawGridLines();
-            UpdateConfig(GetDefaultConfig());
         }
 
         public static DIYPedalKinematicConfig GetDefaultConfig()

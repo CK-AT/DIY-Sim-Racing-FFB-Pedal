@@ -47,11 +47,12 @@ namespace User.PluginSdkDemo
         //should change the variable name after array size change to updtae the config setting
         public AxisSettings[] axis_settings = new AxisSettings[8];
         public FunctionSettings[] function_settings = new FunctionSettings[8];
+        public uint axis_tab_selected = 0;
+        public uint function_tab_selected = 0;
 
         public string[] selectedJsonFileNames = { "1", "2", "3" };
         public int reading_config = 0;
         public uint RPM_effect_type = 0;
-        public uint table_selected = 0;
         public int vjoy_output_flag = 0;
         public uint vjoy_order = 1;
         public string[,] Pedal_file_string = new string[6, 3] { { "NA", "NA", "NA" }, { "NA", "NA", "NA" }, { "NA", "NA", "NA" }, { "NA", "NA", "NA" }, { "NA", "NA", "NA" }, { "NA", "NA", "NA" } };

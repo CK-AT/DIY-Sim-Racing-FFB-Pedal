@@ -1,17 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace User.PluginSdkDemo
 {
@@ -35,7 +24,7 @@ namespace User.PluginSdkDemo
 
         public AxisConfigControl()
         {
-            config = GetDefaultConfig();
+            config = GetDefaultConfig(AxisID.AxisUndefined);
             InitializeComponent();
             DiyPedalKinematicsControl.KinematicParametersChanged += DiyPedalKinematicsControl_KinematicParametersChanged;
         }
@@ -51,13 +40,12 @@ namespace User.PluginSdkDemo
             this.gui = gui;
             this.plugin = plugin;
             DiyPedalKinematicsControl.SetGui(gui, plugin);
-            UpdateConfig(AxisID.AxisUndefined, GetDefaultConfig());
         }
 
-        public static AxisConfig GetDefaultConfig()
+        public static AxisConfig GetDefaultConfig(AxisID axis_id)
         {
             AxisConfig new_config = new AxisConfig();
-            new_config.AxisId = AxisID.AxisUndefined;
+            new_config.AxisId = axis_id;
             new_config.KfConstVel = new KFConstVelConfig();
             new_config.KfConstVel.NoiseScaling = 128;
             new_config.BLoadcellInverted = false;
@@ -71,10 +59,9 @@ namespace User.PluginSdkDemo
 
             return new_config;
         }
-        public void UpdateConfig(AxisID axis_id, AxisConfig new_config)
+        public void UpdateConfig(AxisConfig new_config)
         {
             config = new_config;
-            config.AxisId = axis_id;
 
             switch (config.KinematicConfigCase)
             {

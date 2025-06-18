@@ -500,7 +500,7 @@
                                     <TabItem Header="Flight Pedals"/>
                                 </TabControl>
                                 <Canvas x:Name="canvas_Header_Tab_sub" Height="900" Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" VerticalAlignment="Top" >
-                                    <Line  X1="3" Y1="2" X2="3" Y2="840" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
+                                    <Line  X1="3" Y1="5" X2="3" Y2="840" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
                                 </Canvas>
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
                                     <local:AutomotivePedalConfigControl x:Name="AutomotivePedalConfig" VerticalAlignment="Center"></local:AutomotivePedalConfigControl>

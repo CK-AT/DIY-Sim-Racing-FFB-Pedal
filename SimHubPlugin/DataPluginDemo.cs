@@ -1291,11 +1291,11 @@ namespace User.PluginSdkDemo
             this.AttachDelegate("CurrentProfile", () => current_profile);
             pluginManager.SetPropertyValue("SelectedPedal", this.GetType(), current_pedal);
             pluginManager.SetPropertyValue("Action", this.GetType(), current_action);
-            pluginManager.SetPropertyValue("ABS_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].ABS_enabled);
-            pluginManager.SetPropertyValue("RPM_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].RPM_enabled);
-            pluginManager.SetPropertyValue("Gforce_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].G_force_enabled);
-            pluginManager.SetPropertyValue("WheelSlip_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].WS_enabled);
-            pluginManager.SetPropertyValue("RoadImpact_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].Road_impact_enabled);
+            pluginManager.SetPropertyValue("ABS_effect_status", this.GetType(), Settings.function_settings[Settings.function_tab_selected].ABS_enabled);
+            pluginManager.SetPropertyValue("RPM_effect_status", this.GetType(), Settings.function_settings[Settings.function_tab_selected].RPM_enabled);
+            pluginManager.SetPropertyValue("Gforce_effect_status", this.GetType(), Settings.function_settings[Settings.function_tab_selected].G_force_enabled);
+            pluginManager.SetPropertyValue("WheelSlip_effect_status", this.GetType(), Settings.function_settings[Settings.function_tab_selected].WS_enabled);
+            pluginManager.SetPropertyValue("RoadImpact_effect_status", this.GetType(), Settings.function_settings[Settings.function_tab_selected].Road_impact_enabled);
             pluginManager.SetPropertyValue("Overlay_display", this.GetType(), overlay_display);
             pluginManager.SetPropertyValue("Theme_color", this.GetType(), simhub_theme_color);
             pluginManager.SetPropertyValue("ProfileIndex", this.GetType(), profile_index);
@@ -1701,11 +1701,11 @@ namespace User.PluginSdkDemo
             pluginManager.AddProperty("ProfileIndex", this.GetType(), profile_index);
             pluginManager.AddProperty("SelectedPedal", this.GetType(), current_pedal);
             pluginManager.AddProperty("Action", this.GetType(), current_action);
-            pluginManager.AddProperty("ABS_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].ABS_enabled);
-            pluginManager.AddProperty("RPM_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].RPM_enabled);
-            pluginManager.AddProperty("Gforce_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].G_force_enabled);
-            pluginManager.AddProperty("WheelSlip_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].WS_enabled);
-            pluginManager.AddProperty("RoadImpact_effect_status", this.GetType(), Settings.function_settings[Settings.table_selected].Road_impact_enabled);
+            pluginManager.AddProperty("ABS_effect_status", this.GetType(), Settings.function_settings[Settings.function_tab_selected].ABS_enabled);
+            pluginManager.AddProperty("RPM_effect_status", this.GetType(), Settings.function_settings[Settings.function_tab_selected].RPM_enabled);
+            pluginManager.AddProperty("Gforce_effect_status", this.GetType(), Settings.function_settings[Settings.function_tab_selected].G_force_enabled);
+            pluginManager.AddProperty("WheelSlip_effect_status", this.GetType(), Settings.function_settings[Settings.function_tab_selected].WS_enabled);
+            pluginManager.AddProperty("RoadImpact_effect_status", this.GetType(), Settings.function_settings[Settings.function_tab_selected].Road_impact_enabled);
             pluginManager.AddProperty("Overlay_display", this.GetType(), overlay_display);
             pluginManager.AddProperty("Theme_color", this.GetType(), simhub_theme_color);
             pluginManager.AddProperty("debugvalue", this.GetType(), debug_value);
@@ -1846,10 +1846,10 @@ namespace User.PluginSdkDemo
             });
             this.AddAction("NextPedal", (a, b) =>
             {
-                Settings.table_selected++;
-                if (Settings.table_selected > 2)
+                Settings.function_tab_selected++;
+                if (Settings.function_tab_selected >= 4)
                 {
-                    Settings.table_selected = 0;
+                    Settings.function_tab_selected = 0;
                 }
                 Page_update_flag = true;
                 SimHub.Logging.Current.Info("NextPedal");
@@ -1858,13 +1858,13 @@ namespace User.PluginSdkDemo
             this.AddAction("PreviousPedal", (a, b) =>
             {
                 
-                if (Settings.table_selected == 0)
+                if (Settings.function_tab_selected == 0)
                 {
-                    Settings.table_selected = 2;
+                    Settings.function_tab_selected = 3;
                 }
                 else
                 {
-                    Settings.table_selected--;
+                    Settings.function_tab_selected--;
                 }
                 Page_update_flag = true;
                 SimHub.Logging.Current.Info("PreviousPedal");
@@ -1872,15 +1872,15 @@ namespace User.PluginSdkDemo
             });
             this.AddAction("ABStoggle", (a, b) =>
             {
-                if (!Settings.function_settings[Settings.table_selected].ABS_enabled)
+                if (!Settings.function_settings[Settings.function_tab_selected].ABS_enabled)
                 {
-                    Settings.function_settings[Settings.table_selected].ABS_enabled = true;
+                    Settings.function_settings[Settings.function_tab_selected].ABS_enabled = true;
                     SimHub.Logging.Current.Info("ABS on");
                     current_action = "ABS On";
                 }
                 else
                 {
-                    Settings.function_settings[Settings.table_selected].ABS_enabled = false;
+                    Settings.function_settings[Settings.function_tab_selected].ABS_enabled = false;
                     SimHub.Logging.Current.Info("ABS off");
                     current_action = "ABS Off";
                 }
@@ -1888,15 +1888,15 @@ namespace User.PluginSdkDemo
             });
             this.AddAction("RPMtoggle", (a, b) =>
             {
-                if (!Settings.function_settings[Settings.table_selected].RPM_enabled)
+                if (!Settings.function_settings[Settings.function_tab_selected].RPM_enabled)
                 {
-                    Settings.function_settings[Settings.table_selected].RPM_enabled = true;
+                    Settings.function_settings[Settings.function_tab_selected].RPM_enabled = true;
                     SimHub.Logging.Current.Info("RPM on");
                     current_action = "RPM On";
                 }
                 else
                 {
-                    Settings.function_settings[Settings.table_selected].RPM_enabled = false;
+                    Settings.function_settings[Settings.function_tab_selected].RPM_enabled = false;
                     SimHub.Logging.Current.Info("RPM off");
                     current_action = "RPM Off";
                 }
@@ -1904,17 +1904,17 @@ namespace User.PluginSdkDemo
             });
             this.AddAction("Gforce_toggle", (a, b) =>
             {
-                if (Settings.table_selected == 1)
+                if (Settings.function_tab_selected == 1)
                 {
-                    if (!Settings.function_settings[Settings.table_selected].G_force_enabled)
+                    if (!Settings.function_settings[Settings.function_tab_selected].G_force_enabled)
                     {
-                        Settings.function_settings[Settings.table_selected].G_force_enabled = true;
+                        Settings.function_settings[Settings.function_tab_selected].G_force_enabled = true;
                         SimHub.Logging.Current.Info("Gforce on");
                         current_action = "Gforce On";
                     }
                     else
                     {
-                        Settings.function_settings[Settings.table_selected].G_force_enabled = false;
+                        Settings.function_settings[Settings.function_tab_selected].G_force_enabled = false;
                         SimHub.Logging.Current.Info("Gforce off");
                         current_action = "Gforce Off";
                     }
@@ -1924,15 +1924,15 @@ namespace User.PluginSdkDemo
             });
             this.AddAction("WheelSliptoggle", (a, b) =>
             {
-                if (!Settings.function_settings[Settings.table_selected].WS_enabled)
+                if (!Settings.function_settings[Settings.function_tab_selected].WS_enabled)
                 {
-                    Settings.function_settings[Settings.table_selected].WS_enabled = true;
+                    Settings.function_settings[Settings.function_tab_selected].WS_enabled = true;
                     SimHub.Logging.Current.Info("WheelSlip on");
                     current_action = "Wheel Slip On";
                 }
                 else
                 {
-                    Settings.function_settings[Settings.table_selected].WS_enabled = false;
+                    Settings.function_settings[Settings.function_tab_selected].WS_enabled = false;
                     SimHub.Logging.Current.Info("WheelSlip off");
                     current_action = "Wheel Slip Off";
                 }
@@ -1941,15 +1941,15 @@ namespace User.PluginSdkDemo
 
             this.AddAction("RoadImpacttoggle", (a, b) =>
             {
-                if (!Settings.function_settings[Settings.table_selected].Road_impact_enabled)
+                if (!Settings.function_settings[Settings.function_tab_selected].Road_impact_enabled)
                 {
-                    Settings.function_settings[Settings.table_selected].Road_impact_enabled = true;
+                    Settings.function_settings[Settings.function_tab_selected].Road_impact_enabled = true;
                     SimHub.Logging.Current.Info("RoadImpact on");
                     current_action = "Wheel Slip On";
                 }
                 else
                 {
-                    Settings.function_settings[Settings.table_selected].Road_impact_enabled = false;
+                    Settings.function_settings[Settings.function_tab_selected].Road_impact_enabled = false;
                     SimHub.Logging.Current.Info("RoadImpact off");
                     current_action = "RoadImpact Off";
                 }
