@@ -4374,25 +4374,16 @@ namespace User.PluginSdkDemo
                 switch (msg.PayloadCase)
                 {
                     case Message.PayloadOneofCase.AxisState:
-                        AxisState axis_state = msg.AxisState;
-                        int pedalSelected = ((int)axis_state.AxisId);
-                        if ((pedalStateHasAlreadyBeenUpdated_b == false) && (indexOfSelectedPedal_u == pedalSelected))
-                        {
-                            pedalStateHasAlreadyBeenUpdated_b = true;
-                            ProccessAxisState(axis_state);
-                        }
+                        ProccessAxisState(msg.AxisState);
                         break;
                     case Message.PayloadOneofCase.GatewayState:
-                        GatewayState gateway_state = msg.GatewayState;
-                        ProcessGatewayState(gateway_state);
+                        ProcessGatewayState(msg.GatewayState);
                         break;
                     case Message.PayloadOneofCase.AxisConfig:
-                        axis_configs[((int)msg.AxisConfig.AxisId) - 1] = msg.AxisConfig;
-                        updateTheGuiFromConfig();
+                        OnAxisConfigReceived(msg.AxisConfig);
                         break;
                     case Message.PayloadOneofCase.FunctionConfig:
-                        function_configs[((int)msg.FunctionConfig.Base.FunctionId) - 1] = msg.FunctionConfig;
-                        updateTheGuiFromConfig();
+                        OnFunctionConfigReceived(msg.FunctionConfig);
                         break;
                     case Message.PayloadOneofCase.AxisLogMessage:
                         string axis_log_line;
@@ -4462,6 +4453,32 @@ namespace User.PluginSdkDemo
                 string errorMessage = caughtEx.Message;
                 TextBox_debug_count.Text += errorMessage;
                 SimHub.Logging.Current.Error(errorMessage);
+            }
+        }
+
+        private void OnFunctionConfigReceived(FunctionConfig function_config)
+        {
+            FunctionID function_id = function_config.Base.FunctionId;
+            if (function_id != FunctionID.Undefined)
+            {
+                function_configs[(int)function_id - 1] = function_config;
+                if (selected_function_id == function_id)
+                {
+                    AutomotivePedalConfig.UpdateConfig(function_config);
+                }
+            }
+        }
+
+        private void OnAxisConfigReceived(AxisConfig axis_config)
+        {
+            AxisID axis_id = axis_config.AxisId;
+            if (axis_id != AxisID.AxisUndefined && axis_id <= AxisID._8)
+            {
+                axis_configs[(int)axis_id - 1] = axis_config;
+                if (selected_axis_id == axis_id)
+                {
+                    AxisConfigCtrl.UpdateConfig(axis_config);
+                }
             }
         }
 
@@ -5376,6 +5393,18 @@ namespace User.PluginSdkDemo
                 _serial_monitor_window.Top = screenHeight / 2 - _serial_monitor_window.Height / 2;
                 _serial_monitor_window.Show(); // Show the side window
 
+            }
+        }
+
+        private void OnUploadFunctionConfigClicked(object sender, RoutedEventArgs e)
+        {
+            FunctionConfig function_config = function_configs[tc_function_selection.SelectedIndex];
+            if (Plugin.ESPsync_serialPort.IsOpen)
+            {
+                Message msg = new Message();
+                msg.FunctionConfig = function_config;
+                function_config.Base.Store = (sender == btn_upload_and_store_function_config);
+                Plugin.ESPsync_serialPort.WriteMessage(msg);
             }
         }
     }

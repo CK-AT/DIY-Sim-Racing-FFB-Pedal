@@ -63,9 +63,12 @@ namespace User.PluginSdkDemo
             AutomotivePedal_SplineForceCurve.OnKinematicParametersChanged(parameters);
         }
 
-        public double OnAxisStateUpdate(AxisState axis_state)
+        public void OnAxisStateUpdate(AxisState axis_state)
         {
-            return AutomotivePedal_SplineForceCurve.OnAxisStateUpdate(axis_state);
+            if (function_config.Base.LinkedAxes[0] == axis_state.AxisId)
+            {
+                AutomotivePedal_SplineForceCurve.OnAxisStateUpdate(axis_state);
+            }
         }
 
         public static AutomotivePedalConfig GetDefaultConfig()

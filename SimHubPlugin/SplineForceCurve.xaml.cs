@@ -263,13 +263,15 @@ namespace User.PluginSdkDemo
             text_point_pos.Visibility = Visibility.Hidden;
             double pos_norm = Tools.Normalize(axis_state.Position, config.PosMin, config.PosMax);
             double f_norm = Tools.Normalize(axis_state.Force, config.FMin, config.FMax);
-            text_state.Text = String.Format("{0}%", Math.Round(pos_norm * 100.0));
+            text_state.Text = String.Format("{0:F1}kg\n{1:F1}mm", axis_state.Force / 9.81, axis_state.Position);
 
             Canvas.SetLeft(rect_State, canvas.Width * pos_norm - rect_State.Width / 2);
             Canvas.SetTop(rect_State, canvas.Height - canvas.Height * f_norm - rect_State.Height / 2);
-            Canvas.SetLeft(text_state, Canvas.GetLeft(rect_State) /*+ rect_State.Width*/);
-            Canvas.SetTop(text_state, Canvas.GetTop(rect_State) - rect_State.Height);
-
+            double phi_text = (Math.PI * pos_norm) + (Math.PI / 4.0);
+            double offset_x = Math.Cos(phi_text) * rect_State.Width * 2.0;
+            double offset_y = Math.Sin(phi_text) * rect_State.Width * 2.0;
+            Canvas.SetLeft(text_state, Canvas.GetLeft(rect_State) + offset_x);
+            Canvas.SetTop(text_state, Canvas.GetTop(rect_State) - offset_y);
             return pos_norm * 100.0;
         }
 

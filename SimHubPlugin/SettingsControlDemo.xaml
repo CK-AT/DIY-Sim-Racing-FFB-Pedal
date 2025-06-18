@@ -503,6 +503,12 @@
                                     <Line  X1="3" Y1="5" X2="3" Y2="840" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
                                 </Canvas>
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
+                                    <Border  HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5"  Margin="0,0,0,3">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <styles:SHButtonPrimary x:Name="btn_upload_function_config" Click="OnUploadFunctionConfigClicked" Width="130"  Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" />
+                                            <styles:SHButtonPrimary x:Name="btn_upload_and_store_function_config" Click="OnUploadFunctionConfigClicked" Width="130" Height="28" Content="Upload and Store" Margin="0,5,5,5" VerticalContentAlignment="Stretch" HorizontalContentAlignment="Stretch" />
+                                        </StackPanel>
+                                    </Border>
                                     <local:AutomotivePedalConfigControl x:Name="AutomotivePedalConfig" VerticalAlignment="Center"></local:AutomotivePedalConfigControl>
                                 </StackPanel>
                                 <!--<StackPanel Height="900" Width="360" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-2,0,0,0">
