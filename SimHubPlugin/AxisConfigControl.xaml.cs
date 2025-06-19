@@ -17,11 +17,6 @@ namespace User.PluginSdkDemo
         public delegate void KinematicParametersChangedEventHandler(KinematicParameters parameters);
         public event KinematicParametersChangedEventHandler KinematicParametersChanged;
 
-        private void SendDebugMessage(string msg)
-        {
-            DebugMessage?.Invoke(msg);
-        }
-
         public AxisConfigControl()
         {
             config = GetDefaultConfig(AxisID.AxisUndefined);
@@ -127,7 +122,7 @@ namespace User.PluginSdkDemo
             catch (Exception caughtEx)
             {
                 string errorMessage = caughtEx.Message;
-                SendDebugMessage(errorMessage);
+                DebugMessage?.Invoke(errorMessage);
             }
         }
 
@@ -140,7 +135,7 @@ namespace User.PluginSdkDemo
             catch (Exception caughtEx)
             {
                 string errorMessage = caughtEx.Message;
-                SendDebugMessage(errorMessage);
+                DebugMessage?.Invoke(errorMessage);
             }
         }
 

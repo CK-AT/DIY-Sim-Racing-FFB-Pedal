@@ -25,6 +25,7 @@ namespace User.PluginSdkDemo
         public event ThresoldChangedEventHandler BitePointThresoldChanged;
         public delegate void RangeSettingsChangedEventHandler(SplineForceCurve spline_force_curve);
         public event RangeSettingsChangedEventHandler RangeSettingsChanged;
+        bool is_updating = false;
 
         public SplineForceCurve()
         {
@@ -61,10 +62,12 @@ namespace User.PluginSdkDemo
         public void UpdateConfig(SplineForceCurveConfig new_config)
         {
             config = new_config;
+            is_updating = true;
             Rangeslider_travel_range.LowerValue = config.PosMin;
             Rangeslider_travel_range.UpperValue = config.PosMax;
-            Rangeslider_force_range.UpperValue = config.FMax / 9.81;
             Rangeslider_force_range.LowerValue = config.FMin / 9.81;
+            Rangeslider_force_range.UpperValue = config.FMax / 9.81;
+            is_updating = false;
 
             text_point_pos.Visibility = Visibility.Hidden;
 
@@ -433,7 +436,10 @@ namespace User.PluginSdkDemo
 
         private void Rangeslider_travel_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
         {
-            config.PosMin = Convert.ToInt16(e.NewValue);
+            if (!is_updating)
+            {
+                config.PosMin = Convert.ToInt16(e.NewValue);
+            }
             if (Label_min_pos != null)
             {
                 Label_min_pos.Content = String.Format("MIN\n{0}mm", config.PosMin);
@@ -443,7 +449,10 @@ namespace User.PluginSdkDemo
 
         private void Rangeslider_travel_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
         {
-            config.PosMax = Convert.ToInt16(e.NewValue);
+            if (!is_updating)
+            {
+                config.PosMax = Convert.ToInt16(e.NewValue);
+            }
             if (Label_max_pos != null)
             {
                 Label_max_pos.Content = String.Format("MAX\n{0}mm", config.PosMax);
@@ -453,7 +462,10 @@ namespace User.PluginSdkDemo
 
         private void Rangeslider_force_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
         {
-            config.FMax = (float)(e.NewValue * 9.81);
+            if (!is_updating)
+            {
+                config.FMax = (float)(e.NewValue * 9.81);
+            }
             if (Label_max_force != null)
             {
                 Label_max_force.Content = String.Format("Max force:\n{0:F1}kg", e.NewValue);
@@ -463,7 +475,10 @@ namespace User.PluginSdkDemo
 
         private void Rangeslider_force_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
         {
-            config.FMin = (float)(e.NewValue * 9.81);
+            if (!is_updating)
+            {
+                config.FMin = (float)(e.NewValue * 9.81);
+            }
             if (Label_min_force != null)
             {
                 Label_min_force.Content = String.Format("Preload:\n{0:F1}kg", e.NewValue);

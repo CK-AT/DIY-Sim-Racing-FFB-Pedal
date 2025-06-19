@@ -27,11 +27,6 @@ namespace User.PluginSdkDemo
         public delegate void KinematicParametersChangedEventHandler(KinematicParameters parameters);
         public event KinematicParametersChangedEventHandler KinematicParametersChanged;
 
-        private void SendDebugMessage(string msg)
-        {
-            DebugMessage?.Invoke(msg);
-        }
-
         public DiyPedalKinematics()
         {
             config = GetDefaultConfig();
@@ -420,7 +415,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                SendDebugMessage("Pedal Kinematic calculation error");
+                DebugMessage?.Invoke("Pedal Kinematic calculation error");
             }
         }
 
@@ -437,7 +432,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                SendDebugMessage("Pedal Kinematic calculation error");
+                DebugMessage?.Invoke("Pedal Kinematic calculation error");
             }
         }
 
@@ -454,7 +449,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                SendDebugMessage("Pedal Kinematic calculation error");
+                DebugMessage?.Invoke("Pedal Kinematic calculation error");
             }
         }
 
@@ -471,7 +466,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                SendDebugMessage("Pedal Kinematic calculation error");
+                DebugMessage?.Invoke("Pedal Kinematic calculation error");
             }
         }
 
@@ -488,7 +483,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                SendDebugMessage("Pedal Kinematic calculation error");
+                DebugMessage?.Invoke("Pedal Kinematic calculation error");
             }
         }
 
@@ -505,7 +500,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                SendDebugMessage("Pedal Kinematic calculation error");
+                DebugMessage?.Invoke("Pedal Kinematic calculation error");
             }
         }
 
@@ -522,7 +517,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                SendDebugMessage("Pedal Kinematic calculation error");
+                DebugMessage?.Invoke("Pedal Kinematic calculation error");
             }
         }
 
@@ -539,7 +534,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                SendDebugMessage("Pedal Kinematic calculation error");
+                DebugMessage?.Invoke("Pedal Kinematic calculation error");
             }
         }
 
@@ -558,7 +553,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                SendDebugMessage("Pedal Kinematic calculation error");
+                DebugMessage?.Invoke("Pedal Kinematic calculation error");
             }
         }
 
@@ -662,7 +657,7 @@ namespace User.PluginSdkDemo
                     }
                     else
                     {
-                        SendDebugMessage("Pedal Kinematic calculation error");
+                        DebugMessage?.Invoke("Pedal Kinematic calculation error");
                     }
                 }
             }
@@ -681,7 +676,7 @@ namespace User.PluginSdkDemo
                     }
                     else
                     {
-                        SendDebugMessage("Pedal Kinematic calculation error");
+                        DebugMessage?.Invoke("Pedal Kinematic calculation error");
                     }
                 }
             }
@@ -700,7 +695,7 @@ namespace User.PluginSdkDemo
                     }
                     else
                     {
-                        SendDebugMessage("Pedal Kinematic calculation error");
+                        DebugMessage?.Invoke("Pedal Kinematic calculation error");
                     }
                 }
             }
@@ -719,7 +714,7 @@ namespace User.PluginSdkDemo
                     }
                     else
                     {
-                        SendDebugMessage("Pedal Kinematic calculation error");
+                        DebugMessage?.Invoke("Pedal Kinematic calculation error");
                     }
                 }
             }
@@ -734,7 +729,7 @@ namespace User.PluginSdkDemo
                     }
                     else
                     {
-                        SendDebugMessage("Pedal Kinematic calculation error");
+                        DebugMessage?.Invoke("Pedal Kinematic calculation error");
                     }
                 }
             }
@@ -749,7 +744,7 @@ namespace User.PluginSdkDemo
                     }
                     else
                     {
-                        SendDebugMessage("Pedal Kinematic calculation error");
+                        DebugMessage?.Invoke("Pedal Kinematic calculation error");
                     }
                 }
             }

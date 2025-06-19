@@ -180,6 +180,9 @@
     <Compile Include="AxisSelector.xaml.cs">
       <DependentUpon>AxisSelector.xaml</DependentUpon>
     </Compile>
+    <Compile Include="FunctionConfigControl.xaml.cs">
+      <DependentUpon>FunctionConfigControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Tools.cs" />
     <Compile Include="CubicSpline.cs" />
     <Compile Include="DataPluginDemo.cs" />
@@ -223,6 +226,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="AxisSelector.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="FunctionConfigControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

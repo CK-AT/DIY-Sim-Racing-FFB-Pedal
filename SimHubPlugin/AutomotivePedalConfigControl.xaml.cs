@@ -10,8 +10,7 @@ namespace User.PluginSdkDemo
     /// </summary>
     public partial class AutomotivePedalConfigControl : UserControl
     {
-        public delegate void DebugMessageEventHandler(string message);
-        public event DebugMessageEventHandler DebugMessage;
+        public event FunctionConfigControl.DebugMessageEventHandler DebugMessage;
         public delegate void ABSTestStateChangeEventHandler(bool state);
         public event ABSTestStateChangeEventHandler ABSTestStateChange;
         private SettingsControlDemo gui;
@@ -20,13 +19,6 @@ namespace User.PluginSdkDemo
         private FunctionConfig function_config = new FunctionConfig();
         private FunctionID current_function_id;
         private bool update_lockout = false;
-        private void SendDebugMessage(string msg)
-        {
-            if (DebugMessage != null)
-            {
-                DebugMessage(msg);
-            }
-        }
 
         public AutomotivePedalConfigControl()
         {
@@ -324,13 +316,13 @@ namespace User.PluginSdkDemo
             {
                 TestAbs_check.IsChecked = true;
                 ABSTestStateChange?.Invoke(true);
-                SendDebugMessage("ABS-Test begin");
+                DebugMessage?.Invoke("ABS-Test begin");
             }
             else
             {
                 TestAbs_check.IsChecked = false;
                 ABSTestStateChange?.Invoke(false);
-                SendDebugMessage("ABS-Test stopped");
+                DebugMessage?.Invoke("ABS-Test stopped");
             }
 
         }
@@ -442,7 +434,7 @@ namespace User.PluginSdkDemo
         private void Simulate_ABS_check_Checked(object sender, RoutedEventArgs e)
         {
             config.AbsEffectConfig.SimLevel = 1;
-            SendDebugMessage("simulateABS: on");
+            DebugMessage?.Invoke("simulateABS: on");
             //rect_SABS.Visibility = Visibility.Visible;
             //rect_SABS_Control.Visibility = Visibility.Visible;
             //text_SABS.Visibility = Visibility.Visible;
@@ -451,7 +443,7 @@ namespace User.PluginSdkDemo
         private void Simulate_ABS_check_Unchecked(object sender, RoutedEventArgs e)
         {
             config.AbsEffectConfig.SimLevel = 0;
-            SendDebugMessage("simulateABS: off");
+            DebugMessage?.Invoke("simulateABS: off");
             //rect_SABS.Visibility = Visibility.Hidden;
             //rect_SABS_Control.Visibility = Visibility.Hidden;
             //text_SABS.Visibility = Visibility.Hidden;
@@ -888,7 +880,7 @@ namespace User.PluginSdkDemo
             catch (Exception caughtEx)
             {
                 string errorMessage = caughtEx.Message;
-                SendDebugMessage(errorMessage);
+                DebugMessage?.Invoke(errorMessage);
             }
 
         }

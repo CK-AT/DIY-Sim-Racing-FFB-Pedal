@@ -1,5 +1,6 @@
 ﻿//using SimHub.Plugins.OutputPlugins.Dash.GLCDTemplating;
 using FMOD;
+using Google.Protobuf;
 using log4net.Plugin;
 using MahApps.Metro.Controls;
 using Microsoft.Win32;
@@ -43,6 +44,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Media.TextFormatting;
@@ -771,34 +773,16 @@ namespace User.PluginSdkDemo
             this.Plugin = plugin;
             plugin.testValue = 1;
             plugin.wpfHandle = this;
-            AutomotivePedalConfig.ABSTestStateChange += OnABSTestStateChange;
+            uc_function_config.ABSTestStateChange += OnABSTestStateChange;
             AxisConfigCtrl.KinematicParametersChanged += OnKinematicParametersChanged;
-            AutomotivePedalConfig.SetGui(this, plugin);
+            uc_function_config.SetGui(this, plugin);
             AxisConfigCtrl.SetGui(this, plugin);
             //DiyPedalKinematicsControl.KinematicParametersChanged += OnKinematicParametersChanged;
             //DiyPedalKinematicsControl.KinematicParametersChanged += AutomotivePedalConfig.OnKinematicParametersChanged;
             //DiyPedalKinematicsControl.SetGui(this, plugin);
             for (int i = 0; i < function_configs.Length; i++)
             {
-                function_configs[i] = new FunctionConfig();
-                function_configs[i].Base = new FunctionBase();
-                function_configs[i].Base.FunctionId = (FunctionID)(i + 1);
-                function_configs[i].Base.LinkedAxes.AddRange(new AxisID[4] { AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined });
-                switch (function_configs[i].Base.FunctionId)
-                {
-                    case FunctionID.Brake:
-                        function_configs[i].AutomotivePedal = AutomotivePedalConfigControl.GetDefaultConfig();
-                        break;
-                    case FunctionID.Clutch:
-                        function_configs[i].AutomotivePedal = AutomotivePedalConfigControl.GetDefaultConfig();
-                        break;
-                    case FunctionID.Accelerator:
-                        function_configs[i].AutomotivePedal = AutomotivePedalConfigControl.GetDefaultConfig();
-                        break;
-                    case FunctionID.FlightPedals:
-                        function_configs[i].FlightPedals = new FlightPedalsConfig();
-                        break;
-                }
+                function_configs[i] = FunctionConfigControl.GetDefaultConfig((FunctionID)(i + 1));
             }
             for (int i = 0; i < axis_configs.Length; i++)
             {
@@ -1367,16 +1351,7 @@ namespace User.PluginSdkDemo
                 TextBox_debugOutput.Text = String.Format("Function ID: {0}", selected_function_id);
                 Plugin.Settings.function_tab_selected = (uint)tc_function_selection.SelectedIndex;
                 FunctionConfig function = function_configs[tc_function_selection.SelectedIndex];
-                switch (function.SpecificCase)
-                {
-                    case FunctionConfig.SpecificOneofCase.AutomotivePedal:
-                        AutomotivePedalConfig.UpdateConfig(function);
-                        break;
-                    case FunctionConfig.SpecificOneofCase.FlightPedals:
-                        break;
-                    default:
-                        break;
-                }
+                uc_function_config.UpdateConfig(function);
             }
         }
 
@@ -1410,7 +1385,7 @@ namespace User.PluginSdkDemo
             AxisID primary_axis = function_configs[(int)selected_function_id - 1].Base.LinkedAxes[0];
             if (selected_axis_id == primary_axis)
             {
-                AutomotivePedalConfig.OnKinematicParametersChanged(parameters);
+                uc_function_config.OnKinematicParametersChanged(parameters);
             }
         }
 
@@ -4194,7 +4169,7 @@ namespace User.PluginSdkDemo
             //    TextBox2.Text = "Pedal:" + pedalState_read_st.payloadHeader_.PedalTag + " ErrorCode" + pedalState_read_st.payloadPedalBasicState_.error_code_u8;
 
             //}
-            AutomotivePedalConfig.OnAxisStateUpdate(axis_state);
+            uc_function_config.OnAxisStateUpdate(axis_state);
         }
 
         private void ProcessExtendedState()
@@ -4464,7 +4439,7 @@ namespace User.PluginSdkDemo
                 function_configs[(int)function_id - 1] = function_config;
                 if (selected_function_id == function_id)
                 {
-                    AutomotivePedalConfig.UpdateConfig(function_config);
+                    uc_function_config.UpdateConfig(function_config);
                 }
             }
         }
@@ -5405,6 +5380,49 @@ namespace User.PluginSdkDemo
                 msg.FunctionConfig = function_config;
                 function_config.Base.Store = (sender == btn_upload_and_store_function_config);
                 Plugin.ESPsync_serialPort.WriteMessage(msg);
+            }
+        }
+
+        private void btn_load_function_config_from_file_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                DefaultExt = "json",
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                var content = File.ReadAllText(openFileDialog.FileName);
+                var json_parser = new JsonParser(JsonParser.Settings.Default);
+                Message msg = (Message)json_parser.Parse(content, Message.Descriptor);
+                if (msg.PayloadCase == Message.PayloadOneofCase.FunctionConfig)
+                {
+                    function_configs[(int)msg.FunctionConfig.Base.FunctionId - 1] = msg.FunctionConfig;
+                    if (selected_function_id == msg.FunctionConfig.Base.FunctionId)
+                    {
+                        uc_function_config.UpdateConfig(msg.FunctionConfig);
+                    }
+                }
+            }
+        }
+
+        private void btn_store_function_config_to_file_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.SaveFileDialog saveFileDialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                DefaultExt = "json",
+                FileName = "function_config.json"
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                JsonFormatter formatter = new JsonFormatter(JsonFormatter.Settings.Default.WithIndentation());
+                var msg = new Message();
+                msg.FunctionConfig = function_configs[tc_function_selection.SelectedIndex];
+                var output = formatter.Format(msg);
+                File.WriteAllText(saveFileDialog.FileName, output);
             }
         }
     }
