@@ -30,6 +30,14 @@ namespace User.PluginSdkDemo
             KinematicParametersChanged?.Invoke(parameters);
         }
 
+        public void OnAxisStateUpdate(global::AxisState axis_state)
+        {
+            if (config.AxisId == axis_state.AxisId)
+            {
+                DiyPedalKinematicsControl.OnAxisStateUpdate(axis_state);
+            }
+        }
+
         public void SetGui(SettingsControlDemo gui, DIY_FFB plugin)
         {
             this.gui = gui;

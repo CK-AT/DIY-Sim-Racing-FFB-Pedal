@@ -88,7 +88,7 @@ namespace User.PluginSdkDemo
             }
         }
 
-        public void OnAxisStateUpdate(AxisState axis_state)
+        public void OnAxisStateUpdate(global::AxisState axis_state)
         {
             if (config.Base.LinkedAxes[0] == axis_state.AxisId)
             {

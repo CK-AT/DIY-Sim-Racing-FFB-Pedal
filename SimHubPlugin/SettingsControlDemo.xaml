@@ -12,6 +12,14 @@
 
     <UserControl.Resources>
         <ResourceDictionary>
+            <LinearGradientBrush x:Key="AxisOnlineBrush" EndPoint="0.5,1" StartPoint="0.5,0">
+                <GradientStop Color="#FF3E5438" Offset="0"/>
+                <GradientStop Color="#FF41E813" Offset="1"/>
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="AxisOfflineBrush" EndPoint="0.5,1" StartPoint="0.5,0">
+                <GradientStop Color="#FF545454" Offset="0"/>
+                <GradientStop Color="#FFECECEC" Offset="1"/>
+            </LinearGradientBrush>
             <DrawingImage x:Key="plane">
                 <DrawingImage.Drawing>
                     <DrawingGroup ClipGeometry="M0,0 V512.003 H512.003 V0 H0 Z">
@@ -502,10 +510,10 @@
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
                                     <Border  HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5"  Margin="0,0,0,3">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                            <styles:SHButtonPrimary x:Name="btn_upload_function_config" Click="OnUploadFunctionConfigClicked" Width="125"  Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" />
-                                            <styles:SHButtonPrimary x:Name="btn_upload_and_store_function_config" Click="OnUploadFunctionConfigClicked" Width="125" Height="28" Content="Upload and Persist" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" />
-                                            <styles:SHButtonPrimary x:Name="btn_load_function_config_from_file" Click="btn_load_function_config_from_file_Click" Width="125" Height="28" Content="Load" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" />
-                                            <styles:SHButtonPrimary x:Name="btn_store_function_config_to_file" Click="btn_store_function_config_to_file_Click" Width="125" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" />
+                                            <styles:SHButtonPrimary x:Name="btn_upload_function_config" Click="OnUploadFunctionConfigClicked" Width="125"  Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends this function configuration to the affected axes." />
+                                            <styles:SHButtonPrimary x:Name="btn_upload_and_store_function_config" Click="OnUploadFunctionConfigClicked" Width="125" Height="28" Content="Upload and Persist" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends this function configuration to the affected axes.&#x0a;Axes will also store it in persistent memory." />
+                                            <styles:SHButtonPrimary x:Name="btn_load_function_config_from_file" Click="btn_load_function_config_from_file_Click" Width="125" Height="28" Content="Load" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Load a function config from a .json file." />
+                                            <styles:SHButtonPrimary x:Name="btn_store_function_config_to_file" Click="btn_store_function_config_to_file_Click" Width="125" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this function config to a .json file." />
                                         </StackPanel>
                                     </Border>
                                     <local:FunctionConfigControl x:Name="uc_function_config" ></local:FunctionConfigControl>
@@ -536,7 +544,32 @@
                         <Border  Width="200" Height="40" Margin="0,0,0,0" >
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <Image Width="26" Height="26" Source="{StaticResource plane}" />
-                                <Label Content="AXES"  FontFamily="Arial Black" FontSize="26" Height="40" Width="126" Padding="0,0,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"  />
+                                <Label Content="AXES"  FontFamily="Arial Black" FontSize="26" Height="40" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,0,4,0"  />
+                                    <ItemsControl ItemsSource="{Binding axis_states}" BorderThickness="0" Width="48" VerticalAlignment="Center">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Columns="4"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Ellipse Width="10" Height="10" Margin="1,1,1,1" IsEnabled="{Binding IsOnline}">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsEnabled" Value="True">
+                                                                    <Setter Property="Fill" Value="{StaticResource AxisOnlineBrush}" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter Property="Fill" Value="{StaticResource AxisOfflineBrush}" />
+                                                                </Trigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                             </StackPanel>
                         </Border>
                     </TabItem.Header>
@@ -701,7 +734,15 @@
                                 </StackPanel>
 
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
-                                    <local:AxisConfigControl x:Name="AxisConfigCtrl" VerticalAlignment="Center"></local:AxisConfigControl>
+                                    <Border  HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5"  Margin="0,0,0,3">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <styles:SHButtonPrimary x:Name="btn_upload_axis_config" Click="OnUploadAxisConfigClicked" Width="125"  Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends the axis configuration to the axis currently selected." />
+                                            <styles:SHButtonPrimary x:Name="btn_upload_and_store_axis_config" Click="OnUploadAxisConfigClicked" Width="125" Height="28" Content="Upload and Persist" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends the axis configuration to the axis currently selected.&#x0a;The axis will also store it in persistent memory." />
+                                            <styles:SHButtonPrimary x:Name="btn_load_axis_config_from_file" Click="btn_load_axis_config_from_file_Click" Width="125" Height="28" Content="Load" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Load a axis config from a .json file." />
+                                            <styles:SHButtonPrimary x:Name="btn_store_axis_config_to_file" Click="btn_store_axis_config_to_file_Click" Width="125" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this axis config to a .json file." />
+                                        </StackPanel>
+                                    </Border>
+                                    <local:AxisConfigControl x:Name="uc_axis_config" VerticalAlignment="Center"></local:AxisConfigControl>
                                 </StackPanel>
                                 <!--<StackPanel Height="900" Width="360" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-2,0,0,0">
                                     <Border x:Name="Border_serial_monitor" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Height="808" BorderThickness="0,0,0,0" Grid.Row="3" Grid.Column="2" Width="360" HorizontalAlignment="Center" VerticalAlignment="Top" Grid.RowSpan="3" >

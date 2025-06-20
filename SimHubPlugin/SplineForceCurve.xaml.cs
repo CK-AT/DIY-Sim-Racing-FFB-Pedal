@@ -261,7 +261,7 @@ namespace User.PluginSdkDemo
         /// <param name="axis_state">received AxisState structure</param>
         /// <returns>Normalized axis position in percent</returns>
         /// 
-        public double OnAxisStateUpdate(AxisState axis_state)
+        public double OnAxisStateUpdate(global::AxisState axis_state)
         {
             text_point_pos.Visibility = Visibility.Hidden;
             double pos_norm = Tools.Normalize(axis_state.Position, config.PosMin, config.PosMax);

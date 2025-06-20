@@ -308,6 +308,7 @@ namespace User.PluginSdkDemo
     {
 
         public PluginManager pluginHandle;// = this;
+        SettingsControlDemo gui;
 
         public bool sendAbsSignal = false;
 		public DAP_config_st dap_config_initial_st;
@@ -509,6 +510,38 @@ namespace User.PluginSdkDemo
 
             return value;
         }
+
+        private void UpdateFFBData(GameData data)
+        {
+            for (uint function_idx = 0; function_idx < Settings.function_settings.Length; function_idx++)
+            {
+                FunctionID function_id = (FunctionID)function_idx + 1;
+                Message tmp = new Message();
+                tmp.FfbAction = new FFBAction();
+                tmp.FfbAction.FunctionId = function_id;
+                switch (function_id)
+                {
+                    case FunctionID.Brake:
+                        tmp.FfbAction.AutomotivePedal = new AutomotivePedalFFBAction();
+                        if (data.NewData?.ABSActive > 0)
+                        {
+                            tmp.FfbAction.AutomotivePedal.TriggerAbs = true;
+                            if (ESPsync_serialPort.IsOpen)
+                            {
+                                ESPsync_serialPort.WriteMessage(tmp);
+                            }
+                        }
+                        break;
+                    case FunctionID.Accelerator:
+                        tmp.FfbAction.AutomotivePedal = new AutomotivePedalFFBAction();
+                        break;
+                    case FunctionID.Clutch:
+                        tmp.FfbAction.AutomotivePedal = new AutomotivePedalFFBAction();
+                        break;
+                }
+            }
+        }
+
         /// <summary>
         /// Called one time per game data update, contains all normalized game data,
         /// raw data are intentionnally "hidden" under a generic object type (A plugin SHOULD NOT USE IT)
@@ -667,246 +700,257 @@ namespace User.PluginSdkDemo
 
             if (data.GameRunning)
             {
+                UpdateFFBData(data);
                 // Send ABS trigger signal via serial
-                for (uint pedalIdx = 0; pedalIdx < 3; pedalIdx++)
-                {
-                    
-                    
+                //for (uint function_idx = 0; function_idx < Settings.function_settings.Length; function_idx++)
+                //{
+                //    FunctionID function_id = (FunctionID)function_idx + 1;
+                //    Message tmp = new Message();
+                //    tmp.FfbAction = new FFBAction();
+                //    switch ((FunctionID)function_idx + 1)
+                //    {
+                //        case FunctionID.Brake:
+                //            tmp.FfbAction.AutomotivePedal = new AutomotivePedalFFBAction();
+                //            break;
+                //        case FunctionID.Accelerator:
+                //            tmp.FfbAction.AutomotivePedal = new AutomotivePedalFFBAction();
+                //            break;
+                //        case FunctionID.Clutch:
+                //            tmp.FfbAction.AutomotivePedal = new AutomotivePedalFFBAction();
+                //            break;
+                //    }
+                //    tmp.FfbAction.AutomotivePedal = new AutomotivePedalFFBAction();
 
-                        Message tmp = new Message();
-                        tmp.FfbAction = new FFBAction();
-                        tmp.FfbAction.AutomotivePedal = new AutomotivePedalFFBAction();
-
-                        if (Settings.function_settings[pedalIdx].G_force_enabled)
-                        {
-                            tmp.FfbAction.AutomotivePedal.G = (Byte)g_force_last_value;
-                        }
-                        else
-                        {
-                            tmp.FfbAction.AutomotivePedal.G = 128;
-                        }
-
-
-                        if (Settings.function_settings[pedalIdx].RPM_enabled)
-                        {
-
-                            if (Math.Abs(RPM_value - rpm_last_value) > 3)
-                            {
-                            tmp.FfbAction.AutomotivePedal.Rpm = (Byte)RPM_value;
-                                update_flag = true;
-                                rpm_last_value = (Byte)RPM_value;
-                            }
-
-                        }
-                        else
-                        {
-                        tmp.FfbAction.AutomotivePedal.Rpm = 0;
-                        }
-
-                        //G force effect only effect on brake
-                        if (pedalIdx == 1)
-                        {
-
-                            GTrigger_currentTime = DateTime.Now;
-                            TimeSpan diff_G = GTrigger_currentTime - GTrigger_lastTime;
-                            int millisceonds_G = (int)diff_G.TotalMilliseconds;
-                            if (millisceonds <= 10)
-                            {
-                                _G_force = g_force_last_value;
-                            }
-                            else
-                            {
-                                GTrigger_lastTime = DateTime.Now;
-                            }
-                            if (Settings.function_settings[pedalIdx].G_force_enabled)
-                            {
-                                //double value_check_g = 1 - _G_force / ((double)g_force_last_value);
-                                double value_check_g = (_G_force - (double)g_force_last_value);
-                                if (Math.Abs(value_check_g) > 2)
-                                {
-                                    tmp.FfbAction.AutomotivePedal.G = (Byte)_G_force;
-                                    update_flag = true;
-                                    g_force_last_value = (Byte)_G_force;
-                                }
-
-                            }
-                        }
-
-                        //Wheel slip
-                        
-                        if (Settings.function_settings[pedalIdx].WS_enabled)
-                        {
-                            if (pluginManager.GetPropertyValue(Settings.WSeffect_bind) != null)
-                            {
-                                /*object tmp_ws = (pluginManager.GetPropertyValue(Settings.WSeffect_bind));
-                                int tmp_ws_number = Int32.Parse(tmp_ws.ToString());
-                                WS_value = (byte)tmp_ws_number;
-                                */
-                                WS_value = Convert.ToByte(pluginManager.GetPropertyValue(Settings.WSeffect_bind));
-                                //pluginManager.SetPropertyValue("Wheelslip-test", this.GetType(), WS_value);
-                                if (WS_value >= (Settings.WS_trigger + 50))
-                                {
-                                    tmp.FfbAction.AutomotivePedal.TriggerWs = true;
-                                    update_flag = true;
-                                }
-                            }
-                        }
-                        //Road impact
-                        if (Settings.function_settings[pedalIdx].Road_impact_enabled)
-                        {
-                            if (pluginManager.GetPropertyValue(Settings.Road_impact_bind) != null)
-                            {
-                                Road_impact_value = Convert.ToByte(pluginManager.GetPropertyValue(Settings.Road_impact_bind));
-
-                                RoadTrigger_currentTime = DateTime.Now;
-                                TimeSpan diff_Road = RoadTrigger_currentTime - RoadTrigger_lastTime;
-                                int millisceonds_G = (int)diff_Road.TotalMilliseconds;
-                                if (millisceonds <= 10)
-                                {
-                                    Road_impact_value = Road_impact_last;
-                                }
-                                else
-                                {
-                                    RoadTrigger_lastTime = DateTime.Now;
-                                }
-                                if (true)
-                                {
-                                    //double value_check_g = 1 - _G_force / ((double)g_force_last_value);
-                                    double value_check_road = Road_impact_value - Road_impact_last;
-                                    if (Math.Abs(value_check_road) > 2)
-                                    {
-                                        tmp.FfbAction.AutomotivePedal.ImpactValue = Road_impact_value;
-                                        update_flag = true;
-                                        Road_impact_last = Road_impact_value;
-                                        debug_value = Road_impact_value;
-                                    }
-
-                                }
-                            }
-                        }
-                     //custom effcts
-                     if (Settings.function_settings[pedalIdx].CV1_enabled == true)
-                     {
-                        //CV1_value = Convert.ToByte(pluginManager.GetPropertyValue(Settings.CV1_bindings[pedalIdx]));
-                        string temp_string = Ncalc_reading(Settings.function_settings[pedalIdx].CV1_binding);
-                        if (temp_string != "Error")
-                        {
-                            CV1_value = Convert.ToByte(temp_string);
-                        }
-                        else
-                        {
-                            CV1_value = 0;
-                            SimHub.Logging.Current.Error("CV1 Reading error");
-                        }
+                //        if (Settings.function_settings[function_idx].G_force_enabled)
+                //        {
+                //            tmp.FfbAction.AutomotivePedal.G = (Byte)g_force_last_value;
+                //        }
+                //        else
+                //        {
+                //            tmp.FfbAction.AutomotivePedal.G = 128;
+                //        }
 
 
-                        if (CV1_value > (Settings.function_settings[pedalIdx].CV1_trigger_level))
-                        {
-                            tmp.FfbAction.AutomotivePedal.TriggerCv1 = true;
-                            update_flag = true;
-                        }
-                    }
-                     if (Settings.function_settings[pedalIdx].CV2_enabled == true)
-                     {
+                //        if (Settings.function_settings[function_idx].RPM_enabled)
+                //        {
 
-                        //CV2_value = Convert.ToByte(pluginManager.GetPropertyValue(Settings.CV2_bindings[pedalIdx]));
-                        string temp_string = Ncalc_reading(Settings.function_settings[pedalIdx].CV2_binding);
-                        if (temp_string != "Error")
-                        {
-                            CV2_value = Convert.ToByte(temp_string);
-                        }
-                        else
-                        {
-                            CV2_value = 0;
-                            SimHub.Logging.Current.Error("CV2 Reading error");
-                        }
-                        if (CV2_value > (Settings.function_settings[pedalIdx].CV2_trigger_level))
-                        {
-                            tmp.FfbAction.AutomotivePedal.TriggerCv2 = true;
-                            update_flag = true;
-                        }
+                //            if (Math.Abs(RPM_value - rpm_last_value) > 3)
+                //            {
+                //            tmp.FfbAction.AutomotivePedal.Rpm = (Byte)RPM_value;
+                //                update_flag = true;
+                //                rpm_last_value = (Byte)RPM_value;
+                //            }
 
-                    }
+                //        }
+                //        else
+                //        {
+                //        tmp.FfbAction.AutomotivePedal.Rpm = 0;
+                //        }
+
+                //        //G force effect only effect on brake
+                //        if (function_idx == 1)
+                //        {
+
+                //            GTrigger_currentTime = DateTime.Now;
+                //            TimeSpan diff_G = GTrigger_currentTime - GTrigger_lastTime;
+                //            int millisceonds_G = (int)diff_G.TotalMilliseconds;
+                //            if (millisceonds <= 10)
+                //            {
+                //                _G_force = g_force_last_value;
+                //            }
+                //            else
+                //            {
+                //                GTrigger_lastTime = DateTime.Now;
+                //            }
+                //            if (Settings.function_settings[function_idx].G_force_enabled)
+                //            {
+                //                //double value_check_g = 1 - _G_force / ((double)g_force_last_value);
+                //                double value_check_g = (_G_force - (double)g_force_last_value);
+                //                if (Math.Abs(value_check_g) > 2)
+                //                {
+                //                    tmp.FfbAction.AutomotivePedal.G = (Byte)_G_force;
+                //                    update_flag = true;
+                //                    g_force_last_value = (Byte)_G_force;
+                //                }
+
+                //            }
+                //        }
+
+                //        //Wheel slip
+
+                //        if (Settings.function_settings[function_idx].WS_enabled)
+                //        {
+                //            if (pluginManager.GetPropertyValue(Settings.WSeffect_bind) != null)
+                //            {
+                //                /*object tmp_ws = (pluginManager.GetPropertyValue(Settings.WSeffect_bind));
+                //                int tmp_ws_number = Int32.Parse(tmp_ws.ToString());
+                //                WS_value = (byte)tmp_ws_number;
+                //                */
+                //                WS_value = Convert.ToByte(pluginManager.GetPropertyValue(Settings.WSeffect_bind));
+                //                //pluginManager.SetPropertyValue("Wheelslip-test", this.GetType(), WS_value);
+                //                if (WS_value >= (Settings.WS_trigger + 50))
+                //                {
+                //                    tmp.FfbAction.AutomotivePedal.TriggerWs = true;
+                //                    update_flag = true;
+                //                }
+                //            }
+                //        }
+                //        //Road impact
+                //        if (Settings.function_settings[function_idx].Road_impact_enabled)
+                //        {
+                //            if (pluginManager.GetPropertyValue(Settings.Road_impact_bind) != null)
+                //            {
+                //                Road_impact_value = Convert.ToByte(pluginManager.GetPropertyValue(Settings.Road_impact_bind));
+
+                //                RoadTrigger_currentTime = DateTime.Now;
+                //                TimeSpan diff_Road = RoadTrigger_currentTime - RoadTrigger_lastTime;
+                //                int millisceonds_G = (int)diff_Road.TotalMilliseconds;
+                //                if (millisceonds <= 10)
+                //                {
+                //                    Road_impact_value = Road_impact_last;
+                //                }
+                //                else
+                //                {
+                //                    RoadTrigger_lastTime = DateTime.Now;
+                //                }
+                //                if (true)
+                //                {
+                //                    //double value_check_g = 1 - _G_force / ((double)g_force_last_value);
+                //                    double value_check_road = Road_impact_value - Road_impact_last;
+                //                    if (Math.Abs(value_check_road) > 2)
+                //                    {
+                //                        tmp.FfbAction.AutomotivePedal.ImpactValue = Road_impact_value;
+                //                        update_flag = true;
+                //                        Road_impact_last = Road_impact_value;
+                //                        debug_value = Road_impact_value;
+                //                    }
+
+                //                }
+                //            }
+                //        }
+                //     //custom effcts
+                //     if (Settings.function_settings[function_idx].CV1_enabled == true)
+                //     {
+                //        //CV1_value = Convert.ToByte(pluginManager.GetPropertyValue(Settings.CV1_bindings[pedalIdx]));
+                //        string temp_string = Ncalc_reading(Settings.function_settings[function_idx].CV1_binding);
+                //        if (temp_string != "Error")
+                //        {
+                //            CV1_value = Convert.ToByte(temp_string);
+                //        }
+                //        else
+                //        {
+                //            CV1_value = 0;
+                //            SimHub.Logging.Current.Error("CV1 Reading error");
+                //        }
 
 
+                //        if (CV1_value > (Settings.function_settings[function_idx].CV1_trigger_level))
+                //        {
+                //            tmp.FfbAction.AutomotivePedal.TriggerCv1 = true;
+                //            update_flag = true;
+                //        }
+                //    }
+                //     if (Settings.function_settings[function_idx].CV2_enabled == true)
+                //     {
 
+                //        //CV2_value = Convert.ToByte(pluginManager.GetPropertyValue(Settings.CV2_bindings[pedalIdx]));
+                //        string temp_string = Ncalc_reading(Settings.function_settings[function_idx].CV2_binding);
+                //        if (temp_string != "Error")
+                //        {
+                //            CV2_value = Convert.ToByte(temp_string);
+                //        }
+                //        else
+                //        {
+                //            CV2_value = 0;
+                //            SimHub.Logging.Current.Error("CV2 Reading error");
+                //        }
+                //        if (CV2_value > (Settings.function_settings[function_idx].CV2_trigger_level))
+                //        {
+                //            tmp.FfbAction.AutomotivePedal.TriggerCv2 = true;
+                //            update_flag = true;
+                //        }
 
-                        if (pedalIdx == 1)
-                        {
-                            if (sendAbsSignal_local_b && Settings.function_settings[pedalIdx].ABS_enabled)
-                            {
-                            //_serialPort[1].Write("2");
-
-                            // compute checksum
-                                tmp.FfbAction.AutomotivePedal.TriggerAbs = true;
-                                update_flag = true;
-
-                            }
-                        }
-                        if (pedalIdx == 2)
-                        {
-                            if (sendTcSignal_local_b && Settings.function_settings[pedalIdx].ABS_enabled)
-                            {
-                            // compute checksum
-
-                                tmp.FfbAction.AutomotivePedal.TriggerAbs = true;
-                                update_flag = true;
-
-                            }
-                        }
-                    // check the update interval
-                    if (update_flag)
-                    {
-                        Action_currentTime[pedalIdx] = DateTime.Now;
-                        TimeSpan diff_action = Action_currentTime[pedalIdx] - Action_lastTime[pedalIdx];
-                        int millisceonds_action = (int)diff_action.TotalMilliseconds;
-                        if (millisceonds_action <= Settings.function_settings[pedalIdx].action_interval)
-                        {
-                            update_flag = false;
-                        }
-                        else
-                        {
-                            Action_lastTime[pedalIdx] = DateTime.Now;
-                            
-                        }
-
-                        
-                    }
-
-
-                    if (update_flag)
-                    {
-
-                            if (Settings.axis_settings[pedalIdx].via_gateway)
-                            {
-                                if (ESPsync_serialPort.IsOpen)
-                                {
-                                    tmp.FfbAction.FunctionId = FunctionID.Brake; // TODO: set correctly
-                                    ESPsync_serialPort.WriteMessage(tmp);
-                                    //ESPsync_serialPort.DiscardInBuffer();
-                                    //ESPsync_serialPort.Write(newBuffer, 0, newBuffer.Length);
-                                    System.Threading.Thread.Sleep(7);
-                                }
-
-                            }
-                            else
-                            {
-                                if (_serialPort[pedalIdx].IsOpen)
-                                {
-                                    // clear inbuffer 
-                                    _serialPort[pedalIdx].DiscardInBuffer();
-
-                                    // send query command
-                                    //_serialPort[pedalIdx].Write(newBuffer, 0, newBuffer.Length);
-                                }
-
-                            }
+                //    }
 
 
 
-                    }
-                    
-                }
+
+                //        if (function_idx == 1)
+                //        {
+                //            if (sendAbsSignal_local_b && Settings.function_settings[function_idx].ABS_enabled)
+                //            {
+                //            //_serialPort[1].Write("2");
+
+                //            // compute checksum
+                //                tmp.FfbAction.AutomotivePedal.TriggerAbs = true;
+                //                update_flag = true;
+
+                //            }
+                //        }
+                //        if (function_idx == 2)
+                //        {
+                //            if (sendTcSignal_local_b && Settings.function_settings[function_idx].ABS_enabled)
+                //            {
+                //            // compute checksum
+
+                //                tmp.FfbAction.AutomotivePedal.TriggerAbs = true;
+                //                update_flag = true;
+
+                //            }
+                //        }
+                //    // check the update interval
+                //    if (update_flag)
+                //    {
+                //        Action_currentTime[function_idx] = DateTime.Now;
+                //        TimeSpan diff_action = Action_currentTime[function_idx] - Action_lastTime[function_idx];
+                //        int millisceonds_action = (int)diff_action.TotalMilliseconds;
+                //        if (millisceonds_action <= Settings.function_settings[function_idx].action_interval)
+                //        {
+                //            update_flag = false;
+                //        }
+                //        else
+                //        {
+                //            Action_lastTime[function_idx] = DateTime.Now;
+
+                //        }
+
+
+                //    }
+
+
+                //    if (update_flag)
+                //    {
+
+                //            if (Settings.axis_settings[function_idx].via_gateway)
+                //            {
+                //                if (ESPsync_serialPort.IsOpen)
+                //                {
+                //                    tmp.FfbAction.FunctionId = FunctionID.Brake; // TODO: set correctly
+                //                    ESPsync_serialPort.WriteMessage(tmp);
+                //                    //ESPsync_serialPort.DiscardInBuffer();
+                //                    //ESPsync_serialPort.Write(newBuffer, 0, newBuffer.Length);
+                //                    System.Threading.Thread.Sleep(7);
+                //                }
+
+                //            }
+                //            else
+                //            {
+                //                if (_serialPort[function_idx].IsOpen)
+                //                {
+                //                    // clear inbuffer 
+                //                    _serialPort[function_idx].DiscardInBuffer();
+
+                //                    // send query command
+                //                    //_serialPort[pedalIdx].Write(newBuffer, 0, newBuffer.Length);
+                //                }
+
+                //            }
+
+
+
+                //    }
+
+                //}
 
                 if (((string)pluginManager.GetPropertyValue("DataCorePlugin.CurrentGame")) == "FlightSimulator2020" || ((string)pluginManager.GetPropertyValue("DataCorePlugin.CurrentGame")) == "FlightSimulator2024")
                 {
@@ -926,7 +970,7 @@ namespace User.PluginSdkDemo
                     ACCELERATION_BODY_Y_Simhub = 0;
                     MSFS_running_simhub = false;
                 }
-                
+
             }
             else
             {
@@ -942,41 +986,15 @@ namespace User.PluginSdkDemo
             // Send ABS test signal if requested
             if (sendAbsSignal)
             {
-                sendAbsSignal_local_b = true;
-                sendTcSignal_local_b = true;
                 Message tmp = new Message();
                 tmp.FfbAction = new FFBAction();
                 tmp.FfbAction.AutomotivePedal = new AutomotivePedalFFBAction();
-                tmp.FfbAction.AutomotivePedal.G = 128;
                 tmp.FfbAction.AutomotivePedal.TriggerAbs = true;
 
-                for (uint PIDX = 0; PIDX < Settings.axis_settings.Length; PIDX++)
+                if (ESPsync_serialPort.IsOpen)
                 {
-                    tmp.FfbAction.FunctionId = FunctionID.Brake; // TODO: set correctly
-
-                    if (Settings.axis_settings[PIDX].via_gateway)
-                    {
-                        if (ESPsync_serialPort.IsOpen) 
-                        {
-                            ESPsync_serialPort.WriteMessage(tmp);
-                            System.Threading.Thread.Sleep(30);
-                        }
-                    }
-                    else
-                    {
-                        if (_serialPort[PIDX].IsOpen)
-                        {
-                            // clear inbuffer 
-                            _serialPort[PIDX].DiscardInBuffer();
-
-                            // send query command
-                            //_serialPort[PIDX].Write(newBuffer, 0, newBuffer.Length);
-                            System.Threading.Thread.Sleep(50);
-                        }
-                    }
+                    ESPsync_serialPort.WriteMessage(tmp);
                 }
-                    
-
             }
             if (Rudder_enable_flag)
             {
@@ -1620,8 +1638,8 @@ namespace User.PluginSdkDemo
         /// <returns></returns>
         public System.Windows.Controls.Control GetWPFSettingsControl(PluginManager pluginManager)
         {
-
-            return new SettingsControlDemo(this);
+            gui = new SettingsControlDemo(this);
+            return gui;
         }
 
 

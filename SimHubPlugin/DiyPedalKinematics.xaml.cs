@@ -16,6 +16,53 @@ namespace User.PluginSdkDemo
     /// </summary>
     public partial class DiyPedalKinematics : UserControl
     {
+        public struct KinematicParameterResults
+        {
+            public double[] l_sled;
+            public double[] x_contact_point;
+            public double[] r_force_link_foot;
+            public double[] angles;
+
+            public KinematicParameters KinematicParameters { get
+                {
+                    double[] coeffs_sled_pos_over_contact_point_pos = Fit.Polynomial(x_contact_point, l_sled, 4);
+                    double[] coeffs_force_factor_over_contact_point_pos = Fit.Polynomial(x_contact_point, r_force_link_foot, 4);
+
+                    KinematicParameters new_parameters = new KinematicParameters();
+                    new_parameters.CoeffsSledPosOverContactPointPos.AddRange(coeffs_sled_pos_over_contact_point_pos);
+                    new_parameters.CoeffsForceFactorOverContactPointPos.AddRange(coeffs_force_factor_over_contact_point_pos);
+                    new_parameters.ContactPointPosMinAbs = (int)(x_contact_point.First() * 10.0);
+                    new_parameters.ContactPointPosMaxAbs = (int)(x_contact_point.Last() * 10.0);
+                    return new_parameters;
+                }
+            }
+
+            public double GetAngleFromContactPointPosition(double position)
+            {
+                return Interpolate.Linear(x_contact_point, angles).Interpolate(position);
+            }
+
+            public double GetSledPositionFromContactPointPosition(double position)
+            {
+                return Interpolate.Linear(x_contact_point, l_sled).Interpolate(position);
+            }
+
+            public double MinAngle
+            { 
+                get
+                {
+                    return angles.First();
+                }
+            }
+            public double MaxAngle
+            {
+                get
+                {
+                    return angles.Last();
+                }
+            }
+        }
+
         private DIYPedalKinematicConfig config;
         private bool is_dragging = false;
         private Point offset;
@@ -26,6 +73,8 @@ namespace User.PluginSdkDemo
         public event DebugMessageEventHandler DebugMessage;
         public delegate void KinematicParametersChangedEventHandler(KinematicParameters parameters);
         public event KinematicParametersChangedEventHandler KinematicParametersChanged;
+        KinematicParameterResults _kinematic_results;
+        double last_axis_position = 0.0;
 
         public DiyPedalKinematics()
         {
@@ -38,6 +87,12 @@ namespace User.PluginSdkDemo
             this.gui = gui;
             this.plugin = plugin;
             DrawGridLines();
+        }
+
+        public void OnAxisStateUpdate(global::AxisState axis_state)
+        {
+            last_axis_position = axis_state.Position;
+            UpdateJointDrawing(false);
         }
 
         public static DIYPedalKinematicConfig GetDefaultConfig()
@@ -54,8 +109,8 @@ namespace User.PluginSdkDemo
 
         public static KinematicParameters CalcKinematicParameters(DIYPedalKinematicConfig config)
         {
-            var result = CalcParameters(config, 0);
-            return result.Item3;
+            var result = CalcParameters(config);
+            return result.KinematicParameters;
         }
 
         public void UpdateConfig(DIYPedalKinematicConfig new_config)
@@ -67,7 +122,7 @@ namespace User.PluginSdkDemo
             Label_kinematic_c_vert_canvas.SetTextWithoutEvent(config.LPivotSledY.ToString());
             Label_kinematic_d_canvas.SetTextWithoutEvent((config.LPivotFoot - config.LPivotLink).ToString());
             Label_travel_canvas.SetTextWithoutEvent(config.LSledStroke.ToString());
-            UpdateJointDrawing();
+            UpdateJointDrawing(true);
         }
 
         private void rect_joint_MouseMove(object sender, MouseEventArgs e)
@@ -129,7 +184,7 @@ namespace User.PluginSdkDemo
             }
         }
 
-        private static (double, double, KinematicParameters, double, double) CalcParameters(DIYPedalKinematicConfig config, double position)
+        private static KinematicParameterResults CalcParameters(DIYPedalKinematicConfig config)
         {
             //A= kinematic joint C
             //B= Kinematic joint A
@@ -145,15 +200,16 @@ namespace User.PluginSdkDemo
             double l_link = config.LLink;
             double l_pivot_foot = config.LPivotFoot;
 
+            KinematicParameterResults results = new KinematicParameterResults();
 
-            double[] l_sled = Generate.LinearSpaced(1000, 0.0, Travel_length);
-            double[] x_contact_point = new double[1000];
-            double[] r_force_link_foot = new double[1000];
-            double[] angles = new double[1000];
+            results.l_sled = Generate.LinearSpaced(1000, 0.0, Travel_length);
+            results.x_contact_point = new double[1000];
+            results.r_force_link_foot = new double[1000];
+            results.angles = new double[1000];
 
-            for (int i = 0; i < l_sled.Length; i++)
+            for (int i = 0; i < results.l_sled.Length; i++)
             {
-                double l_pivot_sled_x = l_pivot_sled_x_min + l_sled[i]; // horizontal position of the sled connection point relative to the pivot/origin
+                double l_pivot_sled_x = l_pivot_sled_x_min + results.l_sled[i]; // horizontal position of the sled connection point relative to the pivot/origin
                 double phi_pivot_sled = Math.Atan2(l_pivot_sled_y, l_pivot_sled_x); // angle of the connecting line between pivot and sled connection point (from horizontal axis)
                 double l_pivot_sled = Math.Sqrt(l_pivot_sled_y * l_pivot_sled_y + l_pivot_sled_x * l_pivot_sled_x); // length of the connecting line between pivot and sled connection point
                 double phi_link_pivot_sled = Math.Acos((l_link * l_link - l_pivot_link * l_pivot_link - l_pivot_sled * l_pivot_sled) / (l_pivot_link * l_pivot_sled * -2)); // angle between the connecting line between pivot and link and the connecting line between pivot and sled connection point
@@ -164,28 +220,26 @@ namespace User.PluginSdkDemo
                 double phi_link = -(Math.PI / 2.0) - phi_ped_vert + phi_pivot_link_sled; // link angle (from horizontal axis)
                 double phi_foot_link = phi_foot - phi_link; // angle between foot force direction and link
                 double r_force_foot_link = (l_pivot_foot / l_pivot_link) * Math.Cos(phi_foot_link); // ratio between foot force and load cell measurement
-                r_force_link_foot[i] = 1.0 / r_force_foot_link; // ratio between load cell measurement and foot force
+                results.r_force_link_foot[i] = 1.0 / r_force_foot_link; // ratio between load cell measurement and foot force
                 double l_foot = phi_ped_vert * l_pivot_foot; // foot position as an arc length relative to vertical axis
-                x_contact_point[i] = l_foot;
-                angles[i] = phi_ped_vert;
+                results.x_contact_point[i] = l_foot;
+                results.angles[i] = phi_ped_vert;
             }
-
-            double[] coeffs_sled_pos_over_contact_point_pos = Fit.Polynomial(x_contact_point, l_sled, 4);
-            double[] coeffs_force_factor_over_contact_point_pos = Fit.Polynomial(x_contact_point, r_force_link_foot, 4);
-
-            KinematicParameters new_parameters = new KinematicParameters();
-            new_parameters.CoeffsSledPosOverContactPointPos.AddRange(coeffs_sled_pos_over_contact_point_pos);
-            new_parameters.CoeffsForceFactorOverContactPointPos.AddRange(coeffs_force_factor_over_contact_point_pos);
-            new_parameters.ContactPointPosMinAbs = (int)(x_contact_point.First() * 10.0);
-            new_parameters.ContactPointPosMaxAbs = (int)(x_contact_point.Last() * 10.0);
-
-            double angle = Interpolate.Linear(x_contact_point, angles).Interpolate(position);
-            double linear_pos = Interpolate.Linear(x_contact_point, l_sled).Interpolate(position);
-            return (angle,  linear_pos, new_parameters, angles.First(), angles.Last());
+            return results;
         }
 
-        private void UpdateJointDrawing()
+        private void UpdateKinematicCalcs() {
+            _kinematic_results = CalcParameters(config);
+            KinematicParametersChanged?.Invoke(_kinematic_results.KinematicParameters);
+        }
+
+        private void UpdateJointDrawing(bool update_calculation)
         {
+            if (update_calculation)
+            { 
+                UpdateKinematicCalcs();
+            }
+
             double l_pivot_link = config.LPivotLink;
             double l_pivot_sled_x_min = config.LPivotSledXMin;
             double l_pivot_sled_y = config.LPivotSledY;
@@ -200,13 +254,10 @@ namespace User.PluginSdkDemo
             Label_kinematic_d_canvas.Text = "" + (config.LPivotFoot - config.LPivotLink);
             Label_travel_canvas.Text = "" + config.LSledStroke;
 
-            var result = CalcParameters(config, 50.0); // TODO: interpolate from current position
-            double pedal_angle = result.Item1;
-            double Current_travel_position = result.Item2;
-            var new_parameters = result.Item3;
-            double min_angle = result.Item4;
-            double max_angle = result.Item5;
-            KinematicParametersChanged?.Invoke(new_parameters);
+            double pedal_angle = _kinematic_results.GetAngleFromContactPointPosition(last_axis_position);
+            double Current_travel_position = _kinematic_results.GetSledPositionFromContactPointPosition(last_axis_position);
+            double min_angle = _kinematic_results.MinAngle;
+            double max_angle = _kinematic_results.MaxAngle;
 
             Label_kinematic_pedal_angle.Content = "Current Pedal Angle: " + Math.Round(pedal_angle / Math.PI * 180) + "°,";
             Label_kinematic_pedal_angle.Content = Label_kinematic_pedal_angle.Content + " Max Pedal Angle:" + Math.Round(max_angle / Math.PI * 180) + "°,";
@@ -411,7 +462,7 @@ namespace User.PluginSdkDemo
             {
 
                 config.LPivotLink += 1;
-                UpdateJointDrawing();
+                UpdateJointDrawing(true);
             }
             else
             {
@@ -428,7 +479,7 @@ namespace User.PluginSdkDemo
             if (Kinematic_check(OA - 1, OB, BC, CA, config.LSledStroke))
             {
                 config.LPivotLink -= 1;
-                UpdateJointDrawing();
+                UpdateJointDrawing(true);
             }
             else
             {
@@ -445,7 +496,7 @@ namespace User.PluginSdkDemo
             if (Kinematic_check(OA, OB + 1, BC, CA, config.LSledStroke))
             {
                 config.LPivotSledXMin += 1;
-                UpdateJointDrawing();
+                UpdateJointDrawing(true);
             }
             else
             {
@@ -462,7 +513,7 @@ namespace User.PluginSdkDemo
             if (Kinematic_check(OA, OB - 1, BC, CA, config.LSledStroke))
             {
                 config.LPivotSledXMin -= 1;
-                UpdateJointDrawing();
+                UpdateJointDrawing(true);
             }
             else
             {
@@ -479,7 +530,7 @@ namespace User.PluginSdkDemo
             if (Kinematic_check(OA, OB, BC + 1, CA, config.LSledStroke))
             {
                 config.LPivotSledY += 1;
-                UpdateJointDrawing();
+                UpdateJointDrawing(true);
             }
             else
             {
@@ -496,7 +547,7 @@ namespace User.PluginSdkDemo
             if (Kinematic_check(OA, OB, BC - 1, CA, config.LSledStroke))
             {
                 config.LPivotSledY -= 1;
-                UpdateJointDrawing();
+                UpdateJointDrawing(true);
             }
             else
             {
@@ -513,7 +564,7 @@ namespace User.PluginSdkDemo
             if (Kinematic_check(OA, OB, BC, CA + 1, config.LSledStroke))
             {
                 config.LLink += 1;
-                UpdateJointDrawing();
+                UpdateJointDrawing(true);
             }
             else
             {
@@ -530,7 +581,7 @@ namespace User.PluginSdkDemo
             if (Kinematic_check(OA, OB, BC, CA - 1, config.LSledStroke))
             {
                 config.LLink -= 1;
-                UpdateJointDrawing();
+                UpdateJointDrawing(true);
             }
             else
             {
@@ -541,7 +592,7 @@ namespace User.PluginSdkDemo
         private void btn_plus_AD_Click(object sender, RoutedEventArgs e)
         {
             config.LPivotFoot += 1;
-            UpdateJointDrawing();
+            UpdateJointDrawing(true);
         }
 
         private void btn_minus_AD_Click(object sender, RoutedEventArgs e)
@@ -549,7 +600,7 @@ namespace User.PluginSdkDemo
             if ((config.LPivotFoot - config.LPivotLink) > 2)
             {
                 config.LPivotFoot -= 1;
-                UpdateJointDrawing();
+                UpdateJointDrawing(true);
             }
             else
             {
@@ -562,7 +613,7 @@ namespace User.PluginSdkDemo
             if (config.LSledStroke <= 200)
             {
                 config.LSledStroke += 1;
-                UpdateJointDrawing();
+                UpdateJointDrawing(true);
             }
             else
             {
@@ -576,7 +627,7 @@ namespace User.PluginSdkDemo
             if (config.LSledStroke >= 30)
             {
                 config.LSledStroke -= 1;
-                UpdateJointDrawing();
+                UpdateJointDrawing(true);
             }
             else
             {
@@ -623,7 +674,7 @@ namespace User.PluginSdkDemo
             {
                 plugin.Settings.kinematicDiagram_zeroPos_scale = plugin.Settings.kinematicDiagram_zeroPos_scale - 0.1;
                 DrawGridLines();
-                UpdateJointDrawing();
+                UpdateJointDrawing(false);
                 //Label_kinematic_scale.Content = Plugin.Settings.kinematicDiagram_zeroPos_scale;
             }
         }
@@ -634,7 +685,7 @@ namespace User.PluginSdkDemo
             {
                 plugin.Settings.kinematicDiagram_zeroPos_scale = plugin.Settings.kinematicDiagram_zeroPos_scale + 0.1;
                 DrawGridLines();
-                UpdateJointDrawing();
+                UpdateJointDrawing(false);
                 //Label_kinematic_scale.Content = Plugin.Settings.kinematicDiagram_zeroPos_scale;
             }
         }
@@ -653,7 +704,7 @@ namespace User.PluginSdkDemo
                     if (Kinematic_check(OA, OB, BC, CA, config.LSledStroke))
                     {
                         config.LPivotLink = (uint)(result);
-                        UpdateJointDrawing();
+                        UpdateJointDrawing(true);
                     }
                     else
                     {
@@ -672,7 +723,7 @@ namespace User.PluginSdkDemo
                     if (Kinematic_check(OA, OB, BC, CA, config.LSledStroke))
                     {
                         config.LPivotSledXMin = (uint)(result);
-                        UpdateJointDrawing();
+                        UpdateJointDrawing(true);
                     }
                     else
                     {
@@ -691,7 +742,7 @@ namespace User.PluginSdkDemo
                     if (Kinematic_check(OA, OB, BC, CA, config.LSledStroke))
                     {
                         config.LPivotSledY = (uint)(result);
-                        UpdateJointDrawing();
+                        UpdateJointDrawing(true);
                     }
                     else
                     {
@@ -710,7 +761,7 @@ namespace User.PluginSdkDemo
                     if (Kinematic_check(OA, OB, BC, CA, config.LSledStroke))
                     {
                         config.LLink = (uint)(result);
-                        UpdateJointDrawing();
+                        UpdateJointDrawing(true);
                     }
                     else
                     {
@@ -725,7 +776,7 @@ namespace User.PluginSdkDemo
                     if (result >= 0 && result <= 100)
                     {
                         config.LPivotFoot = (uint)result + config.LPivotLink;
-                        UpdateJointDrawing();
+                        UpdateJointDrawing(true);
                     }
                     else
                     {
@@ -740,7 +791,7 @@ namespace User.PluginSdkDemo
                     if (result >= 10 && result <= 200)
                     {
                         config.LSledStroke = (uint)result;
-                        UpdateJointDrawing();
+                        UpdateJointDrawing(true);
                     }
                     else
                     {

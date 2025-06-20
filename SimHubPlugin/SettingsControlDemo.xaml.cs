@@ -1,22 +1,11 @@
 ﻿//using SimHub.Plugins.OutputPlugins.Dash.GLCDTemplating;
-using FMOD;
 using Google.Protobuf;
-using log4net.Plugin;
-using MahApps.Metro.Controls;
-using Microsoft.Win32;
-using NCalc.Domain;
 using Newtonsoft.Json;
 using ProtbufTest;
-using SimHub.Plugins;
-using SimHub.Plugins.DataPlugins.ShakeItV3.Settings;
-using SimHub.Plugins.OutputPlugins.GraphicalDash.Behaviors.DoubleText.Imp;
-using SimHub.Plugins.OutputPlugins.GraphicalDash.PSE;
 using SimHub.Plugins.Styles;
 using System;
-using System.CodeDom;
-using System.CodeDom.Compiler;
-using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
@@ -25,29 +14,18 @@ using System.Media;
 using System.Net.Http;
 using System.Reflection;
 //using vJoy.Wrapper;
-using System.Runtime;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.ComTypes;
-using System.Runtime.Remoting.Messaging;
-using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
-using System.Windows.Media.TextFormatting;
 //using System.Diagnostics;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
@@ -56,10 +34,6 @@ using System.Windows.Threading;
 
 using vJoyInterfaceWrap;
 using Windows.UI.Notifications;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Windows.Forms.AxHost;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
-using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 
 // Win 11 install, see https://github.com/jshafer817/vJoy/releases
 //using vJoy.Wrapper;
@@ -69,6 +43,41 @@ using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 namespace User.PluginSdkDemo
 {
 
+    public class AxisState : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler PropertyChanged;
+        public delegate void OnlineStateChangedEventHandler(AxisID axis_id, bool new_online_state);
+        public event OnlineStateChangedEventHandler OnlineStateChanged;
+        private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        private AxisID _axisID;
+        private bool isOnline;
+        public bool IsOnline
+        {
+            get { return isOnline; }
+            set
+            {
+                if (isOnline != value)
+                {
+                    isOnline = value;
+                    PropertyChanged?.Invoke(this,
+                        new PropertyChangedEventArgs(nameof(IsOnline)));
+                    OnlineStateChanged?.Invoke(_axisID, isOnline);
+                }
+                if (value)
+                {
+                    _cancellationTokenSource.Cancel();
+                    _cancellationTokenSource = new CancellationTokenSource();
+                    Task.Delay(1000, _cancellationTokenSource.Token).ContinueWith(t => IsOnline = false, TaskContinuationOptions.NotOnCanceled);
+                }
+            }
+        }
+        public AxisID AxisID { get { return _axisID; } }
+
+        public AxisState(AxisID axis_id)
+        {
+            _axisID = axis_id;
+        }
+    }
 
     /// <summary>
     /// Logique d'interaction pour SettingsControlDemo.xaml
@@ -86,7 +95,6 @@ namespace User.PluginSdkDemo
         public uint profile_select = 0;
         public DIY_FFB Plugin { get; }
 
-        public GatewayState last_gateway_state = new GatewayState();
         public AxisConfig[] axis_configs = new AxisConfig[8];
         public FunctionConfig[] function_configs = new FunctionConfig[8];
         private FunctionID selected_function_id = FunctionID.Undefined;
@@ -145,6 +153,7 @@ namespace User.PluginSdkDemo
         private double pedal_pos_min = 0.0;
         private double pedal_pos_max = 0.0;
         private double pedal_pos_range = 0.0;
+        public List<AxisState> axis_states { get; } = Enumerable.Range(0, 8).Select(i => new AxisState((AxisID)i + 1)).ToList();
         //public int Bridge_baudrate = 921600;
         /*
         private double kinematicDiagram_zeroPos_OX = 100;
@@ -770,13 +779,14 @@ namespace User.PluginSdkDemo
 
         public SettingsControlDemo(DIY_FFB plugin) : this()
         {
+            DataContext = this;
             this.Plugin = plugin;
             plugin.testValue = 1;
             plugin.wpfHandle = this;
             uc_function_config.ABSTestStateChange += OnABSTestStateChange;
-            AxisConfigCtrl.KinematicParametersChanged += OnKinematicParametersChanged;
+            uc_axis_config.KinematicParametersChanged += OnKinematicParametersChanged;
             uc_function_config.SetGui(this, plugin);
-            AxisConfigCtrl.SetGui(this, plugin);
+            uc_axis_config.SetGui(this, plugin);
             //DiyPedalKinematicsControl.KinematicParametersChanged += OnKinematicParametersChanged;
             //DiyPedalKinematicsControl.KinematicParametersChanged += AutomotivePedalConfig.OnKinematicParametersChanged;
             //DiyPedalKinematicsControl.SetGui(this, plugin);
@@ -787,6 +797,7 @@ namespace User.PluginSdkDemo
             for (int i = 0; i < axis_configs.Length; i++)
             {
                 axis_configs[i] = AxisConfigControl.GetDefaultConfig((AxisID)(i + 1));
+                axis_states[i].OnlineStateChanged += OnOnlineStateChange;
             }
 
             UpdateSerialPortList_click();
@@ -1019,6 +1030,22 @@ namespace User.PluginSdkDemo
             }
 
 
+        }
+
+        private void OnOnlineStateChange(AxisID axis_id, bool new_online_state)
+        {
+            string msg;
+            if (new_online_state)
+            {
+                msg = String.Format("Axis {0} Connected", (int)axis_id);
+                Task.Delay(100).ContinueWith(t => RequestAxisConfig(axis_id));
+                Task.Delay(200).ContinueWith(t => RequestFunctionConfig(axis_id));
+            }
+            else
+            {
+                msg = String.Format("Axis {0} Disconnected", (int)axis_id);
+            }
+            ToastNotification("Wireless Connection", msg);
         }
 
         public void updateTheGuiFromConfig()
@@ -1362,7 +1389,7 @@ namespace User.PluginSdkDemo
                 selected_axis_id = (AxisID)tc_axis_selection.SelectedIndex + 1;
                 Plugin.Settings.axis_tab_selected = (uint)tc_axis_selection.SelectedIndex;
                 AxisConfig axis_cfg = axis_configs[tc_axis_selection.SelectedIndex];
-                AxisConfigCtrl.UpdateConfig(axis_cfg);
+                uc_axis_config.UpdateConfig(axis_cfg);
             }
         }
 
@@ -4157,7 +4184,7 @@ namespace User.PluginSdkDemo
             }
         }
 
-        private void ProccessAxisState(AxisState axis_state)
+        private void ProccessAxisState(global::AxisState axis_state)
         {
             // write vJoy data
             //Pedal_position_reading[pedalSelected] = state. pedalState_read_st.payloadPedalBasicState_.joystickOutput_u16;
@@ -4170,6 +4197,7 @@ namespace User.PluginSdkDemo
 
             //}
             uc_function_config.OnAxisStateUpdate(axis_state);
+            uc_axis_config.OnAxisStateUpdate(axis_state);
         }
 
         private void ProcessExtendedState()
@@ -4280,33 +4308,35 @@ namespace User.PluginSdkDemo
                 Label_RSSI.Visibility = Visibility.Hidden;
             }
 
-            string connection_tmp = "";
-            bool wireless_connection_update = false;
             for (int axis_idx = 0; axis_idx < axis_configs.Length; axis_idx++)
             {
                 int axis_flag = 1 << axis_idx;
-                if ((state.AxesPresent & axis_flag) != (last_gateway_state.AxesPresent & axis_flag))
-                {
-                    if ((state.AxesPresent & axis_flag) != 0) {
-                        connection_tmp += String.Format("Axis {0} Connected", axis_idx + 1);
-                        wireless_connection_update = true;
-                        axis_wireless_connection_state[axis_idx] = true;
-                    } else
-                    {
-                        connection_tmp += String.Format("Axis {0} Disconnected", axis_idx + 1);
-                        wireless_connection_update = true;
-                        axis_wireless_connection_state[axis_idx] = false;
-                    }
-                }
+                axis_states[axis_idx].IsOnline = (state.AxesPresent & axis_flag) != 0;
             }
-            if (wireless_connection_update)
-            {
-                ToastNotification("Wireless Connection", connection_tmp);
-                updateTheGuiFromConfig();
-                wireless_connection_update = false;
-            }
-            last_gateway_state = state;
+        }
 
+        public void RequestAxisConfig(AxisID axis_id)
+        {
+            if (Plugin.ESPsync_serialPort.IsOpen)
+            {
+                Message msg = new Message();
+                msg.AxisAction = new AxisAction();
+                msg.AxisAction.AxisId = axis_id;
+                msg.AxisAction.ReturnAxisConfig = true;
+                Plugin.ESPsync_serialPort.WriteMessage(msg);
+            }
+        }
+
+        public void RequestFunctionConfig(AxisID axis_id)
+        {
+            if (Plugin.ESPsync_serialPort.IsOpen)
+            {
+                Message msg = new Message();
+                msg.AxisAction = new AxisAction();
+                msg.AxisAction.AxisId = axis_id;
+                msg.AxisAction.ReturnFunctionConfig = true;
+                Plugin.ESPsync_serialPort.WriteMessage(msg);
+            }
         }
 
         public void OnMessage(object sender, object message)
@@ -4323,7 +4353,6 @@ namespace User.PluginSdkDemo
             //int pedalSelected = Int32.Parse((sender as System.Windows.Forms.Timer).Tag.ToString());
             //int pedalSelected = (int)(sender as System.Windows.Forms.Timer).Tag;
 
-            bool pedalStateHasAlreadyBeenUpdated_b = false;
             if (Plugin.Settings.Serial_auto_clean_bridge)
             {
                 if (TextBox_serialMonitor_bridge.LineCount > 100)
@@ -4452,7 +4481,7 @@ namespace User.PluginSdkDemo
                 axis_configs[(int)axis_id - 1] = axis_config;
                 if (selected_axis_id == axis_id)
                 {
-                    AxisConfigCtrl.UpdateConfig(axis_config);
+                    uc_axis_config.UpdateConfig(axis_config);
                 }
             }
         }
@@ -5383,6 +5412,34 @@ namespace User.PluginSdkDemo
             }
         }
 
+        private void OnFunctionConfigUpdate(FunctionConfig new_function_config)
+        {
+            int new_function_idx = (int)new_function_config.Base.FunctionId - 1;
+            function_configs[new_function_idx] = new_function_config;
+            if (new_function_idx != tc_function_selection.SelectedIndex)
+            {
+                tc_function_selection.SelectedIndex = new_function_idx;
+            }
+            else
+            {
+                uc_function_config.UpdateConfig(function_configs[new_function_idx]);
+            }
+        }
+
+        private void OnAxisConfigUpdate(AxisConfig new_axis_config)
+        {
+            int new_axis_idx = (int)new_axis_config.AxisId - 1;
+            axis_configs[new_axis_idx] = new_axis_config;
+            if (new_axis_idx != tc_axis_selection.SelectedIndex)
+            {
+                tc_axis_selection.SelectedIndex = new_axis_idx;
+            }
+            else
+            {
+                uc_axis_config.UpdateConfig(axis_configs[new_axis_idx]);
+            }
+        }
+
         private void btn_load_function_config_from_file_Click(object sender, RoutedEventArgs e)
         {
             Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog
@@ -5398,11 +5455,7 @@ namespace User.PluginSdkDemo
                 Message msg = (Message)json_parser.Parse(content, Message.Descriptor);
                 if (msg.PayloadCase == Message.PayloadOneofCase.FunctionConfig)
                 {
-                    function_configs[(int)msg.FunctionConfig.Base.FunctionId - 1] = msg.FunctionConfig;
-                    if (selected_function_id == msg.FunctionConfig.Base.FunctionId)
-                    {
-                        uc_function_config.UpdateConfig(msg.FunctionConfig);
-                    }
+                    OnFunctionConfigUpdate(msg.FunctionConfig);
                 }
             }
         }
@@ -5421,6 +5474,58 @@ namespace User.PluginSdkDemo
                 JsonFormatter formatter = new JsonFormatter(JsonFormatter.Settings.Default.WithIndentation());
                 var msg = new Message();
                 msg.FunctionConfig = function_configs[tc_function_selection.SelectedIndex];
+                var output = formatter.Format(msg);
+                File.WriteAllText(saveFileDialog.FileName, output);
+            }
+        }
+
+        private void OnUploadAxisConfigClicked(object sender, RoutedEventArgs e)
+        {
+            AxisConfig axis_config = axis_configs[tc_axis_selection.SelectedIndex];
+            if (Plugin.ESPsync_serialPort.IsOpen)
+            {
+                Message msg = new Message();
+                msg.AxisConfig = axis_config;
+                axis_config.Store = (sender == btn_upload_and_store_axis_config);
+                Plugin.ESPsync_serialPort.WriteMessage(msg);
+            }
+
+        }
+
+        private void btn_load_axis_config_from_file_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                DefaultExt = "json",
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                var content = File.ReadAllText(openFileDialog.FileName);
+                var json_parser = new JsonParser(JsonParser.Settings.Default);
+                Message msg = (Message)json_parser.Parse(content, Message.Descriptor);
+                if (msg.PayloadCase == Message.PayloadOneofCase.AxisConfig)
+                {
+                    OnAxisConfigUpdate(msg.AxisConfig);
+                }
+            }
+        }
+
+        private void btn_store_axis_config_to_file_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.SaveFileDialog saveFileDialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                DefaultExt = "json",
+                FileName = "axis_config.json"
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                JsonFormatter formatter = new JsonFormatter(JsonFormatter.Settings.Default.WithIndentation());
+                var msg = new Message();
+                msg.AxisConfig = axis_configs[tc_axis_selection.SelectedIndex];
                 var output = formatter.Format(msg);
                 File.WriteAllText(saveFileDialog.FileName, output);
             }

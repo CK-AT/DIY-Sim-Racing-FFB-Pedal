@@ -55,7 +55,7 @@ namespace User.PluginSdkDemo
             AutomotivePedal_SplineForceCurve.OnKinematicParametersChanged(parameters);
         }
 
-        public void OnAxisStateUpdate(AxisState axis_state)
+        public void OnAxisStateUpdate(global::AxisState axis_state)
         {
             if (function_config.Base.LinkedAxes[0] == axis_state.AxisId)
             {
