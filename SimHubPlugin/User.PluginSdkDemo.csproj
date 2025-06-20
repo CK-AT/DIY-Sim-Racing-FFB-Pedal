@@ -168,6 +168,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsyncSerial.cs" />
+    <Compile Include="FlightPedalConfigControl.xaml.cs">
+      <DependentUpon>FlightPedalConfigControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="AutomotivePedalConfigControl.xaml.cs">
       <DependentUpon>AutomotivePedalConfigControl.xaml</DependentUpon>
     </Compile>
@@ -213,6 +216,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Page Include="FlightPedalConfigControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="AutomotivePedalConfigControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

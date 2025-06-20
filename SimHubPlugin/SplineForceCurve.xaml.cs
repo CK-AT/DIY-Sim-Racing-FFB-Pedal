@@ -442,7 +442,7 @@ namespace User.PluginSdkDemo
             }
             if (Label_min_pos != null)
             {
-                Label_min_pos.Content = String.Format("MIN\n{0}mm", config.PosMin);
+                Label_min_pos.Content = String.Format("Min\n{0}mm", config.PosMin);
             }
             RangeSettingsChanged?.Invoke(this);
         }
@@ -455,7 +455,7 @@ namespace User.PluginSdkDemo
             }
             if (Label_max_pos != null)
             {
-                Label_max_pos.Content = String.Format("MAX\n{0}mm", config.PosMax);
+                Label_max_pos.Content = String.Format("Max\n{0}mm", config.PosMax);
             }
             RangeSettingsChanged?.Invoke(this);
         }
@@ -468,7 +468,7 @@ namespace User.PluginSdkDemo
             }
             if (Label_max_force != null)
             {
-                Label_max_force.Content = String.Format("Max force:\n{0:F1}kg", e.NewValue);
+                Label_max_force.Content = String.Format("Max force\n{0:F1}kg", e.NewValue);
             }
             RangeSettingsChanged?.Invoke(this);
         }
@@ -481,7 +481,7 @@ namespace User.PluginSdkDemo
             }
             if (Label_min_force != null)
             {
-                Label_min_force.Content = String.Format("Preload:\n{0:F1}kg", e.NewValue);
+                Label_min_force.Content = String.Format("Preload\n{0:F1}kg", e.NewValue);
             }
             RangeSettingsChanged?.Invoke(this);
         }

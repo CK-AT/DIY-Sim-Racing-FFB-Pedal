@@ -18,6 +18,9 @@
             <TabItem>
                 <local:AutomotivePedalConfigControl x:Name="AutomotivePedalConfig" VerticalAlignment="Center"></local:AutomotivePedalConfigControl>
             </TabItem>
+            <TabItem>
+                <local:FlightPedalConfigControl x:Name="FlightPedalsConfig" VerticalAlignment="Center"></local:FlightPedalConfigControl>
+            </TabItem>
         </TabControl>
     </Grid>
 </UserControl>

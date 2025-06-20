@@ -1,0 +1,93 @@
+﻿<UserControl x:Class="User.PluginSdkDemo.FlightPedalConfigControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:User.PluginSdkDemo"
+             xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins" mc:Ignorable="d" 
+             xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins" 
+             xmlns:controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+             >
+    <Grid>
+        <StackPanel Orientation="Vertical" Grid.RowSpan="3">
+            <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,0,0,0" >
+                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="540">
+                    <Label Content="Axis Assignments" Width="150" Padding="0,5,0,10" VerticalContentAlignment="Center" FontFamily="Arial Black" HorizontalAlignment="Left" Margin="70,0,0,0"/>
+                    <StackPanel Width="540" Orientation="Vertical">
+                        <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Label Foreground="White" FontSize="10" FontFamily="Arial" Content="Pilot Right Pedal:" VerticalAlignment="Center" Width="150" HorizontalAlignment="Right"/>
+                            <local:AxisSelector x:Name="uc_axis_selector_pilot_right" AxisIDChanged="OnAxisIDChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Label Foreground="White" FontSize="10" FontFamily="Arial" Content="Pilot Left Pedal:" VerticalAlignment="Center" Width="150" HorizontalAlignment="Right"/>
+                            <local:AxisSelector x:Name="uc_axis_selector_pilot_left" AxisIDChanged="OnAxisIDChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Label Foreground="White" FontSize="10" FontFamily="Arial" Content="Copilot Right Pedal:" VerticalAlignment="Center" Width="150" HorizontalAlignment="Right"/>
+                            <local:AxisSelector x:Name="uc_axis_selector_copilot_right" AxisIDChanged="OnAxisIDChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Label Foreground="White" FontSize="10" FontFamily="Arial" Content="Copilot Left Pedal:" VerticalAlignment="Center" Width="150" HorizontalAlignment="Right"/>
+                            <local:AxisSelector x:Name="uc_axis_selector_copilot_left" AxisIDChanged="OnAxisIDChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Label Foreground="White" FontSize="10" FontFamily="Arial" Content="Controller Output Axis:" VerticalAlignment="Center" Width="150" HorizontalAlignment="Right"/>
+                            <local:ControllerAxisSelector x:Name="uc_controller_axis_pedals" ControllerAxisChanged="uc_controller_axis_pedals_ControllerAxisChanged"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,3,0,0" >
+                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="540">
+                    <Label Content="Motion Range" Width="150" Padding="0,5,0,10" VerticalContentAlignment="Center" FontFamily="Arial Black" HorizontalAlignment="Left" Margin="70,0,0,0"/>
+                    <StackPanel Width="540" Orientation="Vertical">
+                        <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,0">
+                            <Label x:Name="Label_near_pos" Width="37" Height="30" Foreground="White" RenderTransformOrigin="0.5,0.5" Canvas.Top="3" FontSize="10" FontFamily="Arial" Canvas.Left="5" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Min" Padding="0,0,0,0" HorizontalContentAlignment="Center"/>
+                            <controls:RangeSlider x:Name="Rangeslider_travel_range" Style="{DynamicResource RangeSliderStyle}" MinRangeWidth="1" Grid.Column="2" Height="20" LowerValueChanged="Rangeslider_travel_range_LowerValueChanged" UpperValueChanged="Rangeslider_travel_range_UpperValueChanged" MinRange="1" SmallChange="1" IsSnapToTickEnabled="True" UpperValue="30" VerticalAlignment="Top" LowerValue="5" Minimum="-100" Maximum="100" Width="326"/>
+                            <Label x:Name="Label_far_pos" Width="37" Height="30" Foreground="White" RenderTransformOrigin="0.5,0.5" Canvas.Top="3" FontSize="10" FontFamily="Arial" Canvas.Left="5" HorizontalAlignment="Right" VerticalAlignment="Top" Content="Min" Padding="0,0,0,0" HorizontalContentAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,3,0,0" >
+                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="540">
+                    <Label Content="Additional Settings" Width="150" Padding="0,5,0,10" VerticalContentAlignment="Center" FontFamily="Arial Black" HorizontalAlignment="Left" Margin="70,0,0,0"/>
+                    <StackPanel Width="540" Orientation="Vertical">
+                        <StackPanel Width="400" Height="40">
+                            <Label x:Name="label_damping"  Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Damping:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_damping" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.05" Maximum="10" IsSnapToTickEnabled="True" Value="0.5" SmallChange="0.01" TickFrequency="0.01" ValueChanged="OnDampingChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="400" Height="40">
+                            <Label x:Name="label_centering_spring_const" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Centering Spring Constant:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_centering_spring_const" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="10" IsSnapToTickEnabled="True" Value="1.5" SmallChange="0.1" TickFrequency="0.1" ValueChanged="OnCentringSpringChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="400" Height="40">
+                            <Label x:Name="label_simulated_mass"  Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Simulated Mass:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_simulated_mass" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.05" Maximum="10" IsSnapToTickEnabled="True" Value="0.1" SmallChange="0.01"  TickFrequency="0.01" ValueChanged="OnSimulatedMassChanged"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,3,0,0" >
+                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="540">
+                    <Label Content="Rudder Brake Settings" Width="150" Padding="0,5,0,10" VerticalContentAlignment="Center" FontFamily="Arial Black" HorizontalAlignment="Left" Margin="70,0,0,0"/>
+                    <StackPanel Width="540" Orientation="Vertical">
+                        <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,0">
+                            <Label x:Name="Label_min_brake_force" Width="42" Height="30" Foreground="White" RenderTransformOrigin="0.5,0.5" Canvas.Top="3" FontSize="10" FontFamily="Arial" Canvas.Left="5" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Min" Padding="0,0,0,0" HorizontalContentAlignment="Center"/>
+                            <controls:RangeSlider x:Name="Rangeslider_brake_force_range" Style="{DynamicResource RangeSliderStyle}" MinRangeWidth="1" Grid.Column="2" Height="20" LowerValueChanged="Rangeslider_brake_force_range_LowerValueChanged" UpperValueChanged="Rangeslider_brake_force_range_UpperValueChanged" MinRange="1" SmallChange="1" IsSnapToTickEnabled="True" UpperValue="30" VerticalAlignment="Top" LowerValue="5" Minimum="0" Maximum="100" Width="317"/>
+                            <Label x:Name="Label_max_brake_force" Width="42" Height="30" Foreground="White" RenderTransformOrigin="0.5,0.5" Canvas.Top="3" FontSize="10" FontFamily="Arial" Canvas.Left="5" HorizontalAlignment="Right" VerticalAlignment="Top" Content="Min" Padding="0,0,0,0" HorizontalContentAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Label Foreground="White" FontSize="10" FontFamily="Arial" Content="Output Axis Right Brake:" VerticalAlignment="Center" Width="150" HorizontalAlignment="Right"/>
+                            <local:ControllerAxisSelector x:Name="uc_controller_axis_right_brake" ControllerAxisChanged="uc_controller_axis_right_brake_ControllerAxisChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Label Foreground="White" FontSize="10" FontFamily="Arial" Content="Output Axis Left Brake:" VerticalAlignment="Center" Width="150" HorizontalAlignment="Right"/>
+                            <local:ControllerAxisSelector x:Name="uc_controller_axis_left_brake" ControllerAxisChanged="uc_controller_axis_left_brake_ControllerAxisChanged"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -132,7 +132,7 @@ namespace User.PluginSdkDemo
                 config.DamperConfig.NegativeFactor = 0.25f;
             }
             Slider_damping_push.Value = config.DamperConfig.PositiveFactor;
-            Slider_damping_push.Value = config.DamperConfig.NegativeFactor;
+            Slider_damping_pull.Value = config.DamperConfig.NegativeFactor;
 
             if (config.RoadImpactEffectConfig == null) config.RoadImpactEffectConfig = new RoadImpactEffectConfig();
             Slider_impact_smoothness.Value = config.RoadImpactEffectConfig.Window;

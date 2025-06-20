@@ -9,7 +9,7 @@
              xmlns:controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
              >
     <Grid>
-        <ComboBox x:Name="cb_axis_id" SelectionChanged="cb_axis_id_SelectionChanged" FontSize="10" SelectedIndex="0" MinHeight="20" BorderThickness="0,0,0,0" Width="90">
+        <ComboBox x:Name="cb_axis_id" SelectionChanged="cb_axis_id_SelectionChanged" FontSize="10" SelectedIndex="0" MinHeight="20" BorderThickness="0,0,0,0" Width="100">
             <ComboBoxItem Content="Unassigned" />
             <ComboBoxItem Content="Axis 1" />
             <ComboBoxItem Content="Axis 2"/>

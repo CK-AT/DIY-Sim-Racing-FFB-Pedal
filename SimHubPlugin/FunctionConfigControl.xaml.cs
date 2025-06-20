@@ -42,6 +42,7 @@ namespace User.PluginSdkDemo
             AutomotivePedalConfig.SetGui(gui, plugin);
             AutomotivePedalConfig.ABSTestStateChange += OnABSTestStateChange;
             AutomotivePedalConfig.DebugMessage += OnDebugMessage;
+            FlightPedalsConfig.SetGui(gui, plugin);
         }
 
         private void OnDebugMessage(string message)
@@ -72,7 +73,8 @@ namespace User.PluginSdkDemo
                     new_config.AutomotivePedal = AutomotivePedalConfigControl.GetDefaultConfig();
                     break;
                 case FunctionID.FlightPedals:
-                    new_config.FlightPedals = new FlightPedalsConfig();
+                    new_config.FlightPedals = FlightPedalConfigControl.GetDefaultConfig();
+                    new_config.AuxFunction = FlightPedalConfigControl.GetRudderBrakeDefaultConfig(); 
                     break;
             }
             return new_config;
@@ -85,6 +87,9 @@ namespace User.PluginSdkDemo
                 case 0:
                     AutomotivePedalConfig.OnKinematicParametersChanged(parameters);
                     break;
+                case 1:
+                    FlightPedalsConfig.OnKinematicParametersChanged(parameters);
+                    break;
             }
         }
 
@@ -96,6 +101,9 @@ namespace User.PluginSdkDemo
                 {
                     case 0:
                         AutomotivePedalConfig.OnAxisStateUpdate(axis_state);
+                        break;
+                    case 1:
+                        FlightPedalsConfig.OnAxisStateUpdate(axis_state);
                         break;
                 }
             }
@@ -119,6 +127,8 @@ namespace User.PluginSdkDemo
                     tc_specific_function.SelectedIndex = 0;
                     break;
                 case FunctionID.FlightPedals:
+                    FlightPedalsConfig.UpdateConfig(function_config);
+                    tc_specific_function.SelectedIndex = 1;
                     break;
             }
         }
