@@ -5,8 +5,6 @@ VisualStudioVersion = 17.8.34330.188
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "User.PluginSdkDemo", "User.PluginSdkDemo.csproj", "{833040C9-FE5E-4CCF-B21D-71979E049B6B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProtbufTest", "..\ProtbufTest\ProtbufTest.csproj", "{F76BA1A3-9946-4F0C-A506-EA7251F81DED}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -17,10 +15,6 @@ Global
 		{833040C9-FE5E-4CCF-B21D-71979E049B6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{833040C9-FE5E-4CCF-B21D-71979E049B6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{833040C9-FE5E-4CCF-B21D-71979E049B6B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F76BA1A3-9946-4F0C-A506-EA7251F81DED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F76BA1A3-9946-4F0C-A506-EA7251F81DED}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F76BA1A3-9946-4F0C-A506-EA7251F81DED}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F76BA1A3-9946-4F0C-A506-EA7251F81DED}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
