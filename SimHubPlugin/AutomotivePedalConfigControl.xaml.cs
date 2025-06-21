@@ -13,8 +13,8 @@ namespace User.PluginSdkDemo
         public event FunctionConfigControl.DebugMessageEventHandler DebugMessage;
         public delegate void ABSTestStateChangeEventHandler(bool state);
         public event ABSTestStateChangeEventHandler ABSTestStateChange;
-        private SettingsControlDemo gui;
-        private DIY_FFB plugin;
+        private DiyFfbUI ui;
+        private DiyFfbPlugin plugin;
         private AutomotivePedalConfig config;
         private FunctionConfig function_config = new FunctionConfig();
         private FunctionID current_function_id;
@@ -25,11 +25,11 @@ namespace User.PluginSdkDemo
             config = GetDefaultConfig();
             InitializeComponent();
         }
-        public void SetGui(SettingsControlDemo gui, DIY_FFB plugin)
+        public void SetGui(DiyFfbUI ui, DiyFfbPlugin plugin)
         {
-            this.gui = gui;
+            this.ui = ui;
             this.plugin = plugin;
-            AutomotivePedal_SplineForceCurve.SetGui(gui, plugin);
+            AutomotivePedal_SplineForceCurve.SetGui(ui, plugin);
             AutomotivePedal_SplineForceCurve.RangeSettingsChanged += OnRangeSettingsChanged;
         }
 
@@ -100,7 +100,7 @@ namespace User.PluginSdkDemo
 
             if (function_config.Base.LinkedAxes[0] != AxisID.AxisUndefined)
             {
-                var kinematic_parameters = gui.GetKinematicParameters(function_config.Base.LinkedAxes[0]);
+                var kinematic_parameters = ui.GetKinematicParameters(function_config.Base.LinkedAxes[0]);
                 if (kinematic_parameters != null)
                 {
                     OnKinematicParametersChanged(kinematic_parameters);
@@ -820,27 +820,27 @@ namespace User.PluginSdkDemo
 
          private void checkbox_enable_ABS_Checked(object sender, RoutedEventArgs e)
         {
-            plugin.Settings.function_settings[gui.indexOfSelectedPedal_u].ABS_enabled = true;
+            plugin.Settings.function_settings[ui.indexOfSelectedPedal_u].ABS_enabled = true;
             config.AbsEffectConfig.Enabled = true;
             checkbox_enable_ABS.Content = "ABS/TC Effect Enabled";
         }
         private void checkbox_enable_ABS_Unchecked(object sender, RoutedEventArgs e)
         {
-            plugin.Settings.function_settings[gui.indexOfSelectedPedal_u].ABS_enabled = false;
+            plugin.Settings.function_settings[ui.indexOfSelectedPedal_u].ABS_enabled = false;
             config.AbsEffectConfig.Enabled = false;
             checkbox_enable_ABS.Content = "ABS/TC Effect Disabled";
         }
 
         private void checkbox_enable_RPM_Checked(object sender, RoutedEventArgs e)
         {
-            plugin.Settings.function_settings[gui.indexOfSelectedPedal_u].RPM_enabled = true;
+            plugin.Settings.function_settings[ui.indexOfSelectedPedal_u].RPM_enabled = true;
             config.RpmEffectConfig.Enabled = true;
             checkbox_enable_RPM.Content = "Effect Enabled";
         }
 
         private void checkbox_enable_RPM_Unchecked(object sender, RoutedEventArgs e)
         {
-            plugin.Settings.function_settings[gui.indexOfSelectedPedal_u].RPM_enabled = false;
+            plugin.Settings.function_settings[ui.indexOfSelectedPedal_u].RPM_enabled = false;
             config.RpmEffectConfig.Enabled = false;
             checkbox_enable_RPM.Content = "Effect Disabled";
         }
@@ -907,7 +907,7 @@ namespace User.PluginSdkDemo
         {
             function_config.Base.LinkedAxes.Clear();
             function_config.Base.LinkedAxes.AddRange(new AxisID[4] { e.Value, AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined });
-            var kinematic_parameters = gui.GetKinematicParameters(e.Value);
+            var kinematic_parameters = ui.GetKinematicParameters(e.Value);
             if (kinematic_parameters != null) {
                 OnKinematicParametersChanged(kinematic_parameters);
             }

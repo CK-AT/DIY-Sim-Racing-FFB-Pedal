@@ -30,19 +30,19 @@ namespace User.PluginSdkDemo
         public delegate void DebugMessageEventHandler(string message);
         public event DebugMessageEventHandler DebugMessage;
         public event AutomotivePedalConfigControl.ABSTestStateChangeEventHandler ABSTestStateChange;
-        private SettingsControlDemo gui;
-        private DIY_FFB plugin;
+        private DiyFfbUI ui;
+        private DiyFfbPlugin plugin;
         private FunctionConfig config;
         private FunctionID current_function_id;
 
-        public void SetGui(SettingsControlDemo gui, DIY_FFB plugin)
+        public void SetGui(DiyFfbUI ui, DiyFfbPlugin plugin)
         {
-            this.gui = gui;
+            this.ui = ui;
             this.plugin = plugin;
-            AutomotivePedalConfig.SetGui(gui, plugin);
+            AutomotivePedalConfig.SetGui(ui, plugin);
             AutomotivePedalConfig.ABSTestStateChange += OnABSTestStateChange;
             AutomotivePedalConfig.DebugMessage += OnDebugMessage;
-            FlightPedalsConfig.SetGui(gui, plugin);
+            FlightPedalsConfig.SetGui(ui, plugin);
         }
 
         private void OnDebugMessage(string message)
@@ -73,8 +73,8 @@ namespace User.PluginSdkDemo
                     new_config.AutomotivePedal = AutomotivePedalConfigControl.GetDefaultConfig();
                     break;
                 case FunctionID.FlightPedals:
-                    new_config.FlightPedals = FlightPedalConfigControl.GetDefaultConfig();
-                    new_config.AuxFunction = FlightPedalConfigControl.GetRudderBrakeDefaultConfig(); 
+                    new_config.FlightPedals = FlightPedalsConfigControl.GetDefaultConfig();
+                    new_config.AuxFunction = FlightPedalsConfigControl.GetRudderBrakeDefaultConfig(); 
                     break;
             }
             return new_config;

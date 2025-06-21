@@ -15,8 +15,8 @@ namespace User.PluginSdkDemo
     /// </summary>
     public partial class SplineForceCurve : UserControl
     {
-        private SettingsControlDemo gui;
-        private DIY_FFB plugin;
+        private DiyFfbUI ui;
+        private DiyFfbPlugin plugin;
         private SplineForceCurveConfig config;
         bool is_dragging;
         private Point offset;
@@ -33,9 +33,9 @@ namespace User.PluginSdkDemo
             InitializeComponent();
         }
 
-        public void SetGui(SettingsControlDemo gui, DIY_FFB plugin)
+        public void SetGui(DiyFfbUI ui, DiyFfbPlugin plugin)
         {
-            this.gui = gui;
+            this.ui = ui;
             this.plugin = plugin;
             DrawGridLines();
         }
@@ -501,7 +501,7 @@ namespace User.PluginSdkDemo
                     Color = Colors.White,
                     Opacity = 1
                 };
-                rectangle.Fill = gui.MouseDownColor;
+                rectangle.Fill = ui.MouseDownColor;
                 rectangle.Effect = dropShadowEffect;
             }
         }
@@ -522,7 +522,7 @@ namespace User.PluginSdkDemo
                         Color = Colors.White,
                         Opacity = 0
                     };
-                    rectangle.Fill = gui.MouseUpColor;
+                    rectangle.Fill = ui.MouseUpColor;
                     rectangle.Effect = dropShadowEffect;
                 }
             }

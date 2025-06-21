@@ -168,8 +168,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsyncSerial.cs" />
-    <Compile Include="FlightPedalConfigControl.xaml.cs">
-      <DependentUpon>FlightPedalConfigControl.xaml</DependentUpon>
+    <Compile Include="FlightPedalsConfigControl.xaml.cs">
+      <DependentUpon>FlightPedalsConfigControl.xaml</DependentUpon>
     </Compile>
     <Compile Include="AutomotivePedalConfigControl.xaml.cs">
       <DependentUpon>AutomotivePedalConfigControl.xaml</DependentUpon>
@@ -188,8 +188,8 @@
     </Compile>
     <Compile Include="Tools.cs" />
     <Compile Include="CubicSpline.cs" />
-    <Compile Include="DataPluginDemo.cs" />
-    <Compile Include="DataPluginDemoSettings.cs" />
+    <Compile Include="DiyFfbPlugin.cs" />
+    <Compile Include="DiyFfbSettings.cs" />
     <Compile Include="DiyFfbProtocol.cs" />
     <Compile Include="FrameSerial.cs" />
     <Compile Include="OnlineProfile.xaml.cs">
@@ -205,8 +205,8 @@
     <Compile Include="SerialMonitor.xaml.cs">
       <DependentUpon>SerialMonitor.xaml</DependentUpon>
     </Compile>
-    <Compile Include="SettingsControlDemo.xaml.cs">
-      <DependentUpon>SettingsControlDemo.xaml</DependentUpon>
+    <Compile Include="DiyFfbUI.xaml.cs">
+      <DependentUpon>DiyFfbUI.xaml</DependentUpon>
     </Compile>
     <Compile Include="SplineForceCurve.xaml.cs">
       <DependentUpon>SplineForceCurve.xaml</DependentUpon>
@@ -216,7 +216,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Page Include="FlightPedalConfigControl.xaml">
+    <Page Include="FlightPedalsConfigControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -253,7 +253,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="SettingsControlDemo.xaml">
+    <Page Include="DiyFfbUI.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

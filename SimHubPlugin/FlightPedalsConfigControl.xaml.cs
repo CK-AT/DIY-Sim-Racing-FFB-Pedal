@@ -8,27 +8,27 @@ namespace User.PluginSdkDemo
     /// <summary>
     /// Interaction logic for AutomotivePedalEffects.xaml
     /// </summary>
-    public partial class FlightPedalConfigControl : UserControl
+    public partial class FlightPedalsConfigControl : UserControl
     {
         public event FunctionConfigControl.DebugMessageEventHandler DebugMessage;
         public delegate void ABSTestStateChangeEventHandler(bool state);
         public event ABSTestStateChangeEventHandler ABSTestStateChange;
-        private SettingsControlDemo gui;
-        private DIY_FFB plugin;
+        private DiyFfbUI ui;
+        private DiyFfbPlugin plugin;
         private FlightPedalsConfig config;
         private RudderBrakeConfig brake_config;
         private FunctionConfig function_config = new FunctionConfig();
         private FunctionID current_function_id;
         bool is_updating = true;
 
-        public FlightPedalConfigControl()
+        public FlightPedalsConfigControl()
         {
             config = GetDefaultConfig();
             InitializeComponent();
         }
-        public void SetGui(SettingsControlDemo gui, DIY_FFB plugin)
+        public void SetGui(DiyFfbUI ui, DiyFfbPlugin plugin)
         {
-            this.gui = gui;
+            this.ui = ui;
             this.plugin = plugin;
             is_updating = false;
         }
@@ -78,7 +78,7 @@ namespace User.PluginSdkDemo
 
             if (function_config.Base.LinkedAxes[0] != AxisID.AxisUndefined)
             {
-                var kinematic_parameters = gui.GetKinematicParameters(function_config.Base.LinkedAxes[0]);
+                var kinematic_parameters = ui.GetKinematicParameters(function_config.Base.LinkedAxes[0]);
                 if (kinematic_parameters != null)
                 {
                     OnKinematicParametersChanged(kinematic_parameters);
@@ -124,7 +124,7 @@ namespace User.PluginSdkDemo
         {
             function_config.Base.LinkedAxes.Clear();
             function_config.Base.LinkedAxes.AddRange(new AxisID[4] { e.Value, AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined });
-            var kinematic_parameters = gui.GetKinematicParameters(e.Value);
+            var kinematic_parameters = ui.GetKinematicParameters(e.Value);
             if (kinematic_parameters != null) {
                 OnKinematicParametersChanged(kinematic_parameters);
             }
@@ -161,7 +161,7 @@ namespace User.PluginSdkDemo
                 function_config.AuxFunction.LinkedAxes.Add(uc_axis_selector_copilot_right.Value);
                 function_config.AuxFunction.LinkedAxes.Add(uc_axis_selector_copilot_left.Value);
 
-                var kinematic_parameters = gui.GetKinematicParameters(e.Value);
+                var kinematic_parameters = ui.GetKinematicParameters(e.Value);
                 if (kinematic_parameters != null)
                 {
                     OnKinematicParametersChanged(kinematic_parameters);

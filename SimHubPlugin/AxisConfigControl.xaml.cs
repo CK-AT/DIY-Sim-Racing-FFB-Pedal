@@ -10,8 +10,8 @@ namespace User.PluginSdkDemo
     public partial class AxisConfigControl : UserControl
     {
         private AxisConfig config;
-        private SettingsControlDemo gui;
-        private DIY_FFB plugin;
+        private DiyFfbUI ui;
+        private DiyFfbPlugin plugin;
         public delegate void DebugMessageEventHandler(string message);
         public event DebugMessageEventHandler DebugMessage;
         public delegate void KinematicParametersChangedEventHandler(KinematicParameters parameters);
@@ -38,11 +38,11 @@ namespace User.PluginSdkDemo
             }
         }
 
-        public void SetGui(SettingsControlDemo gui, DIY_FFB plugin)
+        public void SetGui(DiyFfbUI ui, DiyFfbPlugin plugin)
         {
-            this.gui = gui;
+            this.ui = ui;
             this.plugin = plugin;
-            DiyPedalKinematicsControl.SetGui(gui, plugin);
+            DiyPedalKinematicsControl.SetGui(ui, plugin);
         }
 
         public static AxisConfig GetDefaultConfig(AxisID axis_id)

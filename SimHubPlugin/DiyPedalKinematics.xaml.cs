@@ -66,8 +66,8 @@ namespace User.PluginSdkDemo
         private DIYPedalKinematicConfig config;
         private bool is_dragging = false;
         private Point offset;
-        private SettingsControlDemo gui;
-        private DIY_FFB plugin;
+        private DiyFfbUI ui;
+        private DiyFfbPlugin plugin;
         private int gridline_kinematic_count_original = 0;
         public delegate void DebugMessageEventHandler(string message);
         public event DebugMessageEventHandler DebugMessage;
@@ -82,9 +82,9 @@ namespace User.PluginSdkDemo
             InitializeComponent();
         }
 
-        public void SetGui(SettingsControlDemo gui, DIY_FFB plugin)
+        public void SetGui(DiyFfbUI ui, DiyFfbPlugin plugin)
         {
-            this.gui = gui;
+            this.ui = ui;
             this.plugin = plugin;
             DrawGridLines();
         }
@@ -162,7 +162,7 @@ namespace User.PluginSdkDemo
                 Color = Colors.White,
                 Opacity = 1
             };
-            rectangle.Fill = gui.MouseDownColor;
+            rectangle.Fill = ui.MouseDownColor;
             rectangle.Effect = dropShadowEffect;
         }
         private void Rectangle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -179,7 +179,7 @@ namespace User.PluginSdkDemo
                     Color = Colors.White,
                     Opacity = 0
                 };
-                rectangle.Fill = gui.MouseUpColor;
+                rectangle.Fill = ui.MouseUpColor;
                 rectangle.Effect = dropShadowEffect;
             }
         }
