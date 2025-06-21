@@ -1,11 +1,6 @@
 #include "ConfigManager.h"
 
-#include <EEPROM.h>
-
 #include "LogOutput.h"
-
-const uint32_t EEPROM_OFFSET_AXIS_CONFIG = 0;
-const uint32_t EEPROM_OFFSET_FUNCTION_CONFIG = EEPROM_OFFSET_AXIS_CONFIG + 1024;
 
 void ConfigManager::set_axis_config_defaults(void) {
     _axis_config = AxisConfig_init_default;
@@ -100,8 +95,8 @@ void ConfigManager::load_configs(void) {
         LogOutput::printf("ConfigManager: gateway only, no configs to load");
         return;
     }
-    EEPROM.begin(2048);
-    LogOutput::printf(" -> trying to load axis config from EEPROM...");
+    persistent_memory.begin("config");
+    LogOutput::printf(" -> trying to load axis config from persistent memory...");
     if (!load_axis_config()) {
         set_axis_config_defaults();
         LogOutput::printf(" -> setting defaults");
@@ -115,28 +110,32 @@ void ConfigManager::load_configs(void) {
         LogOutput::printf(" -> success (this is axis %d)", _axis_id);
     }
 
-    LogOutput::printf(" -> trying to load function config from EEPROM...");
+    LogOutput::printf(" -> trying to load function config from persistent memory...");
     if (!load_function_config()) {
         set_function_config_defaults();
         LogOutput::printf(" -> setting defaults");
     } else {
         LogOutput::printf(" -> success");
     }
+    persistent_memory.end();
     on_config_update();
 }
 
 bool ConfigManager::load_axis_config(void) {
-    EEPROMHeader header;
-    EEPROM.get(EEPROM_OFFSET_AXIS_CONFIG, header);
-    if (header.len < 500) {
-        uint8_t buffer[header.len];
-        EEPROM.readBytes(EEPROM_OFFSET_AXIS_CONFIG + sizeof(EEPROMHeader), buffer, header.len);
-        if (MessageTools::check_and_decode_message(_temp_message, buffer, header.len, header.crc)) {
+    if (persistent_memory.isKey("axis_config")) {
+        size_t size = persistent_memory.getBytesLength("axis_config");
+        uint8_t buffer[size];
+        persistent_memory.getBytes("axis_config", buffer, size);
+        uint16_t crc = *reinterpret_cast<const uint16_t *>(buffer + size - sizeof(uint16_t));
+        if (MessageTools::check_and_decode_message(_temp_message, buffer, size - sizeof(uint16_t), crc)) {
             if (_temp_message.which_payload == Message_axis_config_tag) {
                 _axis_config = _temp_message.payload.axis_config;
                 if (_fixed_id) {
-                    _axis_config.axis_id = _axis_id;
-                    LogOutput::printf(" -> WARNING: This axis' stored config references axis %d (this is axis %d).", _axis_config.axis_id, _axis_id);
+                    if (_axis_config.axis_id != _axis_id) {
+                        _axis_config.axis_id = _axis_id;
+                        LogOutput::printf(" -> WARNING: This axis' stored config references axis %d (this is axis %d).", _axis_config.axis_id,
+                                          _axis_id);
+                    }
                 }
                 return true;
             } else {
@@ -144,18 +143,18 @@ bool ConfigManager::load_axis_config(void) {
             }
         }
     } else {
-        LogOutput::printf(" -> invalid EEPROM header");
+        LogOutput::printf(" -> not found");
     }
     return false;
 }
 
 bool ConfigManager::load_function_config(void) {
-    EEPROMHeader header;
-    EEPROM.get(EEPROM_OFFSET_FUNCTION_CONFIG, header);
-    if (header.len < 500) {
-        uint8_t buffer[header.len];
-        EEPROM.readBytes(EEPROM_OFFSET_FUNCTION_CONFIG + sizeof(EEPROMHeader), buffer, header.len);
-        if (MessageTools::check_and_decode_message(_temp_message, buffer, header.len, header.crc)) {
+    if (persistent_memory.isKey("function_config")) {
+        size_t size = persistent_memory.getBytesLength("function_config");
+        uint8_t buffer[size];
+        persistent_memory.getBytes("function_config", buffer, size);
+        uint16_t crc = *reinterpret_cast<const uint16_t *>(buffer + size - sizeof(uint16_t));
+        if (MessageTools::check_and_decode_message(_temp_message, buffer, size - sizeof(uint16_t), crc)) {
             if (_temp_message.which_payload == Message_function_config_tag) {
                 _function_config = _temp_message.payload.function_config;
                 update_lookup_tables(_function_config);
@@ -165,7 +164,7 @@ bool ConfigManager::load_function_config(void) {
             }
         }
     } else {
-        LogOutput::printf(" -> invalid EEPROM header");
+        LogOutput::printf(" -> not found");
     }
     return false;
 }
@@ -183,14 +182,10 @@ ConfigManager::UpdateResult ConfigManager::update_axis_config(const AxisConfig &
         _axis_config = new_config;
         on_config_update();
         if (_axis_config.store) {
-            LogOutput::printf(" -> storing to EEPROM...");
-            EEPROMHeader header;
-            // len_protobuf_msg includes the appended CRC16, this has to be accounted for when writing to EEPROM
-            header.crc = MessageTools::calc_crc(protobuf_msg, len_protobuf_msg - sizeof(uint16_t));
-            header.len = len_protobuf_msg - sizeof(uint16_t);
-            EEPROM.put(EEPROM_OFFSET_AXIS_CONFIG, header);
-            EEPROM.writeBytes(EEPROM_OFFSET_AXIS_CONFIG + sizeof(EEPROMHeader), protobuf_msg, len_protobuf_msg - sizeof(uint16_t));
-            EEPROM.commit();
+            LogOutput::printf(" -> storing to persistent memory...");
+            persistent_memory.begin("config");
+            persistent_memory.putBytes("axis_config", protobuf_msg, len_protobuf_msg);
+            persistent_memory.end();
         }
         // TODO: add update code for calculation vars here
         release_config_semaphore();
@@ -220,16 +215,11 @@ ConfigManager::UpdateResult ConfigManager::update_function_config(const Function
         _function_config = new_config;
         on_config_update();
         if (_function_config.base.store) {
-            LogOutput::printf(" -> storing to EEPROM...");
-            EEPROMHeader header;
-            // len_protobuf_msg includes the appended CRC16, this has to be accounted for when writing to EEPROM
-            header.crc = MessageTools::calc_crc(protobuf_msg, len_protobuf_msg - sizeof(uint16_t));
-            header.len = len_protobuf_msg - sizeof(uint16_t);
-            EEPROM.put(EEPROM_OFFSET_FUNCTION_CONFIG, header);
-            EEPROM.writeBytes(EEPROM_OFFSET_FUNCTION_CONFIG + sizeof(EEPROMHeader), protobuf_msg, len_protobuf_msg - sizeof(uint16_t));
-            EEPROM.commit();
+            LogOutput::printf(" -> storing to persistent memory...");
+            persistent_memory.begin("config");
+            persistent_memory.putBytes("function_config", protobuf_msg, len_protobuf_msg);
+            persistent_memory.end();
         }
-        // TODO: add update code for calculation vars here
         release_config_semaphore();
         LogOutput::printf(" -> done");
         return ConfigManager::UPDATE_OK;

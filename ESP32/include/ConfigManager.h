@@ -1,21 +1,16 @@
 #pragma once
 #include <Arduino.h>
+#include <Preferences.h>
 
 #include <map>
 
 #include "ConfigManager.fwd.h"
+#include "IAuxFunction.h"
 #include "IFunction.h"
 #include "LogOutput.h"
 #include "MessageTools.h"
-#include "IAuxFunction.h"
 
 class ConfigManager {
-    private:
-        struct EEPROMHeader {
-                uint16_t crc;
-                uint16_t len;
-        };
-
     public:
         enum UpdateResult {
             UPDATE_OK,
@@ -93,7 +88,7 @@ class ConfigManager {
             if (result != _function_lut.end()) return &result->second;
             return nullptr;
         }
-        std::tuple<IAuxFunction*,AuxFunctionConfig> get_aux_function(FunctionID function_id) {
+        std::tuple<IAuxFunction *, AuxFunctionConfig> get_aux_function(FunctionID function_id) {
             auto result = _aux_function_lut.find(function_id);
             if (result != _aux_function_lut.end()) return result->second;
             return {nullptr, {}};
@@ -146,7 +141,7 @@ class ConfigManager {
         AxisConfig _axis_config;
         FunctionConfig _function_config;
         std::map<FunctionID, FunctionBase> _function_lut = {};
-        std::map<FunctionID, std::tuple<IAuxFunction*, AuxFunctionConfig>> _aux_function_lut = {};
+        std::map<FunctionID, std::tuple<IAuxFunction *, AuxFunctionConfig>> _aux_function_lut = {};
         Message _temp_message;
         SemaphoreHandle_t _sem_cfg_update = xSemaphoreCreateMutex();
         OnConfigUpdate _on_config_update_callback = nullptr;
@@ -155,4 +150,5 @@ class ConfigManager {
         float _x_contact_point_min = 0.0f;
         float _x_contact_point_max = 0.0f;
         float _x_contact_point_center = 0.0f;
+        Preferences persistent_memory;
 };
