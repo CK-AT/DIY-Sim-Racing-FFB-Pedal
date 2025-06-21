@@ -16,8 +16,8 @@ namespace User.PluginSdkDemo
 {
     public partial class SerialMonitor_Window : Window
     {
-        DiyFfbUI _main_UI;
-        public SerialMonitor_Window(DiyFfbUI Main_UI)
+        DiyFfbPluginUI _main_UI;
+        public SerialMonitor_Window(DiyFfbPluginUI Main_UI)
         {
             InitializeComponent();
             _main_UI = Main_UI;

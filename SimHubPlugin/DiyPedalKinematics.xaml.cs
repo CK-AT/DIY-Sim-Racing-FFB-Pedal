@@ -66,7 +66,7 @@ namespace User.PluginSdkDemo
         private DIYPedalKinematicConfig config;
         private bool is_dragging = false;
         private Point offset;
-        private DiyFfbUI ui;
+        private DiyFfbPluginUI ui;
         private DiyFfbPlugin plugin;
         private int gridline_kinematic_count_original = 0;
         public delegate void DebugMessageEventHandler(string message);
@@ -82,7 +82,7 @@ namespace User.PluginSdkDemo
             InitializeComponent();
         }
 
-        public void SetGui(DiyFfbUI ui, DiyFfbPlugin plugin)
+        public void SetGui(DiyFfbPluginUI ui, DiyFfbPlugin plugin)
         {
             this.ui = ui;
             this.plugin = plugin;

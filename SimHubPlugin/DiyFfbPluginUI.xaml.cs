@@ -80,9 +80,9 @@ namespace User.PluginSdkDemo
     }
 
     /// <summary>
-    /// Logique d'interaction pour DiyFfbUI.xaml
+    /// Logique d'interaction pour DiyFfbPluginUI.xaml
     /// </summary>
-    public partial class DiyFfbUI : System.Windows.Controls.UserControl
+    public partial class DiyFfbPluginUI : System.Windows.Controls.UserControl
     {
 
 
@@ -497,7 +497,7 @@ namespace User.PluginSdkDemo
             dap_config_st_rudder.payloadPedalConfig_.stepLossFunctionFlags_u8 = 0b11;
         }
         System.Windows.Controls.CheckBox[,] Effect_status_profile=new System.Windows.Controls.CheckBox[8,8];
-        unsafe public DiyFfbUI()
+        unsafe public DiyFfbPluginUI()
         {
             
             DAP_config_set_default_rudder();
@@ -777,7 +777,7 @@ namespace User.PluginSdkDemo
             Plugin.sendAbsSignal = state;
         }
 
-        public DiyFfbUI(DiyFfbPlugin plugin) : this()
+        public DiyFfbPluginUI(DiyFfbPlugin plugin) : this()
         {
             DataContext = this;
             this.Plugin = plugin;
@@ -2005,7 +2005,7 @@ namespace User.PluginSdkDemo
         {
             try
             {
-                DiyFfbSettings.AxisSettings axis_settings = Plugin.Settings.axis_settings[pedalIdx];
+                DiyFfbPluginSettings.AxisSettings axis_settings = Plugin.Settings.axis_settings[pedalIdx];
                 // serial port settings
                 Plugin._serialPort[pedalIdx].Handshake = Handshake.None;
                 Plugin._serialPort[pedalIdx].Parity = Parity.None;

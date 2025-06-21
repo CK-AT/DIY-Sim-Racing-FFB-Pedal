@@ -13,7 +13,7 @@ namespace User.PluginSdkDemo
         public event FunctionConfigControl.DebugMessageEventHandler DebugMessage;
         public delegate void ABSTestStateChangeEventHandler(bool state);
         public event ABSTestStateChangeEventHandler ABSTestStateChange;
-        private DiyFfbUI ui;
+        private DiyFfbPluginUI ui;
         private DiyFfbPlugin plugin;
         private FlightPedalsConfig config;
         private RudderBrakeConfig brake_config;
@@ -26,7 +26,7 @@ namespace User.PluginSdkDemo
             config = GetDefaultConfig();
             InitializeComponent();
         }
-        public void SetGui(DiyFfbUI ui, DiyFfbPlugin plugin)
+        public void SetGui(DiyFfbPluginUI ui, DiyFfbPlugin plugin)
         {
             this.ui = ui;
             this.plugin = plugin;

@@ -10,7 +10,7 @@ namespace User.PluginSdkDemo
     public partial class AxisConfigControl : UserControl
     {
         private AxisConfig config;
-        private DiyFfbUI ui;
+        private DiyFfbPluginUI ui;
         private DiyFfbPlugin plugin;
         public delegate void DebugMessageEventHandler(string message);
         public event DebugMessageEventHandler DebugMessage;
@@ -38,7 +38,7 @@ namespace User.PluginSdkDemo
             }
         }
 
-        public void SetGui(DiyFfbUI ui, DiyFfbPlugin plugin)
+        public void SetGui(DiyFfbPluginUI ui, DiyFfbPlugin plugin)
         {
             this.ui = ui;
             this.plugin = plugin;

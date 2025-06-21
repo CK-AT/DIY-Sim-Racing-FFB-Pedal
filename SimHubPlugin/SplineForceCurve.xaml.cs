@@ -15,7 +15,7 @@ namespace User.PluginSdkDemo
     /// </summary>
     public partial class SplineForceCurve : UserControl
     {
-        private DiyFfbUI ui;
+        private DiyFfbPluginUI ui;
         private DiyFfbPlugin plugin;
         private SplineForceCurveConfig config;
         bool is_dragging;
@@ -33,7 +33,7 @@ namespace User.PluginSdkDemo
             InitializeComponent();
         }
 
-        public void SetGui(DiyFfbUI ui, DiyFfbPlugin plugin)
+        public void SetGui(DiyFfbPluginUI ui, DiyFfbPlugin plugin)
         {
             this.ui = ui;
             this.plugin = plugin;

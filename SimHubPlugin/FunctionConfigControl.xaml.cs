@@ -30,12 +30,12 @@ namespace User.PluginSdkDemo
         public delegate void DebugMessageEventHandler(string message);
         public event DebugMessageEventHandler DebugMessage;
         public event AutomotivePedalConfigControl.ABSTestStateChangeEventHandler ABSTestStateChange;
-        private DiyFfbUI ui;
+        private DiyFfbPluginUI ui;
         private DiyFfbPlugin plugin;
         private FunctionConfig config;
         private FunctionID current_function_id;
 
-        public void SetGui(DiyFfbUI ui, DiyFfbPlugin plugin)
+        public void SetGui(DiyFfbPluginUI ui, DiyFfbPlugin plugin)
         {
             this.ui = ui;
             this.plugin = plugin;

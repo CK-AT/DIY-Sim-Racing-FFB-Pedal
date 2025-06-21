@@ -308,7 +308,7 @@ namespace User.PluginSdkDemo
     {
 
         public PluginManager pluginHandle;// = this;
-        DiyFfbUI ui;
+        DiyFfbPluginUI ui;
 
         public bool sendAbsSignal = false;
 		public DAP_config_st dap_config_initial_st;
@@ -324,7 +324,7 @@ namespace User.PluginSdkDemo
         public uint slotC_flag = 0;
         public uint slotD_flag = 0;
         public uint sendconfig_flag = 0;
-        public DiyFfbUI wpfHandle;
+        public DiyFfbPluginUI wpfHandle;
         public uint in_game_flag = 0; // check current game is off or pause
         public string current_profile = "NA" ;
         public uint profile_index = 0;
@@ -402,7 +402,7 @@ namespace User.PluginSdkDemo
         public bool[] connectSerialPort = { false, false, false };
 
 
-        public DiyFfbSettings Settings;
+        public DiyFfbPluginSettings Settings;
 
 
 
@@ -1392,9 +1392,9 @@ namespace User.PluginSdkDemo
         ////////    // if WPF isn't available, update the WPF handler and skip
         ////////    if (wpfHandler == null)
         ////////    {
-        ////////        //DiyFfbUI wpfHandler = (DiyFfbUI)GetWPFSettingsControl(this);
+        ////////        //DiyFfbPluginUI wpfHandler = (DiyFfbPluginUI)GetWPFSettingsControl(this);
 
-        ////////        wpfHandler = (DiyFfbUI)GetWPFSettingsControl(pluginHandle);
+        ////////        wpfHandler = (DiyFfbPluginUI)GetWPFSettingsControl(pluginHandle);
         ////////        return;
         ////////    }
 
@@ -1638,7 +1638,7 @@ namespace User.PluginSdkDemo
         /// <returns></returns>
         public System.Windows.Controls.Control GetWPFSettingsControl(PluginManager pluginManager)
         {
-            ui = new DiyFfbUI(this);
+            ui = new DiyFfbPluginUI(this);
             return ui;
         }
 
@@ -1712,7 +1712,7 @@ namespace User.PluginSdkDemo
             SimHub.Logging.Current.Info("Starting DIY active pedal plugin");
 
             // Load settings
-            Settings = this.ReadCommonSettings<DiyFfbSettings>("GeneralSettings", () => new DiyFfbSettings());
+            Settings = this.ReadCommonSettings<DiyFfbPluginSettings>("GeneralSettings", () => new DiyFfbPluginSettings());
             Simhub_version = (String)pluginManager.GetPropertyValue("DataCorePlugin.SimHubVersion");
             // Declare a property available in the property list, this gets evaluated "on demand" (when shown or used in formulas)
             //this.AttachDelegate("CurrentDateTime", () => DateTime.Now);
@@ -2012,7 +2012,7 @@ namespace User.PluginSdkDemo
 
 
             // get WPF handler
-            //wpfHandler = (DiyFfbUI)GetWPFSettingsControl(pluginManager);
+            //wpfHandler = (DiyFfbPluginUI)GetWPFSettingsControl(pluginManager);
 
             //if (wpfHandler.)
             {

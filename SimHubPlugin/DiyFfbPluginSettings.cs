@@ -7,7 +7,7 @@ namespace User.PluginSdkDemo
     /// Settings class, make sure it can be correctly serialized using JSON.net
     /// </summary>
 
-    public class DiyFfbSettings
+    public class DiyFfbPluginSettings
     {
         public class AxisSettings
         {
@@ -35,7 +35,7 @@ namespace User.PluginSdkDemo
             public bool[,] effect_status_profiles = new bool[6, 8] { { false, false, false, false, false, false, false, false }, { false, false, false, false, false, false, false, false }, { false, false, false, false, false, false, false, false } , { false, false, false, false, false, false, false, false }, { false, false, false, false, false, false, false, false }, { false, false, false, false, false, false, false, false } };
         }
 
-        public DiyFfbSettings()
+        public DiyFfbPluginSettings()
         {
             for (int i = 0; i < 8; i++)
             {

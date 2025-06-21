@@ -192,7 +192,7 @@
     <Compile Include="Tools.cs" />
     <Compile Include="CubicSpline.cs" />
     <Compile Include="DiyFfbPlugin.cs" />
-    <Compile Include="DiyFfbSettings.cs" />
+    <Compile Include="DiyFfbPluginSettings.cs" />
     <Compile Include="DiyFfbProtocol.cs" />
     <Compile Include="FrameSerial.cs" />
     <Compile Include="OnlineProfile.xaml.cs">
@@ -208,8 +208,8 @@
     <Compile Include="SerialMonitor.xaml.cs">
       <DependentUpon>SerialMonitor.xaml</DependentUpon>
     </Compile>
-    <Compile Include="DiyFfbUI.xaml.cs">
-      <DependentUpon>DiyFfbUI.xaml</DependentUpon>
+    <Compile Include="DiyFfbPluginUI.xaml.cs">
+      <DependentUpon>DiyFfbPluginUI.xaml</DependentUpon>
     </Compile>
     <Compile Include="SplineForceCurve.xaml.cs">
       <DependentUpon>SplineForceCurve.xaml</DependentUpon>
@@ -256,7 +256,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="DiyFfbUI.xaml">
+    <Page Include="DiyFfbPluginUI.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
