@@ -327,7 +327,7 @@ jobs:
        #     DATE: ${{needs.Build-date.outputs.Version_date}}
        # uses: ncipollo/release-action@v1
        #   with:
-       #     artifacts: '${{ github.workspace }}\SimHubPlugin\bin\DiyActivePedal.dll'
+       #     artifacts: '${{ github.workspace }}\SimHubPlugin\bin\DiyFfbPlugin.dll'
        #     prerelease: true
         #    replacesArtifacts: true
        #     allowUpdates: true
@@ -341,8 +341,8 @@ jobs:
           url: ${{needs.Build-date.outputs.Upload_URL}}
         with:
           upload_url: ${{ env.url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-          asset_path: '${{ github.workspace }}\SimHubPlugin\bin\DiyActivePedal.dll'
-          asset_name: DiyActivePedal.dll
+          asset_path: '${{ github.workspace }}\SimHubPlugin\bin\DiyFfbPlugin.dll'
+          asset_name: DiyFfbPlugin.dll
           asset_content_type: application/octet-stream
 
     # SimHub plugin binaries
