@@ -362,6 +362,7 @@ message AxisAction {
     bool return_axis_config = 4;
     bool return_function_config = 5;
     uint32 debug_flags = 6;
+    bool return_active_function = 7;
   }
 }
 
@@ -399,6 +400,11 @@ message FFBAction {
   }
 }
 
+message ActiveFunction {
+  AxisID axis_id = 1;
+  FunctionID function_id = 2;
+}
+
 message Message {
   oneof payload {
     AxisLogMessage axis_log_message = 1;
@@ -409,5 +415,6 @@ message Message {
     GatewayState gateway_state = 6;
     FFBAction ffb_action = 7;
     GatewayLogMessage gateway_log_message = 8;
+    ActiveFunction active_function = 9;
   }
 }
