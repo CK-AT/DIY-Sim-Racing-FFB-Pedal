@@ -95,7 +95,7 @@ void ConfigManager::load_configs(void) {
         LogOutput::printf("ConfigManager: gateway only, no configs to load");
         return;
     }
-    persistent_memory.begin("config");
+    persistent_memory.begin("config", true);
     LogOutput::printf(" -> trying to load axis config from persistent memory...");
     if (!load_axis_config()) {
         set_axis_config_defaults();
@@ -183,8 +183,10 @@ ConfigManager::UpdateResult ConfigManager::update_axis_config(const AxisConfig &
         on_config_update();
         if (_axis_config.store) {
             LogOutput::printf(" -> storing to persistent memory...");
-            persistent_memory.begin("config");
-            persistent_memory.putBytes("axis_config", protobuf_msg, len_protobuf_msg);
+            persistent_memory.begin("config", false);
+            if (persistent_memory.putBytes("axis_config", protobuf_msg, len_protobuf_msg) != len_protobuf_msg) {
+                LogOutput::printf(" -> failed to store");
+            }
             persistent_memory.end();
         }
         // TODO: add update code for calculation vars here
@@ -216,8 +218,10 @@ ConfigManager::UpdateResult ConfigManager::update_function_config(const Function
         on_config_update();
         if (_function_config.base.store) {
             LogOutput::printf(" -> storing to persistent memory...");
-            persistent_memory.begin("config");
-            persistent_memory.putBytes("function_config", protobuf_msg, len_protobuf_msg);
+            persistent_memory.begin("config", false);
+            if (persistent_memory.putBytes("function_config", protobuf_msg, len_protobuf_msg) != len_protobuf_msg) {
+                LogOutput::printf(" -> failed to store");
+            }
             persistent_memory.end();
         }
         release_config_semaphore();
