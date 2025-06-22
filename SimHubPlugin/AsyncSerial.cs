@@ -28,7 +28,6 @@ namespace ProtbufTest
         public AsyncSerial(string port_name, Int32 baud_rate)
         {
             port = new SerialPort(port_name, baud_rate);
-            Task.Run(async () => await RxTask());
         }
         
         public bool Open(bool auto_reconnect=false)
@@ -37,6 +36,9 @@ namespace ProtbufTest
             try
             {
                 port.Open();
+                cts.Cancel();
+                cts = new CancellationTokenSource();
+                Task.Run(async () => await RxTask(cts.Token));
             }
             catch (FileNotFoundException)
             {
@@ -49,19 +51,18 @@ namespace ProtbufTest
             return true;
         }
 
-        private async Task RxTask()
+        private async Task RxTask(CancellationToken token)
         {
-            while (true)
+            while (!token.IsCancellationRequested)
             {
                 try
                 {
                     var chunk = new byte[256];
-                    var num_bytes = await port.BaseStream.ReadAsync(chunk, 0, chunk.Length, cts.Token);
+                    var num_bytes = await port.BaseStream.ReadAsync(chunk, 0, chunk.Length, token);
                     foreach (var item in chunk.Take(num_bytes))
                     {
                         rx_fifo.Post(item);
                     }
-                    if (cts.IsCancellationRequested) break;
                 }
                 catch (Exception) { }
             }
@@ -93,7 +94,7 @@ namespace ProtbufTest
             return ms.ToArray();
         }
 
-        public async Task<byte[]> ReceiveDataTill(byte break_char = 0x00, int max_size = 500, int timeout = 30)
+        public async Task<byte[]> ReceiveDataTill(byte break_char = 0x00, int max_size = 500, CancellationToken token = new CancellationToken())
         {
             if (!port.IsOpen && _auto_reconnect)
             {
@@ -102,13 +103,11 @@ namespace ProtbufTest
             var ms = new MemoryStream();
             int num_bytes = 0;
             bool break_char_received = false;
-            // use timeout for the first byte but reduce to 2ms for successive bytes
-            TimeSpan curr_timeout = TimeSpan.FromMilliseconds(timeout);
             try
             {
                 while (num_bytes < max_size)
                 {
-                    var item = await rx_fifo.ReceiveAsync(curr_timeout);
+                    var item = await rx_fifo.ReceiveAsync(token);
                     if (item != 0)
                     {
                         ms.WriteByte(item);
@@ -120,7 +119,6 @@ namespace ProtbufTest
                         ms.WriteByte(item);
                         break;
                     }
-                    curr_timeout = TimeSpan.FromMilliseconds(3);
                 }
             }
             catch (TimeoutException) { }

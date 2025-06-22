@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using NullFX.CRC;
 
@@ -13,11 +14,11 @@ namespace ProtbufTest
             _break_char = break_char;
         }
         
-        public async Task<byte[]> ReceiveFrame(int max_size = 500, int timeout = 30)
+        public async Task<byte[]> ReceiveFrame(int max_size = 500, CancellationToken token = new CancellationToken())
         {
             try
             {
-                var decoded = COBS.NET.COBS.Decode(await ReceiveDataTill(_break_char, max_size, timeout));
+                var decoded = COBS.NET.COBS.Decode(await ReceiveDataTill(_break_char, max_size, token));
                 var crc = Crc16.ComputeChecksum(Crc16Algorithm.Modbus, decoded, 0, decoded.Length - 2);
                 if (crc == BitConverter.ToUInt16(decoded, decoded.Length - 2))
                 {
