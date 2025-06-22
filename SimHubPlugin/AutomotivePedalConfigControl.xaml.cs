@@ -17,6 +17,7 @@ namespace User.PluginSdkDemo
         private DiyFfbPlugin plugin;
         private AutomotivePedalConfig config;
         private FunctionConfig function_config = new FunctionConfig();
+        private Function function;
         private FunctionID current_function_id;
         private bool update_lockout = false;
 
@@ -88,9 +89,10 @@ namespace User.PluginSdkDemo
             new_config.Cv2EffectConfig.Enabled = false;
             return new_config;
         }
-        public void UpdateConfig(FunctionConfig function_config)
+        public void SwitchFunction(Function function)
         {
-            this.function_config = function_config;
+            this.function = function;
+            function_config = function.Config;
             config = function_config.AutomotivePedal;
             current_function_id = function_config.Base.FunctionId;
 
@@ -911,6 +913,7 @@ namespace User.PluginSdkDemo
             if (kinematic_parameters != null) {
                 OnKinematicParametersChanged(kinematic_parameters);
             }
+            function?.OnAxisUpdate();
         }
 
         private void cb_controller_output_mode_SelectionChanged(object sender, SelectionChangedEventArgs e)

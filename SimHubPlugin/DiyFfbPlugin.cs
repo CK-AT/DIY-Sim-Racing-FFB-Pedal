@@ -306,8 +306,6 @@ namespace User.PluginSdkDemo
     [PluginName("DIY FFB plugin")]
     public class DiyFfbPlugin : IPlugin, IDataPlugin, IWPFSettingsV2
     {
-
-        public PluginManager pluginHandle;// = this;
         DiyFfbPluginUI ui;
 
         public bool sendAbsSignal = false;
@@ -324,7 +322,6 @@ namespace User.PluginSdkDemo
         public uint slotC_flag = 0;
         public uint slotD_flag = 0;
         public uint sendconfig_flag = 0;
-        public DiyFfbPluginUI wpfHandle;
         public uint in_game_flag = 0; // check current game is off or pause
         public string current_profile = "NA" ;
         public uint profile_index = 0;
@@ -1654,16 +1651,16 @@ namespace User.PluginSdkDemo
             this.SaveCommonSettings("GeneralSettings", Settings);
 
             // close serial communication
-            if (wpfHandle != null)
+            if (ui != null)
             {
 
                 try
                 {
                     //wpfHandle.joystick.Release();
                     //wpfHandle.joystick.Dispose();
-                    if (wpfHandle.joystick != null)
+                    if (ui.joystick != null)
                     {
-                        wpfHandle.joystick.RelinquishVJD(Settings.vjoy_order);
+                        ui.joystick.RelinquishVJD(Settings.vjoy_order);
                     }
                     
                     
@@ -1672,11 +1669,7 @@ namespace User.PluginSdkDemo
                 { 
                 }
                 
-
-                for (uint pedalIdx = 0; pedalIdx < 3; pedalIdx++)
-                {
-                    wpfHandle.closeSerialAndStopReadCallback(pedalIdx);
-                }
+                ui.CloseSerialPorts();
             }
             
             if (ToastNotificationManager.History.GetHistory("Pedal_notification").Count != 0)
@@ -1706,9 +1699,6 @@ namespace User.PluginSdkDemo
         /// <param name="pluginManager"></param>
         public void Init(PluginManager pluginManager)
         {
-
-            pluginHandle = pluginManager;
-        
             SimHub.Logging.Current.Info("Starting DIY active pedal plugin");
 
             // Load settings

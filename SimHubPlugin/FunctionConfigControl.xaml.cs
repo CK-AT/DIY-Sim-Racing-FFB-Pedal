@@ -32,6 +32,7 @@ namespace User.PluginSdkDemo
         public event AutomotivePedalConfigControl.ABSTestStateChangeEventHandler ABSTestStateChange;
         private DiyFfbPluginUI ui;
         private DiyFfbPlugin plugin;
+        private Function function;
         private FunctionConfig config;
         private FunctionID current_function_id;
 
@@ -109,25 +110,26 @@ namespace User.PluginSdkDemo
             }
         }
 
-        public void UpdateConfig(FunctionConfig function_config)
+        public void SwitchFunction(Function function)
         {
-            config = function_config;
-            switch (config.Base.FunctionId)
+            this.function = function;
+            config = function.Config;
+            switch (function.ID)
             {
                 case FunctionID.Brake:
-                    AutomotivePedalConfig.UpdateConfig(function_config);
+                    AutomotivePedalConfig.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 0;
                     break;
                 case FunctionID.Clutch:
-                    AutomotivePedalConfig.UpdateConfig(function_config);
+                    AutomotivePedalConfig.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 0;
                     break;
                 case FunctionID.Accelerator:
-                    AutomotivePedalConfig.UpdateConfig(function_config);
+                    AutomotivePedalConfig.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 0;
                     break;
                 case FunctionID.FlightPedals:
-                    FlightPedalsConfig.UpdateConfig(function_config);
+                    FlightPedalsConfig.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 1;
                     break;
             }

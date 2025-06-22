@@ -450,7 +450,7 @@
                                 <Line x:Name="Line_H_HeaderTab" X1="2" Y1="3" X2="796" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
                             </Canvas>
                             <StackPanel Grid.RowSpan="3" Orientation="Horizontal" Grid.ColumnSpan="4" Height="867">
-                                <TabControl  x:Name="tc_function_selection" TabStripPlacement="Left" SelectionChanged="FunctionSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="80">
+                                <TabControl ItemsSource="{Binding functions}" x:Name="tc_function_selection" TabStripPlacement="Left" SelectionChanged="FunctionSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="80">
                                     <TabControl.Resources>
                                         <Style TargetType="{x:Type TabItem}">
                                             <Setter Property="Padding" Value="4" />
@@ -458,21 +458,23 @@
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="TabItem">
                                                         <!--The four values of CornerRadius represent the four corners of the TabItem.-->
-                                                        <Border Name="Border" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5" Margin="0,0,-2,0" Padding="5,10,5,10">
-                                                            <ContentPresenter x:Name="ContentSite" TextBlock.FontFamily="Arial Black" TextBlock.FontSize="26" VerticalAlignment="Center" HorizontalAlignment="Left" ContentSource="Header" Margin="0,0">
-                                                                <ContentPresenter.LayoutTransform>
+                                                        <Border Name="Border" ToolTip="{Binding Value.StatusMessage}" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5" Margin="0,0,-2,0" Padding="5,10,5,10">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding Value.Name}" IsEnabled="{Binding Value.IsOnline}" FontFamily="Arial Black" FontSize="26" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="2,2,2,2" Padding="5,0,5,0" >
+                                                                </TextBlock>
+                                                                <StackPanel.LayoutTransform>
                                                                     <RotateTransform Angle="90" />
-                                                                </ContentPresenter.LayoutTransform>
-                                                            </ContentPresenter>
+                                                                </StackPanel.LayoutTransform>
+                                                            </StackPanel>
                                                         </Border>
                                                         <ControlTemplate.Triggers>
                                                             <Trigger Property="IsSelected" Value="True">
                                                                 <Setter TargetName="Border" Property="Background" Value="#9F4E4E4E" />
-                                                                <Setter Property="TextElement.Foreground" Value="#FFFFFFFF" />
+                                                                <Setter Property="TextBlock.Foreground" Value="#FFFFFFFF" />
                                                             </Trigger>
                                                             <Trigger Property="IsSelected" Value="False">
                                                                 <Setter TargetName="Border" Property="Background" Value="#004E4E4E" />
-                                                                <Setter Property="TextElement.Foreground" Value="#7FFFFFFF" />
+                                                                <Setter Property="TextBlock.Foreground" Value="#7FFFFFFF" />
                                                             </Trigger>
                                                             <MultiTrigger>
                                                                 <MultiTrigger.Conditions>
@@ -481,6 +483,34 @@
                                                                 </MultiTrigger.Conditions>
                                                                 <Setter TargetName="Border" Property="Background" Value="#3C4E4E4E" />
                                                             </MultiTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Value.IsOnline}" Value="True"/>
+                                                                    <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="TextBlock.Foreground" Value="#FF41E813" />
+                                                            </MultiDataTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Value.IsOnline}" Value="True"/>
+                                                                    <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="False" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="TextBlock.Foreground" Value="#7F41E813" />
+                                                            </MultiDataTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Value.IsDirty}" Value="True"/>
+                                                                    <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="TextBlock.Foreground" Value="#FFC7C807" />
+                                                            </MultiDataTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Value.IsDirty}" Value="True"/>
+                                                                    <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="False" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="TextBlock.Foreground" Value="#7FC7C807" />
+                                                            </MultiDataTrigger>
                                                         </ControlTemplate.Triggers>
                                                     </ControlTemplate>
                                                 </Setter.Value>
@@ -499,10 +529,6 @@
                                     <TabControl.Background>
                                         <SolidColorBrush Color="#FF252525" Opacity="0"/>
                                     </TabControl.Background>
-                                    <TabItem Header="Brake"/>
-                                    <TabItem Header="Accelerator"/>
-                                    <TabItem Header="Clutch"/>
-                                    <TabItem Header="Flight Pedals"/>
                                 </TabControl>
                                 <Canvas x:Name="canvas_Header_Tab_sub" Height="900" Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" VerticalAlignment="Top" >
                                     <Line  X1="3" Y1="5" X2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" Y2="863" />
@@ -545,31 +571,31 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <Image Width="26" Height="26" Source="{StaticResource plane}" />
                                 <Label Content="AXES"  FontFamily="Arial Black" FontSize="26" Height="40" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,0,4,0"  />
-                                    <ItemsControl ItemsSource="{Binding axis_states}" BorderThickness="0" Width="48" VerticalAlignment="Center">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <UniformGrid Columns="4"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Ellipse Width="10" Height="10" Margin="1,1,1,1" IsEnabled="{Binding IsOnline}">
-                                                    <Ellipse.Style>
-                                                        <Style TargetType="Ellipse">
-                                                            <Style.Triggers>
-                                                                <Trigger Property="IsEnabled" Value="True">
-                                                                    <Setter Property="Fill" Value="{StaticResource AxisOnlineBrush}" />
-                                                                </Trigger>
-                                                                <Trigger Property="IsEnabled" Value="False">
-                                                                    <Setter Property="Fill" Value="{StaticResource AxisOfflineBrush}" />
-                                                                </Trigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Ellipse.Style>
-                                                </Ellipse>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
+                                <ItemsControl ItemsSource="{Binding axes}" BorderThickness="0" Width="48" VerticalAlignment="Center">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Columns="4"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Ellipse Width="10" Height="10" Margin="1,1,1,1" IsEnabled="{Binding Value.IsOnline}">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsEnabled" Value="True">
+                                                                <Setter Property="Fill" Value="{StaticResource AxisOnlineBrush}" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                <Setter Property="Fill" Value="{StaticResource AxisOfflineBrush}" />
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                            </Ellipse>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </Border>
                     </TabItem.Header>
@@ -579,7 +605,7 @@
                                 <Line X1="2" Y1="3" X2="796" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
                             </Canvas>
                             <StackPanel Grid.RowSpan="3" Orientation="Horizontal" Grid.ColumnSpan="4" Height="842">
-                                <TabControl  x:Name="tc_axis_selection" TabStripPlacement="Left" SelectionChanged="AxisSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="80">
+                                <TabControl  x:Name="tc_axis_selection" ItemsSource="{Binding axes}" TabStripPlacement="Left" SelectionChanged="AxisSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="80">
                                     <TabControl.Resources>
                                         <Style TargetType="{x:Type TabItem}">
                                             <Setter Property="Padding" Value="4" />
@@ -588,20 +614,22 @@
                                                     <ControlTemplate TargetType="TabItem">
                                                         <!--The four values of CornerRadius represent the four corners of the TabItem.-->
                                                         <Border Name="Border" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5" Margin="0,0,-2,0" Padding="5,10,5,10">
-                                                            <ContentPresenter x:Name="ContentSite" TextBlock.FontFamily="Arial Black" TextBlock.FontSize="26" VerticalAlignment="Center" HorizontalAlignment="Left" ContentSource="Header" Margin="0,0">
-                                                                <ContentPresenter.LayoutTransform>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding Value.Name}" IsEnabled="{Binding Value.IsOnline}" FontFamily="Arial Black" FontSize="26" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="2,2,2,2" Padding="5,0,5,0" >
+                                                                </TextBlock>
+                                                                <StackPanel.LayoutTransform>
                                                                     <RotateTransform Angle="90" />
-                                                                </ContentPresenter.LayoutTransform>
-                                                            </ContentPresenter>
+                                                                </StackPanel.LayoutTransform>
+                                                            </StackPanel>
                                                         </Border>
                                                         <ControlTemplate.Triggers>
                                                             <Trigger Property="IsSelected" Value="True">
                                                                 <Setter TargetName="Border" Property="Background" Value="#9F4E4E4E" />
-                                                                <Setter Property="TextElement.Foreground" Value="#FFFFFFFF" />
+                                                                <Setter Property="TextBlock.Foreground" Value="#FFFFFFFF" />
                                                             </Trigger>
                                                             <Trigger Property="IsSelected" Value="False">
                                                                 <Setter TargetName="Border" Property="Background" Value="#004E4E4E" />
-                                                                <Setter Property="TextElement.Foreground" Value="#7FFFFFFF" />
+                                                                <Setter Property="TextBlock.Foreground" Value="#7FFFFFFF" />
                                                             </Trigger>
                                                             <MultiTrigger>
                                                                 <MultiTrigger.Conditions>
@@ -610,6 +638,20 @@
                                                                 </MultiTrigger.Conditions>
                                                                 <Setter TargetName="Border" Property="Background" Value="#3C4E4E4E" />
                                                             </MultiTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Value.IsOnline}" Value="True"/>
+                                                                    <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="TextBlock.Foreground" Value="#FF41E813" />
+                                                            </MultiDataTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Value.IsOnline}" Value="True"/>
+                                                                    <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="False" />
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="TextBlock.Foreground" Value="#7F41E813" />
+                                                            </MultiDataTrigger>
                                                         </ControlTemplate.Triggers>
                                                     </ControlTemplate>
                                                 </Setter.Value>
@@ -628,14 +670,6 @@
                                     <TabControl.Background>
                                         <SolidColorBrush Color="#FF252525" Opacity="0"/>
                                     </TabControl.Background>
-                                    <TabItem Header="Axis 1"/>
-                                    <TabItem Header="Axis 2"/>
-                                    <TabItem Header="Axis 3"/>
-                                    <TabItem Header="Axis 4"/>
-                                    <TabItem Header="Axis 5"/>
-                                    <TabItem Header="Axis 6"/>
-                                    <TabItem Header="Axis 7"/>
-                                    <TabItem Header="Axis 8"/>
                                 </TabControl>
                                 <Canvas Height="900" Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" VerticalAlignment="Top" >
                                     <Line  X1="3" Y1="2" X2="3" Y2="840" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />

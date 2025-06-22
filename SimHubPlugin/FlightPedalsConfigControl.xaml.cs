@@ -18,6 +18,7 @@ namespace User.PluginSdkDemo
         private FlightPedalsConfig config;
         private RudderBrakeConfig brake_config;
         private FunctionConfig function_config = new FunctionConfig();
+        private Function function;
         private FunctionID current_function_id;
         bool is_updating = true;
 
@@ -63,9 +64,10 @@ namespace User.PluginSdkDemo
             return new_config;
         }
 
-        public void UpdateConfig(FunctionConfig function_config)
+        public void SwitchFunction(Function function)
         {
-            this.function_config = function_config;
+            this.function = function;
+            function_config = function.Config;
             config = function_config.FlightPedals;
             brake_config = function_config.AuxFunction.RudderBrake;
             current_function_id = function_config.Base.FunctionId;
@@ -166,6 +168,7 @@ namespace User.PluginSdkDemo
                 {
                     OnKinematicParametersChanged(kinematic_parameters);
                 }
+                function?.OnAxisUpdate();
             }
         }
 

@@ -43,13 +43,16 @@ using Windows.UI.Notifications;
 namespace User.PluginSdkDemo
 {
 
-    public class AxisState : INotifyPropertyChanged
+    public class Axis : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
         public delegate void OnlineStateChangedEventHandler(AxisID axis_id, bool new_online_state);
         public event OnlineStateChangedEventHandler OnlineStateChanged;
         private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        public AxisConfig Config { get; set; }
         private AxisID _axisID;
+        private string _axisName;
+        public ProtobufSerial<Message> SerialChannel { get; set; }
         private bool isOnline;
         public bool IsOnline
         {
@@ -71,11 +74,112 @@ namespace User.PluginSdkDemo
                 }
             }
         }
-        public AxisID AxisID { get { return _axisID; } }
+        public AxisID ID { get { return _axisID; } }
+        public string Name { get { return _axisName; } }
 
-        public AxisState(AxisID axis_id)
+        public KinematicParameters KinematicParameters
+        {
+            get
+            {
+                return Config.KinematicParameters;
+            }
+        }
+
+        public Axis(AxisID axis_id)
         {
             _axisID = axis_id;
+            _axisName = String.Format("Axis {0}", (int)ID);
+        }
+    }
+    public class Function : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler PropertyChanged;
+        public FunctionConfig Config { get; set; }
+        private FunctionID _functionID;
+        private string _functionName;
+        private HashSet<AxisID> _axisIDs = new HashSet<AxisID>();
+        private bool isOnline;
+        public bool IsOnline
+        {
+            get { return isOnline; }
+        }
+        private bool isDirty;
+        public bool IsDirty
+        {
+            get { return isDirty; }
+        }
+
+        private string _statusMessage = "No associated axis configured";
+        public string StatusMessage
+        {
+            get { return _statusMessage; }
+            private set
+            {
+                if (_statusMessage != value)
+                {
+                    _statusMessage = value;
+                    PropertyChanged?.Invoke(this,
+                        new PropertyChangedEventArgs(nameof(StatusMessage)));
+                }
+            }
+        }
+        public FunctionID ID { get { return _functionID; } }
+        public string Name { get { return _functionName; } }
+
+        public void OnAxisAdded(AxisID axis_id)
+        {
+            _axisIDs.Add(axis_id);
+            OnAxisUpdate();
+        }
+
+        public void OnAxisRemoved(AxisID axis_id)
+        {
+            _axisIDs.Remove(axis_id);
+            OnAxisUpdate();
+        }
+
+        public void OnAxisUpdate()
+        {
+            bool online = false;
+            bool dirty = false;
+            HashSet<AxisID> linked_axes = new HashSet<AxisID>();
+            foreach (var axis in Config.Base.LinkedAxes)
+            {
+                if (axis == AxisID.AxisUndefined) break;
+                linked_axes.Add(axis & AxisID.Mask);
+            }
+            if (linked_axes.Count == 0)
+            {
+                online = false;
+                StatusMessage = "No associated axis configured";
+            }
+            else if (linked_axes.SetEquals(_axisIDs))
+            {
+                online = true;
+                StatusMessage = "All associated axes online and reporting the correct function";
+            }
+            else
+            {
+                online = false;
+                dirty = true;
+                StatusMessage = String.Format("Associated axes reporting this function: {0}\nAssociated axes reporting other function or offline: {1}\nUnassociated axes reporting this function: {2}", linked_axes.Intersect(_axisIDs).Count(), linked_axes.Except(_axisIDs).Count(), _axisIDs.Except(linked_axes).Count());
+            }
+            if (online != isOnline)
+            {
+                isOnline = online;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsOnline)));
+            }
+            if (dirty != isDirty)
+            {
+                isDirty = dirty;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDirty)));
+            }
+        }
+
+        public Function(FunctionID function_id)
+        {
+            _functionID = function_id;
+            _functionName = function_id.ToString().CamelCaseToTitleCase();
         }
     }
 
@@ -95,8 +199,6 @@ namespace User.PluginSdkDemo
         public uint profile_select = 0;
         public DiyFfbPlugin Plugin { get; }
 
-        public AxisConfig[] axis_configs = new AxisConfig[8];
-        public FunctionConfig[] function_configs = new FunctionConfig[8];
         private FunctionID selected_function_id = FunctionID.Undefined;
         private AxisID selected_axis_id = AxisID.AxisUndefined;
 
@@ -153,7 +255,9 @@ namespace User.PluginSdkDemo
         private double pedal_pos_min = 0.0;
         private double pedal_pos_max = 0.0;
         private double pedal_pos_range = 0.0;
-        public List<AxisState> axis_states { get; } = Enumerable.Range(0, 8).Select(i => new AxisState((AxisID)i + 1)).ToList();
+        public SortedDictionary<AxisID,Axis> axes { get; } = new SortedDictionary<AxisID, Axis>();
+        public SortedDictionary<FunctionID, Function> functions { get; } = new SortedDictionary<FunctionID, Function>();
+        public Dictionary<AxisID, FunctionID> last_known_functions { get; } = new Dictionary<AxisID, FunctionID>();
         //public int Bridge_baudrate = 921600;
         /*
         private double kinematicDiagram_zeroPos_OX = 100;
@@ -781,8 +885,6 @@ namespace User.PluginSdkDemo
         {
             DataContext = this;
             this.Plugin = plugin;
-            plugin.testValue = 1;
-            plugin.wpfHandle = this;
             uc_function_config.ABSTestStateChange += OnABSTestStateChange;
             uc_axis_config.KinematicParametersChanged += OnKinematicParametersChanged;
             uc_function_config.SetGui(this, plugin);
@@ -790,14 +892,16 @@ namespace User.PluginSdkDemo
             //DiyPedalKinematicsControl.KinematicParametersChanged += OnKinematicParametersChanged;
             //DiyPedalKinematicsControl.KinematicParametersChanged += AutomotivePedalConfig.OnKinematicParametersChanged;
             //DiyPedalKinematicsControl.SetGui(this, plugin);
-            for (int i = 0; i < function_configs.Length; i++)
+            for (FunctionID id = FunctionID.Brake; id <= FunctionID.FlightPedals; id++)
             {
-                function_configs[i] = FunctionConfigControl.GetDefaultConfig((FunctionID)(i + 1));
+                functions[id] = new Function(id);
+                functions[id].Config = FunctionConfigControl.GetDefaultConfig(id);
             }
-            for (int i = 0; i < axis_configs.Length; i++)
+            for (AxisID id = AxisID._1; id <= AxisID._8; id++)
             {
-                axis_configs[i] = AxisConfigControl.GetDefaultConfig((AxisID)(i + 1));
-                axis_states[i].OnlineStateChanged += OnOnlineStateChange;
+                axes[id] = new Axis(id);
+                axes[id].Config = AxisConfigControl.GetDefaultConfig(id);
+                axes[id].OnlineStateChanged += OnOnlineStateChange;
             }
 
             UpdateSerialPortList_click();
@@ -970,18 +1074,7 @@ namespace User.PluginSdkDemo
                 checkbox_auto_connect.IsChecked = false;
             }
 
-            //auto connection with timmer
-            if (connect_timer != null)
-            {
-                connect_timer.Dispose();
-                connect_timer.Stop();
-            }
-
-            connect_timer = new System.Windows.Forms.Timer();
-            connect_timer.Tick += new EventHandler(connection_timmer_tick);
-            connect_timer.Interval = 5000; // in miliseconds try connect every 5s
-            connect_timer.Start();
-            System.Threading.Thread.Sleep(50);
+            try_connect();
 
             /*
             // autoconnect serial
@@ -1040,10 +1133,16 @@ namespace User.PluginSdkDemo
                 msg = String.Format("Axis {0} Connected", (int)axis_id);
                 Task.Delay(100).ContinueWith(t => RequestAxisConfig(axis_id));
                 Task.Delay(200).ContinueWith(t => RequestFunctionConfig(axis_id));
+                Task.Delay(300).ContinueWith(t => RequestActiveFunction(axis_id));
             }
             else
             {
                 msg = String.Format("Axis {0} Disconnected", (int)axis_id);
+                if (last_known_functions.ContainsKey(axis_id))
+                {
+                    functions[last_known_functions[axis_id]].OnAxisRemoved(axis_id);
+                    last_known_functions.Remove(axis_id);
+                }
             }
             ToastNotification("Wireless Connection", msg);
         }
@@ -1375,10 +1474,8 @@ namespace User.PluginSdkDemo
             if (Plugin != null)
             {
                 selected_function_id = (FunctionID)tc_function_selection.SelectedIndex + 1;
-                TextBox_debugOutput.Text = String.Format("Function ID: {0}", selected_function_id);
                 Plugin.Settings.function_tab_selected = (uint)tc_function_selection.SelectedIndex;
-                FunctionConfig function = function_configs[tc_function_selection.SelectedIndex];
-                uc_function_config.UpdateConfig(function);
+                uc_function_config.SwitchFunction(functions[selected_function_id]);
             }
         }
 
@@ -1388,7 +1485,7 @@ namespace User.PluginSdkDemo
             {
                 selected_axis_id = (AxisID)tc_axis_selection.SelectedIndex + 1;
                 Plugin.Settings.axis_tab_selected = (uint)tc_axis_selection.SelectedIndex;
-                AxisConfig axis_cfg = axis_configs[tc_axis_selection.SelectedIndex];
+                AxisConfig axis_cfg = axes[selected_axis_id].Config;
                 uc_axis_config.UpdateConfig(axis_cfg);
             }
         }
@@ -1397,7 +1494,7 @@ namespace User.PluginSdkDemo
         {
             if (axis_id != AxisID.AxisUndefined)
             {
-                return axis_configs[(int)(axis_id - 1)].KinematicParameters;
+                return axes[axis_id].KinematicParameters;
             }
             return null;
         }
@@ -1408,8 +1505,8 @@ namespace User.PluginSdkDemo
             pedal_pos_max = parameters.ContactPointPosMaxAbs / 10.0;
             if (selected_axis_id == AxisID.AxisUndefined) return;
             if (selected_function_id == FunctionID.Undefined) return;
-            if (function_configs[(int)selected_function_id - 1].Base.LinkedAxes.Count == 0) return;
-            AxisID primary_axis = function_configs[(int)selected_function_id - 1].Base.LinkedAxes[0];
+            if (functions[selected_function_id].Config.Base.LinkedAxes.Count == 0) return;
+            AxisID primary_axis = functions[selected_function_id].Config.Base.LinkedAxes[0];
             if (selected_axis_id == primary_axis)
             {
                 uc_function_config.OnKinematicParametersChanged(parameters);
@@ -2094,176 +2191,144 @@ namespace User.PluginSdkDemo
         }
         private uint count_timmer_count = 0;
         private string Toast_tmp;
-        public void connection_timmer_tick(object sender, EventArgs e)
+        public void try_connect()
         {
             //simhub action for debug
             Simhub_action_update();
-            string tmp = "Connecting";
-            int count_connection = ((int)count_timmer_count) % 4;
-            
-            switch (count_connection) 
-            {
-                case 0:
-                    break;
-                case 1:
-                    tmp = tmp + ".";
-                    break;
-                case 2:
-                    tmp = tmp + "..";
-                    break;
-                case 3:
-                    tmp = tmp + "...";
-                    break;
-            }
-            info_text_connection = tmp;
-            system_info_text_connection=tmp;
-            //for (uint pedal_idex = 0; pedal_idex < 3; pedal_idex++)
-            //{
-            //    if (axis_wireless_connection_state[pedal_idex])
-            //    {
-            //        axis_wireless_connection_state[pedal_idex] = false;
-            //        if (Plugin.Settings.reading_config == 1)
-            //        {
-            //            Reading_config_auto(pedal_idex);
-            //        }
-            //    }
-            //}
 
-            
-
-            count_timmer_count++;
-            if (count_timmer_count > 1)
+            if (Plugin.Settings.Pedal_ESPNow_auto_connect_flag)
             {
-                if (Plugin.Settings.Pedal_ESPNow_auto_connect_flag)
+                if (Plugin.PortExists(Plugin.Settings.ESPNow_port))
                 {
-                    if (Plugin.PortExists(Plugin.Settings.ESPNow_port))
+                    if (Plugin.ESPsync_serialPort.IsOpen == false)
                     {
-                        if (Plugin.ESPsync_serialPort.IsOpen == false)
+                        Plugin.ESPsync_serialPort = new ProtobufSerial<Message>(Plugin.Settings.ESPNow_port, 3000000);
+                        try
                         {
-                            Plugin.ESPsync_serialPort = new ProtobufSerial<Message>(Plugin.Settings.ESPNow_port, 3000000);
+                            // serial port settings
+                            //Plugin.ESPsync_serialPort.Handshake = Handshake.None;
+                            //Plugin.ESPsync_serialPort.Parity = Parity.None;
+                            ////_serialPort[pedalIdx].StopBits = StopBits.None;
+                            //Plugin.ESPsync_serialPort.ReadTimeout = 2000;
+                            //Plugin.ESPsync_serialPort.WriteTimeout = 500;
+                            //Plugin.ESPsync_serialPort.BaudRate = Bridge_baudrate;
+                            //// https://stackoverflow.com/questions/7178655/serialport-encoding-how-do-i-get-8-bit-ascii
+                            //Plugin.ESPsync_serialPort.Encoding = System.Text.Encoding.GetEncoding(28591);
+                            //Plugin.ESPsync_serialPort.NewLine = "\r\n";
+                            //Plugin.ESPsync_serialPort.ReadBufferSize = 40960;
                             try
                             {
-                                // serial port settings
-                                //Plugin.ESPsync_serialPort.Handshake = Handshake.None;
-                                //Plugin.ESPsync_serialPort.Parity = Parity.None;
-                                ////_serialPort[pedalIdx].StopBits = StopBits.None;
-                                //Plugin.ESPsync_serialPort.ReadTimeout = 2000;
-                                //Plugin.ESPsync_serialPort.WriteTimeout = 500;
-                                //Plugin.ESPsync_serialPort.BaudRate = Bridge_baudrate;
-                                //// https://stackoverflow.com/questions/7178655/serialport-encoding-how-do-i-get-8-bit-ascii
-                                //Plugin.ESPsync_serialPort.Encoding = System.Text.Encoding.GetEncoding(28591);
-                                //Plugin.ESPsync_serialPort.NewLine = "\r\n";
-                                //Plugin.ESPsync_serialPort.ReadBufferSize = 40960;
-                                try
+                                Plugin.ESPsync_serialPort.Open();
+                                System.Threading.Thread.Sleep(200);
+                                // ESP32 S3
+                                if (Plugin.Settings.Using_CDC_bridge)
                                 {
-                                    Plugin.ESPsync_serialPort.Open();
-                                    System.Threading.Thread.Sleep(200);
-                                    // ESP32 S3
-                                    if (Plugin.Settings.Using_CDC_bridge)
-                                    {
-                                        Plugin.ESPsync_serialPort.RtsEnable = false;
-                                        Plugin.ESPsync_serialPort.DtrEnable = true;
-                                    }
-                                    //SystemSounds.Beep.Play();
-                                    Plugin.Sync_esp_connection_flag = true;
-                                    btn_connect_espnow_port.Content = "Disconnect";
-                                    Plugin.ESPsync_serialPort.OnMessage += OnMessage;
-                                    System.Threading.Thread.Sleep(100);
-                                    ToastNotification("Pedal Wireless Bridge", "Connected");
-                                    updateTheGuiFromConfig();
+                                    Plugin.ESPsync_serialPort.RtsEnable = false;
+                                    Plugin.ESPsync_serialPort.DtrEnable = true;
                                 }
-                                catch (Exception ex)
-                                {
-                                    TextBox2.Text = ex.Message;
-                                    //Serial_connect_status[3] = false;
-                                }
+                                //SystemSounds.Beep.Play();
+                                Plugin.Sync_esp_connection_flag = true;
+                                btn_connect_espnow_port.Content = "Disconnect";
+                                Plugin.ESPsync_serialPort.OnMessage += OnMessage;
+                                ToastNotification("Pedal Wireless Bridge", "Connected");
+                                updateTheGuiFromConfig();
                             }
                             catch (Exception ex)
                             {
                                 TextBox2.Text = ex.Message;
+                                //Serial_connect_status[3] = false;
                             }
+                        }
+                        catch (Exception ex)
+                        {
+                            TextBox2.Text = ex.Message;
+                        }
+                    }
+                }
+                else
+                {
+                    if (Plugin.Sync_esp_connection_flag)
+                    {
+                        Plugin.Sync_esp_connection_flag = false;
+                        dap_bridge_state_st.payloadBridgeState_.Pedal_availability_0 = 0;
+                        dap_bridge_state_st.payloadBridgeState_.Pedal_availability_1 = 0;
+                        dap_bridge_state_st.payloadBridgeState_.Pedal_availability_2 = 0;
+                    }
+
+                    btn_connect_espnow_port.Content = "Connect";
+                    if (ESP_host_serial_timer_cts != null)
+                    {
+                        ESP_host_serial_timer_cts.Cancel();
+                        updateTheGuiFromConfig();
+                    }
+
+                }
+
+            }
+
+            for (uint pedalIdx = 0; pedalIdx < 3; pedalIdx++)
+            {
+                if (Plugin.Settings.axis_settings[pedalIdx].auto_connect)
+                {
+
+                    if (Plugin.PortExists(Plugin._serialPort[pedalIdx].PortName))
+                    {
+                        if (Plugin._serialPort[pedalIdx].IsOpen == false)
+                        {
+                            //UpdateSerialPortList_click();
+                            openSerialAndAddReadCallback(pedalIdx);
+                            //Plugin.Settings.autoconnectComPortNames[pedalIdx] = Plugin._serialPort[pedalIdx].PortName;
+                            System.Threading.Thread.Sleep(200);
+                            if (Serial_connect_status[pedalIdx])
+                            {
+                                if (Plugin.Settings.reading_config == 1)
+                                {
+                                    Reading_config_auto(pedalIdx);
+                                }
+                                System.Threading.Thread.Sleep(100);
+                                //add toast notificaiton
+                                switch (pedalIdx)
+                                {
+                                    case 0:
+                                        Toast_tmp = "Clutch Pedal:" + Plugin.Settings.axis_settings[pedalIdx].com_port_name;
+                                        break;
+                                    case 1:
+                                        Toast_tmp = "Brake Pedal:" + Plugin.Settings.axis_settings[pedalIdx].com_port_name;
+                                        break;
+                                    case 2:
+                                        Toast_tmp = "Throttle Pedal:" + Plugin.Settings.axis_settings[pedalIdx].com_port_name;
+                                        break;
+                                }
+                                ToastNotification(Toast_tmp, "Connected");
+                                updateTheGuiFromConfig();
+                                //System.Threading.Thread.Sleep(2000);
+                                //ToastNotificationManager.History.Clear("FFB Pedal Dashboard");
+                            }
+
+
+
                         }
                     }
                     else
                     {
-                        if (Plugin.Sync_esp_connection_flag)
-                        {
-                            Plugin.Sync_esp_connection_flag = false;
-                            dap_bridge_state_st.payloadBridgeState_.Pedal_availability_0 = 0;
-                            dap_bridge_state_st.payloadBridgeState_.Pedal_availability_1 = 0;
-                            dap_bridge_state_st.payloadBridgeState_.Pedal_availability_2 = 0;
-                        }
-                        
-                        btn_connect_espnow_port.Content = "Connect";
-                        if (ESP_host_serial_timer_cts != null)
-                        {
-                            ESP_host_serial_timer_cts.Cancel();
-                            updateTheGuiFromConfig();
-                        }
-                            
-                    }
-                                            
-                }
-
-                for (uint pedalIdx = 0; pedalIdx < 3; pedalIdx++)
-                {
-                    if (Plugin.Settings.axis_settings[pedalIdx].auto_connect)
-                    {
-
-                        if (Plugin.PortExists(Plugin._serialPort[pedalIdx].PortName))
-                        {
-                            if (Plugin._serialPort[pedalIdx].IsOpen == false)
-                            {
-                                //UpdateSerialPortList_click();
-                                openSerialAndAddReadCallback(pedalIdx);
-                                //Plugin.Settings.autoconnectComPortNames[pedalIdx] = Plugin._serialPort[pedalIdx].PortName;
-                                System.Threading.Thread.Sleep(200);
-                                if (Serial_connect_status[pedalIdx])
-                                {
-                                    if (Plugin.Settings.reading_config == 1)
-                                    {
-                                        Reading_config_auto(pedalIdx);
-                                    }
-                                    System.Threading.Thread.Sleep(100);
-                                    //add toast notificaiton
-                                    switch (pedalIdx)
-                                    {
-                                        case 0:
-                                            Toast_tmp = "Clutch Pedal:" + Plugin.Settings.axis_settings[pedalIdx].com_port_name;
-                                            break;
-                                        case 1:
-                                            Toast_tmp = "Brake Pedal:" + Plugin.Settings.axis_settings[pedalIdx].com_port_name;
-                                            break;
-                                        case 2:
-                                            Toast_tmp = "Throttle Pedal:" + Plugin.Settings.axis_settings[pedalIdx].com_port_name;
-                                            break;
-                                    }
-                                    ToastNotification(Toast_tmp, "Connected");
-                                    updateTheGuiFromConfig();
-                                    //System.Threading.Thread.Sleep(2000);
-                                    //ToastNotificationManager.History.Clear("FFB Pedal Dashboard");
-                                }
-
-
-
-                            }
-                        }
-                        else
-                        {
-                            Plugin.connectSerialPort[pedalIdx] = false;
-                            updateTheGuiFromConfig();
-                        }
+                        Plugin.connectSerialPort[pedalIdx] = false;
+                        updateTheGuiFromConfig();
                     }
                 }
-
-                
             }
-            if (count_timmer_count > 200)
+            Task.Delay(500).ContinueWith(t => this.Dispatcher.Invoke(() => try_connect()));
+        }
+
+        public void CloseSerialPorts()
+        {
+            if (Plugin.ESPsync_serialPort.IsOpen)
             {
-                count_timmer_count = 2;
+                //Plugin.ESPsync_serialPort.DiscardInBuffer();
+                //Plugin.ESPsync_serialPort.DiscardOutBuffer();
+                Plugin.ESPsync_serialPort.OnMessage -= OnMessage;
+                Plugin.ESPsync_serialPort.Close();
+                Plugin.Sync_esp_connection_flag = false;
             }
-            updateTheGuiFromConfig();
-
         }
 
         public void closeSerialAndStopReadCallback(uint pedalIdx)
@@ -2274,8 +2339,6 @@ namespace User.PluginSdkDemo
                 pedal_serial_read_timer[pedalIdx].Stop();
                 pedal_serial_read_timer[pedalIdx].Dispose();
             }
-            connect_timer.Dispose();
-            connect_timer.Stop();
             if (ESP_host_serial_timer_cts != null)
             {
                 ESP_host_serial_timer_cts.Cancel();
@@ -4308,10 +4371,10 @@ namespace User.PluginSdkDemo
                 Label_RSSI.Visibility = Visibility.Hidden;
             }
 
-            for (int axis_idx = 0; axis_idx < axis_configs.Length; axis_idx++)
+            for (AxisID axis_id = AxisID._1; axis_id <= AxisID._8; axis_id++)
             {
-                int axis_flag = 1 << axis_idx;
-                axis_states[axis_idx].IsOnline = (state.AxesPresent & axis_flag) != 0;
+                int axis_flag = 1 << ((int)axis_id - 1);
+                axes[axis_id].IsOnline = (state.AxesPresent & axis_flag) != 0;
             }
         }
 
@@ -4335,6 +4398,18 @@ namespace User.PluginSdkDemo
                 msg.AxisAction = new AxisAction();
                 msg.AxisAction.AxisId = axis_id;
                 msg.AxisAction.ReturnFunctionConfig = true;
+                Plugin.ESPsync_serialPort.WriteMessage(msg);
+            }
+        }
+
+        public void RequestActiveFunction(AxisID axis_id)
+        {
+            if (Plugin.ESPsync_serialPort.IsOpen)
+            {
+                Message msg = new Message();
+                msg.AxisAction = new AxisAction();
+                msg.AxisAction.AxisId = axis_id;
+                msg.AxisAction.ReturnActiveFunction = true;
                 Plugin.ESPsync_serialPort.WriteMessage(msg);
             }
         }
@@ -4426,6 +4501,14 @@ namespace User.PluginSdkDemo
                             _serial_monitor_window.TextBox_SerialMonitor.ScrollToEnd();
                         }
                         break;
+                    case Message.PayloadOneofCase.ActiveFunction:
+                        if (last_known_functions.ContainsKey(msg.ActiveFunction.AxisId))
+                        {
+                            functions[last_known_functions[msg.ActiveFunction.AxisId]].OnAxisRemoved(msg.ActiveFunction.AxisId);
+                        }
+                        last_known_functions[msg.ActiveFunction.AxisId] = msg.ActiveFunction.FunctionId;
+                        functions[msg.ActiveFunction.FunctionId].OnAxisAdded(msg.ActiveFunction.AxisId);
+                        break;
                     default:
                         break;
                 }
@@ -4465,10 +4548,10 @@ namespace User.PluginSdkDemo
             FunctionID function_id = function_config.Base.FunctionId;
             if (function_id != FunctionID.Undefined)
             {
-                function_configs[(int)function_id - 1] = function_config;
+                functions[function_id].Config = function_config;
                 if (selected_function_id == function_id)
                 {
-                    uc_function_config.UpdateConfig(function_config);
+                    uc_function_config.SwitchFunction(functions[selected_function_id]);
                 }
             }
         }
@@ -4478,7 +4561,7 @@ namespace User.PluginSdkDemo
             AxisID axis_id = axis_config.AxisId;
             if (axis_id != AxisID.AxisUndefined && axis_id <= AxisID._8)
             {
-                axis_configs[(int)axis_id - 1] = axis_config;
+                axes[axis_id].Config = axis_config;
                 if (selected_axis_id == axis_id)
                 {
                     uc_axis_config.UpdateConfig(axis_config);
@@ -5402,7 +5485,7 @@ namespace User.PluginSdkDemo
 
         private void OnUploadFunctionConfigClicked(object sender, RoutedEventArgs e)
         {
-            FunctionConfig function_config = function_configs[tc_function_selection.SelectedIndex];
+            FunctionConfig function_config = functions[selected_function_id].Config;
             if (Plugin.ESPsync_serialPort.IsOpen)
             {
                 Message msg = new Message();
@@ -5414,29 +5497,29 @@ namespace User.PluginSdkDemo
 
         private void OnFunctionConfigUpdate(FunctionConfig new_function_config)
         {
-            int new_function_idx = (int)new_function_config.Base.FunctionId - 1;
-            function_configs[new_function_idx] = new_function_config;
-            if (new_function_idx != tc_function_selection.SelectedIndex)
+            FunctionID new_function_id = new_function_config.Base.FunctionId;
+            functions[new_function_id].Config = new_function_config;
+            if (new_function_id != selected_function_id)
             {
-                tc_function_selection.SelectedIndex = new_function_idx;
+                tc_function_selection.SelectedIndex = (int)new_function_id - 1;
             }
             else
             {
-                uc_function_config.UpdateConfig(function_configs[new_function_idx]);
+                uc_function_config.SwitchFunction(functions[new_function_id]);
             }
         }
 
         private void OnAxisConfigUpdate(AxisConfig new_axis_config)
         {
-            int new_axis_idx = (int)new_axis_config.AxisId - 1;
-            axis_configs[new_axis_idx] = new_axis_config;
-            if (new_axis_idx != tc_axis_selection.SelectedIndex)
+            AxisID new_axis_id = new_axis_config.AxisId;
+            axes[new_axis_id].Config = new_axis_config;
+            if (new_axis_id != selected_axis_id)
             {
-                tc_axis_selection.SelectedIndex = new_axis_idx;
+                tc_axis_selection.SelectedIndex = (int)new_axis_id - 1;
             }
             else
             {
-                uc_axis_config.UpdateConfig(axis_configs[new_axis_idx]);
+                uc_axis_config.UpdateConfig(axes[new_axis_id].Config);
             }
         }
 
@@ -5473,7 +5556,7 @@ namespace User.PluginSdkDemo
             {
                 JsonFormatter formatter = new JsonFormatter(JsonFormatter.Settings.Default.WithIndentation());
                 var msg = new Message();
-                msg.FunctionConfig = function_configs[tc_function_selection.SelectedIndex];
+                msg.FunctionConfig = functions[selected_function_id].Config;
                 var output = formatter.Format(msg);
                 File.WriteAllText(saveFileDialog.FileName, output);
             }
@@ -5481,7 +5564,7 @@ namespace User.PluginSdkDemo
 
         private void OnUploadAxisConfigClicked(object sender, RoutedEventArgs e)
         {
-            AxisConfig axis_config = axis_configs[tc_axis_selection.SelectedIndex];
+            AxisConfig axis_config = axes[selected_axis_id].Config;
             if (Plugin.ESPsync_serialPort.IsOpen)
             {
                 Message msg = new Message();
@@ -5525,7 +5608,7 @@ namespace User.PluginSdkDemo
             {
                 JsonFormatter formatter = new JsonFormatter(JsonFormatter.Settings.Default.WithIndentation());
                 var msg = new Message();
-                msg.AxisConfig = axis_configs[tc_axis_selection.SelectedIndex];
+                msg.AxisConfig = axes[selected_axis_id].Config;
                 var output = formatter.Format(msg);
                 File.WriteAllText(saveFileDialog.FileName, output);
             }

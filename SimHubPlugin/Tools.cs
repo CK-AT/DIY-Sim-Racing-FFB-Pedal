@@ -1,4 +1,6 @@
 ﻿
+using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Windows.Controls;
 
 namespace User.PluginSdkDemo
@@ -29,6 +31,18 @@ namespace User.PluginSdkDemo
         public static void SetTextWithoutEvent(this TextBox textbox, string text)
         {
             textbox.GetType().GetProperty("Text").SetValue(textbox, text, null);
+        }
+    }
+
+    internal static class StringExtensions
+    {
+        public static string ConstCaseToTitleCaseSentence(this string title)
+        {
+            return new CultureInfo("en").TextInfo.ToTitleCase(title.ToLower().Replace("_", " "));
+        }
+        public static string CamelCaseToTitleCase(this string str)
+        {
+            return Regex.Replace(str, "[a-z][A-Z]", m => $"{m.Value[0]} {m.Value[1]}");
         }
     }
 }
