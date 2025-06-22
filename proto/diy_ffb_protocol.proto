@@ -105,6 +105,7 @@ message AxisConfig {
   oneof load_cell_filter_config {
     KFConstVelConfig kf_const_vel = 10;
     KFConstAccelConfig kf_const_accel = 11;
+    bool filter_none = 13;
   }
   // used by the Simhub Plugin to store all required kinematic model parameters
   oneof kinematic_config {

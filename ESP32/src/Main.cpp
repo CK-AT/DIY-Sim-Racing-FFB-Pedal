@@ -532,6 +532,9 @@ void physics_task_func(void *pvParameters) {
             case AxisConfig_kf_const_accel_tag:
                 filteredReading = kalman_2nd_order->filteredValue(loadcellReading, 0, axis_cfg->load_cell_filter_config.kf_const_accel.noise_scaling);
                 break;
+            case AxisConfig_filter_none_tag:
+                filteredReading = loadcellReading;
+                break;
             default:
                 break;
         }
