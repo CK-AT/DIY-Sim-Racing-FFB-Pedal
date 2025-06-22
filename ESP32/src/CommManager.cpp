@@ -176,12 +176,17 @@ void CommManager::on_gateway_packet_received(const uint8_t *buffer, size_t size,
 
 void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg, CommChannel comm_channel) {
     ConfigManager::UpdateResult update_result;
+    bool force;
     switch (msg.which_payload) {
         case Message_axis_config_tag:
-            update_result =
-                _config_manager->update_axis_config(msg.payload.axis_config, protobuf_msg, len_protobuf_msg, comm_channel == CommChannel::USB_SERIAL);
-            if (update_result == ConfigManager::UpdateResult::UPDATE_OTHER_AXIS) {
+            if (_config_manager->get_mode() == ConfigManager::MODE_GATEWAY_ONLY) {
                 send_message_to_axis(msg.payload.axis_config.axis_id, msg, protobuf_msg, len_protobuf_msg);
+            } else {
+                force = (comm_channel == CommChannel::USB_SERIAL) && !is_gateway();
+                update_result = _config_manager->update_axis_config(msg.payload.axis_config, protobuf_msg, len_protobuf_msg, force);
+                if (update_result == ConfigManager::UpdateResult::UPDATE_OTHER_AXIS) {
+                    send_message_to_axis(msg.payload.axis_config.axis_id, msg, protobuf_msg, len_protobuf_msg);
+                }
             }
             break;
         case Message_function_config_tag:
