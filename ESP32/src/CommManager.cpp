@@ -1,21 +1,20 @@
 #include <CANManager.h>
 #include <CommManager.h>
 #include <ConfigManager.h>
+#include <Joystick_ESP32S2.h>
 #include <LogOutput.h>
 #include <SerialManager.h>
 
 #include "queue.h"
-#include <Joystick_ESP32S2.h>
 
 // RTDebugOutputService debugOutput = RTDebugOutputService();
 QueueHandle_t _log_queue_data;
 
 Joystick_ _joystick = Joystick_(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD, 1, 0,  // Button Count, Hat Switch Count
-                    true, true, true,                                         // X, Y, Z
-                    true, true, true,                                         // Rx, Ry, Rz
-                    true, true,                                               // rudder, throttle
-                    true, true, true);                                        // accelerator, brake, steering
-
+                                true, true, true,                                         // X, Y, Z
+                                true, true, true,                                         // Rx, Ry, Rz
+                                true, true,                                               // rudder, throttle
+                                true, true, true);                                        // accelerator, brake, steering
 
 void CommManager::periodic_task_func(void) {
     if (!_config_manager_initialized && (_config_manager->get_mode() != ConfigManager::MODE_UNDEFINED)) {
@@ -66,8 +65,7 @@ void CommManager::setup_joystick() {
 }
 
 void CommManager::update_joystick_state() {
-    switch (_joystick_state)
-    {
+    switch (_joystick_state) {
         case JOYSTICK_USB_UP:
             if ((micros() - _ti_joystick_state) > 1000000) {
                 _joystick.setXAxisRange(JOYSTICK_MIN, JOYSTICK_MAX);
@@ -114,7 +112,8 @@ bool CommManager::send_axis_state_message(AxisID axis_id, uint8_t &online_flags)
     return true;
 }
 
-void CommManager::setup(Stream *serial, CANConfig &can_config, ConfigManager *config_manager, OnFFBAction on_ffb_action, OnAxisAction on_axis_action) {
+void CommManager::setup(Stream *serial, CANConfig &can_config, ConfigManager *config_manager, OnFFBAction on_ffb_action,
+                        OnAxisAction on_axis_action) {
     _config_manager = config_manager;
     _on_ffb_action = on_ffb_action;
     _on_axis_action = on_axis_action;
@@ -187,7 +186,10 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
             break;
         case Message_function_config_tag:
             if (_config_manager->is_axis()) {
-                _config_manager->update_function_config(msg.payload.function_config, protobuf_msg, len_protobuf_msg);
+                if (_config_manager->update_function_config(msg.payload.function_config, protobuf_msg, len_protobuf_msg) ==
+                    ConfigManager::UPDATE_OK) {
+                    send_active_function_message(comm_channel);
+                }
             } else {
                 // gateway only, no need to call _config_manager->update_function_config()
                 _config_manager->update_lookup_tables(msg.payload.function_config);
@@ -214,7 +216,21 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
             break;
         case Message_axis_action_tag:
             if (_config_manager->is_axis() && _on_axis_action && (msg.payload.axis_config.axis_id == _config_manager->get_axis_id())) {
-                _on_axis_action(msg.payload.axis_action, comm_channel);
+                switch (msg.payload.axis_action.which_action) {
+                    case AxisAction_return_axis_config_tag:
+                        send_axis_config(comm_channel);
+                        break;
+                    case AxisAction_return_function_config_tag:
+                        send_function_config(comm_channel);
+                        break;
+                    case AxisAction_return_active_function_tag:
+                        send_active_function_message(comm_channel);
+                    default:
+                        if (_on_axis_action) {
+                            _on_axis_action(msg.payload.axis_action, comm_channel);
+                        }
+                        break;
+                }
             }
             if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
                 if (!send_message_to_axis(msg.payload.axis_config.axis_id, msg, protobuf_msg, len_protobuf_msg)) {
@@ -226,6 +242,30 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
             LogOutput::printf("Unknown Message received");
             break;
     }
+}
+
+void CommManager::send_active_function_message(AxisID axis_id, FunctionID function_id, CommChannel comm_channel) {
+    Message msg;
+    msg.which_payload = Message_active_function_tag;
+    msg.payload.active_function.axis_id = axis_id;
+    msg.payload.active_function.function_id = function_id;
+    send_message_to_gateway(msg, comm_channel);
+}
+
+void CommManager::send_active_function_message(CommChannel comm_channel) {
+    send_active_function_message(_config_manager->get_axis_id(), _config_manager->get_function_id(), comm_channel);
+}
+
+void CommManager::send_axis_config(CommChannel comm_channel) {
+    Message msg;
+    _config_manager->get_axis_config_as_message(msg);
+    send_message_to_gateway(msg, comm_channel);
+}
+
+void CommManager::send_function_config(CommChannel comm_channel) {
+    Message msg;
+    _config_manager->get_function_config_as_message(msg);
+    send_message_to_gateway(msg, comm_channel);
 }
 
 void CommManager::on_axis_packet_received(AxisID axis_id, const uint8_t *data, size_t len, CommChannel comm_channel) {
@@ -241,6 +281,7 @@ void CommManager::on_axis_message(AxisID axis_id, const Message &msg, const uint
     switch (msg.which_payload) {
         case Message_function_config_tag:
             _config_manager->update_lookup_tables(msg.payload.function_config);
+            send_active_function_message(axis_id, msg.payload.function_config.base.function_id, CommChannel::USB_SERIAL);
             break;
     }
     serial_manager.send_message_to_host(msg, protobuf_msg, len_protobuf_msg);
@@ -250,14 +291,13 @@ bool CommManager::setup_can(CANConfig &config) {
     AxisID axis_id = get_axis_id();
     _is_axis = MessageTools::check_axis_id(axis_id);
     _is_gateway = !_is_axis;
-    can_manager.setup(
-        axis_id, config.baud_rate, config.tx_pin, config.rx_pin,
-        std::bind(&CommManager::on_gateway_packet_received, this, std::placeholders::_1, std::placeholders::_2, CommChannel::ISOTP),
-        std::bind(&CommManager::on_ffb_action, this, std::placeholders::_1),
-        std::bind(&CommManager::on_axis_packet_received, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, CommChannel::ISOTP),
-        std::bind(&CommManager::on_axis_state_change, this, std::placeholders::_1, std::placeholders::_2),
-        std::bind(&CommManager::on_gateway_state_change, this, std::placeholders::_1, std::placeholders::_2)
-    );
+    can_manager.setup(axis_id, config.baud_rate, config.tx_pin, config.rx_pin,
+                      std::bind(&CommManager::on_gateway_packet_received, this, std::placeholders::_1, std::placeholders::_2, CommChannel::ISOTP),
+                      std::bind(&CommManager::on_ffb_action, this, std::placeholders::_1),
+                      std::bind(&CommManager::on_axis_packet_received, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
+                                CommChannel::ISOTP),
+                      std::bind(&CommManager::on_axis_state_change, this, std::placeholders::_1, std::placeholders::_2),
+                      std::bind(&CommManager::on_gateway_state_change, this, std::placeholders::_1, std::placeholders::_2));
     active_intercom_channel = &can_manager;
     if (_is_gateway) {
         active_downlink_channel = &can_manager;
@@ -435,7 +475,7 @@ bool CommManager::calc_controller_output_value(FunctionBase &function_base, floa
 
 void CommManager::set_controller_axis(ControllerAxis controller_axis, float &value) {
     uint16_t final_value = uint16_t(value * float(JOYSTICK_MAX));
-    switch(controller_axis) {
+    switch (controller_axis) {
         case ControllerAxis_CONTROLLER_AXIS_X:
             _joystick.setXAxis(final_value);
             break;
@@ -539,7 +579,6 @@ bool CommManager::calc_input_force_sum(float &input_force) {
     return calc_input_force_sum(_config_manager->get_function_config()->base.linked_axes, input_force);
 }
 
-
 bool CommManager::calc_final_position(float own_position, float &final_position) {
     const FunctionBase &func_base = _config_manager->get_function_config()->base;
     float other_position;
@@ -568,4 +607,3 @@ bool CommManager::calc_final_position(float own_position, float &final_position)
     }
     return false;
 }
-

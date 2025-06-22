@@ -25,6 +25,9 @@ class CommManager {
         bool send_force_and_position(float &f_foot, float &x_foot);
         bool send_message_to_gateway(const Message &message, CommChannel comm_channel);
         bool send_message_to_host(const Message &message);
+        void send_active_function_message(CommChannel comm_channel);
+        void send_axis_config(CommChannel comm_channel);
+        void send_function_config(CommChannel comm_channel);
         bool update_position_limits(float x_foot_min, float x_foot_max);
         bool update_function_id(FunctionID function_id);
         bool get_force(AxisID axis_id, float &f_foot);
@@ -72,6 +75,7 @@ class CommManager {
         void on_axis_packet_received(AxisID axis_id, const uint8_t *data, size_t len, CommChannel comm_channel);
         void on_axis_message(AxisID axis_id, const Message &msg, const uint8_t *protobuf_msg, uint16_t len_protobuf_msg, CommChannel comm_channel);
         bool send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data);
+        void send_active_function_message(AxisID axis_id, FunctionID function_id, CommChannel comm_channel);
         void send_axis_log_msg(const char *buff);
         void send_gateway_log_msg(const char *buff);
         void pump_log(int max_samples, int timeout = 0);

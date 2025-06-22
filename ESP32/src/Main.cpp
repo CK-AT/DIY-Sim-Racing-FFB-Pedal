@@ -587,21 +587,11 @@ void physics_task_func(void *pvParameters) {
 
 void on_ffb_action(const FFBAction &ffb_action) {
     IFunction *active_function = config_manager.get_active_function();
+    pixels.SetPixelColor(0, green);
+    pixels.Show();
     if (active_function) {
         active_function->on_ffb_action(ffb_action);
     }
-}
-
-void send_axis_config(CommChannel comm_channel) {
-    Message msg;
-    config_manager.get_axis_config_as_message(msg);
-    comm_manager.send_message_to_gateway(msg, comm_channel);
-}
-
-void send_function_config(CommChannel comm_channel) {
-    Message msg;
-    config_manager.get_function_config_as_message(msg);
-    comm_manager.send_message_to_gateway(msg, comm_channel);
 }
 
 void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel) {
@@ -610,14 +600,9 @@ void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel) {
             if (servo) servo->pause();
             ESP.restart();
             break;
-        case AxisAction_return_axis_config_tag:
-            send_axis_config(comm_channel);
-            break;
-        case AxisAction_return_function_config_tag:
-            send_function_config(comm_channel);
-            break;
         case AxisAction_debug_flags_tag:
             debug_flags = axis_action.action.debug_flags;
+            break;
         default:
             break;
     }
