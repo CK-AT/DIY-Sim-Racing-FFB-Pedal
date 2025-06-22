@@ -128,7 +128,6 @@
                                 <ComboBox x:Name="KF_filter_order" SelectionChanged="KF_filter_order_changed"   Width="120" Height="10" FontSize="10" SelectedIndex="0" Margin="0,0,0,0" BorderThickness="0,0,0,0">
                                     <ComboBoxItem Content="KF const. vel."/>
                                     <ComboBoxItem Content="KF const. accel."/>
-                                    <ComboBoxItem Content="Exponential filter"/>
                                     <ComboBoxItem Content="NONE"/>
                                 </ComboBox>
                             </StackPanel>

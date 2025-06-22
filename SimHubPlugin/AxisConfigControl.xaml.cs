@@ -87,6 +87,9 @@ namespace User.PluginSdkDemo
                     Slider_KF.Value = config.KfConstAccel.NoiseScaling;
                     KF_filter_order.SelectedIndex = 1;
                     break;
+                case AxisConfig.LoadCellFilterConfigOneofCase.FilterNone:
+                    KF_filter_order.SelectedIndex = 2;
+                    break;
                 default:
                     break;
             }
@@ -122,6 +125,9 @@ namespace User.PluginSdkDemo
                     case 1:
                         config.KfConstAccel = new KFConstAccelConfig();
                         config.KfConstAccel.NoiseScaling = (uint)Slider_KF.Value;
+                        break;
+                    case 2:
+                        config.FilterNone = true;
                         break;
                     default:
                         break;
