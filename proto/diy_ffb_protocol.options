@@ -39,7 +39,7 @@ CustomVibrationEffectConfig.*               int_size:IS_8
 
 AutomotivePedalConfig.*                     int_size:IS_8
 
-FlightPedalsConfig.pos_*                     int_size:IS_16
+FlightPedalsConfig.pos_*                    int_size:IS_16
 
 AxisAction.*                                int_size:IS_8
 
@@ -48,3 +48,10 @@ AxisState.*                                 int_size:IS_16
 GatewayState.*                              int_size:IS_8
 
 FFBAction.*                                 int_size:IS_8
+
+WifiInfo.ssid                               max_length:32
+WifiInfo.password                           max_length:64
+
+StartOtaUpdate.info_json_url                max_length:150
+
+MessageList                                 skip_message:true

@@ -406,6 +406,16 @@ message ActiveFunction {
   FunctionID function_id = 2;
 }
 
+message WifiInfo {
+  string ssid = 1;
+  string password = 2;
+}
+
+message StartOtaUpdate {
+  WifiInfo wifi_info = 1;
+  string info_json_url = 2;
+}
+
 message Message {
   oneof payload {
     AxisLogMessage axis_log_message = 1;
@@ -417,5 +427,11 @@ message Message {
     FFBAction ffb_action = 7;
     GatewayLogMessage gateway_log_message = 8;
     ActiveFunction active_function = 9;
+    StartOtaUpdate start_ota_update = 10;
   }
+}
+
+// to be used by SimHub plugin only (to store i.e. a list of Message items as a system config)
+message MessageList {
+  repeated Message items = 1;
 }
