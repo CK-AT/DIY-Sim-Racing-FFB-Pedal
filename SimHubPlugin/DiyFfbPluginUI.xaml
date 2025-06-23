@@ -20,83 +20,34 @@
                 <GradientStop Color="#FF545454" Offset="0"/>
                 <GradientStop Color="#FFECECEC" Offset="1"/>
             </LinearGradientBrush>
-            <DrawingImage x:Key="plane">
+            <DrawingImage x:Key="FunctionSymbol">
                 <DrawingImage.Drawing>
-                    <DrawingGroup ClipGeometry="M0,0 V512.003 H512.003 V0 H0 Z">
-                        <DrawingGroup.Transform>
-                            <TranslateTransform X="0.0010166253196075559" Y="0" />
-                        </DrawingGroup.Transform>
+                    <DrawingGroup ClipGeometry="M0,0 V24 H24 V0 H0 Z">
                         <DrawingGroup Opacity="1">
                             <DrawingGroup Opacity="1">
-                                <GeometryDrawing Brush="White" Geometry="F1 M512.003,512.003z M0,0z M510.338,141.484C507.42,133.787 500.985,127.967 493.049,125.834 484.848,123.632 411.453,105.217 359.485,135.246 346.787,142.585 323.295,158.312 287.822,183.22L80.701,127.669C74.147,125.911,67.167,126.833,61.296,130.229L39.152,143.029C31.105,147.68 26.207,156.341 26.369,165.651 26.531,174.952 31.728,183.443 39.937,187.812L178.194,261.386C154.838,277.796,132.088,293.454,118.29,302.901L56.253,266.378C48.317,261.702,38.478,261.668,30.499,266.276L12.784,276.516C5.52199999999999,280.714 0.777999999999992,288.215 0.0859999999999914,296.578 -0.605000000000009,304.949 2.85099999999999,313.116 9.32799999999999,318.457L93.697,387.935C98.68,392.039,105.029,394.105,111.472,393.721L168.551,390.291C172.51,390.052,176.368,388.892,179.806,386.912L423.416,246.112C472.372,217.815 506.351,166.837 507.768,164.678 512.3,157.809 513.256,149.181 510.338,141.484z M410.626,223.933C366.329,249.533,167.016,364.733,167.016,364.733L109.937,368.163 25.568,298.685 43.283,288.445 119.289,333.194C119.289,333.194,180.336,291.756,226.758,258.237L51.944,165.198 74.088,152.398 292.755,211.056C326.914,186.941 357.515,165.949 372.269,157.424 416.566,131.824 486.428,150.563 486.428,150.563 486.428,150.563 454.922,198.333 410.626,223.933z" />
+                                <GeometryDrawing Brush="White" Geometry="M15.6,5.29C14.5,5.19 13.53,6 13.43,7.11L13.18,10H16V12H13L12.56,17.07C12.37,19.27 10.43,20.9 8.23,20.7C6.92,20.59 5.82,19.86 5.17,18.83L6.67,17.33C6.91,18.07 7.57,18.64 8.4,18.71C9.5,18.81 10.47,18 10.57,16.89L11,12H8V10H11.17L11.44,6.93C11.63,4.73 13.57,3.1 15.77,3.3C17.08,3.41 18.18,4.14 18.83,5.17L17.33,6.67C17.09,5.93 16.43,5.36 15.6,5.29Z" />
                             </DrawingGroup>
                         </DrawingGroup>
                     </DrawingGroup>
                 </DrawingImage.Drawing>
             </DrawingImage>
-            <DrawingImage x:Key="Settings">
+            <DrawingImage x:Key="AxisSymbol">
                 <DrawingImage.Drawing>
-                    <DrawingGroup ClipGeometry="M-0.5,0 V25 H24.5 V-0.5 H0 Z">
-                        <DrawingGroup.Transform>
-                            <TranslateTransform X="0.5" Y="0" />
-                        </DrawingGroup.Transform>
-                        <GeometryDrawing Geometry="F1 M25,25z M0,0z M12,7.82001L22,7.82001">
-                            <GeometryDrawing.Pen>
-                                <Pen Brush="White" Thickness="1.5" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" MiterLimit="1" />
-                            </GeometryDrawing.Pen>
-                        </GeometryDrawing>
-                        <GeometryDrawing Geometry="F1 M25,25z M0,0z M2,7.82001L4,7.82001">
-                            <GeometryDrawing.Pen>
-                                <Pen Brush="White" Thickness="1.5" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" MiterLimit="1" />
-                            </GeometryDrawing.Pen>
-                        </GeometryDrawing>
-                        <GeometryDrawing Geometry="F1 M25,25z M0,0z M20,16.82L22,16.82">
-                            <GeometryDrawing.Pen>
-                                <Pen Brush="White" Thickness="1.5" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" MiterLimit="1" />
-                            </GeometryDrawing.Pen>
-                        </GeometryDrawing>
-                        <GeometryDrawing Geometry="F1 M25,25z M0,0z M2,16.82L12,16.82">
-                            <GeometryDrawing.Pen>
-                                <Pen Brush="White" Thickness="1.5" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" MiterLimit="1" />
-                            </GeometryDrawing.Pen>
-                        </GeometryDrawing>
-                        <GeometryDrawing Geometry="F1 M25,25z M0,0z M8,11.82C10.2091,11.82 12,10.0291 12,7.82001 12,5.61087 10.2091,3.82001 8,3.82001 5.79086,3.82001 4,5.61087 4,7.82001 4,10.0291 5.79086,11.82 8,11.82z">
-                            <GeometryDrawing.Pen>
-                                <Pen Brush="White" Thickness="1.5" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" MiterLimit="1" />
-                            </GeometryDrawing.Pen>
-                        </GeometryDrawing>
-                        <GeometryDrawing Geometry="F1 M25,25z M0,0z M16,20.82C18.2091,20.82 20,19.0291 20,16.82 20,14.6109 18.2091,12.82 16,12.82 13.7909,12.82 12,14.6109 12,16.82 12,19.0291 13.7909,20.82 16,20.82z">
-                            <GeometryDrawing.Pen>
-                                <Pen Brush="White" Thickness="1.5" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" MiterLimit="1" />
-                            </GeometryDrawing.Pen>
-                        </GeometryDrawing>
+                    <DrawingGroup ClipGeometry="M0,0 V24 H24 V0 H0 Z">
+                        <DrawingGroup Opacity="1">
+                            <DrawingGroup Opacity="1">
+                                <GeometryDrawing Brush="White" Geometry="M12,2L16,6H13V13.85L19.53,17.61L21,15.03L22.5,20.5L17,21.96L18.53,19.35L12,15.58L5.47,19.35L7,21.96L1.5,20.5L3,15.03L4.47,17.61L11,13.85V6H8L12,2Z" />
+                            </DrawingGroup>
+                        </DrawingGroup>
                     </DrawingGroup>
                 </DrawingImage.Drawing>
             </DrawingImage>
-            <DrawingImage x:Key="Pedals">
+            <DrawingImage x:Key="CogSymbol">
                 <DrawingImage.Drawing>
-                    <DrawingGroup ClipGeometry="M0,0 V512 H512 V0 H0 Z">
+                    <DrawingGroup ClipGeometry="M0,0 V24 H24 V0 H0 Z">
                         <DrawingGroup Opacity="1">
                             <DrawingGroup Opacity="1">
-                                <GeometryDrawing Brush="White" Geometry="F1 M512,512z M0,0z M512,100.174L512,66.783 0,66.783 0,100.174 56.465,100.174 56.465,244.87 0,244.87 0,391.192 146.322,391.192 146.322,244.87 89.856,244.87 89.856,100.174 239.304,100.174 239.304,244.87 182.84,244.87 182.84,391.192 329.16,391.192 329.16,244.87 272.695,244.87 272.695,100.174 422.143,100.174 422.143,244.87 365.678,244.87 365.678,445.218 512,445.218 512,244.87 455.535,244.87 455.535,100.174 512,100.174z M112.931,278.261L112.931,357.8 33.391,357.8 33.391,278.261 112.931,278.261z M295.77,278.261L295.77,357.8 295.769,357.8 216.231,357.8 216.231,278.261 295.77,278.261z M478.609,278.261L478.609,411.826 399.07,411.826 399.07,278.261 478.609,278.261z" />
-                            </DrawingGroup>
-                        </DrawingGroup>
-                        <DrawingGroup Opacity="1">
-                            <DrawingGroup Opacity="1">
-                                <GeometryDrawing Brush="White">
-                                    <GeometryDrawing.Geometry>
-                                        <RectangleGeometry RadiusX="0" RadiusY="0" Rect="414.965,300.522,47.745,33.391" />
-                                    </GeometryDrawing.Geometry>
-                                </GeometryDrawing>
-                            </DrawingGroup>
-                        </DrawingGroup>
-                        <DrawingGroup Opacity="1">
-                            <DrawingGroup Opacity="1">
-                                <GeometryDrawing Brush="White">
-                                    <GeometryDrawing.Geometry>
-                                        <RectangleGeometry RadiusX="0" RadiusY="0" Rect="414.965,356.174,47.745,33.391" />
-                                    </GeometryDrawing.Geometry>
-                                </GeometryDrawing>
+                                <GeometryDrawing Brush="White" Geometry="M15.9,18.45C17.25,18.45 18.35,17.35 18.35,16C18.35,14.65 17.25,13.55 15.9,13.55C14.54,13.55 13.45,14.65 13.45,16C13.45,17.35 14.54,18.45 15.9,18.45M21.1,16.68L22.58,17.84C22.71,17.95 22.75,18.13 22.66,18.29L21.26,20.71C21.17,20.86 21,20.92 20.83,20.86L19.09,20.16C18.73,20.44 18.33,20.67 17.91,20.85L17.64,22.7C17.62,22.87 17.47,23 17.3,23H14.5C14.32,23 14.18,22.87 14.15,22.7L13.89,20.85C13.46,20.67 13.07,20.44 12.71,20.16L10.96,20.86C10.81,20.92 10.62,20.86 10.54,20.71L9.14,18.29C9.05,18.13 9.09,17.95 9.22,17.84L10.7,16.68L10.65,16L10.7,15.31L9.22,14.16C9.09,14.05 9.05,13.86 9.14,13.71L10.54,11.29C10.62,11.13 10.81,11.07 10.96,11.13L12.71,11.84C13.07,11.56 13.46,11.32 13.89,11.15L14.15,9.29C14.18,9.13 14.32,9 14.5,9H17.3C17.47,9 17.62,9.13 17.64,9.29L17.91,11.15C18.33,11.32 18.73,11.56 19.09,11.84L20.83,11.13C21,11.07 21.17,11.13 21.26,11.29L22.66,13.71C22.75,13.86 22.71,14.05 22.58,14.16L21.1,15.31L21.15,16L21.1,16.68M6.69,8.07C7.56,8.07 8.26,7.37 8.26,6.5C8.26,5.63 7.56,4.92 6.69,4.92A1.58,1.58 0 0,0 5.11,6.5C5.11,7.37 5.82,8.07 6.69,8.07M10.03,6.94L11,7.68C11.07,7.75 11.09,7.87 11.03,7.97L10.13,9.53C10.08,9.63 9.96,9.67 9.86,9.63L8.74,9.18L8,9.62L7.81,10.81C7.79,10.92 7.7,11 7.59,11H5.79C5.67,11 5.58,10.92 5.56,10.81L5.4,9.62L4.64,9.18L3.5,9.63C3.41,9.67 3.3,9.63 3.24,9.53L2.34,7.97C2.28,7.87 2.31,7.75 2.39,7.68L3.34,6.94L3.31,6.5L3.34,6.06L2.39,5.32C2.31,5.25 2.28,5.13 2.34,5.03L3.24,3.47C3.3,3.37 3.41,3.33 3.5,3.37L4.63,3.82L5.4,3.38L5.56,2.19C5.58,2.08 5.67,2 5.79,2H7.59C7.7,2 7.79,2.08 7.81,2.19L8,3.38L8.74,3.82L9.86,3.37C9.96,3.33 10.08,3.37 10.13,3.47L11.03,5.03C11.09,5.13 11.07,5.25 11,5.32L10.03,6.06L10.06,6.5L10.03,6.94Z" />
                             </DrawingGroup>
                         </DrawingGroup>
                     </DrawingGroup>
@@ -437,10 +388,10 @@
                 </TabControl.Background>
                 <TabItem x:Name="Tab_Pedals" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
                     <TabItem.Header>
-                        <Border  Width="220" Height="40" Margin="0,0,0,0" >
+                        <Border Height="40" Margin="0,0,0,0" Padding="10,0,10,0" >
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Image Width="26" Height="26" Source="{StaticResource Pedals}" />
-                                <Label Content="FUNCTIONS"  FontFamily="Arial Black" FontSize="26" Height="40" Width="182" Padding="0,0,0,0" VerticalAlignment="Top" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"  />
+                                <Image Width="24" Height="24" Source="{StaticResource FunctionSymbol}" Margin="0,5,0,5" />
+                                <Label Content="FUNCTIONS"  FontFamily="Arial Black" FontSize="26" Height="40" Width="182" Padding="0,0,0,0" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"  />
                             </StackPanel>
                         </Border>
                     </TabItem.Header>
@@ -458,9 +409,9 @@
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="TabItem">
                                                         <!--The four values of CornerRadius represent the four corners of the TabItem.-->
-                                                        <Border Name="Border" ToolTip="{Binding Value.StatusMessage}" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5" Margin="0,0,-2,0" Padding="5,10,5,10">
+                                                        <Border Name="Border" ToolTip="{Binding Value.StatusMessage}" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="{Binding Value.Name}" IsEnabled="{Binding Value.IsOnline}" FontFamily="Arial Black" FontSize="26" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="2,2,2,2" Padding="5,0,5,0" >
+                                                                <TextBlock Text="{Binding Value.Name}" IsEnabled="{Binding Value.IsOnline}" FontFamily="Arial Black" FontSize="26" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="2,2,2,2" Padding="10,0,10,0" >
                                                                 </TextBlock>
                                                                 <StackPanel.LayoutTransform>
                                                                     <RotateTransform Angle="90" />
@@ -565,12 +516,12 @@
 
                     </Border>
                 </TabItem>
-                <TabItem x:Name="Tab_Axes" Width="200" Height="40" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
+                <TabItem x:Name="Tab_Axes" Height="40" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
                     <TabItem.Header>
-                        <Border  Width="200" Height="40" Margin="0,0,0,0" >
+                        <Border  Height="40" Margin="0,0,0,0" Padding="10,0,10,0" >
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Image Width="26" Height="26" Source="{StaticResource plane}" />
-                                <Label Content="AXES"  FontFamily="Arial Black" FontSize="26" Height="40" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,0,4,0"  />
+                                <Image Width="24" Height="24" Source="{StaticResource AxisSymbol}" Margin="5,5,10,5" />
+                                <Label Content="AXES"  FontFamily="Arial Black" FontSize="26" Height="40" Padding="0,0,0,0" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,0,4,0"  />
                                 <ItemsControl ItemsSource="{Binding axes}" BorderThickness="0" Width="48" VerticalAlignment="Center">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -579,7 +530,7 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Ellipse Width="10" Height="10" Margin="1,1,1,1" IsEnabled="{Binding Value.IsOnline}">
+                                            <Ellipse Width="9" Height="9" Margin="1,1,1,1" IsEnabled="{Binding Value.IsOnline}">
                                                 <Ellipse.Style>
                                                     <Style TargetType="Ellipse">
                                                         <Style.Triggers>
@@ -613,9 +564,9 @@
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="TabItem">
                                                         <!--The four values of CornerRadius represent the four corners of the TabItem.-->
-                                                        <Border Name="Border" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5" Margin="0,0,-2,0" Padding="5,10,5,10">
+                                                        <Border Name="Border" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="{Binding Value.Name}" IsEnabled="{Binding Value.IsOnline}" FontFamily="Arial Black" FontSize="26" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="2,2,2,2" Padding="5,0,5,0" >
+                                                                <TextBlock Text="{Binding Value.Name}" IsEnabled="{Binding Value.IsOnline}" FontFamily="Arial Black" FontSize="26" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="2,2,2,2" Padding="10,0,10,0" ScrollViewer.CanContentScroll="False" >
                                                                 </TextBlock>
                                                                 <StackPanel.LayoutTransform>
                                                                     <RotateTransform Angle="90" />
@@ -799,12 +750,12 @@
 
                     </Border>
                 </TabItem>
-                <TabItem x:Name="Tab_System" Width="200" Height="40" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
+                <TabItem x:Name="Tab_System" Height="40" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
                     <TabItem.Header>
-                        <Border  Width="200" Height="40" Margin="0,0,0,0" >
+                        <Border Height="40" Margin="0,0,0,0" Padding="10,0,10,0" >
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Image Width="26" Height="26" Source="{StaticResource Settings}" />
-                                <Label Content="SYSTEM"  FontFamily="Arial Black" FontSize="26" Height="40" Width="126" Padding="0,0,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"  />
+                                <Image Width="24" Height="24" Source="{StaticResource CogSymbol}" Margin="5,5,5,5" />
+                                <Label Content="SYSTEM"  FontFamily="Arial Black" FontSize="26" Height="40" Width="126" Padding="0,0,0,0" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"  />
                             </StackPanel>
                         </Border>
                     </TabItem.Header>

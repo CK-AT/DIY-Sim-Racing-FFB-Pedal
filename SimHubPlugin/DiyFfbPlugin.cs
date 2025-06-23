@@ -411,13 +411,12 @@ namespace User.PluginSdkDemo
         /// <summary>
         /// Gets the left menu icon. Icon must be 24x24 and compatible with black and white display.
         /// </summary>
-        public ImageSource PictureIcon => this.ToIcon(Properties.Resources.sdkmenuicon);
+        public ImageSource PictureIcon => this.ToIcon(Properties.Resources.menuicon);
 
         /// <summary>
         /// Gets a short plugin title to show in left menu. Return null if you want to use the title as defined in PluginName attribute.
         /// </summary>
         public string LeftMenuTitle => "DIY FFB Dashboard";
-        //public string LeftMenuTitle => "DIY FFB Pedal";
 
         unsafe public UInt16 checksumCalc(byte* data, int length)
         {
