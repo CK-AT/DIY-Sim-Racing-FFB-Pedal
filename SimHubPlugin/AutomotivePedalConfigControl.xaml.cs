@@ -264,7 +264,7 @@ namespace User.PluginSdkDemo
                 checkbox_enable_bite_point.Content = "Bite Point Vibration Disabled";
             }
 
-            if (current_function_id == FunctionID.Brake)
+            if (current_function_id == FunctionID.BrakePedal)
             {
                 checkbox_enable_G_force.IsEnabled = true;
                 if (config.GForceEffectConfig.Enabled)

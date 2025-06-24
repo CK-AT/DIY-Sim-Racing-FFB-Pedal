@@ -38,7 +38,7 @@ void ConfigManager::set_axis_config_defaults(void) {
 void ConfigManager::set_function_config_defaults(void) {
     _function_config = FunctionConfig_init_default;
     _function_config.has_base = true;
-    _function_config.base.function_id = FunctionID_FUNCTION_ID_BRAKE;
+    _function_config.base.function_id = FunctionID_FUNCTION_ID_BRAKE_PEDAL;
     _function_config.base.linked_axes[0] = _axis_id;
     _function_config.base.store = false;
     _function_config.base.controller_output_axis = ControllerAxis_CONTROLLER_AXIS_BRK;

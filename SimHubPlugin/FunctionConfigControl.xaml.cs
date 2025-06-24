@@ -64,13 +64,13 @@ namespace User.PluginSdkDemo
             new_config.Base.LinkedAxes.AddRange(new AxisID[4] { AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined });
             switch (function_id)
             {
-                case FunctionID.Brake:
+                case FunctionID.BrakePedal:
                     new_config.AutomotivePedal = AutomotivePedalConfigControl.GetDefaultConfig();
                     break;
-                case FunctionID.Clutch:
+                case FunctionID.ClutchPedal:
                     new_config.AutomotivePedal = AutomotivePedalConfigControl.GetDefaultConfig();
                     break;
-                case FunctionID.Accelerator:
+                case FunctionID.AcceleratorPedal:
                     new_config.AutomotivePedal = AutomotivePedalConfigControl.GetDefaultConfig();
                     break;
                 case FunctionID.FlightPedals:
@@ -116,15 +116,15 @@ namespace User.PluginSdkDemo
             config = function.Config;
             switch (function.ID)
             {
-                case FunctionID.Brake:
+                case FunctionID.BrakePedal:
                     AutomotivePedalConfig.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 0;
                     break;
-                case FunctionID.Clutch:
+                case FunctionID.ClutchPedal:
                     AutomotivePedalConfig.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 0;
                     break;
-                case FunctionID.Accelerator:
+                case FunctionID.AcceleratorPedal:
                     AutomotivePedalConfig.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 0;
                     break;

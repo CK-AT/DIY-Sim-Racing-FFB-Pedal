@@ -517,7 +517,7 @@ namespace User.PluginSdkDemo
                 tmp.FfbAction.FunctionId = function_id;
                 switch (function_id)
                 {
-                    case FunctionID.Brake:
+                    case FunctionID.BrakePedal:
                         tmp.FfbAction.AutomotivePedal = new AutomotivePedalFFBAction();
                         if (data.NewData?.ABSActive > 0)
                         {
@@ -528,10 +528,10 @@ namespace User.PluginSdkDemo
                             }
                         }
                         break;
-                    case FunctionID.Accelerator:
+                    case FunctionID.AcceleratorPedal:
                         tmp.FfbAction.AutomotivePedal = new AutomotivePedalFFBAction();
                         break;
-                    case FunctionID.Clutch:
+                    case FunctionID.ClutchPedal:
                         tmp.FfbAction.AutomotivePedal = new AutomotivePedalFFBAction();
                         break;
                 }
@@ -1274,7 +1274,7 @@ namespace User.PluginSdkDemo
 
                 for (uint pedalIdx = 0; pedalIdx < 3; pedalIdx++)
                 {
-                    tmp.FfbAction.FunctionId = FunctionID.Brake; // TODO: set correctly
+                    tmp.FfbAction.FunctionId = FunctionID.BrakePedal; // TODO: set correctly
                     if (Settings.axis_settings[pedalIdx].via_gateway)
                     {
                         if (ESPsync_serialPort.IsOpen)
