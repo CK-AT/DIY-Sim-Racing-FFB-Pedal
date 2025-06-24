@@ -82,13 +82,16 @@ namespace User.PluginSdkDemo
                 case AxisConfig.LoadCellFilterConfigOneofCase.KfConstVel:
                     Slider_KF.Value = config.KfConstVel.NoiseScaling;
                     KF_filter_order.SelectedIndex = 0;
+                    sp_filter_slider.Visibility = Visibility.Visible;
                     break;
                 case AxisConfig.LoadCellFilterConfigOneofCase.KfConstAccel:
                     Slider_KF.Value = config.KfConstAccel.NoiseScaling;
                     KF_filter_order.SelectedIndex = 1;
+                    sp_filter_slider.Visibility = Visibility.Visible;
                     break;
                 case AxisConfig.LoadCellFilterConfigOneofCase.FilterNone:
                     KF_filter_order.SelectedIndex = 2;
+                    sp_filter_slider.Visibility = Visibility.Hidden;
                     break;
                 default:
                     break;
@@ -121,13 +124,16 @@ namespace User.PluginSdkDemo
                     case 0:
                         config.KfConstVel = new KFConstVelConfig();
                         config.KfConstVel.NoiseScaling = (uint)Slider_KF.Value;
+                        sp_filter_slider.Visibility = Visibility.Visible;
                         break;
                     case 1:
                         config.KfConstAccel = new KFConstAccelConfig();
                         config.KfConstAccel.NoiseScaling = (uint)Slider_KF.Value;
+                        sp_filter_slider.Visibility = Visibility.Visible;
                         break;
                     case 2:
                         config.FilterNone = true;
+                        sp_filter_slider.Visibility = Visibility.Hidden;
                         break;
                     default:
                         break;
