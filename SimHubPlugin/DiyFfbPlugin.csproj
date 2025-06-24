@@ -189,6 +189,12 @@
     <Compile Include="FunctionConfigControl.xaml.cs">
       <DependentUpon>FunctionConfigControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="LoadSelectionDialog.xaml.cs">
+      <DependentUpon>LoadSelectionDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SaveSelectionDialog.xaml.cs">
+      <DependentUpon>SaveSelectionDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Tools.cs" />
     <Compile Include="CubicSpline.cs" />
     <Compile Include="DiyFfbPlugin.cs" />
@@ -251,6 +257,14 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
       <ContainsDesignTimeResources>true</ContainsDesignTimeResources>
+    </Page>
+    <Page Include="LoadSelectionDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="SaveSelectionDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="SerialMonitor.xaml">
       <SubType>Designer</SubType>

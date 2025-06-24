@@ -74,6 +74,9 @@ namespace User.PluginSdkDemo
                 }
             }
         }
+        public bool SelectedToStore { get; set; }
+        public bool SelectedToLoad { get; set; }
+        public bool SelectableToLoad { get; set; }
         public AxisID ID { get { return _axisID; } }
         public string Name { get { return _axisName; } }
 
@@ -94,7 +97,18 @@ namespace User.PluginSdkDemo
     public class Function : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
-        public FunctionConfig Config { get; set; }
+        private FunctionConfig _Config;
+        public FunctionConfig Config {
+            get
+            {
+                return _Config;
+            }
+            set
+            {
+                _Config = value;
+                OnAxisUpdate();
+            }
+        }
         private FunctionID _functionID;
         private string _functionName;
         private HashSet<AxisID> _axisIDs = new HashSet<AxisID>();
@@ -123,6 +137,9 @@ namespace User.PluginSdkDemo
                 }
             }
         }
+        public bool SelectedToStore { get; set; }
+        public bool SelectedToLoad { get; set; }
+        public bool SelectableToLoad { get; set; }
         public FunctionID ID { get { return _functionID; } }
         public string Name { get { return _functionName; } }
 
@@ -5499,11 +5516,7 @@ namespace User.PluginSdkDemo
         {
             FunctionID new_function_id = new_function_config.Base.FunctionId;
             functions[new_function_id].Config = new_function_config;
-            if (new_function_id != selected_function_id)
-            {
-                tc_function_selection.SelectedIndex = (int)new_function_id - 1;
-            }
-            else
+            if (new_function_id == selected_function_id)
             {
                 uc_function_config.SwitchFunction(functions[new_function_id]);
             }
@@ -5513,17 +5526,13 @@ namespace User.PluginSdkDemo
         {
             AxisID new_axis_id = new_axis_config.AxisId;
             axes[new_axis_id].Config = new_axis_config;
-            if (new_axis_id != selected_axis_id)
-            {
-                tc_axis_selection.SelectedIndex = (int)new_axis_id - 1;
-            }
-            else
+            if (new_axis_id == selected_axis_id)
             {
                 uc_axis_config.UpdateConfig(axes[new_axis_id].Config);
             }
         }
 
-        private void btn_load_function_config_from_file_Click(object sender, RoutedEventArgs e)
+        private void OnLoadConfigClick(object sender, RoutedEventArgs e)
         {
             Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog
             {
@@ -5535,31 +5544,116 @@ namespace User.PluginSdkDemo
             {
                 var content = File.ReadAllText(openFileDialog.FileName);
                 var json_parser = new JsonParser(JsonParser.Settings.Default);
-                Message msg = (Message)json_parser.Parse(content, Message.Descriptor);
-                if (msg.PayloadCase == Message.PayloadOneofCase.FunctionConfig)
+                ConfigItemsList msg = (ConfigItemsList)json_parser.Parse(content, ConfigItemsList.Descriptor);
+                Dictionary<AxisID, AxisConfig> axis_configs = new Dictionary<AxisID, AxisConfig>();
+                Dictionary<FunctionID, FunctionConfig> function_configs = new Dictionary<FunctionID, FunctionConfig>();
+                foreach (var item in msg.ConfigItems)
                 {
-                    OnFunctionConfigUpdate(msg.FunctionConfig);
+                    switch (item.ItemCase)
+                    {
+                        case ConfigItem.ItemOneofCase.AxisConfig:
+                            axis_configs[item.AxisConfig.AxisId] = item.AxisConfig;
+                            axes[item.AxisConfig.AxisId].SelectedToLoad = true;
+                            axes[item.AxisConfig.AxisId].SelectableToLoad = true;
+                            break;
+                        case ConfigItem.ItemOneofCase.FunctionConfig:
+                            function_configs[item.FunctionConfig.Base.FunctionId] = item.FunctionConfig;
+                            functions[item.FunctionConfig.Base.FunctionId].SelectedToLoad = true;
+                            functions[item.FunctionConfig.Base.FunctionId].SelectableToLoad = true;
+                            break;
+                    }
+                }
+                loadSelectionDialog = new LoadSelectionDialog(this, axis_configs, function_configs);
+                loadSelectionDialog.Closed += OnLoadSelectionClosed;
+                btn_load_axis_config_from_file.IsEnabled = false;
+                btn_load_function_config_from_file.IsEnabled = false;
+                btn_store_function_config_to_file.IsEnabled = false;
+                btn_store_axis_config_to_file.IsEnabled = false;
+                loadSelectionDialog.Show();
+            }
+        }
+
+        private void OnLoadSelectionClosed(object sender, EventArgs e)
+        {
+            foreach (var item in axes.Values)
+            {
+                if (loadSelectionDialog.LoadRequested && item.SelectedToLoad)
+                {
+                    OnAxisConfigUpdate(loadSelectionDialog.axis_configs[item.ID]);
+                }
+                item.SelectedToLoad = false;
+                item.SelectableToLoad = false;
+            }
+            foreach (var item in functions.Values)
+            {
+                if (loadSelectionDialog.LoadRequested && item.SelectedToLoad)
+                {
+                    OnFunctionConfigUpdate(loadSelectionDialog.function_configs[item.ID]);
+                }
+                item.SelectedToLoad = false;
+                item.SelectableToLoad = false;
+            }
+            btn_load_axis_config_from_file.IsEnabled = true;
+            btn_load_function_config_from_file.IsEnabled = true;
+            btn_store_function_config_to_file.IsEnabled = true;
+            btn_store_axis_config_to_file.IsEnabled = true;
+        }
+
+        SaveSelectionDialog saveSelectionDialog;
+        LoadSelectionDialog loadSelectionDialog;
+
+        private void OnSaveSelectionClosed(object sender, EventArgs e)
+        {
+            ConfigItemsList items = new ConfigItemsList();
+            foreach (var function in functions.Values)
+            {
+                if (function.SelectedToStore)
+                {
+                    items.ConfigItems.Add(new ConfigItem { FunctionConfig = function.Config });
+                    function.SelectedToStore = false;
                 }
             }
+            foreach (var axis in axes.Values)
+            {
+                if (axis.SelectedToStore)
+                {
+                    items.ConfigItems.Add(new ConfigItem { AxisConfig = axis.Config });
+                    axis.SelectedToStore = false;
+                }
+            }
+
+            if (saveSelectionDialog.SaveRequested)
+            {
+                Microsoft.Win32.SaveFileDialog saveFileDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "JSON files (*.json)|*.json",
+                    DefaultExt = "json",
+                    FileName = "config.json"
+                };
+
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    JsonFormatter formatter = new JsonFormatter(JsonFormatter.Settings.Default.WithIndentation());
+                    var output = formatter.Format(items);
+                    File.WriteAllText(saveFileDialog.FileName, output);
+                }
+            }
+            btn_load_axis_config_from_file.IsEnabled = true;
+            btn_load_function_config_from_file.IsEnabled = true;
+            btn_store_function_config_to_file.IsEnabled = true;
+            btn_store_axis_config_to_file.IsEnabled = true;
         }
 
         private void btn_store_function_config_to_file_Click(object sender, RoutedEventArgs e)
         {
-            Microsoft.Win32.SaveFileDialog saveFileDialog = new Microsoft.Win32.SaveFileDialog
-            {
-                Filter = "JSON files (*.json)|*.json",
-                DefaultExt = "json",
-                FileName = "function_config.json"
-            };
-
-            if (saveFileDialog.ShowDialog() == true)
-            {
-                JsonFormatter formatter = new JsonFormatter(JsonFormatter.Settings.Default.WithIndentation());
-                var msg = new Message();
-                msg.FunctionConfig = functions[selected_function_id].Config;
-                var output = formatter.Format(msg);
-                File.WriteAllText(saveFileDialog.FileName, output);
-            }
+            functions[selected_function_id].SelectedToStore = true;
+            saveSelectionDialog = new SaveSelectionDialog(this);
+            saveSelectionDialog.Closed += OnSaveSelectionClosed;
+            btn_load_axis_config_from_file.IsEnabled = false;
+            btn_load_function_config_from_file.IsEnabled = false;
+            btn_store_function_config_to_file.IsEnabled = false;
+            btn_store_axis_config_to_file.IsEnabled = false;
+            saveSelectionDialog.Show();
         }
 
         private void OnUploadAxisConfigClicked(object sender, RoutedEventArgs e)
@@ -5575,43 +5669,16 @@ namespace User.PluginSdkDemo
 
         }
 
-        private void btn_load_axis_config_from_file_Click(object sender, RoutedEventArgs e)
-        {
-            Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Filter = "JSON files (*.json)|*.json",
-                DefaultExt = "json",
-            };
-
-            if (openFileDialog.ShowDialog() == true)
-            {
-                var content = File.ReadAllText(openFileDialog.FileName);
-                var json_parser = new JsonParser(JsonParser.Settings.Default);
-                Message msg = (Message)json_parser.Parse(content, Message.Descriptor);
-                if (msg.PayloadCase == Message.PayloadOneofCase.AxisConfig)
-                {
-                    OnAxisConfigUpdate(msg.AxisConfig);
-                }
-            }
-        }
-
         private void btn_store_axis_config_to_file_Click(object sender, RoutedEventArgs e)
         {
-            Microsoft.Win32.SaveFileDialog saveFileDialog = new Microsoft.Win32.SaveFileDialog
-            {
-                Filter = "JSON files (*.json)|*.json",
-                DefaultExt = "json",
-                FileName = "axis_config.json"
-            };
-
-            if (saveFileDialog.ShowDialog() == true)
-            {
-                JsonFormatter formatter = new JsonFormatter(JsonFormatter.Settings.Default.WithIndentation());
-                var msg = new Message();
-                msg.AxisConfig = axes[selected_axis_id].Config;
-                var output = formatter.Format(msg);
-                File.WriteAllText(saveFileDialog.FileName, output);
-            }
+            axes[selected_axis_id].SelectedToStore = true;
+            saveSelectionDialog = new SaveSelectionDialog(this);
+            saveSelectionDialog.Closed += OnSaveSelectionClosed;
+            btn_load_axis_config_from_file.IsEnabled = false;
+            btn_load_function_config_from_file.IsEnabled = false;
+            btn_store_function_config_to_file.IsEnabled = false;
+            btn_store_axis_config_to_file.IsEnabled = false;
+            saveSelectionDialog.Show();
         }
     }
     

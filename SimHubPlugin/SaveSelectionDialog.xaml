@@ -1,0 +1,57 @@
+﻿<Window x:Class="User.PluginSdkDemo.SaveSelectionDialog"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:User.PluginSdkDemo"
+             xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins" mc:Ignorable="d" 
+             xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins" 
+             xmlns:controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+             HorizontalContentAlignment="Center" VerticalContentAlignment="Center" WindowStyle="None" Width="250" Background="#FF252525" BorderBrush="Gray" Foreground="White" SizeToContent="WidthAndHeight"
+             BorderThickness="1" MouseDown="Window_MouseDown" ScrollViewer.VerticalScrollBarVisibility="Disabled" ResizeMode="NoResize" WindowStartupLocation="CenterScreen" Topmost="True">
+    <Grid Background="#FF252525">
+        <StackPanel Orientation="Vertical" Background="#FF252525">
+            <Label Content="Select Config Items To Store:" FontFamily="Arial Black" HorizontalContentAlignment="Center"></Label>
+            <StackPanel Orientation="Vertical" Margin="10,10,10,0">
+                <Label Content="Function Configs:"></Label>
+                <ItemsControl ItemsSource="{Binding functions}" BorderThickness="0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="1"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding Value.SelectedToStore}" Margin="15,0,0,0"/>
+                                <Label Content="{Binding Value.Name}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+            <StackPanel Orientation="Vertical" Margin="10,10,10,0">
+                <Label Content="Axis Configs:"></Label>
+                <ItemsControl ItemsSource="{Binding axes}" BorderThickness="0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="1"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding Value.SelectedToStore}" Margin="15,0,0,0"/>
+                                <Label Content="{Binding Value.Name}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10,10,10,10">
+                <styles:SHButtonPrimary x:Name="btn_abort" Click="btn_abort_Click" Width="100" Height="28" Content="Abort" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" />
+                <styles:SHButtonPrimary x:Name="btn_store" Click="btn_store_Click" Width="100" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

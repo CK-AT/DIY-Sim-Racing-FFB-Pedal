@@ -54,4 +54,6 @@ WifiInfo.password                           max_length:64
 
 StartOtaUpdate.info_json_url                max_length:150
 
-MessageList                                 skip_message:true
+ConfigItem                                  skip_message:true
+
+ConfigItemsList                             skip_message:true

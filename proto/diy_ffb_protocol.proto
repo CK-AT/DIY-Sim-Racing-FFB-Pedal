@@ -432,6 +432,13 @@ message Message {
 }
 
 // to be used by SimHub plugin only (to store i.e. a list of Message items as a system config)
-message MessageList {
-  repeated Message items = 1;
+message ConfigItem {
+  oneof item {
+    AxisConfig axis_config = 1;
+    FunctionConfig function_config = 2;
+  }
+}
+
+message ConfigItemsList {
+  repeated ConfigItem config_items = 1;
 }
