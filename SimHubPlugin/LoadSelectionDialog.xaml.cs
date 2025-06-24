@@ -48,5 +48,18 @@ namespace User.PluginSdkDemo
             if (e.ChangedButton == MouseButton.Left)
                 this.DragMove();
         }
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                LoadRequested = false;
+                this.Close();
+            }
+            else if (e.Key == Key.Enter)
+            {
+                LoadRequested = true;
+                this.Close();
+            }
+        }
     }
 }

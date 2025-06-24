@@ -5542,34 +5542,42 @@ namespace User.PluginSdkDemo
 
             if (openFileDialog.ShowDialog() == true)
             {
-                var content = File.ReadAllText(openFileDialog.FileName);
-                var json_parser = new JsonParser(JsonParser.Settings.Default);
-                ConfigItemsList msg = (ConfigItemsList)json_parser.Parse(content, ConfigItemsList.Descriptor);
-                Dictionary<AxisID, AxisConfig> axis_configs = new Dictionary<AxisID, AxisConfig>();
-                Dictionary<FunctionID, FunctionConfig> function_configs = new Dictionary<FunctionID, FunctionConfig>();
-                foreach (var item in msg.ConfigItems)
+                try
                 {
-                    switch (item.ItemCase)
+                    var content = File.ReadAllText(openFileDialog.FileName);
+                    var json_parser = new JsonParser(JsonParser.Settings.Default);
+                    ConfigItemsList msg = (ConfigItemsList)json_parser.Parse(content, ConfigItemsList.Descriptor);
+                    Dictionary<AxisID, AxisConfig> axis_configs = new Dictionary<AxisID, AxisConfig>();
+                    Dictionary<FunctionID, FunctionConfig> function_configs = new Dictionary<FunctionID, FunctionConfig>();
+                    foreach (var item in msg.ConfigItems)
                     {
-                        case ConfigItem.ItemOneofCase.AxisConfig:
-                            axis_configs[item.AxisConfig.AxisId] = item.AxisConfig;
-                            axes[item.AxisConfig.AxisId].SelectedToLoad = true;
-                            axes[item.AxisConfig.AxisId].SelectableToLoad = true;
-                            break;
-                        case ConfigItem.ItemOneofCase.FunctionConfig:
-                            function_configs[item.FunctionConfig.Base.FunctionId] = item.FunctionConfig;
-                            functions[item.FunctionConfig.Base.FunctionId].SelectedToLoad = true;
-                            functions[item.FunctionConfig.Base.FunctionId].SelectableToLoad = true;
-                            break;
+                        switch (item.ItemCase)
+                        {
+                            case ConfigItem.ItemOneofCase.AxisConfig:
+                                axis_configs[item.AxisConfig.AxisId] = item.AxisConfig;
+                                axes[item.AxisConfig.AxisId].SelectedToLoad = true;
+                                axes[item.AxisConfig.AxisId].SelectableToLoad = true;
+                                break;
+                            case ConfigItem.ItemOneofCase.FunctionConfig:
+                                function_configs[item.FunctionConfig.Base.FunctionId] = item.FunctionConfig;
+                                functions[item.FunctionConfig.Base.FunctionId].SelectedToLoad = true;
+                                functions[item.FunctionConfig.Base.FunctionId].SelectableToLoad = true;
+                                break;
+                        }
                     }
+                    loadSelectionDialog = new LoadSelectionDialog(this, axis_configs, function_configs);
+                    loadSelectionDialog.Closed += OnLoadSelectionClosed;
+                    btn_load_axis_config_from_file.IsEnabled = false;
+                    btn_load_function_config_from_file.IsEnabled = false;
+                    btn_store_function_config_to_file.IsEnabled = false;
+                    btn_store_axis_config_to_file.IsEnabled = false;
+                    loadSelectionDialog.Show();
                 }
-                loadSelectionDialog = new LoadSelectionDialog(this, axis_configs, function_configs);
-                loadSelectionDialog.Closed += OnLoadSelectionClosed;
-                btn_load_axis_config_from_file.IsEnabled = false;
-                btn_load_function_config_from_file.IsEnabled = false;
-                btn_store_function_config_to_file.IsEnabled = false;
-                btn_store_axis_config_to_file.IsEnabled = false;
-                loadSelectionDialog.Show();
+                catch (Exception caughtEx)
+                {
+                    string errorMessage = caughtEx.Message;
+                    TextBox_debugOutput.Text = errorMessage;
+                }
             }
         }
 
@@ -5605,14 +5613,6 @@ namespace User.PluginSdkDemo
         private void OnSaveSelectionClosed(object sender, EventArgs e)
         {
             ConfigItemsList items = new ConfigItemsList();
-            foreach (var function in functions.Values)
-            {
-                if (function.SelectedToStore)
-                {
-                    items.ConfigItems.Add(new ConfigItem { FunctionConfig = function.Config });
-                    function.SelectedToStore = false;
-                }
-            }
             foreach (var axis in axes.Values)
             {
                 if (axis.SelectedToStore)
@@ -5621,22 +5621,19 @@ namespace User.PluginSdkDemo
                     axis.SelectedToStore = false;
                 }
             }
-
+            foreach (var function in functions.Values)
+            {
+                if (function.SelectedToStore)
+                {
+                    items.ConfigItems.Add(new ConfigItem { FunctionConfig = function.Config });
+                    function.SelectedToStore = false;
+                }
+            }
             if (saveSelectionDialog.SaveRequested)
             {
-                Microsoft.Win32.SaveFileDialog saveFileDialog = new Microsoft.Win32.SaveFileDialog
-                {
-                    Filter = "JSON files (*.json)|*.json",
-                    DefaultExt = "json",
-                    FileName = "config.json"
-                };
-
-                if (saveFileDialog.ShowDialog() == true)
-                {
-                    JsonFormatter formatter = new JsonFormatter(JsonFormatter.Settings.Default.WithIndentation());
-                    var output = formatter.Format(items);
-                    File.WriteAllText(saveFileDialog.FileName, output);
-                }
+                JsonFormatter formatter = new JsonFormatter(JsonFormatter.Settings.Default.WithIndentation());
+                var output = formatter.Format(items);
+                File.WriteAllText(saveSelectionDialog.FileName, output);
             }
             btn_load_axis_config_from_file.IsEnabled = true;
             btn_load_function_config_from_file.IsEnabled = true;
@@ -5646,14 +5643,24 @@ namespace User.PluginSdkDemo
 
         private void btn_store_function_config_to_file_Click(object sender, RoutedEventArgs e)
         {
-            functions[selected_function_id].SelectedToStore = true;
-            saveSelectionDialog = new SaveSelectionDialog(this);
-            saveSelectionDialog.Closed += OnSaveSelectionClosed;
-            btn_load_axis_config_from_file.IsEnabled = false;
-            btn_load_function_config_from_file.IsEnabled = false;
-            btn_store_function_config_to_file.IsEnabled = false;
-            btn_store_axis_config_to_file.IsEnabled = false;
-            saveSelectionDialog.Show();
+            Microsoft.Win32.SaveFileDialog saveFileDialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                DefaultExt = "json",
+                FileName = "config.json"
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                functions[selected_function_id].SelectedToStore = true;
+                saveSelectionDialog = new SaveSelectionDialog(this, saveFileDialog.FileName);
+                saveSelectionDialog.Closed += OnSaveSelectionClosed;
+                btn_load_axis_config_from_file.IsEnabled = false;
+                btn_load_function_config_from_file.IsEnabled = false;
+                btn_store_function_config_to_file.IsEnabled = false;
+                btn_store_axis_config_to_file.IsEnabled = false;
+                saveSelectionDialog.Show();
+            }
         }
 
         private void OnUploadAxisConfigClicked(object sender, RoutedEventArgs e)
@@ -5671,14 +5678,24 @@ namespace User.PluginSdkDemo
 
         private void btn_store_axis_config_to_file_Click(object sender, RoutedEventArgs e)
         {
-            axes[selected_axis_id].SelectedToStore = true;
-            saveSelectionDialog = new SaveSelectionDialog(this);
-            saveSelectionDialog.Closed += OnSaveSelectionClosed;
-            btn_load_axis_config_from_file.IsEnabled = false;
-            btn_load_function_config_from_file.IsEnabled = false;
-            btn_store_function_config_to_file.IsEnabled = false;
-            btn_store_axis_config_to_file.IsEnabled = false;
-            saveSelectionDialog.Show();
+            Microsoft.Win32.SaveFileDialog saveFileDialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                DefaultExt = "json",
+                FileName = "config.json"
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                axes[selected_axis_id].SelectedToStore = true;
+                saveSelectionDialog = new SaveSelectionDialog(this, saveFileDialog.FileName);
+                saveSelectionDialog.Closed += OnSaveSelectionClosed;
+                btn_load_axis_config_from_file.IsEnabled = false;
+                btn_load_function_config_from_file.IsEnabled = false;
+                btn_store_function_config_to_file.IsEnabled = false;
+                btn_store_axis_config_to_file.IsEnabled = false;
+                saveSelectionDialog.Show();
+            }
         }
     }
     
