@@ -39,7 +39,7 @@ void CommManager::periodic_task_func(void) {
             } else {
                 send_axis_state_message(get_axis_id(), online_flags);
             }
-            send_gateway_state_message(online_flags);
+            send_gateway_state_message(_config_manager->get_gateway_id(), online_flags);
         }
         if ((now - ti_last_joystick_update) > 10000) {
             ti_last_joystick_update = now;
@@ -92,10 +92,11 @@ void CommManager::update_joystick_state() {
     }
 }
 
-void CommManager::send_gateway_state_message(uint8_t online_flags) {
+void CommManager::send_gateway_state_message(GatewayID gateway_id, uint8_t online_flags) {
     _state_message.which_payload = Message_gateway_state_tag;
     _state_message.payload.gateway_state.axes_present = online_flags;
     _state_message.payload.gateway_state.rssi = 255;  // TODO: make this depend on active_intercom_channel
+    _state_message.payload.gateway_state.gateway_id = gateway_id;
     send_message_to_host(_state_message);
 }
 

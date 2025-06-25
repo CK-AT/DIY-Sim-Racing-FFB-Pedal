@@ -81,7 +81,7 @@ class CommManager {
         void pump_log(int max_samples, int timeout = 0);
         void on_ffb_action(const FFBAction &ffb_action);
         void periodic_task_func(void);
-        void send_gateway_state_message(uint8_t online_flags);
+        void send_gateway_state_message(GatewayID gateway_id, uint8_t online_flags);
         bool send_axis_state_message(AxisID axis_id, uint8_t &online_flags);
         void send_joystick_values(void);
         void set_controller_axis(ControllerAxis controller_axis, float &value);

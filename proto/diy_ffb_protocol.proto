@@ -38,7 +38,7 @@ message AxisLogMessage {
 }
 
 message GatewayLogMessage {
-  // axis ID, source of this log message 
+  // gateway ID, source of this log message 
   GatewayID gateway_id = 1;
   // log level
   LogLevel level = 2;
@@ -381,6 +381,8 @@ message GatewayState {
   uint32 rssi = 1;
   // one bit per axis ID, bit 0 = axis 1 
   uint32 axes_present = 2;
+  // gateway ID, source of this state message 
+  GatewayID gateway_id = 3;
 }
 
 message AutomotivePedalFFBAction {
