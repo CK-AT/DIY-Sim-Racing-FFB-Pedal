@@ -5,7 +5,6 @@ using ProtbufTest;
 using SimHub.Plugins.Styles;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
@@ -42,164 +41,6 @@ using Windows.UI.Notifications;
 
 namespace User.PluginSdkDemo
 {
-
-    public class Axis : INotifyPropertyChanged
-    {
-        public event PropertyChangedEventHandler PropertyChanged;
-        public delegate void OnlineStateChangedEventHandler(AxisID axis_id, bool new_online_state);
-        public event OnlineStateChangedEventHandler OnlineStateChanged;
-        private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-        public AxisConfig Config { get; set; }
-        private AxisID _axisID;
-        private string _axisName;
-        public ProtobufSerial<Message> SerialChannel { get; set; }
-        private bool isOnline;
-        public bool IsOnline
-        {
-            get { return isOnline; }
-            set
-            {
-                if (isOnline != value)
-                {
-                    isOnline = value;
-                    PropertyChanged?.Invoke(this,
-                        new PropertyChangedEventArgs(nameof(IsOnline)));
-                    OnlineStateChanged?.Invoke(_axisID, isOnline);
-                }
-                if (value)
-                {
-                    _cancellationTokenSource.Cancel();
-                    _cancellationTokenSource = new CancellationTokenSource();
-                    Task.Delay(1000, _cancellationTokenSource.Token).ContinueWith(t => IsOnline = false, TaskContinuationOptions.NotOnCanceled);
-                }
-            }
-        }
-        public bool SelectedToStore { get; set; }
-        public bool SelectedToLoad { get; set; }
-        public bool SelectableToLoad { get; set; }
-        public AxisID ID { get { return _axisID; } }
-        public string Name { get { return _axisName; } }
-
-        public KinematicParameters KinematicParameters
-        {
-            get
-            {
-                return Config.KinematicParameters;
-            }
-        }
-
-        public Axis(AxisID axis_id)
-        {
-            _axisID = axis_id;
-            _axisName = String.Format("Axis {0}", (int)ID);
-        }
-    }
-    public class Function : INotifyPropertyChanged
-    {
-        public event PropertyChangedEventHandler PropertyChanged;
-        private FunctionConfig _Config;
-        public FunctionConfig Config {
-            get
-            {
-                return _Config;
-            }
-            set
-            {
-                _Config = value;
-                OnAxisUpdate();
-            }
-        }
-        private FunctionID _functionID;
-        private string _functionName;
-        private HashSet<AxisID> _axisIDs = new HashSet<AxisID>();
-        private bool isOnline;
-        public bool IsOnline
-        {
-            get { return isOnline; }
-        }
-        private bool isDirty;
-        public bool IsDirty
-        {
-            get { return isDirty; }
-        }
-
-        private string _statusMessage = "No associated axis configured";
-        public string StatusMessage
-        {
-            get { return _statusMessage; }
-            private set
-            {
-                if (_statusMessage != value)
-                {
-                    _statusMessage = value;
-                    PropertyChanged?.Invoke(this,
-                        new PropertyChangedEventArgs(nameof(StatusMessage)));
-                }
-            }
-        }
-        public bool SelectedToStore { get; set; }
-        public bool SelectedToLoad { get; set; }
-        public bool SelectableToLoad { get; set; }
-        public FunctionID ID { get { return _functionID; } }
-        public string Name { get { return _functionName; } }
-
-        public void OnAxisAdded(AxisID axis_id)
-        {
-            _axisIDs.Add(axis_id);
-            OnAxisUpdate();
-        }
-
-        public void OnAxisRemoved(AxisID axis_id)
-        {
-            _axisIDs.Remove(axis_id);
-            OnAxisUpdate();
-        }
-
-        public void OnAxisUpdate()
-        {
-            bool online = false;
-            bool dirty = false;
-            HashSet<AxisID> linked_axes = new HashSet<AxisID>();
-            foreach (var axis in Config.Base.LinkedAxes)
-            {
-                if (axis == AxisID.AxisUndefined) break;
-                linked_axes.Add(axis & AxisID.Mask);
-            }
-            if (linked_axes.Count == 0)
-            {
-                online = false;
-                StatusMessage = "No associated axis configured";
-            }
-            else if (linked_axes.SetEquals(_axisIDs))
-            {
-                online = true;
-                StatusMessage = "All associated axes online and reporting the correct function";
-            }
-            else
-            {
-                online = false;
-                dirty = true;
-                StatusMessage = String.Format("Associated axes reporting this function: {0}\nAssociated axes reporting other function or offline: {1}\nUnassociated axes reporting this function: {2}", linked_axes.Intersect(_axisIDs).Count(), linked_axes.Except(_axisIDs).Count(), _axisIDs.Except(linked_axes).Count());
-            }
-            if (online != isOnline)
-            {
-                isOnline = online;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsOnline)));
-            }
-            if (dirty != isDirty)
-            {
-                isDirty = dirty;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDirty)));
-            }
-        }
-
-        public Function(FunctionID function_id)
-        {
-            _functionID = function_id;
-            _functionName = function_id.ToString().CamelCaseToTitleCase();
-        }
-    }
-
     /// <summary>
     /// Logique d'interaction pour DiyFfbPluginUI.xaml
     /// </summary>
@@ -1148,9 +989,6 @@ namespace User.PluginSdkDemo
             if (new_online_state)
             {
                 msg = String.Format("Axis {0} Connected", (int)axis_id);
-                Task.Delay(100).ContinueWith(t => RequestAxisConfig(axis_id));
-                Task.Delay(200).ContinueWith(t => RequestFunctionConfig(axis_id));
-                Task.Delay(300).ContinueWith(t => RequestActiveFunction(axis_id));
             }
             else
             {
@@ -4341,7 +4179,7 @@ namespace User.PluginSdkDemo
             //}
         }
 
-        private void ProcessGatewayState(GatewayState state)
+        private void ProcessGatewayState(ProtobufSerial<Message> port, GatewayState state)
         {
             var Bridge_RSSI = state.Rssi;
             Label_RSSI.Content = "" + (Bridge_RSSI - 100) + "dBm";
@@ -4391,43 +4229,14 @@ namespace User.PluginSdkDemo
             for (AxisID axis_id = AxisID._1; axis_id <= AxisID._8; axis_id++)
             {
                 int axis_flag = 1 << ((int)axis_id - 1);
-                axes[axis_id].IsOnline = (state.AxesPresent & axis_flag) != 0;
-            }
-        }
-
-        public void RequestAxisConfig(AxisID axis_id)
-        {
-            if (Plugin.ESPsync_serialPort.IsOpen)
-            {
-                Message msg = new Message();
-                msg.AxisAction = new AxisAction();
-                msg.AxisAction.AxisId = axis_id;
-                msg.AxisAction.ReturnAxisConfig = true;
-                Plugin.ESPsync_serialPort.WriteMessage(msg);
-            }
-        }
-
-        public void RequestFunctionConfig(AxisID axis_id)
-        {
-            if (Plugin.ESPsync_serialPort.IsOpen)
-            {
-                Message msg = new Message();
-                msg.AxisAction = new AxisAction();
-                msg.AxisAction.AxisId = axis_id;
-                msg.AxisAction.ReturnFunctionConfig = true;
-                Plugin.ESPsync_serialPort.WriteMessage(msg);
-            }
-        }
-
-        public void RequestActiveFunction(AxisID axis_id)
-        {
-            if (Plugin.ESPsync_serialPort.IsOpen)
-            {
-                Message msg = new Message();
-                msg.AxisAction = new AxisAction();
-                msg.AxisAction.AxisId = axis_id;
-                msg.AxisAction.ReturnActiveFunction = true;
-                Plugin.ESPsync_serialPort.WriteMessage(msg);
+                if ((state.AxesPresent & axis_flag) != 0)
+                {
+                    axes[axis_id].SerialChannel = port;
+                }
+                else
+                {
+                    axes[axis_id].SerialChannel = null;
+                }
             }
         }
 
@@ -4473,7 +4282,7 @@ namespace User.PluginSdkDemo
                         ProccessAxisState(msg.AxisState);
                         break;
                     case Message.PayloadOneofCase.GatewayState:
-                        ProcessGatewayState(msg.GatewayState);
+                        ProcessGatewayState(port, msg.GatewayState);
                         break;
                     case Message.PayloadOneofCase.AxisConfig:
                         OnAxisConfigUpdate(msg.AxisConfig);
@@ -5477,11 +5286,33 @@ namespace User.PluginSdkDemo
         private void OnUploadFunctionConfigClicked(object sender, RoutedEventArgs e)
         {
             FunctionConfig function_config = functions[selected_function_id].Config;
-            if (Plugin.ESPsync_serialPort.IsOpen)
+            UploadFunctionConfig(function_config, PersistConfig);
+        }
+
+        private void UploadFunctionConfig(FunctionConfig function_config, bool store)
+        {
+            function_config.Base.Store = store;
+            Message msg = new Message();
+            msg.FunctionConfig = function_config;
+            bool broadcast_required = false;
+            foreach (var linked_axis_id in function_config.Base.LinkedAxes)
             {
-                Message msg = new Message();
-                msg.FunctionConfig = function_config;
-                function_config.Base.Store = (sender == btn_upload_and_store_function_config);
+                var axis_id = linked_axis_id & AxisID.Mask;
+                if (axis_id != AxisID.AxisUndefined)
+                {
+                    var serial_channel = axes[axis_id].SerialChannel;
+                    if (serial_channel != null && serial_channel != Plugin.ESPsync_serialPort)
+                    {
+                        serial_channel.WriteMessage(msg);
+                    }
+                    else
+                    {
+                        broadcast_required = true;
+                    }
+                }
+            }
+            if (broadcast_required && Plugin.ESPsync_serialPort.IsOpen)
+            {
                 Plugin.ESPsync_serialPort.WriteMessage(msg);
             }
         }
@@ -5652,15 +5483,7 @@ namespace User.PluginSdkDemo
 
         private void OnUploadAxisConfigClicked(object sender, RoutedEventArgs e)
         {
-            AxisConfig axis_config = axes[selected_axis_id].Config;
-            if (Plugin.ESPsync_serialPort.IsOpen)
-            {
-                Message msg = new Message();
-                msg.AxisConfig = axis_config;
-                axis_config.Store = (sender == btn_upload_and_store_axis_config);
-                Plugin.ESPsync_serialPort.WriteMessage(msg);
-            }
-
+            axes[selected_axis_id].UploadConfig(PersistConfig);
         }
 
         private void btn_store_axis_config_to_file_Click(object sender, RoutedEventArgs e)
@@ -5682,6 +5505,26 @@ namespace User.PluginSdkDemo
                 btn_store_function_config_to_file.IsEnabled = false;
                 btn_store_axis_config_to_file.IsEnabled = false;
                 saveSelectionDialog.Show();
+            }
+        }
+        bool PersistConfig = false;
+        private void OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl)
+            {
+                btn_upload_axis_config.Content = "Upload and Persist";
+                btn_upload_function_config.Content = "Upload and Persist";
+                PersistConfig = true;
+            }
+        }
+
+        private void OnPreviewKeyUp(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl)
+            {
+                btn_upload_axis_config.Content = "Upload";
+                btn_upload_function_config.Content = "Upload";
+                PersistConfig = false;
             }
         }
     }

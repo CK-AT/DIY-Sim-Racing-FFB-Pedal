@@ -7,7 +7,7 @@
              xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins" mc:Ignorable="d" 
              xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins" 
              xmlns:controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
-             >
+             PreviewKeyDown="OnPreviewKeyDown" PreviewKeyUp="OnPreviewKeyUp">
 
 
     <UserControl.Resources>
@@ -487,8 +487,7 @@
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
                                     <Border  HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5"  Margin="0,0,0,3">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                            <styles:SHButtonPrimary x:Name="btn_upload_function_config" Click="OnUploadFunctionConfigClicked" Width="125"  Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends this function configuration to the affected axes." />
-                                            <styles:SHButtonPrimary x:Name="btn_upload_and_store_function_config" Click="OnUploadFunctionConfigClicked" Width="125" Height="28" Content="Upload and Persist" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends this function configuration to the affected axes.&#x0a;Axes will also store it in persistent memory." />
+                                            <styles:SHButtonPrimary x:Name="btn_upload_function_config" Click="OnUploadFunctionConfigClicked" Width="125"  Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends this function configuration to the affected axes.&#x0a;Hold CTRL while clicking to store it into the axes' persistent memory as well." />
                                             <styles:SHButtonPrimary x:Name="btn_load_function_config_from_file" Click="OnLoadConfigClick" Width="125" Height="28" Content="Load" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Load a function config from a .json file." />
                                             <styles:SHButtonPrimary x:Name="btn_store_function_config_to_file" Click="btn_store_function_config_to_file_Click" Width="125" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this function config to a .json file." />
                                         </StackPanel>
@@ -721,8 +720,7 @@
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
                                     <Border  HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5"  Margin="0,0,0,3">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                            <styles:SHButtonPrimary x:Name="btn_upload_axis_config" Click="OnUploadAxisConfigClicked" Width="125"  Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends the axis configuration to the axis currently selected." />
-                                            <styles:SHButtonPrimary x:Name="btn_upload_and_store_axis_config" Click="OnUploadAxisConfigClicked" Width="125" Height="28" Content="Upload and Persist" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends the axis configuration to the axis currently selected.&#x0a;The axis will also store it in persistent memory." />
+                                            <styles:SHButtonPrimary x:Name="btn_upload_axis_config" Click="OnUploadAxisConfigClicked" Width="125"  Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends the axis configuration to the axis currently selected.&#x0a;Hold CTRL while clicking to store it into the axis' persistent memory as well." />
                                             <styles:SHButtonPrimary x:Name="btn_load_axis_config_from_file" Click="OnLoadConfigClick" Width="125" Height="28" Content="Load" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Load a axis config from a .json file." />
                                             <styles:SHButtonPrimary x:Name="btn_store_axis_config_to_file" Click="btn_store_axis_config_to_file_Click" Width="125" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this axis config to a .json file." />
                                         </StackPanel>
