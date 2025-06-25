@@ -4476,10 +4476,10 @@ namespace User.PluginSdkDemo
                         ProcessGatewayState(msg.GatewayState);
                         break;
                     case Message.PayloadOneofCase.AxisConfig:
-                        OnAxisConfigReceived(msg.AxisConfig);
+                        OnAxisConfigUpdate(msg.AxisConfig);
                         break;
                     case Message.PayloadOneofCase.FunctionConfig:
-                        OnFunctionConfigReceived(msg.FunctionConfig);
+                        OnFunctionConfigUpdate(msg.FunctionConfig);
                         break;
                     case Message.PayloadOneofCase.AxisLogMessage:
                         string axis_log_line;
@@ -4557,32 +4557,6 @@ namespace User.PluginSdkDemo
                 string errorMessage = caughtEx.Message;
                 TextBox_debug_count.Text += errorMessage;
                 SimHub.Logging.Current.Error(errorMessage);
-            }
-        }
-
-        private void OnFunctionConfigReceived(FunctionConfig function_config)
-        {
-            FunctionID function_id = function_config.Base.FunctionId;
-            if (function_id != FunctionID.Undefined)
-            {
-                functions[function_id].Config = function_config;
-                if (selected_function_id == function_id)
-                {
-                    uc_function_config.SwitchFunction(functions[selected_function_id]);
-                }
-            }
-        }
-
-        private void OnAxisConfigReceived(AxisConfig axis_config)
-        {
-            AxisID axis_id = axis_config.AxisId;
-            if (axis_id != AxisID.AxisUndefined && axis_id <= AxisID._8)
-            {
-                axes[axis_id].Config = axis_config;
-                if (selected_axis_id == axis_id)
-                {
-                    uc_axis_config.UpdateConfig(axis_config);
-                }
             }
         }
 
@@ -5515,20 +5489,34 @@ namespace User.PluginSdkDemo
         private void OnFunctionConfigUpdate(FunctionConfig new_function_config)
         {
             FunctionID new_function_id = new_function_config.Base.FunctionId;
-            functions[new_function_id].Config = new_function_config;
-            if (new_function_id == selected_function_id)
+            if (new_function_id != FunctionID.Undefined)
             {
-                uc_function_config.SwitchFunction(functions[new_function_id]);
+                functions[new_function_id].Config = new_function_config;
+                if (new_function_id == selected_function_id)
+                {
+                    uc_function_config.SwitchFunction(functions[new_function_id]);
+                }
+            }
+            else
+            {
+                TextBox_debugOutput.Text = $"invalid function ID ({(int)new_function_id})";
             }
         }
 
         private void OnAxisConfigUpdate(AxisConfig new_axis_config)
         {
             AxisID new_axis_id = new_axis_config.AxisId;
-            axes[new_axis_id].Config = new_axis_config;
-            if (new_axis_id == selected_axis_id)
+            if (new_axis_id != AxisID.AxisUndefined && new_axis_id <= AxisID._8)
             {
-                uc_axis_config.UpdateConfig(axes[new_axis_id].Config);
+                axes[new_axis_id].Config = new_axis_config;
+                if (new_axis_id == selected_axis_id)
+                {
+                    uc_axis_config.UpdateConfig(axes[new_axis_id].Config);
+                }
+            }
+            else
+            {
+                TextBox_debugOutput.Text = $"invalid axis ID ({(int)new_axis_id})";
             }
         }
 
@@ -5575,8 +5563,7 @@ namespace User.PluginSdkDemo
                 }
                 catch (Exception caughtEx)
                 {
-                    string errorMessage = caughtEx.Message;
-                    TextBox_debugOutput.Text = errorMessage;
+                    System.Windows.MessageBox.Show($"Error loading {openFileDialog.FileName}: {caughtEx.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
         }
