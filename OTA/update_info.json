@@ -3,7 +3,7 @@
     {
       "Board": "CK-AT_A6_V1.0",
       "Version": "0.1.2",
-      "URL": "https://github.com/CK-AT/DIY-Sim-Racing-FFB-Pedal/tree/ck_comm_rework/OTA/firmware.bin"
+      "URL": "https://raw.githubusercontent.com/CK-AT/DIY-Sim-Racing-FFB-Pedal/refs/heads/ck_comm_rework/OTA/firmware.bin"
     }
   ]
 }
