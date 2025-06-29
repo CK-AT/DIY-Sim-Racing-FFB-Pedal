@@ -24,6 +24,7 @@
 #include "IFunction.h"
 #include "Physics.h"
 #include "Version_Board.h"
+#include "Version.h"
 
 #ifdef Using_analog_output_ESP32_S3
     #include <Adafruit_MCP4725.h>
@@ -262,6 +263,8 @@ void setup() {
     LogOutput::printf("**************************************************************************************************************");
     LogOutput::printf("This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.");
     LogOutput::printf("Please check github repo for more detail: https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal");
+    LogOutput::printf("Board: %s", CONTROL_BOARD);
+    LogOutput::printf("FW Version: %s (%s)", VERSION, BUILD_TIMESTAMP);
     // TODO: printout the github releasing version
 
 #ifdef PEDAL_ASSIGNMENT

@@ -1,0 +1,9 @@
+{
+  "Configurations": [
+    {
+      "Board": "CK-AT_A6_V1.0",
+      "Version": "0.1.2",
+      "URL": "https://https://github.com/CK-AT/DIY-Sim-Racing-FFB-Pedal/tree/ck_comm_rework/OTA/firmware.bin"
+    }
+  ]
+}

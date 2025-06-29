@@ -28,3 +28,6 @@ ESP32/sim/diy_ffb_protocol_pb2.py
 ProtbufTest/DiyFfbProtocol.cs
 SimHubPlugin/packages
 SimhubPlugin/DiyFfbProtocol.cs
+ESP32/compile_commands.json
+ESP32/.vscode/settings.json
+ESP32/.version_no_increment

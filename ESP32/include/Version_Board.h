@@ -1,4 +1,3 @@
-#define DAP_FIRMWARE_VERSION "0.89.01"
 #if PCB_VERSION == 3
     #define CONTROL_BOARD "V3_ESP32"
 #endif
@@ -29,4 +28,7 @@
 #endif
 #if PCB_VERSION == 12
     #define CONTROL_BOARD "CK-AT_Prototype"
+#endif
+#if PCB_VERSION == 13
+    #define CONTROL_BOARD "CK-AT_A6_V1.0"
 #endif

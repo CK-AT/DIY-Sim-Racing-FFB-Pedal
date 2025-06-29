@@ -4,6 +4,8 @@
 #include <Joystick_ESP32S2.h>
 #include <LogOutput.h>
 #include <SerialManager.h>
+#include <Version.h>
+#include <Version_Board.h>
 
 #include "queue.h"
 
@@ -47,6 +49,7 @@ void CommManager::periodic_task_func(void) {
         }
     }
     update_joystick_state();
+    update_ota_state();
     pump_log(5);
 }
 
@@ -92,6 +95,49 @@ void CommManager::update_joystick_state() {
     }
 }
 
+void CommManager::update_ota_state() {
+    ESP32OTAPull::ErrorCode result;
+    switch (_ota_state) {
+        case OTA_WAIT_FOR_WIFI:
+            if (WiFi.isConnected()) {
+                LogOutput::printf("OTA: WiFi online");
+                switch_ota_state(OTA_CHECK);
+            }
+            break;
+        case OTA_CHECK:
+            ota.OverrideBoard(CONTROL_BOARD);
+            result = ESP32OTAPull::ErrorCode(ota.CheckForOTAUpdate(_ota_url.c_str(), VERSION));
+            switch (result) {
+                case ESP32OTAPull::ErrorCode::HTTP_FAILED:
+                    LogOutput::printf("OTA: HTTP failed");
+                    switch_ota_state(OTA_IDLE);
+                    break;
+                case ESP32OTAPull::ErrorCode::JSON_PROBLEM:
+                    LogOutput::printf("OTA: JSON problem");
+                    switch_ota_state(OTA_IDLE);
+                    break;
+                case ESP32OTAPull::ErrorCode::NO_UPDATE_AVAILABLE:
+                    LogOutput::printf("OTA: No update available");
+                    switch_ota_state(OTA_IDLE);
+                    break;
+                case ESP32OTAPull::ErrorCode::NO_UPDATE_PROFILE_FOUND:
+                    LogOutput::printf("OTA: No update profile found");
+                    switch_ota_state(OTA_IDLE);
+                    break;
+                case ESP32OTAPull::ErrorCode::UPDATE_AVAILABLE:
+                    LogOutput::printf("OTA: Update available");
+                    switch_ota_state(OTA_UPDATE);
+                    break;
+                default:
+                    LogOutput::printf("OTA: Negative HTTP response: %d", int(result));
+                    switch_ota_state(OTA_IDLE);
+                    break;
+            }
+        default:
+            break;
+    }
+}
+
 void CommManager::send_gateway_state_message(GatewayID gateway_id, uint8_t online_flags) {
     _state_message.which_payload = Message_gateway_state_tag;
     _state_message.payload.gateway_state.axes_present = online_flags;
@@ -121,7 +167,7 @@ void CommManager::setup(Stream *serial, CANConfig &can_config, ConfigManager *co
     _can_config = can_config;
     _log_queue_data = xQueueCreate(20, MAX_LOG_LINE_LENGTH);
     setup_serial(serial);
-    xTaskCreatePinnedToCore(this->periodic_task, "CommManagerTask", 4000, this, 1, NULL, 0);
+    xTaskCreatePinnedToCore(this->periodic_task, "CommManagerTask", 8000, this, 1, NULL, 0);
 }
 
 void CommManager::pump_log(int max_samples, int timeout) {
@@ -244,6 +290,18 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
                 }
             }
             break;
+        case Message_start_ota_update_tag:
+            if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
+                for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
+                    send_message_to_axis(MessageTools::axis_id_from_index(axis_idx), msg);
+                }
+            }
+            // TODO: Deinit ESPNow
+            WiFi.begin(msg.payload.start_ota_update.wifi_info.ssid, msg.payload.start_ota_update.wifi_info.password);
+            _ota_url = msg.payload.start_ota_update.info_json_url;
+            switch_ota_state(OtaState::OTA_WAIT_FOR_WIFI);
+            break;
+            
         default:
             LogOutput::printf("Unknown Message received");
             break;

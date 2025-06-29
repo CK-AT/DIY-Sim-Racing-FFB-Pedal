@@ -7,6 +7,7 @@
 #include "ConfigManager.fwd.h"
 #include "ICommChannel.h"
 #include "SerialManager.h"
+#include "ESP32OTAPull.h"
 
 class CommManager {
     public:
@@ -68,6 +69,13 @@ class CommManager {
             JOYSTICK_PRE_READY,
             JOYSTICK_READY
         };
+        enum OtaState {
+            OTA_IDLE,
+            OTA_PREPARE_WIFI,
+            OTA_WAIT_FOR_WIFI,
+            OTA_CHECK,
+            OTA_UPDATE
+        };
         bool setup_can(CANConfig &can_config);
         bool setup_serial(Stream *serial);
         void on_gateway_packet_received(const uint8_t *buffer, size_t size, CommChannel comm_channel);
@@ -90,6 +98,11 @@ class CommManager {
         void switch_joystick_state(CommManager::JoystickState new_state) {
             _joystick_state = new_state;
             _ti_joystick_state = micros();
+        }
+        void update_ota_state();
+        void switch_ota_state(CommManager::OtaState new_state) {
+            _ota_state = new_state;
+            _ti_ota_state = micros();
         }
         void on_axis_state_change(AxisID axis_id, bool is_online);
         void on_gateway_state_change(ICommChannel *comm_channel, bool is_online);
@@ -126,4 +139,8 @@ class CommManager {
         uint32_t _ti_joystick_state;
         bool _physics_task_started = false;
         float controller_axis_values[_ControllerAxis_MAX] = {};
+        ESP32OTAPull ota = {};
+        OtaState _ota_state = OtaState::OTA_IDLE;
+        uint32_t _ti_ota_state;
+        String _ota_url;
 };
