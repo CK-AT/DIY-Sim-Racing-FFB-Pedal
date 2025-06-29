@@ -105,33 +105,53 @@ void CommManager::update_ota_state() {
             }
             break;
         case OTA_CHECK:
-            ota.OverrideBoard(CONTROL_BOARD);
-            result = ESP32OTAPull::ErrorCode(ota.CheckForOTAUpdate(_ota_url.c_str(), VERSION));
-            switch (result) {
-                case ESP32OTAPull::ErrorCode::HTTP_FAILED:
-                    LogOutput::printf("OTA: HTTP failed");
-                    switch_ota_state(OTA_IDLE);
-                    break;
-                case ESP32OTAPull::ErrorCode::JSON_PROBLEM:
-                    LogOutput::printf("OTA: JSON problem");
-                    switch_ota_state(OTA_IDLE);
-                    break;
-                case ESP32OTAPull::ErrorCode::NO_UPDATE_AVAILABLE:
-                    LogOutput::printf("OTA: No update available");
-                    switch_ota_state(OTA_IDLE);
-                    break;
-                case ESP32OTAPull::ErrorCode::NO_UPDATE_PROFILE_FOUND:
-                    LogOutput::printf("OTA: No update profile found");
-                    switch_ota_state(OTA_IDLE);
-                    break;
-                case ESP32OTAPull::ErrorCode::UPDATE_AVAILABLE:
-                    LogOutput::printf("OTA: Update available");
-                    switch_ota_state(OTA_UPDATE);
-                    break;
-                default:
-                    LogOutput::printf("OTA: Negative HTTP response: %d", int(result));
-                    switch_ota_state(OTA_IDLE);
-                    break;
+            if ((micros() - _ti_ota_state) > 100000) {
+                ota.OverrideBoard(CONTROL_BOARD);
+                result = ESP32OTAPull::ErrorCode(ota.CheckForOTAUpdate(_ota_url.c_str(), VERSION, ESP32OTAPull::ActionType::DONT_DO_UPDATE));
+                switch (result) {
+                    case ESP32OTAPull::ErrorCode::HTTP_FAILED:
+                        LogOutput::printf("OTA: HTTP failed");
+                        switch_ota_state(OTA_IDLE);
+                        break;
+                    case ESP32OTAPull::ErrorCode::JSON_PROBLEM:
+                        LogOutput::printf("OTA: JSON problem");
+                        switch_ota_state(OTA_IDLE);
+                        break;
+                    case ESP32OTAPull::ErrorCode::NO_UPDATE_AVAILABLE:
+                        LogOutput::printf("OTA: No update available");
+                        switch_ota_state(OTA_IDLE);
+                        break;
+                    case ESP32OTAPull::ErrorCode::NO_UPDATE_PROFILE_FOUND:
+                        LogOutput::printf("OTA: No update profile found");
+                        switch_ota_state(OTA_IDLE);
+                        break;
+                    case ESP32OTAPull::ErrorCode::UPDATE_AVAILABLE:
+                        LogOutput::printf("OTA: Update available, installing...");
+                        switch_ota_state(OTA_UPDATE);
+                        break;
+                    default:
+                        LogOutput::printf("OTA: Negative HTTP response: %d", int(result));
+                        switch_ota_state(OTA_IDLE);
+                        break;
+                }
+            }
+        case OTA_UPDATE:
+            if ((micros() - _ti_ota_state) > 100000) {
+                result = ESP32OTAPull::ErrorCode(ota.CheckForOTAUpdate(_ota_url.c_str(), VERSION));
+                switch (result) {
+                    case ESP32OTAPull::ErrorCode::OTA_UPDATE_FAIL:
+                        LogOutput::printf("OTA: Failed to begin update");
+                        switch_ota_state(OTA_IDLE);
+                        break;
+                    case ESP32OTAPull::ErrorCode::WRITE_ERROR:
+                        LogOutput::printf("OTA: Write error");
+                        switch_ota_state(OTA_IDLE);
+                        break;
+                    default:
+                        LogOutput::printf("OTA: Negative HTTP response: %d", int(result));
+                        switch_ota_state(OTA_IDLE);
+                        break;
+                }
             }
         default:
             break;
@@ -297,11 +317,12 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
                 }
             }
             // TODO: Deinit ESPNow
+            LogOutput::printf("OTA: Initializing WiFi...");
+            ota.AllowDowngrades(msg.payload.start_ota_update.allow_downgrades);
             WiFi.begin(msg.payload.start_ota_update.wifi_info.ssid, msg.payload.start_ota_update.wifi_info.password);
             _ota_url = msg.payload.start_ota_update.info_json_url;
             switch_ota_state(OtaState::OTA_WAIT_FOR_WIFI);
             break;
-            
         default:
             LogOutput::printf("Unknown Message received");
             break;
