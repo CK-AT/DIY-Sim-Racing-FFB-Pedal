@@ -416,6 +416,7 @@ message WifiInfo {
 message StartOtaUpdate {
   WifiInfo wifi_info = 1;
   string info_json_url = 2;
+  bool allow_downgrades = 3;
 }
 
 message Message {
