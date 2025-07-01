@@ -14,6 +14,7 @@ namespace ProtbufTest
         BufferBlock<byte> rx_fifo = new BufferBlock<byte>();
         CancellationTokenSource cts = new CancellationTokenSource();
         bool _auto_reconnect = false;
+        private readonly object _write_lock = new object();
 
         public bool IsOpen { get { return port.IsOpen; } }
 
@@ -133,7 +134,10 @@ namespace ProtbufTest
             }
             if (port.IsOpen)
             {
-                port.Write(data, 0, data.Length);
+                lock (_write_lock)
+                {
+                    port.Write(data, 0, data.Length);
+                }
                 return true;
             }
             return false;
