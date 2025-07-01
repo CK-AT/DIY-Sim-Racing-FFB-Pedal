@@ -2,6 +2,16 @@
 
 #include "LogOutput.h"
 
+float calc_poly(const float &in, const double *coeffs, size_t num_coeffs) {
+    double result = coeffs[0];
+    double temp = in;
+    for (uint8_t i = 1; i < num_coeffs; i++) {
+        result += temp * coeffs[i];
+        temp *= in;
+    }
+    return result;
+}
+
 void ConfigManager::set_axis_config_defaults(void) {
     _axis_config = AxisConfig_init_default;
     if (_fixed_id) {
@@ -262,4 +272,12 @@ void ConfigManager::update_lookup_tables(const FunctionConfig &new_config) {
         }
     }
     _aux_function_lut[new_config.base.function_id] = {nullptr, {}};
+}
+
+float ConfigManager::calc_force_conversion_factor(float &x_contact_point) {
+    return calc_poly(x_contact_point, _axis_config.kinematic_parameters.coeffs_force_factor_over_contact_point_pos, sizeof(KinematicParameters::coeffs_force_factor_over_contact_point_pos) / sizeof(KinematicParameters::coeffs_force_factor_over_contact_point_pos[0]));
+}
+
+float ConfigManager::calc_sled_position(float &x_contact_point) {
+    return calc_poly(x_contact_point, _axis_config.kinematic_parameters.coeffs_sled_pos_over_contact_point_pos, sizeof(KinematicParameters::coeffs_sled_pos_over_contact_point_pos) / sizeof(KinematicParameters::coeffs_sled_pos_over_contact_point_pos[0]));
 }

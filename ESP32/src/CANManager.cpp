@@ -26,32 +26,32 @@ extern "C" void isotp_user_debug(const char *message, ...) {
 /*****************************************************************************************************************/
 /* CANManager */
 /*****************************************************************************************************************/
-bool CANManager::get_force(AxisID axis_id, float &f_foot) {
+bool CANManager::get_force(AxisID axis_id, float &f_contact_point) {
     if (!MessageTools::check_axis_id(axis_id)) return false;
     uint8_t axis_idx = MessageTools::axis_index_from_id(axis_id);
     if (axis_states[axis_idx].online) {
-        f_foot = axis_states[axis_idx].force_and_position.f_foot;
+        f_contact_point = axis_states[axis_idx].force_and_position.f_contact_point;
         return true;
     }
     return false;
 }
 
-bool CANManager::get_position(AxisID axis_id, float &x_foot) {
+bool CANManager::get_position(AxisID axis_id, float &x_contact_point) {
     if (!MessageTools::check_axis_id(axis_id)) return false;
     uint8_t axis_idx = MessageTools::axis_index_from_id(axis_id);
     if (axis_states[axis_idx].online) {
-        x_foot = axis_states[axis_idx].force_and_position.x_foot;
+        x_contact_point = axis_states[axis_idx].force_and_position.x_contact_point;
         return true;
     }
     return false;
 }
 
-bool CANManager::get_position_limits(AxisID axis_id, float &x_foot_min, float &x_foot_max) {
+bool CANManager::get_position_limits(AxisID axis_id, float &x_contact_point_min, float &x_contact_point_max) {
     if (!MessageTools::check_axis_id(axis_id)) return false;
     uint8_t axis_idx = MessageTools::axis_index_from_id(axis_id);
     if (axis_states[axis_idx].online) {
-        x_foot_min = axis_states[axis_idx].position_limits.x_foot_min;
-        x_foot_max = axis_states[axis_idx].position_limits.x_foot_max;
+        x_contact_point_min = axis_states[axis_idx].position_limits.x_contact_point_min;
+        x_contact_point_max = axis_states[axis_idx].position_limits.x_contact_point_max;
         return true;
     }
     return false;
@@ -310,8 +310,8 @@ bool CANManager::try_process_ping_frame(CanFrame &rx_frame, uint32_t now) {
 
 void CANManager::broadcast_state_updates(void) {
     if (own_axis_index < 0) return;
-    if (_x_foot_min < _x_foot_max) {
-        update_position_limits(_x_foot_min, _x_foot_max);
+    if (_x_contact_point_min < _x_contact_point_max) {
+        update_position_limits(_x_contact_point_min, _x_contact_point_max);
     }
     if (_function_id != FunctionID_FUNCTION_ID_UNDEFINED) {
         update_function_id(_function_id);
@@ -341,10 +341,10 @@ bool CANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t
     return true;
 }
 
-bool CANManager::send_force_and_position(float &f_foot, float &x_foot) {
+bool CANManager::send_force_and_position(float &f_contact_point, float &x_contact_point) {
     if (own_axis_index < 0) return false;
-    axis_states[own_axis_index].force_and_position.f_foot = f_foot;
-    axis_states[own_axis_index].force_and_position.x_foot = x_foot;
+    axis_states[own_axis_index].force_and_position.f_contact_point = f_contact_point;
+    axis_states[own_axis_index].force_and_position.x_contact_point = x_contact_point;
     axis_states[own_axis_index].online = true;
     fast_update_cnt++;
     /* send the CAN frame on every second call only to keep bus load reasonable even with eight axes */
@@ -364,12 +364,12 @@ bool CANManager::send_force_and_position(float &f_foot, float &x_foot) {
     return true;
 }
 
-bool CANManager::update_position_limits(float x_foot_min, float x_foot_max) {
-    _x_foot_min = x_foot_min;
-    _x_foot_max = x_foot_max;
+bool CANManager::update_position_limits(float x_contact_point_min, float x_contact_point_max) {
+    _x_contact_point_min = x_contact_point_min;
+    _x_contact_point_max = x_contact_point_max;
     if (own_axis_index < 0) return false;
-    axis_states[own_axis_index].position_limits.x_foot_min = x_foot_min;
-    axis_states[own_axis_index].position_limits.x_foot_max = x_foot_max;
+    axis_states[own_axis_index].position_limits.x_contact_point_min = x_contact_point_min;
+    axis_states[own_axis_index].position_limits.x_contact_point_max = x_contact_point_max;
     axis_states[own_axis_index].ti_last_status_update = micros();
     axis_states[own_axis_index].status_valid = true;
     CanFrame tx_frame = {};

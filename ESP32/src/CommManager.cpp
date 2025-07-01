@@ -424,15 +424,15 @@ void CommManager::process(void) {
     can_manager.process();
 }
 
-bool CommManager::send_force_and_position(float &f_foot, float &x_foot) {
-    _f_contact_point_own = f_foot;
-    _x_contact_point_own = x_foot;
-    can_manager.send_force_and_position(f_foot, x_foot);
+bool CommManager::send_force_and_position(float &f_contact_point, float &x_contact_point) {
+    _f_contact_point_own = f_contact_point;
+    _x_contact_point_own = x_contact_point;
+    can_manager.send_force_and_position(f_contact_point, x_contact_point);
     return true;
 }
 
-bool CommManager::update_position_limits(float x_foot_min, float x_foot_max) {
-    can_manager.update_position_limits(x_foot_min, x_foot_max);
+bool CommManager::update_position_limits(float x_contact_point_min, float x_contact_point_max) {
+    can_manager.update_position_limits(x_contact_point_min, x_contact_point_max);
     return true;
 }
 
@@ -441,32 +441,32 @@ bool CommManager::update_function_id(FunctionID function_id) {
     return true;
 }
 
-bool CommManager::get_force(AxisID axis_id, float &f_foot) {
+bool CommManager::get_force(AxisID axis_id, float &f_contact_point) {
     if (axis_id == get_axis_id()) {
-        f_foot = _f_contact_point_own;
+        f_contact_point = _f_contact_point_own;
         return true;
     }
     if (!active_intercom_channel) return false;
-    return active_intercom_channel->get_force(axis_id, f_foot);
+    return active_intercom_channel->get_force(axis_id, f_contact_point);
 }
 
-bool CommManager::update_force(float &f_foot) {
-    _f_contact_point_own = f_foot;
+bool CommManager::update_force(float &f_contact_point) {
+    _f_contact_point_own = f_contact_point;
     return true;
 }
 
-bool CommManager::get_position(AxisID axis_id, float &x_foot) {
+bool CommManager::get_position(AxisID axis_id, float &x_contact_point) {
     if (axis_id == get_axis_id()) {
-        x_foot = _x_contact_point_own;
+        x_contact_point = _x_contact_point_own;
         return true;
     }
     if (!active_intercom_channel) return false;
-    return active_intercom_channel->get_position(axis_id, x_foot);
+    return active_intercom_channel->get_position(axis_id, x_contact_point);
 }
 
-bool CommManager::get_position_limits(AxisID axis_id, float &x_foot_min, float &x_foot_max) {
+bool CommManager::get_position_limits(AxisID axis_id, float &x_contact_point_min, float &x_contact_point_max) {
     if (!active_intercom_channel) return false;
-    return active_intercom_channel->get_position_limits(axis_id, x_foot_min, x_foot_max);
+    return active_intercom_channel->get_position_limits(axis_id, x_contact_point_min, x_contact_point_max);
 }
 
 bool CommManager::get_function_id(AxisID axis_id, FunctionID &function_id) {

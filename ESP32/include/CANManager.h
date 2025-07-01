@@ -33,13 +33,13 @@ class CANManager : public ICommChannel {
         };
 
         struct ForceAndPosition {
-                float f_foot;
-                float x_foot;
+                float f_contact_point;
+                float x_contact_point;
         };
 
         struct PositionLimits {
-                float x_foot_min;
-                float x_foot_max;
+                float x_contact_point_min;
+                float x_contact_point_max;
         };
 
         struct AxisState {
@@ -70,9 +70,9 @@ class CANManager : public ICommChannel {
         };
 
     public:
-        bool get_force(AxisID axis_id, float &f_foot) override;
-        bool get_position(AxisID axis_id, float &x_foot) override;
-        bool get_position_limits(AxisID axis_id, float &x_foot_min, float &x_foot_max) override;
+        bool get_force(AxisID axis_id, float &f_contact_point) override;
+        bool get_position(AxisID axis_id, float &x_contact_point) override;
+        bool get_position_limits(AxisID axis_id, float &x_contact_point_min, float &x_contact_point_max) override;
         bool get_function_id(AxisID axis_id, FunctionID &function_id) override;
         bool is_online(AxisID axis_id) override;
         void process(void) override;
@@ -80,14 +80,14 @@ class CANManager : public ICommChannel {
         /* Axis related */
         bool setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update,
                    OnAxisPayload on_axis_payload, OnAxisStateChange on_axis_state_change, OnGatewayStateChange on_gateway_state_change);
-        bool send_force_and_position(float &f_foot, float &x_foot) override;
+        bool send_force_and_position(float &f_contact_point, float &x_contact_point) override;
         bool send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
         bool ready_to_receive_log_message(void) override;
-        bool update_position_limits(float x_foot_min, float x_foot_max) override;
+        bool update_position_limits(float x_contact_point_min, float x_contact_point_max) override;
         bool update_function_id(FunctionID function_id) override;
-        bool update_force(float &f_foot) override {
+        bool update_force(float &f_contact_point) override {
             if (own_axis_index < 0) return false;
-            axis_states[own_axis_index].force_and_position.f_foot = f_foot;
+            axis_states[own_axis_index].force_and_position.f_contact_point = f_contact_point;
             axis_states[own_axis_index].online = true;
             return true;
         }
@@ -147,8 +147,8 @@ class CANManager : public ICommChannel {
         IsotpStateOutboundLogging outbound_logging_isotp_state;
         OnGatewayPayload on_gateway_payload = nullptr;
         OnFFBAction on_ffb_action = nullptr;
-        float _x_foot_min = 0.0f;
-        float _x_foot_max = 0.0f;
+        float _x_contact_point_min = 0.0f;
+        float _x_contact_point_max = 0.0f;
         FunctionID _function_id = FunctionID_FUNCTION_ID_UNDEFINED;
         bool _gateway_online = false;
         /* Gateway related */

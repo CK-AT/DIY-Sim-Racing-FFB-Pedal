@@ -77,6 +77,8 @@ class ConfigManager {
         float get_x_contact_point_center(void) {
             return _x_contact_point_center;
         }
+        float calc_force_conversion_factor(float &x_contact_point);
+        float calc_sled_position(float &x_contact_point);
         const FunctionConfig *get_function_config(void) {
             return &_function_config;
         }
