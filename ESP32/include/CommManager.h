@@ -74,7 +74,8 @@ class CommManager {
             OTA_PREPARE_WIFI,
             OTA_WAIT_FOR_WIFI,
             OTA_CHECK,
-            OTA_UPDATE
+            OTA_UPDATE,
+            OTA_ERROR
         };
         bool setup_can(CANConfig &can_config);
         bool setup_serial(Stream *serial);
@@ -143,4 +144,5 @@ class CommManager {
         OtaState _ota_state = OtaState::OTA_IDLE;
         uint32_t _ti_ota_state;
         String _ota_url;
+        WifiInfo _wifi_info;
 };

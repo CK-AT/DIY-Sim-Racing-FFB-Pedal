@@ -5019,78 +5019,18 @@ namespace User.PluginSdkDemo
 
         unsafe private void btn_Bridge_OTA_Click(object sender, RoutedEventArgs e)
         {
-            Basic_WIfi_info tmp_2;
-            int length;
-            string SSID = textbox_SSID.Text;
-            string PASS = textbox_PASS.Password;
-            bool SSID_PASS_check = true;
-            if (Checkbox_Force_flash.IsChecked == true)
+            if (Plugin.ESPsync_serialPort.IsOpen)
             {
-                tmp_2.wifi_action = 1;
-            }
-            if (OTAChannel_Sel_1.IsChecked == true)
-            {
-                tmp_2.mode_select = 1;
-            }
-            if (OTAChannel_Sel_2.IsChecked == true)
-            {
-                tmp_2.mode_select = 2;
-            }
-            if (SSID.Length > 30 || PASS.Length > 30)
-            { 
-                SSID_PASS_check = false;
-                String MSG_tmp;
-                MSG_tmp = "ERROR! SSID or Password length larger than 30 bytes";
-                System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+                Message msg = new Message();
+                msg.StartOtaUpdate = new StartOtaUpdate();
+                msg.StartOtaUpdate.WifiInfo = new WifiInfo();
+                msg.StartOtaUpdate.WifiInfo.Ssid = textbox_SSID.Text;
+                msg.StartOtaUpdate.WifiInfo.Password = textbox_PASS.Password;
+                msg.StartOtaUpdate.AllowDowngrades = (bool)Checkbox_Force_flash.IsChecked;
+                msg.StartOtaUpdate.InfoJsonUrl = "https://github.com/CK-AT/DIY-Sim-Racing-FFB-Pedal/raw/refs/heads/ck_comm_rework/OTA/update_info.json";
 
-            if (SSID_PASS_check)
-            {
-                tmp_2.SSID_Length = (byte)SSID.Length;
-                tmp_2.PASS_Length = (byte)PASS.Length;
-                tmp_2.device_ID = 99;
-                tmp_2.payload_Type = (Byte)Constants.Basic_Wifi_info_type;
-
-                byte[] array_ssid = Encoding.ASCII.GetBytes(SSID);
-                //TextBox_serialMonitor_bridge.Text += "SSID:";
-                for (int i = 0; i < SSID.Length; i++)
-                {
-                    tmp_2.WIFI_SSID[i] = array_ssid[i];
-                    //TextBox_serialMonitor_bridge.Text += tmp_2.WIFI_SSID[i] + ",";
-                }
-                //TextBox_serialMonitor_bridge.Text += "\nPASS:";
-                byte[] array_pass = Encoding.ASCII.GetBytes(PASS);
-                for (int i = 0; i < PASS.Length; i++)
-                {
-                    tmp_2.WIFI_PASS[i] = array_pass[i];
-                    //TextBox_serialMonitor_bridge.Text += tmp_2.WIFI_PASS[i] + ",";
-                }
-
-                Basic_WIfi_info* v_2 = &tmp_2;
-                byte* p_2 = (byte*)v_2;
-                TextBox_serialMonitor_bridge.Text += "\nwifi info sent\n\r";
-
-                length = sizeof(Basic_WIfi_info);
-                TextBox_serialMonitor_bridge.Text += "\nLength:" + length;
-                byte[] newBuffer_2 = new byte[length];
-                newBuffer_2 = Plugin.getBytes_Basic_Wifi_info(tmp_2);
-                if (Plugin.ESPsync_serialPort.IsOpen)
-                {
-                    try
-                    {
-                        // clear inbuffer 
-                        //Plugin.ESPsync_serialPort.DiscardInBuffer();
-                        // send query command
-                        //Plugin.ESPsync_serialPort.Write(newBuffer_2, 0, newBuffer_2.Length);
-                    }
-                    catch (Exception caughtEx)
-                    {
-                        string errorMessage = caughtEx.Message;
-                        TextBox_debugOutput.Text = errorMessage;
-                    }
-                }
+                Plugin.ESPsync_serialPort.WriteMessage(msg);
             }
-            
         }
 
         private void textbox_SSID_TextChanged(object sender, TextChangedEventArgs e)

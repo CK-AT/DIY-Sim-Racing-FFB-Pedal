@@ -98,10 +98,21 @@ void CommManager::update_joystick_state() {
 void CommManager::update_ota_state() {
     ESP32OTAPull::ErrorCode result;
     switch (_ota_state) {
+        case OTA_PREPARE_WIFI:
+            if ((micros() - _ti_ota_state) > 100000) {
+                // TODO: Deinit ESPNow
+                LogOutput::printf("OTA: Initializing WiFi...");
+                WiFi.begin(_wifi_info.ssid, _wifi_info.password);
+                switch_ota_state(OTA_WAIT_FOR_WIFI);
+            }
+            break;
         case OTA_WAIT_FOR_WIFI:
             if (WiFi.isConnected()) {
                 LogOutput::printf("OTA: WiFi online");
                 switch_ota_state(OTA_CHECK);
+            } else if ((micros() - _ti_ota_state) > 5000000) {
+                LogOutput::printf("OTA: Failed to connect to WiFi within 5s");
+                switch_ota_state(OTA_ERROR);
             }
             break;
         case OTA_CHECK:
@@ -111,19 +122,19 @@ void CommManager::update_ota_state() {
                 switch (result) {
                     case ESP32OTAPull::ErrorCode::HTTP_FAILED:
                         LogOutput::printf("OTA: HTTP failed");
-                        switch_ota_state(OTA_IDLE);
+                        switch_ota_state(OTA_ERROR);
                         break;
                     case ESP32OTAPull::ErrorCode::JSON_PROBLEM:
                         LogOutput::printf("OTA: JSON problem");
-                        switch_ota_state(OTA_IDLE);
+                        switch_ota_state(OTA_ERROR);
                         break;
                     case ESP32OTAPull::ErrorCode::NO_UPDATE_AVAILABLE:
                         LogOutput::printf("OTA: No update available");
-                        switch_ota_state(OTA_IDLE);
+                        switch_ota_state(OTA_ERROR);
                         break;
                     case ESP32OTAPull::ErrorCode::NO_UPDATE_PROFILE_FOUND:
                         LogOutput::printf("OTA: No update profile found");
-                        switch_ota_state(OTA_IDLE);
+                        switch_ota_state(OTA_ERROR);
                         break;
                     case ESP32OTAPull::ErrorCode::UPDATE_AVAILABLE:
                         LogOutput::printf("OTA: Update available, installing...");
@@ -131,28 +142,34 @@ void CommManager::update_ota_state() {
                         break;
                     default:
                         LogOutput::printf("OTA: Negative HTTP response: %d", int(result));
-                        switch_ota_state(OTA_IDLE);
+                        switch_ota_state(OTA_ERROR);
                         break;
                 }
             }
+            break;
         case OTA_UPDATE:
             if ((micros() - _ti_ota_state) > 100000) {
                 result = ESP32OTAPull::ErrorCode(ota.CheckForOTAUpdate(_ota_url.c_str(), VERSION));
                 switch (result) {
                     case ESP32OTAPull::ErrorCode::OTA_UPDATE_FAIL:
                         LogOutput::printf("OTA: Failed to begin update");
-                        switch_ota_state(OTA_IDLE);
+                        switch_ota_state(OTA_ERROR);
                         break;
                     case ESP32OTAPull::ErrorCode::WRITE_ERROR:
                         LogOutput::printf("OTA: Write error");
-                        switch_ota_state(OTA_IDLE);
+                        switch_ota_state(OTA_ERROR);
                         break;
                     default:
                         LogOutput::printf("OTA: Negative HTTP response: %d", int(result));
-                        switch_ota_state(OTA_IDLE);
+                        switch_ota_state(OTA_ERROR);
                         break;
                 }
             }
+            break;
+        case OTA_ERROR:
+            WiFi.disconnect(true);
+            switch_ota_state(OTA_IDLE);
+            break;
         default:
             break;
     }
@@ -316,12 +333,10 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
                     send_message_to_axis(MessageTools::axis_id_from_index(axis_idx), msg);
                 }
             }
-            // TODO: Deinit ESPNow
-            LogOutput::printf("OTA: Initializing WiFi...");
             ota.AllowDowngrades(msg.payload.start_ota_update.allow_downgrades);
-            WiFi.begin(msg.payload.start_ota_update.wifi_info.ssid, msg.payload.start_ota_update.wifi_info.password);
+            _wifi_info = msg.payload.start_ota_update.wifi_info;
             _ota_url = msg.payload.start_ota_update.info_json_url;
-            switch_ota_state(OtaState::OTA_WAIT_FOR_WIFI);
+            switch_ota_state(OtaState::OTA_PREPARE_WIFI);
             break;
         default:
             LogOutput::printf("Unknown Message received");
@@ -394,6 +409,7 @@ bool CommManager::setup_can(CANConfig &config) {
 void CommManager::on_axis_state_change(AxisID axis_id, bool is_online) {
     if (axis_id == get_axis_id()) return;
     if (!is_gateway()) return;
+    if (_ota_state != OTA_IDLE) return;
     if (is_online) {
         LogOutput::printf("CommManager: Axis %d online, requesting function config", axis_id);
         if (!is_gateway()) return;
