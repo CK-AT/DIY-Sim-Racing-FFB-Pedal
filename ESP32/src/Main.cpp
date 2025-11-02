@@ -415,7 +415,7 @@ void physics_task_func(void *pvParameters) {
 
         comm_manager.calc_final_position(sim.get_x(), x_contact_point);
 
-        float x_sled = config_manager.calc_sled_position(f_contact_point);
+        float x_sled = config_manager.calc_sled_position(x_contact_point);
 
         config_manager.release_config_semaphore();
 
