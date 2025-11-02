@@ -11,7 +11,7 @@ static const float ADC_VREF = 2.5;        // voltage reference
 
 static const int NUMBER_OF_SAMPLES_FOR_LOADCELL_OFFFSET_ESTIMATION = 10000;
 static const float DEFAULT_VARIANCE_ESTIMATE = 0.2f * 0.2f;
-static const float LOADCELL_VARIANCE_MIN = 0.001f;
+static const float LOADCELL_VARIANCE_MIN = 0.0001f;
 // static const float CONVERSION_FACTOR = LOADCELL_WEIGHT_RATING_KG / (LOADCELL_EXCITATION_V * (LOADCELL_SENSITIVITY_MV_V/1000));
 
 #define CONVERSION_FACTOR LOADCELL_WEIGHT_RATING_KG / (LOADCELL_EXCITATION_V * (LOADCELL_SENSITIVITY_MV_V / 1000))
@@ -100,14 +100,14 @@ void LoadCell_ADS1256::estimateVariance() {
         varEstimate += sq(loadcellReading) * varNormalizer;
     }
 
-    _standardDeviationEstimate = sqrt(varEstimate);
-
     // make sure estimate is nonzero
     if (varEstimate < LOADCELL_VARIANCE_MIN) {
         varEstimate = LOADCELL_VARIANCE_MIN;
     }
 
-    LogOutput::printf(" -> variance est. = %.3f", varEstimate);
+    _standardDeviationEstimate = sqrt(varEstimate);
+
+    LogOutput::printf(" -> variance est. = %.4f", varEstimate);
     LogOutput::printf(" -> stddev est. = %.5f", _standardDeviationEstimate);
 
     varEstimate *= 9;  // The variance is 1*sigma --> to make it 3*sigma, we have to multiply by 3*3
