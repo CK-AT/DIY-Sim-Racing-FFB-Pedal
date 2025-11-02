@@ -21,5 +21,6 @@ class FlightPedalsFunction : public IFunction {
     private:
         Spring centering_spring = Spring(0.0, 0.0);
         Damper damper = Damper(1.0);
+        Friction friction = Friction(0.0);
         FlightPedalsConfig _config = FlightPedalsConfig_init_default;
 };
