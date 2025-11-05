@@ -104,21 +104,7 @@ const RgbColor red = RgbColor(46, 0, 0);
 const RgbColor purple = RgbColor(36, 0, 46);
 #endif
 
-float m = 0.1;
-float x_min = 0.0;
-float x_max = 100.0;
-float v_min = -1000.0;
-float v_max = 1000.0;
-float a_min = -100000.0;
-float a_max = 100000.0;
-Sim sim = Sim(m, x_min, x_max, v_min, v_max, a_min, a_max);
-// Spring spring1 = Spring(50.0, 2.0);
-// Damper damper1 = Damper(0.1);
-// Friction friction1 = Friction(0.0);
-// ForceMap force_map1 = ForceMap({0.0, 100.0}, {-100.0, 100.0});
-// CompoundElement endstops = CompoundElement();
-// ForceMap force_map2 = ForceMap({0.0, 10.0, 90.0, 100.0}, {-100.0, 0.0, 0.0, 100.0});
-// DampingMap damping_map1 = DampingMap({0.0, 15.0, 85.0, 100.0}, {3.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 3.0});
+Sim sim = Sim(0.0, 100.0, 0.0);
 
 #include "CommManager.h"
 #include "ConfigManager.h"

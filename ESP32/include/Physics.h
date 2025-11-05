@@ -38,8 +38,8 @@ class SimElement {
 
 class Sim {
     public:
-        Sim(float m, float x_min, float x_max, float v_min, float v_max, float a_min, float a_max)
-            : _m(m), _x_min_tgt(x_min), _x_max_tgt(x_max), _v_min(v_min), _v_max(v_max), _a_min(a_min), _a_max(a_max) {
+        Sim(float m, float x_min, float x_max)
+            : _m(m), _x_min_tgt(x_min), _x_max_tgt(x_max) {
         }
         float get_x(void) {
             return _x;
@@ -74,22 +74,6 @@ class Sim {
         float get_x_max(void) {
             return _x_max_tgt;
         }
-        void set_v_min(float val) {
-            _v_min = val;
-            _v = constrain(_v, _v_min, _v_max);
-        }
-        void set_v_max(float val) {
-            _v_max = val;
-            _v = constrain(_v, _v_min, _v_max);
-        }
-        void set_a_min(float val) {
-            _a_min = val;
-            _a = constrain(_a, _a_min, _a_max);
-        }
-        void set_a_max(float val) {
-            _a_max = val;
-            _a = constrain(_a, _a_min, _a_max);
-        }
         void add_element(SimElement *element) {
             _elements.emplace_back(element);
         }
@@ -105,11 +89,8 @@ class Sim {
         float _x_max = 0.0;
         float _x_min_tgt;
         float _x_max_tgt;
-        float _v_min;
-        float _v_max;
-        float _a_min;
-        float _a_max;
         float _x = 0.0;
+        float _x_prev = 0.0;
         float _v = 0.0;
         float _a = 0.0;
         float _f_sum;
