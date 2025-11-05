@@ -5347,6 +5347,10 @@ namespace User.PluginSdkDemo
                 {
                     OnAxisConfigUpdate(loadSelectionDialog.axis_configs[item.ID]);
                 }
+                if (loadSelectionDialog.UploadRequested && item.SelectedToLoad)
+                {
+                    axes[item.ID].UploadConfig(false);
+                }
                 item.SelectedToLoad = false;
                 item.SelectableToLoad = false;
             }
@@ -5355,6 +5359,10 @@ namespace User.PluginSdkDemo
                 if (loadSelectionDialog.LoadRequested && item.SelectedToLoad)
                 {
                     OnFunctionConfigUpdate(loadSelectionDialog.function_configs[item.ID]);
+                }
+                if (loadSelectionDialog.UploadRequested && item.SelectedToLoad)
+                {
+                    UploadFunctionConfig(loadSelectionDialog.function_configs[item.ID], false);
                 }
                 item.SelectedToLoad = false;
                 item.SelectableToLoad = false;

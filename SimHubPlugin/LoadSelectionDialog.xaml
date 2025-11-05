@@ -7,8 +7,8 @@
              xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins" mc:Ignorable="d" 
              xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins" 
              xmlns:controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
-             HorizontalContentAlignment="Center" VerticalContentAlignment="Center" WindowStyle="None" Width="250" Background="#FF252525" BorderBrush="Gray" Foreground="White" SizeToContent="WidthAndHeight"
-             BorderThickness="1" MouseDown="Window_MouseDown" PreviewKeyDown="Window_PreviewKeyDown" ScrollViewer.VerticalScrollBarVisibility="Disabled" ResizeMode="NoResize" WindowStartupLocation="CenterScreen" Topmost="True">
+             HorizontalContentAlignment="Center" VerticalContentAlignment="Center" WindowStyle="None" Width="290" Background="#FF252525" BorderBrush="Gray" Foreground="White" SizeToContent="WidthAndHeight"
+             BorderThickness="1" MouseDown="Window_MouseDown" PreviewKeyDown="OnPreviewKeyDown" PreviewKeyUp="OnPreviewKeyUp" ScrollViewer.VerticalScrollBarVisibility="Disabled" ResizeMode="NoResize" WindowStartupLocation="CenterScreen" Topmost="True">
     <Grid Background="#FF252525">
         <StackPanel Orientation="Vertical" Background="#FF252525">
             <Label Content="Select Config Items To Load:" FontFamily="Arial Black" HorizontalContentAlignment="Center"></Label>
@@ -49,8 +49,8 @@
                 </ItemsControl>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10,10,10,10">
-                <styles:SHButtonPrimary x:Name="btn_abort" Click="btn_abort_Click" Width="100" Height="28" Content="Abort" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" />
-                <styles:SHButtonPrimary x:Name="btn_load" Click="btn_load_Click" Width="100" Height="28" Content="Load" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" />
+                <styles:SHButtonPrimary x:Name="btn_abort" Click="btn_abort_Click" Width="120" Height="28" Content="Abort" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" />
+                <styles:SHButtonPrimary x:Name="btn_load" Click="btn_load_Click" Width="120" Height="28" Content="Load and Upload" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Loads the selected items and uploads them to their respective axes.&#x0a;Hold CTRL while clicking to only load without uploading." />
             </StackPanel>
         </StackPanel>
     </Grid>

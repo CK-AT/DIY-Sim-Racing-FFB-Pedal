@@ -20,6 +20,7 @@ namespace User.PluginSdkDemo
     public partial class LoadSelectionDialog : Window
     {
         public bool LoadRequested { get; set; } = false;
+        public bool UploadRequested { get; set; } = true;
         public Dictionary<AxisID, AxisConfig> axis_configs = new Dictionary<AxisID, AxisConfig>();
         public Dictionary<FunctionID, FunctionConfig> function_configs = new Dictionary<FunctionID, FunctionConfig>();
 
@@ -48,7 +49,7 @@ namespace User.PluginSdkDemo
             if (e.ChangedButton == MouseButton.Left)
                 this.DragMove();
         }
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        private void OnPreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape)
             {
@@ -59,6 +60,19 @@ namespace User.PluginSdkDemo
             {
                 LoadRequested = true;
                 this.Close();
+            }
+            if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl)
+            {
+                btn_load.Content = "Load";
+                UploadRequested = false;
+            }
+        }
+        private void OnPreviewKeyUp(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl)
+            {
+                btn_load.Content = "Load and Upload";
+                UploadRequested = true;
             }
         }
     }
