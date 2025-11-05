@@ -111,6 +111,8 @@ message AxisConfig {
   oneof kinematic_config {
     DIYPedalKinematicConfig diy_pedal = 12;
   }
+  // physics oversampling factor
+  uint32 physics_iterations_per_sample = 14;
 }
 
 enum ControllerAxis {
@@ -351,7 +353,10 @@ message FunctionConfig {
     FlightPedalsConfig flight_pedals = 3;
   }
   AuxFunctionConfig aux_function = 4;
+  // simulated mass in kg
   float simulated_mass = 5;
+  // friction in N
+  float friction = 6;
 }
 
 message AxisAction {

@@ -43,6 +43,7 @@ void ConfigManager::set_axis_config_defaults(void) {
     _axis_config.kinematic_config.diy_pedal.l_pivot_sled_y = 32;
     _axis_config.kinematic_config.diy_pedal.l_pivot_sled_x_min = 82;
     _axis_config.kinematic_config.diy_pedal.l_sled_stroke = 114;
+    _axis_config.physics_iterations_per_sample = 16;
 }
 
 void ConfigManager::set_function_config_defaults(void) {
@@ -55,6 +56,9 @@ void ConfigManager::set_function_config_defaults(void) {
     _function_config.base.output_mode = OutputMode_OUTPUT_MODE_FORCE;
     _function_config.base.output_min = 55.0f;
     _function_config.base.output_max = 145.0f;
+
+    _function_config.simulated_mass = 0.2f;
+    _function_config.friction = 2.0f;
 
     _function_config.which_specific = FunctionConfig_automotive_pedal_tag;
     _function_config.specific.automotive_pedal.has_force_curve_config = true;

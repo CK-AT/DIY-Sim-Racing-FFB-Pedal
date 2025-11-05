@@ -105,6 +105,7 @@ const RgbColor purple = RgbColor(36, 0, 46);
 #endif
 
 Sim sim = Sim(0.0, 100.0, 0.0);
+Friction friction = Friction(2.0);
 
 #include "CommManager.h"
 #include "ConfigManager.h"
@@ -155,6 +156,7 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
     if (active_function) {
         float x_curr;
         comm_manager.get_position(comm_manager.get_axis_id(), x_curr);
+        friction.set_f(max(function_cfg->friction, 0.0f));
         sim.set_m(max(function_cfg->simulated_mass, 0.05f));
         sim.set_x_min(x_curr, true);
         sim.set_x_max(x_curr, true);
@@ -266,6 +268,7 @@ void setup() {
 
         sim.add_element(&automotive_pedal_function);
         sim.add_element(&flight_pedals_function);
+        sim.add_element(&friction);
 
         xTaskCreatePinnedToCore(physics_task_func,    /* Task function. */
                                 "PhysicsTask",        /* name of task. */
@@ -393,11 +396,17 @@ void physics_task_func(void *pvParameters) {
 
         float f_in;
         if (comm_manager.calc_input_force_sum(f_contact_point, f_in)) {
-            // calc_input_force_sum returns true if this is a subractive axis -> invert result
+            // calc_input_force_sum returns true if this is a subtractive axis -> invert result
             f_in *= -1.0f;
         }
 
-        sim.update(dt, f_in);
+
+        uint16_t num_sub_iterations = max(axis_cfg->physics_iterations_per_sample, uint16_t(1));
+        float dt_sub = dt / num_sub_iterations;
+
+        for (uint8_t i = 0; i < num_sub_iterations; i++) {
+            sim.update(dt_sub, f_in);
+        }
 
         comm_manager.calc_final_position(sim.get_x(), x_contact_point);
 
