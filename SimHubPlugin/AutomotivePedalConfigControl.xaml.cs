@@ -110,6 +110,7 @@ namespace User.PluginSdkDemo
             }
 
             Slider_simulated_mass.Value = function_config.SimulatedMass;
+            Slider_friction.Value = function_config.Friction;
 
             switch (function_config.Base.OutputMode)
             {
@@ -889,14 +890,14 @@ namespace User.PluginSdkDemo
 
         private void OnPushDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            config.DamperConfig.NegativeFactor = (float)e.NewValue;
-            label_damping_push.Content = String.Format("Damping (Push): {0:F2}N*mm/s", e.NewValue);
+            config.DamperConfig.PositiveFactor = (float)e.NewValue;
+            label_damping_push.Content = String.Format("Damping (Push): {0:F3}N*mm/s", e.NewValue);
         }
 
         private void OnPullDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            config.DamperConfig.PositiveFactor = (float)e.NewValue;
-            label_damping_pull.Content = String.Format("Damping (Pull): {0:F2}N*mm/s", e.NewValue);
+            config.DamperConfig.NegativeFactor = (float)e.NewValue;
+            label_damping_pull.Content = String.Format("Damping (Pull): {0:F3}N*mm/s", e.NewValue);
         }
 
         private void OnSimulatedMassChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -941,6 +942,12 @@ namespace User.PluginSdkDemo
         private void AutomotivePedal_ControllerAxisSelector_ControllerAxisChanged(object sender, ControllerAxisSelector.ControllerAxisChangedEventArgs e)
         {
             function_config.Base.ControllerOutputAxis = e.Value;
+        }
+        
+        private void OnFrictionChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            label_friction.Content = String.Format("Friction: {0:F1}N", e.NewValue);
+            function_config.Friction = (float)e.NewValue;
         }
     }
 }

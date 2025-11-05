@@ -88,6 +88,7 @@ namespace User.PluginSdkDemo
             }
 
             Slider_simulated_mass.Value = function_config.SimulatedMass;
+            Slider_friction.Value = function_config.Friction;
 
             Slider_centering_spring_const.Value = config.CenteringSpringConst;
             Slider_damping.Value = config.Damping;
@@ -107,7 +108,7 @@ namespace User.PluginSdkDemo
         private void OnDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             config.Damping = (float)e.NewValue;
-            label_damping.Content = String.Format("Damping: {0:F2}N*mm/s", e.NewValue);
+            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", e.NewValue);
         }
 
         private void OnCentringSpringChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -237,5 +238,12 @@ namespace User.PluginSdkDemo
         {
             function_config.AuxFunction.RudderBrake.ControllerOutputAxisLeftPedal = e.Value;
         }
+
+        private void OnFrictionChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            label_friction.Content = String.Format("Friction: {0:F1}N", e.NewValue);
+            function_config.Friction = (float)e.NewValue;
+        }
+
     }
 }

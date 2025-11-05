@@ -39,11 +39,15 @@
                     <StackPanel Width="540" Orientation="Vertical">
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_damping_push"  Width="150" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Damping (Push):" Padding="0,0,0,8"/>
-                            <Slider x:Name="Slider_damping_push" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.05" Maximum="10" IsSnapToTickEnabled="True" Value="0.25" SmallChange="0.01" TickFrequency="0.01" ValueChanged="OnPushDampingChanged"/>
+                            <Slider x:Name="Slider_damping_push" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.005" Maximum="10" IsSnapToTickEnabled="True" Value="0.25" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnPushDampingChanged"/>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_damping_pull"  Width="150" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Damping (Pull):" Padding="0,0,0,8"/>
-                            <Slider x:Name="Slider_damping_pull" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.05" Maximum="10" IsSnapToTickEnabled="True" Value="0.25" SmallChange="0.01" TickFrequency="0.01" ValueChanged="OnPullDampingChanged"/>
+                            <Slider x:Name="Slider_damping_pull" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.005" Maximum="10" IsSnapToTickEnabled="True" Value="0.25" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnPullDampingChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="400" Height="40">
+                            <Label x:Name="label_friction"  Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Friction:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_friction" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="100" IsSnapToTickEnabled="True" Value="2.0" SmallChange="0.1"  TickFrequency="0.1" ValueChanged="OnFrictionChanged"/>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_simulated_mass"  Width="150" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Simulated Mass:" Padding="0,0,0,8"/>

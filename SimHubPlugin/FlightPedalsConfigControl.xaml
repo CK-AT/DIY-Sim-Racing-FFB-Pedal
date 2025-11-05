@@ -55,11 +55,15 @@
                     <StackPanel Width="540" Orientation="Vertical">
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_damping"  Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Damping:" Padding="0,0,0,8"/>
-                            <Slider x:Name="Slider_damping" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.05" Maximum="10" IsSnapToTickEnabled="True" Value="0.5" SmallChange="0.01" TickFrequency="0.01" ValueChanged="OnDampingChanged"/>
+                            <Slider x:Name="Slider_damping" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.005" Maximum="10" IsSnapToTickEnabled="True" Value="0.5" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnDampingChanged"/>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_centering_spring_const" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Centering Spring Constant:" Padding="0,0,0,8"/>
                             <Slider x:Name="Slider_centering_spring_const" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="10" IsSnapToTickEnabled="True" Value="1.5" SmallChange="0.1" TickFrequency="0.1" ValueChanged="OnCentringSpringChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="400" Height="40">
+                            <Label x:Name="label_friction"  Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Friction:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_friction" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="100" IsSnapToTickEnabled="True" Value="2.0" SmallChange="0.1"  TickFrequency="0.1" ValueChanged="OnFrictionChanged"/>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_simulated_mass"  Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Simulated Mass:" Padding="0,0,0,8"/>
