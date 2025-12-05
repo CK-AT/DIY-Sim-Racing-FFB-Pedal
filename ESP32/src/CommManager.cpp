@@ -303,8 +303,9 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
                 }
             }
             break;
-        case Message_axis_action_tag:
-            if (_config_manager->is_axis() && _on_axis_action && (msg.payload.axis_config.axis_id == _config_manager->get_axis_id())) {
+        case Message_axis_action_tag: {
+            AxisID target_axis = msg.payload.axis_action.axis_id;
+            if (_config_manager->is_axis() && _on_axis_action && (target_axis == _config_manager->get_axis_id())) {
                 switch (msg.payload.axis_action.which_action) {
                     case AxisAction_return_axis_config_tag:
                         send_axis_config(comm_channel);
@@ -314,6 +315,7 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
                         break;
                     case AxisAction_return_active_function_tag:
                         send_active_function_message(comm_channel);
+                        break;
                     default:
                         if (_on_axis_action) {
                             _on_axis_action(msg.payload.axis_action, comm_channel);
@@ -322,11 +324,12 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
                 }
             }
             if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
-                if (!send_message_to_axis(msg.payload.axis_config.axis_id, msg, protobuf_msg, len_protobuf_msg)) {
-                    LogOutput::printf("Can't forward AxisAction: axis %d is offline", msg.payload.axis_config.axis_id);
+                if (!send_message_to_axis(target_axis, msg, protobuf_msg, len_protobuf_msg)) {
+                    LogOutput::printf("Can't forward AxisAction: axis %d is offline", target_axis);
                 }
             }
             break;
+        }
         case Message_start_ota_update_tag:
             if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
                 for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
@@ -486,6 +489,10 @@ bool CommManager::get_position_limits(AxisID axis_id, float &x_contact_point_min
 }
 
 bool CommManager::get_function_id(AxisID axis_id, FunctionID &function_id) {
+    if (axis_id == get_axis_id()) {
+        function_id = _config_manager->get_function_id();
+        return true;
+    }
     if (!active_intercom_channel) return false;
     return active_intercom_channel->get_function_id(axis_id, function_id);
 }
@@ -617,7 +624,7 @@ void CommManager::set_controller_axis(ControllerAxis controller_axis, float &val
 
 void CommManager::send_joystick_values(void) {
     if (_joystick_state != JOYSTICK_READY) return;
-    uint16_t function_flags;
+    uint16_t function_flags = 0;
     FunctionID function_id;
     for (uint8_t axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
         if (get_function_id(MessageTools::axis_id_from_index(axis_idx), function_id)) {
