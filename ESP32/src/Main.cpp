@@ -77,7 +77,7 @@ KalmanFilter_2nd_order *kalman_2nd_order = NULL;
 /**********************************************************************************************/
 
 #include "LoadCell.h"
-LoadCell_ADS1256 *loadcell = NULL;
+LoadCellAds1256 *loadcell = NULL;
 
 /**********************************************************************************************/
 /*                                                                                            */
@@ -247,15 +247,15 @@ void setup() {
         servo->disable();
         delay(100);
 #endif
-        loadcell = new LoadCell_ADS1256();
+        loadcell = new LoadCellAds1256();
 
-        loadcell->setLoadcellRating(axis_cfg->f_max_loadcell / 9.81f);  // from N to kg
+        loadcell->set_loadcell_rating(axis_cfg->f_max_loadcell / 9.81f);  // from N to kg
 
-        loadcell->setZeroPoint();
-        loadcell->estimateVariance();  // automatically identify sensor noise for KF parameterization
+        loadcell->set_zero_point();
+        loadcell->estimate_variance();  // automatically identify sensor noise for KF parameterization
 
         // setup Kalman filter
-        float var_est = loadcell->getVarianceEstimate();
+        float var_est = loadcell->get_variance_estimate();
         kalman = new KalmanFilter(var_est);
         kalman_2nd_order = new KalmanFilter_2nd_order(var_est);
 
@@ -353,7 +353,7 @@ void physics_task_func(void *pvParameters) {
         }
 
         // Get the loadcell reading
-        float loadcellReading = loadcell->getReadingKg();
+        float loadcellReading = loadcell->get_reading_kg();
 
         unsigned long now = micros();
         dt = (now - ti_prev) / 1000.0;

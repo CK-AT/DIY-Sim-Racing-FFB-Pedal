@@ -2,117 +2,147 @@
 
 #include <ADS1256.h>
 #include <SPI.h>
+#include <math.h>
 
 #include "LogOutput.h"
 #include "Main.h"
 
-static const float ADC_CLOCK_MHZ = 7.68;  // crystal frequency used on ADS1256
-static const float ADC_VREF = 2.5;        // voltage reference
+namespace {
+constexpr float kAdcClockMHz = 7.68f;     // crystal frequency used on ADS1256
+constexpr float kAdcVref = 2.5f;          // voltage reference
+constexpr float kDefaultVariance = 0.2f * 0.2f;
+constexpr float kVarianceMin = 0.0001f;
 
-static const int NUMBER_OF_SAMPLES_FOR_LOADCELL_OFFFSET_ESTIMATION = 10000;
-static const float DEFAULT_VARIANCE_ESTIMATE = 0.2f * 0.2f;
-static const float LOADCELL_VARIANCE_MIN = 0.0001f;
-// static const float CONVERSION_FACTOR = LOADCELL_WEIGHT_RATING_KG / (LOADCELL_EXCITATION_V * (LOADCELL_SENSITIVITY_MV_V/1000));
+float calc_conversion_factor(const LoadCellConfig &cfg) {
+    if ((cfg.excitation_v <= 0.0f) || (cfg.sensitivity_mV_V <= 0.0f)) return 1.0f;
+    return cfg.loadcell_rating_kg / (cfg.excitation_v * (cfg.sensitivity_mV_V / 1000.0f));
+}
 
-#define CONVERSION_FACTOR LOADCELL_WEIGHT_RATING_KG / (LOADCELL_EXCITATION_V * (LOADCELL_SENSITIVITY_MV_V / 1000))
+// Thin wrapper to centralize ADS1256 lifetime and one-time init.
+class LoadCellADC {
+    public:
+        LoadCellADC() : adc(kAdcClockMHz, kAdcVref, /*useresetpin=*/false, PIN_DRDY, PIN_SCK, PIN_MISO, PIN_MOSI, PIN_CS) {}
 
-ADS1256& ADC() {
-    static ADS1256 adc(ADC_CLOCK_MHZ, ADC_VREF, /*useresetpin=*/false, PIN_DRDY, PIN_SCK, PIN_MISO, PIN_MOSI,
-                       PIN_CS);  // RESETPIN is permanently tied to 3.3v
+        bool ensure_initialized(const LoadCellConfig &cfg) {
+            if (initialized) return true;
+            LogOutput::printf("ADS1256: Starting ADC");
+            adc.initSpi(kAdcClockMHz);
+            delay(1000);
 
-    static bool firstTime = true;
-    if (firstTime) {
-        LogOutput::printf("ADS1256: Starting ADC");
-        adc.initSpi(ADC_CLOCK_MHZ);
-        delay(1000);
+            // Start with configured sample rate and gain
+            adc.begin(ADC_SAMPLE_RATE, ADS1256_GAIN_64, false);
+            LogOutput::printf(" -> started");
 
-        LogOutput::printf(" -> sending SDATAC command...");
-        // adc.sendCommand(ADS1256_CMD_SDATAC);
-
-        // start the ADS1256 with data rate of 15kSPS SPS and gain x64
-        // adc.begin(ADS1256_DRATE_15000SPS,ADS1256_GAIN_64,false);
-        // adc.begin(ADS1256_DRATE_1000SPS,ADS1256_GAIN_64,false);
-        adc.begin(ADC_SAMPLE_RATE, ADS1256_GAIN_64, false);
-
-        LogOutput::printf(" -> started");
-
-        adc.waitDRDY();  // wait for DRDY to go low before changing multiplexer register
-        if (fabs(CONVERSION_FACTOR) > 0.01) {
-            adc.setConversionFactor(CONVERSION_FACTOR);
-        } else {
-            adc.setConversionFactor(1);
+            adc.waitDRDY();  // wait for DRDY to go low before changing multiplexer register
+            float conv = calc_conversion_factor(cfg);
+            if (fabs(conv) > 0.01f) {
+                adc.setConversionFactor(conv);
+            } else {
+                adc.setConversionFactor(1.0f);
+            }
+            initialized = true;
+            return true;
         }
-        firstTime = false;
+
+        ADS1256 &ref() {
+            return adc;
+        }
+
+    private:
+        ADS1256 adc;
+        bool initialized = false;
+};
+
+LoadCellADC &adc_instance() {
+    static LoadCellADC instance;
+    return instance;
+}
+}  // namespace
+
+bool LoadCellAds1256::begin() const {
+    return adc_instance().ensure_initialized(_cfg) && (adc_instance().ref().setChannel(_cfg.channel_p, _cfg.channel_n), true);
+}
+
+void LoadCellAds1256::set_loadcell_rating(uint8_t loadcellRating_u8) const {
+    if (!begin()) return;
+    ADS1256 &adc = adc_instance().ref();
+    float original_conversion_factor = calc_conversion_factor(_cfg);
+
+    float updated_conversion_factor = 1.0f;
+    if (_cfg.loadcell_rating_kg > 0.0f) {
+        updated_conversion_factor = (static_cast<float>(loadcellRating_u8) * (original_conversion_factor / _cfg.loadcell_rating_kg));
     }
+    LogOutput::printf("ADS1256: Updating conversion factor (%.3f -> %.3f)", original_conversion_factor, updated_conversion_factor);
 
-    return adc;
+    adc.setConversionFactor(updated_conversion_factor);
+    _cfg.loadcell_rating_kg = loadcellRating_u8;
 }
 
-void LoadCell_ADS1256::setLoadcellRating(uint8_t loadcellRating_u8) const {
-    ADS1256& adc = ADC();
-    float originalConversionFactor_f64 = CONVERSION_FACTOR;
+LoadCellAds1256::LoadCellAds1256(const LoadCellConfig &cfg)
+    : _cfg(cfg), _zeroPoint(0.0f), _varianceEstimate(kDefaultVariance), _standardDeviationEstimate(sqrtf(kDefaultVariance)) {
+    begin();
+}
 
-    float updatedConversionFactor_f64 = 1;
-    if (LOADCELL_WEIGHT_RATING_KG > 0) {
-        updatedConversionFactor_f64 = ((float)loadcellRating_u8) * (CONVERSION_FACTOR / LOADCELL_WEIGHT_RATING_KG);
+bool LoadCellAds1256::try_get_reading_kg(float &readingKg) const {
+    if (!begin()) return false;
+    ADS1256 &adc = adc_instance().ref();
+    readingKg = adc.readCurrentChannel() - _zeroPoint;
+    return true;
+}
+
+float LoadCellAds1256::get_reading_kg() const {
+    float reading = 0.0f;
+    if (!try_get_reading_kg(reading)) {
+        return _zeroPoint;  // best effort fallback
     }
-    LogOutput::printf("ADS1256: Updating conversion factor (%.1f -> %.1f)", originalConversionFactor_f64, updatedConversionFactor_f64);
-
-    adc.setConversionFactor(updatedConversionFactor_f64);
+    return reading;
 }
 
-LoadCell_ADS1256::LoadCell_ADS1256(uint8_t channel0, uint8_t channel1) : _zeroPoint(0.0), _varianceEstimate(DEFAULT_VARIANCE_ESTIMATE) {
-    ADC().setChannel(channel0, channel1);  // Set the MUX for differential between ch0 and ch1
-                                           // ADC().setChannel(channel1, channel0);   // Set the MUX for differential between ch0 and ch1
-}
+bool LoadCellAds1256::set_zero_point(uint32_t sample_count) {
+    if (!begin()) return false;
+    const uint32_t samples = sample_count ? sample_count : _cfg.offset_samples;
+    if (samples == 0) return false;
 
-float LoadCell_ADS1256::getReadingKg() const {
-    ADS1256& adc = ADC();
-    // correct bias, assume AWGN --> 3 * sigma is 99.9 %
-    return adc.readCurrentChannel() - (_zeroPoint);
-}
+    LogOutput::printf("ADS1256: Identifying loadcell offset (%lu samples)...", static_cast<unsigned long>(samples));
 
-void LoadCell_ADS1256::setZeroPoint() {
-    LogOutput::printf("ADS1256: Identifying loadcell offset...");
-
-    // Due to construction and gravity, the loadcell measures an initial voltage difference.
-    // To compensate this difference, the difference is estimated by moving average filter.
     float loadcellOffset = 0.0f;
-    for (long i = 0; i < NUMBER_OF_SAMPLES_FOR_LOADCELL_OFFFSET_ESTIMATION; i++) {
-        loadcellOffset += getReadingKg();  // DOUT arriving here are from MUX AIN0 and
+    for (uint32_t i = 0; i < samples; i++) {
+        loadcellOffset += get_reading_kg();
     }
-    loadcellOffset /= NUMBER_OF_SAMPLES_FOR_LOADCELL_OFFFSET_ESTIMATION;
+    loadcellOffset /= static_cast<float>(samples);
 
     LogOutput::printf(" -> offset = %.3f", loadcellOffset);
 
     _zeroPoint = loadcellOffset;
+    return true;
 }
 
-void LoadCell_ADS1256::estimateVariance() {
-    ADS1256& adc = ADC();
+bool LoadCellAds1256::estimate_variance(uint32_t sample_count) {
+    if (!begin()) return false;
+    const uint32_t samples = sample_count ? sample_count : _cfg.variance_samples;
+    if (samples < 2) return false;
 
-    LogOutput::printf("ADS1256: Identifying loadcell variance...");
-    float varNormalizer = 1. / (float)(NUMBER_OF_SAMPLES_FOR_LOADCELL_OFFFSET_ESTIMATION - 1);
-    float varEstimate = 0.0f;
-    for (long i = 0; i < NUMBER_OF_SAMPLES_FOR_LOADCELL_OFFFSET_ESTIMATION; i++) {
-        float loadcellReading = getReadingKg();
-        // Serial.println(loadcellReading);
-        varEstimate += sq(loadcellReading) * varNormalizer;
+    LogOutput::printf("ADS1256: Identifying loadcell variance (%lu samples)...", static_cast<unsigned long>(samples));
+    const float varNormalizer = 1.0f / static_cast<float>(samples - 1);
+    float variance = 0.0f;
+    for (uint32_t i = 0; i < samples; i++) {
+        float loadcellReading = get_reading_kg();
+        variance += sq(loadcellReading) * varNormalizer;
     }
 
-    // make sure estimate is nonzero
-    if (varEstimate < LOADCELL_VARIANCE_MIN) {
-        varEstimate = LOADCELL_VARIANCE_MIN;
+    if (variance < kVarianceMin) {
+        variance = kVarianceMin;
     }
 
-    _standardDeviationEstimate = sqrt(varEstimate);
+    _standardDeviationEstimate = sqrtf(variance);
 
-    LogOutput::printf(" -> variance est. = %.4f", varEstimate);
-    LogOutput::printf(" -> stddev est. = %.5f", _standardDeviationEstimate);
+    const float sigma3 = _standardDeviationEstimate * 3.0f;
+    const float variance3 = variance * 9.0f;
 
-    varEstimate *= 9;  // The variance is 1*sigma --> to make it 3*sigma, we have to multiply by 3*3
-    
-    LogOutput::printf(" -> 3 sigma est. = %.5f", varEstimate);
+    LogOutput::printf(" -> variance est. = %.5f", variance);
+    LogOutput::printf(" -> stddev est.   = %.5f", _standardDeviationEstimate);
+    LogOutput::printf(" -> 3-sigma est.  = %.5f (variance eq.: %.5f)", sigma3, variance3);
 
-    _varianceEstimate = varEstimate;
+    _varianceEstimate = variance3;  // keep backward-compatible “3*sigma squared” storage
+    return true;
 }
