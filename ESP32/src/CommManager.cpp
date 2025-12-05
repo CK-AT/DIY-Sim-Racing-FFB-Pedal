@@ -624,11 +624,13 @@ void CommManager::set_controller_axis(ControllerAxis controller_axis, float &val
 
 void CommManager::send_joystick_values(void) {
     if (_joystick_state != JOYSTICK_READY) return;
-    uint16_t function_flags = 0;
+    uint32_t function_flags = 0;
     FunctionID function_id;
     for (uint8_t axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
         if (get_function_id(MessageTools::axis_id_from_index(axis_idx), function_id)) {
-            function_flags |= 1 << function_id;
+            if (function_id < 32) {
+                function_flags |= 1u << function_id;
+            }
         }
     }
     float output_value;

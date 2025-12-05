@@ -25,6 +25,10 @@ bool SerialManager::setup(Stream *serial, CommManager *comm_manager, ICommChanne
     // send some zero bytes to ensure proper COBS sync on the first message
     serial->print("\x00\x00\x00");
     _sem_write = xSemaphoreCreateMutex();
+    if (!_sem_write) {
+        LogOutput::printf("SerialManager: failed to create write semaphore");
+        return false;
+    }
     xTaskCreatePinnedToCore(this->task_func, "SerialManagerTask", 5000, this, 1, NULL, 0);
     return true;
 }
