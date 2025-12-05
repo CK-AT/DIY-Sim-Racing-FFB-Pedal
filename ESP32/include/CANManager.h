@@ -101,8 +101,8 @@ class CANManager : public ICommChannel {
         }
 
     protected:
-        static void task_func(void *pvParameters) {
-            CANManager *manager = (CANManager *)pvParameters;
+        static void task_func(void *pv_parameters) {
+            CANManager *manager = (CANManager *)pv_parameters;
             delay(1000);
             for (;;) {
                 manager->process();

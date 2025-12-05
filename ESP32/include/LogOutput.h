@@ -26,7 +26,7 @@ class LogOutputService {
       _send_func = send_func;
       _log_queue_data = xQueueCreate(20, MAX_LOG_LINE_LENGTH);
       if (own_task) {
-        xTaskCreatePinnedToCore(this->logOutputTask, "LogOutputTask", 2000, this, 1, NULL, 0);
+        xTaskCreatePinnedToCore(this->log_output_task, "LogOutputTask", 2000, this, 1, nullptr, 0);
       }
     }
 
@@ -40,10 +40,10 @@ class LogOutputService {
 
   private:
     LogSendFunc _send_func;
-    static void logOutputTask(void* pvParameters) {
-      LogOutputService* logOutput = (LogOutputService*) pvParameters;
+    static void log_output_task(void* pv_parameters) {
+      LogOutputService* log_output = (LogOutputService*) pv_parameters;
       for (;;) {
-        logOutput->pump(100, 5);
+        log_output->pump(100, 5);
       }
     }
 };

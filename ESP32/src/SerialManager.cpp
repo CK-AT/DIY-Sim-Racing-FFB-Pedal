@@ -29,7 +29,7 @@ bool SerialManager::setup(Stream *serial, CommManager *comm_manager, ICommChanne
         LogOutput::printf("SerialManager: failed to create write semaphore");
         return false;
     }
-    xTaskCreatePinnedToCore(this->task_func, "SerialManagerTask", 5000, this, 1, NULL, 0);
+    xTaskCreatePinnedToCore(this->task_func, "SerialManagerTask", 5000, this, 1, nullptr, 0);
     return true;
 }
 

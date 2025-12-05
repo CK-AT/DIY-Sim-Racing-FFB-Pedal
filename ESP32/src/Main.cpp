@@ -25,7 +25,7 @@
 /*                         function declarations                                              */
 /*                                                                                            */
 /**********************************************************************************************/
-void physics_task_func(void *pvParameters);
+void physics_task_func(void *pv_parameters);
 
 #include "AutomotivePedalFunction.h"
 #include "FlightPedalsFunction.h"
@@ -65,19 +65,19 @@ TaskHandle_t physics_task_handle;
 /**********************************************************************************************/
 
 #include "SignalFilter.h"
-KalmanFilter *kalman = NULL;
+KalmanFilter *kalman_filter = nullptr;
 
 #include "SignalFilter_2nd_order.h"
-KalmanFilter_2nd_order *kalman_2nd_order = NULL;
+KalmanFilterSecondOrder *kalman_second_order = nullptr;
 
 /**********************************************************************************************/
 /*                                                                                            */
-/*                         loadcell definitions                                               */
+/*                         load_cell definitions                                               */
 /*                                                                                            */
 /**********************************************************************************************/
 
 #include "LoadCell.h"
-LoadCellAds1256 *loadcell = NULL;
+LoadCellAds1256 *load_cell = nullptr;
 
 /**********************************************************************************************/
 /*                                                                                            */
@@ -88,7 +88,7 @@ LoadCellAds1256 *loadcell = NULL;
 #ifdef A6SERVO
     #include "A6Servo.h"
 #endif
-Servo *servo = NULL;
+Servo *servo = nullptr;
 
 /**********************************************************************************************/
 /*                                                                                            */
@@ -98,10 +98,10 @@ Servo *servo = NULL;
 #ifdef RGB_LED
     #include <NeoPixelBus.h>
 NeoPixelBus<NeoGrbFeature, NeoWs2812xMethod> pixels(NUM_LEDS, RGB_LED);
-const RgbColor yellow = RgbColor(46, 34, 0);
-const RgbColor green = RgbColor(0, 46, 0);
-const RgbColor red = RgbColor(46, 0, 0);
-const RgbColor purple = RgbColor(36, 0, 46);
+const RgbColor k_yellow = RgbColor(46, 34, 0);
+const RgbColor k_green = RgbColor(0, 46, 0);
+const RgbColor k_red = RgbColor(46, 0, 0);
+const RgbColor k_purple = RgbColor(36, 0, 46);
 #endif
 
 Sim sim = Sim(0.0, 100.0, 0.0);
@@ -177,7 +177,7 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
 void setup() {
 #ifdef RGB_LED
     pixels.Begin();
-    pixels.SetPixelColor(0, purple);
+    pixels.SetPixelColor(0, k_purple);
     pixels.Show();
 #endif
 
@@ -243,21 +243,21 @@ void setup() {
 #ifdef A6SERVO
         servo = new A6Servo(stepPinStepper, dirPinStepper, !axis_cfg->b_motor_inverted, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN,
                             ISV57_DEPIN, false);
-        // disable servo to reduce noise floor for loadcell calibration (might be enabled after a restart)
+        // disable servo to reduce noise floor for load cell calibration (might be enabled after a restart)
         servo->disable();
         delay(100);
 #endif
-        loadcell = new LoadCellAds1256();
+        load_cell = new LoadCellAds1256();
 
-        loadcell->set_loadcell_rating(axis_cfg->f_max_loadcell / 9.81f);  // from N to kg
+        load_cell->set_loadcell_rating(axis_cfg->f_max_loadcell / 9.81f);  // from N to kg
 
-        loadcell->set_zero_point();
-        loadcell->estimate_variance();  // automatically identify sensor noise for KF parameterization
+        load_cell->set_zero_point();
+        load_cell->estimate_variance();  // automatically identify sensor noise for KF parameterization
 
         // setup Kalman filter
-        float var_est = loadcell->get_variance_estimate();
-        kalman = new KalmanFilter(var_est);
-        kalman_2nd_order = new KalmanFilter_2nd_order(var_est);
+        float var_est = load_cell->get_variance_estimate();
+        kalman_filter = new KalmanFilter(var_est);
+        kalman_second_order = new KalmanFilterSecondOrder(var_est);
 
         if (!servo->setup(axis_cfg->steps_per_mm, axis_cfg->mm_per_rev)) {
             LogOutput::printf("Setup: Failed to initialize the servo (check power and connections)");
@@ -273,7 +273,7 @@ void setup() {
         xTaskCreatePinnedToCore(physics_task_func,    /* Task function. */
                                 "PhysicsTask",        /* name of task. */
                                 10000,                /* Stack size of task */
-                                NULL,                 /* parameter of the task */
+                                nullptr,              /* parameter of the task */
                                 10,                   /* priority of the task */
                                 &physics_task_handle, /* Task handle to keep track of created task */
                                 1);                   /* pin task to core 1 */
@@ -301,21 +301,21 @@ void loop() {
     delay(1000);
 #ifdef RGB_LED
     if (config_manager.get_mode() == ConfigManager::MODE_GATEWAY_ONLY) {
-        pixels.SetPixelColor(0, green);
+        pixels.SetPixelColor(0, k_green);
     } else if (config_manager.is_axis_config_valid()) {
         if (servo) {
             if (servo->get_state() == Servo::State::Disabled) {
-                pixels.SetPixelColor(0, red);
+                pixels.SetPixelColor(0, k_red);
             } else if (servo->is_locked_in()) {
-                pixels.SetPixelColor(0, green);
+                pixels.SetPixelColor(0, k_green);
             } else {
-                pixels.SetPixelColor(0, yellow);
+                pixels.SetPixelColor(0, k_yellow);
             }
         } else {
-            pixels.SetPixelColor(0, red);
+            pixels.SetPixelColor(0, k_red);
         }
     } else {
-        pixels.SetPixelColor(0, red);
+        pixels.SetPixelColor(0, k_red);
     }
     pixels.Show();
 #endif
@@ -328,7 +328,8 @@ void loop() {
 /**********************************************************************************************/
 
 // long lastCallTime = micros();
-void physics_task_func(void *pvParameters) {
+void physics_task_func(void *pv_parameters) {
+    (void)pv_parameters;
     uint32_t ti_prev = micros();
     float dt = 1000.0;
     const AxisConfig *axis_cfg = config_manager.get_axis_config();
@@ -347,46 +348,47 @@ void physics_task_func(void *pvParameters) {
         }
 
         // print the execution time averaged over multiple cycles
-        static CycleTimer timerPU("PU cycle time");
+        static CycleTimer timer_pu("PU cycle time");
         if (debug_flags & DEBUG_INFO_0_CYCLE_TIMER) {
-            timerPU.BumpStart();
+            timer_pu.bump_start();
         }
 
-        // Get the loadcell reading
-        float loadcellReading = loadcell->get_reading_kg();
+        // Get the load_cell reading
+        float load_cell_reading = load_cell->get_reading_kg();
 
         unsigned long now = micros();
         dt = (now - ti_prev) / 1000.0;
         ti_prev = now;
 
-        // Invert the loadcell reading digitally if desired
+        // Invert the load_cell reading digitally if desired
         if (axis_cfg->b_loadcell_inverted) {
-            loadcellReading *= -1.0;
+            load_cell_reading *= -1.0;
         }
 
-        // Do the loadcell signal filtering
-        float filteredReading = 0;
+        // Do the load_cell signal filtering
+        float filtered_reading = 0;
 
         // const velocity model denoising filter
         switch (axis_cfg->which_load_cell_filter_config) {
             case AxisConfig_kf_const_vel_tag:
-                filteredReading = kalman->filteredValue(loadcellReading, 0, axis_cfg->load_cell_filter_config.kf_const_vel.noise_scaling);
+                filtered_reading = kalman_filter->filtered_value(load_cell_reading, 0, axis_cfg->load_cell_filter_config.kf_const_vel.noise_scaling);
                 break;
             case AxisConfig_kf_const_accel_tag:
-                filteredReading = kalman_2nd_order->filteredValue(loadcellReading, 0, axis_cfg->load_cell_filter_config.kf_const_accel.noise_scaling);
+                filtered_reading =
+                    kalman_second_order->filtered_value(load_cell_reading, 0, axis_cfg->load_cell_filter_config.kf_const_accel.noise_scaling);
                 break;
             case AxisConfig_filter_none_tag:
-                filteredReading = loadcellReading;
+                filtered_reading = load_cell_reading;
                 break;
             default:
                 break;
         }
 
-        float f_loadcell = filteredReading * 9.81;
+        float f_load_cell = filtered_reading * 9.81;
 
         float r_conv = config_manager.calc_force_conversion_factor(x_contact_point);
 
-        f_contact_point = f_loadcell * r_conv;
+        f_contact_point = f_load_cell * r_conv;
 
 #ifdef HAS_CAN
         /* CommManager is designed to run CANManager's main processing from within the pedal task to ensure minimum latency on other axes' position
@@ -419,19 +421,19 @@ void physics_task_func(void *pvParameters) {
         // #define DEBUG_FILTER
         if (debug_flags & DEBUG_INFO_0_LOADCELL_READING) {
             static uint16_t loop_cnt = 0;
-            static RTDebugOutput<9> rtDebugFilter({"raw", "flt", "f_in", "f_contact_point", "f_sum", "a", "v", "x", "x_sled"});
+            static RTDebugOutput<9> rt_debug_filter({"raw", "flt", "f_in", "f_contact_point", "f_sum", "a", "v", "x", "x_sled"});
             loop_cnt++;
             if (loop_cnt >= 20) {
                 loop_cnt = 0;
-                rtDebugFilter.offerData(
-                    {loadcellReading, filteredReading, f_in, f_contact_point, sim.get_f_sum(), sim.get_a(), sim.get_v(), x_contact_point, x_sled});
+                rt_debug_filter.offer_data(
+                    {load_cell_reading, filtered_reading, f_in, f_contact_point, sim.get_f_sum(), sim.get_a(), sim.get_v(), x_contact_point, x_sled});
             }
         }
 
         comm_manager.send_force_and_position(f_contact_point, x_contact_point);
 
         if (debug_flags & DEBUG_INFO_0_CYCLE_TIMER) {
-            timerPU.BumpEnd();
+            timer_pu.bump_end();
         }
     }
 }

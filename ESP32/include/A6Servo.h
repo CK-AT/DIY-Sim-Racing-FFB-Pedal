@@ -93,8 +93,8 @@ class A6Servo : public Servo {
         float _spd_locked_in = 6000.0;
         float _trq_open_loop = 10.0;
         float _spd_open_loop = 200.0;
-        static void task_func(void* pvParameters) {
-            A6Servo* servo = (A6Servo*)pvParameters;
+        static void task_func(void* pv_parameters) {
+            A6Servo* servo = (A6Servo*)pv_parameters;
             delay(1000);
             for (;;) {
                 servo->periodic_task_func();

@@ -107,10 +107,10 @@ class CommManager {
         }
         void on_axis_state_change(AxisID axis_id, bool is_online);
         void on_gateway_state_change(ICommChannel *comm_channel, bool is_online);
-        static void periodic_task(void *pvParameters) {
-            CommManager *logOutput = (CommManager *)pvParameters;
+        static void periodic_task(void *pv_parameters) {
+            CommManager *log_output = (CommManager *)pv_parameters;
             for (;;) {
-                logOutput->periodic_task_func();
+                log_output->periodic_task_func();
                 delay(1);
             }
         }

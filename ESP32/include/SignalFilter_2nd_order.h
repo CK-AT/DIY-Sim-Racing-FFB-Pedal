@@ -2,19 +2,19 @@
 
 #include <Kalman.h>
 
-static const int Nobs_2nd_order = 1;    // 1 filter input:   observed value
-static const int Nstate_2nd_order = 3;  // 2 filter outputs: change, velocity & acceleration
-static const int Ncom_2nd_order = 1;    // Number of commands, u vector
+static constexpr int k_n_obs_second_order = 1;    // 1 filter input:   observed value
+static constexpr int k_n_state_second_order = 3;  // 2 filter outputs: change, velocity & acceleration
+static constexpr int k_n_com_second_order = 1;    // Number of commands, u vector
 
-class KalmanFilter_2nd_order {
+class KalmanFilterSecondOrder {
     private:
-        KALMAN<Nstate_2nd_order, Nobs_2nd_order, Ncom_2nd_order> _K;
-        unsigned long _timeLastObservation;
+        KALMAN<k_n_state_second_order, k_n_obs_second_order, k_n_com_second_order> _kalman;
+        unsigned long _time_last_observation;
 
     public:
-        KalmanFilter_2nd_order(float varianceEstimate);
+        KalmanFilterSecondOrder(float variance_estimate);
 
-        float filteredValue(float observation, float command, uint8_t modelNoiseScaling_u8);
-        float changeVelocity();
-        float changeAccel();
+        float filtered_value(float observation, float command, uint8_t model_noise_scaling_u8);
+        float change_velocity();
+        float change_accel();
 };

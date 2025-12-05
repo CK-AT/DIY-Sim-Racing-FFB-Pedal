@@ -8,57 +8,57 @@
 // static const float KF_MODEL_NOISE_FORCE_ACCELERATION = ( 2.0f * 1000.0f / 0.05f/ 0.05f );
 static const float KF_MODEL_NOISE_FORCE_ACCELERATION = (8.0f * 4.0f / 0.1f / 0.1f);
 
-KalmanFilter::KalmanFilter(float varianceEstimate) : _timeLastObservation(micros()) {
+KalmanFilter::KalmanFilter(float variance_estimate) : _time_last_observation(micros()) {
     // evolution matrix. Size is <Nstate,Nstate>
-    _K.F = {(float)1.0, 0.0, 0.0, (float)1.0};
+    _kalman.F = {(float)1.0, 0.0, 0.0, (float)1.0};
 
     // command matrix.  Size is <Nstate,Ncom>
-    _K.B = {1.0, 0.0};
+    _kalman.B = {1.0, 0.0};
 
     // measurement matrix. Size is <Nobs,Nstate>
-    _K.H = {1.0, 0.0};
+    _kalman.H = {1.0, 0.0};
 
     // model covariance matrix. Size is <Nstate,Nstate>
-    _K.Q = {1.0, 0.0, 0.0, 1.0};
+    _kalman.Q = {1.0, 0.0, 0.0, 1.0};
 
     // measurement covariance matrix. Size is <Nobs,Nobs>
-    _K.R = {varianceEstimate};
+    _kalman.R = {variance_estimate};
 }
 
-float KalmanFilter::filteredValue(float observation, float command, uint8_t modelNoiseScaling_u8) {
+float KalmanFilter::filtered_value(float observation, float command, uint8_t model_noise_scaling_u8) {
     // obtain time
-    unsigned long currentTime = micros();
-    unsigned long elapsedTime = currentTime - _timeLastObservation;
-    float modelNoiseScaling_fl32 = modelNoiseScaling_u8;
-    modelNoiseScaling_fl32 /= 255.0;
+    unsigned long current_time = micros();
+    unsigned long elapsed_time = current_time - _time_last_observation;
+    float model_noise_scaling = model_noise_scaling_u8;
+    model_noise_scaling /= 255.0;
 
-    if (modelNoiseScaling_fl32 < 0.001) {
-        modelNoiseScaling_fl32 = 0.001;
+    if (model_noise_scaling < 0.001) {
+        model_noise_scaling = 0.001;
     }
-    if (elapsedTime < 1) {
-        elapsedTime = 1;
+    if (elapsed_time < 1) {
+        elapsed_time = 1;
     }
-    _timeLastObservation = currentTime;
+    _time_last_observation = current_time;
 
     // update state transition and system covariance matrices
-    float delta_t = ((float)elapsedTime) / 1000000.0f;  /// 1000000.0f; // convert to seconds
+    float delta_t = ((float)elapsed_time) / 1000000.0f;  /// 1000000.0f; // convert to seconds
     float delta_t_pow2 = delta_t * delta_t;
     float delta_t_pow3 = delta_t_pow2 * delta_t;
     float delta_t_pow4 = delta_t_pow2 * delta_t_pow2;
 
-    _K.F = {(float)1.0, delta_t, 0.0, (float)1.0};
+    _kalman.F = {(float)1.0, delta_t, 0.0, (float)1.0};
 
-    _K.B = {1.0, 0.0};
+    _kalman.B = {1.0, 0.0};
 
-    float K_Q_11 = modelNoiseScaling_fl32 * KF_MODEL_NOISE_FORCE_ACCELERATION * (float)0.5f * delta_t_pow3;
-    _K.Q = {modelNoiseScaling_fl32 * KF_MODEL_NOISE_FORCE_ACCELERATION * (float)0.25f * delta_t_pow4, K_Q_11, K_Q_11,
-            modelNoiseScaling_fl32 * KF_MODEL_NOISE_FORCE_ACCELERATION * delta_t_pow2};
+    float k_q_11 = model_noise_scaling * KF_MODEL_NOISE_FORCE_ACCELERATION * (float)0.5f * delta_t_pow3;
+    _kalman.Q = {model_noise_scaling * KF_MODEL_NOISE_FORCE_ACCELERATION * (float)0.25f * delta_t_pow4, k_q_11, k_q_11,
+            model_noise_scaling * KF_MODEL_NOISE_FORCE_ACCELERATION * delta_t_pow2};
 
     // APPLY KALMAN FILTER
-    _K.update({observation}, {command});
-    return _K.x(0, 0);
+    _kalman.update({observation}, {command});
+    return _kalman.x(0, 0);
 }
 
-float KalmanFilter::changeVelocity() {
-    return _K.x(0, 1) / 1.0f;
+float KalmanFilter::change_velocity() {
+    return _kalman.x(0, 1) / 1.0f;
 }

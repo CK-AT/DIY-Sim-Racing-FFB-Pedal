@@ -14,8 +14,8 @@ class SerialManager {
 
     protected:
         void process(void);
-        static void task_func(void *pvParameters) {
-            SerialManager *manager = (SerialManager *)pvParameters;
+        static void task_func(void *pv_parameters) {
+            SerialManager *manager = (SerialManager *)pv_parameters;
             delay(1000);
             for (;;) {
                 manager->process();

@@ -17,16 +17,16 @@ struct LoadCellConfig {
 class LoadCellAds1256 {
     private:
         LoadCellConfig _cfg;
-        float _zeroPoint = 0.0;
-        float _varianceEstimate = 0.0;
-        float _standardDeviationEstimate = 0.0;
+        float _zero_point = 0.0;
+        float _variance_estimate = 0.0;
+        float _standard_deviation_estimate = 0.0;
         bool begin() const;
 
     public:
         explicit LoadCellAds1256(const LoadCellConfig &cfg = LoadCellConfig());
         float get_reading_kg() const;
-        bool try_get_reading_kg(float &readingKg) const;
-        void set_loadcell_rating(uint8_t loadcellRating_u8) const;
+        bool try_get_reading_kg(float &reading_kg) const;
+        void set_loadcell_rating(uint8_t load_cell_rating_u8);
 
     public:
         bool set_zero_point(uint32_t sample_count = 0);
@@ -34,9 +34,9 @@ class LoadCellAds1256 {
 
     public:
         float get_variance_estimate() const {
-            return _varianceEstimate;
+            return _variance_estimate;
         }
         float get_standard_deviation_estimate() const {
-            return _standardDeviationEstimate;
+            return _standard_deviation_estimate;
         }
 };

@@ -15,20 +15,20 @@ extern QueueHandle_t _queue_data;
 template <int NVALS, int FLOAT_PRECISION = 6>
 class RTDebugOutput {
     private:
-        std::array<String, NVALS> _outNames;
-        String _namePrefix;
+        std::array<String, NVALS> _out_names;
+        String _name_prefix;
 
     public:
-        RTDebugOutput(std::array<String, NVALS> outNames = {}, String namePrefix = "") : _outNames(outNames), _namePrefix(namePrefix) {
+        RTDebugOutput(std::array<String, NVALS> out_names = {}, String name_prefix = "") : _out_names(out_names), _name_prefix(name_prefix) {
         }
 
-        void offerData(std::array<float, NVALS> values) {
+        void offer_data(std::array<float, NVALS> values) {
             if (!_queue_data) return;
             RTDebugSample sample;
             sample.t = millis();
-            sample.name_prefix = &_namePrefix;
+            sample.name_prefix = &_name_prefix;
             for (int i = 0; i < NVALS; i++) {
-                sample.name = &(_outNames[i]);
+                sample.name = &(_out_names[i]);
                 sample.value = values[i];
                 xQueueSend(_queue_data, &sample, /*xTicksToWait=*/0);
             }
@@ -40,7 +40,7 @@ class RTDebugOutputService {
         RTDebugOutputService(bool own_task = false) {
             _queue_data = xQueueCreate(20, sizeof(RTDebugSample));
             if (own_task) {
-                xTaskCreatePinnedToCore(this->debugOutputTask, "debugOutputTask", 5000, this, 1, NULL, 0);
+                xTaskCreatePinnedToCore(this->debug_output_task, "debugOutputTask", 5000, this, 1, nullptr, 0);
             }
         }
 
@@ -53,10 +53,10 @@ class RTDebugOutputService {
         }
 
     private:
-        static void debugOutputTask(void* pvParameters) {
-            RTDebugOutputService* debugOutput = (RTDebugOutputService*)pvParameters;
+        static void debug_output_task(void* pv_parameters) {
+            RTDebugOutputService* debug_output = (RTDebugOutputService*)pv_parameters;
             for (;;) {
-                debugOutput->pump(1000, 1000);
+                debug_output->pump(1000, 1000);
             }
         }
 };

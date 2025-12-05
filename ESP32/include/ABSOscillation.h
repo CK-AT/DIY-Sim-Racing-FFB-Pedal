@@ -12,13 +12,13 @@ static int RPM_VALUE_LAST = 0;
 
 class ABSOscillation : public SimElement {
     private:
-        long _timeLastTriggerMillis;
-        long _absTimeMillis;
-        long _lastCallTimeMillis = 0;
+        long _time_last_trigger_millis;
+        long _abs_time_millis;
+        long _last_call_time_millis = 0;
         const ABSEffectConfig* _config = nullptr;
 
     public:
-        ABSOscillation() : _timeLastTriggerMillis(0) {
+        ABSOscillation() : _time_last_trigger_millis(0) {
         }
 
     public:
@@ -26,154 +26,154 @@ class ABSOscillation : public SimElement {
             _config = &config;
         }
         void trigger() {
-            _timeLastTriggerMillis = millis();
+            _time_last_trigger_millis = millis();
         }
 
         void update(Sim* sim, float& f_sum) {
             if (!_enabled) return;
             if (!_config) return;
-            long timeNowMillis = millis();
-            float timeSinceTrigger = (timeNowMillis - _timeLastTriggerMillis);
-            float absForceOffset_local = 0;
+            long time_now_millis = millis();
+            float time_since_trigger = (time_now_millis - _time_last_trigger_millis);
+            float abs_force_offset_local = 0;
 
-            if (timeSinceTrigger > ABS_ACTIVE_TIME_PER_TRIGGER_MILLIS) {
-                _absTimeMillis = 0;
+            if (time_since_trigger > ABS_ACTIVE_TIME_PER_TRIGGER_MILLIS) {
+                _abs_time_millis = 0;
             } else {
-                _absTimeMillis += timeNowMillis - _lastCallTimeMillis;
-                float absTimeSeconds = _absTimeMillis / 1000.0f;
+                _abs_time_millis += time_now_millis - _last_call_time_millis;
+                float abs_time_seconds = _abs_time_millis / 1000.0f;
 
                 // abs amplitude
-                float absAmp_fl32 = 0;
+                float abs_amp = 0;
                 switch (_config->mode) {
                     case ABSMode_ABS_MODE_FORCE:
-                        absAmp_fl32 = _config->ampl;
+                        abs_amp = _config->ampl;
                         break;
                     default:
-                        absAmp_fl32 = 0.0f;
+                        abs_amp = 0.0f;
                         break;
                 }
 
                 switch (_config->pattern) {
                     case ABSPattern_ABS_PATTERN_SINE:
                         // sine wave pattern
-                        absForceOffset_local = absAmp_fl32 * sin(2 * PI * _config->freq * absTimeSeconds);
+                        abs_force_offset_local = abs_amp * sin(2 * PI * _config->freq * abs_time_seconds);
                         break;
                     case ABSPattern_ABS_PATTERN_SAWTOOTH:
                         // sawtooth pattern
                         if (_config->freq > 0) {
-                            absForceOffset_local = absAmp_fl32 * fmod(absTimeSeconds, 1.0 / (float)_config->freq) * (float)_config->freq;
-                            absForceOffset_local -= absAmp_fl32 * 0.5f;  // make it symmetrical around 0
+                            abs_force_offset_local = abs_amp * fmod(abs_time_seconds, 1.0 / (float)_config->freq) * (float)_config->freq;
+                            abs_force_offset_local -= abs_amp * 0.5f;  // make it symmetrical around 0
                         }
                         break;
                     default:
                         break;
                 }
 
-                f_sum += absForceOffset_local;
+                f_sum += abs_force_offset_local;
             }
 
-            _lastCallTimeMillis = timeNowMillis;
+            _last_call_time_millis = time_now_millis;
         }
 };
 
 class RPMOscillation : public SimElement {
     private:
-        long _timeLastTriggerMillis;
-        long _RPMTimeMillis;
-        long _lastCallTimeMillis = 0;
+        long _time_last_trigger_millis;
+        long _rpm_time_millis;
+        long _last_call_time_millis = 0;
         float f_curr = 0.0f;
 
     public:
-        RPMOscillation() : _timeLastTriggerMillis(0) {
+        RPMOscillation() : _time_last_trigger_millis(0) {
         }
-        float RPM_value = 0;
-        int32_t RPM_position_offset = 0;
+        float rpm_value = 0;
+        int32_t rpm_position_offset = 0;
 
     public:
         void trigger() {
-            _timeLastTriggerMillis = millis();
+            _time_last_trigger_millis = millis();
         }
 
         void update(Sim* sim, float& f_sum) {
             if (!_enabled) return;
             f_sum += f_curr;
         }
-        void forceOffset(RPMEffectConfig& config) {
-            long timeNowMillis = millis();
-            float timeSinceTrigger = (timeNowMillis - _timeLastTriggerMillis);
-            float RPMForceOffset = 0;
-            float RPM_max_freq = config.max_freq;
-            float RPM_min_freq = config.min_freq;
+        void force_offset(RPMEffectConfig& config) {
+            long time_now_millis = millis();
+            float time_since_trigger = (time_now_millis - _time_last_trigger_millis);
+            float rpm_force_offset = 0;
+            float rpm_max_freq = config.max_freq;
+            float rpm_min_freq = config.min_freq;
             // float RPM_max =10;
-            float RPM_amp_base = config.amp;
-            float RPM_amp = 0;
-            if (RPM_value == 0) {
-                RPM_min_freq = 0;
+            float rpm_amp_base = config.amp;
+            float rpm_amp = 0;
+            if (rpm_value == 0) {
+                rpm_min_freq = 0;
             }
-            RPM_amp = RPM_amp_base * (1 + 0.3 * RPM_value / 100);
+            rpm_amp = rpm_amp_base * (1 + 0.3 * rpm_value / 100);
 
-            float RPM_freq = constrain(RPM_value * (RPM_max_freq - RPM_min_freq) / 100, RPM_min_freq, RPM_max_freq);
+            float rpm_freq = constrain(rpm_value * (rpm_max_freq - rpm_min_freq) / 100, rpm_min_freq, rpm_max_freq);
 
-            if (timeSinceTrigger > RPM_ACTIVE_TIME_PER_TRIGGER_MILLIS) {
-                _RPMTimeMillis = 0;
+            if (time_since_trigger > RPM_ACTIVE_TIME_PER_TRIGGER_MILLIS) {
+                _rpm_time_millis = 0;
                 f_curr = RPM_VALUE_LAST;
             } else {
-                _RPMTimeMillis += timeNowMillis - _lastCallTimeMillis;
-                float RPMTimeSeconds = _RPMTimeMillis / 1000.0f;
+                _rpm_time_millis += time_now_millis - _last_call_time_millis;
+                float rpm_time_seconds = _rpm_time_millis / 1000.0f;
 
-                // RPMForceOffset = calcVars_st->absAmplitude * sin(calcVars_st->absFrequency * RPMTimeSeconds);
-                f_curr = RPM_amp * sin(2 * PI * RPM_freq * RPMTimeSeconds);
+                // rpm_force_offset = calcVars_st->absAmplitude * sin(calcVars_st->absFrequency * rpm_time_seconds);
+                f_curr = rpm_amp * sin(2 * PI * rpm_freq * rpm_time_seconds);
             }
 
-            _lastCallTimeMillis = timeNowMillis;
-            // return RPMForceOffset;
+            _last_call_time_millis = time_now_millis;
+            // return rpm_force_offset;
         }
 };
 
 class BitePointOscillation : public SimElement {
     private:
-        long _timeLastTriggerMillis;
-        long _BiteTimeMillis;
-        long _lastCallTimeMillis = 0;
+        long _time_last_trigger_millis;
+        long _bite_time_millis;
+        long _last_call_time_millis = 0;
         float f_curr = 0.0f;
 
     public:
-        BitePointOscillation() : _timeLastTriggerMillis(0) {
+        BitePointOscillation() : _time_last_trigger_millis(0) {
         }
-        // float RPM_value =0;
-        float BitePoint_Force_offset = 0;
+        // float rpm_value =0;
+        float bite_point_force_offset = 0;
 
     public:
         void trigger() {
-            _timeLastTriggerMillis = millis();
+            _time_last_trigger_millis = millis();
         }
 
         void update(Sim* sim, float& f_sum) {
             if (!_enabled) return;
             f_sum += f_curr;
         }
-        void forceOffset(BitePointEffectConfig& config) {
-            long timeNowMillis = millis();
-            float timeSinceTrigger = (timeNowMillis - _timeLastTriggerMillis);
-            float BP_freq = config.freq;
-            // float BP_freq = 15;
-            float BP_amp = config.amp;
-            // float BP_amp = 2;
+        void force_offset(BitePointEffectConfig& config) {
+            long time_now_millis = millis();
+            float time_since_trigger = (time_now_millis - _time_last_trigger_millis);
+            float bp_freq = config.freq;
+            // float bp_freq = 15;
+            float bp_amp = config.amp;
+            // float bp_amp = 2;
 
-            if (timeSinceTrigger > BP_ACTIVE_TIME_PER_TRIGGER_MILLIS) {
-                _BiteTimeMillis = 0;
+            if (time_since_trigger > BP_ACTIVE_TIME_PER_TRIGGER_MILLIS) {
+                _bite_time_millis = 0;
                 f_curr = 0;
             } else {
-                _BiteTimeMillis += timeNowMillis - _lastCallTimeMillis;
-                float BPTimeSeconds = _BiteTimeMillis / 1000.0f;
+                _bite_time_millis += time_now_millis - _last_call_time_millis;
+                float bp_time_seconds = _bite_time_millis / 1000.0f;
 
-                // RPMForceOffset = calcVars_st->absAmplitude * sin(calcVars_st->absFrequency * RPMTimeSeconds);
-                f_curr = BP_amp * sin(2 * PI * BP_freq * BPTimeSeconds);
+                // rpm_force_offset = calcVars_st->absAmplitude * sin(calcVars_st->absFrequency * rpm_time_seconds);
+                f_curr = bp_amp * sin(2 * PI * bp_freq * bp_time_seconds);
             }
-            _lastCallTimeMillis = timeNowMillis;
-            // RPM_VALUE_LAST=RPMForceOffset;
+            _last_call_time_millis = time_now_millis;
+            // RPM_VALUE_LAST=rpm_force_offset;
 
-            // return RPMForceOffset;
+            // return rpm_force_offset;
         }
 };
 
@@ -183,34 +183,34 @@ class BitePointOscillation : public SimElement {
 class MovingAverageFilter {
     public:
         // construct without coefs
-        MovingAverageFilter(unsigned int newDataPointsCount) {
+        MovingAverageFilter(unsigned int new_data_points_count) {
             k = 0;  // initialize so that we start to write at index 0
-            if (newDataPointsCount < MAX_DATA_POINTS)
-                dataPointsCount = newDataPointsCount;
+            if (new_data_points_count < MAX_DATA_POINTS)
+                data_points_count = new_data_points_count;
             else
-                dataPointsCount = MAX_DATA_POINTS;
+                data_points_count = MAX_DATA_POINTS;
 
-            for (i = 0; i < dataPointsCount; i++) {
+            for (i = 0; i < data_points_count; i++) {
                 values[i] = 0;  // fill the array with 0's
             }
         }
-        int dataPointsCount;
+        int data_points_count;
         float process(float in) {
             out = 0;
 
             values[k] = in;
-            k = (k + 1) % dataPointsCount;
+            k = (k + 1) % data_points_count;
 
-            for (i = 0; i < dataPointsCount; i++) {
+            for (i = 0; i < data_points_count; i++) {
                 out += values[i];
             }
 
-            float retValue = 0;
-            if (dataPointsCount > 0) {
-                retValue = out / dataPointsCount;
+            float ret_value = 0;
+            if (data_points_count > 0) {
+                ret_value = out / data_points_count;
             }
 
-            return retValue;
+            return ret_value;
         }
 
     private:
@@ -222,148 +222,152 @@ class MovingAverageFilter {
 };
 
 // G force effect
-class G_force_effect : public SimElement {
+class GForceEffect : public SimElement {
     public:
-        float G_value = 0;
-        float G_force_raw = 0;
-        float G_force = 0;
+        float g_value = 0;
+        float g_force_raw = 0;
+        float g_force = 0;
         float f_curr = 0.0f;
-        MovingAverageFilter movingAverageFilter = MovingAverageFilter(100);
+        MovingAverageFilter moving_average_filter = MovingAverageFilter(100);
 
         void update(Sim* sim, float& f_sum) {
             if (!_enabled) return;
             f_sum += f_curr;
         }
-        void forceOffset(GForceEffectConfig& config) {
-            uint32_t Force_Range;
-            float G_multiplier = ((float)config.multi) / 100;
-            if (G_value == -128) {
-                G_force_raw = 0;
+        void force_offset(GForceEffectConfig& config) {
+            uint32_t force_range;
+            float g_multiplier = ((float)config.multi) / 100;
+            if (g_value == -128) {
+                g_force_raw = 0;
 
             } else {
-                G_force_raw = 10 * (G_value)*G_multiplier / 9.8;
-                // G_force_raw=constrain(G_force_raw,-1*Force_Range*0.25,Force_Range*0.25);
+                g_force_raw = 10 * (g_value)*g_multiplier / 9.8;
+                // g_force_raw=constrain(g_force_raw,-1*force_range*0.25,force_range*0.25);
             }
 
             // apply filter
-            G_force = movingAverageFilter.process(G_force_raw);
-            // G_force=G_force_raw;
+            g_force = moving_average_filter.process(g_force_raw);
+            f_curr = g_force;
+            // g_force=g_force_raw;
         }
 };
 // Wheel slip
-class WSOscillation : public SimElement {
+class WheelSlipOscillation : public SimElement {
     private:
-        long _timeLastTriggerMillis;
-        long _WSTimeMillis;
-        long _lastCallTimeMillis = 0;
+        long _time_last_trigger_millis;
+        long _ws_time_millis;
+        long _last_call_time_millis = 0;
         float f_curr = 0.0f;
+        float _ws_force_offset = 0.0f;
 
     public:
-        WSOscillation() : _timeLastTriggerMillis(0) {
+        WheelSlipOscillation() : _time_last_trigger_millis(0) {
         }
-        // float RPM_value =0;
-        float WS_Force_offset = 0;
+        // float rpm_value =0;
 
     public:
         void trigger() {
-            _timeLastTriggerMillis = millis();
+            _time_last_trigger_millis = millis();
         }
 
         void update(Sim* sim, float& f_sum) {
             if (!_enabled) return;
             f_sum += f_curr;
         }
-        void forceOffset(WheelSlipEffectConfig& config) {
-            long timeNowMillis = millis();
-            float timeSinceTrigger = (timeNowMillis - _timeLastTriggerMillis);
-            float WSForceOffset = 0;
-            float WS_freq = config.freq;
-            // float BP_freq = 15;
-            float WS_amp = config.amp;
-            // float BP_amp = 2;
+        void force_offset(WheelSlipEffectConfig& config) {
+            long time_now_millis = millis();
+            float time_since_trigger = (time_now_millis - _time_last_trigger_millis);
+            float ws_force_offset_local = 0;
+            float ws_freq = config.freq;
+            // float bp_freq = 15;
+            float ws_amp = config.amp;
+            // float bp_amp = 2;
 
-            if (timeSinceTrigger > WS_ACTIVE_TIME_PER_TRIGGER_MILLIS) {
-                _WSTimeMillis = 0;
-                WSForceOffset = 0;
+            if (time_since_trigger > WS_ACTIVE_TIME_PER_TRIGGER_MILLIS) {
+                _ws_time_millis = 0;
+                ws_force_offset_local = 0;
             } else {
-                _WSTimeMillis += timeNowMillis - _lastCallTimeMillis;
-                float WSTimeSeconds = _WSTimeMillis / 1000.0f;
+                _ws_time_millis += time_now_millis - _last_call_time_millis;
+                float ws_time_seconds = _ws_time_millis / 1000.0f;
 
-                // RPMForceOffset = calcVars_st->absAmplitude * sin(calcVars_st->absFrequency * RPMTimeSeconds);
-                WSForceOffset = WS_amp * sin(2 * PI * WS_freq * WSTimeSeconds);
-                /*if (WS_freq > 0)
+                // rpm_force_offset = calcVars_st->absAmplitude * sin(calcVars_st->absFrequency * rpm_time_seconds);
+                ws_force_offset_local = ws_amp * sin(2 * PI * ws_freq * ws_time_seconds);
+                /*if (ws_freq > 0)
                 {
-                  //WSForceOffset = WS_amp * fmod(WSTimeSeconds, 1.0 / (float)WS_freq) * WS_freq;
-                  //WSForceOffset = WS_amp * (2*fmod(WSTimeSeconds, 1.0 / (float)WS_freq) * WS_freq-1);
+                  //ws_force_offset_local = ws_amp * fmod(ws_time_seconds, 1.0 / (float)ws_freq) * ws_freq;
+                  //ws_force_offset_local = ws_amp * (2*fmod(ws_time_seconds, 1.0 / (float)ws_freq) * ws_freq-1);
                 }
                 */
             }
-            WS_Force_offset = WSForceOffset;
-            _lastCallTimeMillis = timeNowMillis;
-            // RPM_VALUE_LAST=RPMForceOffset;
+            _ws_force_offset = ws_force_offset_local;
+            f_curr = _ws_force_offset;
+            _last_call_time_millis = time_now_millis;
+            // RPM_VALUE_LAST=rpm_force_offset;
 
-            // return RPMForceOffset;
+            // return rpm_force_offset;
         }
 };
 // Road impact
-class Road_impact_effect {
+class RoadImpactEffect {
     public:
-        float Road_Impact_force = 0;
-        float Road_Impact_force_raw = 0;
-        uint8_t Road_Impact_value = 0;
+        float road_impact_force = 0;
+        float road_impact_force_raw = 0;
+        uint8_t road_impact_value = 0;
         float f_curr = 0.0f;
-        MovingAverageFilter movingAverageFilter = MovingAverageFilter(100);
+        MovingAverageFilter moving_average_filter = MovingAverageFilter(100);
 
-        void forceOffset(RoadImpactEffectConfig& config) {
-            uint32_t Force_Range;
-            float Road_multiplier = ((float)config.multi) / 100;
-            Force_Range = 10;  // TODO ????
-            // Road_multiplier=0.1;
-            Road_Impact_force_raw = 0.3 * Road_multiplier * ((float)Force_Range) * ((float)Road_Impact_value) / 100;
+        void force_offset(RoadImpactEffectConfig& config) {
+            uint32_t force_range;
+            float road_multiplier = ((float)config.multi) / 100;
+            force_range = 10;  // TODO ????
+            // road_multiplier=0.1;
+            road_impact_force_raw = 0.3 * road_multiplier * ((float)force_range) * ((float)road_impact_value) / 100;
 
             // apply filter
-            Road_Impact_force = movingAverageFilter.process(Road_Impact_force_raw);
+            road_impact_force = moving_average_filter.process(road_impact_force_raw);
+            f_curr = road_impact_force;
         }
 };
 // Wheel slip
-class Custom_vibration : public SimElement {
+class CustomVibration : public SimElement {
     private:
-        long _timeLastTriggerMillis;
-        long _CVTimeMillis;
-        long _lastCallTimeMillis = 0;
+        long _time_last_trigger_millis;
+        long _cv_time_millis;
+        long _last_call_time_millis = 0;
         float f_curr = 0.0f;
+        float _cv_force_offset = 0.0f;
 
     public:
-        Custom_vibration() : _timeLastTriggerMillis(0) {
+        CustomVibration() : _time_last_trigger_millis(0) {
         }
-        // float RPM_value =0;
-        float CV_Force_offset = 0;
+        // float rpm_value =0;
 
     public:
         void trigger() {
-            _timeLastTriggerMillis = millis();
+            _time_last_trigger_millis = millis();
         }
 
         void update(Sim* sim, float& f_sum) {
             if (!_enabled) return;
             f_sum += f_curr;
         }
-        void forceOffset(CustomVibrationEffectConfig& config) {
-            long timeNowMillis = millis();
-            float timeSinceTrigger = (timeNowMillis - _timeLastTriggerMillis);
-            float CVForceOffset = 0;
+        void force_offset(CustomVibrationEffectConfig& config) {
+            long time_now_millis = millis();
+            float time_since_trigger = (time_now_millis - _time_last_trigger_millis);
+            float cv_force_offset_local = 0;
 
-            if (timeSinceTrigger > CV_ACTIVE_TIME_PER_TRIGGER_MILLIS) {
-                _CVTimeMillis = 0;
-                CVForceOffset = 0;
+            if (time_since_trigger > CV_ACTIVE_TIME_PER_TRIGGER_MILLIS) {
+                _cv_time_millis = 0;
+                cv_force_offset_local = 0;
             } else {
-                _CVTimeMillis += timeNowMillis - _lastCallTimeMillis;
-                float CVTimeSeconds = _CVTimeMillis / 1000.0f;
+                _cv_time_millis += time_now_millis - _last_call_time_millis;
+                float cv_time_seconds = _cv_time_millis / 1000.0f;
 
-                CVForceOffset = config.amp / 20.0f * sin(2 * PI * config.freq * CVTimeSeconds);
+                cv_force_offset_local = config.amp / 20.0f * sin(2 * PI * config.freq * cv_time_seconds);
             }
-            CV_Force_offset = CVForceOffset;
-            _lastCallTimeMillis = timeNowMillis;
+            _cv_force_offset = cv_force_offset_local;
+            f_curr = _cv_force_offset;
+            _last_call_time_millis = time_now_millis;
         }
 };
 // MovingAverageFilter averagefilter_rudder(50);
@@ -419,7 +423,7 @@ class Custom_vibration : public SimElement {
 //             //    sync_pedal_position=calcVars_st->sync_pedal_position;
 //             //    current_pedal_position=calcVars_st->current_pedal_position;
 //             stepper_range = calcVars_st->stepperPosRange;
-//             force_range = calcVars_st->Force_Range;
+//             force_range = calcVars_st->force_range;
 //             force_center_offset = force_range / 2 + calcVars_st->Force_Min;
 //             endpos_travel = (float)calcVars_st->stepperPosRange;
 //             // endpos_travel=((float)(calcVars_st->current_pedal_position-calcVars_st->stepperPosMin))/((float)calcVars_st->stepperPosRange);
@@ -451,14 +455,14 @@ class Custom_vibration : public SimElement {
 //         int32_t offset_raw;
 //         int32_t offset_filter;
 //         int32_t stepper_range;
-//         uint8_t G_value;
+//         uint8_t g_value;
 //         long stepperPosMax;
 //         void offset_calculate(DAP_calculationVariables_st* calcVars_st) {
 //             stepperPosMax = (float)calcVars_st->stepperPosMax;
 //             stepper_range = (float)calcVars_st->stepperPosRange;
 //             float Amp_max = 0.3 * stepper_range;
 //             if (calcVars_st->Rudder_status) {
-//                 float offset = Amp_max * ((float)G_value) / 100.0f;
+//                 float offset = Amp_max * ((float)g_value) / 100.0f;
 //                 // offset=constrain(offset,0,Amp_max);
 //                 offset_filter = Averagefilter_Rudder_G_Offset.process((stepperPosMax - offset));
 //             } else {

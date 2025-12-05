@@ -7,19 +7,19 @@
 
 class Sim;
 
-inline float normalize_value(float value, float minVal, float maxVal) {
-    float valRange = (maxVal - minVal);
-    if (abs(valRange) < 0.01) {
+inline float normalize_value(float value, float min_val, float max_val) {
+    float val_range = (max_val - min_val);
+    if (abs(val_range) < 0.01) {
         return 0.0;  // avoid div-by-zero
     }
-    if (value <= minVal) {
+    if (value <= min_val) {
         return 0.0;
     }
-    if (value >= maxVal) {
+    if (value >= max_val) {
         return 1.0;
     }
 
-    return (value - minVal) / valRange;
+    return (value - min_val) / val_range;
 }
 
 class SimElement {
@@ -183,7 +183,7 @@ class ForceMap : public SimElement {
     private:
         std::vector<float> _x_vect;
         std::vector<float> _f_vect;
-        int last_idx = 0;
+        int _last_idx = 0;
 };
 
 class DampingMap : public SimElement {
@@ -207,5 +207,5 @@ class DampingMap : public SimElement {
         std::vector<float> _x_vect;
         std::vector<float> _k_vect_neg;
         std::vector<float> _k_vect_pos;
-        int last_idx = 0;
+        int _last_idx = 0;
 };

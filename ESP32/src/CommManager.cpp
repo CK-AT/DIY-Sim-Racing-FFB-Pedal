@@ -204,7 +204,7 @@ void CommManager::setup(Stream *serial, CANConfig &can_config, ConfigManager *co
     _can_config = can_config;
     _log_queue_data = xQueueCreate(20, MAX_LOG_LINE_LENGTH);
     setup_serial(serial);
-    xTaskCreatePinnedToCore(this->periodic_task, "CommManagerTask", 8000, this, 1, NULL, 0);
+    xTaskCreatePinnedToCore(this->periodic_task, "CommManagerTask", 8000, this, 1, nullptr, 0);
 }
 
 void CommManager::pump_log(int max_samples, int timeout) {

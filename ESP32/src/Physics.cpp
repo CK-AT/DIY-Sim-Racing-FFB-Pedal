@@ -49,19 +49,19 @@ void ForceMap::update(Sim *sim, float &f_sum) {
     float x = sim->get_x();
     if (x <= _x_vect[0]) {
         f_sum -= _f_vect[0];
-        last_idx = 0;
+        _last_idx = 0;
     } else if (x >= _x_vect.back()) {
         f_sum -= _f_vect.back();
-        last_idx = _x_vect.size() - 1;
+        _last_idx = _x_vect.size() - 1;
     } else {
-        while ((last_idx >= 0) && (last_idx <= (_x_vect.size() - 1))) {
-            if (x < _x_vect[last_idx]) {
-                last_idx--;
-            } else if (x > _x_vect[last_idx + 1]) {
-                last_idx++;
+        while ((_last_idx >= 0) && (_last_idx <= (_x_vect.size() - 1))) {
+            if (x < _x_vect[_last_idx]) {
+                _last_idx--;
+            } else if (x > _x_vect[_last_idx + 1]) {
+                _last_idx++;
             } else {
-                float k = (_f_vect[last_idx + 1] - _f_vect[last_idx]) / (_x_vect[last_idx + 1] - _x_vect[last_idx]);
-                float d = _f_vect[last_idx] - (k * _x_vect[last_idx]);
+                float k = (_f_vect[_last_idx + 1] - _f_vect[_last_idx]) / (_x_vect[_last_idx + 1] - _x_vect[_last_idx]);
+                float d = _f_vect[_last_idx] - (k * _x_vect[_last_idx]);
                 f_sum -= ((k * x) + d);
                 return;
             }
@@ -81,19 +81,19 @@ void DampingMap::update(Sim *sim, float &f_sum) {
     }
     if (x <= _x_vect[0]) {
         f_sum -= (sim->get_v() * k_vect->front());
-        last_idx = 0;
+        _last_idx = 0;
     } else if (x >= _x_vect.back()) {
         f_sum -= (sim->get_v() * k_vect->back());
-        last_idx = _x_vect.size() - 1;
+        _last_idx = _x_vect.size() - 1;
     } else {
-        while ((last_idx >= 0) && (last_idx <= (_x_vect.size() - 1))) {
-            if (x < _x_vect[last_idx]) {
-                last_idx--;
-            } else if (x > _x_vect[last_idx + 1]) {
-                last_idx++;
+        while ((_last_idx >= 0) && (_last_idx <= (_x_vect.size() - 1))) {
+            if (x < _x_vect[_last_idx]) {
+                _last_idx--;
+            } else if (x > _x_vect[_last_idx + 1]) {
+                _last_idx++;
             } else {
-                float k = (k_vect->at(last_idx + 1) - k_vect->at(last_idx)) / (_x_vect[last_idx + 1] - _x_vect[last_idx]);
-                float d = k_vect->at(last_idx) - (k * _x_vect[last_idx]);
+                float k = (k_vect->at(_last_idx + 1) - k_vect->at(_last_idx)) / (_x_vect[_last_idx + 1] - _x_vect[_last_idx]);
+                float d = k_vect->at(_last_idx) - (k * _x_vect[_last_idx]);
                 f_sum -= (sim->get_v() * ((k * x) + d));
                 return;
             }

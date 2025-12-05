@@ -27,7 +27,7 @@ A6Servo::A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareS
     _modbus->setTimeout(10);
     _modbus->begin(serial, 0);
     _stepper_engine = new FastNonAccelStepper(pin_step, pin_dir, dir_inverted);
-    _stepper_engine->setMaxSpeed(MAXIMUM_SPEED);
+    _stepper_engine->set_max_speed(MAXIMUM_SPEED);
 }
 
 bool A6Servo::check_required_registers(void) {
@@ -79,7 +79,7 @@ bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome) {
     if (min_pos == 0) {
         _pos_max = read_max_pos();
         LogOutput::printf(" -> Negative endstop @ %i, positive endstop @ %i, homed already.", min_pos, _pos_max);
-        _stepper_engine->setCurrentPosition(read_position());
+        _stepper_engine->set_current_position(read_position());
         _homing_state = HomingState::Homed;
     } else {
         LogOutput::printf(" -> Negative endstop @ %i, not homed.", min_pos);
@@ -87,7 +87,7 @@ bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome) {
             _homing_state = HomingState::Pending;
         }
     }
-    xTaskCreatePinnedToCore(this->task_func, "A6ServoTask", 5000, this, 1, NULL, 0);
+    xTaskCreatePinnedToCore(this->task_func, "A6ServoTask", 5000, this, 1, nullptr, 0);
     LogOutput::printf(" -> done");
     return true;
 }
@@ -119,7 +119,7 @@ bool A6Servo::home(void) {
 void A6Servo::do_homing(void) {
     _state = State::Homing;
     _homing_state = HomingState::HomeUnknown;
-    _stepper_engine->setCurrentPosition(0);
+    _stepper_engine->set_current_position(0);
     write_min_pos(-20000000);
     write_max_pos(20000000);
     write_trq_limit(_trq_open_loop);
@@ -144,7 +144,7 @@ void A6Servo::do_homing(void) {
         }
     }
     LogOutput::printf("A6Servo: Negative endstop found, moving to positive endstop...");
-    _stepper_engine->keepRunningForward((_steps_per_mm * _mm_per_rev) * _spd_open_loop / 60.0);
+    _stepper_engine->keep_running_forward((_steps_per_mm * _mm_per_rev) * _spd_open_loop / 60.0);
     num_zero_spd = 0;
     while (num_zero_spd < 5) {
         delay(100);
@@ -156,12 +156,12 @@ void A6Servo::do_homing(void) {
             num_zero_spd = 0;
         }
     }
-    _stepper_engine->forceStop();
+    _stepper_engine->force_stop();
     int32_t pos_endstop = read_position();
     if ((float(pos_endstop) / float(_steps_per_mm)) > 20.0) {
         LogOutput::printf("A6Servo: Positive endstop found @ %.3f mm", float(pos_endstop) / float(_steps_per_mm));
         _pos_max = pos_endstop - 2500;
-        _stepper_engine->moveTo(_pos_max, true);
+        _stepper_engine->move_to(_pos_max, true);
         write_min_pos(0);
         write_max_pos(_pos_max);
         write_hold_register<uint16_t>(0x1000, 0);  // reset homing command
@@ -246,12 +246,12 @@ int32_t A6Servo::read_max_pos(void) {
 
 void A6Servo::move_to_slow(int32_t position) {
     set_speed(_spd_open_loop);
-    _stepper_engine->moveTo(constrain(position, 0, _pos_max), true);
+    _stepper_engine->move_to(constrain(position, 0, _pos_max), true);
     set_speed(_spd_locked_in);
 }
 
 bool A6Servo::move_to(int32_t position, bool blocking) {
-    _stepper_engine->moveTo(constrain(position, 0, _pos_max), blocking);
+    _stepper_engine->move_to(constrain(position, 0, _pos_max), blocking);
     return true;
 }
 
@@ -273,7 +273,7 @@ bool A6Servo::move_to(float position, bool blocking) {
 }
 
 void A6Servo::set_speed(float rpm) {
-    _stepper_engine->setMaxSpeed(uint32_t((_steps_per_mm * _mm_per_rev) * rpm / 60.0));
+    _stepper_engine->set_max_speed(uint32_t((_steps_per_mm * _mm_per_rev) * rpm / 60.0));
 }
 
 int32_t A6Servo::read_position(void) {
