@@ -11,7 +11,7 @@
     <Grid>
         <StackPanel Orientation="Vertical">
             <local:DiyPedalKinematics x:Name="DiyPedalKinematicsControl"></local:DiyPedalKinematics>
-            <TabControl Grid.Column="0" HorizontalAlignment="Left" Height="222" Grid.Row="4" VerticalAlignment="Top" Width="540" Padding="0,0,0,0" BorderThickness="0,0,0,0" Background="#00252525" Foreground="Transparent" Margin="0,4,0,0">
+            <TabControl Grid.Column="0" HorizontalAlignment="Left" Grid.Row="4" VerticalAlignment="Top" Width="540" Padding="0,0,0,0" BorderThickness="0,0,0,0" Background="#00252525" Foreground="Transparent" Margin="0,4,0,0">
                 <TabControl.Resources>
                     <Style TargetType="TabItem">
                         <Setter Property="Template">
@@ -93,7 +93,7 @@
                                 <Label x:Name="label_LC_rate" Foreground="White" FontSize="10" FontFamily="Arial" Content="Loadcell Rating:" Height="12" Padding="0,0,0,0" Margin="0,0,131,8"/>
                                 <Slider x:Name="Slider_LC_rate" Style="{DynamicResource SliderStyle_single_H}" Grid.Row="1" Height="10" Maximum="500" ValueChanged="Slider_LC_rate_ValueChanged" IsSnapToTickEnabled="True" Value="200" SmallChange="10" TickFrequency="1" LargeChange="100"/>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Width="400">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Width="400" Margin="0,0,0,10">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
                                     <styles:SHToggleButton x:Name="InvertLoadcellReading_check" Content="" Checked="InvertLoadcellReading_checked" Unchecked="InvertLoadcellReading_unchecked" IsChecked="False" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial"  Margin="-10,0,0,0" />
                                     <Label x:Name="Label_reverse_LC" Content="Reverse LC reading" Height="20" Width="90" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
@@ -103,6 +103,10 @@
                                     <Label x:Name="Label_reverse_servo" Content="Reverse Servo Direction" Height="20" Width="120" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
                                 </StackPanel>
 
+                            </StackPanel>
+                            <StackPanel Width="400" Height="40">
+                                <Label x:Name="label_physics_oversampling" Foreground="White" FontSize="10" FontFamily="Arial" Content="Physics Oversampling:" Height="12" Padding="0,0,0,0" Margin="0,0,131,8"/>
+                                <Slider x:Name="Slider_physics_oversampling" Style="{DynamicResource SliderStyle_single_H}" Grid.Row="1" Height="10" Minimum="1" Maximum="32" ValueChanged="Slider_physics_oversampling_ValueChanged" IsSnapToTickEnabled="True" Value="16" SmallChange="1" TickFrequency="1"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

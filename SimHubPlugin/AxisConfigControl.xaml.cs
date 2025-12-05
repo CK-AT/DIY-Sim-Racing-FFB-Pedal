@@ -58,6 +58,7 @@ namespace User.PluginSdkDemo
             new_config.FMaxLoadcell = (uint)Math.Round(200 * 9.81f);
             new_config.StepsPerMm = 1000;
             new_config.MmPerRev = 5;
+            new_config.PhysicsIterationsPerSample = 16;
             new_config.Store = false;
 
             return new_config;
@@ -114,6 +115,7 @@ namespace User.PluginSdkDemo
             InvertMotorDir_check.IsChecked = config.BMotorInverted;
 
             Slider_steps_per_mm.Value = config.StepsPerMm;
+            Slider_physics_oversampling.Value = config.PhysicsIterationsPerSample;
         }
         private void KF_filter_order_changed(object sender, SelectionChangedEventArgs e)
         {
@@ -206,7 +208,11 @@ namespace User.PluginSdkDemo
             config.BMotorInverted = false;
         }
 
+        private void Slider_physics_oversampling_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            config.PhysicsIterationsPerSample = (uint)e.NewValue;
+            label_physics_oversampling.Content = String.Format("Physics Oversampling: {0}x", config.PhysicsIterationsPerSample);
 
-
+        }
     }
 }
