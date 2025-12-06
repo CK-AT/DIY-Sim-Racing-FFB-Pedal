@@ -26,7 +26,7 @@ A6Servo::A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareS
     _modbus->onResponseHandler(std::bind(&A6Servo::on_response, this, std::placeholders::_1, std::placeholders::_2));
     _modbus->setTimeout(10);
     _modbus->begin(serial, 0);
-    _stepper_engine = new FastNonAccelStepper(pin_step, pin_dir, dir_inverted);
+    _stepper_engine = new FastNonAccelStepper(pin_step, pin_dir, !dir_inverted);
     _stepper_engine->set_max_speed(MAXIMUM_SPEED);
 }
 
@@ -126,6 +126,19 @@ void A6Servo::do_homing(void) {
     write_homing_trq_limit(_trq_open_loop);
     set_speed(_spd_open_loop);
     write_hold_register<uint32_t>(0x0600, 1000000);  // relax excessive local position deviation threshold
+    // C10.01 (0x1001) homing modes (A6-RS manual Table 4-14):
+    // | Mode | Meaning                                                            |
+    // | -2   | Forward to mech limit, then Z pulse                                |
+    // | -1   | Reverse to mech limit, then Z pulse                                |
+    // | 1    | Reverse to NL, slow back to Z                                      |
+    // | 2    | Forward to PL, slow back to Z                                      |
+    // | 3-8  | Use HSW transitions (ON/OFF) to find limit, then Z (dir per mode)  |
+    // | 9-14 | Always fwd/rev; use HSW transition to limit, then Z (dir per mode) |
+    // | 17-30| Same as 1-14 but stop at limit (no Z search)                       |
+    // | 33   | Reverse; nearest Z pulse                                            |
+    // | 34   | Forward; nearest Z pulse                                            |
+    // | 35   | Use current position as home                                        |
+    // | 15,16,31,32 | Reserved                                                     |
     write_hold_register<int16_t>(0x1001, -1);        // homing mode = search for mechanical limit in negative direction
     write_hold_register<int16_t>(0x1002, _spd_open_loop / 2.0); // set initial homing speed to half of the open loop speed to avoid getting stuck
     write_hold_register<uint16_t>(0x1000, 0);        // homing off
@@ -203,7 +216,13 @@ void A6Servo::lock_onto_curr_pos(void) {
 }
 
 int32_t A6Servo::get_target_pos() {
-    return int32_t(_curr_pos * float(_steps_per_mm));
+    return logical_to_counts(_curr_pos);
+}
+
+int32_t A6Servo::logical_to_counts(float logical_mm) const {
+    float clamped = constrain(logical_mm, 0.0f, float(_pos_max) / float(_steps_per_mm));
+    int32_t counts = int32_t(clamped * float(_steps_per_mm));
+    return _reverse_motion ? (_pos_max - counts) : counts;
 }
 
 void A6Servo::write_trq_limit(float limit_percent) {
@@ -259,7 +278,7 @@ void A6Servo::move_to_slow(float position) {
     _curr_pos = constrain(position, 0, float(float(_pos_max) / float(_steps_per_mm)));
     _curr_pos_valid = true;
     if (_state == State::Enabled && _homing_state == HomingState::LockedIn) {
-        move_to_slow(int32_t(_curr_pos * float(_steps_per_mm)));
+        move_to_slow(logical_to_counts(_curr_pos));
     }
 }
 
@@ -267,7 +286,7 @@ bool A6Servo::move_to(float position, bool blocking) {
     _curr_pos = constrain(position, 0, float(float(_pos_max) / float(_steps_per_mm)));
     _curr_pos_valid = true;
     if (_state == State::Enabled && _homing_state == HomingState::LockedIn) {
-        return move_to(int32_t(_curr_pos * float(_steps_per_mm)), blocking);
+        return move_to(logical_to_counts(_curr_pos), blocking);
     }
     return false;
 }

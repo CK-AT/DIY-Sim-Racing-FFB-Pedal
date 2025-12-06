@@ -139,7 +139,10 @@ IAuxFunction *get_aux_function(const FunctionConfig *func_cfg) {
 }
 
 IFunction *on_config_update(IFunction *active_function, const FunctionConfig *function_cfg) {
-    if (servo) servo->pause(1000);
+    if (servo) {
+        servo->pause(1000);
+        servo->set_reversed(config_manager.get_axis_config()->b_motor_inverted);
+    }
     if (active_function) {
         active_function->disable();
     }
@@ -241,8 +244,9 @@ void setup() {
         const AxisConfig *axis_cfg = config_manager.get_axis_config();
 
 #ifdef A6SERVO
-        servo = new A6Servo(stepPinStepper, dirPinStepper, !axis_cfg->b_motor_inverted, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN,
+        servo = new A6Servo(stepPinStepper, dirPinStepper, false, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN,
                             ISV57_DEPIN, false);
+        servo->set_reversed(axis_cfg->b_motor_inverted);
         // disable servo to reduce noise floor for load cell calibration (might be enabled after a restart)
         servo->disable();
         delay(100);

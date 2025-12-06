@@ -24,6 +24,9 @@ class Servo {
         virtual float get_min_pos(void);
         virtual float get_max_pos(void);
         virtual void periodic_task_func(void);
+        virtual void set_reversed(bool reversed) {
+            (void)reversed;
+        }
         State get_state(void) {
             return _state;
         }

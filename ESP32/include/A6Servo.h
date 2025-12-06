@@ -18,6 +18,9 @@ class A6Servo : public Servo {
         void write_trq_limit(float limit_percent);
         bool move_to(float position, bool blocking = false);
         void move_to_slow(float position);
+        void set_reversed(bool reversed) {
+            _reverse_motion = reversed;
+        }
         float get_min_pos(void) {
             return 0.0;
         }
@@ -84,6 +87,7 @@ class A6Servo : public Servo {
         int32_t read_position(void);
         void do_homing(void);
         int32_t get_target_pos();
+        int32_t logical_to_counts(float logical_mm) const;
         FastNonAccelStepper* _stepper_engine;
         ModbusClientRTU* _modbus;
         uint32_t _steps_per_mm;
@@ -93,6 +97,7 @@ class A6Servo : public Servo {
         float _spd_locked_in = 6000.0;
         float _trq_open_loop = 10.0;
         float _spd_open_loop = 200.0;
+        bool _reverse_motion = false;
         static void task_func(void* pv_parameters) {
             A6Servo* servo = (A6Servo*)pv_parameters;
             delay(1000);
