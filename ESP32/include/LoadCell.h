@@ -10,8 +10,8 @@ struct LoadCellConfig {
     float loadcell_rating_kg = LOADCELL_WEIGHT_RATING_KG;
     float excitation_v = LOADCELL_EXCITATION_V;
     float sensitivity_mV_V = LOADCELL_SENSITIVITY_MV_V;
-    uint32_t offset_samples = 10000;
-    uint32_t variance_samples = 10000;
+    uint32_t offset_samples = 1000;
+    uint32_t variance_samples = 1000;
 };
 
 class LoadCellAds1256 {
