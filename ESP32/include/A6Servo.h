@@ -9,10 +9,7 @@
 
 class A6Servo : public Servo {
     public:
-        enum class HomingDirection {
-            Negative,
-            Positive
-        };
+        using HomingDirection = Servo::HomingDirection;
         A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareSerial& serial, unsigned long baud, uint32_t config, int8_t pin_rx,
                 int8_t pin_tx, int8_t pin_tx_ena = -1, bool serial_inverted = false);
         bool setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome = true) override;
@@ -26,7 +23,7 @@ class A6Servo : public Servo {
         void set_reversed(bool reversed) {
             _reverse_motion = reversed;
         }
-        void set_homing_direction(HomingDirection homing_dir) {
+        void set_homing_direction(HomingDirection homing_dir) override {
             _homing_direction = homing_dir;
         }
         float get_min_pos(void) {

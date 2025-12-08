@@ -7,6 +7,10 @@ class Servo {
             Enabled,
             Homing
         };
+        enum class HomingDirection {
+            Negative,
+            Positive
+        };
         enum class HomingState {
             HomeUnknown,
             Pending,
@@ -26,6 +30,9 @@ class Servo {
         virtual void periodic_task_func(void);
         virtual void set_reversed(bool reversed) {
             (void)reversed;
+        }
+        virtual void set_homing_direction(HomingDirection homing_dir) {
+            (void)homing_dir;
         }
         State get_state(void) {
             return _state;

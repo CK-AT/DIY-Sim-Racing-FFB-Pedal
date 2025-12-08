@@ -20,6 +20,12 @@ enum GatewayID {
   GATEWAY_ID_2 = 2;
 }
 
+enum HomingDirection {
+  HOMING_DIR_UNSPECIFIED = 0;
+  HOMING_DIR_NEGATIVE = 1;
+  HOMING_DIR_POSITIVE = 2;
+}
+
 enum LogLevel {
   LOG_LEVEL_UNDEFINED = 0;
   LOG_LEVEL_DEBUG = 1;
@@ -113,6 +119,8 @@ message AxisConfig {
   }
   // physics oversampling factor
   uint32 physics_iterations_per_sample = 14;
+  // homing direction for the servo: negative = default
+  HomingDirection homing_direction = 15;
 }
 
 enum ControllerAxis {

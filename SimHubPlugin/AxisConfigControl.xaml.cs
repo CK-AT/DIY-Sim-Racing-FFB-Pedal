@@ -60,6 +60,7 @@ namespace User.PluginSdkDemo
             new_config.MmPerRev = 5;
             new_config.PhysicsIterationsPerSample = 16;
             new_config.Store = false;
+            new_config.HomingDirection = HomingDirection.HomingDirNegative;
 
             return new_config;
         }
@@ -113,6 +114,7 @@ namespace User.PluginSdkDemo
 
             InvertLoadcellReading_check.IsChecked = config.BLoadcellInverted;
             InvertMotorDir_check.IsChecked = config.BMotorInverted;
+            HomingDirectionCombo.SelectedIndex = config.HomingDirection == HomingDirection.HomingDirPositive ? 1 : 0;
 
             Slider_steps_per_mm.Value = config.StepsPerMm;
             Slider_physics_oversampling.Value = config.PhysicsIterationsPerSample;
@@ -206,6 +208,22 @@ namespace User.PluginSdkDemo
         private void InvertMotorDir_unchecked(object sender, RoutedEventArgs e)
         {
             config.BMotorInverted = false;
+        }
+
+        private void HomingDirectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            switch (HomingDirectionCombo.SelectedIndex)
+            {
+                case 0:
+                    config.HomingDirection = HomingDirection.HomingDirNegative;
+                    break;
+                case 1:
+                    config.HomingDirection = HomingDirection.HomingDirPositive;
+                    break;
+                default:
+                    config.HomingDirection = HomingDirection.HomingDirNegative;
+                    break;
+            }
         }
 
         private void Slider_physics_oversampling_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

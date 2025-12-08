@@ -44,6 +44,7 @@ void ConfigManager::set_axis_config_defaults(void) {
     _axis_config.kinematic_config.diy_pedal.l_pivot_sled_x_min = 82;
     _axis_config.kinematic_config.diy_pedal.l_sled_stroke = 114;
     _axis_config.physics_iterations_per_sample = 16;
+    _axis_config.homing_direction = HomingDirection_HOMING_DIR_NEGATIVE;
 }
 
 void ConfigManager::set_function_config_defaults(void) {

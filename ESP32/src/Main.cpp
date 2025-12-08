@@ -90,6 +90,14 @@ LoadCellAds1256 *load_cell = nullptr;
 #endif
 Servo *servo = nullptr;
 
+static Servo::HomingDirection to_homing_direction(const AxisConfig *axis_cfg) {
+    if (!axis_cfg) return A6Servo::HomingDirection::Negative;
+    if (axis_cfg->homing_direction == HomingDirection_HOMING_DIR_POSITIVE) {
+        return Servo::HomingDirection::Positive;
+    }
+    return Servo::HomingDirection::Negative;
+}
+
 /**********************************************************************************************/
 /*                                                                                            */
 /*                         RGB LED                                                            */
@@ -141,7 +149,9 @@ IAuxFunction *get_aux_function(const FunctionConfig *func_cfg) {
 IFunction *on_config_update(IFunction *active_function, const FunctionConfig *function_cfg) {
     if (servo) {
         servo->pause(1000);
-        servo->set_reversed(config_manager.get_axis_config()->b_motor_inverted);
+        const AxisConfig *axis_cfg = config_manager.get_axis_config();
+        servo->set_reversed(axis_cfg->b_motor_inverted);
+        servo->set_homing_direction(to_homing_direction(axis_cfg));
     }
     if (active_function) {
         active_function->disable();
@@ -247,6 +257,7 @@ void setup() {
         servo = new A6Servo(stepPinStepper, dirPinStepper, false, Serial1, 115200, SERIAL_8N1, ISV57_RXPIN, ISV57_TXPIN,
                             ISV57_DEPIN, false);
         servo->set_reversed(axis_cfg->b_motor_inverted);
+        servo->set_homing_direction(to_homing_direction(axis_cfg));
         // disable servo to reduce noise floor for load cell calibration (might be enabled after a restart)
         servo->disable();
         delay(100);
