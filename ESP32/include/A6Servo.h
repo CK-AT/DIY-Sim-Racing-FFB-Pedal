@@ -9,9 +9,14 @@
 
 class A6Servo : public Servo {
     public:
+        enum class HomingDirection {
+            Negative,
+            Positive
+        };
         A6Servo(uint8_t pin_step, uint8_t pin_dir, bool dir_inverted, HardwareSerial& serial, unsigned long baud, uint32_t config, int8_t pin_rx,
                 int8_t pin_tx, int8_t pin_tx_ena = -1, bool serial_inverted = false);
-        bool setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome = true);
+        bool setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome = true) override;
+        bool setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome, HomingDirection homing_dir);
         bool home(void);
         bool enable(void);
         bool disable(void);
@@ -21,11 +26,14 @@ class A6Servo : public Servo {
         void set_reversed(bool reversed) {
             _reverse_motion = reversed;
         }
+        void set_homing_direction(HomingDirection homing_dir) {
+            _homing_direction = homing_dir;
+        }
         float get_min_pos(void) {
             return 0.0;
         }
         float get_max_pos(void) {
-            return float(_pos_max) / float(_steps_per_mm * _mm_per_rev);
+            return float(abs(_pos_max - _pos_min)) / float(_steps_per_mm);
         }
         void periodic_task_func(void);
         void lock_onto_curr_pos(void);
@@ -92,12 +100,14 @@ class A6Servo : public Servo {
         ModbusClientRTU* _modbus;
         uint32_t _steps_per_mm;
         uint32_t _mm_per_rev;
+        int32_t _pos_min = 0;
         int32_t _pos_max = 0;
         float _trq_locked_in = 300.0;
         float _spd_locked_in = 6000.0;
         float _trq_open_loop = 10.0;
         float _spd_open_loop = 200.0;
         bool _reverse_motion = false;
+        HomingDirection _homing_direction = HomingDirection::Negative;
         static void task_func(void* pv_parameters) {
             A6Servo* servo = (A6Servo*)pv_parameters;
             delay(1000);

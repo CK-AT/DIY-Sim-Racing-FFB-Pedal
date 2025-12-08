@@ -59,9 +59,14 @@ bool A6Servo::check_required_registers(void) {
 }
 
 bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome) {
+    return setup(steps_per_mm, mm_per_rev, autohome, _homing_direction);
+}
+
+bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome, HomingDirection homing_dir) {
     LogOutput::printf("A6Servo: Performing setup...");
     _steps_per_mm = steps_per_mm;
     _mm_per_rev = mm_per_rev;
+    _homing_direction = homing_dir;
     if (!check_required_registers()) {
         LogOutput::printf(" -> failed");
         return false;
@@ -76,13 +81,17 @@ bool A6Servo::setup(uint32_t steps_per_mm, uint32_t mm_per_rev, bool autohome) {
     write_trq_limit(_trq_open_loop);
     set_speed(_spd_open_loop);
     int32_t min_pos = read_min_pos();
-    if (min_pos == 0) {
-        _pos_max = read_max_pos();
-        LogOutput::printf(" -> Negative endstop @ %i, positive endstop @ %i, homed already.", min_pos, _pos_max);
+    int32_t max_pos = read_max_pos();
+    bool homed_already = (min_pos > -2000000);
+    if (homed_already) {
+        float travel_mm = (max_pos - min_pos) / float(_steps_per_mm);
+        LogOutput::printf(" -> Endstop min @ %i, max @ %i (travel = %.3f mm), homed already.", min_pos, max_pos, travel_mm);
+        _pos_min = min_pos;
+        _pos_max = max_pos;
         _stepper_engine->set_current_position(read_position());
         _homing_state = HomingState::Homed;
     } else {
-        LogOutput::printf(" -> Negative endstop @ %i, not homed.", min_pos);
+        LogOutput::printf(" -> Endstop min @ %i, max @ %i, not homed.", min_pos, max_pos);
         if (autohome) {
             _homing_state = HomingState::Pending;
         }
@@ -126,6 +135,9 @@ void A6Servo::do_homing(void) {
     write_homing_trq_limit(_trq_open_loop);
     set_speed(_spd_open_loop);
     write_hold_register<uint32_t>(0x0600, 1000000);  // relax excessive local position deviation threshold
+    const bool homing_negative = _homing_direction == HomingDirection::Negative;
+    const char *first_endstop = homing_negative ? "negative" : "positive";
+    const char *second_endstop = homing_negative ? "positive" : "negative";
     // C10.01 (0x1001) homing modes (A6-RS manual Table 4-14):
     // | Mode | Meaning                                                            |
     // | -2   | Forward to mech limit, then Z pulse                                |
@@ -139,51 +151,69 @@ void A6Servo::do_homing(void) {
     // | 34   | Forward; nearest Z pulse                                            |
     // | 35   | Use current position as home                                        |
     // | 15,16,31,32 | Reserved                                                     |
-    write_hold_register<int16_t>(0x1001, -1);        // homing mode = search for mechanical limit in negative direction
+    auto wait_for_stop = [this](uint8_t required_consecutive, uint16_t poll_ms) {
+        uint8_t num_zero_spd = 0;
+        float speed;
+        while (num_zero_spd < required_consecutive) {
+            delay(poll_ms);
+            speed = get_speed();
+            if (abs(speed) < 2) {
+                num_zero_spd++;
+            } else {
+                num_zero_spd = 0;
+            }
+        }
+    };
+    // Start drive-controlled homing first
+    write_hold_register<int16_t>(0x1001, homing_negative ? -1 : -2); // homing mode = search for mechanical limit in configured direction
     write_hold_register<int16_t>(0x1002, _spd_open_loop / 2.0); // set initial homing speed to half of the open loop speed to avoid getting stuck
     write_hold_register<uint16_t>(0x1000, 0);        // homing off
     delay(100);
     write_hold_register<uint16_t>(0x1000, 1);  // homing on
-    LogOutput::printf("A6Servo: Waiting for negative endstop...");
-    int num_zero_spd = 0;
-    float speed;
-    while (num_zero_spd < 20) {
-        delay(100);
-        speed = get_speed();
-        if (abs(speed) < 2) {
-            num_zero_spd++;
-        } else {
-            num_zero_spd = 0;
-        }
-    }
-    LogOutput::printf("A6Servo: Negative endstop found, moving to positive endstop...");
-    _stepper_engine->keep_running_forward((_steps_per_mm * _mm_per_rev) * _spd_open_loop / 60.0);
-    num_zero_spd = 0;
-    while (num_zero_spd < 5) {
-        delay(100);
-        speed = get_speed();
-        // LogOutput::printf("%.3f mm @ %.0f rpm", float(read_position()) / float(_steps_per_mm), speed);
-        if (abs(speed) < 2) {
-            num_zero_spd++;
-        } else {
-            num_zero_spd = 0;
-        }
-    }
+    LogOutput::printf("A6Servo: Waiting for %s endstop (drive auto-homing)...", first_endstop);
+    wait_for_stop(20, 100);
     _stepper_engine->force_stop();
-    int32_t pos_endstop = read_position();
-    if ((float(pos_endstop) / float(_steps_per_mm)) > 20.0) {
-        LogOutput::printf("A6Servo: Positive endstop found @ %.3f mm", float(pos_endstop) / float(_steps_per_mm));
-        _pos_max = pos_endstop - 2500;
+    write_hold_register<uint16_t>(0x1000, 0);  // reset homing command after drive homing
+    int32_t pos_endstop_first_auto = read_position();
+    LogOutput::printf("A6Servo: Drive homing stopped @ %i counts, verifying mechanical endstop with stepper...", pos_endstop_first_auto);
+
+    // Verify/mechanically settle at first endstop to account for angular mounting tolerances
+    uint32_t homing_speed_counts = (_steps_per_mm * _mm_per_rev) * (_spd_open_loop / 60.0);  // unified homing speed
+    if (homing_negative) {
+        _stepper_engine->keep_running_backward(homing_speed_counts);
+    } else {
+        _stepper_engine->keep_running_forward(homing_speed_counts);
+    }
+    wait_for_stop(10, 100);
+    _stepper_engine->force_stop();
+    const int32_t margin = 2500;
+    int32_t pos_endstop_first = read_position();
+    LogOutput::printf("A6Servo: %s endstop found @ %i counts", first_endstop, pos_endstop_first);
+    _stepper_engine->move_to(pos_endstop_first, true);
+    // Move to second endstop
+    LogOutput::printf("A6Servo: Moving to %s endstop...", second_endstop);
+    if (homing_negative) {
+        _stepper_engine->keep_running_forward(homing_speed_counts);
+    } else {
+        _stepper_engine->keep_running_backward(homing_speed_counts);
+    }
+    wait_for_stop(5, 100);
+    _stepper_engine->force_stop();
+    int32_t pos_endstop_second = read_position();
+    float travel_mm = (abs(float(pos_endstop_second - pos_endstop_first)) - (2 * margin)) / float(_steps_per_mm);
+    if (travel_mm > 20.0f) {
+        LogOutput::printf("A6Servo: %s endstop found @ %i counts, total travel within margins = %.3f mm", second_endstop, pos_endstop_second, travel_mm);
+        _pos_min = homing_negative ? (pos_endstop_first + margin) : (pos_endstop_second + margin);
+        _pos_max = homing_negative ? (pos_endstop_second - margin) : (pos_endstop_first - margin);
         _stepper_engine->move_to(_pos_max, true);
-        write_min_pos(0);
+        write_min_pos(_pos_min);
         write_max_pos(_pos_max);
         write_hold_register<uint16_t>(0x1000, 0);  // reset homing command
         _homing_state = HomingState::Homed;
         _state = State::Enabled;
         LogOutput::printf("A6Servo: Homing done.");
     } else {
-        LogOutput::printf("A6Servo: Homing failed, sled did not move far enough from negative endstop (only %.3f mm).",
-                          float(pos_endstop) / float(_steps_per_mm));
+        LogOutput::printf("A6Servo: Homing failed, sled did not move far enough from %s endstop (only %.3f mm).", first_endstop, travel_mm);
         _homing_state = HomingState::HomeUnknown;
         _state = State::Enabled;
         write_hold_register<uint16_t>(0x1000, 0);  // reset homing command
@@ -220,9 +250,11 @@ int32_t A6Servo::get_target_pos() {
 }
 
 int32_t A6Servo::logical_to_counts(float logical_mm) const {
-    float clamped = constrain(logical_mm, 0.0f, float(_pos_max) / float(_steps_per_mm));
+    int32_t span_counts = abs(_pos_max - _pos_min);
+    float clamped = constrain(logical_mm, 0.0f, float(span_counts) / float(_steps_per_mm));
     int32_t counts = int32_t(clamped * float(_steps_per_mm));
-    return _reverse_motion ? (_pos_max - counts) : counts;
+    counts = constrain(counts, 0, span_counts);
+    return _reverse_motion ? (_pos_max - counts) : (_pos_min + counts);
 }
 
 void A6Servo::write_trq_limit(float limit_percent) {
@@ -235,11 +267,11 @@ void A6Servo::write_homing_trq_limit(float limit_percent) {
 }
 
 void A6Servo::write_min_pos(int32_t counts) {
-    write_hold_register<uint32_t>(0x060A, counts);  // negative position limit
+    write_hold_register<int32_t>(0x060A, counts);  // negative position limit
 }
 
 void A6Servo::write_max_pos(int32_t counts) {
-    write_hold_register<uint32_t>(0x0608, counts);  // positive position limit
+    write_hold_register<int32_t>(0x0608, counts);  // positive position limit
 }
 
 float A6Servo::get_speed(void) {
@@ -265,17 +297,18 @@ int32_t A6Servo::read_max_pos(void) {
 
 void A6Servo::move_to_slow(int32_t position) {
     set_speed(_spd_open_loop);
-    _stepper_engine->move_to(constrain(position, 0, _pos_max), true);
+    _stepper_engine->move_to(constrain(position, _pos_min, _pos_max), true);
     set_speed(_spd_locked_in);
 }
 
 bool A6Servo::move_to(int32_t position, bool blocking) {
-    _stepper_engine->move_to(constrain(position, 0, _pos_max), blocking);
+    _stepper_engine->move_to(constrain(position, _pos_min, _pos_max), blocking);
     return true;
 }
 
 void A6Servo::move_to_slow(float position) {
-    _curr_pos = constrain(position, 0, float(float(_pos_max) / float(_steps_per_mm)));
+    float max_pos_mm = float(abs(_pos_max - _pos_min)) / float(_steps_per_mm);
+    _curr_pos = constrain(position, 0.0f, max_pos_mm);
     _curr_pos_valid = true;
     if (_state == State::Enabled && _homing_state == HomingState::LockedIn) {
         move_to_slow(logical_to_counts(_curr_pos));
@@ -283,7 +316,8 @@ void A6Servo::move_to_slow(float position) {
 }
 
 bool A6Servo::move_to(float position, bool blocking) {
-    _curr_pos = constrain(position, 0, float(float(_pos_max) / float(_steps_per_mm)));
+    float max_pos_mm = float(abs(_pos_max - _pos_min)) / float(_steps_per_mm);
+    _curr_pos = constrain(position, 0.0f, max_pos_mm);
     _curr_pos_valid = true;
     if (_state == State::Enabled && _homing_state == HomingState::LockedIn) {
         return move_to(logical_to_counts(_curr_pos), blocking);
