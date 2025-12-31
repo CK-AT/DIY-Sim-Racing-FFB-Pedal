@@ -231,7 +231,7 @@ void setup() {
     pinMode(CFG4, INPUT_PULLUP);
     own_axis_index |= (~digitalRead(CFG4) << 3) & 0x08;
     #endif
-    if (own_axis_index & 0x0C) {
+    if ((own_axis_index & 0x0C) == 0x0C) {
         // bits 2 and 3 are set, this is a Gateway
         GatewayID gateway_id = GatewayID((own_axis_index & 0x03) + 1);
         config_manager.init(gateway_id, get_aux_function);
