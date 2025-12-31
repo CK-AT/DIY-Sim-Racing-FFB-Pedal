@@ -44,6 +44,7 @@ namespace User.PluginSdkDemo
             AutomotivePedalConfig.ABSTestStateChange += OnABSTestStateChange;
             AutomotivePedalConfig.DebugMessage += OnDebugMessage;
             FlightPedalsConfig.SetGui(ui, plugin);
+            FlightStickConfig.SetGui(ui, plugin);
         }
 
         private void OnDebugMessage(string message)
@@ -77,6 +78,12 @@ namespace User.PluginSdkDemo
                     new_config.FlightPedals = FlightPedalsConfigControl.GetDefaultConfig();
                     new_config.AuxFunction = FlightPedalsConfigControl.GetRudderBrakeDefaultConfig(); 
                     break;
+                case FunctionID.FlightStickPitch:
+                    new_config.FlightStickPitch = FlightStickConfigControl.GetDefaultPitchConfig();
+                    break;
+                case FunctionID.FlightStickRoll:
+                    new_config.FlightStickRoll = FlightStickConfigControl.GetDefaultRollConfig();
+                    break;
             }
             return new_config;
         }
@@ -91,6 +98,9 @@ namespace User.PluginSdkDemo
                 case 1:
                     FlightPedalsConfig.OnKinematicParametersChanged(parameters);
                     break;
+                case 2:
+                    FlightStickConfig.OnKinematicParametersChanged(parameters);
+                    break;
             }
         }
 
@@ -103,11 +113,14 @@ namespace User.PluginSdkDemo
                     case 0:
                         AutomotivePedalConfig.OnAxisStateUpdate(axis_state);
                         break;
-                    case 1:
-                        FlightPedalsConfig.OnAxisStateUpdate(axis_state);
-                        break;
-                }
+                case 1:
+                    FlightPedalsConfig.OnAxisStateUpdate(axis_state);
+                    break;
+                case 2:
+                    FlightStickConfig.OnAxisStateUpdate(axis_state);
+                    break;
             }
+        }
         }
 
         public void SwitchFunction(Function function)
@@ -131,6 +144,14 @@ namespace User.PluginSdkDemo
                 case FunctionID.FlightPedals:
                     FlightPedalsConfig.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 1;
+                    break;
+                case FunctionID.FlightStickPitch:
+                    FlightStickConfig.SwitchFunction(function);
+                    tc_specific_function.SelectedIndex = 2;
+                    break;
+                case FunctionID.FlightStickRoll:
+                    FlightStickConfig.SwitchFunction(function);
+                    tc_specific_function.SelectedIndex = 2;
                     break;
             }
         }

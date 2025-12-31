@@ -21,6 +21,9 @@
             <TabItem>
                 <local:FlightPedalsConfigControl x:Name="FlightPedalsConfig" VerticalAlignment="Center"></local:FlightPedalsConfigControl>
             </TabItem>
+            <TabItem>
+                <local:FlightStickConfigControl x:Name="FlightStickConfig" VerticalAlignment="Center"></local:FlightStickConfigControl>
+            </TabItem>
         </TabControl>
     </Grid>
 </UserControl>

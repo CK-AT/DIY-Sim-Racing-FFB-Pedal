@@ -144,6 +144,8 @@ enum FunctionID {
   FUNCTION_ID_ACCELERATOR_PEDAL = 2;
   FUNCTION_ID_CLUTCH_PEDAL = 3;
   FUNCTION_ID_FLIGHT_PEDALS = 4;
+  FUNCTION_ID_FLIGHT_STICK_PITCH = 5;
+  FUNCTION_ID_FLIGHT_STICK_ROLL = 6;
 }
 
 enum OutputMode {
@@ -354,11 +356,35 @@ message FlightPedalsConfig {
   float centering_spring_const = 4;
 }
 
+message FlightStickPitchConfig {
+  // minimum position in mm
+  int32 pos_min = 1;
+  // maximum position in mm
+  int32 pos_max = 2;
+  // damping in (N*s)/mm
+  float damping = 3;
+  // centering spring constant in N/mm
+  float centering_spring_const = 4;
+}
+
+message FlightStickRollConfig {
+  // minimum position in mm
+  int32 pos_min = 1;
+  // maximum position in mm
+  int32 pos_max = 2;
+  // damping in (N*s)/mm
+  float damping = 3;
+  // centering spring constant in N/mm
+  float centering_spring_const = 4;
+}
+
 message FunctionConfig {
   FunctionBase base = 1;
   oneof specific {
     AutomotivePedalConfig automotive_pedal = 2;
     FlightPedalsConfig flight_pedals = 3;
+    FlightStickPitchConfig flight_stick_pitch = 7;
+    FlightStickRollConfig flight_stick_roll = 8;
   }
   AuxFunctionConfig aux_function = 4;
   // simulated mass in kg

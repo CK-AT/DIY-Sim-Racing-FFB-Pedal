@@ -3,7 +3,7 @@ import asyncio
 
 async def load_config(serial, store=False):
     msg = ffb_protocol.Message()
-    msg.function_config.base.function_id = ffb_protocol.FUNCTION_ID_BRAKE
+    msg.function_config.base.function_id = ffb_protocol.FUNCTION_ID_BRAKE_PEDAL
     msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_ID_2)
     msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)
     msg.function_config.base.linked_axes.append(ffb_protocol.AXIS_UNDEFINED)

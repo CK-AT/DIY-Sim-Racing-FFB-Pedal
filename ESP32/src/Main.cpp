@@ -29,10 +29,13 @@ void physics_task_func(void *pv_parameters);
 
 #include "AutomotivePedalFunction.h"
 #include "FlightPedalsFunction.h"
+#include "FlightStickFunction.h"
 #include "RudderBrake.h"
 
 AutomotivePedalFunction automotive_pedal_function = {};
 FlightPedalsFunction flight_pedals_function = {};
+FlightStickFunction flight_stick_pitch_function = {};
+FlightStickFunction flight_stick_roll_function = {};
 RudderBrake rudder_brake = {};
 
 #include "CycleTimer.h"
@@ -165,6 +168,14 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
             flight_pedals_function.update_config(function_cfg->specific.flight_pedals);
             active_function = &flight_pedals_function;
             break;
+        case FunctionConfig_flight_stick_pitch_tag:
+            flight_stick_pitch_function.update_config(function_cfg->specific.flight_stick_pitch);
+            active_function = &flight_stick_pitch_function;
+            break;
+        case FunctionConfig_flight_stick_roll_tag:
+            flight_stick_roll_function.update_config(function_cfg->specific.flight_stick_roll);
+            active_function = &flight_stick_roll_function;
+            break;
     }
     if (active_function) {
         float x_curr;
@@ -283,6 +294,8 @@ void setup() {
 
         sim.add_element(&automotive_pedal_function);
         sim.add_element(&flight_pedals_function);
+        sim.add_element(&flight_stick_pitch_function);
+        sim.add_element(&flight_stick_roll_function);
         sim.add_element(&friction);
 
         xTaskCreatePinnedToCore(physics_task_func,    /* Task function. */

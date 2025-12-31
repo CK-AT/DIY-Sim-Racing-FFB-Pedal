@@ -750,7 +750,7 @@ namespace User.PluginSdkDemo
             //DiyPedalKinematicsControl.KinematicParametersChanged += OnKinematicParametersChanged;
             //DiyPedalKinematicsControl.KinematicParametersChanged += AutomotivePedalConfig.OnKinematicParametersChanged;
             //DiyPedalKinematicsControl.SetGui(this, plugin);
-            for (FunctionID id = FunctionID.BrakePedal; id <= FunctionID.FlightPedals; id++)
+            for (FunctionID id = FunctionID.BrakePedal; id <= FunctionID.FlightStickRoll; id++)
             {
                 functions[id] = new Function(id);
                 functions[id].Config = FunctionConfigControl.GetDefaultConfig(id);

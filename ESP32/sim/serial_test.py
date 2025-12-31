@@ -81,7 +81,7 @@ async def request_configs(protocol):
     # while True:
     #     await asyncio.sleep(0.1)
     #     msg = ffb_protocol.Message()
-    #     msg.ffb_action.function_id = ffb_protocol.FUNCTION_ID_BRAKE
+    #     msg.ffb_action.function_id = ffb_protocol.FUNCTION_ID_BRAKE_PEDAL
     #     msg.ffb_action.automotive_pedal.trigger_abs = True
     #     protocol.send_message(msg)
     # msg = ffb_protocol.Message()

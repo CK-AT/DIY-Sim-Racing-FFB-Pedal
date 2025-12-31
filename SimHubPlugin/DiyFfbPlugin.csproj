@@ -175,6 +175,9 @@
     <Compile Include="FlightPedalsConfigControl.xaml.cs">
       <DependentUpon>FlightPedalsConfigControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="FlightStickConfigControl.xaml.cs">
+      <DependentUpon>FlightStickConfigControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="AutomotivePedalConfigControl.xaml.cs">
       <DependentUpon>AutomotivePedalConfigControl.xaml</DependentUpon>
     </Compile>
@@ -228,6 +231,10 @@
   </ItemGroup>
   <ItemGroup>
     <Page Include="FlightPedalsConfigControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="FlightStickConfigControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
