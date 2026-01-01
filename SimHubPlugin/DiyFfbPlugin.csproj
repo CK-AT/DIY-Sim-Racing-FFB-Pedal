@@ -191,6 +191,7 @@
       <DependentUpon>AxisSelector.xaml</DependentUpon>
     </Compile>
     <Compile Include="Function.cs" />
+    <Compile Include="GeneralKinematics.cs" />
     <Compile Include="FunctionConfigControl.xaml.cs">
       <DependentUpon>FunctionConfigControl.xaml</DependentUpon>
     </Compile>

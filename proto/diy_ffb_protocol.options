@@ -1,6 +1,8 @@
 *LogMessage.msg                              max_length:140
 
 DIYPedalKinematicConfig.l_*                 int_size:IS_16
+GeneralKinematicConfig.pins                 type:FT_IGNORE
+GeneralKinematicConfig.bars                 type:FT_IGNORE
 
 KFConstVelConfig.noise_scaling              int_size:IS_8
 

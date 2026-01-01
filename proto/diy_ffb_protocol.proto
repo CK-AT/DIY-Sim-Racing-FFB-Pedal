@@ -77,6 +77,38 @@ message DIYPedalKinematicConfig {
   uint32 l_sled_stroke = 6; 
 }
 
+message GeneralKinematicPin {
+  // unique pin ID (referenced by bars)
+  uint32 pin_id = 1;
+  // pin position in mm (x-right, y-up; negative allowed)
+  float x = 2;
+  float y = 3;
+  // fixed to world coordinates (pivot)
+  bool grounded = 4;
+  // contact point for position/force output (exactly one)
+  bool is_contact_point = 5;
+  // rail interface pin (exactly one; moves along -rail_travel_negative..+rail_travel_positive on X axis)
+  bool is_rail_interface = 6;
+}
+
+message GeneralKinematicBar {
+  // at least two pins that form a rigid bar
+  repeated uint32 pin_ids = 1;
+  // 2-pin bar that acts as metering element (exactly one)
+  bool is_metering = 2;
+}
+
+message GeneralKinematicConfig {
+  // all pins in world coordinates
+  repeated GeneralKinematicPin pins = 1;
+  // all bars, each linking two or more pins
+  repeated GeneralKinematicBar bars = 2;
+  // rail travel from zero position in negative direction (mm)
+  float rail_travel_negative = 3;
+  // rail travel from zero position in positive direction (mm)
+  float rail_travel_positive = 4;
+}
+
 message KinematicParameters {
   // minimum absolute contact point position (0.1mm/LSB)
   int32 contact_point_pos_min_abs = 1;
@@ -116,6 +148,7 @@ message AxisConfig {
   // used by the Simhub Plugin to store all required kinematic model parameters
   oneof kinematic_config {
     DIYPedalKinematicConfig diy_pedal = 12;
+    GeneralKinematicConfig general_kinematic = 16;
   }
   // physics oversampling factor
   uint32 physics_iterations_per_sample = 14;

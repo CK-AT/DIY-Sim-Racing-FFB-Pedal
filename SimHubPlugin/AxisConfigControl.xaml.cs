@@ -34,7 +34,10 @@ namespace User.PluginSdkDemo
         {
             if (config.AxisId == axis_state.AxisId)
             {
-                DiyPedalKinematicsControl.OnAxisStateUpdate(axis_state);
+                if (config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.DiyPedal)
+                {
+                    DiyPedalKinematicsControl.OnAxisStateUpdate(axis_state);
+                }
             }
         }
 
@@ -72,6 +75,18 @@ namespace User.PluginSdkDemo
             {
                 case AxisConfig.KinematicConfigOneofCase.DiyPedal:
                     DiyPedalKinematicsControl.UpdateConfig(config.DiyPedal);
+                    break;
+                case AxisConfig.KinematicConfigOneofCase.GeneralKinematic:
+                    try
+                    {
+                        KinematicParameters parameters = GeneralKinematics.CalcKinematicParameters(config.GeneralKinematic);
+                        config.KinematicParameters = parameters;
+                        KinematicParametersChanged?.Invoke(parameters);
+                    }
+                    catch (Exception caughtEx)
+                    {
+                        DebugMessage?.Invoke(caughtEx.Message);
+                    }
                     break;
                 default:
                     break;

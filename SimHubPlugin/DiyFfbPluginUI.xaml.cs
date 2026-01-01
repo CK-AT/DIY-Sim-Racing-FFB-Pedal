@@ -2081,6 +2081,8 @@ namespace User.PluginSdkDemo
                                     Plugin.ESPsync_serialPort.RtsEnable = false;
                                     Plugin.ESPsync_serialPort.DtrEnable = true;
                                 }
+                                Plugin.ESPsync_serialPort.RtsEnable = false;
+                                Plugin.ESPsync_serialPort.DtrEnable = false;
                                 //SystemSounds.Beep.Play();
                                 Plugin.Sync_esp_connection_flag = true;
                                 btn_connect_espnow_port.Content = "Disconnect";
