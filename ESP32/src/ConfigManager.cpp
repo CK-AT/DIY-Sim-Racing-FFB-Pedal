@@ -50,7 +50,7 @@ void ConfigManager::set_axis_config_defaults(void) {
 void ConfigManager::set_function_config_defaults(void) {
     _function_config = FunctionConfig_init_default;
     _function_config.has_base = true;
-    _function_config.base.function_id = FunctionID_FUNCTION_ID_BRAKE_PEDAL;
+    _function_config.base.function_id = FunctionID_FUNCTION_ID_UNDEFINED;
     _function_config.base.linked_axes[0] = _axis_id;
     _function_config.base.store = false;
     _function_config.base.controller_output_axis = ControllerAxis_CONTROLLER_AXIS_BRK;
@@ -60,25 +60,6 @@ void ConfigManager::set_function_config_defaults(void) {
 
     _function_config.simulated_mass = 0.2f;
     _function_config.friction = 2.0f;
-
-    _function_config.which_specific = FunctionConfig_automotive_pedal_tag;
-    _function_config.specific.automotive_pedal.has_force_curve_config = true;
-    _function_config.specific.automotive_pedal.force_curve_config.pos_min = 10;
-    _function_config.specific.automotive_pedal.force_curve_config.pos_max = 50;
-    _function_config.specific.automotive_pedal.force_curve_config.f_min = 50.0f;
-    _function_config.specific.automotive_pedal.force_curve_config.f_max = 150.0f;
-    _function_config.specific.automotive_pedal.force_curve_config.f_rel_points[0] = 0;
-    _function_config.specific.automotive_pedal.force_curve_config.f_rel_points[1] = 20;
-    _function_config.specific.automotive_pedal.force_curve_config.f_rel_points[2] = 40;
-    _function_config.specific.automotive_pedal.force_curve_config.f_rel_points[3] = 60;
-    _function_config.specific.automotive_pedal.force_curve_config.f_rel_points[4] = 80;
-    _function_config.specific.automotive_pedal.force_curve_config.f_rel_points[5] = 100;
-    _function_config.specific.automotive_pedal.force_curve_config.force_direction = ForceDirection_FORCE_DIRECTION_SUBTRACT;
-    _function_config.specific.automotive_pedal.has_damper_config = true;
-    _function_config.specific.automotive_pedal.damper_config.positive_factor = 0.1f;
-    _function_config.specific.automotive_pedal.damper_config.negative_factor = 0.1f;
-    _function_config.specific.automotive_pedal.pos_idle = 10;
-    _function_config.specific.automotive_pedal.pos_end = 50;
 }
 
 void ConfigManager::init(AxisID axis_id, bool fixed_id, OnConfigUpdate config_update_callback, GetAuxFunction get_aux_function_callback) {

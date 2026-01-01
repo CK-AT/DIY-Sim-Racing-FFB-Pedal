@@ -115,7 +115,7 @@ const RgbColor k_red = RgbColor(46, 0, 0);
 const RgbColor k_purple = RgbColor(36, 0, 46);
 #endif
 
-Sim sim = Sim(0.0, 100.0, 0.0);
+Sim sim = Sim(1.0, 0.0, 0.0);
 Friction friction = Friction(2.0);
 
 #include "CommManager.h"
@@ -158,6 +158,10 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
     }
     if (active_function) {
         active_function->disable();
+    }
+    active_function = nullptr;
+    if (function_cfg->base.function_id == FunctionID_FUNCTION_ID_UNDEFINED) {
+        return nullptr;
     }
     switch (function_cfg->which_specific) {
         case FunctionConfig_automotive_pedal_tag:
@@ -363,6 +367,8 @@ void physics_task_func(void *pv_parameters) {
     const AxisConfig *axis_cfg = config_manager.get_axis_config();
     float x_contact_point = 0.0;
     float f_contact_point = 0.0;
+    float x_sled = 0.0;
+    float f_in = 0.0;
 
     comm_manager.on_physics_task_start();
 
@@ -424,23 +430,23 @@ void physics_task_func(void *pv_parameters) {
         comm_manager.process();
 #endif
 
-        float f_in;
-        if (comm_manager.calc_input_force_sum(f_contact_point, f_in)) {
-            // calc_input_force_sum returns true if this is a subtractive axis -> invert result
-            f_in *= -1.0f;
+        if (config_manager.get_function_id() != FunctionID_FUNCTION_ID_UNDEFINED) {
+            if (comm_manager.calc_input_force_sum(f_contact_point, f_in)) {
+                // calc_input_force_sum returns true if this is a subtractive axis -> invert result
+                f_in *= -1.0f;
+            }
+
+            uint16_t num_sub_iterations = max(axis_cfg->physics_iterations_per_sample, uint16_t(1));
+            float dt_sub = dt / num_sub_iterations;
+
+            for (uint8_t i = 0; i < num_sub_iterations; i++) {
+                sim.update(dt_sub, f_in);
+            }
+
+            comm_manager.calc_final_position(sim.get_x(), x_contact_point);
         }
 
-
-        uint16_t num_sub_iterations = max(axis_cfg->physics_iterations_per_sample, uint16_t(1));
-        float dt_sub = dt / num_sub_iterations;
-
-        for (uint8_t i = 0; i < num_sub_iterations; i++) {
-            sim.update(dt_sub, f_in);
-        }
-
-        comm_manager.calc_final_position(sim.get_x(), x_contact_point);
-
-        float x_sled = config_manager.calc_sled_position(x_contact_point);
+        x_sled = config_manager.calc_sled_position(x_contact_point);
 
         config_manager.release_config_semaphore();
 

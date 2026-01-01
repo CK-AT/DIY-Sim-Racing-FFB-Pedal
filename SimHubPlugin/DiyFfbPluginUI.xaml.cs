@@ -4331,9 +4331,13 @@ namespace User.PluginSdkDemo
                         if (last_known_functions.ContainsKey(msg.ActiveFunction.AxisId))
                         {
                             functions[last_known_functions[msg.ActiveFunction.AxisId]].OnAxisRemoved(msg.ActiveFunction.AxisId);
+                            last_known_functions.Remove(msg.ActiveFunction.AxisId);
                         }
-                        last_known_functions[msg.ActiveFunction.AxisId] = msg.ActiveFunction.FunctionId;
-                        functions[msg.ActiveFunction.FunctionId].OnAxisAdded(msg.ActiveFunction.AxisId);
+                        if (msg.ActiveFunction.FunctionId != FunctionID.Undefined)
+                        {
+                            last_known_functions[msg.ActiveFunction.AxisId] = msg.ActiveFunction.FunctionId;
+                            functions[msg.ActiveFunction.FunctionId].OnAxisAdded(msg.ActiveFunction.AxisId);
+                        }
                         break;
                     default:
                         break;
@@ -5260,17 +5264,16 @@ namespace User.PluginSdkDemo
         private void OnFunctionConfigUpdate(FunctionConfig new_function_config)
         {
             FunctionID new_function_id = new_function_config.Base.FunctionId;
-            if (new_function_id != FunctionID.Undefined)
+            if (new_function_id == FunctionID.Undefined)
             {
-                functions[new_function_id].Config = new_function_config;
-                if (new_function_id == selected_function_id)
-                {
-                    uc_function_config.SwitchFunction(functions[new_function_id]);
-                }
+                TextBox_debugOutput.Text = "function ID undefined (ignored)";
+                return;
             }
-            else
+
+            functions[new_function_id].Config = new_function_config;
+            if (new_function_id == selected_function_id)
             {
-                TextBox_debugOutput.Text = $"invalid function ID ({(int)new_function_id})";
+                uc_function_config.SwitchFunction(functions[new_function_id]);
             }
         }
 

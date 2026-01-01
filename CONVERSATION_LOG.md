@@ -2,6 +2,30 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-01 18:09:50 +01:00 (DESKTOP-6KO022D)
+Request: skip physics simulation when no function is active.
+Summary:
+- Physics loop now skips `sim.update` and holds the last contact position when `FunctionID_FUNCTION_ID_UNDEFINED`; sled target stays derived from the held contact position.
+Key files:
+- `ESP32/src/Main.cpp`
+
+## 2026-01-01 17:54:14 +01:00 (DESKTOP-6KO022D)
+Request: set firmware default function ID to undefined and guard SimHub for undefined active function.
+Summary:
+- Cleared default function-specific config so the firmware starts with no active function when `FunctionID_FUNCTION_ID_UNDEFINED`.
+- SimHub now ignores undefined ActiveFunction updates and ignores undefined function configs without crashing.
+Key files:
+- `ESP32/src/ConfigManager.cpp`
+- `ESP32/src/Main.cpp`
+- `SimhubPlugin/DiyFfbPluginUI.xaml.cs`
+
+## 2026-01-01 13:50:58 +01:00 (DESKTOP-6KO022D)
+Request: set firmware default FunctionConfig function_id to undefined.
+Summary:
+- Changed default function_id to `FunctionID_FUNCTION_ID_UNDEFINED` in the ESP32 ConfigManager defaults.
+Key files:
+- `ESP32/src/ConfigManager.cpp`
+
 ## 2025-12-31 15:30:33 +01:00 (DESKTOP-6KO022D)
 Request: add dedicated FlightStickPitch/FlightStickRoll configs and matching sim scripts.
 Summary:
