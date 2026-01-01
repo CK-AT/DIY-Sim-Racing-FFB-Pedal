@@ -12,6 +12,9 @@ namespace User.PluginSdkDemo
         private AxisConfig config;
         private DiyFfbPluginUI ui;
         private DiyFfbPlugin plugin;
+        private bool suppressKinematicSelection;
+        private DIYPedalKinematicConfig cachedDiyConfig;
+        private GeneralKinematicConfig cachedGeneralConfig;
         public delegate void DebugMessageEventHandler(string message);
         public event DebugMessageEventHandler DebugMessage;
         public delegate void KinematicParametersChangedEventHandler(KinematicParameters parameters);
@@ -22,9 +25,16 @@ namespace User.PluginSdkDemo
             config = GetDefaultConfig(AxisID.AxisUndefined);
             InitializeComponent();
             DiyPedalKinematicsControl.KinematicParametersChanged += DiyPedalKinematicsControl_KinematicParametersChanged;
+            GeneralKinematicsControl.KinematicParametersChanged += GeneralKinematicsControl_KinematicParametersChanged;
         }
 
         private void DiyPedalKinematicsControl_KinematicParametersChanged(KinematicParameters parameters)
+        {
+            config.KinematicParameters = parameters;
+            KinematicParametersChanged?.Invoke(parameters);
+        }
+
+        private void GeneralKinematicsControl_KinematicParametersChanged(KinematicParameters parameters)
         {
             config.KinematicParameters = parameters;
             KinematicParametersChanged?.Invoke(parameters);
@@ -38,6 +48,10 @@ namespace User.PluginSdkDemo
                 {
                     DiyPedalKinematicsControl.OnAxisStateUpdate(axis_state);
                 }
+                else if (config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.GeneralKinematic)
+                {
+                    GeneralKinematicsControl.OnAxisStateUpdate(axis_state);
+                }
             }
         }
 
@@ -46,6 +60,7 @@ namespace User.PluginSdkDemo
             this.ui = ui;
             this.plugin = plugin;
             DiyPedalKinematicsControl.SetGui(ui, plugin);
+            GeneralKinematicsControl.SetGui(ui, plugin);
         }
 
         public static AxisConfig GetDefaultConfig(AxisID axis_id)
@@ -70,18 +85,34 @@ namespace User.PluginSdkDemo
         public void UpdateConfig(AxisConfig new_config)
         {
             config = new_config;
+            CacheCurrentKinematicConfig();
+            SyncKinematicSelection();
+            DiyPedalKinematicsControl.Visibility = config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.DiyPedal
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            GeneralKinematicsControl.Visibility = config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.GeneralKinematic
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
             switch (config.KinematicConfigCase)
             {
                 case AxisConfig.KinematicConfigOneofCase.DiyPedal:
+                    if (config.DiyPedal == null)
+                    {
+                        config.DiyPedal = DiyPedalKinematics.GetDefaultConfig();
+                    }
+                    cachedDiyConfig = config.DiyPedal;
                     DiyPedalKinematicsControl.UpdateConfig(config.DiyPedal);
                     break;
                 case AxisConfig.KinematicConfigOneofCase.GeneralKinematic:
                     try
                     {
-                        KinematicParameters parameters = GeneralKinematics.CalcKinematicParameters(config.GeneralKinematic);
-                        config.KinematicParameters = parameters;
-                        KinematicParametersChanged?.Invoke(parameters);
+                        if (config.GeneralKinematic == null)
+                        {
+                            config.GeneralKinematic = new GeneralKinematicConfig();
+                        }
+                        cachedGeneralConfig = config.GeneralKinematic;
+                        GeneralKinematicsControl.UpdateConfig(config.GeneralKinematic);
                     }
                     catch (Exception caughtEx)
                     {
@@ -133,6 +164,87 @@ namespace User.PluginSdkDemo
 
             Slider_steps_per_mm.Value = config.StepsPerMm;
             Slider_physics_oversampling.Value = config.PhysicsIterationsPerSample;
+        }
+
+        private void CacheCurrentKinematicConfig()
+        {
+            if (config == null) return;
+            switch (config.KinematicConfigCase)
+            {
+                case AxisConfig.KinematicConfigOneofCase.DiyPedal:
+                    cachedDiyConfig = config.DiyPedal;
+                    break;
+                case AxisConfig.KinematicConfigOneofCase.GeneralKinematic:
+                    cachedGeneralConfig = config.GeneralKinematic;
+                    break;
+            }
+        }
+
+        private void SyncKinematicSelection()
+        {
+            suppressKinematicSelection = true;
+            switch (config.KinematicConfigCase)
+            {
+                case AxisConfig.KinematicConfigOneofCase.GeneralKinematic:
+                    KinematicModelCombo.SelectedIndex = 1;
+                    break;
+                case AxisConfig.KinematicConfigOneofCase.DiyPedal:
+                default:
+                    KinematicModelCombo.SelectedIndex = 0;
+                    break;
+            }
+            suppressKinematicSelection = false;
+        }
+
+        private void KinematicModelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (suppressKinematicSelection) return;
+            switch (KinematicModelCombo.SelectedIndex)
+            {
+                case 1:
+                    SwitchToGeneralKinematics();
+                    break;
+                case 0:
+                default:
+                    SwitchToDiyPedal();
+                    break;
+            }
+        }
+
+        private void SwitchToDiyPedal()
+        {
+            if (config == null) return;
+            if (config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.DiyPedal) return;
+            if (config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.GeneralKinematic)
+            {
+                cachedGeneralConfig = config.GeneralKinematic;
+            }
+            if (cachedDiyConfig == null)
+            {
+                cachedDiyConfig = DiyPedalKinematics.GetDefaultConfig();
+            }
+            config.DiyPedal = cachedDiyConfig;
+            DiyPedalKinematicsControl.Visibility = Visibility.Visible;
+            GeneralKinematicsControl.Visibility = Visibility.Collapsed;
+            DiyPedalKinematicsControl.UpdateConfig(config.DiyPedal);
+        }
+
+        private void SwitchToGeneralKinematics()
+        {
+            if (config == null) return;
+            if (config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.GeneralKinematic) return;
+            if (config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.DiyPedal)
+            {
+                cachedDiyConfig = config.DiyPedal;
+            }
+            if (cachedGeneralConfig == null)
+            {
+                cachedGeneralConfig = new GeneralKinematicConfig();
+            }
+            config.GeneralKinematic = cachedGeneralConfig;
+            DiyPedalKinematicsControl.Visibility = Visibility.Collapsed;
+            GeneralKinematicsControl.Visibility = Visibility.Visible;
+            GeneralKinematicsControl.UpdateConfig(config.GeneralKinematic);
         }
         private void KF_filter_order_changed(object sender, SelectionChangedEventArgs e)
         {

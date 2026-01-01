@@ -10,7 +10,15 @@
              >
     <Grid>
         <StackPanel Orientation="Vertical">
+            <StackPanel Orientation="Horizontal" Width="540" Margin="0,0,0,4">
+                <Label Content="Kinematic model:" Height="20" Width="120" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="70,0,0,0"/>
+                <ComboBox x:Name="KinematicModelCombo" SelectionChanged="KinematicModelCombo_SelectionChanged" Width="150" Height="20" FontSize="10" SelectedIndex="0" Margin="3,0,0,0" HorizontalAlignment="Left" BorderThickness="0,0,0,0">
+                    <ComboBoxItem Content="DIY Pedal" />
+                    <ComboBoxItem Content="General Kinematics" />
+                </ComboBox>
+            </StackPanel>
             <local:DiyPedalKinematics x:Name="DiyPedalKinematicsControl"></local:DiyPedalKinematics>
+            <local:GeneralKinematicsControl x:Name="GeneralKinematicsControl" Visibility="Collapsed"></local:GeneralKinematicsControl>
             <TabControl Grid.Column="0" HorizontalAlignment="Left" Grid.Row="4" VerticalAlignment="Top" Width="540" Padding="0,0,0,0" BorderThickness="0,0,0,0" Background="#00252525" Foreground="Transparent" Margin="0,4,0,0">
                 <TabControl.Resources>
                     <Style TargetType="TabItem">

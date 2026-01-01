@@ -21,6 +21,35 @@ namespace User.PluginSdkDemo
         private const double MaxThetaStep = 0.2;
         private const double ConditionLimit = 1e8;
 
+        public sealed class PoseCache
+        {
+            public PoseCache(
+                uint[] pinIds,
+                double[] railOffsets,
+                double[] contactPositions,
+                double[][] pinPositionsX,
+                double[][] pinPositionsY,
+                uint contactPinId,
+                uint railPinId)
+            {
+                PinIds = pinIds;
+                RailOffsets = railOffsets;
+                ContactPositions = contactPositions;
+                PinPositionsX = pinPositionsX;
+                PinPositionsY = pinPositionsY;
+                ContactPinId = contactPinId;
+                RailPinId = railPinId;
+            }
+
+            public uint[] PinIds { get; }
+            public double[] RailOffsets { get; }
+            public double[] ContactPositions { get; }
+            public double[][] PinPositionsX { get; }
+            public double[][] PinPositionsY { get; }
+            public uint ContactPinId { get; }
+            public uint RailPinId { get; }
+        }
+
         private class PinInfo
         {
             public uint Id;
@@ -222,6 +251,118 @@ namespace User.PluginSdkDemo
             parameters.ContactPointPosMinAbs = (int)(contactPos[0] * 10.0);
             parameters.ContactPointPosMaxAbs = (int)(contactPos[contactPos.Length - 1] * 10.0);
             return parameters;
+        }
+
+        public static PoseCache BuildPoseCache(GeneralKinematicConfig config)
+        {
+            if (config == null) throw new ArgumentNullException(nameof(config));
+            if (config.Pins == null || config.Pins.Count == 0) throw new ArgumentException("GeneralKinematicConfig requires pins.");
+            if (config.Bars == null || config.Bars.Count == 0) throw new ArgumentException("GeneralKinematicConfig requires bars.");
+            if (config.RailTravelNegative < 0.0 || config.RailTravelPositive < 0.0)
+            {
+                throw new ArgumentException("GeneralKinematicConfig.rail_travel_negative/rail_travel_positive must be >= 0.");
+            }
+
+            int contactIndex;
+            int railIndex;
+            List<PinInfo> pins = BuildPins(config, out contactIndex, out railIndex);
+
+            int meteringConstraintIndex;
+            List<BarLine> barLines;
+            int[] pinBarIndex;
+            double[] pinBarOffset;
+            List<Constraint> constraints = BuildConstraints(
+                config,
+                pins,
+                out meteringConstraintIndex,
+                out barLines,
+                out pinBarIndex,
+                out pinBarOffset);
+            if (meteringConstraintIndex < 0)
+            {
+                throw new ArgumentException("GeneralKinematicConfig requires exactly one 2-pin metering bar.");
+            }
+
+            int[] varIndexX;
+            int[] varIndexY;
+            double[] variables;
+            int[] barVarBase;
+            BuildVariableMap(pins, railIndex, barLines, pinBarIndex, out varIndexX, out varIndexY, out variables, out barVarBase);
+
+            double travelNegative = config.RailTravelNegative;
+            double travelPositive = config.RailTravelPositive;
+            double travelTotal = travelNegative + travelPositive;
+            if (travelTotal <= 0.0)
+            {
+                throw new ArgumentException("GeneralKinematicConfig.rail_travel_negative/rail_travel_positive must sum to > 0.");
+            }
+            double railOffsetMin = -travelNegative;
+            double railStep = travelTotal / (SampleCount - 1);
+
+            double[] contactX = new double[SampleCount];
+            double[] contactY = new double[SampleCount];
+            double[][] positionsX = new double[SampleCount][];
+            double[][] positionsY = new double[SampleCount][];
+            double[] railOffsets = new double[SampleCount];
+
+            for (int i = 0; i < SampleCount; i++)
+            {
+                double railOffset = railOffsetMin + railStep * i;
+                if (!SolvePositions(
+                    pins,
+                    constraints,
+                    railIndex,
+                    railOffset,
+                    varIndexX,
+                    varIndexY,
+                    barVarBase,
+                    variables,
+                    pinBarIndex,
+                    pinBarOffset))
+                {
+                    throw new InvalidOperationException("General kinematics solver failed to converge.");
+                }
+
+                double[] posX = new double[pins.Count];
+                double[] posY = new double[pins.Count];
+                FillPositions(
+                    pins,
+                    railIndex,
+                    railOffset,
+                    varIndexX,
+                    varIndexY,
+                    barVarBase,
+                    variables,
+                    pinBarIndex,
+                    pinBarOffset,
+                    posX,
+                    posY);
+
+                positionsX[i] = posX;
+                positionsY[i] = posY;
+                railOffsets[i] = railOffset;
+
+                contactX[i] = posX[contactIndex];
+                contactY[i] = posY[contactIndex];
+            }
+
+            double[] contactPos = BuildContactPath(contactX, contactY);
+            double centerIndex = (-railOffsetMin) / railStep;
+            double centerOffset = InterpolateAtIndex(contactPos, centerIndex);
+            for (int i = 0; i < contactPos.Length; i++)
+            {
+                contactPos[i] -= centerOffset;
+            }
+
+            uint[] pinIds = pins.Select(p => p.Id).ToArray();
+            return new PoseCache(
+                pinIds,
+                railOffsets,
+                contactPos,
+                positionsX,
+                positionsY,
+                pins[contactIndex].Id,
+                pins[railIndex].Id);
         }
 
         private static List<PinInfo> BuildPins(GeneralKinematicConfig config, out int contactIndex, out int railIndex)

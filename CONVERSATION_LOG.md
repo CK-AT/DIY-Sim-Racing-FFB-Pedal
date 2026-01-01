@@ -2,6 +2,42 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-01 20:59:13 +01:00 (DESKTOP-6KO022D)
+Request: add a Live/Config toggle for the general kinematics canvas.
+Summary:
+- Added pose mode selector and update gating so the canvas can show config positions or live axis state.
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml`
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+
+## 2026-01-01 21:08:21 +01:00 (DESKTOP-6KO022D)
+Request: fix missing bar segment in Config mode.
+Summary:
+- Config-mode bars now render using the farthest pin pair so collinear multi-pin bars show their full span.
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+
+## 2026-01-01 20:27:14 +01:00 (DESKTOP-6KO022D)
+Request: add an active switch between DIY pedal and general kinematics.
+Summary:
+- Added a kinematic model selector to AxisConfigControl and wired switching to preserve per-mode configs.
+Key files:
+- `SimhubPlugin/AxisConfigControl.xaml`
+- `SimhubPlugin/AxisConfigControl.xaml.cs`
+
+## 2026-01-01 19:58:42 +01:00 (DESKTOP-6KO022D)
+Request: SimHub general kinematics UI with pin picker and cached pose interpolation.
+Summary:
+- Added GeneralKinematicsControl with pin/bar lists, pin picker context menu, rail travel inputs, and cached pose visualization driven by axis state.
+- Added GeneralKinematics.BuildPoseCache for sample pose caching and wired AxisConfigControl to show the new control.
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml`
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+- `SimhubPlugin/GeneralKinematics.cs`
+- `SimhubPlugin/AxisConfigControl.xaml`
+- `SimhubPlugin/AxisConfigControl.xaml.cs`
+- `SimhubPlugin/DiyFfbPlugin.csproj`
+
 ## 2026-01-01 19:04:06 +01:00 (DESKTOP-6KO022D)
 Request: add more general kinematics test cases.
 Summary:
