@@ -2,6 +2,70 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-02 18:41:28 +01:00 (DESKTOP-6KO022D)
+Request: set the metering sensor icon size to 35x25 mm.
+Summary:
+- Updated the metering sensor icon to use fixed world dimensions of 35mm by 25mm (scaled by the canvas zoom).
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 18:15:04 +01:00 (DESKTOP-6KO022D)
+Request: show contact force and measured force values next to the arrow and metering sensor.
+Summary:
+- Added force labels: contact point force from AxisState and measured force computed via the kinematic force factor.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 16:07:47 +01:00 (DESKTOP-6KO022D)
+Request: align the contact force arrow with the contact point path direction.
+Summary:
+- Updated the contact arrow to follow the path tangent derived from the pose cache (positive travel direction) instead of bar geometry.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 16:02:17 +01:00 (DESKTOP-6KO022D)
+Request: add a contact force arrow and a metering bar sensor icon in the kinematics view.
+Summary:
+- Added a contact point force arrow that points toward the contact pin based on nearby bar geometry.
+- Added a stylized force sensor icon centered on the metering bar with rotation matching bar direction; ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 13:15:36 +01:00 (DESKTOP-6KO022D)
+Request: reverse zoom direction, remove scale controls, and rename Recalc to Fit.
+Summary:
+- Reversed mouse wheel zoom direction and removed the scale buttons/label from the kinematics UI; renamed the Recalc button to Fit.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml`
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 13:07:39 +01:00 (DESKTOP-6KO022D)
+Request: add zoom/pan to the general kinematics canvas and repurpose Recalc to reset view.
+Summary:
+- Added mouse wheel zoom and left-drag pan; updated scale limits and recalc button now resets the view to the auto-fit.
+- Enabled canvas clipping so graphics do not draw outside the visualization area; ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml`
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+- `ESP32/sim/test_general_kinematics.py`
+- `SimhubPlugin/DiyFfbPlugin.Tests/Program.cs`
+Open items:
+- None.
+
 ## 2026-01-02 12:36:36 +01:00 (DESKTOP-6KO022D)
 Request: add a migration check for a legacy DIY pedal config example.
 Summary:

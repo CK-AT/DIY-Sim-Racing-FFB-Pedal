@@ -11,21 +11,14 @@
     <Grid>
         <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0">
             <StackPanel Width="540">
-                <Label Content="KINEMATICS SETTING" Width="300" Foreground="White" FontFamily="Arial Black" HorizontalAlignment="Center" Margin="70,0,0,0" Height="20" VerticalAlignment="Top" Padding="0,0,0,0" VerticalContentAlignment="Center"/>
-                <StackPanel Height="205" Width="540" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,5,0,0">
-                    <Canvas x:Name="canvas_kinematic" Height="200" Width="400" Background="#7F20232F" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="70,0,0,0" />
-                    <StackPanel Height="60" Width="20" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="5,0,0,0">
-                        <Button x:Name="btn_plus_kinematic_scale" Click="btn_plus_kinematic_scale_Click" Content="+" Height="15" Width="15" BorderThickness="0,0,0,0" MinHeight="10" Padding="0,-0.5,0,0" VerticalContentAlignment="Top" FontWeight="Bold"/>
-                        <Label x:Name="Label_kinematic_scale" Height="15" Width="15" FontFamily="Yu Gothic UI" FontSize="10" VerticalContentAlignment="Center" Padding="0,0,0,0" HorizontalContentAlignment="Center"/>
-                        <Button x:Name="btn_minus_kinematic_scale" Click="btn_minus_kinematic_scale_Click" Content="-" Height="15" Width="15" BorderThickness="0,0,0,0" MinHeight="10" Padding="0,-3,0,0" VerticalContentAlignment="Center" FontWeight="Bold" FontFamily="Yu Gothic UI" HorizontalContentAlignment="Center" FontSize="10"/>
-                    </StackPanel>
-                </StackPanel>
+                <Label Content="KINEMATICS" Width="300" Foreground="White" FontFamily="Arial Black" Height="20" Padding="0,0,0,0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Margin="0,5,0,0"/>
+                <Canvas x:Name="canvas_kinematic" Height="200" Width="417" Background="#7F20232F" ClipToBounds="True" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="70,0,0,0" />
                 <StackPanel Orientation="Horizontal" Width="540" Margin="0,4,0,0">
                     <Label Content="Rail - (mm):" Height="20" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="70,0,0,0"/>
                     <TextBox x:Name="TextRailNegative" TextChanged="RailTravel_TextChanged" LostFocus="RailTravel_LostFocus" Height="20" Width="60" Padding="0,0,0,0" FontFamily="Arial" FontSize="10" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="#00252525" Foreground="White" BorderThickness="0,0,0,0"/>
                     <Label Content="Rail + (mm):" Height="20" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="10,0,0,0"/>
                     <TextBox x:Name="TextRailPositive" TextChanged="RailTravel_TextChanged" LostFocus="RailTravel_LostFocus" Height="20" Width="60" Padding="0,0,0,0" FontFamily="Arial" FontSize="10" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="#00252525" Foreground="White" BorderThickness="0,0,0,0"/>
-                    <styles:SHButtonPrimary x:Name="btn_rebuild" Click="btn_rebuild_Click" Width="60" Content="Recalc" Height="20" Margin="10,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                    <styles:SHButtonPrimary x:Name="btn_rebuild" Click="btn_rebuild_Click" Width="60" Content="Fit" Height="20" Margin="10,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Width="540" Margin="0,2,0,0">
                     <Label Content="Pose mode:" Height="20" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="70,0,0,0"/>

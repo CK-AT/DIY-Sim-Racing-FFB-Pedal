@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
@@ -192,13 +193,30 @@ namespace User.PluginSdkDemo
         {
             public uint[] PinIds;
             public Polyline Outline;
+            public Line SegmentA;
+            public Line SegmentB;
             public Brush Brush;
+            public bool IsMetering;
         }
 
         private sealed class BarPinRing
         {
             public uint PinId;
             public Ellipse Ring;
+        }
+
+        private sealed class ContactForceVisual
+        {
+            public Line Shaft;
+            public Polygon Head;
+            public TextBlock Label;
+        }
+
+        private sealed class BarSensorVisual
+        {
+            public uint[] PinIds;
+            public FrameworkElement Icon;
+            public TextBlock Label;
         }
 
         private GeneralKinematicConfig config;
@@ -210,16 +228,35 @@ namespace User.PluginSdkDemo
         private readonly Dictionary<uint, TextBlock> pinLabels = new Dictionary<uint, TextBlock>();
         private readonly List<BarPinRing> barPinRings = new List<BarPinRing>();
         private readonly List<BarVisual> barVisuals = new List<BarVisual>();
+        private readonly List<BarSensorVisual> barSensorVisuals = new List<BarSensorVisual>();
         private readonly Dictionary<uint, int> pinIndexById = new Dictionary<uint, int>();
         private readonly DispatcherTimer rebuildTimer;
+        private ContactForceVisual contactForceVisual;
+        private KinematicParameters currentParameters;
         private bool isAutoFitting;
         private bool isLoading;
         private bool liveMode = true;
         private double lastAxisPosition;
+        private double lastAxisForce;
+        private bool hasAxisState;
         private double railTravelNegative;
         private double railTravelPositive;
         private double[] currentX;
         private double[] currentY;
+        private bool isPanning;
+        private Point panStart;
+        private double panStartOx;
+        private double panStartOy;
+        private const double MinZoomScale = 0.2;
+        private const double MaxZoomScale = 5.0;
+        private const double ZoomStep = 1.1;
+        private const double ContactArrowLength = 26.0;
+        private const double ContactArrowHeadLength = 8.0;
+        private const double ContactArrowHeadWidth = 8.0;
+        private const double MeteringIconWidth = 20.0;
+        private const double MeteringIconHeight = 12.0;
+        private const double MeteringIconWorldWidth = 35.0;
+        private const double MeteringIconWorldHeight = 25.0;
 
         public delegate void KinematicParametersChangedEventHandler(KinematicParameters parameters);
         public event KinematicParametersChangedEventHandler KinematicParametersChanged;
@@ -234,6 +271,11 @@ namespace User.PluginSdkDemo
             rebuildTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
             rebuildTimer.Tick += RebuildTimer_Tick;
             canvas_kinematic.SizeChanged += CanvasKinematic_SizeChanged;
+            canvas_kinematic.MouseWheel += CanvasKinematic_MouseWheel;
+            canvas_kinematic.MouseLeftButtonDown += CanvasKinematic_MouseLeftButtonDown;
+            canvas_kinematic.MouseLeftButtonUp += CanvasKinematic_MouseLeftButtonUp;
+            canvas_kinematic.MouseMove += CanvasKinematic_MouseMove;
+            canvas_kinematic.MouseLeave += CanvasKinematic_MouseLeave;
         }
 
         public void SetGui(DiyFfbPluginUI ui, DiyFfbPlugin plugin)
@@ -259,6 +301,8 @@ namespace User.PluginSdkDemo
         public void OnAxisStateUpdate(AxisState axisState)
         {
             lastAxisPosition = axisState.Position;
+            lastAxisForce = axisState.Force;
+            hasAxisState = true;
             if (liveMode)
             {
                 UpdatePose();
@@ -493,6 +537,7 @@ namespace User.PluginSdkDemo
                 AutoFitCanvasToPoses(false);
                 BuildCanvas();
                 var parameters = GeneralKinematics.CalcKinematicParameters(config);
+                currentParameters = parameters;
                 KinematicParametersChanged?.Invoke(parameters);
                 if (poseCache.ContactPositions.Length > 0)
                 {
@@ -535,10 +580,11 @@ namespace User.PluginSdkDemo
             pinLabels.Clear();
             barPinRings.Clear();
             barVisuals.Clear();
+            barSensorVisuals.Clear();
             pinIndexById.Clear();
+            contactForceVisual = null;
 
             DrawGridLines();
-            UpdateScaleLabel();
 
             if (config == null) return;
 
@@ -546,6 +592,8 @@ namespace User.PluginSdkDemo
             BuildBars();
             BuildPins();
             BuildBarPinRings();
+            BuildContactForceArrow();
+            BuildMeteringSensorIcons();
 
             if (poseCache == null)
             {
@@ -581,24 +629,61 @@ namespace User.PluginSdkDemo
             {
                 var pinIds = row.GetPinIds();
                 var brush = row.BarBrush ?? GetBarBrush(barIndex++);
-                var outline = new Polyline
+                if (row.IsMetering)
                 {
-                    StrokeThickness = row.IsMetering ? 3 : 2,
-                    Stroke = brush,
-                    Opacity = 0.9,
-                    Visibility = pinIds.Length < 2 ? Visibility.Hidden : Visibility.Visible
-                };
-                outline.StrokeLineJoin = PenLineJoin.Round;
-                outline.StrokeStartLineCap = PenLineCap.Round;
-                outline.StrokeEndLineCap = PenLineCap.Round;
-                Panel.SetZIndex(outline, 0);
-                barVisuals.Add(new BarVisual
+                    var segmentA = new Line
+                    {
+                        StrokeThickness = 3,
+                        Stroke = brush,
+                        Opacity = 0.9,
+                        Visibility = pinIds.Length < 2 ? Visibility.Hidden : Visibility.Visible,
+                        StrokeStartLineCap = PenLineCap.Round,
+                        StrokeEndLineCap = PenLineCap.Round
+                    };
+                    var segmentB = new Line
+                    {
+                        StrokeThickness = 3,
+                        Stroke = brush,
+                        Opacity = 0.9,
+                        Visibility = pinIds.Length < 2 ? Visibility.Hidden : Visibility.Visible,
+                        StrokeStartLineCap = PenLineCap.Round,
+                        StrokeEndLineCap = PenLineCap.Round
+                    };
+                    Panel.SetZIndex(segmentA, 0);
+                    Panel.SetZIndex(segmentB, 0);
+                    barVisuals.Add(new BarVisual
+                    {
+                        PinIds = pinIds,
+                        SegmentA = segmentA,
+                        SegmentB = segmentB,
+                        Brush = brush,
+                        IsMetering = true
+                    });
+                    canvas_kinematic.Children.Add(segmentA);
+                    canvas_kinematic.Children.Add(segmentB);
+                }
+                else
                 {
-                    PinIds = pinIds,
-                    Outline = outline,
-                    Brush = brush
-                });
-                canvas_kinematic.Children.Add(outline);
+                    var outline = new Polyline
+                    {
+                        StrokeThickness = 2,
+                        Stroke = brush,
+                        Opacity = 0.9,
+                        Visibility = pinIds.Length < 2 ? Visibility.Hidden : Visibility.Visible
+                    };
+                    outline.StrokeLineJoin = PenLineJoin.Round;
+                    outline.StrokeStartLineCap = PenLineCap.Round;
+                    outline.StrokeEndLineCap = PenLineCap.Round;
+                    Panel.SetZIndex(outline, 0);
+                    barVisuals.Add(new BarVisual
+                    {
+                        PinIds = pinIds,
+                        Outline = outline,
+                        Brush = brush,
+                        IsMetering = false
+                    });
+                    canvas_kinematic.Children.Add(outline);
+                }
             }
         }
 
@@ -665,6 +750,137 @@ namespace User.PluginSdkDemo
             }
         }
 
+        private void BuildContactForceArrow()
+        {
+            if (!pinRows.Any(p => p.IsContactPoint)) return;
+
+            var shaft = new Line
+            {
+                Stroke = Brushes.OrangeRed,
+                StrokeThickness = 2,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Opacity = 0.9,
+                IsHitTestVisible = false
+            };
+            var head = new Polygon
+            {
+                Fill = Brushes.OrangeRed,
+                Stroke = Brushes.OrangeRed,
+                StrokeThickness = 1,
+                Opacity = 0.9,
+                IsHitTestVisible = false
+            };
+            var label = new TextBlock
+            {
+                Text = "",
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 9,
+                Foreground = Brushes.OrangeRed,
+                IsHitTestVisible = false,
+                Visibility = Visibility.Hidden
+            };
+            Panel.SetZIndex(shaft, 4);
+            Panel.SetZIndex(head, 4);
+            Panel.SetZIndex(label, 5);
+            canvas_kinematic.Children.Add(shaft);
+            canvas_kinematic.Children.Add(head);
+            canvas_kinematic.Children.Add(label);
+            contactForceVisual = new ContactForceVisual { Shaft = shaft, Head = head, Label = label };
+        }
+
+        private void BuildMeteringSensorIcons()
+        {
+            int count = Math.Min(barRows.Count, barVisuals.Count);
+            for (int i = 0; i < count; i++)
+            {
+                if (!barRows[i].IsMetering) continue;
+                var icon = CreateMeteringSensorIcon(barVisuals[i].Brush ?? Brushes.White);
+                var label = new TextBlock
+                {
+                    Text = "",
+                    FontFamily = new FontFamily("Arial"),
+                    FontSize = 9,
+                    Foreground = barVisuals[i].Brush ?? Brushes.White,
+                    IsHitTestVisible = false,
+                    Visibility = Visibility.Hidden
+                };
+                Panel.SetZIndex(icon, 2);
+                Panel.SetZIndex(label, 3);
+                canvas_kinematic.Children.Add(icon);
+                canvas_kinematic.Children.Add(label);
+                barSensorVisuals.Add(new BarSensorVisual
+                {
+                    PinIds = barVisuals[i].PinIds,
+                    Icon = icon,
+                    Label = label
+                });
+            }
+        }
+
+        private FrameworkElement CreateMeteringSensorIcon(Brush brush)
+        {
+            var icon = new Canvas
+            {
+                Width = MeteringIconWidth,
+                Height = MeteringIconHeight,
+                IsHitTestVisible = false
+            };
+
+            var fill = CloneBrushWithOpacity(brush, 0.2);
+            var body = new Rectangle
+            {
+                Width = MeteringIconWidth,
+                Height = MeteringIconHeight,
+                RadiusX = 2,
+                RadiusY = 2,
+                Stroke = brush,
+                StrokeThickness = 1.5,
+                Fill = fill
+            };
+            var center = new Ellipse
+            {
+                Width = 4,
+                Height = 4,
+                Stroke = brush,
+                StrokeThickness = 1.2,
+                Fill = Brushes.Transparent
+            };
+            var tabLeft = new Rectangle
+            {
+                Width = 4,
+                Height = 2,
+                Fill = brush
+            };
+            var tabRight = new Rectangle
+            {
+                Width = 4,
+                Height = 2,
+                Fill = brush
+            };
+
+            Canvas.SetLeft(center, (MeteringIconWidth - center.Width) / 2.0);
+            Canvas.SetTop(center, (MeteringIconHeight - center.Height) / 2.0);
+            Canvas.SetLeft(tabLeft, 1);
+            Canvas.SetTop(tabLeft, (MeteringIconHeight - tabLeft.Height) / 2.0);
+            Canvas.SetLeft(tabRight, MeteringIconWidth - tabRight.Width - 1);
+            Canvas.SetTop(tabRight, (MeteringIconHeight - tabRight.Height) / 2.0);
+
+            icon.Children.Add(body);
+            icon.Children.Add(center);
+            icon.Children.Add(tabLeft);
+            icon.Children.Add(tabRight);
+            return new Viewbox
+            {
+                Width = MeteringIconWidth,
+                Height = MeteringIconHeight,
+                Stretch = Stretch.Fill,
+                RenderTransformOrigin = new Point(0.5, 0.5),
+                IsHitTestVisible = false,
+                Child = icon
+            };
+        }
+
         private void UpdateStaticPose()
         {
             foreach (var row in pinRows)
@@ -686,15 +902,29 @@ namespace User.PluginSdkDemo
 
             foreach (var bar in barVisuals)
             {
+                if (bar.IsMetering)
+                {
+                    UpdateMeteringBarSegmentsFromConfig(bar);
+                    continue;
+                }
                 if (bar.PinIds.Length < 2) continue;
                 if (!TryGetBarPointsFromConfig(bar.PinIds, out PointCollection points))
                 {
-                    bar.Outline.Visibility = Visibility.Hidden;
+                    if (bar.Outline != null)
+                    {
+                        bar.Outline.Visibility = Visibility.Hidden;
+                    }
                     continue;
                 }
-                bar.Outline.Visibility = Visibility.Visible;
-                bar.Outline.Points = points;
+                if (bar.Outline != null)
+                {
+                    bar.Outline.Visibility = Visibility.Visible;
+                    bar.Outline.Points = points;
+                }
             }
+
+            UpdateContactForceArrowFromConfig();
+            UpdateMeteringSensorsFromConfig();
         }
 
         private bool TryGetPointFromConfig(uint pinId, out PinRow row)
@@ -790,19 +1020,36 @@ namespace User.PluginSdkDemo
 
             foreach (var bar in barVisuals)
             {
+                if (bar.IsMetering)
+                {
+                    UpdateMeteringBarSegmentsFromLive(bar);
+                    continue;
+                }
                 if (bar.PinIds.Length < 2)
                 {
-                    bar.Outline.Visibility = Visibility.Hidden;
+                    if (bar.Outline != null)
+                    {
+                        bar.Outline.Visibility = Visibility.Hidden;
+                    }
                     continue;
                 }
                 if (!TryGetBarPoints(bar.PinIds, out PointCollection points))
                 {
-                    bar.Outline.Visibility = Visibility.Hidden;
+                    if (bar.Outline != null)
+                    {
+                        bar.Outline.Visibility = Visibility.Hidden;
+                    }
                     continue;
                 }
-                bar.Outline.Visibility = Visibility.Visible;
-                bar.Outline.Points = points;
+                if (bar.Outline != null)
+                {
+                    bar.Outline.Visibility = Visibility.Visible;
+                    bar.Outline.Points = points;
+                }
             }
+
+            UpdateContactForceArrowFromLive();
+            UpdateMeteringSensorsFromLive();
         }
 
         private bool TryGetBarPoints(uint[] pinIds, out PointCollection points)
@@ -936,6 +1183,61 @@ namespace User.PluginSdkDemo
             AutoFitCanvasToPoses(true);
         }
 
+        private void CanvasKinematic_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (plugin == null) return;
+            double scale = plugin.Settings.kinematicDiagram_zeroPos_scale;
+            if (scale <= 0.0) scale = 1.0;
+
+            double factor = e.Delta > 0 ? 1.0 / ZoomStep : ZoomStep;
+            double nextScale = Clamp(scale * factor, MinZoomScale, MaxZoomScale);
+            if (Math.Abs(nextScale - scale) < 1e-9) return;
+
+            Point position = e.GetPosition(canvas_kinematic);
+            ApplyZoom(position, nextScale);
+            e.Handled = true;
+        }
+
+        private void CanvasKinematic_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (plugin == null) return;
+            isPanning = true;
+            panStart = e.GetPosition(canvas_kinematic);
+            panStartOx = plugin.Settings.kinematicDiagram_zeroPos_OX;
+            panStartOy = plugin.Settings.kinematicDiagram_zeroPos_OY;
+            canvas_kinematic.CaptureMouse();
+            canvas_kinematic.Cursor = Cursors.Hand;
+            e.Handled = true;
+        }
+
+        private void CanvasKinematic_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!isPanning || plugin == null) return;
+            Point current = e.GetPosition(canvas_kinematic);
+            Vector delta = current - panStart;
+            plugin.Settings.kinematicDiagram_zeroPos_OX = panStartOx + delta.X;
+            plugin.Settings.kinematicDiagram_zeroPos_OY = panStartOy - delta.Y;
+            BuildCanvas();
+            RefreshPose();
+        }
+
+        private void CanvasKinematic_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (!isPanning) return;
+            isPanning = false;
+            canvas_kinematic.ReleaseMouseCapture();
+            canvas_kinematic.Cursor = Cursors.Arrow;
+            e.Handled = true;
+        }
+
+        private void CanvasKinematic_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (!isPanning) return;
+            isPanning = false;
+            canvas_kinematic.ReleaseMouseCapture();
+            canvas_kinematic.Cursor = Cursors.Arrow;
+        }
+
         private void AutoFitCanvasToPoses(bool refresh)
         {
             if (plugin == null || isAutoFitting) return;
@@ -1038,12 +1340,6 @@ namespace User.PluginSdkDemo
             return found;
         }
 
-        private void UpdateScaleLabel()
-        {
-            if (plugin == null) return;
-            Label_kinematic_scale.Content = Math.Round(plugin.Settings.kinematicDiagram_zeroPos_scale, 1).ToString(CultureInfo.CurrentCulture);
-        }
-
         private Point ToCanvas(double x, double y)
         {
             double scale = plugin?.Settings?.kinematicDiagram_zeroPos_scale ?? 1.0;
@@ -1051,6 +1347,34 @@ namespace User.PluginSdkDemo
             double ox = plugin?.Settings?.kinematicDiagram_zeroPos_OX ?? 0.0;
             double oy = plugin?.Settings?.kinematicDiagram_zeroPos_OY ?? 0.0;
             return new Point(x / scale + ox, canvas_kinematic.Height - y / scale - oy);
+        }
+
+        private void ApplyZoom(Point canvasPoint, double newScale)
+        {
+            if (plugin == null) return;
+            double scale = plugin.Settings.kinematicDiagram_zeroPos_scale;
+            if (scale <= 0.0) scale = 1.0;
+            double ox = plugin.Settings.kinematicDiagram_zeroPos_OX;
+            double oy = plugin.Settings.kinematicDiagram_zeroPos_OY;
+            double height = canvas_kinematic.ActualHeight;
+            if (height <= 1.0) height = canvas_kinematic.Height;
+
+            double worldX = (canvasPoint.X - ox) * scale;
+            double worldY = (height - canvasPoint.Y - oy) * scale;
+
+            plugin.Settings.kinematicDiagram_zeroPos_scale = newScale;
+            plugin.Settings.kinematicDiagram_zeroPos_OX = canvasPoint.X - worldX / newScale;
+            plugin.Settings.kinematicDiagram_zeroPos_OY = height - canvasPoint.Y - worldY / newScale;
+
+            BuildCanvas();
+            RefreshPose();
+        }
+
+        private static double Clamp(double value, double min, double max)
+        {
+            if (value < min) return min;
+            if (value > max) return max;
+            return value;
         }
 
         private void UpdateBarPinRingsFromConfig()
@@ -1075,6 +1399,472 @@ namespace User.PluginSdkDemo
             }
         }
 
+        private void UpdateContactForceArrowFromConfig()
+        {
+            if (contactForceVisual == null) return;
+            var contactPin = pinRows.FirstOrDefault(p => p.IsContactPoint);
+            if (contactPin == null)
+            {
+                SetContactForceVisibility(false);
+                return;
+            }
+
+            if (!TryGetContactPathDirection(0.0, contactPin.PinId, out var direction))
+            {
+                SetContactForceVisibility(false);
+                return;
+            }
+            string labelText = TryGetContactForceLabel(out var contactLabel) ? contactLabel : null;
+            UpdateContactForceArrow(contactPin.X, contactPin.Y, direction, labelText);
+        }
+
+        private void UpdateContactForceArrowFromLive()
+        {
+            if (contactForceVisual == null) return;
+            var contactPin = pinRows.FirstOrDefault(p => p.IsContactPoint);
+            if (contactPin == null || !pinIndexById.TryGetValue(contactPin.PinId, out int idx))
+            {
+                SetContactForceVisibility(false);
+                return;
+            }
+
+            double x = currentX[idx];
+            double y = currentY[idx];
+            if (!TryGetContactPathDirection(lastAxisPosition, contactPin.PinId, out var direction))
+            {
+                SetContactForceVisibility(false);
+                return;
+            }
+            string labelText = TryGetContactForceLabel(out var contactLabel) ? contactLabel : null;
+            UpdateContactForceArrow(x, y, direction, labelText);
+        }
+
+        private void UpdateContactForceArrow(double pinX, double pinY, Vector directionWorld, string labelText)
+        {
+            if (contactForceVisual == null) return;
+
+            var contactCanvas = ToCanvas(pinX, pinY);
+            var dirCanvas = ToCanvas(pinX + directionWorld.X, pinY + directionWorld.Y) - contactCanvas;
+            if (dirCanvas.Length < 1e-6)
+            {
+                dirCanvas = new Vector(0.0, -1.0);
+            }
+            dirCanvas.Normalize();
+
+            var head = contactCanvas;
+            var tail = head - dirCanvas * ContactArrowLength;
+            contactForceVisual.Shaft.X1 = tail.X;
+            contactForceVisual.Shaft.Y1 = tail.Y;
+            contactForceVisual.Shaft.X2 = head.X;
+            contactForceVisual.Shaft.Y2 = head.Y;
+
+            var basePoint = head - dirCanvas * ContactArrowHeadLength;
+            var perp = new Vector(-dirCanvas.Y, dirCanvas.X);
+            var left = basePoint + perp * (ContactArrowHeadWidth / 2.0);
+            var right = basePoint - perp * (ContactArrowHeadWidth / 2.0);
+            contactForceVisual.Head.Points = new PointCollection { head, left, right };
+            UpdateContactForceLabel(head, dirCanvas, labelText);
+            SetContactForceVisibility(true);
+        }
+
+        private void SetContactForceVisibility(bool visible)
+        {
+            if (contactForceVisual == null) return;
+            var state = visible ? Visibility.Visible : Visibility.Hidden;
+            contactForceVisual.Shaft.Visibility = state;
+            contactForceVisual.Head.Visibility = state;
+            if (contactForceVisual.Label != null)
+            {
+                contactForceVisual.Label.Visibility = state;
+            }
+        }
+
+        private void UpdateContactForceLabel(Point head, Vector dirCanvas, string labelText)
+        {
+            if (contactForceVisual?.Label == null) return;
+            if (string.IsNullOrWhiteSpace(labelText))
+            {
+                contactForceVisual.Label.Visibility = Visibility.Hidden;
+                return;
+            }
+
+            contactForceVisual.Label.Text = labelText;
+            contactForceVisual.Label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            var size = contactForceVisual.Label.DesiredSize;
+
+            var perp = new Vector(-dirCanvas.Y, dirCanvas.X);
+            var mid = head - dirCanvas * (ContactArrowLength * 0.5);
+            var pos = mid + perp * -12.0;
+
+            Canvas.SetLeft(contactForceVisual.Label, pos.X - size.Width / 2.0);
+            Canvas.SetTop(contactForceVisual.Label, pos.Y - size.Height / 2.0);
+            contactForceVisual.Label.Visibility = Visibility.Visible;
+        }
+
+        private bool TryGetContactPathDirection(double contactPos, uint contactPinId, out Vector direction)
+        {
+            direction = new Vector();
+            if (poseCache == null || poseCache.ContactPositions.Length < 2) return false;
+            if (!TryGetPosePinIndex(contactPinId, out int pinIdx)) return false;
+            if (!TryGetSegment(contactPos, out int idx, out _)) return false;
+
+            int lastIndex = poseCache.PinPositionsX.Length - 1;
+            int next = Math.Min(idx + 1, lastIndex);
+            double x1 = poseCache.PinPositionsX[idx][pinIdx];
+            double y1 = poseCache.PinPositionsY[idx][pinIdx];
+            double x2 = poseCache.PinPositionsX[next][pinIdx];
+            double y2 = poseCache.PinPositionsY[next][pinIdx];
+            direction = new Vector(x2 - x1, y2 - y1);
+
+            if (direction.Length <= 1e-6 && idx > 0)
+            {
+                double xp = poseCache.PinPositionsX[idx - 1][pinIdx];
+                double yp = poseCache.PinPositionsY[idx - 1][pinIdx];
+                direction = new Vector(x1 - xp, y1 - yp);
+            }
+
+            return direction.Length > 1e-6;
+        }
+
+        private bool TryGetPosePinIndex(uint pinId, out int index)
+        {
+            index = -1;
+            if (poseCache == null) return false;
+            for (int i = 0; i < poseCache.PinIds.Length; i++)
+            {
+                if (poseCache.PinIds[i] == pinId)
+                {
+                    index = i;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private bool TryGetContactForceLabel(out string label)
+        {
+            label = null;
+            if (!hasAxisState) return false;
+            label = FormatForceLabel(lastAxisForce);
+            return true;
+        }
+
+        private bool TryGetMeasuredForceLabel(out string label)
+        {
+            label = null;
+            if (!hasAxisState) return false;
+            if (!TryGetForceConversionFactor(lastAxisPosition, out double factor)) return false;
+            double measured = lastAxisForce / factor;
+            if (double.IsNaN(measured) || double.IsInfinity(measured)) return false;
+            label = FormatForceLabel(measured);
+            return true;
+        }
+
+        private string FormatForceLabel(double forceValue)
+        {
+            return string.Format(CultureInfo.CurrentCulture, "{0:0.0} N", forceValue);
+        }
+
+        private bool TryGetForceConversionFactor(double contactPos, out double factor)
+        {
+            factor = 0.0;
+            if (currentParameters == null) return false;
+            var coeffs = currentParameters.CoeffsForceFactorOverContactPointPos;
+            if (coeffs == null || coeffs.Count == 0) return false;
+
+            double result = 0.0;
+            for (int i = coeffs.Count - 1; i >= 0; i--)
+            {
+                result = result * contactPos + coeffs[i];
+            }
+            if (double.IsNaN(result) || double.IsInfinity(result) || Math.Abs(result) < 1e-9) return false;
+            factor = result;
+            return true;
+        }
+
+        private void UpdateMeteringSensorsFromConfig()
+        {
+            foreach (var sensor in barSensorVisuals)
+            {
+                if (!TryGetBarCenterFromConfig(sensor.PinIds, out double cx, out double cy))
+                {
+                    sensor.Icon.Visibility = Visibility.Hidden;
+                    if (sensor.Label != null)
+                    {
+                        sensor.Label.Visibility = Visibility.Hidden;
+                    }
+                    continue;
+                }
+                UpdateMeteringSensorSizeFromConfig(sensor);
+                var center = ToCanvas(cx, cy);
+                Canvas.SetLeft(sensor.Icon, center.X - sensor.Icon.Width / 2.0);
+                Canvas.SetTop(sensor.Icon, center.Y - sensor.Icon.Height / 2.0);
+                UpdateMeteringSensorRotationConfig(sensor);
+                string labelText = TryGetMeasuredForceLabel(out var measuredLabel) ? measuredLabel : null;
+                UpdateMeteringSensorLabel(sensor, center, labelText);
+                sensor.Icon.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void UpdateMeteringSensorsFromLive()
+        {
+            foreach (var sensor in barSensorVisuals)
+            {
+                if (!TryGetBarCenterFromLive(sensor.PinIds, out double cx, out double cy))
+                {
+                    sensor.Icon.Visibility = Visibility.Hidden;
+                    if (sensor.Label != null)
+                    {
+                        sensor.Label.Visibility = Visibility.Hidden;
+                    }
+                    continue;
+                }
+                UpdateMeteringSensorSizeFromLive(sensor);
+                var center = ToCanvas(cx, cy);
+                Canvas.SetLeft(sensor.Icon, center.X - sensor.Icon.Width / 2.0);
+                Canvas.SetTop(sensor.Icon, center.Y - sensor.Icon.Height / 2.0);
+                UpdateMeteringSensorRotationLive(sensor);
+                string labelText = TryGetMeasuredForceLabel(out var measuredLabel) ? measuredLabel : null;
+                UpdateMeteringSensorLabel(sensor, center, labelText);
+                sensor.Icon.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void UpdateMeteringSensorLabel(BarSensorVisual sensor, Point center, string labelText)
+        {
+            if (sensor.Label == null) return;
+            if (string.IsNullOrWhiteSpace(labelText))
+            {
+                sensor.Label.Visibility = Visibility.Hidden;
+                return;
+            }
+
+            sensor.Label.Text = labelText;
+            sensor.Label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            var size = sensor.Label.DesiredSize;
+            double iconWidth = sensor.Icon.Width > 0.0 ? sensor.Icon.Width : MeteringIconWidth;
+            double iconHeight = sensor.Icon.Height > 0.0 ? sensor.Icon.Height : MeteringIconHeight;
+            var offset = new Vector(iconWidth / 2.0 + 6.0, -iconHeight / 2.0 - 2.0);
+            Canvas.SetLeft(sensor.Label, center.X + offset.X);
+            Canvas.SetTop(sensor.Label, center.Y + offset.Y - size.Height / 2.0);
+            sensor.Label.Visibility = Visibility.Visible;
+        }
+
+        private void UpdateMeteringSensorSizeFromConfig(BarSensorVisual sensor)
+        {
+            if (!TryGetMeteringIconCanvasSize(out double width, out double height)) return;
+            UpdateMeteringSensorSize(sensor, width, height);
+        }
+
+        private void UpdateMeteringSensorSizeFromLive(BarSensorVisual sensor)
+        {
+            if (!TryGetMeteringIconCanvasSize(out double width, out double height)) return;
+            UpdateMeteringSensorSize(sensor, width, height);
+        }
+
+        private void UpdateMeteringSensorSize(BarSensorVisual sensor, double width, double height)
+        {
+            if (sensor?.Icon == null) return;
+            sensor.Icon.Width = width;
+            sensor.Icon.Height = height;
+        }
+
+        private bool TryGetMeteringIconCanvasSize(out double width, out double height)
+        {
+            double scale = plugin?.Settings?.kinematicDiagram_zeroPos_scale ?? 1.0;
+            if (scale <= 0.0) scale = 1.0;
+            width = MeteringIconWorldWidth / scale;
+            height = MeteringIconWorldHeight / scale;
+            return width > 1e-6 && height > 1e-6;
+        }
+
+        private void UpdateMeteringSensorRotationConfig(BarSensorVisual sensor)
+        {
+            if (!TryGetBarDirectionCanvasFromConfig(sensor.PinIds, out var dir)) return;
+            sensor.Icon.RenderTransform = new RotateTransform(Math.Atan2(dir.Y, dir.X) * 180.0 / Math.PI);
+        }
+
+        private void UpdateMeteringSensorRotationLive(BarSensorVisual sensor)
+        {
+            if (!TryGetBarDirectionCanvasFromLive(sensor.PinIds, out var dir)) return;
+            sensor.Icon.RenderTransform = new RotateTransform(Math.Atan2(dir.Y, dir.X) * 180.0 / Math.PI);
+        }
+
+        private bool TryGetBarCenterFromConfig(uint[] pinIds, out double cx, out double cy)
+        {
+            double sumX = 0.0;
+            double sumY = 0.0;
+            int count = 0;
+            foreach (var pinId in pinIds)
+            {
+                if (!TryGetPointFromConfig(pinId, out var row)) continue;
+                sumX += row.X;
+                sumY += row.Y;
+                count++;
+            }
+            if (count == 0)
+            {
+                cx = 0.0;
+                cy = 0.0;
+                return false;
+            }
+            cx = sumX / count;
+            cy = sumY / count;
+            return true;
+        }
+
+        private bool TryGetBarCenterFromLive(uint[] pinIds, out double cx, out double cy)
+        {
+            double sumX = 0.0;
+            double sumY = 0.0;
+            int count = 0;
+            foreach (var pinId in pinIds)
+            {
+                if (!pinIndexById.TryGetValue(pinId, out int idx)) continue;
+                sumX += currentX[idx];
+                sumY += currentY[idx];
+                count++;
+            }
+            if (count == 0)
+            {
+                cx = 0.0;
+                cy = 0.0;
+                return false;
+            }
+            cx = sumX / count;
+            cy = sumY / count;
+            return true;
+        }
+
+        private bool TryGetBarDirectionCanvasFromConfig(uint[] pinIds, out Vector direction)
+        {
+            direction = new Vector(1.0, 0.0);
+            if (!TryGetTwoPinPointsFromConfig(pinIds, out var p1, out var p2)) return false;
+            direction = p2 - p1;
+            return direction.Length > 1e-6;
+        }
+
+        private bool TryGetBarDirectionCanvasFromLive(uint[] pinIds, out Vector direction)
+        {
+            direction = new Vector(1.0, 0.0);
+            if (!TryGetTwoPinPointsFromLive(pinIds, out var p1, out var p2)) return false;
+            direction = p2 - p1;
+            return direction.Length > 1e-6;
+        }
+
+        private void UpdateMeteringBarSegmentsFromConfig(BarVisual bar)
+        {
+            if (bar == null || bar.SegmentA == null || bar.SegmentB == null) return;
+            if (!TryGetTwoPinPointsFromConfig(bar.PinIds, out var p1, out var p2))
+            {
+                bar.SegmentA.Visibility = Visibility.Hidden;
+                bar.SegmentB.Visibility = Visibility.Hidden;
+                return;
+            }
+            UpdateMeteringBarSegments(bar, p1, p2);
+        }
+
+        private void UpdateMeteringBarSegmentsFromLive(BarVisual bar)
+        {
+            if (bar == null || bar.SegmentA == null || bar.SegmentB == null) return;
+            if (!TryGetTwoPinPointsFromLive(bar.PinIds, out var p1, out var p2))
+            {
+                bar.SegmentA.Visibility = Visibility.Hidden;
+                bar.SegmentB.Visibility = Visibility.Hidden;
+                return;
+            }
+            UpdateMeteringBarSegments(bar, p1, p2);
+        }
+
+        private void UpdateMeteringBarSegments(BarVisual bar, Point p1, Point p2)
+        {
+            if (!TryGetMeteringIconCanvasSize(out double iconWidth, out _))
+            {
+                iconWidth = MeteringIconWidth;
+            }
+
+            Vector dir = p2 - p1;
+            double length = dir.Length;
+            if (length <= 1e-6)
+            {
+                bar.SegmentA.Visibility = Visibility.Hidden;
+                bar.SegmentB.Visibility = Visibility.Hidden;
+                return;
+            }
+            dir.Normalize();
+
+            double gap = Math.Min(iconWidth + 4.0, length);
+            double halfGap = gap / 2.0;
+            var center = new Point((p1.X + p2.X) / 2.0, (p1.Y + p2.Y) / 2.0);
+            var gapStart = center - dir * halfGap;
+            var gapEnd = center + dir * halfGap;
+
+            bar.SegmentA.X1 = p1.X;
+            bar.SegmentA.Y1 = p1.Y;
+            bar.SegmentA.X2 = gapStart.X;
+            bar.SegmentA.Y2 = gapStart.Y;
+            bar.SegmentB.X1 = gapEnd.X;
+            bar.SegmentB.Y1 = gapEnd.Y;
+            bar.SegmentB.X2 = p2.X;
+            bar.SegmentB.Y2 = p2.Y;
+            bar.SegmentA.Visibility = Visibility.Visible;
+            bar.SegmentB.Visibility = Visibility.Visible;
+        }
+
+        private bool TryGetTwoPinPointsFromConfig(uint[] pinIds, out Point p1, out Point p2)
+        {
+            p1 = new Point();
+            p2 = new Point();
+            bool foundFirst = false;
+            foreach (var pinId in pinIds)
+            {
+                if (!TryGetPointFromConfig(pinId, out var row)) continue;
+                var point = ToCanvas(row.X, row.Y);
+                if (!foundFirst)
+                {
+                    p1 = point;
+                    foundFirst = true;
+                }
+                else
+                {
+                    p2 = point;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private bool TryGetTwoPinPointsFromLive(uint[] pinIds, out Point p1, out Point p2)
+        {
+            p1 = new Point();
+            p2 = new Point();
+            bool foundFirst = false;
+            foreach (var pinId in pinIds)
+            {
+                if (!pinIndexById.TryGetValue(pinId, out int idx)) continue;
+                var point = ToCanvas(currentX[idx], currentY[idx]);
+                if (!foundFirst)
+                {
+                    p1 = point;
+                    foundFirst = true;
+                }
+                else
+                {
+                    p2 = point;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private Brush CloneBrushWithOpacity(Brush brush, double opacity)
+        {
+            if (brush == null) return null;
+            var cloned = brush.Clone();
+            cloned.Opacity = opacity;
+            return cloned;
+        }
+
         private void UpdateBarBrushes()
         {
             bool wasLoading = isLoading;
@@ -1084,28 +1874,6 @@ namespace User.PluginSdkDemo
                 barRows[i].BarBrush = GetBarBrush(i);
             }
             isLoading = wasLoading;
-        }
-
-        private void btn_plus_kinematic_scale_Click(object sender, RoutedEventArgs e)
-        {
-            if (plugin == null) return;
-            if (plugin.Settings.kinematicDiagram_zeroPos_scale < 2.0)
-            {
-                plugin.Settings.kinematicDiagram_zeroPos_scale += 0.1;
-                BuildCanvas();
-                RefreshPose();
-            }
-        }
-
-        private void btn_minus_kinematic_scale_Click(object sender, RoutedEventArgs e)
-        {
-            if (plugin == null) return;
-            if (plugin.Settings.kinematicDiagram_zeroPos_scale > 0.7)
-            {
-                plugin.Settings.kinematicDiagram_zeroPos_scale -= 0.1;
-                BuildCanvas();
-                RefreshPose();
-            }
         }
 
         private void btn_add_pin_Click(object sender, RoutedEventArgs e)
@@ -1142,7 +1910,7 @@ namespace User.PluginSdkDemo
         private void btn_rebuild_Click(object sender, RoutedEventArgs e)
         {
             rebuildTimer.Stop();
-            RebuildCache();
+            AutoFitCanvasToPoses(true);
         }
 
         private void PoseModeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
