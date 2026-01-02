@@ -7,29 +7,35 @@
              xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins"
              xmlns:controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
              mc:Ignorable="d"
-             d:DesignHeight="618" d:DesignWidth="540">
+             d:DesignWidth="540">
     <Grid>
         <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0">
             <StackPanel Width="540">
                 <Label Content="KINEMATICS" Width="300" Foreground="White" FontFamily="Arial Black" Height="20" Padding="0,0,0,0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Margin="0,5,0,0"/>
-                <Canvas x:Name="canvas_kinematic" Height="200" Width="417" Background="#7F20232F" ClipToBounds="True" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="70,0,0,0" />
+                <Canvas x:Name="canvas_kinematic" Height="340" Width="417" Background="#7F20232F" ClipToBounds="True" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="70,0,0,0" />
                 <StackPanel Orientation="Horizontal" Width="540" Margin="0,4,0,0">
                     <Label Content="Rail - (mm):" Height="20" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="70,0,0,0"/>
-                    <TextBox x:Name="TextRailNegative" TextChanged="RailTravel_TextChanged" LostFocus="RailTravel_LostFocus" Height="20" Width="60" Padding="0,0,0,0" FontFamily="Arial" FontSize="10" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="#00252525" Foreground="White" BorderThickness="0,0,0,0"/>
+                    <TextBox x:Name="TextRailNegative" TextChanged="RailTravel_TextChanged" LostFocus="RailTravel_LostFocus" PreviewMouseWheel="RailTravel_MouseWheel" Height="20" Width="60" Padding="0,0,0,0" FontFamily="Arial" FontSize="10" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="#00252525" Foreground="White" BorderThickness="0,0,0,0"/>
                     <Label Content="Rail + (mm):" Height="20" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="10,0,0,0"/>
-                    <TextBox x:Name="TextRailPositive" TextChanged="RailTravel_TextChanged" LostFocus="RailTravel_LostFocus" Height="20" Width="60" Padding="0,0,0,0" FontFamily="Arial" FontSize="10" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="#00252525" Foreground="White" BorderThickness="0,0,0,0"/>
+                    <TextBox x:Name="TextRailPositive" TextChanged="RailTravel_TextChanged" LostFocus="RailTravel_LostFocus" PreviewMouseWheel="RailTravel_MouseWheel" Height="20" Width="60" Padding="0,0,0,0" FontFamily="Arial" FontSize="10" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="#00252525" Foreground="White" BorderThickness="0,0,0,0"/>
                     <styles:SHButtonPrimary x:Name="btn_rebuild" Click="btn_rebuild_Click" Width="60" Content="Fit" Height="20" Margin="10,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Width="540" Margin="0,2,0,0">
                     <Label Content="Pose mode:" Height="20" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="70,0,0,0"/>
                     <ComboBox x:Name="PoseModeCombo" SelectionChanged="PoseModeCombo_SelectionChanged" Width="120" Height="20" FontSize="10" SelectedIndex="0" Margin="3,0,0,0" HorizontalAlignment="Left" BorderThickness="0,0,0,0">
                         <ComboBoxItem Content="Live" />
-                        <ComboBoxItem Content="Config" />
+                        <ComboBoxItem Content="Test" />
                     </ComboBox>
+                </StackPanel>
+                <StackPanel x:Name="TestPosePanel" Orientation="Horizontal" Width="540" Margin="0,2,0,0" Visibility="Collapsed">
+                    <Label Content="Test pos (mm):" Height="20" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="70,0,0,0"/>
+                    <TextBox x:Name="TextTestPosition" TextChanged="TestPose_TextChanged" LostFocus="TestPose_LostFocus" PreviewMouseWheel="TestPose_MouseWheel" Height="20" Width="60" Padding="0,0,0,0" FontFamily="Arial" FontSize="10" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="#00252525" Foreground="White" BorderThickness="0,0,0,0"/>
+                    <Label Content="Test force (N):" Height="20" Width="85" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="10,0,0,0"/>
+                    <TextBox x:Name="TextTestForce" TextChanged="TestPose_TextChanged" LostFocus="TestPose_LostFocus" PreviewMouseWheel="TestPose_MouseWheel" Height="20" Width="60" Padding="0,0,0,0" FontFamily="Arial" FontSize="10" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="#00252525" Foreground="White" BorderThickness="0,0,0,0"/>
                 </StackPanel>
                 <Label x:Name="Label_status" Content="" Height="15" Width="400" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="9" Foreground="White" HorizontalAlignment="Left" Margin="70,2,0,0"/>
                 <Label Content="Pins" Height="15" Width="100" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial Black" FontSize="10" HorizontalAlignment="Left" Margin="70,6,0,0"/>
-                <DataGrid x:Name="PinGrid" Width="400" Height="120" Margin="15,0,0,0" AutoGenerateColumns="False" HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False" RowHeaderWidth="0" GridLinesVisibility="Horizontal" Background="#00252525" Foreground="White">
+                <DataGrid x:Name="PinGrid" Width="400" Height="120" Margin="15,0,0,0" AutoGenerateColumns="False" HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False" RowHeaderWidth="0" GridLinesVisibility="Horizontal" Background="#00252525" Foreground="White" PreviewMouseWheel="PinGrid_PreviewMouseWheel">
                     <DataGrid.ColumnHeaderStyle>
                         <Style TargetType="DataGridColumnHeader">
                             <Setter Property="Background" Value="#334E4E4E"/>

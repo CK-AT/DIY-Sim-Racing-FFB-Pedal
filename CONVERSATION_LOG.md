@@ -2,6 +2,135 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-02 21:40:09 +01:00 (DESKTOP-6KO022D)
+Request: grounded pins enhanced using a ground-symbol.
+Summary:
+- Consolidated grounded-pin marker iterations into a single update for a mechanical ground symbol style.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 20:32:37 +01:00 (DESKTOP-6KO022D)
+Request: make rail end caps more visible and add clearer grounded pin cues.
+Summary:
+- Rail end caps are now longer with a soft halo line behind them for visibility through pin overlays.
+- Grounded pins now draw a diamond outline marker behind the pin dot for quick identification.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 20:27:40 +01:00 (DESKTOP-6KO022D)
+Request: improve rail end caps visibility.
+Summary:
+- Replaced rail end dots with short vertical end cap lines for better contrast.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 20:22:55 +01:00 (DESKTOP-6KO022D)
+Request: drop Config pose mode and improve the rail travel visualization.
+Summary:
+- Removed Config from pose mode selector; only Live and Test remain.
+- Rail travel line now renders as a thicker track with a highlighted guide line and end caps.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml`
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 20:06:45 +01:00 (DESKTOP-6KO022D)
+Request: apply 0.1mm resolution to all kinematic inputs.
+Summary:
+- Rail travel and test position inputs now round to 0.1mm; rail values normalize to non-negative.
+- Test position wheel now supports Shift for 0.1mm steps; pin rounding already enforces 0.1mm.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 20:01:36 +01:00 (DESKTOP-6KO022D)
+Request: limit pin X/Y resolution to 0.1mm.
+Summary:
+- Pin X/Y values now round to 0.1mm on update to keep stored coordinates at the desired resolution.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 19:56:01 +01:00 (DESKTOP-6KO022D)
+Request: mouse wheel stepping for pin X/Y and rail inputs, with 0.1mm steps on shift.
+Summary:
+- Added mouse wheel adjustments on PinGrid X/Y cells and Rail +/- inputs (1mm steps, 0.1mm with Shift).
+- Rail inputs clamp to >= 0; pin inputs apply deltas directly.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml`
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 19:30:58 +01:00 (DESKTOP-6KO022D)
+Request: clamp Test pose position to the valid range and add mouse wheel 1mm/1N steps.
+Summary:
+- Test position now clamps to the cached contact range; switching to Test or rebuilding clamps it too.
+- Added mouse wheel adjustments for test position/force (1mm/1N steps) and kept live update in Test mode.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml`
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 19:24:02 +01:00 (DESKTOP-6KO022D)
+Request: fix NullReferenceException during plugin settings load in PoseModeCombo_SelectionChanged.
+Summary:
+- Guarded the pose mode selection handler during XAML initialization to avoid nulls and set isLoading before InitializeComponent.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 19:18:33 +01:00 (DESKTOP-6KO022D)
+Request: add a Test pose mode with force and position inputs.
+Summary:
+- Added a Test pose mode with position/force inputs; the pose interpolation and force labels now use the selected mode.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml`
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 19:02:47 +01:00 (DESKTOP-6KO022D)
+Request: center the contact force label above the arrow shaft.
+Summary:
+- Contact force label now anchors to the arrow shaft midpoint so it stays centered above the arrow.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-02 19:00:43 +01:00 (DESKTOP-6KO022D)
+Request: move force labels above the arrow and sensor icon.
+Summary:
+- Contact force label now sits above the arrow tip; metered force label is centered above the sensor icon.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+Open items:
+- None.
+
 ## 2026-01-02 18:41:28 +01:00 (DESKTOP-6KO022D)
 Request: set the metering sensor icon size to 35x25 mm.
 Summary:

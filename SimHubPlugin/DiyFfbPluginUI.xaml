@@ -400,8 +400,8 @@
                             <Canvas x:Name="canvas_Header_Tab" Height="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1" >
                                 <Line x:Name="Line_H_HeaderTab" X1="2" Y1="3" X2="796" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
                             </Canvas>
-                            <StackPanel Grid.RowSpan="3" Orientation="Horizontal" Grid.ColumnSpan="4" Height="867">
-                                <TabControl ItemsSource="{Binding functions}" x:Name="tc_function_selection" TabStripPlacement="Left" SelectionChanged="FunctionSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="80">
+                            <StackPanel Grid.RowSpan="3" Orientation="Horizontal" Grid.ColumnSpan="4">
+                                <TabControl ItemsSource="{Binding functions}" x:Name="tc_function_selection" TabStripPlacement="Left" SelectionChanged="FunctionSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="80" VerticalAlignment="Top" Height="904">
                                     <TabControl.Resources>
                                         <Style TargetType="{x:Type TabItem}">
                                             <Setter Property="Padding" Value="4" />
@@ -481,8 +481,8 @@
                                         <SolidColorBrush Color="#FF252525" Opacity="0"/>
                                     </TabControl.Background>
                                 </TabControl>
-                                <Canvas x:Name="canvas_Header_Tab_sub" Height="900" Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" VerticalAlignment="Top" >
-                                    <Line  X1="3" Y1="5" X2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" Y2="863" />
+                                <Canvas x:Name="canvas_Header_Tab_sub" Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" VerticalAlignment="Top" >
+                                    <Line  X1="3" Y1="5" X2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" Y2="904" />
                                 </Canvas>
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
                                     <Border  HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5"  Margin="0,0,0,3">
@@ -554,8 +554,8 @@
                             <Canvas Height="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1" >
                                 <Line X1="2" Y1="3" X2="796" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
                             </Canvas>
-                            <StackPanel Grid.RowSpan="3" Orientation="Horizontal" Grid.ColumnSpan="4" Height="842">
-                                <TabControl  x:Name="tc_axis_selection" ItemsSource="{Binding axes}" TabStripPlacement="Left" SelectionChanged="AxisSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="80">
+                            <StackPanel Grid.RowSpan="3" Orientation="Horizontal" Grid.ColumnSpan="4">
+                                <TabControl  x:Name="tc_axis_selection" ItemsSource="{Binding axes}" TabStripPlacement="Left" SelectionChanged="AxisSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="80" Height="836" VerticalAlignment="Top">
                                     <TabControl.Resources>
                                         <Style TargetType="{x:Type TabItem}">
                                             <Setter Property="Padding" Value="4" />
@@ -621,8 +621,8 @@
                                         <SolidColorBrush Color="#FF252525" Opacity="0"/>
                                     </TabControl.Background>
                                 </TabControl>
-                                <Canvas Height="900" Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" VerticalAlignment="Top" >
-                                    <Line  X1="3" Y1="2" X2="3" Y2="840" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
+                                <Canvas Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" VerticalAlignment="Top" >
+                                    <Line  X1="3" Y1="2" X2="3" Y2="836" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
                                 </Canvas>
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Margin="3,0,3,0">
                                     <StackPanel HorizontalAlignment="Center" Grid.Row="3" VerticalAlignment="Top" Grid.RowSpan="3">

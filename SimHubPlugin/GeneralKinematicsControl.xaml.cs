@@ -44,8 +44,9 @@ namespace User.PluginSdkDemo
                 get => x;
                 set
                 {
-                    if (Math.Abs(x - value) < 1e-9) return;
-                    x = value;
+                    double rounded = RoundPinCoordinate(value);
+                    if (Math.Abs(x - rounded) < 1e-9) return;
+                    x = rounded;
                     OnPropertyChanged(nameof(X));
                 }
             }
@@ -55,10 +56,16 @@ namespace User.PluginSdkDemo
                 get => y;
                 set
                 {
-                    if (Math.Abs(y - value) < 1e-9) return;
-                    y = value;
+                    double rounded = RoundPinCoordinate(value);
+                    if (Math.Abs(y - rounded) < 1e-9) return;
+                    y = rounded;
                     OnPropertyChanged(nameof(Y));
                 }
+            }
+
+            private static double RoundPinCoordinate(double value)
+            {
+                return Math.Round(value, 1, MidpointRounding.AwayFromZero);
             }
 
             public bool Grounded
@@ -205,6 +212,12 @@ namespace User.PluginSdkDemo
             public Ellipse Ring;
         }
 
+        private enum PoseDisplayMode
+        {
+            Live,
+            Test
+        }
+
         private sealed class ContactForceVisual
         {
             public Line Shaft;
@@ -226,6 +239,7 @@ namespace User.PluginSdkDemo
         private readonly ObservableCollection<BarRow> barRows = new ObservableCollection<BarRow>();
         private readonly Dictionary<uint, Ellipse> pinShapes = new Dictionary<uint, Ellipse>();
         private readonly Dictionary<uint, TextBlock> pinLabels = new Dictionary<uint, TextBlock>();
+        private readonly Dictionary<uint, FrameworkElement> groundedMarkers = new Dictionary<uint, FrameworkElement>();
         private readonly List<BarPinRing> barPinRings = new List<BarPinRing>();
         private readonly List<BarVisual> barVisuals = new List<BarVisual>();
         private readonly List<BarSensorVisual> barSensorVisuals = new List<BarSensorVisual>();
@@ -235,9 +249,11 @@ namespace User.PluginSdkDemo
         private KinematicParameters currentParameters;
         private bool isAutoFitting;
         private bool isLoading;
-        private bool liveMode = true;
+        private PoseDisplayMode poseMode = PoseDisplayMode.Live;
         private double lastAxisPosition;
         private double lastAxisForce;
+        private double testAxisPosition;
+        private double testAxisForce;
         private bool hasAxisState;
         private double railTravelNegative;
         private double railTravelPositive;
@@ -257,13 +273,30 @@ namespace User.PluginSdkDemo
         private const double MeteringIconHeight = 12.0;
         private const double MeteringIconWorldWidth = 35.0;
         private const double MeteringIconWorldHeight = 25.0;
+        private const double TestPosePositionStep = 1.0;
+        private const double TestPosePositionFineStep = 0.1;
+        private const double TestPoseForceStep = 1.0;
+        private const double PinPositionStep = 1.0;
+        private const double PinPositionFineStep = 0.1;
+        private const double RailTravelStep = 1.0;
+        private const double RailTravelFineStep = 0.1;
+        private const double GroundedMarkerWidth = 28.0;
+        private const double GroundedMarkerHeight = 24.0;
+        private const double GroundedMarkerOffsetY = 0.0;
 
         public delegate void KinematicParametersChangedEventHandler(KinematicParameters parameters);
         public event KinematicParametersChangedEventHandler KinematicParametersChanged;
 
         public GeneralKinematicsControl()
         {
+            isLoading = true;
             InitializeComponent();
+            testAxisPosition = 0.0;
+            testAxisForce = 0.0;
+            TextTestPosition.Text = testAxisPosition.ToString("0.###", CultureInfo.CurrentCulture);
+            TextTestForce.Text = testAxisForce.ToString("0.0", CultureInfo.CurrentCulture);
+            TestPosePanel.Visibility = Visibility.Collapsed;
+            isLoading = false;
             PinGrid.ItemsSource = pinRows;
             BarGrid.ItemsSource = barRows;
             pinRows.CollectionChanged += PinRows_CollectionChanged;
@@ -290,8 +323,8 @@ namespace User.PluginSdkDemo
             config = newConfig ?? new GeneralKinematicConfig();
             isLoading = true;
             LoadRowsFromConfig();
-            railTravelNegative = config.RailTravelNegative;
-            railTravelPositive = config.RailTravelPositive;
+            railTravelNegative = NormalizeNonNegativeMillimeters(config.RailTravelNegative);
+            railTravelPositive = NormalizeNonNegativeMillimeters(config.RailTravelPositive);
             TextRailNegative.Text = railTravelNegative.ToString("0.#", CultureInfo.CurrentCulture);
             TextRailPositive.Text = railTravelPositive.ToString("0.#", CultureInfo.CurrentCulture);
             isLoading = false;
@@ -303,7 +336,7 @@ namespace User.PluginSdkDemo
             lastAxisPosition = axisState.Position;
             lastAxisForce = axisState.Force;
             hasAxisState = true;
-            if (liveMode)
+            if (poseMode == PoseDisplayMode.Live)
             {
                 UpdatePose();
             }
@@ -534,6 +567,7 @@ namespace User.PluginSdkDemo
             {
                 RebuildConfigFromRows();
                 poseCache = GeneralKinematics.BuildPoseCache(config);
+                SetTestAxisPosition(testAxisPosition, poseMode == PoseDisplayMode.Test);
                 AutoFitCanvasToPoses(false);
                 BuildCanvas();
                 var parameters = GeneralKinematics.CalcKinematicParameters(config);
@@ -563,13 +597,17 @@ namespace User.PluginSdkDemo
 
         private void RefreshPose()
         {
-            if (liveMode)
+            switch (poseMode)
             {
-                UpdatePose();
-            }
-            else
-            {
-                UpdateStaticPose();
+                case PoseDisplayMode.Live:
+                    UpdatePose();
+                    break;
+                case PoseDisplayMode.Test:
+                    UpdateTestPose();
+                    break;
+                default:
+                    UpdateStaticPose();
+                    break;
             }
         }
 
@@ -578,6 +616,7 @@ namespace User.PluginSdkDemo
             canvas_kinematic.Children.Clear();
             pinShapes.Clear();
             pinLabels.Clear();
+            groundedMarkers.Clear();
             barPinRings.Clear();
             barVisuals.Clear();
             barSensorVisuals.Clear();
@@ -608,18 +647,88 @@ namespace User.PluginSdkDemo
 
             var start = ToCanvas(railPin.X - railTravelNegative, railPin.Y);
             var end = ToCanvas(railPin.X + railTravelPositive, railPin.Y);
-            var line = new Line
+            var baseLine = new Line
+            {
+                X1 = start.X,
+                Y1 = start.Y,
+                X2 = end.X,
+                Y2 = end.Y,
+                StrokeThickness = 6,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Stroke = new SolidColorBrush(Color.FromArgb(80, 120, 170, 210))
+            };
+            var guideLine = new Line
             {
                 X1 = start.X,
                 Y1 = start.Y,
                 X2 = end.X,
                 Y2 = end.Y,
                 StrokeThickness = 2,
-                StrokeDashArray = new DoubleCollection { 4, 4 },
-                Stroke = Brushes.LightSteelBlue,
-                Opacity = 0.8
+                StrokeDashArray = new DoubleCollection { 6, 4 },
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Stroke = Brushes.DeepSkyBlue,
+                Opacity = 0.9
             };
-            canvas_kinematic.Children.Add(line);
+
+            const double capLength = 16.0;
+            var capStroke = Brushes.DeepSkyBlue;
+            var capHaloStroke = new SolidColorBrush(Color.FromArgb(70, 120, 190, 240));
+            const double capHaloThickness = 6.0;
+            var startHalo = new Line
+            {
+                X1 = start.X,
+                Y1 = start.Y - capLength / 2.0,
+                X2 = start.X,
+                Y2 = start.Y + capLength / 2.0,
+                StrokeThickness = capHaloThickness,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Stroke = capHaloStroke
+            };
+            var endHalo = new Line
+            {
+                X1 = end.X,
+                Y1 = end.Y - capLength / 2.0,
+                X2 = end.X,
+                Y2 = end.Y + capLength / 2.0,
+                StrokeThickness = capHaloThickness,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Stroke = capHaloStroke
+            };
+            var startCap = new Line
+            {
+                X1 = start.X,
+                Y1 = start.Y - capLength / 2.0,
+                X2 = start.X,
+                Y2 = start.Y + capLength / 2.0,
+                StrokeThickness = 2.0,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Stroke = capStroke,
+                Opacity = 0.95
+            };
+            var endCap = new Line
+            {
+                X1 = end.X,
+                Y1 = end.Y - capLength / 2.0,
+                X2 = end.X,
+                Y2 = end.Y + capLength / 2.0,
+                StrokeThickness = 2.0,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Stroke = capStroke,
+                Opacity = 0.95
+            };
+
+            canvas_kinematic.Children.Add(baseLine);
+            canvas_kinematic.Children.Add(guideLine);
+            canvas_kinematic.Children.Add(startHalo);
+            canvas_kinematic.Children.Add(endHalo);
+            canvas_kinematic.Children.Add(startCap);
+            canvas_kinematic.Children.Add(endCap);
         }
 
         private void BuildBars()
@@ -700,6 +809,13 @@ namespace User.PluginSdkDemo
                     Stroke = Brushes.White,
                     StrokeThickness = 1
                 };
+                if (row.Grounded)
+                {
+                    var marker = CreateGroundedMarker();
+                    Panel.SetZIndex(marker, 1);
+                    canvas_kinematic.Children.Add(marker);
+                    groundedMarkers[row.PinId] = marker;
+                }
                 var label = new TextBlock
                 {
                     Text = row.PinId.ToString(CultureInfo.CurrentCulture),
@@ -896,6 +1012,10 @@ namespace User.PluginSdkDemo
                     Canvas.SetLeft(label, point.X + 4);
                     Canvas.SetTop(label, point.Y + 4);
                 }
+                if (groundedMarkers.TryGetValue(row.PinId, out var marker))
+                {
+                    PositionGroundedMarker(marker, point);
+                }
             }
 
             UpdateBarPinRingsFromConfig();
@@ -982,7 +1102,19 @@ namespace User.PluginSdkDemo
         private void UpdatePose()
         {
             if (poseCache == null || poseCache.PinPositionsX.Length == 0) return;
-            if (!TryGetSegment(lastAxisPosition, out int idx, out double t)) return;
+            UpdatePoseAtPosition(lastAxisPosition);
+        }
+
+        private void UpdateTestPose()
+        {
+            if (poseCache == null || poseCache.PinPositionsX.Length == 0) return;
+            SetTestAxisPosition(testAxisPosition, false);
+            UpdatePoseAtPosition(testAxisPosition);
+        }
+
+        private void UpdatePoseAtPosition(double contactPos)
+        {
+            if (!TryGetSegment(contactPos, out int idx, out double t)) return;
 
             int lastIndex = poseCache.PinPositionsX.Length - 1;
             int next = Math.Min(idx + 1, lastIndex);
@@ -1013,6 +1145,10 @@ namespace User.PluginSdkDemo
                 {
                     Canvas.SetLeft(label, point.X + 4);
                     Canvas.SetTop(label, point.Y + 4);
+                }
+                if (groundedMarkers.TryGetValue(pinId, out var marker))
+                {
+                    PositionGroundedMarker(marker, point);
                 }
             }
 
@@ -1048,7 +1184,7 @@ namespace User.PluginSdkDemo
                 }
             }
 
-            UpdateContactForceArrowFromLive();
+            UpdateContactForceArrowFromPose(contactPos);
             UpdateMeteringSensorsFromLive();
         }
 
@@ -1249,9 +1385,20 @@ namespace User.PluginSdkDemo
             if (height <= 1.0) height = canvas_kinematic.Height;
             if (width <= 1.0 || height <= 1.0) return;
 
-            const double padding = 20.0;
-            double usableWidth = Math.Max(1.0, width - 2.0 * padding);
-            double usableHeight = Math.Max(1.0, height - 2.0 * padding);
+            const double basePadding = 20.0;
+            double padLeft = basePadding;
+            double padRight = basePadding;
+            double padTop = basePadding;
+            double padBottom = basePadding;
+            if (pinRows.Any(p => p.Grounded))
+            {
+                padLeft += GroundedMarkerWidth / 2.0;
+                padRight += GroundedMarkerWidth / 2.0;
+                padBottom += GroundedMarkerOffsetY + GroundedMarkerHeight;
+            }
+
+            double usableWidth = Math.Max(1.0, width - padLeft - padRight);
+            double usableHeight = Math.Max(1.0, height - padTop - padBottom);
             double rangeX = Math.Max(1e-6, maxX - minX);
             double rangeY = Math.Max(1e-6, maxY - minY);
             double scale = Math.Max(rangeX / usableWidth, rangeY / usableHeight);
@@ -1262,8 +1409,8 @@ namespace User.PluginSdkDemo
             double extraX = Math.Max(0.0, usableWidth - rangeXCanvas);
             double extraY = Math.Max(0.0, usableHeight - rangeYCanvas);
 
-            double ox = padding + extraX / 2.0 - minX / scale;
-            double top = padding + extraY / 2.0;
+            double ox = padLeft + extraX / 2.0 - minX / scale;
+            double top = padTop + extraY / 2.0;
             double oy = height - maxY / scale - top;
 
             isAutoFitting = true;
@@ -1418,7 +1565,7 @@ namespace User.PluginSdkDemo
             UpdateContactForceArrow(contactPin.X, contactPin.Y, direction, labelText);
         }
 
-        private void UpdateContactForceArrowFromLive()
+        private void UpdateContactForceArrowFromPose(double contactPos)
         {
             if (contactForceVisual == null) return;
             var contactPin = pinRows.FirstOrDefault(p => p.IsContactPoint);
@@ -1430,7 +1577,7 @@ namespace User.PluginSdkDemo
 
             double x = currentX[idx];
             double y = currentY[idx];
-            if (!TryGetContactPathDirection(lastAxisPosition, contactPin.PinId, out var direction))
+            if (!TryGetContactPathDirection(contactPos, contactPin.PinId, out var direction))
             {
                 SetContactForceVisibility(false);
                 return;
@@ -1463,7 +1610,7 @@ namespace User.PluginSdkDemo
             var left = basePoint + perp * (ContactArrowHeadWidth / 2.0);
             var right = basePoint - perp * (ContactArrowHeadWidth / 2.0);
             contactForceVisual.Head.Points = new PointCollection { head, left, right };
-            UpdateContactForceLabel(head, dirCanvas, labelText);
+            UpdateContactForceLabel(head, labelText);
             SetContactForceVisibility(true);
         }
 
@@ -1479,7 +1626,7 @@ namespace User.PluginSdkDemo
             }
         }
 
-        private void UpdateContactForceLabel(Point head, Vector dirCanvas, string labelText)
+        private void UpdateContactForceLabel(Point head, string labelText)
         {
             if (contactForceVisual?.Label == null) return;
             if (string.IsNullOrWhiteSpace(labelText))
@@ -1491,14 +1638,17 @@ namespace User.PluginSdkDemo
             contactForceVisual.Label.Text = labelText;
             contactForceVisual.Label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             var size = contactForceVisual.Label.DesiredSize;
-
-            var perp = new Vector(-dirCanvas.Y, dirCanvas.X);
-            var mid = head - dirCanvas * (ContactArrowLength * 0.5);
-            var pos = mid + perp * -12.0;
-
-            Canvas.SetLeft(contactForceVisual.Label, pos.X - size.Width / 2.0);
-            Canvas.SetTop(contactForceVisual.Label, pos.Y - size.Height / 2.0);
+            var anchor = GetContactForceLabelAnchor(head);
+            Canvas.SetLeft(contactForceVisual.Label, anchor.X - size.Width / 2.0);
+            Canvas.SetTop(contactForceVisual.Label, anchor.Y - size.Height - 6.0);
             contactForceVisual.Label.Visibility = Visibility.Visible;
+        }
+
+        private Point GetContactForceLabelAnchor(Point fallback)
+        {
+            var shaft = contactForceVisual?.Shaft;
+            if (shaft == null) return fallback;
+            return new Point((shaft.X1 + shaft.X2) / 2.0, (shaft.Y1 + shaft.Y2) / 2.0);
         }
 
         private bool TryGetContactPathDirection(double contactPos, uint contactPinId, out Vector direction)
@@ -1541,20 +1691,40 @@ namespace User.PluginSdkDemo
             return false;
         }
 
+        private bool TryGetDisplayInputs(out double contactPos, out double contactForce)
+        {
+            contactPos = 0.0;
+            contactForce = 0.0;
+            switch (poseMode)
+            {
+                case PoseDisplayMode.Live:
+                    if (!hasAxisState) return false;
+                    contactPos = lastAxisPosition;
+                    contactForce = lastAxisForce;
+                    return true;
+                case PoseDisplayMode.Test:
+                    contactPos = testAxisPosition;
+                    contactForce = testAxisForce;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         private bool TryGetContactForceLabel(out string label)
         {
             label = null;
-            if (!hasAxisState) return false;
-            label = FormatForceLabel(lastAxisForce);
+            if (!TryGetDisplayInputs(out _, out double force)) return false;
+            label = FormatForceLabel(force);
             return true;
         }
 
         private bool TryGetMeasuredForceLabel(out string label)
         {
             label = null;
-            if (!hasAxisState) return false;
-            if (!TryGetForceConversionFactor(lastAxisPosition, out double factor)) return false;
-            double measured = lastAxisForce / factor;
+            if (!TryGetDisplayInputs(out double contactPos, out double contactForce)) return false;
+            if (!TryGetForceConversionFactor(contactPos, out double factor)) return false;
+            double measured = contactForce / factor;
             if (double.IsNaN(measured) || double.IsInfinity(measured)) return false;
             label = FormatForceLabel(measured);
             return true;
@@ -1644,9 +1814,8 @@ namespace User.PluginSdkDemo
             var size = sensor.Label.DesiredSize;
             double iconWidth = sensor.Icon.Width > 0.0 ? sensor.Icon.Width : MeteringIconWidth;
             double iconHeight = sensor.Icon.Height > 0.0 ? sensor.Icon.Height : MeteringIconHeight;
-            var offset = new Vector(iconWidth / 2.0 + 6.0, -iconHeight / 2.0 - 2.0);
-            Canvas.SetLeft(sensor.Label, center.X + offset.X);
-            Canvas.SetTop(sensor.Label, center.Y + offset.Y - size.Height / 2.0);
+            Canvas.SetLeft(sensor.Label, center.X - size.Width / 2.0);
+            Canvas.SetTop(sensor.Label, center.Y - iconHeight / 2.0 - size.Height - 4.0);
             sensor.Label.Visibility = Visibility.Visible;
         }
 
@@ -1915,15 +2084,28 @@ namespace User.PluginSdkDemo
 
         private void PoseModeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (PoseModeCombo.SelectedIndex == 0)
+            if (PoseModeCombo == null) return;
+            PoseDisplayMode newMode = PoseDisplayMode.Live;
+            switch (PoseModeCombo.SelectedIndex)
             {
-                liveMode = true;
+                case 1:
+                    newMode = PoseDisplayMode.Test;
+                    break;
             }
-            else
+
+            poseMode = newMode;
+            if (TestPosePanel != null)
             {
-                liveMode = false;
+                TestPosePanel.Visibility = poseMode == PoseDisplayMode.Test ? Visibility.Visible : Visibility.Collapsed;
             }
-            RefreshPose();
+            if (poseMode == PoseDisplayMode.Test)
+            {
+                SetTestAxisPosition(testAxisPosition, true);
+            }
+            if (!isLoading)
+            {
+                RefreshPose();
+            }
         }
 
         private void RailTravel_TextChanged(object sender, TextChangedEventArgs e)
@@ -1946,6 +2128,94 @@ namespace User.PluginSdkDemo
             TextRailPositive.Text = railTravelPositive.ToString("0.###", CultureInfo.CurrentCulture);
         }
 
+        private void RailTravel_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (isLoading) return;
+            bool isNegative = ReferenceEquals(sender, TextRailNegative);
+            bool isPositive = ReferenceEquals(sender, TextRailPositive);
+            if (!isNegative && !isPositive) return;
+
+            var textBox = isNegative ? TextRailNegative : TextRailPositive;
+            double value = isNegative ? railTravelNegative : railTravelPositive;
+            if (textBox != null && TryParseDouble(textBox.Text, out double parsed))
+            {
+                value = parsed;
+            }
+
+            double step = (Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? RailTravelFineStep : RailTravelStep;
+            value += e.Delta > 0 ? step : -step;
+            value = NormalizeNonNegativeMillimeters(value);
+
+            if (isNegative)
+            {
+                railTravelNegative = value;
+            }
+            else
+            {
+                railTravelPositive = value;
+            }
+
+            if (textBox != null)
+            {
+                isLoading = true;
+                textBox.Text = value.ToString("0.###", CultureInfo.CurrentCulture);
+                isLoading = false;
+            }
+
+            QueueRebuild();
+            e.Handled = true;
+        }
+
+        private void PinGrid_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (isLoading) return;
+            if (!(e.OriginalSource is DependencyObject source)) return;
+            var cell = FindAncestor<DataGridCell>(source);
+            if (cell == null) return;
+            if (!(cell.DataContext is PinRow row)) return;
+            if (!(cell.Column?.Header is string header)) return;
+
+            bool isX = string.Equals(header, "X", StringComparison.OrdinalIgnoreCase);
+            bool isY = string.Equals(header, "Y", StringComparison.OrdinalIgnoreCase);
+            if (!isX && !isY) return;
+
+            double step = (Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? PinPositionFineStep : PinPositionStep;
+            double delta = e.Delta > 0 ? step : -step;
+            if (isX)
+            {
+                row.X += delta;
+            }
+            else
+            {
+                row.Y += delta;
+            }
+
+            e.Handled = true;
+        }
+
+        private void TestPose_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (isLoading) return;
+            if (TryParseDouble(TextTestPosition.Text, out double position))
+            {
+                SetTestAxisPosition(position, false);
+            }
+            if (TryParseDouble(TextTestForce.Text, out double force))
+            {
+                SetTestAxisForce(force, false);
+            }
+            if (poseMode == PoseDisplayMode.Test)
+            {
+                UpdateTestPose();
+            }
+        }
+
+        private void TestPose_LostFocus(object sender, RoutedEventArgs e)
+        {
+            SetTestAxisPosition(testAxisPosition, true);
+            SetTestAxisForce(testAxisForce, true);
+        }
+
         private bool TryParseNonNegative(string text, out double value)
         {
             value = 0.0;
@@ -1957,8 +2227,201 @@ namespace User.PluginSdkDemo
             {
                 parsed = 0.0;
             }
-            value = parsed;
+            value = NormalizeNonNegativeMillimeters(parsed);
             return true;
+        }
+
+        private bool TryParseDouble(string text, out double value)
+        {
+            return double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+        }
+
+        private void TestPose_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (isLoading) return;
+            if (sender == TextTestPosition)
+            {
+                double value = testAxisPosition;
+                if (TryParseDouble(TextTestPosition.Text, out double parsed))
+                {
+                    value = parsed;
+                }
+                double step = (Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? TestPosePositionFineStep : TestPosePositionStep;
+                value += e.Delta > 0 ? step : -step;
+                SetTestAxisPosition(value, true);
+            }
+            else if (sender == TextTestForce)
+            {
+                double value = testAxisForce;
+                if (TryParseDouble(TextTestForce.Text, out double parsed))
+                {
+                    value = parsed;
+                }
+                value += e.Delta > 0 ? TestPoseForceStep : -TestPoseForceStep;
+                SetTestAxisForce(value, true);
+            }
+            else
+            {
+                return;
+            }
+
+            if (poseMode == PoseDisplayMode.Test)
+            {
+                UpdateTestPose();
+            }
+            e.Handled = true;
+        }
+
+        private bool TryGetContactRange(out double min, out double max)
+        {
+            min = 0.0;
+            max = 0.0;
+            if (poseCache == null || poseCache.ContactPositions.Length == 0) return false;
+            min = poseCache.ContactPositions.First();
+            max = poseCache.ContactPositions.Last();
+            if (min > max)
+            {
+                double tmp = min;
+                min = max;
+                max = tmp;
+            }
+            return true;
+        }
+
+        private void SetTestAxisPosition(double value, bool updateText)
+        {
+            value = RoundMillimeters(value);
+            if (TryGetContactRange(out double min, out double max))
+            {
+                value = Clamp(value, min, max);
+            }
+            testAxisPosition = value;
+            if (updateText && TextTestPosition != null)
+            {
+                isLoading = true;
+                TextTestPosition.Text = testAxisPosition.ToString("0.###", CultureInfo.CurrentCulture);
+                isLoading = false;
+            }
+        }
+
+        private void SetTestAxisForce(double value, bool updateText)
+        {
+            testAxisForce = value;
+            if (updateText && TextTestForce != null)
+            {
+                isLoading = true;
+                TextTestForce.Text = testAxisForce.ToString("0.0", CultureInfo.CurrentCulture);
+                isLoading = false;
+            }
+        }
+
+        private static T FindAncestor<T>(DependencyObject source) where T : DependencyObject
+        {
+            DependencyObject current = source;
+            while (current != null)
+            {
+                if (current is T match) return match;
+                current = VisualTreeHelper.GetParent(current);
+            }
+            return null;
+        }
+
+        private FrameworkElement CreateGroundedMarker()
+        {
+            double width = GroundedMarkerWidth;
+            double height = GroundedMarkerHeight;
+            double center = width / 2.0;
+            var stroke = Brushes.DarkGray;
+            double thickness = 1.5;
+            double apexY = 0.0;
+            double baseY = height - 8.0;
+            double baseHalf = width * 0.45;
+            double triangleHalf = width * 0.32;
+
+            var canvas = new Canvas
+            {
+                Width = width,
+                Height = height,
+                IsHitTestVisible = false
+            };
+
+            var triangle = new Polygon
+            {
+                Stroke = stroke,
+                StrokeThickness = thickness,
+                Fill = Brushes.Transparent,
+                Points = new PointCollection
+                {
+                    new Point(center, apexY),
+                    new Point(center - triangleHalf, baseY),
+                    new Point(center + triangleHalf, baseY)
+                }
+            };
+            canvas.Children.Add(triangle);
+
+            var baseLine = new Line
+            {
+                X1 = center - baseHalf,
+                Y1 = baseY,
+                X2 = center + baseHalf,
+                Y2 = baseY,
+                Stroke = stroke,
+                StrokeThickness = thickness,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round
+            };
+            canvas.Children.Add(baseLine);
+
+            double hatchTop = baseY + 2.0;
+            double hatchHeight = Math.Max(4.0, height - hatchTop - 1.0);
+            double hatchWidth = Math.Min(hatchHeight * 0.9, baseHalf * 0.6);
+            int hatchCount = 4;
+            double left = center - baseHalf;
+            double spacing = (baseHalf * 2.0) / hatchCount;
+            for (int i = 0; i < hatchCount; i++)
+            {
+                double x = left + (i + 0.5) * spacing;
+                AddGroundHatch(canvas, x, hatchTop, hatchWidth, hatchHeight, stroke, thickness);
+            }
+
+            return canvas;
+        }
+
+        private void AddGroundHatch(Canvas canvas, double x, double y, double width, double height, Brush stroke, double thickness)
+        {
+            var line = new Line
+            {
+                X1 = x - width / 2.0,
+                Y1 = y,
+                X2 = x + width / 2.0,
+                Y2 = y + height,
+                Stroke = stroke,
+                StrokeThickness = thickness,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round
+            };
+            canvas.Children.Add(line);
+        }
+
+        private void PositionGroundedMarker(FrameworkElement marker, Point pinPoint)
+        {
+            if (marker == null) return;
+            Canvas.SetLeft(marker, pinPoint.X - marker.Width / 2.0);
+            Canvas.SetTop(marker, pinPoint.Y + GroundedMarkerOffsetY);
+        }
+
+        private static double RoundMillimeters(double value)
+        {
+            return Math.Round(value, 1, MidpointRounding.AwayFromZero);
+        }
+
+        private static double NormalizeNonNegativeMillimeters(double value)
+        {
+            if (value < 0.0)
+            {
+                value = 0.0;
+            }
+            return RoundMillimeters(value);
         }
 
         private void OnPickPinsClicked(object sender, RoutedEventArgs e)
