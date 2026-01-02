@@ -1,0 +1,29 @@
+{
+  "configItems": [
+    {
+      "axisConfig": {
+        "axisId": "AXIS_ID_1",
+        "kinematicParameters": {
+          "contactPointPosMinAbs": -1259,
+          "contactPointPosMaxAbs": 995,
+          "coeffsForceFactorOverContactPointPos": [0.62018491258905528, -0.0017137274032465644, 1.0782827515316131e-5, 2.7143398917926853e-9, 7.34243918858266e-11],
+          "coeffsSledPosOverContactPointPos": [55.062262404459531, 0.55548815739653268, 0.00075906125753918377, -2.8151276222038656e-6, -1.112155666943805e-8]
+        },
+        "stepsPerMm": 1000,
+        "fMaxLoadcell": 1962,
+        "mmPerRev": 5,
+        "kfConstVel": {
+          "noiseScaling": 128
+        },
+        "diyPedal": {
+          "lPivotFoot": 180,
+          "lPivotLink": 100,
+          "lLink": 153,
+          "lPivotSledY": 32,
+          "lPivotSledXMin": 82,
+          "lSledStroke": 114
+        }
+      }
+    }
+  ]
+}

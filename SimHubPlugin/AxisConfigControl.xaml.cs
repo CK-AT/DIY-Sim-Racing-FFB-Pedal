@@ -12,9 +12,6 @@ namespace User.PluginSdkDemo
         private AxisConfig config;
         private DiyFfbPluginUI ui;
         private DiyFfbPlugin plugin;
-        private bool suppressKinematicSelection;
-        private DIYPedalKinematicConfig cachedDiyConfig;
-        private GeneralKinematicConfig cachedGeneralConfig;
         public delegate void DebugMessageEventHandler(string message);
         public event DebugMessageEventHandler DebugMessage;
         public delegate void KinematicParametersChangedEventHandler(KinematicParameters parameters);
@@ -24,14 +21,7 @@ namespace User.PluginSdkDemo
         {
             config = GetDefaultConfig(AxisID.AxisUndefined);
             InitializeComponent();
-            DiyPedalKinematicsControl.KinematicParametersChanged += DiyPedalKinematicsControl_KinematicParametersChanged;
             GeneralKinematicsControl.KinematicParametersChanged += GeneralKinematicsControl_KinematicParametersChanged;
-        }
-
-        private void DiyPedalKinematicsControl_KinematicParametersChanged(KinematicParameters parameters)
-        {
-            config.KinematicParameters = parameters;
-            KinematicParametersChanged?.Invoke(parameters);
         }
 
         private void GeneralKinematicsControl_KinematicParametersChanged(KinematicParameters parameters)
@@ -44,14 +34,7 @@ namespace User.PluginSdkDemo
         {
             if (config.AxisId == axis_state.AxisId)
             {
-                if (config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.DiyPedal)
-                {
-                    DiyPedalKinematicsControl.OnAxisStateUpdate(axis_state);
-                }
-                else if (config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.GeneralKinematic)
-                {
-                    GeneralKinematicsControl.OnAxisStateUpdate(axis_state);
-                }
+                GeneralKinematicsControl.OnAxisStateUpdate(axis_state);
             }
         }
 
@@ -59,7 +42,6 @@ namespace User.PluginSdkDemo
         {
             this.ui = ui;
             this.plugin = plugin;
-            DiyPedalKinematicsControl.SetGui(ui, plugin);
             GeneralKinematicsControl.SetGui(ui, plugin);
         }
 
@@ -71,8 +53,8 @@ namespace User.PluginSdkDemo
             new_config.KfConstVel.NoiseScaling = 128;
             new_config.BLoadcellInverted = false;
             new_config.BMotorInverted = false;
-            new_config.DiyPedal = DiyPedalKinematics.GetDefaultConfig();
-            new_config.KinematicParameters = DiyPedalKinematics.CalcKinematicParameters(new_config.DiyPedal);
+            new_config.GeneralKinematic = BuildDefaultGeneralKinematicConfig();
+            new_config.KinematicParameters = GeneralKinematics.CalcKinematicParameters(new_config.GeneralKinematic);
             new_config.FMaxLoadcell = (uint)Math.Round(200 * 9.81f);
             new_config.StepsPerMm = 1000;
             new_config.MmPerRev = 5;
@@ -82,45 +64,71 @@ namespace User.PluginSdkDemo
 
             return new_config;
         }
+
+        private static GeneralKinematicConfig BuildDefaultGeneralKinematicConfig()
+        {
+            GeneralKinematicConfig config = new GeneralKinematicConfig
+            {
+                RailTravelNegative = 10.0f,
+                RailTravelPositive = 10.0f
+            };
+            config.Pins.Add(new GeneralKinematicPin
+            {
+                PinId = 1,
+                X = 0.0f,
+                Y = 0.0f,
+                Grounded = true
+            });
+            config.Pins.Add(new GeneralKinematicPin
+            {
+                PinId = 2,
+                X = 100.0f,
+                Y = 0.0f,
+                IsRailInterface = true
+            });
+            config.Pins.Add(new GeneralKinematicPin
+            {
+                PinId = 3,
+                X = 50.0f,
+                Y = 50.0f,
+                IsContactPoint = true
+            });
+
+            GeneralKinematicBar metering = new GeneralKinematicBar
+            {
+                IsMetering = true
+            };
+            metering.PinIds.Add(2);
+            metering.PinIds.Add(3);
+            config.Bars.Add(metering);
+
+            GeneralKinematicBar link = new GeneralKinematicBar();
+            link.PinIds.Add(1);
+            link.PinIds.Add(3);
+            config.Bars.Add(link);
+
+            return config;
+        }
         public void UpdateConfig(AxisConfig new_config)
         {
             config = new_config;
-            CacheCurrentKinematicConfig();
-            SyncKinematicSelection();
-            DiyPedalKinematicsControl.Visibility = config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.DiyPedal
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-            GeneralKinematicsControl.Visibility = config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.GeneralKinematic
-                ? Visibility.Visible
-                : Visibility.Collapsed;
+            GeneralKinematicsControl.Visibility = Visibility.Visible;
 
-            switch (config.KinematicConfigCase)
+            try
             {
-                case AxisConfig.KinematicConfigOneofCase.DiyPedal:
-                    if (config.DiyPedal == null)
-                    {
-                        config.DiyPedal = DiyPedalKinematics.GetDefaultConfig();
-                    }
-                    cachedDiyConfig = config.DiyPedal;
-                    DiyPedalKinematicsControl.UpdateConfig(config.DiyPedal);
-                    break;
-                case AxisConfig.KinematicConfigOneofCase.GeneralKinematic:
-                    try
-                    {
-                        if (config.GeneralKinematic == null)
-                        {
-                            config.GeneralKinematic = new GeneralKinematicConfig();
-                        }
-                        cachedGeneralConfig = config.GeneralKinematic;
-                        GeneralKinematicsControl.UpdateConfig(config.GeneralKinematic);
-                    }
-                    catch (Exception caughtEx)
-                    {
-                        DebugMessage?.Invoke(caughtEx.Message);
-                    }
-                    break;
-                default:
-                    break;
+                if (config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.DiyPedal && config.DiyPedal != null)
+                {
+                    config.GeneralKinematic = ConvertDiyPedalToGeneral(config.DiyPedal);
+                }
+                if (config.GeneralKinematic == null)
+                {
+                    config.GeneralKinematic = BuildDefaultGeneralKinematicConfig();
+                }
+                GeneralKinematicsControl.UpdateConfig(config.GeneralKinematic);
+            }
+            catch (Exception caughtEx)
+            {
+                DebugMessage?.Invoke(caughtEx.Message);
             }
 
             Slider_LC_rate.Value = Math.Round(config.FMaxLoadcell / 9.81);
@@ -166,85 +174,118 @@ namespace User.PluginSdkDemo
             Slider_physics_oversampling.Value = config.PhysicsIterationsPerSample;
         }
 
-        private void CacheCurrentKinematicConfig()
+        private static GeneralKinematicConfig ConvertDiyPedalToGeneral(DIYPedalKinematicConfig diy)
         {
-            if (config == null) return;
-            switch (config.KinematicConfigCase)
+            if (diy == null)
             {
-                case AxisConfig.KinematicConfigOneofCase.DiyPedal:
-                    cachedDiyConfig = config.DiyPedal;
-                    break;
-                case AxisConfig.KinematicConfigOneofCase.GeneralKinematic:
-                    cachedGeneralConfig = config.GeneralKinematic;
-                    break;
+                return BuildDefaultGeneralKinematicConfig();
             }
-        }
 
-        private void SyncKinematicSelection()
-        {
-            suppressKinematicSelection = true;
-            switch (config.KinematicConfigCase)
+            double pivotX = 0.0;
+            double pivotY = 0.0;
+            double stroke = diy.LSledStroke;
+            if (stroke <= 0.0)
             {
-                case AxisConfig.KinematicConfigOneofCase.GeneralKinematic:
-                    KinematicModelCombo.SelectedIndex = 1;
-                    break;
-                case AxisConfig.KinematicConfigOneofCase.DiyPedal:
-                default:
-                    KinematicModelCombo.SelectedIndex = 0;
-                    break;
+                return BuildDefaultGeneralKinematicConfig();
             }
-            suppressKinematicSelection = false;
-        }
 
-        private void KinematicModelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (suppressKinematicSelection) return;
-            switch (KinematicModelCombo.SelectedIndex)
-            {
-                case 1:
-                    SwitchToGeneralKinematics();
-                    break;
-                case 0:
-                default:
-                    SwitchToDiyPedal();
-                    break;
-            }
-        }
+            double railX = diy.LPivotSledXMin;
+            double railY = diy.LPivotSledY;
+            double rPivotLink = diy.LPivotLink;
+            double rLink = diy.LLink;
 
-        private void SwitchToDiyPedal()
-        {
-            if (config == null) return;
-            if (config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.DiyPedal) return;
-            if (config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.GeneralKinematic)
+            if (rPivotLink <= 0.0 || rLink <= 0.0)
             {
-                cachedGeneralConfig = config.GeneralKinematic;
+                return BuildDefaultGeneralKinematicConfig();
             }
-            if (cachedDiyConfig == null)
-            {
-                cachedDiyConfig = DiyPedalKinematics.GetDefaultConfig();
-            }
-            config.DiyPedal = cachedDiyConfig;
-            DiyPedalKinematicsControl.Visibility = Visibility.Visible;
-            GeneralKinematicsControl.Visibility = Visibility.Collapsed;
-            DiyPedalKinematicsControl.UpdateConfig(config.DiyPedal);
-        }
 
-        private void SwitchToGeneralKinematics()
-        {
-            if (config == null) return;
-            if (config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.GeneralKinematic) return;
-            if (config.KinematicConfigCase == AxisConfig.KinematicConfigOneofCase.DiyPedal)
+            double dx = railX - pivotX;
+            double dy = railY - pivotY;
+            double d = Math.Sqrt(dx * dx + dy * dy);
+            if (d <= 1e-6 || d > rPivotLink + rLink || d < Math.Abs(rPivotLink - rLink))
             {
-                cachedDiyConfig = config.DiyPedal;
+                return BuildDefaultGeneralKinematicConfig();
             }
-            if (cachedGeneralConfig == null)
+
+            double a = (rPivotLink * rPivotLink - rLink * rLink + d * d) / (2.0 * d);
+            double h2 = rPivotLink * rPivotLink - a * a;
+            if (h2 < 0.0)
             {
-                cachedGeneralConfig = new GeneralKinematicConfig();
+                h2 = 0.0;
             }
-            config.GeneralKinematic = cachedGeneralConfig;
-            DiyPedalKinematicsControl.Visibility = Visibility.Collapsed;
-            GeneralKinematicsControl.Visibility = Visibility.Visible;
-            GeneralKinematicsControl.UpdateConfig(config.GeneralKinematic);
+            double h = Math.Sqrt(h2);
+
+            double x2 = pivotX + a * dx / d;
+            double y2 = pivotY + a * dy / d;
+            double rx = -dy / d;
+            double ry = dx / d;
+
+            double cx1 = x2 + h * rx;
+            double cy1 = y2 + h * ry;
+            double cx2 = x2 - h * rx;
+            double cy2 = y2 - h * ry;
+
+            double linkX = cx1;
+            double linkY = cy1;
+            if (cy2 > cy1)
+            {
+                linkX = cx2;
+                linkY = cy2;
+            }
+
+            double pedalScale = diy.LPivotFoot / rPivotLink;
+            double contactX = linkX * pedalScale;
+            double contactY = linkY * pedalScale;
+
+            GeneralKinematicConfig config = new GeneralKinematicConfig
+            {
+                RailTravelNegative = 0.0f,
+                RailTravelPositive = (float)stroke
+            };
+
+            config.Pins.Add(new GeneralKinematicPin
+            {
+                PinId = 1,
+                X = (float)pivotX,
+                Y = (float)pivotY,
+                Grounded = true
+            });
+            config.Pins.Add(new GeneralKinematicPin
+            {
+                PinId = 2,
+                X = (float)railX,
+                Y = (float)railY,
+                IsRailInterface = true
+            });
+            config.Pins.Add(new GeneralKinematicPin
+            {
+                PinId = 3,
+                X = (float)linkX,
+                Y = (float)linkY
+            });
+            config.Pins.Add(new GeneralKinematicPin
+            {
+                PinId = 4,
+                X = (float)contactX,
+                Y = (float)contactY,
+                IsContactPoint = true
+            });
+
+            GeneralKinematicBar metering = new GeneralKinematicBar
+            {
+                IsMetering = true
+            };
+            metering.PinIds.Add(2);
+            metering.PinIds.Add(3);
+            config.Bars.Add(metering);
+
+            GeneralKinematicBar pedal = new GeneralKinematicBar();
+            pedal.PinIds.Add(1);
+            pedal.PinIds.Add(3);
+            pedal.PinIds.Add(4);
+            config.Bars.Add(pedal);
+
+            return config;
         }
         private void KF_filter_order_changed(object sender, SelectionChangedEventArgs e)
         {

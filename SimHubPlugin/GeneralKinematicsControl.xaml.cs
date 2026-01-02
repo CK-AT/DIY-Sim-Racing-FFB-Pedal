@@ -105,6 +105,7 @@ namespace User.PluginSdkDemo
         {
             private readonly SortedSet<uint> pinIds = new SortedSet<uint>();
             private bool isMetering;
+            private Brush barBrush = Brushes.White;
 
             public bool IsMetering
             {
@@ -114,6 +115,17 @@ namespace User.PluginSdkDemo
                     if (isMetering == value) return;
                     isMetering = value;
                     OnPropertyChanged(nameof(IsMetering));
+                }
+            }
+
+            public Brush BarBrush
+            {
+                get => barBrush;
+                set
+                {
+                    if (Equals(barBrush, value)) return;
+                    barBrush = value;
+                    OnPropertyChanged(nameof(BarBrush));
                 }
             }
 
@@ -179,7 +191,14 @@ namespace User.PluginSdkDemo
         private sealed class BarVisual
         {
             public uint[] PinIds;
-            public Line Line;
+            public Polyline Outline;
+            public Brush Brush;
+        }
+
+        private sealed class BarPinRing
+        {
+            public uint PinId;
+            public Ellipse Ring;
         }
 
         private GeneralKinematicConfig config;
@@ -189,9 +208,11 @@ namespace User.PluginSdkDemo
         private readonly ObservableCollection<BarRow> barRows = new ObservableCollection<BarRow>();
         private readonly Dictionary<uint, Ellipse> pinShapes = new Dictionary<uint, Ellipse>();
         private readonly Dictionary<uint, TextBlock> pinLabels = new Dictionary<uint, TextBlock>();
+        private readonly List<BarPinRing> barPinRings = new List<BarPinRing>();
         private readonly List<BarVisual> barVisuals = new List<BarVisual>();
         private readonly Dictionary<uint, int> pinIndexById = new Dictionary<uint, int>();
         private readonly DispatcherTimer rebuildTimer;
+        private bool isAutoFitting;
         private bool isLoading;
         private bool liveMode = true;
         private double lastAxisPosition;
@@ -212,6 +233,7 @@ namespace User.PluginSdkDemo
             barRows.CollectionChanged += BarRows_CollectionChanged;
             rebuildTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
             rebuildTimer.Tick += RebuildTimer_Tick;
+            canvas_kinematic.SizeChanged += CanvasKinematic_SizeChanged;
         }
 
         public void SetGui(DiyFfbPluginUI ui, DiyFfbPlugin plugin)
@@ -280,6 +302,7 @@ namespace User.PluginSdkDemo
                     row.PropertyChanged += OnBarRowPropertyChanged;
                 }
             }
+            UpdateBarBrushes();
             if (isLoading) return;
             QueueRebuild();
         }
@@ -411,6 +434,7 @@ namespace User.PluginSdkDemo
                 row.SetPins(bar.PinIds);
                 barRows.Add(row);
             }
+            UpdateBarBrushes();
         }
 
         private void RebuildTimer_Tick(object sender, EventArgs e)
@@ -466,6 +490,7 @@ namespace User.PluginSdkDemo
             {
                 RebuildConfigFromRows();
                 poseCache = GeneralKinematics.BuildPoseCache(config);
+                AutoFitCanvasToPoses(false);
                 BuildCanvas();
                 var parameters = GeneralKinematics.CalcKinematicParameters(config);
                 KinematicParametersChanged?.Invoke(parameters);
@@ -486,6 +511,7 @@ namespace User.PluginSdkDemo
             {
                 poseCache = null;
                 Label_status.Content = ex.Message;
+                AutoFitCanvasToPoses(false);
                 BuildCanvas();
             }
         }
@@ -507,6 +533,7 @@ namespace User.PluginSdkDemo
             canvas_kinematic.Children.Clear();
             pinShapes.Clear();
             pinLabels.Clear();
+            barPinRings.Clear();
             barVisuals.Clear();
             pinIndexById.Clear();
 
@@ -518,6 +545,7 @@ namespace User.PluginSdkDemo
             BuildRailLine();
             BuildBars();
             BuildPins();
+            BuildBarPinRings();
 
             if (poseCache == null)
             {
@@ -548,18 +576,29 @@ namespace User.PluginSdkDemo
 
         private void BuildBars()
         {
+            int barIndex = 0;
             foreach (var row in barRows)
             {
                 var pinIds = row.GetPinIds();
-                var line = new Line
+                var brush = row.BarBrush ?? GetBarBrush(barIndex++);
+                var outline = new Polyline
                 {
                     StrokeThickness = row.IsMetering ? 3 : 2,
-                    Stroke = row.IsMetering ? Brushes.Gold : Brushes.White,
+                    Stroke = brush,
                     Opacity = 0.9,
                     Visibility = pinIds.Length < 2 ? Visibility.Hidden : Visibility.Visible
                 };
-                barVisuals.Add(new BarVisual { PinIds = pinIds, Line = line });
-                canvas_kinematic.Children.Add(line);
+                outline.StrokeLineJoin = PenLineJoin.Round;
+                outline.StrokeStartLineCap = PenLineCap.Round;
+                outline.StrokeEndLineCap = PenLineCap.Round;
+                Panel.SetZIndex(outline, 0);
+                barVisuals.Add(new BarVisual
+                {
+                    PinIds = pinIds,
+                    Outline = outline,
+                    Brush = brush
+                });
+                canvas_kinematic.Children.Add(outline);
             }
         }
 
@@ -583,10 +622,46 @@ namespace User.PluginSdkDemo
                     FontSize = 9,
                     Foreground = Brushes.White
                 };
+                Panel.SetZIndex(ellipse, 2);
+                Panel.SetZIndex(label, 3);
                 canvas_kinematic.Children.Add(ellipse);
                 canvas_kinematic.Children.Add(label);
                 pinShapes[row.PinId] = ellipse;
                 pinLabels[row.PinId] = label;
+            }
+        }
+
+        private void BuildBarPinRings()
+        {
+            const double baseSize = 12.0;
+            const double ringStep = 3.0;
+            var ringIndexByPin = new Dictionary<uint, int>();
+
+            foreach (var bar in barVisuals)
+            {
+                if (bar.PinIds == null || bar.PinIds.Length == 0) continue;
+                foreach (var pinId in bar.PinIds)
+                {
+                    int ringIndex = 0;
+                    if (ringIndexByPin.TryGetValue(pinId, out int current))
+                    {
+                        ringIndex = current;
+                    }
+                    ringIndexByPin[pinId] = ringIndex + 1;
+
+                    double size = baseSize + ringStep * 2.0 * ringIndex;
+                    var ellipse = new Ellipse
+                    {
+                        Width = size,
+                        Height = size,
+                        Stroke = bar.Brush,
+                        StrokeThickness = 2,
+                        Fill = Brushes.Transparent
+                    };
+                    Panel.SetZIndex(ellipse, 1);
+                    canvas_kinematic.Children.Add(ellipse);
+                    barPinRings.Add(new BarPinRing { PinId = pinId, Ring = ellipse });
+                }
             }
         }
 
@@ -607,21 +682,18 @@ namespace User.PluginSdkDemo
                 }
             }
 
+            UpdateBarPinRingsFromConfig();
+
             foreach (var bar in barVisuals)
             {
                 if (bar.PinIds.Length < 2) continue;
-                if (!TryGetBarExtentsFromConfig(bar.PinIds, out double ax, out double ay, out double bx, out double by))
+                if (!TryGetBarPointsFromConfig(bar.PinIds, out PointCollection points))
                 {
-                    bar.Line.Visibility = Visibility.Hidden;
+                    bar.Outline.Visibility = Visibility.Hidden;
                     continue;
                 }
-                var pa = ToCanvas(ax, ay);
-                var pb = ToCanvas(bx, by);
-                bar.Line.Visibility = Visibility.Visible;
-                bar.Line.X1 = pa.X;
-                bar.Line.Y1 = pa.Y;
-                bar.Line.X2 = pb.X;
-                bar.Line.Y2 = pb.Y;
+                bar.Outline.Visibility = Visibility.Visible;
+                bar.Outline.Points = points;
             }
         }
 
@@ -631,32 +703,28 @@ namespace User.PluginSdkDemo
             return row != null;
         }
 
-        private bool TryGetBarExtentsFromConfig(uint[] pinIds, out double ax, out double ay, out double bx, out double by)
+        private bool TryGetBarPointsFromConfig(uint[] pinIds, out PointCollection points)
         {
-            ax = ay = bx = by = 0.0;
-            double bestDist = -1.0;
-            bool found = false;
+            points = new PointCollection();
             for (int i = 0; i < pinIds.Length; i++)
             {
-                if (!TryGetPointFromConfig(pinIds[i], out var a)) continue;
-                for (int j = i + 1; j < pinIds.Length; j++)
+                if (!TryGetPointFromConfig(pinIds[i], out var row))
                 {
-                    if (!TryGetPointFromConfig(pinIds[j], out var b)) continue;
-                    double dx = a.X - b.X;
-                    double dy = a.Y - b.Y;
-                    double dist = dx * dx + dy * dy;
-                    if (dist > bestDist)
-                    {
-                        bestDist = dist;
-                        ax = a.X;
-                        ay = a.Y;
-                        bx = b.X;
-                        by = b.Y;
-                        found = true;
-                    }
+                    points = null;
+                    return false;
                 }
+                points.Add(ToCanvas(row.X, row.Y));
             }
-            return found;
+            if (points.Count < 2)
+            {
+                points = null;
+                return false;
+            }
+            if (points.Count > 2)
+            {
+                points.Add(points[0]);
+            }
+            return true;
         }
 
         private Brush GetPinBrush(PinRow row)
@@ -665,6 +733,20 @@ namespace User.PluginSdkDemo
             if (row.IsRailInterface) return Brushes.DeepSkyBlue;
             if (row.Grounded) return Brushes.Gray;
             return Brushes.White;
+        }
+
+        private Brush GetBarBrush(int index)
+        {
+            Brush[] palette =
+            {
+                Brushes.DeepSkyBlue,
+                Brushes.MediumSeaGreen,
+                Brushes.Goldenrod,
+                Brushes.OrangeRed,
+                Brushes.MediumTurquoise,
+                Brushes.Coral
+            };
+            return palette[index % palette.Length];
         }
 
         private void UpdatePose()
@@ -704,54 +786,47 @@ namespace User.PluginSdkDemo
                 }
             }
 
+            UpdateBarPinRingsFromLive();
+
             foreach (var bar in barVisuals)
             {
                 if (bar.PinIds.Length < 2)
                 {
-                    bar.Line.Visibility = Visibility.Hidden;
+                    bar.Outline.Visibility = Visibility.Hidden;
                     continue;
                 }
-                if (!TryGetBarExtents(bar.PinIds, out double ax, out double ay, out double bx, out double by))
+                if (!TryGetBarPoints(bar.PinIds, out PointCollection points))
                 {
-                    bar.Line.Visibility = Visibility.Hidden;
+                    bar.Outline.Visibility = Visibility.Hidden;
                     continue;
                 }
-                var p1 = ToCanvas(ax, ay);
-                var p2 = ToCanvas(bx, by);
-                bar.Line.Visibility = Visibility.Visible;
-                bar.Line.X1 = p1.X;
-                bar.Line.Y1 = p1.Y;
-                bar.Line.X2 = p2.X;
-                bar.Line.Y2 = p2.Y;
+                bar.Outline.Visibility = Visibility.Visible;
+                bar.Outline.Points = points;
             }
         }
 
-        private bool TryGetBarExtents(uint[] pinIds, out double ax, out double ay, out double bx, out double by)
+        private bool TryGetBarPoints(uint[] pinIds, out PointCollection points)
         {
-            ax = ay = bx = by = 0.0;
-            double bestDist = -1.0;
-            bool found = false;
+            points = new PointCollection();
             for (int i = 0; i < pinIds.Length; i++)
             {
-                if (!pinIndexById.TryGetValue(pinIds[i], out int idxA)) continue;
-                for (int j = i + 1; j < pinIds.Length; j++)
+                if (!pinIndexById.TryGetValue(pinIds[i], out int idx))
                 {
-                    if (!pinIndexById.TryGetValue(pinIds[j], out int idxB)) continue;
-                    double dx = currentX[idxA] - currentX[idxB];
-                    double dy = currentY[idxA] - currentY[idxB];
-                    double dist = dx * dx + dy * dy;
-                    if (dist > bestDist)
-                    {
-                        bestDist = dist;
-                        ax = currentX[idxA];
-                        ay = currentY[idxA];
-                        bx = currentX[idxB];
-                        by = currentY[idxB];
-                        found = true;
-                    }
+                    points = null;
+                    return false;
                 }
+                points.Add(ToCanvas(currentX[idx], currentY[idx]));
             }
-            return found;
+            if (points.Count < 2)
+            {
+                points = null;
+                return false;
+            }
+            if (points.Count > 2)
+            {
+                points.Add(points[0]);
+            }
+            return true;
         }
 
         private bool TryGetSegment(double contactPos, out int idx, out double t)
@@ -830,6 +905,137 @@ namespace User.PluginSdkDemo
                 };
                 canvas_kinematic.Children.Add(line);
             }
+
+            var origin = ToCanvas(0.0, 0.0);
+            var xAxis = new Line
+            {
+                X1 = 0,
+                Y1 = origin.Y,
+                X2 = canvas_kinematic.Width,
+                Y2 = origin.Y,
+                Stroke = Brushes.LightSteelBlue,
+                StrokeThickness = 2,
+                Opacity = 0.35
+            };
+            var yAxis = new Line
+            {
+                X1 = origin.X,
+                Y1 = 0,
+                X2 = origin.X,
+                Y2 = canvas_kinematic.Height,
+                Stroke = Brushes.LightSteelBlue,
+                StrokeThickness = 2,
+                Opacity = 0.35
+            };
+            canvas_kinematic.Children.Add(xAxis);
+            canvas_kinematic.Children.Add(yAxis);
+        }
+
+        private void CanvasKinematic_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            AutoFitCanvasToPoses(true);
+        }
+
+        private void AutoFitCanvasToPoses(bool refresh)
+        {
+            if (plugin == null || isAutoFitting) return;
+            if (!TryGetPoseBounds(out double minX, out double maxX, out double minY, out double maxY)) return;
+
+            double width = canvas_kinematic.ActualWidth;
+            double height = canvas_kinematic.ActualHeight;
+            if (width <= 1.0) width = canvas_kinematic.Width;
+            if (height <= 1.0) height = canvas_kinematic.Height;
+            if (width <= 1.0 || height <= 1.0) return;
+
+            const double padding = 20.0;
+            double usableWidth = Math.Max(1.0, width - 2.0 * padding);
+            double usableHeight = Math.Max(1.0, height - 2.0 * padding);
+            double rangeX = Math.Max(1e-6, maxX - minX);
+            double rangeY = Math.Max(1e-6, maxY - minY);
+            double scale = Math.Max(rangeX / usableWidth, rangeY / usableHeight);
+            if (double.IsNaN(scale) || double.IsInfinity(scale) || scale <= 0.0) scale = 1.0;
+
+            double rangeXCanvas = rangeX / scale;
+            double rangeYCanvas = rangeY / scale;
+            double extraX = Math.Max(0.0, usableWidth - rangeXCanvas);
+            double extraY = Math.Max(0.0, usableHeight - rangeYCanvas);
+
+            double ox = padding + extraX / 2.0 - minX / scale;
+            double top = padding + extraY / 2.0;
+            double oy = height - maxY / scale - top;
+
+            isAutoFitting = true;
+            try
+            {
+                plugin.Settings.kinematicDiagram_zeroPos_scale = scale;
+                plugin.Settings.kinematicDiagram_zeroPos_OX = ox;
+                plugin.Settings.kinematicDiagram_zeroPos_OY = oy;
+                if (refresh)
+                {
+                    BuildCanvas();
+                    RefreshPose();
+                }
+            }
+            finally
+            {
+                isAutoFitting = false;
+            }
+        }
+
+        private bool TryGetPoseBounds(out double minX, out double maxX, out double minY, out double maxY)
+        {
+            minX = double.PositiveInfinity;
+            maxX = double.NegativeInfinity;
+            minY = double.PositiveInfinity;
+            maxY = double.NegativeInfinity;
+
+            bool found = false;
+            if (poseCache != null && poseCache.PinPositionsX.Length > 0)
+            {
+                int poseCount = poseCache.PinPositionsX.Length;
+                int pinCount = poseCache.PinIds.Length;
+                for (int i = 0; i < poseCount; i++)
+                {
+                    var xs = poseCache.PinPositionsX[i];
+                    var ys = poseCache.PinPositionsY[i];
+                    for (int j = 0; j < pinCount; j++)
+                    {
+                        double x = xs[j];
+                        double y = ys[j];
+                        if (double.IsNaN(x) || double.IsInfinity(x) || double.IsNaN(y) || double.IsInfinity(y)) continue;
+                        minX = Math.Min(minX, x);
+                        maxX = Math.Max(maxX, x);
+                        minY = Math.Min(minY, y);
+                        maxY = Math.Max(maxY, y);
+                        found = true;
+                    }
+                }
+            }
+            else if (config != null && config.Pins.Count > 0)
+            {
+                foreach (var pin in config.Pins)
+                {
+                    double x = pin.X;
+                    double y = pin.Y;
+                    minX = Math.Min(minX, x);
+                    maxX = Math.Max(maxX, x);
+                    minY = Math.Min(minY, y);
+                    maxY = Math.Max(maxY, y);
+                    found = true;
+                }
+
+                var railPin = config.Pins.FirstOrDefault(p => p.IsRailInterface);
+                if (railPin != null)
+                {
+                    minX = Math.Min(minX, railPin.X - railTravelNegative);
+                    maxX = Math.Max(maxX, railPin.X + railTravelPositive);
+                    minY = Math.Min(minY, railPin.Y);
+                    maxY = Math.Max(maxY, railPin.Y);
+                    found = true;
+                }
+            }
+
+            return found;
         }
 
         private void UpdateScaleLabel()
@@ -845,6 +1051,39 @@ namespace User.PluginSdkDemo
             double ox = plugin?.Settings?.kinematicDiagram_zeroPos_OX ?? 0.0;
             double oy = plugin?.Settings?.kinematicDiagram_zeroPos_OY ?? 0.0;
             return new Point(x / scale + ox, canvas_kinematic.Height - y / scale - oy);
+        }
+
+        private void UpdateBarPinRingsFromConfig()
+        {
+            foreach (var entry in barPinRings)
+            {
+                if (!TryGetPointFromConfig(entry.PinId, out var row)) continue;
+                var point = ToCanvas(row.X, row.Y);
+                Canvas.SetLeft(entry.Ring, point.X - entry.Ring.Width / 2.0);
+                Canvas.SetTop(entry.Ring, point.Y - entry.Ring.Height / 2.0);
+            }
+        }
+
+        private void UpdateBarPinRingsFromLive()
+        {
+            foreach (var entry in barPinRings)
+            {
+                if (!pinIndexById.TryGetValue(entry.PinId, out int idx)) continue;
+                var point = ToCanvas(currentX[idx], currentY[idx]);
+                Canvas.SetLeft(entry.Ring, point.X - entry.Ring.Width / 2.0);
+                Canvas.SetTop(entry.Ring, point.Y - entry.Ring.Height / 2.0);
+            }
+        }
+
+        private void UpdateBarBrushes()
+        {
+            bool wasLoading = isLoading;
+            isLoading = true;
+            for (int i = 0; i < barRows.Count; i++)
+            {
+                barRows[i].BarBrush = GetBarBrush(i);
+            }
+            isLoading = wasLoading;
         }
 
         private void btn_plus_kinematic_scale_Click(object sender, RoutedEventArgs e)

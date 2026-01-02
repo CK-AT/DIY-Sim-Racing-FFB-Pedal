@@ -2,6 +2,98 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-02 12:36:36 +01:00 (DESKTOP-6KO022D)
+Request: add a migration check for a legacy DIY pedal config example.
+Summary:
+- Added a C# test that parses `axis1_diy_pedal_config.json` and verifies the DIY→General migration produces a valid kinematic config.
+- Added `ESP32/sim/README.md` documenting the legacy example; ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/DiyFfbPlugin.Tests/Program.cs`
+- `ESP32/sim/README.md`
+- `ESP32/sim/axis1_diy_pedal_config.json`
+- `ESP32/sim/test_general_kinematics.py`
+Open items:
+- None.
+
+## 2026-01-02 12:20:43 +01:00 (DESKTOP-6KO022D)
+Request: assume the rail is to the right in the DIY->General migration.
+Summary:
+- Updated the migration helper to place the rail interface pin at the minimum rail position and set travel as 0..stroke (no centering).
+- Ran Python and C# tests (17 tests each, 0 failures).
+Key files:
+- `SimhubPlugin/AxisConfigControl.xaml.cs`
+- `ESP32/sim/test_general_kinematics.py`
+- `SimhubPlugin/DiyFfbPlugin.Tests/Program.cs`
+Open items:
+- None.
+
+## 2026-01-02 12:16:24 +01:00 (DESKTOP-6KO022D)
+Request: delete legacy DiyPedal kinematics files and add a migration helper.
+Summary:
+- Removed `DiyPedalKinematics` XAML/control files from the plugin; existing configs now migrate via a DIYPedal -> GeneralKinematic conversion.
+- Conversion centers the rail travel, computes the link mount by circle intersection, and builds pedal + metering bars; ran Python and C# tests (17 tests each, 0 failures).
+Key files:
+- `SimhubPlugin/AxisConfigControl.xaml.cs`
+- `SimhubPlugin/DiyPedalKinematics.xaml`
+- `SimhubPlugin/DiyPedalKinematics.xaml.cs`
+- `ESP32/sim/test_general_kinematics.py`
+- `SimhubPlugin/DiyFfbPlugin.Tests/Program.cs`
+Open items:
+- None.
+
+## 2026-01-02 12:05:54 +01:00 (DESKTOP-6KO022D)
+Request: remove DIY pedal kinematics, move general kinematics into the main tab control, and rename it to kinematics.
+Summary:
+- Removed the DIY pedal kinematics selector/control and placed the general kinematics UI as the first tab ("Kinematics").
+- Default axis configs now build a basic GeneralKinematicConfig; DiyPedalKinematics removed from the SimHub plugin build.
+- Renamed the GeneralKinematicsControl header label; ran Python and C# tests (17 tests each, 0 failures).
+Key files:
+- `SimhubPlugin/AxisConfigControl.xaml`
+- `SimhubPlugin/AxisConfigControl.xaml.cs`
+- `SimhubPlugin/GeneralKinematicsControl.xaml`
+- `SimhubPlugin/DiyFfbPlugin.csproj`
+- `ESP32/sim/test_general_kinematics.py`
+- `SimhubPlugin/DiyFfbPlugin.Tests/Program.cs`
+Open items:
+- None.
+
+## 2026-01-02 11:41:50 +01:00 (DESKTOP-6KO022D)
+Request: add per-bar pin rings and color the bar list entries.
+Summary:
+- Added per-pin color rings for every bar (stacked when a pin belongs to multiple bars) and use the same palette to color bar outlines.
+- Colored the Bar list "Pins" column to match bar colors; ran Python and C# tests (17 tests each, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml`
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+- `ESP32/sim/test_general_kinematics.py`
+- `SimhubPlugin/DiyFfbPlugin.Tests/Program.cs`
+Open items:
+- None.
+
+## 2026-01-02 11:31:29 +01:00 (DESKTOP-6KO022D)
+Request: emphasize zero axes and color bar outlines/first pins.
+Summary:
+- Added emphasized grid lines at x=0/y=0 and drew bar outlines with per-bar colors; first pin of each bar now gets a matching highlight ring.
+- Bars now draw all pins (polyline closed for 3+ pins) instead of only farthest pair; ran Python and C# tests (17 tests each, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+- `ESP32/sim/test_general_kinematics.py`
+- `SimhubPlugin/DiyFfbPlugin.Tests/Program.cs`
+Open items:
+- None.
+
+## 2026-01-02 11:21:01 +01:00 (DESKTOP-6KO022D)
+Request: auto-fit the kinematic visualization to all poses.
+Summary:
+- Added auto-fit logic to compute scale/offset from pose bounds (or config fallback) and update on cache rebuild and canvas resize.
+- Ran Python and C# test suites (17 tests each, 0 failures).
+Key files:
+- `SimhubPlugin/GeneralKinematicsControl.xaml.cs`
+- `ESP32/sim/test_general_kinematics.py`
+- `SimhubPlugin/DiyFfbPlugin.Tests/Program.cs`
+Open items:
+- None.
+
 ## 2026-01-02 11:09:35 +01:00 (DESKTOP-6KO022D)
 Request: run Python and C# tests after kinematics changes.
 Summary:

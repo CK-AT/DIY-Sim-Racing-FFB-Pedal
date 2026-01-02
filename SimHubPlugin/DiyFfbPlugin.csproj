@@ -229,9 +229,6 @@
     <Compile Include="SplineForceCurve.xaml.cs">
       <DependentUpon>SplineForceCurve.xaml</DependentUpon>
     </Compile>
-    <Compile Include="DiyPedalKinematics.xaml.cs">
-      <DependentUpon>DiyPedalKinematics.xaml</DependentUpon>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Page Include="FlightPedalsConfigControl.xaml">
@@ -292,10 +289,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="SplineForceCurve.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="DiyPedalKinematics.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -11,7 +11,7 @@
     <Grid>
         <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0">
             <StackPanel Width="540">
-                <Label Content="GENERAL KINEMATIC SETTING" Width="300" Foreground="White" FontFamily="Arial Black" HorizontalAlignment="Center" Margin="70,0,0,0" Height="20" VerticalAlignment="Top" Padding="0,0,0,0" VerticalContentAlignment="Center"/>
+                <Label Content="KINEMATICS SETTING" Width="300" Foreground="White" FontFamily="Arial Black" HorizontalAlignment="Center" Margin="70,0,0,0" Height="20" VerticalAlignment="Top" Padding="0,0,0,0" VerticalContentAlignment="Center"/>
                 <StackPanel Height="205" Width="540" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,5,0,0">
                     <Canvas x:Name="canvas_kinematic" Height="200" Width="400" Background="#7F20232F" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="70,0,0,0" />
                     <StackPanel Height="60" Width="20" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="5,0,0,0">
@@ -71,7 +71,13 @@
                         </Style>
                     </DataGrid.ColumnHeaderStyle>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Pins" Binding="{Binding PinSummary}" IsReadOnly="True" Width="200"/>
+                        <DataGridTextColumn Header="Pins" Binding="{Binding PinSummary}" IsReadOnly="True" Width="200">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{Binding BarBrush}"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
                         <DataGridTemplateColumn Header="Pick" Width="60">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -82,7 +88,7 @@
                         <DataGridCheckBoxColumn Header="Metering" Binding="{Binding IsMetering, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="70"/>
                     </DataGrid.Columns>
                 </DataGrid>
-                <StackPanel Orientation="Horizontal" Width="400" Margin="70,2,0,0" HorizontalAlignment="Left">
+                <StackPanel Orientation="Horizontal" Width="400" Margin="70,2,0,10" HorizontalAlignment="Left">
                     <styles:SHButtonPrimary x:Name="btn_add_bar" Click="btn_add_bar_Click" Width="60" Content="Add bar" Height="20" Margin="0,0,4,0" HorizontalAlignment="Left" VerticalAlignment="Center" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
                     <styles:SHButtonPrimary x:Name="btn_remove_bar" Click="btn_remove_bar_Click" Width="70" Content="Remove bar" Height="20" Margin="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
                 </StackPanel>
