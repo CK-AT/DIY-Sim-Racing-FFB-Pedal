@@ -360,6 +360,20 @@ void CommManager::send_active_function_message(CommChannel comm_channel) {
 }
 
 void CommManager::send_axis_config(CommChannel comm_channel) {
+    const uint8_t *raw_data = nullptr;
+    uint16_t raw_len = 0;
+    if (_config_manager && _config_manager->get_axis_config_raw(raw_data, raw_len)) {
+        Message msg = Message_init_zero;
+        msg.which_payload = Message_axis_config_tag;
+        if (comm_channel == CommChannel::USB_SERIAL) {
+            serial_manager.send_message_to_host(msg, raw_data, raw_len);
+            return;
+        }
+        if (has_gateway()) {
+            active_uplink_channel->send_message_to_gateway(msg, raw_data, raw_len);
+            return;
+        }
+    }
     Message msg;
     _config_manager->get_axis_config_as_message(msg);
     send_message_to_gateway(msg, comm_channel);

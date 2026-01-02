@@ -14,6 +14,7 @@ float calc_poly(const float &in, const double *coeffs, size_t num_coeffs) {
 
 void ConfigManager::set_axis_config_defaults(void) {
     _axis_config = AxisConfig_init_default;
+    clear_axis_config_raw();
     if (_fixed_id) {
         _axis_config.axis_id = _axis_id;
     }
@@ -60,6 +61,18 @@ void ConfigManager::set_function_config_defaults(void) {
 
     _function_config.simulated_mass = 0.2f;
     _function_config.friction = 2.0f;
+}
+
+void ConfigManager::store_axis_config_raw(const uint8_t *data, uint16_t len) {
+    if (!data || len == 0) {
+        clear_axis_config_raw();
+        return;
+    }
+    _axis_config_raw.assign(data, data + len);
+}
+
+void ConfigManager::clear_axis_config_raw(void) {
+    _axis_config_raw.clear();
 }
 
 void ConfigManager::init(AxisID axis_id, bool fixed_id, OnConfigUpdate config_update_callback, GetAuxFunction get_aux_function_callback) {
@@ -126,12 +139,13 @@ bool ConfigManager::load_axis_config(void) {
         if (MessageTools::check_and_decode_message(_temp_message, buffer, size - sizeof(uint16_t), crc)) {
             if (_temp_message.which_payload == Message_axis_config_tag) {
                 _axis_config = _temp_message.payload.axis_config;
-                if (_fixed_id) {
-                    if (_axis_config.axis_id != _axis_id) {
-                        _axis_config.axis_id = _axis_id;
-                        LogOutput::printf(" -> WARNING: This axis' stored config references axis %d (this is axis %d).", _axis_config.axis_id,
-                                          _axis_id);
-                    }
+                bool axis_id_mismatch = _fixed_id && (_axis_config.axis_id != _axis_id);
+                if (axis_id_mismatch) {
+                    _axis_config.axis_id = _axis_id;
+                    LogOutput::printf(" -> WARNING: This axis' stored config references axis %d (this is axis %d).", _axis_config.axis_id, _axis_id);
+                    clear_axis_config_raw();
+                } else {
+                    store_axis_config_raw(buffer, size);
                 }
                 return true;
             } else {
@@ -176,6 +190,7 @@ ConfigManager::UpdateResult ConfigManager::update_axis_config(const AxisConfig &
     }
     if (try_take_config_semaphore()) {
         _axis_config = new_config;
+        store_axis_config_raw(protobuf_msg, len_protobuf_msg);
         on_config_update();
         if (_axis_config.store) {
             LogOutput::printf(" -> storing to persistent memory...");

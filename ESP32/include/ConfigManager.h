@@ -3,6 +3,7 @@
 #include <Preferences.h>
 
 #include <map>
+#include <vector>
 
 #include "ConfigManager.fwd.h"
 #include "IAuxFunction.h"
@@ -37,6 +38,17 @@ class ConfigManager {
         void update_lookup_tables(const FunctionConfig &new_config);
         void get_axis_config_as_message(Message &message);
         void get_function_config_as_message(Message &message);
+        bool get_axis_config_raw(const uint8_t *&data, uint16_t &len) const {
+            if (_axis_config_raw.empty()) {
+                return false;
+            }
+            if (_axis_config_raw.size() > UINT16_MAX) {
+                return false;
+            }
+            data = _axis_config_raw.data();
+            len = static_cast<uint16_t>(_axis_config_raw.size());
+            return true;
+        }
         AxisID get_axis_id(void) const {
             if (_mode & MODE_AXIS_MASK) return _axis_id;
             return AxisID_AXIS_UNDEFINED;
@@ -124,6 +136,8 @@ class ConfigManager {
         void update_axis_id(AxisID new_axis_id) {
             _axis_id = new_axis_id;
         }
+        void store_axis_config_raw(const uint8_t *data, uint16_t len);
+        void clear_axis_config_raw(void);
         void update_x_contact_point_limits(void) {
             if (_active_funtion) {
                 _x_contact_point_min = _active_funtion->get_x_contact_point_min();
@@ -141,6 +155,7 @@ class ConfigManager {
         GatewayID _gateway_id = GatewayID_GATEWAY_UNDEFINED;
         Mode _mode = MODE_UNDEFINED;
         AxisConfig _axis_config;
+        std::vector<uint8_t> _axis_config_raw = {};
         FunctionConfig _function_config;
         std::map<FunctionID, FunctionBase> _function_lut = {};
         std::map<FunctionID, std::tuple<IAuxFunction *, AuxFunctionConfig>> _aux_function_lut = {};
