@@ -1,4 +1,8 @@
 using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using Google.Protobuf;
 using User.PluginSdkDemo;
 
 namespace DiyFfbPlugin.Tests
@@ -21,9 +25,13 @@ namespace DiyFfbPlugin.Tests
             RunTest("MeteringBarPinCountThrows", TestMeteringBarPinCountThrows, ref total, ref failures);
             RunTest("MultipleMeteringBarsThrows", TestMultipleMeteringBarsThrows, ref total, ref failures);
             RunTest("MissingMeteringThrows", TestMissingMeteringThrows, ref total, ref failures);
-            RunTest("NonCollinearBarThrows", TestNonCollinearBarThrows, ref total, ref failures);
+            RunTest("NonCollinearBarSolves", TestNonCollinearBarSolves, ref total, ref failures);
             RunTest("SharedCollinearBarThrows", TestSharedCollinearBarThrows, ref total, ref failures);
+            RunTest("UnknownPinInBarThrows", TestUnknownPinInBarThrows, ref total, ref failures);
+            RunTest("ZeroLengthBarThrows", TestZeroLengthBarThrows, ref total, ref failures);
+            RunTest("ExtraCollinearPinNoChange", TestExtraCollinearPinNoChange, ref total, ref failures);
             RunTest("CoefficientsFinite", TestCoefficientsFinite, ref total, ref failures);
+            RunTest("LegacyDiyPedalMigration", TestLegacyDiyPedalMigration, ref total, ref failures);
 
             Console.WriteLine($"Tests run: {total}, Failures: {failures}");
             return failures == 0 ? 0 : 1;
@@ -386,7 +394,7 @@ namespace DiyFfbPlugin.Tests
                 "Missing metering bar should throw an ArgumentException.");
         }
 
-        private static void TestNonCollinearBarThrows()
+        private static void TestNonCollinearBarSolves()
         {
             global::GeneralKinematicConfig config = new global::GeneralKinematicConfig
             {
@@ -432,9 +440,9 @@ namespace DiyFfbPlugin.Tests
             bar.PinIds.Add(3);
             bar.PinIds.Add(4);
             config.Bars.Add(bar);
-
-            AssertThrows<ArgumentException>(() => GeneralKinematics.CalcKinematicParameters(config),
-                "Non-collinear bar should throw an ArgumentException.");
+            global::KinematicParameters parameters = GeneralKinematics.CalcKinematicParameters(config);
+            AssertTrue(parameters.CoeffsSledPosOverContactPointPos.Count > 0,
+                "Missing sled position coefficients for non-collinear bar.");
         }
 
         private static void TestSharedCollinearBarThrows()
@@ -499,12 +507,98 @@ namespace DiyFfbPlugin.Tests
                 "Pins in multiple collinear bars should throw an ArgumentException.");
         }
 
+        private static void TestUnknownPinInBarThrows()
+        {
+            global::GeneralKinematicConfig config = BuildTriangleConfig(5.0, 5.0);
+            global::GeneralKinematicBar bar = new global::GeneralKinematicBar();
+            bar.PinIds.Add(1);
+            bar.PinIds.Add(99);
+            config.Bars.Add(bar);
+
+            AssertThrows<ArgumentException>(() => GeneralKinematics.CalcKinematicParameters(config),
+                "Unknown pin in bar should throw an ArgumentException.");
+        }
+
+        private static void TestZeroLengthBarThrows()
+        {
+            global::GeneralKinematicConfig config = BuildTriangleConfig(5.0, 5.0);
+            config.Pins.Add(new global::GeneralKinematicPin
+            {
+                PinId = 4,
+                X = 0.0f,
+                Y = 0.0f
+            });
+            global::GeneralKinematicBar bar = new global::GeneralKinematicBar();
+            bar.PinIds.Add(1);
+            bar.PinIds.Add(4);
+            config.Bars.Add(bar);
+
+            AssertThrows<ArgumentException>(() => GeneralKinematics.CalcKinematicParameters(config),
+                "Zero-length bar should throw an ArgumentException.");
+        }
+
+        private static void TestExtraCollinearPinNoChange()
+        {
+            global::GeneralKinematicConfig baseConfig = BuildCollinearConfig(15.0, 25.0);
+            global::KinematicParameters baseline = GeneralKinematics.CalcKinematicParameters(baseConfig);
+
+            global::GeneralKinematicConfig extraConfig = BuildCollinearConfig(15.0, 25.0);
+            extraConfig.Pins.Add(new global::GeneralKinematicPin
+            {
+                PinId = 5,
+                X = 75.0f,
+                Y = 75.0f
+            });
+            extraConfig.Bars[1].PinIds.Add(5);
+
+            global::KinematicParameters updated = GeneralKinematics.CalcKinematicParameters(extraConfig);
+            AssertSequenceNear(
+                baseline.CoeffsSledPosOverContactPointPos,
+                updated.CoeffsSledPosOverContactPointPos,
+                1e-5,
+                "Sled polynomial changed after adding a collinear pin.");
+            AssertSequenceNear(
+                baseline.CoeffsForceFactorOverContactPointPos,
+                updated.CoeffsForceFactorOverContactPointPos,
+                1e-5,
+                "Force polynomial changed after adding a collinear pin.");
+        }
+
         private static void TestCoefficientsFinite()
         {
             global::GeneralKinematicConfig config = BuildTriangleConfig(10.0, 10.0);
             global::KinematicParameters parameters = GeneralKinematics.CalcKinematicParameters(config);
             AssertFinite(parameters.CoeffsSledPosOverContactPointPos, "Sled coefficients contain NaN/Infinity.");
             AssertFinite(parameters.CoeffsForceFactorOverContactPointPos, "Force coefficients contain NaN/Infinity.");
+        }
+
+        private static void TestLegacyDiyPedalMigration()
+        {
+            string jsonPath = ResolveRepoPath("ESP32", "sim", "axis1_diy_pedal_config.json");
+            AssertTrue(File.Exists(jsonPath), $"Missing legacy config JSON: {jsonPath}");
+
+            string json = File.ReadAllText(jsonPath);
+            JsonParser parser = new JsonParser(JsonParser.Settings.Default);
+            ConfigItemsList list = parser.Parse<ConfigItemsList>(json);
+            AssertTrue(list.ConfigItems.Count > 0, "Legacy config should include configItems.");
+
+            AxisConfig axisConfig = list.ConfigItems.Select(item => item.AxisConfig).FirstOrDefault(cfg => cfg != null);
+            AssertTrue(axisConfig != null, "Legacy config should include an axisConfig item.");
+            AssertTrue(axisConfig.DiyPedal != null, "Legacy axisConfig should include diyPedal.");
+
+            MethodInfo method = typeof(AxisConfigControl).GetMethod(
+                "ConvertDiyPedalToGeneral",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            AssertTrue(method != null, "Migration helper ConvertDiyPedalToGeneral not found.");
+
+            GeneralKinematicConfig general = (GeneralKinematicConfig)method.Invoke(null, new object[] { axisConfig.DiyPedal });
+            AssertTrue(general != null, "Migration returned null.");
+            AssertTrue(general.Pins.Count >= 4, "Migration should create at least four pins.");
+            AssertTrue(general.Bars.Count >= 2, "Migration should create at least two bars.");
+            AssertNear(0.0, general.RailTravelNegative, 1e-6, "Migration should start rail travel at zero.");
+            AssertTrue(general.RailTravelPositive > 0.0f, "Migration should set positive rail travel.");
+
+            GeneralKinematics.CalcKinematicParameters(general);
         }
 
         private static global::GeneralKinematicConfig BuildTriangleConfig(double travelNegative, double travelPositive)
@@ -604,6 +698,13 @@ namespace DiyFfbPlugin.Tests
             return config;
         }
 
+        private static string ResolveRepoPath(params string[] parts)
+        {
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string repoRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
+            return Path.Combine(new[] { repoRoot }.Concat(parts).ToArray());
+        }
+
         private static void AssertTrue(bool condition, string message)
         {
             if (!condition)
@@ -617,6 +718,29 @@ namespace DiyFfbPlugin.Tests
             if (Math.Abs(expected - actual) > tolerance)
             {
                 throw new InvalidOperationException($"{message} Expected {expected:F3}, got {actual:F3}.");
+            }
+        }
+
+        private static void AssertSequenceNear(
+            System.Collections.Generic.IEnumerable<double> expected,
+            System.Collections.Generic.IEnumerable<double> actual,
+            double tolerance,
+            string message)
+        {
+            double[] expectedArray = expected.ToArray();
+            double[] actualArray = actual.ToArray();
+            if (expectedArray.Length != actualArray.Length)
+            {
+                throw new InvalidOperationException(
+                    $"{message} Length mismatch: {expectedArray.Length} vs {actualArray.Length}.");
+            }
+            for (int i = 0; i < expectedArray.Length; i++)
+            {
+                if (Math.Abs(expectedArray[i] - actualArray[i]) > tolerance)
+                {
+                    throw new InvalidOperationException(
+                        $"{message} Index {i} expected {expectedArray[i]:F6}, got {actualArray[i]:F6}.");
+                }
             }
         }
 

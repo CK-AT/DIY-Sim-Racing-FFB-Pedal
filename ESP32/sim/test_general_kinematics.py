@@ -62,6 +62,16 @@ def _assert_finite(values, message):
             raise AssertionError(message)
 
 
+def _assert_coeffs_close(expected, actual, tol, message):
+    if len(expected) != len(actual):
+        raise AssertionError(f"{message} Length mismatch: {len(expected)} vs {len(actual)}.")
+    for idx, (left, right) in enumerate(zip(expected, actual)):
+        if abs(left - right) > tol:
+            raise AssertionError(
+                f"{message} Index {idx} expected {left:.6f}, got {right:.6f}."
+            )
+
+
 def test_centered_contact_zero():
     travel_negative = 15.0
     travel_positive = 25.0
@@ -213,7 +223,7 @@ def test_missing_metering_throws():
                    "Missing metering bar should raise ValueError.")
 
 
-def test_non_collinear_bar_throws():
+def test_non_collinear_bar_solves():
     config = ffb_protocol.GeneralKinematicConfig()
     config.rail_travel_negative = 5.0
     config.rail_travel_positive = 5.0
@@ -226,8 +236,9 @@ def test_non_collinear_bar_throws():
     metering.is_metering = True
     bar = config.bars.add()
     bar.pin_ids.extend([1, 3, 4])
-    _assert_raises(lambda: general_kinematics.calc_kinematic_parameters(config),
-                   "Non-collinear bar should raise ValueError.")
+    params = general_kinematics.calc_kinematic_parameters(config)
+    if not params.coeffs_sled_pos_over_contact_point_pos:
+        raise AssertionError("Missing sled position coefficients for non-collinear bar.")
 
 
 def test_shared_collinear_bar_throws():
@@ -250,6 +261,46 @@ def test_shared_collinear_bar_throws():
                    "Pins in multiple collinear bars should raise ValueError.")
 
 
+def test_unknown_pin_in_bar_throws():
+    config = _build_triangle_config(5.0, 5.0)
+    bar = config.bars.add()
+    bar.pin_ids.extend([1, 99])
+    _assert_raises(lambda: general_kinematics.calc_kinematic_parameters(config),
+                   "Unknown pin in bar should raise ValueError.")
+
+
+def test_zero_length_bar_throws():
+    config = _build_triangle_config(5.0, 5.0)
+    config.pins.add(pin_id=4, x=0.0, y=0.0)
+    bar = config.bars.add()
+    bar.pin_ids.extend([1, 4])
+    _assert_raises(lambda: general_kinematics.calc_kinematic_parameters(config),
+                   "Zero-length bar should raise ValueError.")
+
+
+def test_extra_collinear_pin_no_change():
+    base = _build_collinear_config(15.0, 25.0)
+    baseline = general_kinematics.calc_kinematic_parameters(base)
+
+    config = _build_collinear_config(15.0, 25.0)
+    config.pins.add(pin_id=5, x=75.0, y=75.0)
+    config.bars[1].pin_ids.append(5)
+    updated = general_kinematics.calc_kinematic_parameters(config)
+
+    _assert_coeffs_close(
+        baseline.coeffs_sled_pos_over_contact_point_pos,
+        updated.coeffs_sled_pos_over_contact_point_pos,
+        1e-5,
+        "Sled polynomial changed after adding a collinear pin.",
+    )
+    _assert_coeffs_close(
+        baseline.coeffs_force_factor_over_contact_point_pos,
+        updated.coeffs_force_factor_over_contact_point_pos,
+        1e-5,
+        "Force polynomial changed after adding a collinear pin.",
+    )
+
+
 def test_coefficients_finite():
     config = _build_triangle_config(10.0, 10.0)
     params = general_kinematics.calc_kinematic_parameters(config)
@@ -270,8 +321,11 @@ if __name__ == "__main__":
         ("metering_bar_pin_count_throws", test_metering_bar_pin_count_throws),
         ("multiple_metering_bars_throws", test_multiple_metering_bars_throws),
         ("missing_metering_throws", test_missing_metering_throws),
-        ("non_collinear_bar_throws", test_non_collinear_bar_throws),
+        ("non_collinear_bar_solves", test_non_collinear_bar_solves),
         ("shared_collinear_bar_throws", test_shared_collinear_bar_throws),
+        ("unknown_pin_in_bar_throws", test_unknown_pin_in_bar_throws),
+        ("zero_length_bar_throws", test_zero_length_bar_throws),
+        ("extra_collinear_pin_no_change", test_extra_collinear_pin_no_change),
         ("coefficients_finite", test_coefficients_finite),
     ]
 

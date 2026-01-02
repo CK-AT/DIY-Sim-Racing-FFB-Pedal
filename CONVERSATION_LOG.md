@@ -2,6 +2,46 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-02 11:09:35 +01:00 (DESKTOP-6KO022D)
+Request: run Python and C# tests after kinematics changes.
+Summary:
+- Python: `ESP32/.venv/Scripts/python.exe ESP32/sim/test_general_kinematics.py` (17 tests, 0 failures).
+- C#: built `SimhubPlugin/DiyFfbPlugin.Tests` with `BuildProjectReferences=false` and ran the exe (17 tests, 0 failures); full plugin build via `dotnet run` still fails due to missing XAML-generated code in this environment.
+Key files:
+- `ESP32/sim/test_general_kinematics.py`
+- `SimhubPlugin/DiyFfbPlugin.Tests/Program.cs`
+Open items:
+- None.
+
+## 2026-01-02 11:03:24 +01:00 (DESKTOP-6KO022D)
+Request: add edge-case topology tests and verify extra collinear pins do not change polynomials.
+Summary:
+- Added Python/C# tests for unknown pin references, zero-length bars, and a regression check that adding a collinear bar pin leaves the polynomials unchanged.
+Key files:
+- `ESP32/sim/test_general_kinematics.py`
+- `SimhubPlugin/DiyFfbPlugin.Tests/Program.cs`
+
+## 2026-01-02 10:54:38 +01:00 (DESKTOP-6KO022D)
+Request: represent rigid bars as pose variables (x,y,theta) with fixed pin offsets.
+Summary:
+- Non-collinear multi-pin bars now use pose variables with per-pin local offsets instead of rigid distance constraints in the Python and C# solvers.
+- Updated bar position, Jacobian, and force projection math to use local offsets; the plot animation path uses the new constraint outputs.
+Key files:
+- `ESP32/sim/general_kinematics.py`
+- `SimhubPlugin/GeneralKinematics.cs`
+- `ESP32/sim/plot_kinematic_polynomials.py`
+
+## 2026-01-02 03:54:48 +01:00 (DESKTOP-6KO022D)
+Request: derive bar type from pin geometry (collinear vs rigid).
+Summary:
+- 3+ pin bars are now treated as collinear only if the pins lie on a line; otherwise they become rigid bars via distance constraints.
+- Updated Python/C# solvers and tests for the new behavior.
+Key files:
+- `SimhubPlugin/GeneralKinematics.cs`
+- `ESP32/sim/general_kinematics.py`
+- `SimhubPlugin/DiyFfbPlugin.Tests/Program.cs`
+- `ESP32/sim/test_general_kinematics.py`
+
 ## 2026-01-02 02:33:29 +01:00 (DESKTOP-6KO022D)
 Request: preserve GeneralKinematicConfig pins/bars when the FW returns axis config.
 Summary:
@@ -103,7 +143,7 @@ Key files:
 ## 2026-01-01 13:08:41 +01:00 (DESKTOP-6KO022D)
 Request: fix convergence after adding another pin to the sample JSON and align protobuf outputs with updated field indices.
 Summary:
-- Adjusted the sample pin to avoid a collinear 3‑pin bar (degenerate triangle).
+- Adjusted the sample pin to avoid a collinear 3-pin bar (degenerate triangle).
 - Regenerated `SimhubPlugin/DiyFfbProtocol.cs` and `ESP32/sim/diy_ffb_protocol_pb2.py` after GeneralKinematicConfig field index changes.
 Key files:
 - `ESP32/sim/sample_general_kinematic.json`

@@ -68,9 +68,14 @@ def _compute_layout_frames(config, frames):
         raise ValueError("Animation requires at least 2 frames.")
 
     pins, contact_idx, rail_idx, id_to_index = general_kinematics._build_pins(config)
-    constraints, bar_lines, pin_bar_index, pin_bar_s, metering_idx = general_kinematics._build_constraints(
-        config, pins, id_to_index
-    )
+    (
+        constraints,
+        bar_lines,
+        pin_bar_index,
+        pin_bar_local_x,
+        pin_bar_local_y,
+        metering_idx,
+    ) = general_kinematics._build_constraints(config, pins, id_to_index)
     var_index_x, var_index_y, variables, bar_var_base = general_kinematics._build_variable_map(
         pins, rail_idx, contact_idx, bar_lines, pin_bar_index
     )
@@ -99,7 +104,8 @@ def _compute_layout_frames(config, frames):
             bar_var_base,
             variables,
             pin_bar_index,
-            pin_bar_s,
+            pin_bar_local_x,
+            pin_bar_local_y,
         ):
             raise RuntimeError("General kinematics solver failed to converge for animation.")
         positions.append(
@@ -112,7 +118,8 @@ def _compute_layout_frames(config, frames):
                 bar_var_base,
                 variables,
                 pin_bar_index,
-                pin_bar_s,
+                pin_bar_local_x,
+                pin_bar_local_y,
             )
         )
 

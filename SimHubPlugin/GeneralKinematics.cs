@@ -102,14 +102,16 @@ namespace User.PluginSdkDemo
             int meteringConstraintIndex;
             List<BarLine> barLines;
             int[] pinBarIndex;
-            double[] pinBarOffset;
+            double[] pinBarLocalX;
+            double[] pinBarLocalY;
             List<Constraint> constraints = BuildConstraints(
                 config,
                 pins,
                 out meteringConstraintIndex,
                 out barLines,
                 out pinBarIndex,
-                out pinBarOffset);
+                out pinBarLocalX,
+                out pinBarLocalY);
             if (meteringConstraintIndex < 0) {
                 throw new ArgumentException("GeneralKinematicConfig requires exactly one 2-pin metering bar.");
             }
@@ -150,7 +152,8 @@ namespace User.PluginSdkDemo
                     barVarBase,
                     variables,
                     pinBarIndex,
-                    pinBarOffset))
+                    pinBarLocalX,
+                    pinBarLocalY))
                 {
                     throw new InvalidOperationException("General kinematics solver failed to converge.");
                 }
@@ -166,7 +169,8 @@ namespace User.PluginSdkDemo
                     barVarBase,
                     variables,
                     pinBarIndex,
-                    pinBarOffset,
+                    pinBarLocalX,
+                    pinBarLocalY,
                     posX,
                     posY);
 
@@ -202,7 +206,8 @@ namespace User.PluginSdkDemo
                     varIndexX,
                     varIndexY,
                     pinBarIndex,
-                    pinBarOffset,
+                    pinBarLocalX,
+                    pinBarLocalY,
                     barVarBase,
                     barCos,
                     barSin);
@@ -216,7 +221,8 @@ namespace User.PluginSdkDemo
                     varIndexX,
                     varIndexY,
                     pinBarIndex,
-                    pinBarOffset,
+                    pinBarLocalX,
+                    pinBarLocalY,
                     barVarBase,
                     barCos,
                     barSin,
@@ -270,14 +276,16 @@ namespace User.PluginSdkDemo
             int meteringConstraintIndex;
             List<BarLine> barLines;
             int[] pinBarIndex;
-            double[] pinBarOffset;
+            double[] pinBarLocalX;
+            double[] pinBarLocalY;
             List<Constraint> constraints = BuildConstraints(
                 config,
                 pins,
                 out meteringConstraintIndex,
                 out barLines,
                 out pinBarIndex,
-                out pinBarOffset);
+                out pinBarLocalX,
+                out pinBarLocalY);
             if (meteringConstraintIndex < 0)
             {
                 throw new ArgumentException("GeneralKinematicConfig requires exactly one 2-pin metering bar.");
@@ -318,7 +326,8 @@ namespace User.PluginSdkDemo
                     barVarBase,
                     variables,
                     pinBarIndex,
-                    pinBarOffset))
+                    pinBarLocalX,
+                    pinBarLocalY))
                 {
                     throw new InvalidOperationException("General kinematics solver failed to converge.");
                 }
@@ -334,7 +343,8 @@ namespace User.PluginSdkDemo
                     barVarBase,
                     variables,
                     pinBarIndex,
-                    pinBarOffset,
+                    pinBarLocalX,
+                    pinBarLocalY,
                     posX,
                     posY);
 
@@ -425,7 +435,8 @@ namespace User.PluginSdkDemo
             out int meteringConstraintIndex,
             out List<BarLine> barLines,
             out int[] pinBarIndex,
-            out double[] pinBarOffset)
+            out double[] pinBarLocalX,
+            out double[] pinBarLocalY)
         {
             Dictionary<uint, int> idToIndex = new Dictionary<uint, int>();
             for (int i = 0; i < pins.Count; i++) idToIndex[pins[i].Id] = i;
@@ -433,7 +444,8 @@ namespace User.PluginSdkDemo
             List<Constraint> constraints = new List<Constraint>();
             barLines = new List<BarLine>();
             pinBarIndex = Enumerable.Repeat(-1, pins.Count).ToArray();
-            pinBarOffset = new double[pins.Count];
+            pinBarLocalX = new double[pins.Count];
+            pinBarLocalY = new double[pins.Count];
             meteringConstraintIndex = -1;
             bool meteringFound = false;
 
@@ -488,37 +500,39 @@ namespace User.PluginSdkDemo
                     {
                         throw new ArgumentException("Bar references unknown pin id.");
                     }
-                    if (pinBarIndex[idx] >= 0)
-                    {
-                        throw new ArgumentException("Pin participates in multiple collinear bars.");
-                    }
                     pinIndices.Add(idx);
                 }
 
-                int refIdx = pinIndices[0];
-                int axisIdx = pinIndices[1];
-                double axisDx = pins[axisIdx].X - pins[refIdx].X;
-                double axisDy = pins[axisIdx].Y - pins[refIdx].Y;
-                double axisLen = Math.Sqrt(axisDx * axisDx + axisDy * axisDy);
-                if (axisLen < LengthEpsilon)
+                bool isCollinear = TryGetCollinearAxis(
+                    pins,
+                    pinIndices,
+                    out int refIdx,
+                    out int axisIdx,
+                    out double dirX,
+                    out double dirY,
+                    out double axisLen);
+
+                foreach (int idx in pinIndices)
                 {
-                    throw new ArgumentException("Bar length must be > 0.");
+                    if (pinBarIndex[idx] >= 0)
+                    {
+                        throw new ArgumentException("Pin participates in multiple bars.");
+                    }
                 }
-                double dirX = axisDx / axisLen;
-                double dirY = axisDy / axisLen;
 
                 foreach (int idx in pinIndices)
                 {
                     double px = pins[idx].X - pins[refIdx].X;
                     double py = pins[idx].Y - pins[refIdx].Y;
-                    double s = px * dirX + py * dirY;
-                    double perp = px * dirY - py * dirX;
-                    if (Math.Abs(perp) > CollinearTolerance * axisLen)
+                    double localX = px * dirX + py * dirY;
+                    double localY = -px * dirY + py * dirX;
+                    if (isCollinear)
                     {
-                        throw new ArgumentException("Collinear bar pins must lie on the same line.");
+                        localY = 0.0;
                     }
                     pinBarIndex[idx] = barLines.Count;
-                    pinBarOffset[idx] = s;
+                    pinBarLocalX[idx] = localX;
+                    pinBarLocalY[idx] = localY;
                 }
 
                 barLines.Add(new BarLine
@@ -542,6 +556,138 @@ namespace User.PluginSdkDemo
             }
 
             return constraints;
+        }
+
+        private static bool TryGetCollinearAxis(
+            List<PinInfo> pins,
+            List<int> pinIndices,
+            out int refIdx,
+            out int axisIdx,
+            out double dirX,
+            out double dirY,
+            out double axisLen)
+        {
+            refIdx = -1;
+            axisIdx = -1;
+            dirX = 0.0;
+            dirY = 0.0;
+            axisLen = 0.0;
+
+            double maxDist2 = 0.0;
+            for (int i = 0; i < pinIndices.Count - 1; i++)
+            {
+                int idxA = pinIndices[i];
+                for (int j = i + 1; j < pinIndices.Count; j++)
+                {
+                    int idxB = pinIndices[j];
+                    double dx = pins[idxB].X - pins[idxA].X;
+                    double dy = pins[idxB].Y - pins[idxA].Y;
+                    double dist2 = dx * dx + dy * dy;
+                    if (dist2 > maxDist2)
+                    {
+                        maxDist2 = dist2;
+                        refIdx = idxA;
+                        axisIdx = idxB;
+                    }
+                }
+            }
+
+            axisLen = Math.Sqrt(maxDist2);
+            if (axisLen < LengthEpsilon)
+            {
+                throw new ArgumentException("Bar length must be > 0.");
+            }
+
+            double axisDx = pins[axisIdx].X - pins[refIdx].X;
+            double axisDy = pins[axisIdx].Y - pins[refIdx].Y;
+            dirX = axisDx / axisLen;
+            dirY = axisDy / axisLen;
+
+            foreach (int idx in pinIndices)
+            {
+                double px = pins[idx].X - pins[refIdx].X;
+                double py = pins[idx].Y - pins[refIdx].Y;
+                double perp = px * dirY - py * dirX;
+                if (Math.Abs(perp) > CollinearTolerance * axisLen)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static void AddRigidBarConstraints(List<Constraint> constraints, List<PinInfo> pins, List<int> pinIndices)
+        {
+            if (pinIndices.Count < 3)
+            {
+                return;
+            }
+
+            int baseA = -1;
+            int baseB = -1;
+            int baseC = -1;
+            double bestArea = -1.0;
+
+            for (int i = 0; i < pinIndices.Count - 2; i++)
+            {
+                int idxA = pinIndices[i];
+                for (int j = i + 1; j < pinIndices.Count - 1; j++)
+                {
+                    int idxB = pinIndices[j];
+                    double abx = pins[idxB].X - pins[idxA].X;
+                    double aby = pins[idxB].Y - pins[idxA].Y;
+                    for (int k = j + 1; k < pinIndices.Count; k++)
+                    {
+                        int idxC = pinIndices[k];
+                        double acx = pins[idxC].X - pins[idxA].X;
+                        double acy = pins[idxC].Y - pins[idxA].Y;
+                        double area = Math.Abs(abx * acy - aby * acx);
+                        if (area > bestArea)
+                        {
+                            bestArea = area;
+                            baseA = idxA;
+                            baseB = idxB;
+                            baseC = idxC;
+                        }
+                    }
+                }
+            }
+
+            if (bestArea < LengthEpsilon)
+            {
+                throw new ArgumentException("Rigid bar must span an area.");
+            }
+
+            AddDistanceConstraint(constraints, pins, baseA, baseB);
+            AddDistanceConstraint(constraints, pins, baseA, baseC);
+            AddDistanceConstraint(constraints, pins, baseB, baseC);
+
+            for (int i = 0; i < pinIndices.Count; i++)
+            {
+                int idx = pinIndices[i];
+                if (idx == baseA || idx == baseB || idx == baseC) continue;
+                AddDistanceConstraint(constraints, pins, baseA, idx);
+                AddDistanceConstraint(constraints, pins, baseB, idx);
+            }
+        }
+
+        private static void AddDistanceConstraint(List<Constraint> constraints, List<PinInfo> pins, int idxA, int idxB)
+        {
+            double dx = pins[idxA].X - pins[idxB].X;
+            double dy = pins[idxA].Y - pins[idxB].Y;
+            double length = Math.Sqrt(dx * dx + dy * dy);
+            if (length < LengthEpsilon)
+            {
+                throw new ArgumentException("Bar length must be > 0.");
+            }
+            constraints.Add(new Constraint
+            {
+                Type = ConstraintType.Distance,
+                PinA = idxA,
+                PinB = idxB,
+                Length = length
+            });
         }
 
         private static void BuildVariableMap(
@@ -644,7 +790,8 @@ namespace User.PluginSdkDemo
             int[] varIndexY,
             double[] variables,
             int[] pinBarIndex,
-            double[] pinBarOffset,
+            double[] pinBarLocalX,
+            double[] pinBarLocalY,
             double[] barX0,
             double[] barY0,
             double[] barCos,
@@ -657,9 +804,12 @@ namespace User.PluginSdkDemo
                 int barIdx = pinBarIndex[i];
                 if (barIdx >= 0)
                 {
-                    double s = pinBarOffset[i];
-                    posX[i] = barX0[barIdx] + s * barCos[barIdx];
-                    posY[i] = barY0[barIdx] + s * barSin[barIdx];
+                    double localX = pinBarLocalX[i];
+                    double localY = pinBarLocalY[i];
+                    double cos = barCos[barIdx];
+                    double sin = barSin[barIdx];
+                    posX[i] = barX0[barIdx] + localX * cos - localY * sin;
+                    posY[i] = barY0[barIdx] + localX * sin + localY * cos;
                 }
                 else if (i == railIndex)
                 {
@@ -688,7 +838,8 @@ namespace User.PluginSdkDemo
             int[] barVarBase,
             double[] variables,
             int[] pinBarIndex,
-            double[] pinBarOffset,
+            double[] pinBarLocalX,
+            double[] pinBarLocalY,
             double[] posX,
             double[] posY)
         {
@@ -701,7 +852,8 @@ namespace User.PluginSdkDemo
                 varIndexY,
                 variables,
                 pinBarIndex,
-                pinBarOffset,
+                pinBarLocalX,
+                pinBarLocalY,
                 barX0,
                 barY0,
                 barCos,
@@ -719,7 +871,8 @@ namespace User.PluginSdkDemo
             int[] varIndexX,
             int[] varIndexY,
             int[] pinBarIndex,
-            double[] pinBarOffset,
+            double[] pinBarLocalX,
+            double[] pinBarLocalY,
             int[] barVarBase,
             double[] barCos,
             double[] barSin)
@@ -730,8 +883,11 @@ namespace User.PluginSdkDemo
                 int baseIndex = barVarBase[barIdx];
                 jacobian[row, baseIndex] += weightX;
                 jacobian[row, baseIndex + 1] += weightY;
-                double s = pinBarOffset[pinIndex];
-                jacobian[row, baseIndex + 2] += weightX * (-s * barSin[barIdx]) + weightY * (s * barCos[barIdx]);
+                double localX = pinBarLocalX[pinIndex];
+                double localY = pinBarLocalY[pinIndex];
+                double dpx = -localX * barSin[barIdx] - localY * barCos[barIdx];
+                double dpy = localX * barCos[barIdx] - localY * barSin[barIdx];
+                jacobian[row, baseIndex + 2] += weightX * dpx + weightY * dpy;
                 return;
             }
 
@@ -749,7 +905,8 @@ namespace User.PluginSdkDemo
             int[] varIndexX,
             int[] varIndexY,
             int[] pinBarIndex,
-            double[] pinBarOffset,
+            double[] pinBarLocalX,
+            double[] pinBarLocalY,
             int[] barVarBase,
             double[] barCos,
             double[] barSin)
@@ -760,8 +917,11 @@ namespace User.PluginSdkDemo
                 int baseIndex = barVarBase[barIdx];
                 force[baseIndex] += fx;
                 force[baseIndex + 1] += fy;
-                double s = pinBarOffset[pinIndex];
-                force[baseIndex + 2] += fx * (-s * barSin[barIdx]) + fy * (s * barCos[barIdx]);
+                double localX = pinBarLocalX[pinIndex];
+                double localY = pinBarLocalY[pinIndex];
+                double dpx = -localX * barSin[barIdx] - localY * barCos[barIdx];
+                double dpy = localX * barCos[barIdx] - localY * barSin[barIdx];
+                force[baseIndex + 2] += fx * dpx + fy * dpy;
                 return;
             }
 
@@ -780,7 +940,8 @@ namespace User.PluginSdkDemo
             int[] varIndexX,
             int[] varIndexY,
             int[] pinBarIndex,
-            double[] pinBarOffset,
+            double[] pinBarLocalX,
+            double[] pinBarLocalY,
             int[] barVarBase,
             double[] barCos,
             double[] barSin,
@@ -810,7 +971,8 @@ namespace User.PluginSdkDemo
                         varIndexX,
                         varIndexY,
                         pinBarIndex,
-                        pinBarOffset,
+                        pinBarLocalX,
+                        pinBarLocalY,
                         barVarBase,
                         barCos,
                         barSin);
@@ -823,7 +985,8 @@ namespace User.PluginSdkDemo
                         varIndexX,
                         varIndexY,
                         pinBarIndex,
-                        pinBarOffset,
+                        pinBarLocalX,
+                        pinBarLocalY,
                         barVarBase,
                         barCos,
                         barSin);
@@ -843,7 +1006,8 @@ namespace User.PluginSdkDemo
                         varIndexX,
                         varIndexY,
                         pinBarIndex,
-                        pinBarOffset,
+                        pinBarLocalX,
+                        pinBarLocalY,
                         barVarBase,
                         barCos,
                         barSin);
@@ -860,7 +1024,8 @@ namespace User.PluginSdkDemo
                         varIndexX,
                         varIndexY,
                         pinBarIndex,
-                        pinBarOffset,
+                        pinBarLocalX,
+                        pinBarLocalY,
                         barVarBase,
                         barCos,
                         barSin);
@@ -878,7 +1043,8 @@ namespace User.PluginSdkDemo
             int[] barVarBase,
             double[] variables,
             int[] pinBarIndex,
-            double[] pinBarOffset)
+            double[] pinBarLocalX,
+            double[] pinBarLocalY)
         {
             int varCount = variables.Length;
             int constraintCount = constraints.Count;
@@ -896,7 +1062,8 @@ namespace User.PluginSdkDemo
                     varIndexY,
                     variables,
                     pinBarIndex,
-                    pinBarOffset,
+                    pinBarLocalX,
+                    pinBarLocalY,
                     barX0,
                     barY0,
                     barCos,
@@ -914,7 +1081,8 @@ namespace User.PluginSdkDemo
                     varIndexX,
                     varIndexY,
                     pinBarIndex,
-                    pinBarOffset,
+                    pinBarLocalX,
+                    pinBarLocalY,
                     barVarBase,
                     barCos,
                     barSin,
@@ -937,7 +1105,8 @@ namespace User.PluginSdkDemo
                     varIndexY,
                     variables,
                     pinBarIndex,
-                    pinBarOffset,
+                    pinBarLocalX,
+                    pinBarLocalY,
                     barX0,
                     barY0,
                     barCos,
@@ -955,7 +1124,8 @@ namespace User.PluginSdkDemo
                     varIndexX,
                     varIndexY,
                     pinBarIndex,
-                    pinBarOffset,
+                    pinBarLocalX,
+                    pinBarLocalY,
                     barVarBase,
                     barCos,
                     barSin,
@@ -1004,7 +1174,8 @@ namespace User.PluginSdkDemo
                         varIndexY,
                         trialVars,
                         pinBarIndex,
-                        pinBarOffset,
+                        pinBarLocalX,
+                        pinBarLocalY,
                         tBarX0,
                         tBarY0,
                         tBarCos,
@@ -1044,7 +1215,8 @@ namespace User.PluginSdkDemo
             int[] varIndexX,
             int[] varIndexY,
             int[] pinBarIndex,
-            double[] pinBarOffset,
+            double[] pinBarLocalX,
+            double[] pinBarLocalY,
             int[] barVarBase,
             double[] barCos,
             double[] barSin,
@@ -1061,7 +1233,8 @@ namespace User.PluginSdkDemo
                 varIndexX,
                 varIndexY,
                 pinBarIndex,
-                pinBarOffset,
+                pinBarLocalX,
+                pinBarLocalY,
                 barVarBase,
                 barCos,
                 barSin,

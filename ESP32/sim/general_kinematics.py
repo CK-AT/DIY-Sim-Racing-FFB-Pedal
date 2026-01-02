@@ -19,7 +19,7 @@ _COND_LIMIT = 1e8
 
 def calc_kinematic_parameters(config, sample_count=_SAMPLE_COUNT):
     pins, contact_idx, rail_idx, id_to_index = _build_pins(config)
-    constraints, bar_lines, pin_bar_index, pin_bar_s, metering_constraint_idx = _build_constraints(
+    constraints, bar_lines, pin_bar_index, pin_bar_local_x, pin_bar_local_y, metering_constraint_idx = _build_constraints(
         config, pins, id_to_index
     )
     if metering_constraint_idx < 0:
@@ -58,7 +58,8 @@ def calc_kinematic_parameters(config, sample_count=_SAMPLE_COUNT):
             bar_var_base,
             variables,
             pin_bar_index,
-            pin_bar_s,
+            pin_bar_local_x,
+            pin_bar_local_y,
         ):
             raise RuntimeError("General kinematics solver failed to converge.")
 
@@ -71,7 +72,8 @@ def calc_kinematic_parameters(config, sample_count=_SAMPLE_COUNT):
             bar_var_base,
             variables,
             pin_bar_index,
-            pin_bar_s,
+            pin_bar_local_x,
+            pin_bar_local_y,
         )
         positions.append(pos)
         rail_offsets.append(rail_offset)
@@ -97,7 +99,8 @@ def calc_kinematic_parameters(config, sample_count=_SAMPLE_COUNT):
             var_index_x,
             var_index_y,
             pin_bar_index,
-            pin_bar_s,
+            pin_bar_local_x,
+            pin_bar_local_y,
             bar_var_base,
             bar_cos,
             bar_sin,
@@ -111,7 +114,8 @@ def calc_kinematic_parameters(config, sample_count=_SAMPLE_COUNT):
             var_index_x,
             var_index_y,
             pin_bar_index,
-            pin_bar_s,
+            pin_bar_local_x,
+            pin_bar_local_y,
             bar_var_base,
             bar_cos,
             bar_sin,
@@ -188,7 +192,8 @@ def _build_constraints(config, pins, id_to_index):
     constraints = []
     bar_lines = []
     pin_bar_index = [-1] * len(pins)
-    pin_bar_s = [0.0] * len(pins)
+    pin_bar_local_x = [0.0] * len(pins)
+    pin_bar_local_y = [0.0] * len(pins)
     metering_constraint_idx = -1
     metering_found = False
 
@@ -227,29 +232,25 @@ def _build_constraints(config, pins, id_to_index):
             if pin_id not in id_to_index:
                 raise ValueError("Bar references unknown pin id.")
             idx = id_to_index[pin_id]
-            if pin_bar_index[idx] >= 0:
-                raise ValueError("Pin participates in multiple collinear bars.")
             pin_indices.append(idx)
 
-        ref_idx = pin_indices[0]
-        axis_idx = pin_indices[1]
-        dx = pins[axis_idx]["x"] - pins[ref_idx]["x"]
-        dy = pins[axis_idx]["y"] - pins[ref_idx]["y"]
-        axis_len = float(np.hypot(dx, dy))
-        if axis_len < _EPS:
-            raise ValueError("Bar length must be > 0.")
-        dir_x = dx / axis_len
-        dir_y = dy / axis_len
+        ref_idx, axis_idx, dir_x, dir_y, axis_len = _find_bar_axis(pins, pin_indices)
+        is_collinear = _pins_collinear(pins, pin_indices, ref_idx, dir_x, dir_y, axis_len)
+
+        for idx in pin_indices:
+            if pin_bar_index[idx] >= 0:
+                raise ValueError("Pin participates in multiple bars.")
 
         for idx in pin_indices:
             px = pins[idx]["x"] - pins[ref_idx]["x"]
             py = pins[idx]["y"] - pins[ref_idx]["y"]
-            s = px * dir_x + py * dir_y
-            perp = px * dir_y - py * dir_x
-            if abs(perp) > _COLLINEAR_TOL * axis_len:
-                raise ValueError("Collinear bar pins must lie on the same line.")
+            local_x = px * dir_x + py * dir_y
+            local_y = -px * dir_y + py * dir_x
+            if is_collinear:
+                local_y = 0.0
             pin_bar_index[idx] = len(bar_lines)
-            pin_bar_s[idx] = s
+            pin_bar_local_x[idx] = local_x
+            pin_bar_local_y[idx] = local_y
 
         bar_lines.append(
             {
@@ -268,7 +269,89 @@ def _build_constraints(config, pins, id_to_index):
             constraints.append({"type": "fix", "pin": idx, "axis": 0})
             constraints.append({"type": "fix", "pin": idx, "axis": 1})
 
-    return constraints, bar_lines, pin_bar_index, pin_bar_s, metering_constraint_idx
+    return constraints, bar_lines, pin_bar_index, pin_bar_local_x, pin_bar_local_y, metering_constraint_idx
+
+
+def _find_bar_axis(pins, pin_indices):
+    ref_idx = -1
+    axis_idx = -1
+    max_dist2 = 0.0
+    for i in range(len(pin_indices) - 1):
+        idx_a = pin_indices[i]
+        for j in range(i + 1, len(pin_indices)):
+            idx_b = pin_indices[j]
+            dx = pins[idx_b]["x"] - pins[idx_a]["x"]
+            dy = pins[idx_b]["y"] - pins[idx_a]["y"]
+            dist2 = dx * dx + dy * dy
+            if dist2 > max_dist2:
+                max_dist2 = dist2
+                ref_idx = idx_a
+                axis_idx = idx_b
+
+    axis_len = math.sqrt(max_dist2)
+    if axis_len < _EPS:
+        raise ValueError("Bar length must be > 0.")
+    dx = pins[axis_idx]["x"] - pins[ref_idx]["x"]
+    dy = pins[axis_idx]["y"] - pins[ref_idx]["y"]
+    dir_x = dx / axis_len
+    dir_y = dy / axis_len
+    return ref_idx, axis_idx, dir_x, dir_y, axis_len
+
+
+def _pins_collinear(pins, pin_indices, ref_idx, dir_x, dir_y, axis_len):
+    for idx in pin_indices:
+        px = pins[idx]["x"] - pins[ref_idx]["x"]
+        py = pins[idx]["y"] - pins[ref_idx]["y"]
+        perp = px * dir_y - py * dir_x
+        if abs(perp) > _COLLINEAR_TOL * axis_len:
+            return False
+    return True
+
+
+def _add_rigid_bar_constraints(constraints, pins, pin_indices):
+    if len(pin_indices) < 3:
+        return
+
+    base_a = base_b = base_c = -1
+    best_area = -1.0
+    for i in range(len(pin_indices) - 2):
+        idx_a = pin_indices[i]
+        for j in range(i + 1, len(pin_indices) - 1):
+            idx_b = pin_indices[j]
+            abx = pins[idx_b]["x"] - pins[idx_a]["x"]
+            aby = pins[idx_b]["y"] - pins[idx_a]["y"]
+            for k in range(j + 1, len(pin_indices)):
+                idx_c = pin_indices[k]
+                acx = pins[idx_c]["x"] - pins[idx_a]["x"]
+                acy = pins[idx_c]["y"] - pins[idx_a]["y"]
+                area = abs(abx * acy - aby * acx)
+                if area > best_area:
+                    best_area = area
+                    base_a = idx_a
+                    base_b = idx_b
+                    base_c = idx_c
+
+    if best_area < _EPS:
+        raise ValueError("Rigid bar must span an area.")
+
+    _add_distance_constraint(constraints, pins, base_a, base_b)
+    _add_distance_constraint(constraints, pins, base_a, base_c)
+    _add_distance_constraint(constraints, pins, base_b, base_c)
+
+    for idx in pin_indices:
+        if idx in (base_a, base_b, base_c):
+            continue
+        _add_distance_constraint(constraints, pins, base_a, idx)
+        _add_distance_constraint(constraints, pins, base_b, idx)
+
+
+def _add_distance_constraint(constraints, pins, idx_a, idx_b):
+    dx = pins[idx_a]["x"] - pins[idx_b]["x"]
+    dy = pins[idx_a]["y"] - pins[idx_b]["y"]
+    length = float(np.hypot(dx, dy))
+    if length < _EPS:
+        raise ValueError("Bar length must be > 0.")
+    constraints.append({"type": "distance", "a": idx_a, "b": idx_b, "length": length})
 
 
 def _build_variable_map(pins, rail_idx, contact_idx, bar_lines, pin_bar_index):
@@ -335,7 +418,8 @@ def _fill_positions_cached(
     var_index_y,
     variables,
     pin_bar_index,
-    pin_bar_s,
+    pin_bar_local_x,
+    pin_bar_local_y,
     bar_x0,
     bar_y0,
     bar_cos,
@@ -345,9 +429,12 @@ def _fill_positions_cached(
     for i, pin in enumerate(pins):
         bar_idx = pin_bar_index[i]
         if bar_idx >= 0:
-            s = pin_bar_s[i]
-            pos[i, 0] = bar_x0[bar_idx] + s * bar_cos[bar_idx]
-            pos[i, 1] = bar_y0[bar_idx] + s * bar_sin[bar_idx]
+            local_x = pin_bar_local_x[i]
+            local_y = pin_bar_local_y[i]
+            cos_t = bar_cos[bar_idx]
+            sin_t = bar_sin[bar_idx]
+            pos[i, 0] = bar_x0[bar_idx] + local_x * cos_t - local_y * sin_t
+            pos[i, 1] = bar_y0[bar_idx] + local_x * sin_t + local_y * cos_t
         elif i == rail_idx:
             pos[i, 0] = pin["x"] + rail_offset
             pos[i, 1] = pin["y"]
@@ -369,7 +456,8 @@ def _fill_positions(
     bar_var_base,
     variables,
     pin_bar_index,
-    pin_bar_s,
+    pin_bar_local_x,
+    pin_bar_local_y,
 ):
     bar_x0, bar_y0, bar_cos, bar_sin = _bar_pose_from_variables(variables, bar_var_base)
     return _fill_positions_cached(
@@ -380,7 +468,8 @@ def _fill_positions(
         var_index_y,
         variables,
         pin_bar_index,
-        pin_bar_s,
+        pin_bar_local_x,
+        pin_bar_local_y,
         bar_x0,
         bar_y0,
         bar_cos,
@@ -396,7 +485,8 @@ def _accumulate_pin_jacobian(
     var_index_x,
     var_index_y,
     pin_bar_index,
-    pin_bar_s,
+    pin_bar_local_x,
+    pin_bar_local_y,
     bar_var_base,
     bar_cos,
     bar_sin,
@@ -406,8 +496,11 @@ def _accumulate_pin_jacobian(
         base = bar_var_base[bar_idx]
         row[base] += weight_x
         row[base + 1] += weight_y
-        s = pin_bar_s[pin_idx]
-        row[base + 2] += weight_x * (-s * bar_sin[bar_idx]) + weight_y * (s * bar_cos[bar_idx])
+        local_x = pin_bar_local_x[pin_idx]
+        local_y = pin_bar_local_y[pin_idx]
+        dpx = -local_x * bar_sin[bar_idx] - local_y * bar_cos[bar_idx]
+        dpy = local_x * bar_cos[bar_idx] - local_y * bar_sin[bar_idx]
+        row[base + 2] += weight_x * dpx + weight_y * dpy
         return
 
     ix = var_index_x[pin_idx]
@@ -426,7 +519,8 @@ def _apply_force_on_pin(
     var_index_x,
     var_index_y,
     pin_bar_index,
-    pin_bar_s,
+    pin_bar_local_x,
+    pin_bar_local_y,
     bar_var_base,
     bar_cos,
     bar_sin,
@@ -436,8 +530,11 @@ def _apply_force_on_pin(
         base = bar_var_base[bar_idx]
         f_ext[base] += fx
         f_ext[base + 1] += fy
-        s = pin_bar_s[pin_idx]
-        f_ext[base + 2] += fx * (-s * bar_sin[bar_idx]) + fy * (s * bar_cos[bar_idx])
+        local_x = pin_bar_local_x[pin_idx]
+        local_y = pin_bar_local_y[pin_idx]
+        dpx = -local_x * bar_sin[bar_idx] - local_y * bar_cos[bar_idx]
+        dpy = local_x * bar_cos[bar_idx] - local_y * bar_sin[bar_idx]
+        f_ext[base + 2] += fx * dpx + fy * dpy
         return
 
     ix = var_index_x[pin_idx]
@@ -456,7 +553,8 @@ def _build_residuals_and_jacobian(
     var_index_x,
     var_index_y,
     pin_bar_index,
-    pin_bar_s,
+    pin_bar_local_x,
+    pin_bar_local_y,
     bar_var_base,
     bar_cos,
     bar_sin,
@@ -485,7 +583,8 @@ def _build_residuals_and_jacobian(
                 var_index_x,
                 var_index_y,
                 pin_bar_index,
-                pin_bar_s,
+                pin_bar_local_x,
+                pin_bar_local_y,
                 bar_var_base,
                 bar_cos,
                 bar_sin,
@@ -498,7 +597,8 @@ def _build_residuals_and_jacobian(
                 var_index_x,
                 var_index_y,
                 pin_bar_index,
-                pin_bar_s,
+                pin_bar_local_x,
+                pin_bar_local_y,
                 bar_var_base,
                 bar_cos,
                 bar_sin,
@@ -524,7 +624,8 @@ def _build_residuals_and_jacobian(
                 var_index_x,
                 var_index_y,
                 pin_bar_index,
-                pin_bar_s,
+                pin_bar_local_x,
+                pin_bar_local_y,
                 bar_var_base,
                 bar_cos,
                 bar_sin,
@@ -542,7 +643,8 @@ def _solve_positions(
     bar_var_base,
     variables,
     pin_bar_index,
-    pin_bar_s,
+    pin_bar_local_x,
+    pin_bar_local_y,
 ):
     var_count = len(variables)
     if var_count == 0:
@@ -555,7 +657,8 @@ def _solve_positions(
             var_index_y,
             variables,
             pin_bar_index,
-            pin_bar_s,
+            pin_bar_local_x,
+            pin_bar_local_y,
             bar_x0,
             bar_y0,
             bar_cos,
@@ -569,7 +672,8 @@ def _solve_positions(
             var_index_x,
             var_index_y,
             pin_bar_index,
-            pin_bar_s,
+            pin_bar_local_x,
+            pin_bar_local_y,
             bar_var_base,
             bar_cos,
             bar_sin,
@@ -590,7 +694,8 @@ def _solve_positions(
             var_index_y,
             variables,
             pin_bar_index,
-            pin_bar_s,
+            pin_bar_local_x,
+            pin_bar_local_y,
             bar_x0,
             bar_y0,
             bar_cos,
@@ -604,7 +709,8 @@ def _solve_positions(
             var_index_x,
             var_index_y,
             pin_bar_index,
-            pin_bar_s,
+            pin_bar_local_x,
+            pin_bar_local_y,
             bar_var_base,
             bar_cos,
             bar_sin,
@@ -643,7 +749,8 @@ def _solve_positions(
                 var_index_y,
                 trial_vars,
                 pin_bar_index,
-                pin_bar_s,
+                pin_bar_local_x,
+                pin_bar_local_y,
                 t_bar_x0,
                 t_bar_y0,
                 t_bar_cos,
@@ -657,7 +764,8 @@ def _solve_positions(
                 var_index_x,
                 var_index_y,
                 pin_bar_index,
-                pin_bar_s,
+                pin_bar_local_x,
+                pin_bar_local_y,
                 bar_var_base,
                 t_bar_cos,
                 t_bar_sin,
@@ -690,7 +798,8 @@ def _build_jacobian(
     var_index_x,
     var_index_y,
     pin_bar_index,
-    pin_bar_s,
+    pin_bar_local_x,
+    pin_bar_local_y,
     bar_var_base,
     bar_cos,
     bar_sin,
@@ -704,7 +813,8 @@ def _build_jacobian(
         var_index_x,
         var_index_y,
         pin_bar_index,
-        pin_bar_s,
+        pin_bar_local_x,
+        pin_bar_local_y,
         bar_var_base,
         bar_cos,
         bar_sin,
