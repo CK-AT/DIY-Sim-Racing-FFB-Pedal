@@ -2,6 +2,115 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-03 16:28:43 +01:00 (DESKTOP-6KO022D)
+Request: shifter UI polish (live marker + axis range limits) and fix build error.
+Summary:
+- Added live shifter position marker driven by AxisState (with sequential fallback to X midpoint).
+- Unlocked X range in sequential mode and clamped X/Y range sliders to selected axis travel ranges.
+- Fixed CS0206 by avoiding ref on protobuf properties in range clamp helper.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/ShifterConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-03 16:10:28 +01:00 (DESKTOP-6KO022D)
+Request: shifter detection/visualization updates, sequential demo, and X-midpoint centering.
+Summary:
+- Renamed shifter detection schema to gear-based slots (ShifterGear enum + gear_slots) and updated firmware/tests/UI + demo configs.
+- Fixed empty gear dropdown by setting the DataGridComboBoxColumn ItemsSource in code-behind.
+- Added shifter force-field plotter, sequential demo config, and sequential X-midpoint sampling derived from the X motion range.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `proto/diy_ffb_protocol.proto`
+- `proto/diy_ffb_protocol.options`
+- `ESP32/src/ShifterDetect.cpp`
+- `ESP32/test/test_shifter_native/test_shifter.cpp`
+- `ESP32/include/ShifterFunction.h`
+- `ESP32/src/ShifterFunction.cpp`
+- `ESP32/sim/plot_shifter_force_fields.py`
+- `SimhubPlugin/ShifterConfigControl.xaml`
+- `SimhubPlugin/ShifterConfigControl.xaml.cs`
+- `SimhubPlugin/shifter_hpattern_demo_config.json`
+- `SimhubPlugin/shifter_hpattern_demo_config_modified.json`
+- `SimhubPlugin/shifter_sequential_demo_config.json`
+Open items:
+- None.
+
+## 2026-01-03 02:42:55 +01:00 (DESKTOP-6KO022D)
+Request: remove shifter controller-axis output UI (buttons only).
+Summary:
+- Removed controller axis selector from shifter config UI and force the output axis to Undefined.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/ShifterConfigControl.xaml`
+- `SimhubPlugin/ShifterConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-03 02:38:05 +01:00 (DESKTOP-6KO022D)
+Request: add SimHub UI for shifter config editing.
+Summary:
+- Added ShifterConfigControl with axis selection, range inputs, force settings, and editable gate/detent tables.
+- Wired shifter tab into FunctionConfigControl and function list population.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `SimhubPlugin/ShifterConfigControl.xaml`
+- `SimhubPlugin/ShifterConfigControl.xaml.cs`
+- `SimhubPlugin/FunctionConfigControl.xaml`
+- `SimhubPlugin/FunctionConfigControl.xaml.cs`
+- `SimhubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimhubPlugin/DiyFfbPlugin.csproj`
+Open items:
+- None.
+
+## 2026-01-03 02:14:03 +01:00 (DESKTOP-6KO022D)
+Request: implement shifter physics + config (gate geometry, detents, sequential).
+Summary:
+- Protocol: added shifter function ID and ShifterConfig with gate segments and detent points.
+- Firmware: added ShifterFunction with 2D LUT-based force field and axis role handling.
+- Regenerated C# and Python protobuf outputs.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `proto/diy_ffb_protocol.proto`
+- `ESP32/include/ShifterFunction.h`
+- `ESP32/src/ShifterFunction.cpp`
+- `ESP32/src/Main.cpp`
+- `proto/diy_ffb_protocol.options`
+- `SimHubPlugin/DiyFfbProtocol.cs`
+- `ESP32/sim/diy_ffb_protocol_pb2.py`
+Open items:
+- None.
+
+## 2026-01-03 01:54:23 +01:00 (DESKTOP-6KO022D)
+Request: add shifter detection config + 8 joystick buttons.
+Summary:
+- Protocol: added shifter slot detection config and wired it into AuxFunctionConfig; updated nanopb options.
+- Firmware: added ShifterDetect aux function to set joystick buttons from slot regions.
+- Regenerated C# and Python protobuf outputs.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `proto/diy_ffb_protocol.proto`
+- `ESP32/src/ShifterDetect.cpp`
+- `ESP32/include/ShifterDetect.h`
+- `ESP32/src/Main.cpp`
+- `proto/diy_ffb_protocol.options`
+- `SimHubPlugin/DiyFfbProtocol.cs`
+- `ESP32/sim/diy_ffb_protocol_pb2.py`
+Open items:
+- None.
+
+## 2026-01-03 01:42:04 +01:00 (DESKTOP-6KO022D)
+Request: increase joystick output to 8 buttons for shifter detection.
+Summary:
+- Firmware joystick now advertises 8 buttons and applies button states alongside axis outputs.
+- Added CommManager helper to set button values for aux functions.
+Key files:
+- `ESP32/src/CommManager.cpp`
+- `ESP32/include/CommManager.h`
+Open items:
+- None.
+
 ## 2026-01-02 21:40:09 +01:00 (DESKTOP-6KO022D)
 Request: grounded pins enhanced using a ground-symbol.
 Summary:

@@ -1,0 +1,187 @@
+{
+  "configItems": [
+    {
+      "functionConfig": {
+        "base": {
+          "functionId": "FUNCTION_ID_SHIFTER",
+          "linkedAxes": [
+            "AXIS_ID_1",
+            "AXIS_ID_2",
+            "AXIS_UNDEFINED",
+            "AXIS_UNDEFINED"
+          ],
+          "controllerOutputAxis": "CONTROLLER_AXIS_UNDEFINED",
+          "outputMode": "OUTPUT_MODE_TRAVEL",
+          "outputMin": -80,
+          "outputMax": 80,
+          "store": false
+        },
+        "shifter": {
+          "posXMin": -80,
+          "posXMax": 80,
+          "posYMin": -60,
+          "posYMax": 60,
+          "damping": 0.5,
+          "maxForce": 50.0,
+          "gridStep": 100,
+          "sequential": false,
+          "gateSegments": [
+            {
+              "x0": -800,
+              "y0": 0,
+              "x1": 600,
+              "y1": 0,
+              "halfWidth": 60,
+              "springCenter": 1.0,
+              "springWall": 8.0
+            },
+            {
+              "x0": -400,
+              "y0": -550,
+              "x1": -400,
+              "y1": 550,
+              "halfWidth": 60,
+              "springCenter": 1.0,
+              "springWall": 8.0
+            },
+            {
+              "x0": 0,
+              "y0": -550,
+              "x1": 0,
+              "y1": 550,
+              "halfWidth": 60,
+              "springCenter": 1.0,
+              "springWall": 8.0
+            },
+            {
+              "x0": 400,
+              "y0": -550,
+              "x1": 400,
+              "y1": 550,
+              "halfWidth": 60,
+              "springCenter": 1.0,
+              "springWall": 8.0
+            },
+            {
+              "x0": -700,
+              "y0": -550,
+              "x1": -700,
+              "y1": 550,
+              "halfWidth": 40,
+              "springCenter": 1.0,
+              "springWall": 10.0
+            }
+          ],
+          "detents": [
+            {
+              "x": -400,
+              "y": 450,
+              "radius": 60,
+              "spring": 6.0
+            },
+            {
+              "x": -400,
+              "y": -450,
+              "radius": 60,
+              "spring": 6.0
+            },
+            {
+              "x": 0,
+              "y": 450,
+              "radius": 60,
+              "spring": 6.0
+            },
+            {
+              "x": 0,
+              "y": -450,
+              "radius": 60,
+              "spring": 6.0
+            },
+            {
+              "x": 400,
+              "y": 450,
+              "radius": 60,
+              "spring": 6.0
+            },
+            {
+              "x": 400,
+              "y": -450,
+              "radius": 60,
+              "spring": 6.0
+            },
+            {
+              "x": -700,
+              "y": -450,
+              "radius": 60,
+              "spring": 7.0
+            }
+          ]
+        },
+        "auxFunction": {
+          "linkedAxes": [
+            "AXIS_ID_1",
+            "AXIS_ID_2",
+            "AXIS_UNDEFINED",
+            "AXIS_UNDEFINED"
+          ],
+          "shifterDetect": {
+            "gearSlots": [
+              {
+                "centerX": -400,
+                "centerY": 450,
+                "halfWidth": 80,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_1"
+              },
+              {
+                "centerX": -400,
+                "centerY": -450,
+                "halfWidth": 80,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_2"
+              },
+              {
+                "centerX": 0,
+                "centerY": 450,
+                "halfWidth": 80,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_3"
+              },
+              {
+                "centerX": 0,
+                "centerY": -450,
+                "halfWidth": 80,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_4"
+              },
+              {
+                "centerX": 400,
+                "centerY": 450,
+                "halfWidth": 80,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_5"
+              },
+              {
+                "centerX": 400,
+                "centerY": -450,
+                "halfWidth": 80,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_6"
+              },
+              {
+                "centerX": -700,
+                "centerY": -450,
+                "halfWidth": 70,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_REVERSE"
+              }
+            ],
+            "hysteresis": 20
+          }
+        },
+        "simulatedMass": 0.1,
+        "friction": 2.0
+      }
+    }
+  ]
+}

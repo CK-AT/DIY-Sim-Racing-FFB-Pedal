@@ -1,5 +1,8 @@
 #include <Physics.h>
 
+void SimElement::update(Sim *sim, float &f_sum) {
+}
+
 void CompoundElement::update(Sim *sim, float &f_sum) {
     if (!_enabled) return;
     for (auto element : _elements) {

@@ -11,6 +11,7 @@
 
 class CommManager {
     public:
+        static constexpr uint8_t JOYSTICK_BUTTON_COUNT = 32;
         struct CANConfig {
             uint16_t baud_rate;
             int8_t tx_pin;
@@ -60,6 +61,11 @@ class CommManager {
         }
         void set_controller_output_value(ControllerAxis controller_axis, float &value) {
             controller_axis_values[MessageTools::controller_axis_index_from_id(controller_axis)] = value;
+        }
+        bool set_controller_button_value(uint8_t button_index, bool pressed) {
+            if (button_index >= JOYSTICK_BUTTON_COUNT) return false;
+            controller_button_values[button_index] = pressed ? 1 : 0;
+            return true;
         }
 
     private:
@@ -140,6 +146,7 @@ class CommManager {
         uint32_t _ti_joystick_state;
         bool _physics_task_started = false;
         float controller_axis_values[_ControllerAxis_MAX] = {};
+        uint8_t controller_button_values[JOYSTICK_BUTTON_COUNT] = {};
         ESP32OTAPull ota = {};
         OtaState _ota_state = OtaState::OTA_IDLE;
         uint32_t _ti_ota_state;

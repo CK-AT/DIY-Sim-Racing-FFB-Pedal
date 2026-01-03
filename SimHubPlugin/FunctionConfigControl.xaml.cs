@@ -45,6 +45,7 @@ namespace User.PluginSdkDemo
             AutomotivePedalConfig.DebugMessage += OnDebugMessage;
             FlightPedalsConfig.SetGui(ui, plugin);
             FlightStickConfig.SetGui(ui, plugin);
+            ShifterConfig.SetGui(ui, plugin);
         }
 
         private void OnDebugMessage(string message)
@@ -84,6 +85,10 @@ namespace User.PluginSdkDemo
                 case FunctionID.FlightStickRoll:
                     new_config.FlightStickRoll = FlightStickConfigControl.GetDefaultRollConfig();
                     break;
+                case FunctionID.Shifter:
+                    new_config.Shifter = ShifterConfigControl.GetDefaultConfig();
+                    new_config.AuxFunction = ShifterConfigControl.GetDefaultDetectConfig();
+                    break;
             }
             return new_config;
         }
@@ -101,6 +106,9 @@ namespace User.PluginSdkDemo
                 case 2:
                     FlightStickConfig.OnKinematicParametersChanged(parameters);
                     break;
+                case 3:
+                    ShifterConfig.OnKinematicParametersChanged(parameters);
+                    break;
             }
         }
 
@@ -113,14 +121,17 @@ namespace User.PluginSdkDemo
                     case 0:
                         AutomotivePedalConfig.OnAxisStateUpdate(axis_state);
                         break;
-                case 1:
-                    FlightPedalsConfig.OnAxisStateUpdate(axis_state);
-                    break;
-                case 2:
-                    FlightStickConfig.OnAxisStateUpdate(axis_state);
-                    break;
+                    case 1:
+                        FlightPedalsConfig.OnAxisStateUpdate(axis_state);
+                        break;
+                    case 2:
+                        FlightStickConfig.OnAxisStateUpdate(axis_state);
+                        break;
+                    case 3:
+                        ShifterConfig.OnAxisStateUpdate(axis_state);
+                        break;
+                }
             }
-        }
         }
 
         public void SwitchFunction(Function function)
@@ -152,6 +163,10 @@ namespace User.PluginSdkDemo
                 case FunctionID.FlightStickRoll:
                     FlightStickConfig.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 2;
+                    break;
+                case FunctionID.Shifter:
+                    ShifterConfig.SwitchFunction(function);
+                    tc_specific_function.SelectedIndex = 3;
                     break;
             }
         }

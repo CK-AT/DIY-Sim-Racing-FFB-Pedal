@@ -1,5 +1,9 @@
 #pragma once
 #include <array>
+#include <cstdio>
+#include <functional>
+#include <utility>
+
 #include <Arduino.h>
 
 #define MAX_LOG_LINE_LENGTH 150

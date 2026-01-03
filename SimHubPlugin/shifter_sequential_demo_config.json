@@ -1,0 +1,93 @@
+{
+  "configItems": [
+    {
+      "functionConfig": {
+        "base": {
+          "functionId": "FUNCTION_ID_SHIFTER",
+          "linkedAxes": [
+            "AXIS_ID_1",
+            "AXIS_ID_2",
+            "AXIS_UNDEFINED",
+            "AXIS_UNDEFINED"
+          ],
+          "controllerOutputAxis": "CONTROLLER_AXIS_UNDEFINED",
+          "outputMode": "OUTPUT_MODE_TRAVEL",
+          "outputMin": -30,
+          "outputMax": 30,
+          "store": false
+        },
+        "shifter": {
+          "posXMin": -10,
+          "posXMax": 10,
+          "posYMin": -30,
+          "posYMax": 30,
+          "damping": 0.4,
+          "maxForce": 30.0,
+          "gridStep": 50,
+          "sequential": true,
+          "gateSegments": [
+            {
+              "x0": -200,
+              "y0": 0,
+              "x1": 200,
+              "y1": 0,
+              "halfWidth": 40,
+              "springCenter": 0.5,
+              "springWall": 1.5
+            }
+          ],
+          "detents": [
+            {
+              "x": 0,
+              "y": 200,
+              "radius": 40,
+              "spring": 6.0
+            },
+            {
+              "x": 0,
+              "y": -200,
+              "radius": 40,
+              "spring": 6.0
+            }
+          ]
+        },
+        "auxFunction": {
+          "linkedAxes": [
+            "AXIS_ID_2",
+            "AXIS_ID_1",
+            "AXIS_UNDEFINED",
+            "AXIS_UNDEFINED"
+          ],
+          "shifterDetect": {
+            "gearSlots": [
+              {
+                "centerX": 0,
+                "centerY": 0,
+                "halfWidth": 50,
+                "halfHeight": 50,
+                "gear": "SHIFTER_GEAR_NEUTRAL"
+              },
+              {
+                "centerX": 0,
+                "centerY": 200,
+                "halfWidth": 50,
+                "halfHeight": 30,
+                "gear": "SHIFTER_GEAR_SEQUENTIAL_UP"
+              },
+              {
+                "centerX": 0,
+                "centerY": -200,
+                "halfWidth": 50,
+                "halfHeight": 30,
+                "gear": "SHIFTER_GEAR_SEQUENTIAL_DOWN"
+              }
+            ],
+            "hysteresis": 10
+          }
+        },
+        "simulatedMass": 0.1,
+        "friction": 1.5
+      }
+    }
+  ]
+}

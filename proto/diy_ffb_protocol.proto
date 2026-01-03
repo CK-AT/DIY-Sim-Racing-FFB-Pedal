@@ -179,6 +179,7 @@ enum FunctionID {
   FUNCTION_ID_FLIGHT_PEDALS = 4;
   FUNCTION_ID_FLIGHT_STICK_PITCH = 5;
   FUNCTION_ID_FLIGHT_STICK_ROLL = 6;
+  FUNCTION_ID_SHIFTER = 7;
 }
 
 enum OutputMode {
@@ -369,12 +370,46 @@ message RudderBrakeConfig {
   float f_max = 5;
 }
 
+enum ShifterGear {
+  // neutral slot (default)
+  SHIFTER_GEAR_NEUTRAL = 0;
+  SHIFTER_GEAR_1 = 1;
+  SHIFTER_GEAR_2 = 2;
+  SHIFTER_GEAR_3 = 3;
+  SHIFTER_GEAR_4 = 4;
+  SHIFTER_GEAR_5 = 5;
+  SHIFTER_GEAR_6 = 6;
+  SHIFTER_GEAR_7 = 7;
+  SHIFTER_GEAR_REVERSE = 8;
+  SHIFTER_GEAR_SEQUENTIAL_UP = 9;
+  SHIFTER_GEAR_SEQUENTIAL_DOWN = 10;
+}
+
+message ShifterGearSlot {
+  // slot center in 0.1mm units (x-right, y-up; negative allowed)
+  sint32 center_x = 1;
+  sint32 center_y = 2;
+  // half size in 0.1mm units
+  uint32 half_width = 3;
+  uint32 half_height = 4;
+  // gear selection for this slot (mapped to fixed button indices in firmware)
+  ShifterGear gear = 5;
+}
+
+message ShifterDetectConfig {
+  // up to 8 gear slots
+  repeated ShifterGearSlot gear_slots = 1;
+  // hysteresis added to slot bounds in 0.1mm units
+  uint32 hysteresis = 2;
+}
+
 message AuxFunctionConfig {
   // a list of up to 4 axis IDs where the first value defines the primary axis, can be OR'ed with AXIS_SUBTRACTIVE (e.g. for a left flight pedal)
   repeated AxisID linked_axes = 1;
   // controller axis to output to
   oneof specific {
     RudderBrakeConfig rudder_brake = 2;
+    ShifterDetectConfig shifter_detect = 3;
   }
 }
 
@@ -411,6 +446,50 @@ message FlightStickRollConfig {
   float centering_spring_const = 4;
 }
 
+message ShifterGateSegment {
+  // start/end in 0.1mm units
+  sint32 x0 = 1;
+  sint32 y0 = 2;
+  sint32 x1 = 3;
+  sint32 y1 = 4;
+  // corridor half width in 0.1mm units
+  uint32 half_width = 5;
+  // centering spring in N/mm (inside corridor)
+  float spring_center = 6;
+  // wall spring in N/mm (outside corridor)
+  float spring_wall = 7;
+}
+
+message ShifterDetentPoint {
+  // detent center in 0.1mm units
+  sint32 x = 1;
+  sint32 y = 2;
+  // influence radius in 0.1mm units
+  uint32 radius = 3;
+  // spring in N/mm
+  float spring = 4;
+}
+
+message ShifterConfig {
+  // axis travel limits in mm
+  int32 pos_x_min = 1;
+  int32 pos_x_max = 2;
+  int32 pos_y_min = 3;
+  int32 pos_y_max = 4;
+  // damping in (N*s)/mm
+  float damping = 5;
+  // clamp force magnitude (0 = disabled)
+  float max_force = 6;
+  // grid step for the LUT in 0.1mm units
+  uint32 grid_step = 7;
+  // sequential mode (Y-only)
+  bool sequential = 8;
+  // gate geometry
+  repeated ShifterGateSegment gate_segments = 9;
+  // detent wells
+  repeated ShifterDetentPoint detents = 10;
+}
+
 message FunctionConfig {
   FunctionBase base = 1;
   oneof specific {
@@ -418,6 +497,7 @@ message FunctionConfig {
     FlightPedalsConfig flight_pedals = 3;
     FlightStickPitchConfig flight_stick_pitch = 7;
     FlightStickRollConfig flight_stick_roll = 8;
+    ShifterConfig shifter = 9;
   }
   AuxFunctionConfig aux_function = 4;
   // simulated mass in kg

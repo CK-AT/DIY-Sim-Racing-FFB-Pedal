@@ -22,6 +22,25 @@ FunctionBase.linked_axes                    max_count:4 fixed_count:true
 
 AuxFunctionConfig.linked_axes               max_count:4 fixed_count:true
 
+ShifterGearSlot.center_*                    int_size:IS_16
+ShifterGearSlot.half_*                      int_size:IS_16
+ShifterGearSlot.gear                        int_size:IS_8
+ShifterDetectConfig.gear_slots              max_count:8
+ShifterDetectConfig.hysteresis              int_size:IS_16
+
+ShifterGateSegment.x*                       int_size:IS_16
+ShifterGateSegment.y*                       int_size:IS_16
+ShifterGateSegment.half_width               int_size:IS_16
+
+ShifterDetentPoint.x*                       int_size:IS_16
+ShifterDetentPoint.y*                       int_size:IS_16
+ShifterDetentPoint.radius                   int_size:IS_16
+
+ShifterConfig.pos_*                         int_size:IS_16
+ShifterConfig.grid_step                     int_size:IS_16
+ShifterConfig.gate_segments                 max_count:12
+ShifterConfig.detents                       max_count:16
+
 SplineForceCurveConfig.pos_*                int_size:IS_16
 SplineForceCurveConfig.f_rel_points         max_count:6 fixed_count:true int_size:IS_8
 SplineForceCurveConfig.cubic_spline_*       max_count:5 fixed_count:true

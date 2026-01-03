@@ -31,12 +31,16 @@ void physics_task_func(void *pv_parameters);
 #include "FlightPedalsFunction.h"
 #include "FlightStickFunction.h"
 #include "RudderBrake.h"
+#include "ShifterDetect.h"
+#include "ShifterFunction.h"
 
 AutomotivePedalFunction automotive_pedal_function = {};
 FlightPedalsFunction flight_pedals_function = {};
 FlightStickFunction flight_stick_pitch_function = {};
 FlightStickFunction flight_stick_roll_function = {};
 RudderBrake rudder_brake = {};
+ShifterDetect shifter_detect = {};
+ShifterFunction shifter_function = {};
 
 #include "CycleTimer.h"
 #include "LogOutput.h"
@@ -143,6 +147,9 @@ IAuxFunction *get_aux_function(const FunctionConfig *func_cfg) {
         case AuxFunctionConfig_rudder_brake_tag:
             return &rudder_brake;
             break;
+        case AuxFunctionConfig_shifter_detect_tag:
+            return &shifter_detect;
+            break;
         default:
             break;
     }
@@ -179,6 +186,10 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
         case FunctionConfig_flight_stick_roll_tag:
             flight_stick_roll_function.update_config(function_cfg->specific.flight_stick_roll);
             active_function = &flight_stick_roll_function;
+            break;
+        case FunctionConfig_shifter_tag:
+            shifter_function.update_config(function_cfg->specific.shifter, comm_manager, function_cfg->base.linked_axes);
+            active_function = &shifter_function;
             break;
     }
     if (active_function) {

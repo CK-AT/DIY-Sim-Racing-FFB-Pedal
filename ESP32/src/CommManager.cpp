@@ -12,7 +12,7 @@
 // RTDebugOutputService debugOutput = RTDebugOutputService();
 QueueHandle_t _log_queue_data;
 
-Joystick_ _joystick = Joystick_(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD, 1, 0,  // Button Count, Hat Switch Count
+Joystick_ _joystick = Joystick_(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD, CommManager::JOYSTICK_BUTTON_COUNT, 0,  // Button Count, Hat Switch Count
                                 true, true, true,                                         // X, Y, Z
                                 true, true, true,                                         // Rx, Ry, Rz
                                 true, true,                                               // rudder, throttle
@@ -649,6 +649,7 @@ void CommManager::send_joystick_values(void) {
     }
     float output_value;
     memset(controller_axis_values, 0, sizeof(controller_axis_values));
+    memset(controller_button_values, 0, sizeof(controller_button_values));
     for (uint8_t function_idx = 0; function_idx < _FunctionID_MAX; function_idx++) {
         function_id = FunctionID(function_idx + 1);
         if (function_flags & (1 << function_id)) {
@@ -674,6 +675,9 @@ void CommManager::send_joystick_values(void) {
     for (uint8_t controller_axis_idx = 0; controller_axis_idx < _ControllerAxis_MAX; controller_axis_idx++) {
         ControllerAxis controller_axis = MessageTools::controller_axis_id_from_index(controller_axis_idx);
         set_controller_axis(controller_axis, controller_axis_values[controller_axis_idx]);
+    }
+    for (uint8_t button_idx = 0; button_idx < CommManager::JOYSTICK_BUTTON_COUNT; button_idx++) {
+        _joystick.setButton(button_idx, controller_button_values[button_idx]);
     }
     _joystick.sendState();
 }

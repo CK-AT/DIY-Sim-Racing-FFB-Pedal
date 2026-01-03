@@ -24,6 +24,9 @@
             <TabItem>
                 <local:FlightStickConfigControl x:Name="FlightStickConfig" VerticalAlignment="Center"></local:FlightStickConfigControl>
             </TabItem>
+            <TabItem>
+                <local:ShifterConfigControl x:Name="ShifterConfig" VerticalAlignment="Center"></local:ShifterConfigControl>
+            </TabItem>
         </TabControl>
     </Grid>
 </UserControl>

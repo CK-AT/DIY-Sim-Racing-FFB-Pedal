@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <Preferences.h>
 
+#include <functional>
 #include <map>
 #include <vector>
 

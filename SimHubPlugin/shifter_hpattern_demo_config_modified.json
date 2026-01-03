@@ -1,0 +1,175 @@
+{
+  "configItems": [
+    {
+      "functionConfig": {
+        "base": {
+          "functionId": "FUNCTION_ID_SHIFTER",
+          "linkedAxes": [
+            "AXIS_ID_1",
+            "AXIS_ID_2",
+            "AXIS_UNDEFINED",
+            "AXIS_UNDEFINED"
+          ],
+          "outputMode": "OUTPUT_MODE_TRAVEL",
+          "outputMin": -79,
+          "outputMax": 51
+        },
+        "auxFunction": {
+          "linkedAxes": [
+            "AXIS_ID_1",
+            "AXIS_ID_2",
+            "AXIS_UNDEFINED",
+            "AXIS_UNDEFINED"
+          ],
+          "shifterDetect": {
+            "gearSlots": [
+              {
+                "centerX": -400,
+                "centerY": 450,
+                "halfWidth": 80,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_NEUTRAL"
+              },
+              {
+                "centerX": -400,
+                "centerY": -450,
+                "halfWidth": 80,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_1"
+              },
+              {
+                "centerY": 450,
+                "halfWidth": 80,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_2"
+              },
+              {
+                "centerY": -450,
+                "halfWidth": 80,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_3"
+              },
+              {
+                "centerX": 400,
+                "centerY": 450,
+                "halfWidth": 80,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_4"
+              },
+              {
+                "centerX": 400,
+                "centerY": -450,
+                "halfWidth": 80,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_5"
+              },
+              {
+                "centerX": -700,
+                "centerY": -450,
+                "halfWidth": 70,
+                "halfHeight": 80,
+                "gear": "SHIFTER_GEAR_6"
+              }
+            ],
+            "hysteresis": 20
+          }
+        },
+        "simulatedMass": 0.1,
+        "friction": 2,
+        "shifter": {
+          "posXMin": -79,
+          "posXMax": 51,
+          "posYMin": -60,
+          "posYMax": 60,
+          "damping": 0.5,
+          "maxForce": 50,
+          "gridStep": 100,
+          "gateSegments": [
+            {
+              "x0": -700,
+              "x1": 400,
+              "halfWidth": 60,
+              "springCenter": 1,
+              "springWall": 8
+            },
+            {
+              "x0": -400,
+              "y0": -550,
+              "x1": -400,
+              "y1": 550,
+              "halfWidth": 60,
+              "springCenter": 1,
+              "springWall": 8
+            },
+            {
+              "y0": -550,
+              "y1": 550,
+              "halfWidth": 60,
+              "springCenter": 1,
+              "springWall": 8
+            },
+            {
+              "x0": 400,
+              "y0": -550,
+              "x1": 400,
+              "y1": 550,
+              "halfWidth": 60,
+              "springCenter": 1,
+              "springWall": 8
+            },
+            {
+              "x0": -700,
+              "y0": -550,
+              "x1": -700,
+              "halfWidth": 40,
+              "springCenter": 1,
+              "springWall": 10
+            }
+          ],
+          "detents": [
+            {
+              "x": -400,
+              "y": 450,
+              "radius": 60,
+              "spring": 6
+            },
+            {
+              "x": -400,
+              "y": -450,
+              "radius": 60,
+              "spring": 6
+            },
+            {
+              "y": 450,
+              "radius": 60,
+              "spring": 6
+            },
+            {
+              "y": -450,
+              "radius": 60,
+              "spring": 6
+            },
+            {
+              "x": 400,
+              "y": 450,
+              "radius": 60,
+              "spring": 6
+            },
+            {
+              "x": 400,
+              "y": -450,
+              "radius": 60,
+              "spring": 6
+            },
+            {
+              "x": -700,
+              "y": -450,
+              "radius": 60,
+              "spring": 7
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
