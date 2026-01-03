@@ -5,6 +5,10 @@
 /*****************************************************************************************************************/
 /* SerialManager */
 /*****************************************************************************************************************/
+namespace {
+constexpr uint32_t k_serial_overflow_log_interval_us = 500000;
+uint32_t ti_last_overflow_log = 0;
+}  // namespace
 
 static ICommChannel::OnGatewayPayload _on_host_payload;
 
@@ -14,6 +18,13 @@ static void _on_gateway_payload_wrapper(const uint8_t *data, size_t len) {
 
 void SerialManager::process(void) {
     packet_serial.update();
+    if (packet_serial.overflow()) {
+        uint32_t now = micros();
+        if ((now - ti_last_overflow_log) > k_serial_overflow_log_interval_us) {
+            ti_last_overflow_log = now;
+            LogOutput::printf("SerialManager: RX packet overflow (buffer %u)", (unsigned)kSerialRxBufferSize);
+        }
+    }
 }
 
 bool SerialManager::setup(Stream *serial, CommManager *comm_manager, ICommChannel::OnGatewayPayload on_host_payload) {

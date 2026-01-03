@@ -26,7 +26,9 @@ class SerialManager {
         /* Axis related */
         float _f_contact_point = 0.0f;
         float _x_contact_point = 0.0f;
-        PacketSerial packet_serial;
+        static constexpr size_t kSerialRxBufferSize = 1024;
+        using PacketSerialLarge = PacketSerial_<COBS, 0, kSerialRxBufferSize>;
+        PacketSerialLarge packet_serial;
         Message state_message = Message_init_default;
         CommManager *comm_manager;
         SemaphoreHandle_t _sem_write = xSemaphoreCreateMutex();
