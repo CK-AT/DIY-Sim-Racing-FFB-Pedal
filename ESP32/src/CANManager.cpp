@@ -4,6 +4,60 @@
 /*****************************************************************************************************************/
 /* isotp-c shim functions */
 /*****************************************************************************************************************/
+namespace {
+constexpr uint32_t k_isotp_log_interval_us = 500000;
+uint32_t ti_last_isotp_tx_log = 0;
+uint32_t ti_last_isotp_rx_log = 0;
+
+const char *isotp_result_label(int ret) {
+    switch (ret) {
+        case ISOTP_RET_OK:
+            return "OK";
+        case ISOTP_RET_ERROR:
+            return "ERROR";
+        case ISOTP_RET_INPROGRESS:
+            return "INPROGRESS";
+        case ISOTP_RET_OVERFLOW:
+            return "OVERFLOW";
+        case ISOTP_RET_WRONG_SN:
+            return "WRONG_SN";
+        case ISOTP_RET_NO_DATA:
+            return "NO_DATA";
+        case ISOTP_RET_TIMEOUT:
+            return "TIMEOUT";
+        case ISOTP_RET_LENGTH:
+            return "LENGTH";
+        case ISOTP_RET_NOSPACE:
+            return "NOSPACE";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+bool should_log_isotp_error(int ret) {
+    return (ret != ISOTP_RET_OK) && (ret != ISOTP_RET_INPROGRESS) && (ret != ISOTP_RET_NO_DATA);
+}
+
+bool should_log_isotp(uint32_t &last_log_time) {
+    uint32_t now = micros();
+    if ((now - last_log_time) > k_isotp_log_interval_us) {
+        last_log_time = now;
+        return true;
+    }
+    return false;
+}
+
+void log_isotp_error(const char *context, int ret, uint32_t len, AxisID axis_id, uint32_t &last_log_time) {
+    if (!should_log_isotp_error(ret)) return;
+    if (!should_log_isotp(last_log_time)) return;
+    if (axis_id != AxisID_AXIS_UNDEFINED) {
+        LogOutput::printf("CAN ISOTP %s: axis %d ret %d (%s) len %u", context, axis_id, ret, isotp_result_label(ret), len);
+    } else {
+        LogOutput::printf("CAN ISOTP %s: ret %d (%s) len %u", context, ret, isotp_result_label(ret), len);
+    }
+}
+}  // namespace
+
 extern "C" int isotp_user_send_can(const uint32_t id, const uint8_t *data, const uint8_t size) {
     CanFrame tx_frame = {};
     tx_frame.identifier = id;
@@ -201,39 +255,55 @@ void CANManager::process(void) {
 
 void CANManager::process_isotp(void) {
     IsoTpLink *link;
+    int ret;
     if (!_is_gateway) {
         link = &(gateway_isotp_state.link);
         isotp_poll(link);
-        if (isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
+        ret = isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size);
+        if (ret == ISOTP_RET_OK) {
             if (on_gateway_payload) {
                 on_gateway_payload(isotp_rx_buff, isotp_rx_size);
             }
+        } else {
+            log_isotp_error("rx gateway", ret, ISOTP_BUFFER_SIZE, AxisID_AXIS_UNDEFINED, ti_last_isotp_rx_log);
         }
         link = &(outbound_logging_isotp_state.link);
         isotp_poll(link);
-        if (isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
+        ret = isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size);
+        if (ret == ISOTP_RET_OK) {
             if ((isotp_rx_size == 1) && (isotp_rx_buff[0] == 0xAA)) {
                 _last_log_ack_received = true;
             }
+        } else {
+            log_isotp_error("rx log ack", ret, ISOTP_BUFFER_SIZE, AxisID_AXIS_UNDEFINED, ti_last_isotp_rx_log);
         }
     } else {
         send_ping_frame(micros());
         for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
             link = &(isotp_state[axis_idx].link);
             isotp_poll(link);
-            if (isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
+            ret = isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size);
+            if (ret == ISOTP_RET_OK) {
                 if (on_axis_payload) {
                     on_axis_payload(MessageTools::axis_id_from_index(axis_idx), isotp_rx_buff, isotp_rx_size);
                 }
+            } else {
+                log_isotp_error("rx axis", ret, ISOTP_BUFFER_SIZE, MessageTools::axis_id_from_index(axis_idx), ti_last_isotp_rx_log);
             }
             link = &(inbound_logging_isotp_states[axis_idx].link);
             isotp_poll(link);
-            if (isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size) == ISOTP_RET_OK) {
+            ret = isotp_receive(link, isotp_rx_buff, ISOTP_BUFFER_SIZE, &isotp_rx_size);
+            if (ret == ISOTP_RET_OK) {
                 if (on_axis_payload) {
                     on_axis_payload(MessageTools::axis_id_from_index(axis_idx), isotp_rx_buff, isotp_rx_size);
                 }
                 uint8_t token = 0xAA;
-                isotp_send(link, &token, sizeof(token));
+                int ack_ret = isotp_send(link, &token, sizeof(token));
+                if (ack_ret != ISOTP_RET_OK) {
+                    log_isotp_error("tx log ack", ack_ret, sizeof(token), MessageTools::axis_id_from_index(axis_idx), ti_last_isotp_tx_log);
+                }
+            } else {
+                log_isotp_error("rx log", ret, ISOTP_BUFFER_SIZE, MessageTools::axis_id_from_index(axis_idx), ti_last_isotp_rx_log);
             }
         }
     }
@@ -405,14 +475,22 @@ bool CANManager::update_function_id(FunctionID function_id) {
 }
 
 bool CANManager::send_payload_to_gateway(const uint8_t *data, uint32_t len) {
-    return isotp_send(&(gateway_isotp_state.link), data, len) == ISOTP_RET_OK;
+    int ret = isotp_send(&(gateway_isotp_state.link), data, len);
+    if (ret != ISOTP_RET_OK) {
+        log_isotp_error("tx gateway", ret, len, AxisID_AXIS_UNDEFINED, ti_last_isotp_tx_log);
+    }
+    return ret == ISOTP_RET_OK;
 }
 
 bool CANManager::send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
     if (message.which_payload == Message_axis_log_message_tag) {
         _last_log_ack_received = false;
         ti_last_log_sent = micros();
-        return isotp_send(&(outbound_logging_isotp_state.link), raw_data, len_raw_data) == ISOTP_RET_OK;
+        int ret = isotp_send(&(outbound_logging_isotp_state.link), raw_data, len_raw_data);
+        if (ret != ISOTP_RET_OK) {
+            log_isotp_error("tx log", ret, len_raw_data, AxisID_AXIS_UNDEFINED, ti_last_isotp_tx_log);
+        }
+        return ret == ISOTP_RET_OK;
     } else {
         return send_payload_to_gateway(raw_data, len_raw_data);
     }
@@ -494,7 +572,11 @@ bool CANManager::try_process_axis_isotp_can_frame(CanFrame &rx_frame) {
 
 bool CANManager::send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len) {
     if (!MessageTools::check_axis_id(axis_id)) return false;
-    return isotp_send(&(isotp_state[MessageTools::axis_index_from_id(axis_id)].link), data, len) == ISOTP_RET_OK;
+    int ret = isotp_send(&(isotp_state[MessageTools::axis_index_from_id(axis_id)].link), data, len);
+    if (ret != ISOTP_RET_OK) {
+        log_isotp_error("tx axis", ret, len, axis_id, ti_last_isotp_tx_log);
+    }
+    return ret == ISOTP_RET_OK;
 }
 
 bool CANManager::send_abs_trigger(const FFBAction &action) {
