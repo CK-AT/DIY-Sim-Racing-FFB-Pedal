@@ -431,7 +431,7 @@ namespace User.PluginSdkDemo
 
         private AxisID GetLinkedAxis(int index)
         {
-            return function_config.Base.LinkedAxes.Count > index ? function_config.Base.LinkedAxes[index] : AxisID.AxisUndefined;
+            return function_config.Base.LinkedAxes.Count > index ? function_config.Base.LinkedAxes[index] & AxisID.Mask : AxisID.AxisUndefined;
         }
 
         private AxisID GetAuxLinkedAxis(int index)
@@ -440,7 +440,7 @@ namespace User.PluginSdkDemo
             {
                 return AxisID.AxisUndefined;
             }
-            return function_config.AuxFunction.LinkedAxes[index];
+            return function_config.AuxFunction.LinkedAxes[index] & AxisID.Mask;
         }
 
         private void UpdateSequentialUI()
@@ -541,16 +541,8 @@ namespace User.PluginSdkDemo
         private void UpdateLinkedAxes()
         {
             function_config.Base.LinkedAxes.Clear();
-            if (shifter_config.Sequential)
-            {
-                function_config.Base.LinkedAxes.Add(axisY);
-                function_config.Base.LinkedAxes.Add(AxisID.AxisUndefined);
-            }
-            else
-            {
-                function_config.Base.LinkedAxes.Add(axisX);
-                function_config.Base.LinkedAxes.Add(axisY);
-            }
+            function_config.Base.LinkedAxes.Add(axisX | AxisID.AxisIndependent);
+            function_config.Base.LinkedAxes.Add(axisY | AxisID.AxisIndependent);
             function_config.Base.LinkedAxes.Add(AxisID.AxisUndefined);
             function_config.Base.LinkedAxes.Add(AxisID.AxisUndefined);
 
