@@ -271,7 +271,7 @@ namespace User.PluginSdkDemo
         private bool hasAxisYState = false;
         private double lastAxisXPosition = 0.0;
         private double lastAxisYPosition = 0.0;
-        private bool useRelativeGeometry = true;
+        private bool useRelativeGeometry = false;
         private bool isUpdating = true;
 
         private readonly ObservableCollection<GateSegmentRow> gateRows = new ObservableCollection<GateSegmentRow>();
@@ -324,7 +324,6 @@ namespace User.PluginSdkDemo
 
         public void OnKinematicParametersChanged(KinematicParameters parameters)
         {
-            ApplyAxisRangeLimits();
         }
 
         public void OnAxisStateUpdate(global::AxisState axis_state)
@@ -415,7 +414,6 @@ namespace User.PluginSdkDemo
             Rangeslider_y_range.UpperValue = shifter_config.PosYMax;
 
             UpdateRangeLabels();
-            ApplyAxisRangeLimits();
             UpdateOutputRange();
             UpdateSequentialUI();
 
@@ -947,7 +945,6 @@ namespace User.PluginSdkDemo
             if (isUpdating) return;
             hasAxisXState = false;
             UpdateLinkedAxes();
-            ApplyAxisRangeLimits();
             function?.OnAxisUpdate();
         }
 
@@ -957,7 +954,6 @@ namespace User.PluginSdkDemo
             if (isUpdating) return;
             hasAxisYState = false;
             UpdateLinkedAxes();
-            ApplyAxisRangeLimits();
             function?.OnAxisUpdate();
         }
 
