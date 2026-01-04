@@ -69,5 +69,5 @@ class ShifterFunction : public IFunction {
 
         ForceMap _force_map = {};
         ShifterMapForce _map_force = {};
-        Damper _damper = Damper(0.0f);
+        Damper _damper = Damper(1.0f);
 };

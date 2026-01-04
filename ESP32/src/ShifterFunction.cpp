@@ -176,10 +176,8 @@ void ShifterFunction::update_config(const ShifterConfig &config, CommManager &co
                          sequential_x_center);
     if (_axis_role == AxisRole::Unknown) {
         _map_force.disable();
-        _damper.disable();
     } else {
         _map_force.enable();
-        _damper.enable();
     }
 }
 
@@ -189,21 +187,6 @@ ShifterFunction::AxisRole ShifterFunction::resolve_axis_role(const AxisID *linke
     AxisID axis_1 = AxisID(linked_axes[1] & AxisID_AXIS_ID_MASK);
     bool invert_0 = (linked_axes[0] & AxisID_AXIS_SUBTRACTIVE);
     bool invert_1 = (linked_axes[1] & AxisID_AXIS_SUBTRACTIVE);
-    if (axis_0 == AxisID_AXIS_UNDEFINED) {
-        _axis_id_x = AxisID_AXIS_UNDEFINED;
-        _axis_id_y = AxisID_AXIS_UNDEFINED;
-        _invert_x = false;
-        _invert_y = false;
-        return AxisRole::Unknown;
-    }
-    if (_config.sequential || axis_1 == AxisID_AXIS_UNDEFINED) {
-        _axis_id_x = AxisID_AXIS_UNDEFINED;
-        _axis_id_y = axis_0;
-        _invert_x = false;
-        _invert_y = invert_0;
-        if (self_axis == _axis_id_y) return AxisRole::Y;
-        return AxisRole::Unknown;
-    }
     _axis_id_x = axis_0;
     _axis_id_y = axis_1;
     _invert_x = invert_0;
