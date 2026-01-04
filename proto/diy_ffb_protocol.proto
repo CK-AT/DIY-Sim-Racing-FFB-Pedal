@@ -11,6 +11,7 @@ enum AxisID {
   AXIS_ID_7 = 7;
   AXIS_ID_8 = 8;
   AXIS_ID_MASK = 15;      // masks out the significant bits to identify the axis
+  AXIS_INDEPENDENT = 64;  // used for FunctionBase.linked_axes, marks this axis as independent (no force/position coupling)
   AXIS_SUBTRACTIVE = 128; // used for FunctionBase.linked_axes, treated as ADDITIVE if this bit is not set 
 }
 

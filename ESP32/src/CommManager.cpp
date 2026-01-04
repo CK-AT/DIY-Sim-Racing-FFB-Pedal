@@ -687,9 +687,24 @@ bool CommManager::calc_input_force_sum(const AxisID *linked_axes, float &input_f
     float temp;
     bool is_subtractive_axis = false;
     AxisID own_axis_id = get_axis_id();
+    bool own_independent = false;
     for (uint8_t idx = 0; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
         AxisID axis_id = AxisID(linked_axes[idx] & AxisID_AXIS_ID_MASK);
         if (axis_id == AxisID_AXIS_UNDEFINED) break;
+        if (axis_id == own_axis_id && (linked_axes[idx] & AxisID_AXIS_INDEPENDENT)) {
+            own_independent = true;
+            break;
+        }
+    }
+    for (uint8_t idx = 0; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
+        AxisID axis_id = AxisID(linked_axes[idx] & AxisID_AXIS_ID_MASK);
+        if (axis_id == AxisID_AXIS_UNDEFINED) break;
+        bool entry_independent = (linked_axes[idx] & AxisID_AXIS_INDEPENDENT);
+        if (own_independent) {
+            if (axis_id != own_axis_id) continue;
+        } else if (entry_independent && axis_id != own_axis_id) {
+            continue;
+        }
         temp = 0.0f;
         get_force(axis_id, temp);  // get_force won't touch temp if the associated axis is not online, no need to check the return value
         if (linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) {
@@ -712,6 +727,18 @@ bool CommManager::calc_final_position(float own_position, float &final_position)
     float other_position;
     AxisID primary_axis_id = AxisID(func_base.linked_axes[0] & AxisID_AXIS_ID_MASK);
     AxisID own_axis_id = get_axis_id();
+    for (uint8_t idx = 0; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
+        AxisID axis_id = AxisID(func_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
+        if (axis_id == AxisID_AXIS_UNDEFINED) break;
+        if (axis_id == own_axis_id && (func_base.linked_axes[idx] & AxisID_AXIS_INDEPENDENT)) {
+            final_position = own_position;
+            return true;
+        }
+    }
+    if (func_base.linked_axes[0] & AxisID_AXIS_INDEPENDENT) {
+        final_position = own_position;
+        return true;
+    }
     if (primary_axis_id == own_axis_id) {
         // we are the primary axis -> own_position is the final position
         final_position = own_position;
