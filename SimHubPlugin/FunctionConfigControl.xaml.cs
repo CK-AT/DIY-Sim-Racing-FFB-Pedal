@@ -114,23 +114,21 @@ namespace User.PluginSdkDemo
 
         public void OnAxisStateUpdate(global::AxisState axis_state)
         {
-            if (config.Base.LinkedAxes[0] == axis_state.AxisId)
+            switch (tc_specific_function.SelectedIndex)
             {
-                switch (tc_specific_function.SelectedIndex)
-                {
-                    case 0:
-                        AutomotivePedalConfig.OnAxisStateUpdate(axis_state);
-                        break;
-                    case 1:
-                        FlightPedalsConfig.OnAxisStateUpdate(axis_state);
-                        break;
-                    case 2:
-                        FlightStickConfig.OnAxisStateUpdate(axis_state);
-                        break;
-                    case 3:
-                        ShifterConfig.OnAxisStateUpdate(axis_state);
-                        break;
-                }
+                case 0:
+                    AutomotivePedalConfig.OnAxisStateUpdate(axis_state);
+                    break;
+                case 1:
+                    FlightPedalsConfig.OnAxisStateUpdate(axis_state);
+                    break;
+                case 2:
+                    FlightStickConfig.OnAxisStateUpdate(axis_state);
+                    break;
+                case 3:
+                    ShifterConfig.OnAxisStateUpdate(axis_state);
+                    break;
+                
             }
         }
 
