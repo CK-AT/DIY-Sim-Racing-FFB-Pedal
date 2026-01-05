@@ -42,126 +42,11 @@ struct NeutralGuide {
 };
 }  // namespace
 
-float ShifterFunction::ForceMap::sample_fx(float x, float y) const {
-    if (!is_valid() || fx.empty()) return 0.0f;
-    if (x_count == 1 && y_count == 1) return fx.front();
-    float fx_index = step > 0.0f ? ((x - x_min) / step) : 0.0f;
-    float fy_index = step > 0.0f ? ((y - y_min) / step) : 0.0f;
-    uint16_t x0 = 0;
-    uint16_t y0 = 0;
-    uint16_t x1 = 0;
-    uint16_t y1 = 0;
-    float tx = 0.0f;
-    float ty = 0.0f;
-    if (x_count > 1) {
-        fx_index = clampf(fx_index, 0.0f, float(x_count - 1));
-        x0 = static_cast<uint16_t>(floorf(fx_index));
-        x1 = static_cast<uint16_t>(min(uint16_t(x0 + 1), uint16_t(x_count - 1)));
-        tx = fx_index - float(x0);
-    }
-    if (y_count > 1) {
-        fy_index = clampf(fy_index, 0.0f, float(y_count - 1));
-        y0 = static_cast<uint16_t>(floorf(fy_index));
-        y1 = static_cast<uint16_t>(min(uint16_t(y0 + 1), uint16_t(y_count - 1)));
-        ty = fy_index - float(y0);
-    }
-    uint32_t idx00 = uint32_t(y0) * x_count + x0;
-    uint32_t idx10 = uint32_t(y0) * x_count + x1;
-    uint32_t idx01 = uint32_t(y1) * x_count + x0;
-    uint32_t idx11 = uint32_t(y1) * x_count + x1;
-    float v00 = fx[idx00];
-    float v10 = fx[idx10];
-    float v01 = fx[idx01];
-    float v11 = fx[idx11];
-    float v0 = v00 + (v10 - v00) * tx;
-    float v1 = v01 + (v11 - v01) * tx;
-    return v0 + (v1 - v0) * ty;
-}
-
-float ShifterFunction::ForceMap::sample_fy(float x, float y) const {
-    if (!is_valid() || fy.empty()) return 0.0f;
-    if (x_count == 1 && y_count == 1) return fy.front();
-    float fx_index = step > 0.0f ? ((x - x_min) / step) : 0.0f;
-    float fy_index = step > 0.0f ? ((y - y_min) / step) : 0.0f;
-    uint16_t x0 = 0;
-    uint16_t y0 = 0;
-    uint16_t x1 = 0;
-    uint16_t y1 = 0;
-    float tx = 0.0f;
-    float ty = 0.0f;
-    if (x_count > 1) {
-        fx_index = clampf(fx_index, 0.0f, float(x_count - 1));
-        x0 = static_cast<uint16_t>(floorf(fx_index));
-        x1 = static_cast<uint16_t>(min(uint16_t(x0 + 1), uint16_t(x_count - 1)));
-        tx = fx_index - float(x0);
-    }
-    if (y_count > 1) {
-        fy_index = clampf(fy_index, 0.0f, float(y_count - 1));
-        y0 = static_cast<uint16_t>(floorf(fy_index));
-        y1 = static_cast<uint16_t>(min(uint16_t(y0 + 1), uint16_t(y_count - 1)));
-        ty = fy_index - float(y0);
-    }
-    uint32_t idx00 = uint32_t(y0) * x_count + x0;
-    uint32_t idx10 = uint32_t(y0) * x_count + x1;
-    uint32_t idx01 = uint32_t(y1) * x_count + x0;
-    uint32_t idx11 = uint32_t(y1) * x_count + x1;
-    float v00 = fy[idx00];
-    float v10 = fy[idx10];
-    float v01 = fy[idx01];
-    float v11 = fy[idx11];
-    float v0 = v00 + (v10 - v00) * tx;
-    float v1 = v01 + (v11 - v01) * tx;
-    return v0 + (v1 - v0) * ty;
-}
-
-void ShifterFunction::ShifterMapForce::configure(CommManager *comm_manager, const ForceMap *map, AxisRole role, AxisID axis_x, AxisID axis_y,
-                                                 bool invert_x, bool invert_y, bool use_fixed_x, float fixed_x) {
-    _comm_manager = comm_manager;
-    _map = map;
-    _role = role;
-    _axis_id_x = axis_x;
-    _axis_id_y = axis_y;
-    _invert_x = invert_x;
-    _invert_y = invert_y;
-    _use_fixed_x = use_fixed_x;
-    _fixed_x = fixed_x;
-}
-
-void ShifterFunction::ShifterMapForce::update(Sim *sim, float &f_sum) {
-    if (!_enabled) return;
-    if (!_comm_manager || !_map || !_map->is_valid()) return;
-    if (_role == AxisRole::Unknown) return;
-    float x_pos = 0.0f;
-    float y_pos = 0.0f;
-    if (_role == AxisRole::X) {
-        x_pos = sim->get_x();
-        if (_axis_id_y != AxisID_AXIS_UNDEFINED) {
-            _comm_manager->get_position(_axis_id_y, y_pos);
-        }
-    } else {
-        y_pos = sim->get_x();
-        if (_use_fixed_x) {
-            x_pos = _fixed_x;
-        }
-        if (_axis_id_x != AxisID_AXIS_UNDEFINED) {
-            _comm_manager->get_position(_axis_id_x, x_pos);
-        }
-    }
-    if (_invert_x) {
-        x_pos = -x_pos;
-    }
-    if (_invert_y) {
-        y_pos = -y_pos;
-    }
-
-    float force = (_role == AxisRole::X) ? _map->sample_fx(x_pos, y_pos) : _map->sample_fy(x_pos, y_pos);
-    f_sum += force;
-}
-
 ShifterFunction::ShifterFunction(void) {
     disable();
-    add_element(&_map_force);
     add_element(&_damper);
+    add_element(&_centering_spring);
+    add_element(&_detents);
 }
 
 void ShifterFunction::update_config(const ShifterConfig &config, CommManager &comm_manager, const AxisID *linked_axes) {
@@ -169,16 +54,11 @@ void ShifterFunction::update_config(const ShifterConfig &config, CommManager &co
     _comm_manager = &comm_manager;
     _axis_role = resolve_axis_role(linked_axes);
     _damper.set_k(_config.damping);
-    rebuild_map();
-    float sequential_x_center = 0.5f * (float(_config.pos_x_min) + float(_config.pos_x_max));
-    bool use_fixed_x = _config.sequential;
-    _map_force.configure(_comm_manager, &_force_map, _axis_role, _axis_id_x, _axis_id_y, _invert_x, _invert_y, use_fixed_x,
-                         sequential_x_center);
-    if (_axis_role == AxisRole::Unknown) {
-        _map_force.disable();
-    } else {
-        _map_force.enable();
-    }
+    // rebuild_map();
+    // float sequential_x_center = 0.5f * (float(_config.pos_x_min) + float(_config.pos_x_max));
+    // bool use_fixed_x = _config.sequential;
+    // _map_force.configure(_comm_manager, &_force_map, _axis_role, _axis_id_x, _axis_id_y, _invert_x, _invert_y, use_fixed_x,
+    //                      sequential_x_center);
 }
 
 ShifterFunction::AxisRole ShifterFunction::resolve_axis_role(const AxisID *linked_axes) {
@@ -197,6 +77,7 @@ ShifterFunction::AxisRole ShifterFunction::resolve_axis_role(const AxisID *linke
 }
 
 void ShifterFunction::rebuild_map(void) {
+    /*
     float step = max(uint32_t(1), static_cast<uint32_t>(_config.grid_step)) * k_tenth_mm;
     step = max(step, k_min_step);
     float x_min = float(_config.pos_x_min);
@@ -405,6 +286,7 @@ void ShifterFunction::rebuild_map(void) {
             _force_map.fy[idx] = fy;
         }
     }
+    */
 }
 
 float ShifterFunction::get_x_contact_point_min(void) {
@@ -420,4 +302,8 @@ float ShifterFunction::get_x_contact_point_max(void) {
 }
 
 void ShifterFunction::on_ffb_action(const FFBAction &ffb_action) {
+}
+
+void ShifterFunction::update(Sim *sim, float &f_sum) {
+    CompoundElement::update(sim, f_sum);
 }
