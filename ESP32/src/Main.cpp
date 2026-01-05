@@ -311,6 +311,7 @@ void setup() {
         sim.add_element(&flight_pedals_function);
         sim.add_element(&flight_stick_pitch_function);
         sim.add_element(&flight_stick_roll_function);
+        sim.add_element(&shifter_function);
         sim.add_element(&friction);
 
         xTaskCreatePinnedToCore(physics_task_func,    /* Task function. */
