@@ -35,7 +35,7 @@
                     <StackPanel Width="540" Orientation="Vertical">
                         <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,5">
                             <Label x:Name="Label_x_min" Width="37" Height="30" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Min" Padding="0,0,0,0" HorizontalContentAlignment="Center"/>
-                            <controls:RangeSlider x:Name="Rangeslider_x_range" Style="{DynamicResource RangeSliderStyle}" MinRangeWidth="1" Height="20" LowerValueChanged="Rangeslider_x_range_LowerValueChanged" UpperValueChanged="Rangeslider_x_range_UpperValueChanged" MinRange="1" SmallChange="1" IsSnapToTickEnabled="True" UpperValue="30" VerticalAlignment="Top" LowerValue="5" Minimum="-100" Maximum="100" Width="326"/>
+                            <controls:RangeSlider x:Name="Rangeslider_x_range" Style="{DynamicResource RangeSliderStyle}" MinRangeWidth="1" Height="20" LowerValueChanged="Rangeslider_x_range_LowerValueChanged" UpperValueChanged="Rangeslider_x_range_UpperValueChanged" MinRange="0" SmallChange="1" IsSnapToTickEnabled="True" UpperValue="30" VerticalAlignment="Top" LowerValue="5" Minimum="-100" Maximum="100" Width="326"/>
                             <Label x:Name="Label_x_max" Width="37" Height="30" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Right" VerticalAlignment="Top" Content="Max" Padding="0,0,0,0" HorizontalContentAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,0">
