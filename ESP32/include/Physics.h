@@ -5,6 +5,49 @@
 
 #include "Arduino.h"
 
+namespace fastmath {
+constexpr float PIO2 = 1.57079632679489661923f;      // pi/2
+constexpr float INV_PIO2 = 0.63661977236758134308f;  // 2/pi
+
+static inline int32_t fast_round_to_int(float x) {
+    return (int32_t)(x + (x >= 0.0f ? 0.5f : -0.5f));
+}
+
+// Accurate when r ~ [-pi/4, pi/4]
+static inline float sin_poly(float r) {
+    // sin(r) ≈ r - r^3/6 + r^5/120 - r^7/5040
+    float r2 = r * r;
+    return r * (1.0f + r2 * (-0.1666666716f + r2 * (0.0083333477f + r2 * (-0.0001984090f))));
+}
+
+static inline float cos_poly(float r) {
+    // cos(r) ≈ 1 - r^2/2 + r^4/24 - r^6/720
+    float r2 = r * r;
+    return 1.0f + r2 * (-0.5f + r2 * (0.0416666418f + r2 * (-0.0013888378f)));
+}
+
+static inline float fast_sinf(float x) {
+    // Reduce x to r around nearest k*(pi/2)
+    int32_t k = fast_round_to_int(x * INV_PIO2);
+    float r = x - (float)k * PIO2;
+    int32_t q = k & 3;
+
+    float s = sin_poly(r);
+    float c = cos_poly(r);
+
+    // sin(x) by quadrant:
+    // q=0: sin =  s
+    // q=1: sin =  c
+    // q=2: sin = -s
+    // q=3: sin = -c
+    if (q == 0) return s;
+    if (q == 1) return c;
+    if (q == 2) return -s;
+    return -c;
+}
+
+}  // namespace fastmath
+
 class Sim;
 
 inline float normalize_value(float value, float min_val, float max_val) {
@@ -209,3 +252,24 @@ class DampingMap : public SimElement {
         std::vector<float> _k_vect_pos;
         int _last_idx = 0;
 };
+
+class Cam : public SimElement {
+    public:
+        Cam(float f_max, float center, float half_width) : _f_max(f_max), _center(center), _half_width(half_width) {};
+        void update(Sim *sim, float &f_sum);
+        void set_f_max(float val) {
+            _f_max = val;
+        }
+        void set_center(float val) {
+            _center = val;
+        }
+        void set_half_width(float val) {
+            _half_width = val;
+        }
+
+    private:
+        float _f_max;
+        float _center;
+        float _half_width;
+};
+

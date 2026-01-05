@@ -104,6 +104,13 @@ void DampingMap::update(Sim *sim, float &f_sum) {
     }
 }
 
+void Cam::update(Sim *sim, float &f_sum) {
+    if (!_enabled) return;
+    float z = (sim->get_x() - _center) / _half_width;
+    if (z <= -1.0f || z >= 1.0f) return;
+    f_sum += _f_max * fastmath::fast_sinf(float(PI) * z);
+}
+
 void Sim::update(float &dt, float &f_in, bool final_f) {
     float f_sum = f_in;
     _v = (_x - _x_prev) * 1000.0 / dt;

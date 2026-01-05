@@ -188,7 +188,7 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
             active_function = &flight_stick_roll_function;
             break;
         case FunctionConfig_shifter_tag:
-            shifter_function.update_config(function_cfg->specific.shifter, comm_manager, function_cfg->base.linked_axes);
+            shifter_function.update_config(function_cfg->specific.shifter, function_cfg->aux_function.specific.shifter_detect, comm_manager, function_cfg->base.linked_axes);
             active_function = &shifter_function;
             break;
     }

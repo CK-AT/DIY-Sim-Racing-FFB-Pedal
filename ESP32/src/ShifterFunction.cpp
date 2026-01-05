@@ -2,58 +2,64 @@
 
 #include <math.h>
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <vector>
+
 #include "CommManager.h"
-
-namespace {
-constexpr float k_tenth_mm = 0.1f;
-constexpr float k_min_step = 0.1f;
-constexpr uint32_t k_max_map_points = 20000;
-constexpr float k_neutral_band_min = 1e-6f;
-
-float to_mm(int32_t value_tenth_mm) {
-    return static_cast<float>(value_tenth_mm) * k_tenth_mm;
-}
-
-float to_mm_unsigned(uint32_t value_tenth_mm) {
-    return static_cast<float>(value_tenth_mm) * k_tenth_mm;
-}
-
-float clampf(float value, float min_val, float max_val) {
-    return max(min_val, min(value, max_val));
-}
-
-uint16_t count_for_range(float min_val, float max_val, float step) {
-    if (step <= 0.0f) return 0;
-    if (max_val < min_val) {
-        float temp = min_val;
-        min_val = max_val;
-        max_val = temp;
-    }
-    float range = max_val - min_val;
-    return static_cast<uint16_t>(max(1.0f, floorf(range / step) + 1.0f));
-}
-
-struct NeutralGuide {
-    bool has_value = false;
-    float x_center = 0.0f;
-    float y_center = 0.0f;
-    float half_width = 0.0f;
-    float spring = 0.0f;
-};
-}  // namespace
 
 ShifterFunction::ShifterFunction(void) {
     disable();
     add_element(&_damper);
     add_element(&_centering_spring);
-    add_element(&_detents);
 }
 
-void ShifterFunction::update_config(const ShifterConfig &config, CommManager &comm_manager, const AxisID *linked_axes) {
-    _config = config;
+void ShifterFunction::update_config(const ShifterConfig &config, const ShifterDetectConfig &detect_config, CommManager &comm_manager, const AxisID *linked_axes) {
     _comm_manager = &comm_manager;
     _axis_role = resolve_axis_role(linked_axes);
-    _damper.set_k(_config.damping);
+    _damper.set_k(config.damping);
+
+    GateSegPre segsPre[sizeof(config.gate_segments) / sizeof(config.gate_segments[0])];
+    DetentPre detsPre[sizeof(config.detents) / sizeof(config.detents[0])];
+    int segCount = 0;
+    int detCount = 0;
+
+    for (segCount = 0; segCount < config.gate_segments_count; segCount++) {
+        auto &gs = config.gate_segments[segCount];
+        segsPre[segCount] = makeSegPre(gs.x0, gs.y0, gs.x1, gs.y1, gs.half_width);
+    }
+
+    for (detCount = 0; detCount < config.detents_count; detCount++) {
+        auto &d = config.detents[detCount];
+        detsPre[detCount] = makeDetPre(d.x, d.y, d.radius, d.spring);
+    }
+
+    gateRt.buildPrecompute(segsPre, segCount, detsPre, detCount,
+                           /* global bounds (mm) */
+                           config.pos_x_min, config.pos_x_max, config.pos_y_min, config.pos_y_max);
+
+    auto spring_center = computeCenteringAnchorMm(detect_config, segsPre, segCount);
+
+    if (spring_center.valid) {
+        _centering_spring.set_offset((_axis_role == AxisRole::X ? spring_center.x_mm : spring_center.y_mm));
+    }
+
+    // TODO: max_force is repurposed for now 
+    _centering_spring.set_k(config.max_force);
+
+     if (_axis_role == AxisRole::X) {
+        _x_min = config.pos_x_min;
+        _x_max = config.pos_x_max;
+     } else if (_axis_role == AxisRole::Y) {
+        _x_min = config.pos_y_min;
+        _x_max = config.pos_y_max;
+     } else {
+        _x_min = 0.0f;
+        _x_max = 0.0f;
+     }
+
+
     // rebuild_map();
     // float sequential_x_center = 0.5f * (float(_config.pos_x_min) + float(_config.pos_x_max));
     // bool use_fixed_x = _config.sequential;
@@ -61,7 +67,7 @@ void ShifterFunction::update_config(const ShifterConfig &config, CommManager &co
     //                      sequential_x_center);
 }
 
-ShifterFunction::AxisRole ShifterFunction::resolve_axis_role(const AxisID *linked_axes) {
+AxisRole ShifterFunction::resolve_axis_role(const AxisID *linked_axes) {
     AxisID self_axis = _comm_manager ? _comm_manager->get_axis_id() : AxisID_AXIS_UNDEFINED;
     AxisID axis_0 = AxisID(linked_axes[0] & AxisID_AXIS_ID_MASK);
     AxisID axis_1 = AxisID(linked_axes[1] & AxisID_AXIS_ID_MASK);
@@ -290,20 +296,37 @@ void ShifterFunction::rebuild_map(void) {
 }
 
 float ShifterFunction::get_x_contact_point_min(void) {
-    if (_axis_role == AxisRole::X) return float(_config.pos_x_min);
-    if (_axis_role == AxisRole::Y) return float(_config.pos_y_min);
-    return 0.0f;
+    return _x_min;
 }
 
 float ShifterFunction::get_x_contact_point_max(void) {
-    if (_axis_role == AxisRole::X) return float(_config.pos_x_max);
-    if (_axis_role == AxisRole::Y) return float(_config.pos_y_max);
-    return 0.0f;
+    return _x_max;
 }
 
 void ShifterFunction::on_ffb_action(const FFBAction &ffb_action) {
 }
 
 void ShifterFunction::update(Sim *sim, float &f_sum) {
+    if (!_enabled) return;
+    float x_pos = 0.0f, y_pos = 0.0f;
+    _comm_manager->get_position(_axis_id_x, x_pos);
+    _comm_manager->get_position(_axis_id_y, y_pos);
+
+    auto ctx = gateRt.updateAxisContext(x_pos, y_pos, _axis_role);
+
+    // soft limits for integration
+    float ySoftMin = ctx.soft.lo;
+    float ySoftMax = ctx.soft.hi;
+
+    // active detents for current lane
+    auto detSpan = gateRt.detentsForLane(ctx, _axis_role);
+
+    for (uint8_t i = 0; i < detSpan.count; i++) {
+        const DetentPre& d = gateRt.dets[ detSpan.indices[i] ];
+        float z = (sim->get_x() - (_axis_role == AxisRole::X ? d.x_mm : d.y_mm)) / d.radius_mm;
+        if (z <= -1.0f || z >= 1.0f) return;
+        f_sum += d.spring_N_per_mm * fastmath::fast_sinf(float(PI) * z);
+    }
+    
     CompoundElement::update(sim, f_sum);
 }
