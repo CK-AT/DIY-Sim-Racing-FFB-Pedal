@@ -7,7 +7,7 @@
              xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins" mc:Ignorable="d" 
              xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins" 
              xmlns:controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
-             PreviewKeyDown="OnPreviewKeyDown" PreviewKeyUp="OnPreviewKeyUp">
+             PreviewKeyDown="OnPreviewKeyDown" PreviewKeyUp="OnPreviewKeyUp" Height="858">
 
 
     <UserControl.Resources>
@@ -400,8 +400,8 @@
                             <Canvas x:Name="canvas_Header_Tab" Height="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1" >
                                 <Line x:Name="Line_H_HeaderTab" X1="2" Y1="3" X2="796" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
                             </Canvas>
-                            <StackPanel Grid.RowSpan="3" Orientation="Horizontal" Grid.ColumnSpan="4">
-                                <TabControl ItemsSource="{Binding functions}" x:Name="tc_function_selection" TabStripPlacement="Left" SelectionChanged="FunctionSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="80" VerticalAlignment="Top" Height="904">
+                            <StackPanel Grid.RowSpan="3" Orientation="Horizontal" Grid.ColumnSpan="4" Height="810">
+                                <TabControl ItemsSource="{Binding functions}" x:Name="tc_function_selection" TabStripPlacement="Left" SelectionChanged="FunctionSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="110" VerticalAlignment="Top" Height="808">
                                     <TabControl.Resources>
                                         <Style TargetType="{x:Type TabItem}">
                                             <Setter Property="Padding" Value="4" />
@@ -481,8 +481,8 @@
                                         <SolidColorBrush Color="#FF252525" Opacity="0"/>
                                     </TabControl.Background>
                                 </TabControl>
-                                <Canvas x:Name="canvas_Header_Tab_sub" Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" VerticalAlignment="Top" >
-                                    <Line  X1="3" Y1="5" X2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" Y2="904" />
+                                <Canvas x:Name="canvas_Header_Tab_sub" Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" VerticalAlignment="Top" Height="807" >
+                                    <Line  X1="3" Y1="5" X2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" Y2="904" Height="808" />
                                 </Canvas>
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
                                     <Border  HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5"  Margin="0,0,0,3">
@@ -492,7 +492,9 @@
                                             <styles:SHButtonPrimary x:Name="btn_store_function_config_to_file" Click="btn_store_function_config_to_file_Click" Width="125" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this function config to a .json file." />
                                         </StackPanel>
                                     </Border>
-                                    <local:FunctionConfigControl x:Name="uc_function_config" ></local:FunctionConfigControl>
+                                    <ScrollViewer Height="764" >
+                                        <local:FunctionConfigControl x:Name="uc_function_config" VerticalAlignment="Top" ></local:FunctionConfigControl>
+                                    </ScrollViewer>
                                 </StackPanel>
                                 <!--<StackPanel Height="900" Width="360" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-2,0,0,0">
                                     <Border x:Name="Border_serial_monitor" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Height="808" BorderThickness="0,0,0,0" Grid.Row="3" Grid.Column="2" Width="360" HorizontalAlignment="Center" VerticalAlignment="Top" Grid.RowSpan="3" >
@@ -725,7 +727,7 @@
                                             <styles:SHButtonPrimary x:Name="btn_store_axis_config_to_file" Click="btn_store_axis_config_to_file_Click" Width="125" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this axis config to a .json file." />
                                         </StackPanel>
                                     </Border>
-                                    <local:AxisConfigControl x:Name="uc_axis_config" VerticalAlignment="Center"></local:AxisConfigControl>
+                                    <local:AxisConfigControl x:Name="uc_axis_config" VerticalAlignment="Center" Height="762"></local:AxisConfigControl>
                                 </StackPanel>
                                 <!--<StackPanel Height="900" Width="360" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-2,0,0,0">
                                     <Border x:Name="Border_serial_monitor" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Height="808" BorderThickness="0,0,0,0" Grid.Row="3" Grid.Column="2" Width="360" HorizontalAlignment="Center" VerticalAlignment="Top" Grid.RowSpan="3" >

@@ -51,7 +51,9 @@
                             <Label Content="Kinematics" FontFamily="Arial Black" FontSize="10" Height="30" Width="108" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" UseLayoutRounding="True" />
                         </Border>
                     </TabItem.Header>
+                <ScrollViewer>
                     <local:GeneralKinematicsControl x:Name="GeneralKinematicsControl" Margin="0,2,0,0"></local:GeneralKinematicsControl>
+                </ScrollViewer>
                 </TabItem>
 
                 <TabItem Width="108" Height="30" Padding="0,0,0,0" ToolTip="General setting for Pedal, will save to pedal">
