@@ -188,7 +188,7 @@ ConfigManager::UpdateResult ConfigManager::update_axis_config(const AxisConfig &
             return ConfigManager::UPDATE_OTHER_AXIS;
         }
     }
-    if (try_take_config_semaphore()) {
+    if (try_take_config_semaphore(5)) {
         _axis_config = new_config;
         store_axis_config_raw(protobuf_msg, len_protobuf_msg);
         on_config_update();
@@ -224,7 +224,7 @@ ConfigManager::UpdateResult ConfigManager::update_function_config(const Function
     if (!affecting_this_axis) {
         LogOutput::printf(" -> not targeting this axis");
         return ConfigManager::UPDATE_OTHER_AXIS;
-    } else if (try_take_config_semaphore()) {
+    } else if (try_take_config_semaphore(5)) {
         _function_config = new_config;
         on_config_update();
         if (_function_config.base.store) {
