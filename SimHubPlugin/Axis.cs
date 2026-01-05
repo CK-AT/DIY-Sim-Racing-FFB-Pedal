@@ -44,9 +44,10 @@ namespace User.PluginSdkDemo
                     PropertyChanged?.Invoke(this,
                         new PropertyChangedEventArgs(nameof(IsOnline)));
                     OnlineStateChanged?.Invoke(_axisID, isOnline);
-                    Task.Delay(400).ContinueWith(t => RequestAxisConfig());
-                    Task.Delay(500).ContinueWith(t => RequestFunctionConfig());
-                    Task.Delay(600).ContinueWith(t => RequestActiveFunction());
+                    Random random = new Random();
+                    Task.Delay(400 + random.Next(0, 20) * 10).ContinueWith(t => RequestAxisConfig());
+                    Task.Delay(800 + random.Next(0, 20) * 10).ContinueWith(t => RequestFunctionConfig());
+                    Task.Delay(1200 + random.Next(0, 20) * 10).ContinueWith(t => RequestActiveFunction());
                 }
                 if (value)
                 {
