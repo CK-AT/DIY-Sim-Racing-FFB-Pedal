@@ -326,7 +326,7 @@ static inline GateSegPre makeSegPre(int32_t x0_01, int32_t y0_01, int32_t x1_01,
     float y0 = mm01_to_mm(y0_01);
     float x1 = mm01_to_mm(x1_01);
     float y1 = mm01_to_mm(y1_01);
-    float hw = 0.1f * (float)halfW_01;
+    float hw = mm01_to_mm(halfW_01);
 
     GateSegPre s{};
     s.hw = hw;
@@ -354,7 +354,7 @@ static inline DetentPre makeDetPre(int32_t x_01, int32_t y_01, uint32_t r_01, fl
     DetentPre d{};
     d.x_mm = mm01_to_mm(x_01);
     d.y_mm = mm01_to_mm(y_01);
-    d.radius_mm = 0.1f * (float)r_01;
+    d.radius_mm = mm01_to_mm(r_01);
     d.spring_N_per_mm = spring_N_per_mm;
     d.laneV = d.laneH = -1;
     return d;
