@@ -2,10 +2,8 @@
 
 #include <math.h>
 
-#include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <vector>
 
 #include "CommManager.h"
 
@@ -320,8 +318,8 @@ void ShifterFunction::update(Sim *sim, float &f_sum) {
 
     CompoundElement::update(sim, f_sum);
 
-    // active detents for current lane
-    auto detSpan = gateRt.detentsForLane(ctx, _axis_role);
+    // active detents for current lane (vertical lane for Y axis, horizontal for X)
+    auto detSpan = gateRt.detentsForAxis(ctx, _axis_role);
 
     for (uint8_t i = 0; i < detSpan.count; i++) {
         const DetentPre& d = gateRt.dets[ detSpan.indices[i] ];
