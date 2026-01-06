@@ -315,8 +315,10 @@ void ShifterFunction::update(Sim *sim, float &f_sum) {
     auto ctx = gateRt.updateAxisContext(x_pos, y_pos, _axis_role);
 
     // soft limits for integration
-    float ySoftMin = ctx.soft.lo;
-    float ySoftMax = ctx.soft.hi;
+    sim->set_x_min(ctx.soft.lo);
+    sim->set_x_max(ctx.soft.hi);
+
+    CompoundElement::update(sim, f_sum);
 
     // active detents for current lane
     auto detSpan = gateRt.detentsForLane(ctx, _axis_role);
@@ -324,9 +326,7 @@ void ShifterFunction::update(Sim *sim, float &f_sum) {
     for (uint8_t i = 0; i < detSpan.count; i++) {
         const DetentPre& d = gateRt.dets[ detSpan.indices[i] ];
         float z = (sim->get_x() - (_axis_role == AxisRole::X ? d.x_mm : d.y_mm)) / d.radius_mm;
-        if (z <= -1.0f || z >= 1.0f) return;
+        if (z <= -1.0f || z >= 1.0f) continue;
         f_sum += d.spring_N_per_mm * fastmath::fast_sinf(float(PI) * z);
-    }
-    
-    CompoundElement::update(sim, f_sum);
+    }    
 }
