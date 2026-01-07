@@ -5,6 +5,10 @@
 
 #include "Arduino.h"
 
+#ifndef PI
+#define PI 3.14159265358979323846f
+#endif
+
 namespace fastmath {
 constexpr float PIO2 = 1.57079632679489661923f;      // pi/2
 constexpr float INV_PIO2 = 0.63661977236758134308f;  // 2/pi
@@ -272,4 +276,3 @@ class Cam : public SimElement {
         float _center;
         float _half_width;
 };
-

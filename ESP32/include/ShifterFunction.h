@@ -46,6 +46,9 @@ struct ShifterGateRuntime {
   // Lane subsets: indices into segs[]
   int segIndexV[MAX_LANES]; int vCount = 0;
   int segIndexH[MAX_LANES]; int hCount = 0;
+  // Fast lookup: seg index -> lane list index
+  int8_t segToLaneV[MAX_SEGS];
+  int8_t segToLaneH[MAX_SEGS];
 
   // Detents and per-lane grouping
   DetentPre dets[MAX_DETS];
@@ -176,7 +179,7 @@ struct ShifterGateRuntime {
   //
   // This avoids flipping at intersections while still allowing lane changes when you move over.
   // -----------------------------
-  int8_t chooseLaneDistanceBased(float x_mm, float y_mm, AxisRole axis) {
+  int8_t chooseLaneDistanceBased(float x_mm, float y_mm, AxisRole axis, uint32_t insideMask) {
     LaneHold& hold = (axis == AxisRole::X) ? holdX : holdY;
 
     // Build candidate set: only correct orientation
@@ -189,7 +192,7 @@ struct ShifterGateRuntime {
     for (int li=0; li<idxCount; li++){
       int si = idxList[li];
       const GateSegPre& s = segs[si];
-      if (!inside(s, x_mm, y_mm, membershipMargin_mm)) continue;
+      if ((insideMask & (1u << si)) == 0u) continue;
 
       float d = perpDist(s, x_mm, y_mm);
       if (d < bestD) { bestD = d; bestSeg = si; }
@@ -209,7 +212,7 @@ struct ShifterGateRuntime {
 
     // If held lane still contains point, compare distances
     const GateSegPre& heldS = segs[hold.laneSeg];
-    const bool heldInside = inside(heldS, x_mm, y_mm, membershipMargin_mm);
+    const bool heldInside = (insideMask & (1u << hold.laneSeg)) != 0u;
 
     if (!heldInside) {
       // You left it: immediately adopt best
@@ -239,6 +242,7 @@ struct ShifterGateRuntime {
   AxisContext updateAxisContext(float x_mm, float y_mm, AxisRole axis) {
     Interval unions[MAX_UNIONS];
     int uCount = 0;
+    uint32_t insideMask = 0u;
 
     const float gMin = (axis == AxisRole::X) ? xMin : yMin;
     const float gMax = (axis == AxisRole::X) ? xMax : yMax;
@@ -247,7 +251,9 @@ struct ShifterGateRuntime {
     // Gather soft limit candidates from all containing segments (both H and V)
     for (int i=0;i<segCount;i++){
       const GateSegPre& s = segs[i];
-      if (!inside(s, x_mm, y_mm, membershipMargin_mm)) continue;
+      const bool isInside = inside(s, x_mm, y_mm, membershipMargin_mm);
+      if (isInside) insideMask |= (1u << i);
+      if (!isInside) continue;
 
       Interval iv = intervalFromSeg(s, axis, gMin, gMax);
       uCount = unionInsert(unions, uCount, iv);
@@ -255,7 +261,7 @@ struct ShifterGateRuntime {
 
     AxisContext out;
     out.soft = pickUnionBest(unions, uCount, coord, Interval{gMin, gMax});
-    out.laneSeg = (int8_t)chooseLaneDistanceBased(x_mm, y_mm, axis);
+    out.laneSeg = (int8_t)chooseLaneDistanceBased(x_mm, y_mm, axis, insideMask);
     return out;
   }
 
@@ -264,14 +270,10 @@ struct ShifterGateRuntime {
   // -----------------------------
   struct DetentSpan { const int* indices; uint8_t count; };
 
-  // Find lane list index for seg index (linear scan; lane count small)
+  // Find lane list index for seg index (O(1) via lookup table)
   int8_t findLaneListIndexForSeg(int segIndex, AxisRole axis) const {
-    if (axis == AxisRole::Y) {
-      for (int li=0; li<vCount; li++) if (segIndexV[li] == segIndex) return (int8_t)li;
-    } else {
-      for (int li=0; li<hCount; li++) if (segIndexH[li] == segIndex) return (int8_t)li;
-    }
-    return -1;
+    if (segIndex < 0 || segIndex >= segCount) return -1;
+    return (axis == AxisRole::Y) ? segToLaneV[segIndex] : segToLaneH[segIndex];
   }
 
   DetentSpan detentsForLane(const AxisContext& ctx, AxisRole axis) const {
@@ -313,13 +315,25 @@ struct ShifterGateRuntime {
     // Copy segs
     segCount = (inSegCount > MAX_SEGS) ? MAX_SEGS : inSegCount;
     vCount = hCount = 0;
+    for (int i=0;i<MAX_SEGS;i++){
+      segToLaneV[i] = -1;
+      segToLaneH[i] = -1;
+    }
 
     for (int i=0;i<segCount;i++){
       segs[i] = inSegs[i];
       if (segs[i].horizontal) {
-        if (hCount < MAX_LANES) segIndexH[hCount++] = i;
+        if (hCount < MAX_LANES) {
+          segIndexH[hCount] = i;
+          segToLaneH[i] = (int8_t)hCount;
+          hCount++;
+        }
       } else {
-        if (vCount < MAX_LANES) segIndexV[vCount++] = i;
+        if (vCount < MAX_LANES) {
+          segIndexV[vCount] = i;
+          segToLaneV[i] = (int8_t)vCount;
+          vCount++;
+        }
       }
     }
 

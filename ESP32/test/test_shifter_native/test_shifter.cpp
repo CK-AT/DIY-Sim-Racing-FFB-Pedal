@@ -93,7 +93,8 @@ void BuildGateConfig(ShifterConfig &config) {
     config.pos_y_min = -20;
     config.pos_y_max = 20;
     config.damping = 0.0f;
-    config.max_force = 0.0f;
+    // Use max_force as the centering spring rate for the tested axis
+    config.max_force = 5.0f;
     config.grid_step = 10;
     config.sequential = false;
     config.gate_segments_count = 1;
@@ -209,8 +210,10 @@ void test_shifter_function_gate_force_direction(void) {
     BuildGateConfig(config);
 
     AxisID linked_axes[4] = {AxisID_AXIS_ID_1, AxisID_AXIS_ID_2, AxisID_AXIS_UNDEFINED, AxisID_AXIS_UNDEFINED};
+    AuxFunctionConfig detect_config = {};
+    BuildDetectConfig(detect_config);
     ShifterFunction shifter;
-    shifter.update_config(config, comm_manager, linked_axes);
+    shifter.update_config(config, detect_config.specific.shifter_detect, comm_manager, linked_axes);
     shifter.enable();
 
     Sim sim(1.0f, -20.0f, 20.0f);
@@ -233,8 +236,10 @@ void test_shifter_function_corridor_center_force_zero(void) {
     BuildGateConfig(config);
 
     AxisID linked_axes[4] = {AxisID_AXIS_ID_1, AxisID_AXIS_ID_2, AxisID_AXIS_UNDEFINED, AxisID_AXIS_UNDEFINED};
+    AuxFunctionConfig detect_config = {};
+    BuildDetectConfig(detect_config);
     ShifterFunction shifter;
-    shifter.update_config(config, comm_manager, linked_axes);
+    shifter.update_config(config, detect_config.specific.shifter_detect, comm_manager, linked_axes);
     shifter.enable();
 
     Sim sim(1.0f, -20.0f, 20.0f);
@@ -299,8 +304,10 @@ void test_shifter_function_demo_gate_x_force_direction(void) {
     BuildDemoGateConfig(config);
 
     AxisID linked_axes[4] = {AxisID_AXIS_ID_1, AxisID_AXIS_ID_2, AxisID_AXIS_UNDEFINED, AxisID_AXIS_UNDEFINED};
+    AuxFunctionConfig detect_config = {};
+    BuildDemoDetectConfig(detect_config);
     ShifterFunction shifter;
-    shifter.update_config(config, comm_manager, linked_axes);
+    shifter.update_config(config, detect_config.specific.shifter_detect, comm_manager, linked_axes);
     shifter.enable();
 
     Sim sim(1.0f, float(config.pos_x_min), float(config.pos_x_max));
@@ -323,8 +330,10 @@ void test_shifter_function_demo_neutral_centering(void) {
     BuildDemoGateConfig(config);
 
     AxisID linked_axes[4] = {AxisID_AXIS_ID_1, AxisID_AXIS_ID_2, AxisID_AXIS_UNDEFINED, AxisID_AXIS_UNDEFINED};
+    AuxFunctionConfig detect_config = {};
+    BuildDemoDetectConfig(detect_config);
     ShifterFunction shifter;
-    shifter.update_config(config, comm_manager, linked_axes);
+    shifter.update_config(config, detect_config.specific.shifter_detect, comm_manager, linked_axes);
     shifter.enable();
 
     Sim sim(1.0f, float(config.pos_x_min), float(config.pos_x_max));

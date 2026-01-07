@@ -2,6 +2,30 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-07 19:23:24 +01:00 (DESKTOP-PUK6UGO)
+Request: optimize ShifterFunction lane selection and fix native PI build error.
+Summary:
+- Added fallback `PI` definition in `Physics.h` to fix native builds.
+- Added seg-to-lane lookup tables and inside-mask reuse (bitmask) in `ShifterGateRuntime` to reduce per-update scans.
+Key files:
+- `ESP32/include/Physics.h`
+- `ESP32/include/ShifterFunction.h`
+Open items:
+- None.
+
+## 2026-01-07 19:02:48 +01:00 (DESKTOP-PUK6UGO)
+Request: shifter detent plotting and cam tuning; fix shifter test signature; add centering to plots.
+Summary:
+- Updated `test_shifter_native` to call the new `ShifterFunction::update_config` signature (with detect config) and set a usable centering spring in the simple gate config.
+- Enhanced detent visualizer `plot_shifter_detents.py` with centering spring support, per-lane force curves, and robust config loading for sparse configItems.
+- Added `cam_test.py` to explore lane cam profiles, roller follower effects, centering spring, and more realistic fork-style pocket tuning.
+Key files:
+- `ESP32/test/test_shifter_native/test_shifter.cpp`
+- `ESP32/sim/plot_shifter_detents.py`
+- `ESP32/sim/cam_test.py`
+Open items:
+- Native tests not run here (PlatformIO/gcc unavailable); run `pio test -e native -f test_shifter_native` after installing toolchain.
+
 ## 2026-01-03 16:28:43 +01:00 (DESKTOP-6KO022D)
 Request: shifter UI polish (live marker + axis range limits) and fix build error.
 Summary:
