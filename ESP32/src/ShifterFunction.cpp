@@ -315,8 +315,8 @@ void ShifterFunction::update(Sim *sim, float &f_sum) {
     auto ctx = gateRt.updateAxisContext(x_pos, y_pos, _axis_role);
 
     // soft limits for integration
-    sim->set_x_min(ctx.soft.lo);
-    sim->set_x_max(ctx.soft.hi);
+    sim->set_x_min(ctx.soft.lo, true);
+    sim->set_x_max(ctx.soft.hi, true);
 
     CompoundElement::update(sim, f_sum);
 
