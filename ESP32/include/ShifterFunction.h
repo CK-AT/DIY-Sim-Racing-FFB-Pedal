@@ -82,25 +82,27 @@ struct ShifterGateRuntime {
         LaneHold holdX{-1};
         LaneHold holdY{-1};
 
-        // Sticky "last known inside" segments. Updated only when the current
-        // (x,y) is inside a corridor. If membership is temporarily empty
-        // (common when other-axis position is slightly stale over CAN), we keep
-        // using these to avoid dropping into a "void".
-        int8_t lastInsideHSeg = -1;
-        int8_t lastInsideVSeg = -1;
+        // ---- Lane activity (sticky with hysteresis) ----
+        // A held lane may remain selected for identity purposes, but it should
+        // only contribute to soft limits while it is considered *active*.
+        // This prevents "neutral" from contributing wide X limits while the
+        // knob is clearly above/below the neutral band.
+        bool h_active = false;
+        bool v_active = false;
 
-        // ---- Tunables for hysteresis (mm) ----
-        float membershipMargin_mm = 0.0f;  // widen corridor membership tests slightly
+        // Enter/exit hysteresis margins (mm). Exit should be > enter.
+        float enterMargin_mm = 0.2f;
+        float exitMargin_mm  = 1.0f;
+
+        // ---- Tunables for lane identity hysteresis (mm) ----
         float switchMargin_mm = 0.0f;      // require new lane to be closer by this much
-        float releaseExtra_mm = 0.0f;      // release held lane only after you're this far outside its core
 
         // -----------------------------
-        // Fast corridor membership
+        // Fast corridor membership (optional, for debugging)
         // -----------------------------
         static inline bool inside(const GateSegPre& s, float x_mm, float y_mm, float margin_mm) {
             const float hw = s.hw + margin_mm;
             if (s.horizontal) {
-                // |y - yLine| <= hw  AND  x in [a0_cap - margin, a1_cap + margin]
                 return (absf(y_mm - s.line) <= hw) && (x_mm >= (s.a0_cap - margin_mm)) && (x_mm <= (s.a1_cap + margin_mm));
             } else {
                 return (absf(x_mm - s.line) <= hw) && (y_mm >= (s.a0_cap - margin_mm)) && (y_mm <= (s.a1_cap + margin_mm));
@@ -182,6 +184,40 @@ struct ShifterGateRuntime {
         }
 
         // -----------------------------
+        // Nearest-lane helpers (no corridor membership / no along-range gating)
+        // Return segment index into segs[] or -1 if none.
+        // -----------------------------
+        int8_t nearestVerticalLane(float x_mm) const {
+            if (vCount <= 0) return -1;
+            int bestSeg = segIndexV[0];
+            float bestD = absf(x_mm - segs[bestSeg].line);
+            for (int li = 1; li < vCount; li++) {
+                const int si = segIndexV[li];
+                const float d = absf(x_mm - segs[si].line);
+                if (d < bestD) {
+                    bestD = d;
+                    bestSeg = si;
+                }
+            }
+            return (int8_t)bestSeg;
+        }
+
+        int8_t nearestHorizontalLane(float y_mm) const {
+            if (hCount <= 0) return -1;
+            int bestSeg = segIndexH[0];
+            float bestD = absf(y_mm - segs[bestSeg].line);
+            for (int li = 1; li < hCount; li++) {
+                const int si = segIndexH[li];
+                const float d = absf(y_mm - segs[si].line);
+                if (d < bestD) {
+                    bestD = d;
+                    bestSeg = si;
+                }
+            }
+            return (int8_t)bestSeg;
+        }
+
+        // -----------------------------
         // Axis context result
         // -----------------------------
         struct AxisContext {
@@ -191,31 +227,16 @@ struct ShifterGateRuntime {
 
         // Choose nearest lane by distance to centerline, with hysteresis.
         // DOES NOT require being inside the lane corridor in X.
-        int8_t chooseVerticalLaneByDistance(float x_mm, float y_mm) {
-            // candidates are vertical lanes only (precomputed list segIndexV[])
-            int bestSeg = -1;
-            float bestD = 1e30f;
+        int8_t chooseVerticalLaneByDistance(float x_mm, float /*y_mm*/) {
+            if (vCount <= 0) return holdY.laneSeg;
 
-            // Find nearest vertical lane centerline among lanes that span current y.
-            for (int li = 0; li < vCount; li++) {
-                int si = segIndexV[li];
-                const GateSegPre& s = segs[si];  // vertical lane => horizontal==false
-
-                // Require y within the lane's along-range (cap-extended) with a small margin.
-                if (y_mm < (s.a0_cap - membershipMargin_mm) || y_mm > (s.a1_cap + membershipMargin_mm)) continue;
-
-                float d = absf(x_mm - s.line);  // distance to lane centerline in mm
-                if (d < bestD) {
-                    bestD = d;
-                    bestSeg = si;
-                }
-            }
-
-            // If no lane spans this y, keep the previous lane if we had one.
-            // This avoids transient "no lane" states when the other axis
-            // position is slightly stale.
-            if (bestSeg < 0) {
-                return holdY.laneSeg;
+            // Find nearest vertical lane by x distance
+            int bestSeg = segIndexV[0];
+            float bestD = absf(x_mm - segs[bestSeg].line);
+            for (int li = 1; li < vCount; li++) {
+                const int si = segIndexV[li];
+                const float d = absf(x_mm - segs[si].line);
+                if (d < bestD) { bestD = d; bestSeg = si; }
             }
 
             // If no hold yet, take nearest.
@@ -228,36 +249,24 @@ struct ShifterGateRuntime {
             const GateSegPre& heldS = segs[holdY.laneSeg];
             float heldD = absf(x_mm - heldS.line);
 
-            if (bestSeg != holdY.laneSeg) {
-                if (bestD + switchMargin_mm < heldD) {
-                    holdY.laneSeg = (int8_t)bestSeg;
-                }
-            }
+            if (bestSeg != holdY.laneSeg && (bestD + switchMargin_mm < heldD))
+                holdY.laneSeg = (int8_t)bestSeg;
 
             return holdY.laneSeg;
         }
 
-        int8_t chooseHorizontalLaneByDistance(float x_mm, float y_mm) {
-            int bestSeg = -1;
-            float bestD = 1e30f;
+        int8_t chooseHorizontalLaneByDistance(float /*x_mm*/, float y_mm) {
+            if (hCount <= 0) return holdX.laneSeg;
 
-            for (int li = 0; li < hCount; li++) {
-                int si = segIndexH[li];
-                const GateSegPre& s = segs[si];  // horizontal lane => horizontal==true
-
-                // Require x within along-range for that horizontal band.
-                if (x_mm < (s.a0_cap - membershipMargin_mm) || x_mm > (s.a1_cap + membershipMargin_mm)) continue;
-
-                float d = absf(y_mm - s.line);
-                if (d < bestD) {
-                    bestD = d;
-                    bestSeg = si;
-                }
+            // Find nearest horizontal lane by y distance
+            int bestSeg = segIndexH[0];
+            float bestD = absf(y_mm - segs[bestSeg].line);
+            for (int li = 1; li < hCount; li++) {
+                const int si = segIndexH[li];
+                const float d = absf(y_mm - segs[si].line);
+                if (d < bestD) { bestD = d; bestSeg = si; }
             }
 
-            if (bestSeg < 0) {
-                return holdX.laneSeg;
-            }
             if (holdX.laneSeg < 0) {
                 holdX.laneSeg = (int8_t)bestSeg;
                 return holdX.laneSeg;
@@ -266,9 +275,8 @@ struct ShifterGateRuntime {
             const GateSegPre& heldS = segs[holdX.laneSeg];
             float heldD = absf(y_mm - heldS.line);
 
-            if (bestSeg != holdX.laneSeg) {
-                if (bestD + switchMargin_mm < heldD) holdX.laneSeg = (int8_t)bestSeg;
-            }
+            if (bestSeg != holdX.laneSeg && (bestD + switchMargin_mm < heldD))
+                holdX.laneSeg = (int8_t)bestSeg;
             return holdX.laneSeg;
         }
 
@@ -297,49 +305,67 @@ struct ShifterGateRuntime {
             const float gMax = (axis == AxisRole::X) ? xMax : yMax;
             const float coord = (axis == AxisRole::X) ? x_mm : y_mm;
 
-            // Gather soft limit candidates from all containing segments (both H and V).
-            // Also track the "best" containing horizontal and vertical segment so we can
-            // update sticky membership and fall back if membership becomes empty.
-            int bestHSeg = -1;
-            int bestVSeg = -1;
-            float bestHd = 1e30f;
-            float bestVd = 1e30f;
+            // 1) Update held lane IDs (identity)
+            (void)chooseVerticalLaneByDistance(x_mm, y_mm);
+            (void)chooseHorizontalLaneByDistance(x_mm, y_mm);
 
-            for (int i = 0; i < segCount; i++) {
-                const GateSegPre& s = segs[i];
-                if (!inside(s, x_mm, y_mm, membershipMargin_mm)) continue;
-
-                Interval iv = intervalFromSeg(s, axis, gMin, gMax);
-                uCount = unionInsert(unions, uCount, iv);
-
-                const float d = perpDist(s, x_mm, y_mm);
-                if (s.horizontal) {
-                    if (d < bestHd) {
-                        bestHd = d;
-                        bestHSeg = i;
-                    }
+            // 2) Update lane activity with hysteresis
+            if (holdX.laneSeg >= 0) {
+                const GateSegPre& hs = segs[(int)holdX.laneSeg];
+                const float dy = absf(y_mm - hs.line);
+                if (!h_active) {
+                    if (dy <= (hs.hw + enterMargin_mm)) h_active = true;
                 } else {
-                    if (d < bestVd) {
-                        bestVd = d;
-                        bestVSeg = i;
-                    }
+                    if (dy >= (hs.hw + exitMargin_mm)) h_active = false;
                 }
+            } else {
+                h_active = false;
             }
 
-            // Update sticky membership on positive evidence.
-            if (bestHSeg >= 0) lastInsideHSeg = (int8_t)bestHSeg;
-            if (bestVSeg >= 0) lastInsideVSeg = (int8_t)bestVSeg;
+            if (holdY.laneSeg >= 0) {
+                const GateSegPre& vs = segs[(int)holdY.laneSeg];
+                const float dx = absf(x_mm - vs.line);
+                if (!v_active) {
+                    if (dx <= (vs.hw + enterMargin_mm)) v_active = true;
+                } else {
+                    if (dx >= (vs.hw + exitMargin_mm)) v_active = false;
+                }
+            } else {
+                v_active = false;
+            }
 
-            // If we are temporarily "in the void" (no containing corridors), fall back to the
-            // last known inside corridors instead of widening to global bounds.
-            if (uCount == 0) {
-                if (lastInsideHSeg >= 0) {
-                    Interval iv = intervalFromSeg(segs[(int)lastInsideHSeg], axis, gMin, gMax);
+            // 3) Soft limits = union of up to two active corridors
+            if (axis == AxisRole::X) {
+                // Wide X only when horizontal corridor is active.
+                if (h_active && holdX.laneSeg >= 0) {
+                    Interval ih = intervalFromSeg(segs[(int)holdX.laneSeg], axis, gMin, gMax);
+                    uCount = unionInsert(unions, uCount, ih);
+                }
+                // Narrow X when vertical corridor is active.
+                if (v_active && holdY.laneSeg >= 0) {
+                    Interval iv = intervalFromSeg(segs[(int)holdY.laneSeg], axis, gMin, gMax);
                     uCount = unionInsert(unions, uCount, iv);
                 }
-                if (lastInsideVSeg >= 0) {
-                    Interval iv = intervalFromSeg(segs[(int)lastInsideVSeg], axis, gMin, gMax);
+                // Conservative fallback: if neither is active, prefer vertical hold if it exists.
+                if (uCount == 0 && holdY.laneSeg >= 0) {
+                    Interval iv = intervalFromSeg(segs[(int)holdY.laneSeg], axis, gMin, gMax);
                     uCount = unionInsert(unions, uCount, iv);
+                }
+            } else { // AxisRole::Y
+                // Wide Y only when vertical corridor is active.
+                if (v_active && holdY.laneSeg >= 0) {
+                    Interval iv = intervalFromSeg(segs[(int)holdY.laneSeg], axis, gMin, gMax);
+                    uCount = unionInsert(unions, uCount, iv);
+                }
+                // Narrow Y band when horizontal corridor is active.
+                if (h_active && holdX.laneSeg >= 0) {
+                    Interval ih = intervalFromSeg(segs[(int)holdX.laneSeg], axis, gMin, gMax);
+                    uCount = unionInsert(unions, uCount, ih);
+                }
+                // Conservative fallback: if neither is active, prefer horizontal hold if it exists.
+                if (uCount == 0 && holdX.laneSeg >= 0) {
+                    Interval ih = intervalFromSeg(segs[(int)holdX.laneSeg], axis, gMin, gMax);
+                    uCount = unionInsert(unions, uCount, ih);
                 }
             }
 
@@ -468,9 +494,9 @@ struct ShifterGateRuntime {
             holdX.laneSeg = -1;
             holdY.laneSeg = -1;
 
-            // Reset sticky "last inside" segments
-            lastInsideHSeg = -1;
-            lastInsideVSeg = -1;
+            // Reset lane activity on config change
+            h_active = false;
+            v_active = false;
         }
 };
 
