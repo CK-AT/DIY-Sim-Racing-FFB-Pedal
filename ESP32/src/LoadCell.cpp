@@ -120,7 +120,8 @@ LoadCellAds1256::LoadCellAds1256(const LoadCellConfig &cfg)
 bool LoadCellAds1256::try_get_reading_kg(float &reading_kg) const {
     if (!begin()) return false;
     ADS1256 &adc = adc_instance().ref();
-    reading_kg = adc.readCurrentChannel() - _zero_point;
+    float raw = adc.readCurrentChannel() - _zero_point;
+    reading_kg = filter_reading(raw);
     return true;
 }
 
@@ -179,4 +180,39 @@ bool LoadCellAds1256::estimate_variance(uint32_t sample_count) {
 
     _variance_estimate = variance3;  // keep backward-compatible “3*sigma squared” storage
     return true;
+}
+
+float LoadCellAds1256::filter_reading(float raw) const {
+    // Spike rejection relative to last filtered sample
+    const float min_threshold = 0.5f;  // kg
+    float threshold = _standard_deviation_estimate * 4.0f;
+    if (threshold < min_threshold) threshold = min_threshold;
+    float candidate = raw;
+    float delta = candidate - _last_filtered;
+    if (fabsf(delta) > threshold) {
+        candidate = _last_filtered;
+    }
+
+    // Median-of-3 prefilter
+    _recent_samples[_recent_idx] = raw;
+    _recent_idx = (_recent_idx + 1) % 3;
+    if (_recent_count < 3) _recent_count++;
+
+    float a = _recent_samples[0];
+    float b = _recent_samples[1];
+    float c = _recent_samples[2];
+    float median = candidate;
+    if (_recent_count == 1) {
+        median = a;
+    } else if (_recent_count == 2) {
+        median = (a + b) * 0.5f;
+    } else {
+        // median of 3
+        if ((a > b) != (a > c)) median = a;
+        else if ((b > a) != (b > c)) median = b;
+        else median = c;
+    }
+
+    _last_filtered = median;
+    return median;
 }

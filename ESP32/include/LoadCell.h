@@ -21,6 +21,11 @@ class LoadCellAds1256 {
         float _variance_estimate = 0.0;
         float _standard_deviation_estimate = 0.0;
         bool begin() const;
+        float filter_reading(float raw) const;
+        mutable float _recent_samples[3] = {0.0f, 0.0f, 0.0f};
+        mutable uint8_t _recent_count = 0;
+        mutable uint8_t _recent_idx = 0;
+        mutable float _last_filtered = 0.0f;
 
     public:
         explicit LoadCellAds1256(const LoadCellConfig &cfg = LoadCellConfig());
