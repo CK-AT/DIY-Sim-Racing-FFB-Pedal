@@ -12,10 +12,30 @@ constexpr float k_adc_clock_mhz = 7.68f;     // crystal frequency used on ADS125
 constexpr float k_adc_vref = 2.5f;          // voltage reference
 constexpr float k_default_variance = 0.2f * 0.2f;
 constexpr float k_variance_min = 0.0001f;
+constexpr uint32_t k_adc_drdy_timeout_us = 500000;
+constexpr uint32_t k_adc_reset_delay_ms = 5;
 
 float calc_conversion_factor(const LoadCellConfig &cfg) {
     if ((cfg.excitation_v <= 0.0f) || (cfg.sensitivity_mV_V <= 0.0f)) return 1.0f;
     return cfg.loadcell_rating_kg / (cfg.excitation_v * (cfg.sensitivity_mV_V / 1000.0f));
+}
+
+bool wait_drdy_timeout(uint32_t timeout_us) {
+    uint32_t start = micros();
+    while (digitalRead(PIN_DRDY)) {
+        if (timeout_us && (micros() - start) > timeout_us) {
+            return false;
+        }
+        delay(1);
+    }
+    return true;
+}
+
+void send_command_no_wait(uint8_t cmd) {
+    digitalWrite(PIN_CS, LOW);
+    SPI.transfer(cmd);
+    delayMicroseconds(2);
+    digitalWrite(PIN_CS, HIGH);
 }
 
 // Thin wrapper to centralize ADS1256 lifetime and one-time init.
@@ -28,12 +48,26 @@ class LoadCellADC {
             LogOutput::printf("ADS1256: Starting ADC");
             adc.initSpi(k_adc_clock_mhz);
             delay(1000);
+            bool drdy_ready = wait_drdy_timeout(k_adc_drdy_timeout_us);
+            if (!drdy_ready) {
+                LogOutput::printf("ADS1256: DRDY timeout, issuing reset");
+                send_command_no_wait(ADS1256_CMD_RESET);
+                delay(k_adc_reset_delay_ms);
+                drdy_ready = wait_drdy_timeout(k_adc_drdy_timeout_us);
+            }
+            if (!drdy_ready) {
+                LogOutput::printf("ADS1256: DRDY still high, skipping init");
+                return false;
+            }
 
             // Start with configured sample rate and gain
             adc.begin(ADC_SAMPLE_RATE, ADS1256_GAIN_64, false);
             LogOutput::printf(" -> started");
 
-            adc.waitDRDY();  // wait for DRDY to go low before changing multiplexer register
+            if (!wait_drdy_timeout(k_adc_drdy_timeout_us)) {
+                LogOutput::printf("ADS1256: DRDY timeout after start");
+                return false;
+            }
             float conv = calc_conversion_factor(cfg);
             if (fabs(conv) > 0.01f) {
                 adc.setConversionFactor(conv);
