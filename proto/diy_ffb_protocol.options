@@ -78,6 +78,12 @@ WifiInfo.password                           max_length:64
 
 StartOtaUpdate.info_json_url                max_length:150
 
+DeviceInfo.fw_version                       max_length:32
+DeviceInfo.build_timestamp                  max_length:40
+DeviceInfo.git_hash                         max_length:16
+DeviceInfo.board                            max_length:32
+DeviceInfo.device_uid                       max_length:16
+
 ConfigItem                                  skip_message:true
 
 ConfigItemsList                             skip_message:true

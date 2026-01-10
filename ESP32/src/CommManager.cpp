@@ -1,6 +1,7 @@
 #include <CANManager.h>
 #include <CommManager.h>
 #include <ConfigManager.h>
+#include <Esp.h>
 #include <Joystick_ESP32S2.h>
 #include <LogOutput.h>
 #include <SerialManager.h>
@@ -12,11 +13,29 @@
 // RTDebugOutputService debugOutput = RTDebugOutputService();
 QueueHandle_t _log_queue_data;
 
-Joystick_ _joystick = Joystick_(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD, CommManager::JOYSTICK_BUTTON_COUNT, 0,  // Button Count, Hat Switch Count
-                                true, true, true,                                         // X, Y, Z
-                                true, true, true,                                         // Rx, Ry, Rz
-                                true, true,                                               // rudder, throttle
-                                true, true, true);                                        // accelerator, brake, steering
+#ifndef GIT_HASH
+    #define GIT_HASH ""
+#endif
+
+namespace {
+void copy_string(char *dest, size_t dest_len, const char *src) {
+    if (!dest || dest_len == 0) return;
+    if (!src) {
+        dest[0] = '\0';
+        return;
+    }
+    strncpy(dest, src, dest_len - 1);
+    dest[dest_len - 1] = '\0';
+}
+
+}  // namespace
+
+Joystick_ _joystick =
+    Joystick_(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD, CommManager::JOYSTICK_BUTTON_COUNT, 0,  // Button Count, Hat Switch Count
+              true, true, true,                                                                          // X, Y, Z
+              true, true, true,                                                                          // Rx, Ry, Rz
+              true, true,                                                                                // rudder, throttle
+              true, true, true);                                                                         // accelerator, brake, steering
 
 void CommManager::periodic_task_func(void) {
     if (!_config_manager_initialized && (_config_manager->get_mode() != ConfigManager::MODE_UNDEFINED)) {
@@ -46,6 +65,9 @@ void CommManager::periodic_task_func(void) {
         if ((now - ti_last_joystick_update) > 10000) {
             ti_last_joystick_update = now;
             send_joystick_values();
+        }
+        if (!_device_info_sent) {
+            _device_info_sent = send_device_info(is_gateway() ? CommChannel::USB_SERIAL : CommChannel::ISOTP);
         }
     }
     update_joystick_state();
@@ -196,6 +218,40 @@ bool CommManager::send_axis_state_message(AxisID axis_id, uint8_t &online_flags)
     return true;
 }
 
+bool CommManager::send_device_info(CommChannel comm_channel) {
+    Message msg = Message_init_zero;
+    build_device_info_message(msg);
+    if (is_gateway()) {
+        return send_message_to_host(msg);
+    }
+    if (comm_channel == CommChannel::USB_SERIAL) {
+        return send_message_to_host(msg);
+    } else {
+        return send_message_to_gateway(msg, comm_channel);
+    }
+}
+
+void CommManager::build_device_info_message(Message &msg) {
+    msg.which_payload = Message_device_info_tag;
+    if (is_gateway()) {
+        msg.payload.device_info.which_source = DeviceInfo_gateway_id_tag;
+        msg.payload.device_info.source.gateway_id = get_gateway_id();
+    } else {
+        msg.payload.device_info.which_source = DeviceInfo_axis_id_tag;
+        msg.payload.device_info.source.axis_id = get_axis_id();
+    }
+
+    copy_string(msg.payload.device_info.fw_version, sizeof(msg.payload.device_info.fw_version), VERSION);
+    copy_string(msg.payload.device_info.build_timestamp, sizeof(msg.payload.device_info.build_timestamp), BUILD_TIMESTAMP);
+    copy_string(msg.payload.device_info.git_hash, sizeof(msg.payload.device_info.git_hash), GIT_HASH);
+    copy_string(msg.payload.device_info.board, sizeof(msg.payload.device_info.board), CONTROL_BOARD);
+
+    uint64_t mac = ESP.getEfuseMac();
+    char uid[13] = {};
+    snprintf(uid, sizeof(uid), "%04x%08x", uint16_t(mac >> 32), uint32_t(mac));
+    copy_string(msg.payload.device_info.device_uid, sizeof(msg.payload.device_info.device_uid), uid);
+}
+
 void CommManager::setup(Stream *serial, CANConfig &can_config, ConfigManager *config_manager, OnFFBAction on_ffb_action,
                         OnAxisAction on_axis_action) {
     _config_manager = config_manager;
@@ -341,6 +397,27 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
             _ota_url = msg.payload.start_ota_update.info_json_url;
             switch_ota_state(OtaState::OTA_PREPARE_WIFI);
             break;
+        case Message_device_info_request_tag: {
+            if (msg.payload.device_info_request.which_target == DeviceInfoRequest_gateway_id_tag) {
+                if (is_gateway() && (msg.payload.device_info_request.target.gateway_id == get_gateway_id())) {
+                    send_device_info(comm_channel);
+                }
+                break;
+            }
+            if (msg.payload.device_info_request.which_target == DeviceInfoRequest_axis_id_tag) {
+                AxisID target_axis = msg.payload.device_info_request.target.axis_id;
+                if (_config_manager->is_axis() && (target_axis == get_axis_id())) {
+                    send_device_info(comm_channel);
+                    break;
+                }
+                if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
+                    if (!send_message_to_axis(target_axis, msg, protobuf_msg, len_protobuf_msg)) {
+                        LogOutput::printf("Can't forward DeviceInfoRequest: axis %d is offline", target_axis);
+                    }
+                }
+            }
+            break;
+        }
         default:
             LogOutput::printf("Unknown Message received");
             break;

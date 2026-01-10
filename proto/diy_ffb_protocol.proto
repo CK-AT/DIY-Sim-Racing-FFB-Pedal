@@ -572,6 +572,25 @@ message StartOtaUpdate {
   bool allow_downgrades = 3;
 }
 
+message DeviceInfo {
+  oneof source {
+    AxisID axis_id = 1;
+    GatewayID gateway_id = 2;
+  }
+  string fw_version = 3;
+  string build_timestamp = 4;
+  string git_hash = 5;
+  string board = 6;
+  string device_uid = 7;
+}
+
+message DeviceInfoRequest {
+  oneof target {
+    AxisID axis_id = 1;
+    GatewayID gateway_id = 2;
+  }
+}
+
 message Message {
   oneof payload {
     AxisLogMessage axis_log_message = 1;
@@ -584,6 +603,8 @@ message Message {
     GatewayLogMessage gateway_log_message = 8;
     ActiveFunction active_function = 9;
     StartOtaUpdate start_ota_update = 10;
+    DeviceInfo device_info = 11;
+    DeviceInfoRequest device_info_request = 12;
   }
 }
 

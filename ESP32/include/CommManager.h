@@ -98,6 +98,8 @@ class CommManager {
         void periodic_task_func(void);
         void send_gateway_state_message(GatewayID gateway_id, uint8_t online_flags);
         bool send_axis_state_message(AxisID axis_id, uint8_t &online_flags);
+        bool send_device_info(CommChannel comm_channel);
+        void build_device_info_message(Message &msg);
         void send_joystick_values(void);
         void set_controller_axis(ControllerAxis controller_axis, float &value);
         void setup_joystick(void);
@@ -152,4 +154,5 @@ class CommManager {
         uint32_t _ti_ota_state;
         String _ota_url;
         WifiInfo _wifi_info;
+        bool _device_info_sent = false;
 };
