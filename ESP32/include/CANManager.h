@@ -163,5 +163,4 @@ class CANManager : public ICommChannel {
         OnAxisPayload on_axis_payload = nullptr;
         OnAxisStateChange on_axis_state_change = nullptr;
         OnGatewayStateChange on_gateway_state_change = nullptr;
-        uint8_t fast_update_cnt = 0;
 };

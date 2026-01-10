@@ -416,20 +416,15 @@ bool CANManager::send_force_and_position(float &f_contact_point, float &x_contac
     axis_states[own_axis_index].force_and_position.f_contact_point = f_contact_point;
     axis_states[own_axis_index].force_and_position.x_contact_point = x_contact_point;
     axis_states[own_axis_index].online = true;
-    fast_update_cnt++;
-    /* send the CAN frame on every second call only to keep bus load reasonable even with eight axes */
-    if (fast_update_cnt == 2) {
-        fast_update_cnt = 0;
-        CanFrame tx_frame = {};
-        tx_frame.identifier = 0x100 + (AxisFrameTypesHS::FORCE_AND_POSITION << 4) + own_axis_index;
-        memcpy(tx_frame.data, &(axis_states[own_axis_index].force_and_position), sizeof(ForceAndPosition));
-        tx_frame.data_length_code = sizeof(ForceAndPosition);
-        if (!ESP32Can.writeFrame(&tx_frame, 0)) {
-            if (tx_err_cnt < 0xFFFFFFFF) {
-                tx_err_cnt++;
-            }
-            return false;
+    CanFrame tx_frame = {};
+    tx_frame.identifier = 0x100 + (AxisFrameTypesHS::FORCE_AND_POSITION << 4) + own_axis_index;
+    memcpy(tx_frame.data, &(axis_states[own_axis_index].force_and_position), sizeof(ForceAndPosition));
+    tx_frame.data_length_code = sizeof(ForceAndPosition);
+    if (!ESP32Can.writeFrame(&tx_frame, 0)) {
+        if (tx_err_cnt < 0xFFFFFFFF) {
+            tx_err_cnt++;
         }
+        return false;
     }
     return true;
 }

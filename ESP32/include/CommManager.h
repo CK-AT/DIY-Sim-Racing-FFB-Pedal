@@ -108,6 +108,7 @@ class CommManager {
         void set_controller_axis(ControllerAxis controller_axis, float &value);
         void setup_joystick(void);
         void update_joystick_state();
+        void refresh_force_pos_rate(const AxisID *linked_axes);
         void switch_joystick_state(CommManager::JoystickState new_state) {
             _joystick_state = new_state;
             _ti_joystick_state = micros();
@@ -155,6 +156,8 @@ class CommManager {
         JoystickState _joystick_state = JOYSTICK_PRE_INIT;
         uint32_t _ti_joystick_state;
         bool _physics_task_started = false;
+        bool _force_pos_full_rate = false;
+        uint8_t _force_pos_tick = 0;
         float controller_axis_values[_ControllerAxis_MAX] = {};
         uint8_t controller_button_values[JOYSTICK_BUTTON_COUNT] = {};
         ESP32OTAPull ota = {};

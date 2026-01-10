@@ -20,6 +20,7 @@ QueueHandle_t _log_queue_data;
 namespace {
 constexpr uint32_t k_ota_wifi_timeout_us = 20000000;
 constexpr uint32_t k_axis_ota_quiet_window_us = 180000000;
+constexpr uint8_t k_force_pos_decimation = 10;
 
 void copy_string(char *dest, size_t dest_len, const char *src) {
     if (!dest || dest_len == 0) return;
@@ -33,6 +34,18 @@ void copy_string(char *dest, size_t dest_len, const char *src) {
 
 bool time_reached(uint32_t now, uint32_t deadline) {
     return static_cast<int32_t>(now - deadline) >= 0;
+}
+
+bool has_multiple_linked_axes(const AxisID *linked_axes) {
+    if (!linked_axes) return false;
+    uint8_t count = 0;
+    for (uint8_t idx = 0; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
+        AxisID axis_id = AxisID(linked_axes[idx] & AxisID_AXIS_ID_MASK);
+        if (!MessageTools::check_axis_id(axis_id)) return false;
+        count++;
+        if (count > 1) return true;
+    }
+    return false;
 }
 }  // namespace
 
@@ -48,6 +61,7 @@ void CommManager::periodic_task_func(void) {
         setup_can(_can_config);
         setup_joystick();
         _config_manager_initialized = true;
+        refresh_force_pos_rate(_config_manager->get_function_config()->base.linked_axes);
     } else {
         if (!_physics_task_started) {
             // process() is usualy called by the physics task but it has not been started (yet), so call process() here
@@ -344,6 +358,7 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
                 if (_config_manager->update_function_config(msg.payload.function_config, protobuf_msg, len_protobuf_msg) ==
                     ConfigManager::UPDATE_OK) {
                     send_active_function_message(comm_channel);
+                    refresh_force_pos_rate(msg.payload.function_config.base.linked_axes);
                 }
             } else {
                 // gateway only, no need to call _config_manager->update_function_config()
@@ -550,6 +565,11 @@ void CommManager::on_axis_state_change(AxisID axis_id, bool is_online) {
     }
 }
 
+void CommManager::refresh_force_pos_rate(const AxisID *linked_axes) {
+    _force_pos_full_rate = has_multiple_linked_axes(linked_axes);
+    _force_pos_tick = 0;
+}
+
 void CommManager::on_gateway_state_change(ICommChannel *comm_channel, bool is_online) {
     if (is_online) {
         if (!active_uplink_channel) {
@@ -569,8 +589,14 @@ void CommManager::process(void) {
 bool CommManager::send_force_and_position(float &f_contact_point, float &x_contact_point) {
     _f_contact_point_own = f_contact_point;
     _x_contact_point_own = x_contact_point;
-    can_manager.send_force_and_position(f_contact_point, x_contact_point);
-    return true;
+    if (_force_pos_full_rate) {
+        _force_pos_tick = 0;
+        return can_manager.send_force_and_position(f_contact_point, x_contact_point);
+    }
+    _force_pos_tick++;
+    if (_force_pos_tick < k_force_pos_decimation) return true;
+    _force_pos_tick = 0;
+    return can_manager.send_force_and_position(f_contact_point, x_contact_point);
 }
 
 bool CommManager::update_position_limits(float x_contact_point_min, float x_contact_point_max) {
