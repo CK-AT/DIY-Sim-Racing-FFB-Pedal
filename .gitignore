@@ -34,3 +34,4 @@ ESP32/.version_no_increment
 ESP32/include/Version.h
 SimhubPlugin/DiyFfbPlugin.Tests/bin
 SimhubPlugin/DiyFfbPlugin.Tests/obj
+.env

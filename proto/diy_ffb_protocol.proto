@@ -566,10 +566,20 @@ message WifiInfo {
   string password = 2;
 }
 
+enum OtaTarget {
+  OTA_TARGET_UNSPECIFIED = 0;
+  OTA_TARGET_ALL = 1;
+  OTA_TARGET_AXES_ONLY = 2;
+  OTA_TARGET_GATEWAY_ONLY = 3;
+}
+
 message StartOtaUpdate {
   WifiInfo wifi_info = 1;
   string info_json_url = 2;
   bool allow_downgrades = 3;
+  OtaTarget target = 4;
+  // Optional: target a specific axis (use with OTA_TARGET_AXES_ONLY or OTA_TARGET_ALL)
+  AxisID target_axis_id = 5;
 }
 
 message DeviceInfo {

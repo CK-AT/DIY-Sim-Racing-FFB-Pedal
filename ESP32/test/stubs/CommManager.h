@@ -13,6 +13,7 @@ class CommManager {
             _positions_valid.fill(false);
             _button_values.fill(false);
             _positions.fill(0.0f);
+            _controller_axis_values.fill(0.0f);
         }
 
         void set_axis_id(AxisID axis_id) {
@@ -43,6 +44,14 @@ class CommManager {
             return true;
         }
 
+        float get_controller_output_value(ControllerAxis controller_axis) {
+            return _controller_axis_values[controller_axis_index(controller_axis)];
+        }
+
+        void set_controller_output_value(ControllerAxis controller_axis, float &value) {
+            _controller_axis_values[controller_axis_index(controller_axis)] = value;
+        }
+
         bool get_controller_button_value(uint8_t button_index) const {
             if (button_index >= JOYSTICK_BUTTON_COUNT) return false;
             return _button_values[button_index];
@@ -60,9 +69,17 @@ class CommManager {
             return idx;
         }
 
+        static int controller_axis_index(ControllerAxis controller_axis) {
+            int idx = int(controller_axis) - 1;
+            if (idx < 0) return 0;
+            if (idx >= _ControllerAxis_MAX) return _ControllerAxis_MAX - 1;
+            return idx;
+        }
+
         static constexpr int kMaxAxes = 8;
         AxisID _axis_id;
         std::array<float, kMaxAxes> _positions;
         std::array<bool, kMaxAxes> _positions_valid;
         std::array<bool, JOYSTICK_BUTTON_COUNT> _button_values;
+        std::array<float, _ControllerAxis_MAX> _controller_axis_values;
 };

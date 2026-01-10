@@ -20,7 +20,11 @@ class CommManager {
 
         typedef std::function<void(const FFBAction &ffb_action)> OnFFBAction;
         typedef std::function<void(const AxisAction &axis_action, CommChannel comm_channel)> OnAxisAction;
+        typedef std::function<void(bool ota_active)> OnOtaStateChange;
         void setup(Stream *serial, CANConfig &can_config, ConfigManager *config_manager, OnFFBAction on_ffb_action, OnAxisAction on_axis_action);
+        void set_ota_state_callback(OnOtaStateChange on_ota_state_change) {
+            _on_ota_state_change = on_ota_state_change;
+        }
         AxisID get_axis_id(void);
         GatewayID get_gateway_id(void);
         void process(void);
@@ -112,6 +116,9 @@ class CommManager {
         void switch_ota_state(CommManager::OtaState new_state) {
             _ota_state = new_state;
             _ti_ota_state = micros();
+            if (_on_ota_state_change) {
+                _on_ota_state_change(new_state != OtaState::OTA_IDLE);
+            }
         }
         void on_axis_state_change(AxisID axis_id, bool is_online);
         void on_gateway_state_change(ICommChannel *comm_channel, bool is_online);
@@ -132,6 +139,7 @@ class CommManager {
         uint32_t ti_last_joystick_update = 0;
         OnFFBAction _on_ffb_action;
         OnAxisAction _on_axis_action;
+        OnOtaStateChange _on_ota_state_change;
         Message log_msg = Message_init_zero;
         Message _state_message = Message_init_default;
         ICommChannel *active_uplink_channel = nullptr;
@@ -155,4 +163,5 @@ class CommManager {
         String _ota_url;
         WifiInfo _wifi_info;
         bool _device_info_sent = false;
+        uint32_t _axis_ota_quiet_until = 0;
 };

@@ -140,6 +140,7 @@ void IRAM_ATTR adc_isr(void) {
 
 void on_ffb_action(const FFBAction &ffb_action);
 void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel);
+void on_ota_state_change(bool ota_active);
 
 IAuxFunction *get_aux_function(const FunctionConfig *func_cfg) {
     if (!func_cfg->has_aux_function) return nullptr;
@@ -231,6 +232,7 @@ void setup() {
     CommManager::CANConfig can_config = {.baud_rate = 1000, .tx_pin = CAN_TX, .rx_pin = CAN_RX};
 
     comm_manager.setup(&Serial, can_config, &config_manager, on_ffb_action, on_axis_action);
+    comm_manager.set_ota_state_callback(on_ota_state_change);
 
     LogOutput::printf("**************************************************************************************************************");
     LogOutput::printf("This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.");
@@ -502,5 +504,14 @@ void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel) {
             break;
         default:
             break;
+    }
+}
+
+void on_ota_state_change(bool ota_active) {
+    if (!servo) return;
+    if (ota_active) {
+        servo->pause();
+    } else {
+        servo->resume();
     }
 }

@@ -77,6 +77,7 @@ WifiInfo.ssid                               max_length:32
 WifiInfo.password                           max_length:64
 
 StartOtaUpdate.info_json_url                max_length:150
+StartOtaUpdate.target_axis_id              int_size:IS_8
 
 DeviceInfo.fw_version                       max_length:32
 DeviceInfo.build_timestamp                  max_length:40

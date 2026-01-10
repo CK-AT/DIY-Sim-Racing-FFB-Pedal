@@ -18,6 +18,9 @@ QueueHandle_t _log_queue_data;
 #endif
 
 namespace {
+constexpr uint32_t k_ota_wifi_timeout_us = 20000000;
+constexpr uint32_t k_axis_ota_quiet_window_us = 180000000;
+
 void copy_string(char *dest, size_t dest_len, const char *src) {
     if (!dest || dest_len == 0) return;
     if (!src) {
@@ -28,6 +31,9 @@ void copy_string(char *dest, size_t dest_len, const char *src) {
     dest[dest_len - 1] = '\0';
 }
 
+bool time_reached(uint32_t now, uint32_t deadline) {
+    return static_cast<int32_t>(now - deadline) >= 0;
+}
 }  // namespace
 
 Joystick_ _joystick =
@@ -132,8 +138,8 @@ void CommManager::update_ota_state() {
             if (WiFi.isConnected()) {
                 LogOutput::printf("OTA: WiFi online");
                 switch_ota_state(OTA_CHECK);
-            } else if ((micros() - _ti_ota_state) > 5000000) {
-                LogOutput::printf("OTA: Failed to connect to WiFi within 5s");
+            } else if ((micros() - _ti_ota_state) > k_ota_wifi_timeout_us) {
+                LogOutput::printf("OTA: Failed to connect to WiFi within %u s", static_cast<unsigned>(k_ota_wifi_timeout_us / 1000000));
                 switch_ota_state(OTA_ERROR);
             }
             break;
@@ -179,6 +185,10 @@ void CommManager::update_ota_state() {
                         break;
                     case ESP32OTAPull::ErrorCode::WRITE_ERROR:
                         LogOutput::printf("OTA: Write error");
+                        switch_ota_state(OTA_ERROR);
+                        break;
+                    case ESP32OTAPull::ErrorCode::MD5_ERROR:
+                        LogOutput::printf("OTA: MD5 error");
                         switch_ota_state(OTA_ERROR);
                         break;
                     default:
@@ -386,17 +396,37 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
             }
             break;
         }
-        case Message_start_ota_update_tag:
-            if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
-                for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
-                    send_message_to_axis(MessageTools::axis_id_from_index(axis_idx), msg);
-                }
+        case Message_start_ota_update_tag: {
+            OtaTarget target = msg.payload.start_ota_update.target;
+            bool target_all = (target == OtaTarget_OTA_TARGET_UNSPECIFIED || target == OtaTarget_OTA_TARGET_ALL);
+            bool target_axes = target_all || (target == OtaTarget_OTA_TARGET_AXES_ONLY);
+            bool target_gateway = target_all || (target == OtaTarget_OTA_TARGET_GATEWAY_ONLY);
+            AxisID target_axis_id = msg.payload.start_ota_update.target_axis_id;
+            bool has_target_axis = MessageTools::check_axis_id(target_axis_id);
+            if (!is_gateway() && target_axes && has_target_axis && (target_axis_id != get_axis_id())) {
+                LogOutput::printf("OTA: Ignoring request for axis %d", int(target_axis_id));
+                break;
             }
-            ota.AllowDowngrades(msg.payload.start_ota_update.allow_downgrades);
-            _wifi_info = msg.payload.start_ota_update.wifi_info;
-            _ota_url = msg.payload.start_ota_update.info_json_url;
-            switch_ota_state(OtaState::OTA_PREPARE_WIFI);
+            if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL) && target_axes) {
+                if (has_target_axis) {
+                    if (!send_message_to_axis(target_axis_id, msg)) {
+                        LogOutput::printf("CommManager: Axis %d offline, OTA skipped", int(target_axis_id));
+                    }
+                } else {
+                    for (int axis_idx = 0; axis_idx < MessageTools::MAX_AXES_COUNT; axis_idx++) {
+                        send_message_to_axis(MessageTools::axis_id_from_index(axis_idx), msg);
+                    }
+                }
+                _axis_ota_quiet_until = micros() + k_axis_ota_quiet_window_us;
+            }
+            if ((is_gateway() && target_gateway) || (!is_gateway() && target_axes)) {
+                ota.AllowDowngrades(msg.payload.start_ota_update.allow_downgrades);
+                _wifi_info = msg.payload.start_ota_update.wifi_info;
+                _ota_url = msg.payload.start_ota_update.info_json_url;
+                switch_ota_state(OtaState::OTA_PREPARE_WIFI);
+            }
             break;
+        }
         case Message_device_info_request_tag: {
             if (msg.payload.device_info_request.which_target == DeviceInfoRequest_gateway_id_tag) {
                 if (is_gateway() && (msg.payload.device_info_request.target.gateway_id == get_gateway_id())) {
@@ -503,6 +533,8 @@ bool CommManager::setup_can(CANConfig &config) {
 void CommManager::on_axis_state_change(AxisID axis_id, bool is_online) {
     if (axis_id == get_axis_id()) return;
     if (!is_gateway()) return;
+    uint32_t now = micros();
+    if (_axis_ota_quiet_until && !time_reached(now, _axis_ota_quiet_until)) return;
     if (_ota_state != OTA_IDLE) return;
     if (is_online) {
         LogOutput::printf("CommManager: Axis %d online, requesting function config", axis_id);
