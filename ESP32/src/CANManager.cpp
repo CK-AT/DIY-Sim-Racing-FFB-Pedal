@@ -184,7 +184,7 @@ bool CANManager::try_process_high_prio_axis_frame(CanFrame &rx_frame, uint32_t n
 void CANManager::on_axis_seen(uint8_t axis_idx, uint32_t now, bool from_high_prio_frame) {
     axis_states[axis_idx].ti_last_seen = now;
     if (from_high_prio_frame) {
-        axis_states[axis_idx].ti_timeout = 5000;
+        axis_states[axis_idx].ti_timeout = 20000;
     }
     if (!axis_states[axis_idx].online) {
         axis_states[axis_idx].online = true;
