@@ -121,6 +121,7 @@ const RgbColor k_purple = RgbColor(36, 0, 46);
 
 Sim sim = Sim(1.0, 0.0, 0.0);
 Friction friction = Friction(2.0);
+OscillationGuard oscillation_guard = OscillationGuard();
 
 #include "CommManager.h"
 #include "ConfigManager.h"
@@ -315,6 +316,7 @@ void setup() {
         sim.add_element(&flight_stick_roll_function);
         sim.add_element(&shifter_function);
         sim.add_element(&friction);
+        sim.add_element(&oscillation_guard);
 
         xTaskCreatePinnedToCore(physics_task_func,    /* Task function. */
                                 "PhysicsTask",        /* name of task. */
