@@ -2,6 +2,79 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-10 13:33:21 +01:00 (notebook-ckrenn)
+Request: add per-folder pinned requirements for ESP32/sim.
+Summary:
+- Removed root requirements.txt and added pinned dependencies in ESP32/sim/requirements.txt.
+Key files:
+- `ESP32/sim/requirements.txt`
+- `requirements.txt`
+Open items:
+- None.
+
+## 2026-01-10 12:06:00 +01:00 (notebook-ckrenn)
+Request: note OTA pull dependency removal and local header integration.
+Summary:
+- Removed ESP32OTAPull as a lib dependency and added the modified header to sources.
+Key files:
+- `include/ESP32OTAPull.h`
+- `platformio.ini`
+Open items:
+- Ensure build includes the local header and no stale library references remain.
+
+## 2026-01-10 12:03:53 +01:00 (notebook-ckrenn)
+Request: assess FW versions on OTA CLI start and only update axes that responded.
+Summary:
+- Added a startup DeviceInfo assessment for all axes and gateways with a printed summary.
+- OTA now targets/retries only axes that responded during assessment (skips missing axes or sends per-axis messages as needed).
+Key files:
+- `ESP32/sim/ota_update_cli.py`
+Open items:
+- Validate OTA flow on hardware with some axes offline.
+
+## 2026-01-09 10:38:43 +01:00 (notebook-ckrenn)
+Request: add DeviceInfo with unique device identifier.
+Summary:
+- Added DeviceInfo/DeviceInfoRequest to the protocol, including a device UID from eFuse MAC.
+- Implemented boot-time DeviceInfo broadcast and request handling in CommManager.
+Key files:
+- `proto/diy_ffb_protocol.proto`
+- `proto/diy_ffb_protocol.options`
+- `ESP32/src/CommManager.cpp`
+- `ESP32/include/CommManager.h`
+Open items:
+- Regenerate protobuf outputs (C#/Python) if needed by tools.
+
+## 2026-01-08 19:07:49 +01:00 (notebook-ckrenn)
+Request: add MD5 verification to OTA updates.
+Summary:
+- Added `MD5` parsing in ESP32-OTA-Pull and wired it into Update.setMD5.
+- Updated OTA JSON and CLI generator to emit the MD5 hash.
+Key files:
+- `ESP32/.pio/libdeps/a6-servo-ffb-axis-controller-v10-ck-at/ESP32-OTA-Pull/src/ESP32OTAPull.h`
+- `OTA/update_info.json`
+- `ESP32/sim/ota_update_cli.py`
+Open items:
+- Validate OTA succeeds with correct MD5 and fails on mismatch.
+
+## 2026-01-08 00:43:21 +01:00 (notebook-ckrenn)
+Request: extend OTA CLI to host JSON + firmware binary.
+Summary:
+- OTA CLI now spins up a local HTTP server that serves `update_info.json` and `firmware.bin`, and sends the generated URL to the device.
+Key files:
+- `ESP32/sim/ota_update_cli.py`
+Open items:
+- None.
+
+## 2026-01-08 00:32:18 +01:00 (notebook-ckrenn)
+Request: add CLI for OTA updates.
+Summary:
+- Added an OTA CLI that sends StartOtaUpdate over USB and optionally tails log messages.
+Key files:
+- `ESP32/sim/ota_update_cli.py`
+Open items:
+- None.
+
 ## 2026-01-07 19:23:24 +01:00 (DESKTOP-PUK6UGO)
 Request: optimize ShifterFunction lane selection and fix native PI build error.
 Summary:
