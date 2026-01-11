@@ -2,6 +2,21 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-11 15:08:33 +01:00 (DESKTOP-6KO022D)
+Request: make oscillation guard configurable via the UI (new OscillationGuard in AxisConfig, new AxisConfigControl tab, ms/Hz units).
+Summary:
+- Logged the scope for adding oscillation guard configuration across protocol, firmware, and UI (ms/Hz units).
+Key files:
+- `proto/diy_ffb_protocol.proto`
+- `proto/diy_ffb_protocol.options`
+- `ESP32/include/Physics.h`
+- `ESP32/src/Main.cpp`
+- `SimHubPlugin/AxisConfigControl.xaml`
+- `SimHubPlugin/AxisConfigControl.xaml.cs`
+- `SimHubPlugin/DiyFfbProtocol.cs`
+Open items:
+- Add OscillationGuard to the protocol/AxisConfig, apply it in firmware, add the UI tab, and regenerate protobuf outputs.
+
 ## 2026-01-11 14:56:00 +01:00 (DESKTOP-6KO022D)
 Request: continue UI cleanup without changing the layout; restore gateway auto-reconnect + OTA tab; implement auto-reconnect every 2s.
 Summary:
