@@ -158,6 +158,59 @@
                         </StackPanel>
                     </Border>
                 </TabItem>
+
+                <TabItem Width="108" Height="30" Padding="0,0,0,0">
+                    <TabItem.Header>
+                        <Border  Width="108" Height="30" Margin="0,0,0,0" >
+                            <Label Content="Osc Guard"  FontFamily="Arial Black" FontSize="10" Height="30" Width="108" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" UseLayoutRounding="True" ToolTip="Oscillation guard settings"  />
+                        </Border>
+                    </TabItem.Header>
+                    <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,2,0,0" >
+                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="540">
+                            <Label Content="Oscillation Guard" Height="15" Width="400" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial Black" Margin="0,10,0,0"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                <StackPanel Width="260" Margin="0,0,10,0">
+                                    <Label Content="Detection" Height="15" Width="200" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="0,0,0,2"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <Label Content="Min amplitude (mm):" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
+                                        <TextBox x:Name="TextOscMinAmplitude" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <Label Content="Min velocity (mm/s):" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
+                                        <TextBox x:Name="TextOscMinVelocity" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <Label Content="Min half-period (Hz):" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
+                                        <TextBox x:Name="TextOscMinHalfPeriodHz" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <Label Content="Max half-period (Hz):" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
+                                        <TextBox x:Name="TextOscMaxHalfPeriodHz" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <Label Content="Required hits:" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
+                                        <TextBox x:Name="TextOscRequiredHits" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel Width="260">
+                                    <Label Content="Damping" Height="15" Width="200" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="0,0,0,2"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <Label Content="Max damping:" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
+                                        <TextBox x:Name="TextOscKMax" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <Label Content="Hold time (ms):" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
+                                        <TextBox x:Name="TextOscHoldMs" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <Label Content="Ramp time (ms):" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
+                                        <TextBox x:Name="TextOscRampMs" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </TabItem>
         </TabControl>
     </Grid>
 </UserControl>

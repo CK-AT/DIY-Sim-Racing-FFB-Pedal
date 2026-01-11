@@ -46,6 +46,15 @@ void ConfigManager::set_axis_config_defaults(void) {
     _axis_config.kinematic_config.diy_pedal.l_sled_stroke = 114;
     _axis_config.physics_iterations_per_sample = 16;
     _axis_config.homing_direction = HomingDirection_HOMING_DIR_NEGATIVE;
+    _axis_config.has_oscillation_guard = true;
+    _axis_config.oscillation_guard.k_max = 0.5f;
+    _axis_config.oscillation_guard.min_amplitude = 0.2f;
+    _axis_config.oscillation_guard.min_velocity = 0.5f;
+    _axis_config.oscillation_guard.min_half_period_hz = 4.0f;
+    _axis_config.oscillation_guard.max_half_period_hz = 200.0f;
+    _axis_config.oscillation_guard.hold_time_ms = 150;
+    _axis_config.oscillation_guard.ramp_time_ms = 80;
+    _axis_config.oscillation_guard.required_hits = 2;
 }
 
 void ConfigManager::set_function_config_defaults(void) {

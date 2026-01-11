@@ -226,6 +226,9 @@ class OscillationGuard : public SimElement {
             _hold_time_us = hold_time_us;
             _ramp_time_us = ramp_time_us;
         }
+        void set_required_hits(uint8_t required_hits) {
+            _required_hits = required_hits < 1 ? 1 : required_hits;
+        }
 
     private:
         float _k_max;

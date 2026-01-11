@@ -122,6 +122,25 @@ message KinematicParameters {
 }
 
 message AxisConfig {
+  message OscillationGuard {
+    // damping gain applied when oscillation detected
+    float k_max = 1;
+    // minimum oscillation amplitude in contact point units (mm)
+    float min_amplitude = 2;
+    // minimum velocity magnitude in contact point units per second
+    float min_velocity = 3;
+    // minimum half-period frequency (sign flips per second)
+    float min_half_period_hz = 4;
+    // maximum half-period frequency (sign flips per second)
+    float max_half_period_hz = 5;
+    // hold time in ms after detection
+    uint32 hold_time_ms = 6;
+    // ramp time in ms for damping gain
+    uint32 ramp_time_ms = 7;
+    // oscillation hits required before damping engages
+    uint32 required_hits = 8;
+  }
+
   // axis ID, will be used by gateways to dispatch to the correct axis and as the ID definition for HW w/o ID DIP switches
   AxisID axis_id = 1;
   // all kinematic parameters required to convert positions and forces including physical position limits
@@ -155,6 +174,8 @@ message AxisConfig {
   uint32 physics_iterations_per_sample = 14;
   // homing direction for the servo: negative = default
   HomingDirection homing_direction = 15;
+  // oscillation guard configuration
+  OscillationGuard oscillation_guard = 17;
 }
 
 enum ControllerAxis {

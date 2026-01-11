@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Globalization;
 
 namespace User.PluginSdkDemo
 {
@@ -61,6 +62,7 @@ namespace User.PluginSdkDemo
             new_config.PhysicsIterationsPerSample = 16;
             new_config.Store = false;
             new_config.HomingDirection = HomingDirection.HomingDirNegative;
+            new_config.OscillationGuard = BuildDefaultOscillationGuard();
 
             return new_config;
         }
@@ -108,6 +110,30 @@ namespace User.PluginSdkDemo
             config.Bars.Add(link);
 
             return config;
+        }
+
+        private static AxisConfig.Types.OscillationGuard BuildDefaultOscillationGuard()
+        {
+            return new AxisConfig.Types.OscillationGuard
+            {
+                KMax = 0.5f,
+                MinAmplitude = 0.2f,
+                MinVelocity = 0.5f,
+                MinHalfPeriodHz = 4.0f,
+                MaxHalfPeriodHz = 200.0f,
+                HoldTimeMs = 150,
+                RampTimeMs = 80,
+                RequiredHits = 2
+            };
+        }
+
+        private AxisConfig.Types.OscillationGuard EnsureOscillationGuardConfig()
+        {
+            if (config.OscillationGuard == null)
+            {
+                config.OscillationGuard = BuildDefaultOscillationGuard();
+            }
+            return config.OscillationGuard;
         }
         public void UpdateConfig(AxisConfig new_config)
         {
@@ -172,6 +198,8 @@ namespace User.PluginSdkDemo
 
             Slider_steps_per_mm.Value = config.StepsPerMm;
             Slider_physics_oversampling.Value = config.PhysicsIterationsPerSample;
+
+            UpdateOscillationGuardUi(EnsureOscillationGuardConfig());
         }
 
         private static GeneralKinematicConfig ConvertDiyPedalToGeneral(DIYPedalKinematicConfig diy)
@@ -399,6 +427,110 @@ namespace User.PluginSdkDemo
             config.PhysicsIterationsPerSample = (uint)e.NewValue;
             label_physics_oversampling.Content = String.Format("Physics Oversampling: {0}x", config.PhysicsIterationsPerSample);
 
+        }
+
+        private void OscillationGuard_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (config == null)
+            {
+                return;
+            }
+
+            var guard = EnsureOscillationGuardConfig();
+
+            if (ReferenceEquals(sender, TextOscKMax))
+            {
+                if (TryParseFloat(TextOscKMax.Text, out float value))
+                {
+                    guard.KMax = Math.Max(0.0f, value);
+                }
+            }
+            else if (ReferenceEquals(sender, TextOscMinAmplitude))
+            {
+                if (TryParseFloat(TextOscMinAmplitude.Text, out float value))
+                {
+                    guard.MinAmplitude = Math.Max(0.0f, value);
+                }
+            }
+            else if (ReferenceEquals(sender, TextOscMinVelocity))
+            {
+                if (TryParseFloat(TextOscMinVelocity.Text, out float value))
+                {
+                    guard.MinVelocity = Math.Max(0.0f, value);
+                }
+            }
+            else if (ReferenceEquals(sender, TextOscMinHalfPeriodHz))
+            {
+                if (TryParseFloat(TextOscMinHalfPeriodHz.Text, out float value))
+                {
+                    guard.MinHalfPeriodHz = Math.Max(0.0f, value);
+                }
+            }
+            else if (ReferenceEquals(sender, TextOscMaxHalfPeriodHz))
+            {
+                if (TryParseFloat(TextOscMaxHalfPeriodHz.Text, out float value))
+                {
+                    guard.MaxHalfPeriodHz = Math.Max(0.0f, value);
+                }
+            }
+            else if (ReferenceEquals(sender, TextOscHoldMs))
+            {
+                if (TryParseUInt(TextOscHoldMs.Text, out uint value))
+                {
+                    guard.HoldTimeMs = value;
+                }
+            }
+            else if (ReferenceEquals(sender, TextOscRampMs))
+            {
+                if (TryParseUInt(TextOscRampMs.Text, out uint value))
+                {
+                    guard.RampTimeMs = value;
+                }
+            }
+            else if (ReferenceEquals(sender, TextOscRequiredHits))
+            {
+                if (TryParseUInt(TextOscRequiredHits.Text, out uint value))
+                {
+                    guard.RequiredHits = Math.Max(1U, value);
+                }
+            }
+        }
+
+        private void OscillationGuard_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (config == null)
+            {
+                return;
+            }
+
+            UpdateOscillationGuardUi(EnsureOscillationGuardConfig());
+        }
+
+        private void UpdateOscillationGuardUi(AxisConfig.Types.OscillationGuard guard)
+        {
+            if (guard == null)
+            {
+                return;
+            }
+
+            TextOscKMax.Text = guard.KMax.ToString("0.###", CultureInfo.CurrentCulture);
+            TextOscMinAmplitude.Text = guard.MinAmplitude.ToString("0.###", CultureInfo.CurrentCulture);
+            TextOscMinVelocity.Text = guard.MinVelocity.ToString("0.###", CultureInfo.CurrentCulture);
+            TextOscMinHalfPeriodHz.Text = guard.MinHalfPeriodHz.ToString("0.###", CultureInfo.CurrentCulture);
+            TextOscMaxHalfPeriodHz.Text = guard.MaxHalfPeriodHz.ToString("0.###", CultureInfo.CurrentCulture);
+            TextOscHoldMs.Text = guard.HoldTimeMs.ToString(CultureInfo.CurrentCulture);
+            TextOscRampMs.Text = guard.RampTimeMs.ToString(CultureInfo.CurrentCulture);
+            TextOscRequiredHits.Text = guard.RequiredHits.ToString(CultureInfo.CurrentCulture);
+        }
+
+        private static bool TryParseFloat(string text, out float value)
+        {
+            return float.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+        }
+
+        private static bool TryParseUInt(string text, out uint value)
+        {
+            return uint.TryParse(text, NumberStyles.Integer, CultureInfo.CurrentCulture, out value);
         }
     }
 }

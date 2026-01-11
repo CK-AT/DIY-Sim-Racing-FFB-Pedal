@@ -17,6 +17,9 @@ AxisConfig.steps_per_mm                     int_size:IS_16
 AxisConfig.f_max_loadcell                   int_size:IS_16
 AxisConfig.mm_per_rev                       int_size:IS_8
 AxisConfig.physics_iterations_per_sample    int_size:IS_16
+AxisConfig.OscillationGuard.hold_time_ms    int_size:IS_16
+AxisConfig.OscillationGuard.ramp_time_ms    int_size:IS_16
+AxisConfig.OscillationGuard.required_hits   int_size:IS_8
 
 FunctionBase.linked_axes                    max_count:4 fixed_count:true
 

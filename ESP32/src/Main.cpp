@@ -143,6 +143,69 @@ void on_ffb_action(const FFBAction &ffb_action);
 void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel);
 void on_ota_state_change(bool ota_active);
 
+static void apply_oscillation_guard_config(const AxisConfig *axis_cfg) {
+    constexpr float k_default_k_max = 0.5f;
+    constexpr float k_default_min_amplitude = 0.2f;
+    constexpr float k_default_min_velocity = 0.5f;
+    constexpr float k_default_min_half_period_hz = 4.0f;
+    constexpr float k_default_max_half_period_hz = 200.0f;
+    constexpr uint32_t k_default_hold_time_ms = 150;
+    constexpr uint32_t k_default_ramp_time_ms = 80;
+    constexpr uint8_t k_default_required_hits = 2;
+
+    float k_max = k_default_k_max;
+    float min_amplitude = k_default_min_amplitude;
+    float min_velocity = k_default_min_velocity;
+    float min_half_period_hz = k_default_min_half_period_hz;
+    float max_half_period_hz = k_default_max_half_period_hz;
+    uint32_t hold_time_ms = k_default_hold_time_ms;
+    uint32_t ramp_time_ms = k_default_ramp_time_ms;
+    uint8_t required_hits = k_default_required_hits;
+
+    if (axis_cfg && axis_cfg->has_oscillation_guard) {
+        const AxisConfig_OscillationGuard &guard_cfg = axis_cfg->oscillation_guard;
+        k_max = guard_cfg.k_max;
+        min_amplitude = guard_cfg.min_amplitude;
+        min_velocity = guard_cfg.min_velocity;
+        min_half_period_hz = guard_cfg.min_half_period_hz;
+        max_half_period_hz = guard_cfg.max_half_period_hz;
+        hold_time_ms = guard_cfg.hold_time_ms;
+        ramp_time_ms = guard_cfg.ramp_time_ms;
+        required_hits = static_cast<uint8_t>(guard_cfg.required_hits);
+    }
+
+    if (min_half_period_hz <= 0.0f) {
+        min_half_period_hz = k_default_min_half_period_hz;
+    }
+    if (max_half_period_hz <= 0.0f) {
+        max_half_period_hz = k_default_max_half_period_hz;
+    }
+
+    float hz_low = min(min_half_period_hz, max_half_period_hz);
+    float hz_high = max(min_half_period_hz, max_half_period_hz);
+    if (hz_low <= 0.0f || hz_high <= 0.0f) {
+        hz_low = k_default_min_half_period_hz;
+        hz_high = k_default_max_half_period_hz;
+    }
+
+    uint32_t min_half_period_us = static_cast<uint32_t>(1000000.0f / hz_high);
+    uint32_t max_half_period_us = static_cast<uint32_t>(1000000.0f / hz_low);
+    uint64_t hold_time_us = static_cast<uint64_t>(hold_time_ms) * 1000ULL;
+    uint64_t ramp_time_us = static_cast<uint64_t>(ramp_time_ms) * 1000ULL;
+    if (hold_time_us > UINT32_MAX) {
+        hold_time_us = UINT32_MAX;
+    }
+    if (ramp_time_us > UINT32_MAX) {
+        ramp_time_us = UINT32_MAX;
+    }
+
+    oscillation_guard.set_damping_gain(k_max);
+    oscillation_guard.set_detection(max(min_amplitude, 0.0f), max(min_velocity, 0.0f),
+                                    min_half_period_us, max_half_period_us);
+    oscillation_guard.set_timing(static_cast<uint32_t>(hold_time_us), static_cast<uint32_t>(ramp_time_us));
+    oscillation_guard.set_required_hits(required_hits < 1 ? 1 : required_hits);
+}
+
 IAuxFunction *get_aux_function(const FunctionConfig *func_cfg) {
     if (!func_cfg->has_aux_function) return nullptr;
     switch (func_cfg->aux_function.which_specific) {
@@ -159,12 +222,13 @@ IAuxFunction *get_aux_function(const FunctionConfig *func_cfg) {
 }
 
 IFunction *on_config_update(IFunction *active_function, const FunctionConfig *function_cfg) {
+    const AxisConfig *axis_cfg = config_manager.get_axis_config();
     if (servo) {
         servo->pause(1000);
-        const AxisConfig *axis_cfg = config_manager.get_axis_config();
         servo->set_reversed(axis_cfg->b_motor_inverted);
         servo->set_homing_direction(to_homing_direction(axis_cfg));
     }
+    apply_oscillation_guard_config(axis_cfg);
     if (active_function) {
         active_function->disable();
     }
