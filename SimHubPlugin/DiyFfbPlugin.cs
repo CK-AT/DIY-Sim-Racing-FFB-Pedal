@@ -7,298 +7,10 @@ using ProtbufTest;
 using SimHub.Plugins;
 using System;
 using System.IO.Ports;
-using System.Media;
-using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Media;
 using Windows.UI.Notifications;
 using IPlugin = SimHub.Plugins.IPlugin;
-
-
-
-
-// https://stackoverflow.com/questions/14344305/best-way-to-structure-class-struct-in-c-sharp
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-[Serializable]
-
-static class Constants
-{
-    // payload revisiom
-    public const uint pedalConfigPayload_version = 142;
-
-
-    // pyload types
-    public const uint pedalConfigPayload_type = 100;
-    public const uint pedalActionPayload_type = 110;
-    public const uint pedalStateBasicPayload_type = 120;
-    public const uint pedalStateExtendedPayload_type = 130;   
-    public const uint bridgeStatePayloadType = 210;
-    public const uint Basic_Wifi_info_type = 220;
-}
-
-
-
-public struct payloadHeader
-{
-    // structure identification via payload
-    public byte payloadType;
-
-    // variable to check if structure at receiver matched version from transmitter
-    public byte version;
-
-    public byte storeToEeprom;
-    public byte PedalTag;
-}
-
-
-public struct payloadPedalAction
-{
-    public byte triggerAbs_u8;
-    public byte system_action_u8; //1=reset position, 2=restart ESP
-    public byte startSystemIdentification_u8;
-    public byte returnPedalConfig_u8;
-    public byte RPM_u8;
-    public byte G_value;
-    public byte WS_u8;
-    public byte impact_value;
-    public byte Trigger_CV_1;
-    public byte Trigger_CV_2;
-    public byte Rudder_action;
-    public byte Rudder_brake_action;
-};
-
-public struct payloadPedalState_Basic
-{
-    public UInt16 pedalPosition_u16;
-    public UInt16 pedalForce_u16;
-    public UInt16 joystickOutput_u16;
-    public byte error_code_u8;
-
-};
-
-public struct payloadPedalState_Extended
-{
-    public UInt32 timeInMs_u32;
-    public float pedalForce_raw_fl32;
-    public float pedalForce_filtered_fl32;
-    public float forceVel_est_fl32;
-
-    // register values from servo
-    public Int16 servoPosition_i16;
-    public Int16 servoPositionTarget_i16;
-    public Int16 servo_voltage_0p1V_i16;
-    public Int16 servo_current_percent_i16;
-};
-
-public struct payloadBridgeState
-{
-    public byte Pedal_RSSI;
-    public byte Pedal_availability_0;
-    public byte Pedal_availability_1;
-    public byte Pedal_availability_2;
-    public byte Bridge_action;//0=none, 1=enable pairing
-};
-
-public struct payloadPedalConfig
-{
-    // configure pedal start and endpoint
-    // In percent
-    public byte pedalStartPosition;
-    public byte pedalEndPosition;
-
-    // configure pedal forces
-    public float maxForce;
-    public float preloadForce;
-
-    // design force vs travel curve
-    // In percent
-    public byte relativeForce_p000;
-    public byte relativeForce_p020;
-    public byte relativeForce_p040;
-    public byte relativeForce_p060;
-    public byte relativeForce_p080;
-    public byte relativeForce_p100;
-
-    // parameter to configure damping
-    public byte dampingPress;
-    public byte dampingPull;
-
-    // configure ABS effect 
-    public byte absFrequency; // In Hz
-    public byte absAmplitude; // In kg/20
-    public byte absPattern; // 0: sinewave, 1: sawtooth
-    public byte absForceOrTarvelBit;
-
-
-    // geometric properties of the pedal
-    // in mm
-    public Int16 lengthPedal_a;
-    public Int16 lengthPedal_b;
-    public Int16 lengthPedal_d;
-    public Int16 lengthPedal_c_horizontal;
-    public Int16 lengthPedal_c_vertical;
-    public Int16 lengthPedal_travel;
-
-
-    public byte Simulate_ABS_trigger; //simulateABS
-    public byte Simulate_ABS_value; //simulated ABS value
-    public byte RPM_max_freq;
-    public byte RPM_min_freq;
-    public byte RPM_AMP;
-    public byte BP_trigger_value;
-    public byte BP_amp;
-    public byte BP_freq;
-    public byte BP_trigger;
-    public byte G_multi;
-    public byte G_window;
-    public byte WS_amp;
-    public byte WS_freq;
-    public byte Impact_multi;
-    public byte Impact_window;
-    //Custom Vibration 1
-    public byte CV_amp_1;
-    public byte CV_freq_1;
-    //Custom Vibration 2
-    public byte CV_amp_2;
-    public byte CV_freq_2;
-    // cubic spline params
-    public float cubic_spline_param_a_0;
-    public float cubic_spline_param_a_1;
-    public float cubic_spline_param_a_2;
-    public float cubic_spline_param_a_3;
-    public float cubic_spline_param_a_4;
-
-    public float cubic_spline_param_b_0;
-    public float cubic_spline_param_b_1;
-    public float cubic_spline_param_b_2;
-    public float cubic_spline_param_b_3;
-    public float cubic_spline_param_b_4;
-
-    // PID settings
-    public float PID_p_gain;
-    public float PID_i_gain;
-    public float PID_d_gain;
-    public float PID_velocity_feedforward_gain;
-
-    // MPC settings
-    public float MPC_0th_order_gain;
-    public float MPC_1st_order_gain;
-    public float MPC_2nd_order_gain;
-
-
-
-    public byte control_strategy_b;
-
-    public byte maxGameOutput;
-
-    // Kalman filter model noise
-    public byte kf_modelNoise;
-    public byte kf_modelOrder;
-
-    // debug flags, sued to enable debug output
-    public byte debug_flags_0;
-
-    // loadcell rating in kg / 2 --> to get value in kg, muiltiply by 2
-    public byte loadcell_rating;
-
-    // use loadcell or travel as joystick output
-    public byte travelAsJoystickOutput_u8;
-
-    // invert loadcell sign
-    public byte invertLoadcellReading_u8;
-
-    // invert motor direction
-    public byte invertMotorDirection_u8;
-
-    // spindle pitch in mm/rev
-    public byte spindlePitch_mmPerRev_u8;
-
-    // pedal type
-    public byte pedal_type;
-
-    // OTA update flag
-    //public byte OTA_flag;
-
-    // Misc flags
-    public byte stepLossFunctionFlags_u8;
-
-}
-
-public struct payloadFooter
-{
-    // To check if structure is valid
-    public UInt16 checkSum;
-}
-
-
-
-public struct DAP_action_st
-{
-    public payloadHeader payloadHeader_;
-    public payloadPedalAction payloadPedalAction_;
-    public payloadFooter payloadFooter_;
-}
-
-
-public struct DAP_config_st
-{
-    public payloadHeader payloadHeader_;
-    public payloadPedalConfig payloadPedalConfig_;
-    public payloadFooter payloadFooter_;
-}
-
-public struct DAP_state_basic_st
-{
-    public payloadHeader payloadHeader_;
-    public payloadPedalState_Basic payloadPedalBasicState_;
-    public payloadFooter payloadFooter_;
-}
-
-public struct DAP_state_extended_st
-{
-    public payloadHeader payloadHeader_;
-    public payloadPedalState_Extended payloadPedalExtendedState_;
-    public payloadFooter payloadFooter_;
-}
-
-public struct DAP_bridge_state_st
-{
-    public payloadHeader payLoadHeader_;
-    public payloadBridgeState payloadBridgeState_;
-    public payloadFooter payloadFooter_;
-};
-
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-unsafe public struct Basic_WIfi_info
-{
-    public byte payload_Type;
-    public byte device_ID;
-    public byte wifi_action;
-    public byte mode_select;
-    public byte SSID_Length;
-    public byte PASS_Length;
-    public fixed byte WIFI_SSID[30];
-    public fixed byte WIFI_PASS[30];
-};
-
-public class BasicConfig
-{
-    public int MaxForce { get; set; }
-    public int PreloadForce { get; set; }
-    public int Damping { get; set; }
-    public int Travel { get; set; }
-    public int relativeForce_p000 { get; set; }
-    public int relativeForce_p020 { get; set; }
-    public int relativeForce_p040 { get; set; }
-    public int relativeForce_p060 { get; set; }
-    public int relativeForce_p080 { get; set; }
-    public int relativeForce_p100 { get; set; }
-};
-
-public class Profile_Online
-{
-    public BasicConfig Basic_Config { get; set; }
-};
-
 namespace User.PluginSdkDemo
 {
     [PluginDescription("This Plugin handles DIY FFB axes and gateways, communicating via USB.")]
@@ -309,7 +21,6 @@ namespace User.PluginSdkDemo
         DiyFfbPluginUI ui;
 
         public bool sendAbsSignal = false;
-		public DAP_config_st dap_config_initial_st;
         public byte rpm_last_value = 0 ;
         public double g_force_last_value = 128;
         public byte Road_impact_last = 0;
@@ -334,21 +45,12 @@ namespace User.PluginSdkDemo
         public uint overlay_display = 0;
         public string simhub_theme_color = "#7E87CEFA";
         public uint debug_value = 0;
-        public bool Rudder_enable_flag=false;
         public bool clear_action = false;
-        public bool Rudder_status = false;
-        public bool Rudder_brake_enable_flag = false;
-        public bool Rudder_brake_status = false;
         public byte pedal_state_in_ratio = 0;
         public bool Sync_esp_connection_flag=false;
         public byte PedalErrorCode = 0;
         public byte PedalErrorIndex = 0;
         public byte[] random_pedal_action_interval=new byte[3] { 50,51,53};
-        public byte Rudder_RPM_Effect_last_value = 0;
-        public byte Rudder_G_last_value = 0;
-        public bool MSFS_status = false;
-        public byte Rudder_Wind_Force_last_value = 0;
-        public bool MSFS_Plugin_Status = false;
         public string Simhub_version = "";
         public bool Version_Check_Simhub_MSFS = false;
 
@@ -368,12 +70,6 @@ namespace User.PluginSdkDemo
         //Road effect
         DateTime RoadTrigger_currentTime = DateTime.Now;
         DateTime RoadTrigger_lastTime = DateTime.Now;
-        //Rudder update
-        DateTime Rudder_Action_currentTime = DateTime.Now;
-        DateTime Rudder_Action_lastTime = DateTime.Now;
-
-
-
         //https://www.c-sharpcorner.com/uploadfile/eclipsed4utoo/communicating-with-serial-port-in-C-Sharp/
         public SerialPort[] _serialPort = new SerialPort[8] {new SerialPort("COM7", 921600, Parity.None, 8, StopBits.One),
             new SerialPort("COM7", 921600, Parity.None, 8, StopBits.One),
@@ -383,6 +79,9 @@ namespace User.PluginSdkDemo
             new SerialPort("COM7", 921600, Parity.None, 8, StopBits.One),new SerialPort("COM7", 921600, Parity.None, 8, StopBits.One)};
 
         public ProtobufSerial<Message> ESPsync_serialPort = new ProtobufSerial<Message>("COM7", 3000000);
+        private const int GatewayReconnectIntervalMs = 2000;
+        private Timer gatewayReconnectTimer;
+        private int gatewayReconnectBusy = 0;
 
         //for (byte pedalIdx_lcl = 0; pedalIdx_lcl< 3; pedalIdx_lcl++)
         //{
@@ -418,66 +117,6 @@ namespace User.PluginSdkDemo
         /// </summary>
         public string LeftMenuTitle => "DIY FFB Dashboard";
 
-        unsafe public UInt16 checksumCalc(byte* data, int length)
-        {
-
-            UInt16 curr_crc = 0x0000;
-            byte sum1 = (byte)curr_crc;
-            byte sum2 = (byte)(curr_crc >> 8);
-            int index;
-            for (index = 0; index < length; index = index + 1)
-            {
-                int v = (sum1 + (*data));
-                sum1 = (byte)v;
-                sum1 = (byte)(v % 255);
-
-                int w = (sum1 + sum2) % 255;
-                sum2 = (byte)w;
-
-                data++;// = data++;
-            }
-
-            int x = (sum2 << 8) | sum1;
-            return (UInt16)x;
-        }
-
-        public byte[] getBytes_Action(DAP_action_st aux)
-        {
-            int length = Marshal.SizeOf(aux);
-            IntPtr ptr = Marshal.AllocHGlobal(length);
-            byte[] myBuffer = new byte[length];
-
-            Marshal.StructureToPtr(aux, ptr, true);
-            Marshal.Copy(ptr, myBuffer, 0, length);
-            Marshal.FreeHGlobal(ptr);
-
-            return myBuffer;
-        }
-        public byte[] getBytes_Bridge(DAP_bridge_state_st aux)
-        {
-            int length = Marshal.SizeOf(aux);
-            IntPtr ptr = Marshal.AllocHGlobal(length);
-            byte[] myBuffer = new byte[length];
-
-            Marshal.StructureToPtr(aux, ptr, true);
-            Marshal.Copy(ptr, myBuffer, 0, length);
-            Marshal.FreeHGlobal(ptr);
-
-            return myBuffer;
-        }
-
-        public byte[] getBytes_Basic_Wifi_info(Basic_WIfi_info aux)
-        {
-            int length = Marshal.SizeOf(aux);
-            IntPtr ptr = Marshal.AllocHGlobal(length);
-            byte[] myBuffer = new byte[length];
-
-            Marshal.StructureToPtr(aux, ptr, true);
-            Marshal.Copy(ptr, myBuffer, 0, length);
-            Marshal.FreeHGlobal(ptr);
-
-            return myBuffer;
-        }
         public string Ncalc_reading(String expression)
         {
             string value = "";
@@ -948,25 +587,6 @@ namespace User.PluginSdkDemo
 
                 //}
 
-                if (((string)pluginManager.GetPropertyValue("DataCorePlugin.CurrentGame")) == "FlightSimulator2020" || ((string)pluginManager.GetPropertyValue("DataCorePlugin.CurrentGame")) == "FlightSimulator2024")
-                {
-                    MSFS_RPM_Value_Simhub = Convert.ToDouble(pluginManager.GetPropertyValue("DataCorePlugin.GameRawData.FSStatus.GeneralEngPctMaxRPM1"));
-                    //RUDDER_DEFLECTION_Simhub = Convert.ToDouble(pluginManager.GetPropertyValue("DataCorePlugin.GameRawData.FSStatus.RUDDER_DEFLECTION")); 
-                    RELATIVE_WIND_VELOCITY_BODY_Z_Simhub = Convert.ToDouble(pluginManager.GetPropertyValue("DataCorePlugin.GameRawData.FSStatus.AircraftWindZ"));
-                    ACCELERATION_BODY_Z_Simhub = Convert.ToDouble(pluginManager.GetPropertyValue("DataCorePlugin.GameRawData.FSStatus.AccelerationBodyZ"));
-                    ACCELERATION_BODY_Y_Simhub = Convert.ToDouble(pluginManager.GetPropertyValue("DataCorePlugin.GameRawData.FSStatus.AccelerationBodyY"));
-                    MSFS_running_simhub = true;
-                }
-                else
-                {
-                    MSFS_RPM_Value_Simhub = 0;
-                    //RUDDER_DEFLECTION_Simhub = 0; 
-                    RELATIVE_WIND_VELOCITY_BODY_Z_Simhub = 0;
-                    ACCELERATION_BODY_Z_Simhub = 0;
-                    ACCELERATION_BODY_Y_Simhub = 0;
-                    MSFS_running_simhub = false;
-                }
-
             }
             else
             {
@@ -992,278 +612,6 @@ namespace User.PluginSdkDemo
                     ESPsync_serialPort.WriteMessage(tmp);
                 }
             }
-            if (Rudder_enable_flag)
-            {
-                if (Rudder_status == false)
-                {
-                    Rudder_status = true;
-                }
-                else
-                {
-                    Rudder_status = false;
-                }
-                DAP_action_st tmp;
-                tmp.payloadHeader_.version = (byte)Constants.pedalConfigPayload_version;
-                tmp.payloadHeader_.payloadType = (byte)Constants.pedalActionPayload_type;                    
-                tmp.payloadPedalAction_.triggerAbs_u8 = 0;
-                tmp.payloadPedalAction_.RPM_u8 = 0;
-                tmp.payloadPedalAction_.G_value = 128;
-                tmp.payloadPedalAction_.WS_u8 = 0;
-                tmp.payloadPedalAction_.impact_value = 0;
-                tmp.payloadPedalAction_.Trigger_CV_1 = 0;
-                tmp.payloadPedalAction_.Trigger_CV_2 = 0;
-                tmp.payloadPedalAction_.Rudder_action = 1;
-                tmp.payloadPedalAction_.Rudder_brake_action = 0;
-
-                for (uint PIDX = 1; PIDX < 3; PIDX++)
-                {
-                    //tmp.payloadHeader_.PedalTag = (byte)PIDX;
-                    //DAP_action_st* v = &tmp;
-                    //byte* p = (byte*)v;
-                    //tmp.payloadFooter_.checkSum = checksumCalc(p, sizeof(payloadHeader) + sizeof(payloadPedalAction));
-                    //int length = sizeof(DAP_action_st);
-                    //byte[] newBuffer = new byte[length];
-                    //newBuffer = getBytes_Action(tmp);
-                    
-                    
-                    if (Settings.axis_settings[PIDX].via_gateway)
-                    {
-                        if (ESPsync_serialPort.IsOpen)
-                        {
-                            //ESPsync_serialPort.DiscardInBuffer();
-                            //ESPsync_serialPort.Write(newBuffer, 0, newBuffer.Length);
-                            System.Threading.Thread.Sleep(5);
-                        }
-                    }
-
-                    
-                    Rudder_enable_flag = false;
-                    System.Threading.Thread.Sleep(50);
-                }
-                SystemSounds.Beep.Play();
-
-            }
-
-            //Rudder effect runtine
-            //check MSFS plugin version
-            if (((string)pluginManager.GetPropertyValue("FlightPlugin.MSFS_PLUGIN_VERSION")) == "1.0.0.0")
-            {
-                MSFS_Plugin_Status = true;
-            }
-            else
-            {
-                MSFS_Plugin_Status = false;
-            }
-
-            if (Rudder_status)
-            {
-                if (MSFS_Plugin_Status || MSFS_running_simhub)
-                {
-                    if (Convert.ToByte(pluginManager.GetPropertyValue("FlightPlugin.IS_MSFS_DATA_UPDATING")) == 1)
-                    {
-                        MSFS_status = true;
-
-                    }
-                    else
-                    {
-                        if (MSFS_status)
-                        {
-                            clear_action = true;
-                            MSFS_status = false;
-                        }
-                    }
-                    if (MSFS_status || MSFS_running_simhub)
-                    {
-                        Rudder_Action_currentTime = DateTime.Now;
-                        TimeSpan diff_action = Rudder_Action_currentTime - Rudder_Action_lastTime;
-                        int millisceonds_action = (int)diff_action.TotalMilliseconds;
-                        if (millisceonds_action > 40)
-                        {
-                            bool Rudder_Effect_update_b = false;
-                            DAP_action_st tmp;
-                            tmp.payloadHeader_.version = (byte)Constants.pedalConfigPayload_version;
-                            tmp.payloadHeader_.payloadType = (byte)Constants.pedalActionPayload_type;
-                            tmp.payloadPedalAction_.triggerAbs_u8 = 0;
-                            tmp.payloadPedalAction_.RPM_u8 = Rudder_RPM_Effect_last_value;
-                            tmp.payloadPedalAction_.G_value = 128;
-                            tmp.payloadPedalAction_.WS_u8 = 0;
-                            tmp.payloadPedalAction_.impact_value = Rudder_G_last_value;
-                            //tmp.payloadPedalAction_.impact_value = 0;
-                            tmp.payloadPedalAction_.Trigger_CV_1 = 0;
-                            tmp.payloadPedalAction_.Trigger_CV_2 = 0;
-                            tmp.payloadPedalAction_.Rudder_action = 0;
-                            tmp.payloadPedalAction_.Rudder_brake_action = 0;
-                            //action here
-
-                            //RPM effect
-                            if (Settings.Rudder_RPM_effect_b)
-                            {
-                                byte Rudder_RPM_value = 0;
-                                if (MSFS_Plugin_Status)
-                                {
-                                    Rudder_RPM_value = Convert.ToByte(pluginManager.GetPropertyValue("FlightPlugin.FlightData.GENERAL_ENG_PCT_MAX_RPM_1"));
-                                }
-                                if (MSFS_running_simhub)
-                                {
-                                    Rudder_RPM_value = (byte)MSFS_RPM_Value_Simhub;
-                                }
-                                
-                                
-                                
-                                if (Math.Abs(Rudder_RPM_value - Rudder_RPM_Effect_last_value) > 3)
-                                {
-                                    tmp.payloadPedalAction_.RPM_u8 = Rudder_RPM_value;
-                                    Rudder_Effect_update_b = true;
-                                    Rudder_Action_lastTime = DateTime.Now;
-                                    Rudder_RPM_Effect_last_value = Rudder_RPM_value;
-                                }
-                            }
-
-                            if (Settings.Rudder_ACC_effect_b)
-                            {
-                                double Rudder_Wind_Froce_Ratio = 0;
-
-                                double RELATIVE_WIND_VELOCITY_BODY_Z = 0;
-                                double Rudder_Radians = 0;
-                                double Rudder_G_value_dz = 0;
-                                double Rudder_G_value_dy = 0;
-                                if (MSFS_Plugin_Status)
-                                {
-                                    Rudder_G_value_dz = Convert.ToDouble(pluginManager.GetPropertyValue("FlightPlugin.FlightData.ACCELERATION_BODY_Z"));
-                                    Rudder_G_value_dy = Convert.ToDouble(pluginManager.GetPropertyValue("FlightPlugin.FlightData.ACCELERATION_BODY_Y"));
-                                    RELATIVE_WIND_VELOCITY_BODY_Z = Math.Abs(Convert.ToDouble(pluginManager.GetPropertyValue("FlightPlugin.FlightData.RELATIVE_WIND_VELOCITY_BODY_Z")));
-                                    Rudder_Radians = Math.Abs(Convert.ToDouble(pluginManager.GetPropertyValue("FlightPlugin.FlightData.RUDDER_DEFLECTION")));
-                                }
-                                if (MSFS_running_simhub)
-                                {
-                                    Rudder_G_value_dz = ACCELERATION_BODY_Z_Simhub;
-                                    Rudder_G_value_dy = ACCELERATION_BODY_Y_Simhub;
-                                    RELATIVE_WIND_VELOCITY_BODY_Z = RELATIVE_WIND_VELOCITY_BODY_Z_Simhub;
-                                    Rudder_Radians = RUDDER_DEFLECTION_Simhub;
-                                }
-                                if (Settings.Rudder_ACC_WindForce)
-                                {
-
-                                    double Rudder_Wind_Force = Math.Sin(Rudder_Radians) * RELATIVE_WIND_VELOCITY_BODY_Z;
-                                    Rudder_Wind_Force_last_value = (Byte)Rudder_Wind_Force;
-                                    double Max_Wind_Force = 100;
-                                    Rudder_Wind_Force = Math.Min(Max_Wind_Force, Rudder_Wind_Force);//clipping max force
-                                    Rudder_Wind_Froce_Ratio = 0.5 * 100 * (Rudder_Wind_Force / Max_Wind_Force);
-                                }
-                                //G-effect
-                                double Rudder_G_percent = 0;
-                                double max_G = 100;
-
-                                double Rudder_G_value_combined = Math.Sqrt(Rudder_G_value_dz * Rudder_G_value_dz + Rudder_G_value_dy * Rudder_G_value_dy);
-                                double Rudder_G_constrain = Math.Min(Rudder_G_value_combined, max_G);
-                                Rudder_G_percent = Rudder_G_constrain / max_G * 100.0f;
-                                double Rudder_G_Wind_combined = Math.Min(Rudder_G_percent + Rudder_Wind_Froce_Ratio, max_G);
-
-                                if (Math.Abs(Rudder_G_last_value - Rudder_G_percent) > 2)
-                                {
-                                    tmp.payloadPedalAction_.impact_value = (Byte)Rudder_G_Wind_combined;
-                                    Rudder_Effect_update_b = true;
-                                    Rudder_Action_lastTime = DateTime.Now;
-                                    Rudder_G_last_value = (Byte)Rudder_G_Wind_combined;
-                                }
-                            }
-
-
-
-
-                            //Write to Pedal
-                            if (Rudder_Effect_update_b)
-                            {
-                                for (uint PIDX = 1; PIDX < 3; PIDX++)
-                                {
-                                    //tmp.payloadHeader_.PedalTag = (byte)PIDX;
-                                    //DAP_action_st* v = &tmp;
-                                    //byte* p = (byte*)v;
-                                    //tmp.payloadFooter_.checkSum = checksumCalc(p, sizeof(payloadHeader) + sizeof(payloadPedalAction));
-                                    //int length = sizeof(DAP_action_st);
-                                    //byte[] newBuffer = new byte[length];
-                                    //newBuffer = getBytes_Action(tmp);
-                                    //if (ESPsync_serialPort.IsOpen)
-                                    //{
-                                    //    //ESPsync_serialPort.DiscardInBuffer();
-                                    //    //ESPsync_serialPort.Write(newBuffer, 0, newBuffer.Length);
-                                    //    System.Threading.Thread.Sleep(7);
-                                    //}
-                                }
-                                Rudder_Effect_update_b = false;
-                            }
-                        }
-                    }
-                }
-                
-                
-
-            }
-
-
-
-            if (Rudder_brake_enable_flag)
-            {
-                if (Rudder_brake_status == false)
-                {
-                    Rudder_brake_status = true;
-                    
-                }
-                else
-                {
-                    Rudder_brake_status = false;
-                }
-                SystemSounds.Beep.Play();
-                DAP_action_st tmp;
-                tmp.payloadHeader_.version = (byte)Constants.pedalConfigPayload_version;
-                tmp.payloadHeader_.payloadType = (byte)Constants.pedalActionPayload_type;
-                tmp.payloadPedalAction_.triggerAbs_u8 = 0;
-                tmp.payloadPedalAction_.RPM_u8 = 0;
-                tmp.payloadPedalAction_.G_value = 128;
-                tmp.payloadPedalAction_.WS_u8 = 0;
-                tmp.payloadPedalAction_.impact_value = 0;
-                tmp.payloadPedalAction_.Trigger_CV_1 = 0;
-                tmp.payloadPedalAction_.Trigger_CV_2 = 0;
-                tmp.payloadPedalAction_.Rudder_action = 0;
-                tmp.payloadPedalAction_.Rudder_brake_action = 1;
-
-                for (uint PIDX = 1; PIDX < 3; PIDX++)
-                {
-                    //tmp.payloadHeader_.PedalTag = (byte)PIDX;
-                    //DAP_action_st* v = &tmp;
-                    //byte* p = (byte*)v;
-                    //tmp.payloadFooter_.checkSum = checksumCalc(p, sizeof(payloadHeader) + sizeof(payloadPedalAction));
-                    //int length = sizeof(DAP_action_st);
-                    //byte[] newBuffer = new byte[length];
-                    //newBuffer = getBytes_Action(tmp);
-                    if (Settings.axis_settings[PIDX].via_gateway)
-                    {
-                        if (ESPsync_serialPort.IsOpen)
-                        {
-                            //ESPsync_serialPort.DiscardInBuffer();
-                            //ESPsync_serialPort.Write(newBuffer, 0, newBuffer.Length);
-                            System.Threading.Thread.Sleep(10);
-                        }
-                    }
-                    else
-                    {
-                        if (_serialPort[PIDX].IsOpen)
-                        {
-                            // clear inbuffer 
-                            _serialPort[PIDX].DiscardInBuffer();
-
-                            // send query command
-                            //_serialPort[PIDX].Write(newBuffer, 0, newBuffer.Length);
-                        }
-
-                    }
-                    Rudder_brake_enable_flag = false;
-                    System.Threading.Thread.Sleep(50);
-                }
-
-            }
-
-
             if (clear_action)
             {
                 Message tmp = new Message();
@@ -1314,316 +662,11 @@ namespace User.PluginSdkDemo
             pluginManager.SetPropertyValue("Theme_color", this.GetType(), simhub_theme_color);
             pluginManager.SetPropertyValue("ProfileIndex", this.GetType(), profile_index);
             pluginManager.SetPropertyValue("debugvalue", this.GetType(), debug_value);
-            pluginManager.SetPropertyValue("rudder_status", this.GetType(), Rudder_status);
-            pluginManager.SetPropertyValue("rudder_brake_status", this.GetType(), Rudder_brake_status);
             pluginManager.SetPropertyValue("pedal_position", this.GetType(), pedal_state_in_ratio);
             pluginManager.SetPropertyValue("PedalErrorIndex", this.GetType(), PedalErrorIndex);
             pluginManager.SetPropertyValue("PedalErrorCode", this.GetType(), PedalErrorCode);
-            pluginManager.SetPropertyValue("FlightRudder_G", this.GetType(), Rudder_G_last_value);
-            pluginManager.SetPropertyValue("FlightRudder_Wind_Force", this.GetType(), Rudder_Wind_Force_last_value);
         }
 
-
-
-
-        /////////********************************************************************************************************************/
-        /////////*							read serial stream																		*/
-        /////////********************************************************************************************************************/
-        ////////public System.Windows.Forms.Timer[] pedal_serial_read_timer = new System.Windows.Forms.Timer[3];
-        ////////public void openSerialAndAddReadCallback(uint pedalIdx)
-        ////////{
-
-        ////////    // serial port settings
-        ////////    _serialPort[pedalIdx].Handshake = Handshake.None;
-        ////////    _serialPort[pedalIdx].Parity = Parity.None;
-        ////////    //_serialPort[pedalIdx].StopBits = StopBits.None;
-
-
-        ////////    _serialPort[pedalIdx].ReadTimeout = 2000;
-        ////////    _serialPort[pedalIdx].WriteTimeout = 500;
-
-        ////////    // https://stackoverflow.com/questions/7178655/serialport-encoding-how-do-i-get-8-bit-ascii
-        ////////    _serialPort[pedalIdx].Encoding = System.Text.Encoding.GetEncoding(28591);
-
-        ////////    _serialPort[pedalIdx].DtrEnable = false;
-
-        ////////    _serialPort[pedalIdx].NewLine = "\r\n";
-        ////////    _serialPort[pedalIdx].ReadBufferSize = 10000;
-
-
-        ////////    _serialPort[pedalIdx].Open();
-
-
-        ////////    // read callback
-        ////////    pedal_serial_read_timer[pedalIdx] = new System.Windows.Forms.Timer();
-        ////////    pedal_serial_read_timer[pedalIdx].Tick += new EventHandler(timer1_Tick);
-        ////////    pedal_serial_read_timer[pedalIdx].Tag = pedalIdx;
-        ////////    pedal_serial_read_timer[pedalIdx].Interval = 100; // in miliseconds
-        ////////    pedal_serial_read_timer[pedalIdx].Start();
-        ////////    System.Threading.Thread.Sleep(100);
-        ////////}
-
-        ////////public void closeSerialAndStopReadCallback(uint pedalIdx)
-        ////////{
-        ////////    if (pedal_serial_read_timer[pedalIdx] != null)
-        ////////    {
-        ////////        pedal_serial_read_timer[pedalIdx].Stop();
-        ////////        pedal_serial_read_timer[pedalIdx].Dispose();
-        ////////    }
-        ////////    System.Threading.Thread.Sleep(300);
-        ////////    if (_serialPort[pedalIdx].IsOpen)
-        ////////    {
-        ////////        _serialPort[pedalIdx].DiscardInBuffer();
-        ////////        _serialPort[pedalIdx].DiscardOutBuffer();
-        ////////        _serialPort[pedalIdx].Close();
-
-        ////////    }
-        ////////}
-
-
-        ////////int printCtr = 0;
-        ////////unsafe public void timer1_Tick(object sender, EventArgs e)
-        ////////{
-
-        ////////    // if WPF isn't available, update the WPF handler and skip
-        ////////    if (wpfHandler == null)
-        ////////    {
-        ////////        //DiyFfbPluginUI wpfHandler = (DiyFfbPluginUI)GetWPFSettingsControl(this);
-
-        ////////        wpfHandler = (DiyFfbPluginUI)GetWPFSettingsControl(pluginHandle);
-        ////////        return;
-        ////////    }
-
-        ////////    int pedalSelected = Int32.Parse((sender as System.Windows.Forms.Timer).Tag.ToString());
-        ////////    //int pedalSelected = (int)(sender as System.Windows.Forms.Timer).Tag;
-
-        ////////    bool pedalStateHasAlreadyBeenUpdated_b = false;
-
-        ////////    // once the pedal has identified, go ahead
-        ////////    if (pedalSelected < 3)
-        ////////    //if (Plugin._serialPort[indexOfSelectedPedal_u].IsOpen)
-        ////////    {
-
-        ////////        SerialPort sp = _serialPort[pedalSelected];
-
-
-
-        ////////        // https://stackoverflow.com/questions/9732709/the-calling-thread-cannot-access-this-object-because-a-different-thread-owns-it
-
-
-        ////////        //int length = sizeof(DAP_config_st);
-        ////////        //byte[] newBuffer_config = new byte[length];
-
-        ////////        if (sp.IsOpen)
-        ////////        {
-        ////////            int receivedLength = sp.BytesToRead;
-
-        ////////            if (receivedLength > 0)
-        ////////            {
-
-        ////////                string incomingData = sp.ReadExisting();
-
-        ////////                //if the data doesn't end with a stop char this will signal to keep it in _data 
-        ////////                //for appending to the following read of data
-        ////////                bool endsWithStop = wpfHandler.EndsWithStop(incomingData);
-
-        ////////                //each array object will be sent separately to the callback
-        ////////                string[] dataArray = incomingData.Split(wpfHandler.STOPCHAR, StringSplitOptions.None);
-
-        ////////                for (int i = 0; i < dataArray.Length - 1; i++)
-        ////////                {
-        ////////                    string newData = dataArray[i];
-
-        ////////                    //if you are at the last object in the array and this hasn't got a stopchar after
-        ////////                    //it will be saved in _data
-        ////////                    if (!endsWithStop && (i == dataArray.Length - 2))
-        ////////                    {
-        ////////                        wpfHandler._data[pedalSelected] += newData;
-        ////////                    }
-        ////////                    else
-        ////////                    {
-        ////////                        string dataToSend = wpfHandler._data[pedalSelected] + newData;
-        ////////                        wpfHandler._data[pedalSelected] = "";
-
-
-
-        ////////                        // check for pedal state struct
-        ////////                        if ((dataToSend.Length == sizeof(DAP_state_st)))
-        ////////                        {
-
-        ////////                            // transform string into byte
-        ////////                            fixed (byte* p = System.Text.Encoding.GetEncoding(28591).GetBytes(dataToSend))
-        ////////                            {
-        ////////                                // create a fixed size buffer
-        ////////                                int length = sizeof(DAP_state_st);
-        ////////                                byte[] newBuffer_state_2 = new byte[length];
-
-        ////////                                // copy the received bytes into byte array
-        ////////                                for (int j = 0; j < length; j++)
-        ////////                                {
-        ////////                                    newBuffer_state_2[j] = p[j];
-        ////////                                }
-
-        ////////                                // parse byte array as config struct
-        ////////                                DAP_state_st pedalState_read_st = wpfHandler.getStateFromBytes(newBuffer_state_2);
-
-        ////////                                // check whether receive struct is plausible
-        ////////                                DAP_state_st* v_state = &pedalState_read_st;
-        ////////                                byte* p_state = (byte*)v_state;
-
-        ////////                                // payload type check
-        ////////                                bool check_payload_state_b = false;
-        ////////                                if (pedalState_read_st.payloadHeader_.payloadType == Constants.pedalStatePayload_type)
-        ////////                                {
-        ////////                                    check_payload_state_b = true;
-        ////////                                }
-
-        ////////                                // CRC check
-        ////////                                bool check_crc_state_b = false;
-        ////////                                if (checksumCalc(p_state, sizeof(payloadHeader) + sizeof(payloadPedalState)) == pedalState_read_st.payloadFooter_.checkSum)
-        ////////                                {
-        ////////                                    check_crc_state_b = true;
-        ////////                                }
-
-        ////////                                if ((check_payload_state_b) && check_crc_state_b)
-        ////////                                {
-
-        ////////                                    if (pedalStateHasAlreadyBeenUpdated_b == false)
-        ////////                                    {
-        ////////                                        wpfHandler.TextBox_debugOutput.Text = "Pedal pos: " + pedalState_read_st.payloadPedalState_.pedalPosition_u16;
-        ////////                                        wpfHandler.TextBox_debugOutput.Text += "Pedal force: " + pedalState_read_st.payloadPedalState_.pedalForce_u16;
-        ////////                                        pedalStateHasAlreadyBeenUpdated_b = true;
-
-        ////////                                        wpfHandler.text_point_pos.Opacity = 0;
-        ////////                                        double control_rect_value_max = 65535;
-        ////////                                        double dyy = wpfHandler.canvas.Height / control_rect_value_max;
-        ////////                                        double dxx = wpfHandler.canvas.Width / control_rect_value_max;
-
-
-        ////////                                        Canvas.SetLeft(wpfHandler.rect_State, dxx * pedalState_read_st.payloadPedalState_.pedalPosition_u16 - wpfHandler.rect_State.Width / 2);
-        ////////                                        Canvas.SetTop(wpfHandler.rect_State, wpfHandler.canvas.Height - dyy * pedalState_read_st.payloadPedalState_.pedalForce_u16 - wpfHandler.rect_State.Height / 2);
-        ////////                                    }
-
-
-        ////////                                    continue;
-        ////////                                }
-        ////////                            }
-        ////////                        }
-
-
-        ////////                        // decode into config struct
-        ////////                        if ((wpfHandler.waiting_for_pedal_config[pedalSelected]) && (dataToSend.Length == sizeof(DAP_config_st)))
-        ////////                        {
-        ////////                            DAP_config_st tmp;
-
-
-        ////////                            // transform string into byte
-        ////////                            fixed (byte* p = System.Text.Encoding.GetEncoding(28591).GetBytes(dataToSend))
-        ////////                            {
-        ////////                                // create a fixed size buffer
-        ////////                                int length = sizeof(DAP_config_st);
-        ////////                                byte[] newBuffer_config_2 = new byte[length];
-
-        ////////                                // copy the received bytes into byte array
-        ////////                                for (int j = 0; j < length; j++)
-        ////////                                {
-        ////////                                    newBuffer_config_2[j] = p[j];
-        ////////                                }
-
-        ////////                                // parse byte array as config struct
-        ////////                                DAP_config_st pedalConfig_read_st = wpfHandler.getConfigFromBytes(newBuffer_config_2);
-
-        ////////                                // check whether receive struct is plausible
-        ////////                                DAP_config_st* v_config = &pedalConfig_read_st;
-        ////////                                byte* p_config = (byte*)v_config;
-
-        ////////                                // payload type check
-        ////////                                bool check_payload_config_b = false;
-        ////////                                if (pedalConfig_read_st.payloadHeader_.payloadType == Constants.pedalConfigPayload_type)
-        ////////                                {
-        ////////                                    check_payload_config_b = true;
-        ////////                                }
-
-        ////////                                // CRC check
-        ////////                                bool check_crc_config_b = false;
-        ////////                                if (checksumCalc(p_config, sizeof(payloadHeader) + sizeof(payloadPedalConfig)) == pedalConfig_read_st.payloadFooter_.checkSum)
-        ////////                                {
-        ////////                                    check_crc_config_b = true;
-        ////////                                }
-
-        ////////                                if ((check_payload_config_b) && check_crc_config_b)
-        ////////                                {
-        ////////                                    wpfHandler.waiting_for_pedal_config[pedalSelected] = false;
-        ////////                                    wpfHandler.dap_config_st[pedalSelected] = pedalConfig_read_st;
-        ////////                                    wpfHandler.updateTheGuiFromConfig();
-
-        ////////                                    continue;
-        ////////                                }
-        ////////                                else
-        ////////                                {
-        ////////                                    wpfHandler.TextBox_debugOutput.Text = "Payload config test 1: " + check_payload_config_b;
-        ////////                                    wpfHandler.TextBox_debugOutput.Text += "Payload config test 2: " + check_crc_config_b;
-        ////////                                }
-        ////////                            }
-
-        ////////                        }
-        ////////                        //else
-        ////////                        //{
-
-
-        ////////                        // When too many messages are received, only print every Nth message
-
-        ////////                        // When only a few messages are received, make the counter greater than N thus every message is printed
-        ////////                        if (dataArray.Length < 10)
-        ////////                        {
-        ////////                            printCtr = 600;
-        ////////                        }
-
-        ////////                        if (printCtr++ > 200)
-        ////////                        {
-        ////////                            printCtr = 0;
-        ////////                            wpfHandler.TextBox_serialMonitor.Text += dataToSend + "\n";
-        ////////                            wpfHandler.TextBox_serialMonitor.ScrollToEnd();
-        ////////                        }
-
-        ////////                        //}
-
-
-        ////////                    }
-
-        ////////                    try
-        ////////                    {
-        ////////                        while (wpfHandler.TextBox_serialMonitor.LineCount > 30)
-        ////////                        {
-        ////////                            wpfHandler.TextBox_serialMonitor.Text = wpfHandler.TextBox_serialMonitor.Text.Remove(0, wpfHandler.TextBox_serialMonitor.GetLineLength(0));
-        ////////                        }
-        ////////                    }
-        ////////                    catch { }
-
-
-
-
-
-
-
-        ////////                    //limits the data stored to 1000 to avoid using up all the memory in case of 
-        ////////                    //failure to register callback or include stopchar
-
-        ////////                    if (wpfHandler._data[pedalSelected].Length > 1000)
-        ////////                    {
-        ////////                        wpfHandler._data[pedalSelected] = "";
-        ////////                    }
-
-
-        ////////                }
-
-        ////////                // obtain data and check whether it is from known payload type or just debug info
-
-        ////////            }
-
-        ////////        }
-        ////////    }
-        ////////}
 
 
 
@@ -1649,6 +692,8 @@ namespace User.PluginSdkDemo
             // Save settings
             this.SaveCommonSettings("GeneralSettings", Settings);
 
+            StopGatewayAutoReconnect();
+
             // close serial communication
             if (ui != null)
             {
@@ -1670,6 +715,10 @@ namespace User.PluginSdkDemo
                 
                 ui.CloseSerialPorts();
             }
+            else if (ESPsync_serialPort != null && ESPsync_serialPort.IsOpen)
+            {
+                ESPsync_serialPort.Close();
+            }
             
             if (ToastNotificationManager.History.GetHistory("Pedal_notification").Count != 0)
             {
@@ -1687,6 +736,79 @@ namespace User.PluginSdkDemo
             return Array.Exists(portNames, name => name.Equals(portName, StringComparison.OrdinalIgnoreCase));
         }
 
+        private void StartGatewayAutoReconnect()
+        {
+            if (gatewayReconnectTimer != null)
+            {
+                return;
+            }
+
+            gatewayReconnectTimer = new Timer(_ => AutoReconnectGateway(), null, 0, GatewayReconnectIntervalMs);
+        }
+
+        private void StopGatewayAutoReconnect()
+        {
+            if (gatewayReconnectTimer != null)
+            {
+                gatewayReconnectTimer.Dispose();
+                gatewayReconnectTimer = null;
+            }
+        }
+
+        private void AutoReconnectGateway()
+        {
+            if (Settings == null || !Settings.Pedal_ESPNow_auto_connect_flag)
+            {
+                return;
+            }
+
+            string portName = Settings.ESPNow_port;
+            if (string.IsNullOrWhiteSpace(portName) || portName == "NA")
+            {
+                return;
+            }
+
+            if (!PortExists(portName))
+            {
+                return;
+            }
+
+            if (ESPsync_serialPort != null && ESPsync_serialPort.IsOpen)
+            {
+                if (string.Equals(ESPsync_serialPort.PortName, portName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                ESPsync_serialPort.Close();
+            }
+
+            if (Interlocked.Exchange(ref gatewayReconnectBusy, 1) == 1)
+            {
+                return;
+            }
+
+            try
+            {
+                if (ESPsync_serialPort == null)
+                {
+                    ESPsync_serialPort = new ProtobufSerial<Message>(portName, 3000000);
+                }
+                else if (!string.Equals(ESPsync_serialPort.PortName, portName, StringComparison.OrdinalIgnoreCase))
+                {
+                    ESPsync_serialPort.PortName = portName;
+                }
+
+                ESPsync_serialPort.Open();
+            }
+            catch (Exception)
+            {
+            }
+            finally
+            {
+                Interlocked.Exchange(ref gatewayReconnectBusy, 0);
+            }
+        }
 
 
 
@@ -1716,13 +838,9 @@ namespace User.PluginSdkDemo
             pluginManager.AddProperty("Overlay_display", this.GetType(), overlay_display);
             pluginManager.AddProperty("Theme_color", this.GetType(), simhub_theme_color);
             pluginManager.AddProperty("debugvalue", this.GetType(), debug_value);
-            pluginManager.AddProperty("rudder_status", this.GetType(), Rudder_status);
-            pluginManager.AddProperty("rudder_brake_status", this.GetType(), Rudder_brake_status);
             pluginManager.AddProperty("pedal_position", this.GetType(), pedal_state_in_ratio);
             pluginManager.AddProperty("PedalErrorIndex", this.GetType(), PedalErrorIndex);
             pluginManager.AddProperty("PedalErrorCode", this.GetType(), PedalErrorCode);
-            pluginManager.AddProperty("FlightRudder_G", this.GetType(), Rudder_G_last_value);
-            pluginManager.AddProperty("FlightRudder_Wind_Force", this.GetType(), Rudder_Wind_Force_last_value);
             for (uint pedali=0; pedali < 3; pedali++)
             {
                 Action_currentTime[pedali] = new DateTime();
@@ -1977,22 +1095,6 @@ namespace User.PluginSdkDemo
                     overlay_display = 1;
                 }
             });
-            this.AddAction("Rudder Brake", (a, b) =>
-            {
-                Rudder_brake_enable_flag = true;
-                SimHub.Logging.Current.Info("Rudder Brake");
-
-            });
-            /*
-            this.AddAction("Rudder", (a, b) =>
-            {
-
-                Rudder_enable_flag=true;
-                SimHub.Logging.Current.Info("Rudder action");
-
-            });
-            */
-
             //Settings.selectedJsonIndexLast[0]
             //SimHub.Logging.Current.Info("Diy active pedas plugin - Test 1");
             //SimHub.Logging.Current.Info("Diy active pedas plugin - COM port: " + Settings.selectedComPortNames[0]);
@@ -2080,129 +1182,7 @@ namespace User.PluginSdkDemo
 
             }
 
-            
-            
-            
-
-         
-
-
-            //// check if Json config files are present, otherwise create new ones
-            //for (uint jsonIndex = 0; jsonIndex < ComboBox_JsonFileSelected.Items.Count; jsonIndex++)
-            //{
-            //	// which config file is seleced
-            //	string currentDirectory = Directory.GetCurrentDirectory();
-            //	string dirName = currentDirectory + "\\PluginsData\\Common";
-            //	string jsonFileName = ComboBox_JsonFileSelected(ComboBox_JsonFileSelected.Items[jsonIndex]).Text;
-            //	string fileName = dirName + "\\" + jsonFileName + ".json";
-
-
-            //	// Check if file already exists, otherwise create    
-            //	if (!File.Exists(fileName))
-            //	{
-            //		// create default config
-            //		// https://stackoverflow.com/questions/3275863/does-net-4-have-a-built-in-json-serializer-deserializer
-            //		// https://learn.microsoft.com/en-us/dotnet/framework/wcf/feature-details/how-to-serialize-and-deserialize-json-data?redirectedfrom=MSDN
-            //		var stream1 = new MemoryStream();
-            //		var ser = new DataContractJsonSerializer(typeof(DAP_config_st));
-            //		ser.WriteObject(stream1, dap_config_initial_st);
-
-            //		stream1.Position = 0;
-            //		StreamReader sr = new StreamReader(stream1);
-            //		string jsonString = sr.ReadToEnd();
-
-            //		System.IO.File.WriteAllText(fileName, jsonString);
-            //	}
-            //}
-
-
-
-            dap_config_initial_st.payloadHeader_.payloadType = (byte)Constants.pedalConfigPayload_type;
-            dap_config_initial_st.payloadHeader_.version = (byte)Constants.pedalConfigPayload_version;
-            dap_config_initial_st.payloadHeader_.storeToEeprom = 0;
-            dap_config_initial_st.payloadPedalConfig_.pedalStartPosition = 35;
-            dap_config_initial_st.payloadPedalConfig_.pedalEndPosition = 80;
-            dap_config_initial_st.payloadPedalConfig_.maxForce = 50;
-            dap_config_initial_st.payloadPedalConfig_.relativeForce_p000 = 0;
-            dap_config_initial_st.payloadPedalConfig_.relativeForce_p020 = 20;
-            dap_config_initial_st.payloadPedalConfig_.relativeForce_p040 = 40;
-            dap_config_initial_st.payloadPedalConfig_.relativeForce_p060 = 60;
-            dap_config_initial_st.payloadPedalConfig_.relativeForce_p080 = 80;
-            dap_config_initial_st.payloadPedalConfig_.relativeForce_p100 = 100;
-            dap_config_initial_st.payloadPedalConfig_.dampingPress = 0;
-            dap_config_initial_st.payloadPedalConfig_.dampingPull = 0;
-            dap_config_initial_st.payloadPedalConfig_.absFrequency = 5;
-            dap_config_initial_st.payloadPedalConfig_.absAmplitude = 100;
-            dap_config_initial_st.payloadPedalConfig_.absPattern = 0;
-            dap_config_initial_st.payloadPedalConfig_.absForceOrTarvelBit = 0;
-
-            dap_config_initial_st.payloadPedalConfig_.lengthPedal_a = 205;
-            dap_config_initial_st.payloadPedalConfig_.lengthPedal_b = 220;
-            dap_config_initial_st.payloadPedalConfig_.lengthPedal_d = 60;
-            dap_config_initial_st.payloadPedalConfig_.lengthPedal_c_horizontal = 215;
-            dap_config_initial_st.payloadPedalConfig_.lengthPedal_c_vertical = 60;
-
-            dap_config_initial_st.payloadPedalConfig_.Simulate_ABS_trigger = 0;
-            dap_config_initial_st.payloadPedalConfig_.Simulate_ABS_value = 50;
-            dap_config_initial_st.payloadPedalConfig_.RPM_max_freq = 40;
-            dap_config_initial_st.payloadPedalConfig_.RPM_min_freq = 10;
-            dap_config_initial_st.payloadPedalConfig_.RPM_AMP = 5;
-            dap_config_initial_st.payloadPedalConfig_.BP_trigger_value = 50;
-            dap_config_initial_st.payloadPedalConfig_.BP_amp = 1;
-            dap_config_initial_st.payloadPedalConfig_.BP_freq = 15;
-            dap_config_initial_st.payloadPedalConfig_.BP_trigger = 0;
-            dap_config_initial_st.payloadPedalConfig_.G_multi = 50;
-            dap_config_initial_st.payloadPedalConfig_.G_window = 60;
-            dap_config_initial_st.payloadPedalConfig_.WS_amp = 1;
-            dap_config_initial_st.payloadPedalConfig_.WS_freq = 15;
-
-            dap_config_initial_st.payloadPedalConfig_.maxGameOutput = 100;
-
-            dap_config_initial_st.payloadPedalConfig_.kf_modelNoise = 128;
-            dap_config_initial_st.payloadPedalConfig_.kf_modelOrder = 0;
-            dap_config_initial_st.payloadPedalConfig_.debug_flags_0 = 0;
-
-            dap_config_initial_st.payloadPedalConfig_.cubic_spline_param_a_0 = 0;
-            dap_config_initial_st.payloadPedalConfig_.cubic_spline_param_a_1 = 0;
-            dap_config_initial_st.payloadPedalConfig_.cubic_spline_param_a_2 = 0;
-            dap_config_initial_st.payloadPedalConfig_.cubic_spline_param_a_3 = 0;
-            dap_config_initial_st.payloadPedalConfig_.cubic_spline_param_a_4 = 0;
-
-            dap_config_initial_st.payloadPedalConfig_.cubic_spline_param_b_0 = 0;
-            dap_config_initial_st.payloadPedalConfig_.cubic_spline_param_b_1 = 0;
-            dap_config_initial_st.payloadPedalConfig_.cubic_spline_param_b_2 = 0;
-            dap_config_initial_st.payloadPedalConfig_.cubic_spline_param_b_3 = 0;
-            dap_config_initial_st.payloadPedalConfig_.cubic_spline_param_b_4 = 0;
-
-            dap_config_initial_st.payloadPedalConfig_.PID_p_gain = 0.3f;
-            dap_config_initial_st.payloadPedalConfig_.PID_i_gain = 50.0f;
-            dap_config_initial_st.payloadPedalConfig_.PID_d_gain = 0.0f;
-            dap_config_initial_st.payloadPedalConfig_.PID_velocity_feedforward_gain = 0.0f;
-
-            dap_config_initial_st.payloadPedalConfig_.MPC_0th_order_gain = 10.0f;
-            dap_config_initial_st.payloadPedalConfig_.MPC_1st_order_gain = 0.0f;
-
-            dap_config_initial_st.payloadPedalConfig_.control_strategy_b = 2;
-
-            dap_config_initial_st.payloadPedalConfig_.loadcell_rating = 150;
-
-            dap_config_initial_st.payloadPedalConfig_.travelAsJoystickOutput_u8 = 0;
-
-            dap_config_initial_st.payloadPedalConfig_.invertLoadcellReading_u8 = 0;
-
-            dap_config_initial_st.payloadPedalConfig_.invertMotorDirection_u8 = 0;
-
-            dap_config_initial_st.payloadPedalConfig_.spindlePitch_mmPerRev_u8 = 5;
-            dap_config_initial_st.payloadPedalConfig_.pedal_type = 0;
-            //dap_config_initial_st.payloadPedalConfig_.OTA_flag = 0;
-            dap_config_initial_st.payloadPedalConfig_.stepLossFunctionFlags_u8 = 0b11;
-
-
-
-
-
-
-
+            StartGatewayAutoReconnect();
 
         }
     }

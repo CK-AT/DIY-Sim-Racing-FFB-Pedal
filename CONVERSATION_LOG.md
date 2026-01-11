@@ -2,6 +2,19 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-11 14:56:00 +01:00 (DESKTOP-6KO022D)
+Request: continue UI cleanup without changing the layout; restore gateway auto-reconnect + OTA tab; implement auto-reconnect every 2s.
+Summary:
+- Restored the axis/system layouts while removing unused legacy controls; moved debug output back into the axis left column.
+- Reintroduced the gateway auto-reconnect toggle and OTA tab; OTA now sends StartOtaUpdate (gateway-only) with saved SSID/PASS and channel URL.
+- Added a plugin-level gateway auto-reconnect loop (2s) so reconnect works even with the UI closed.
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+Open items:
+- Build the SimHub plugin and verify gateway auto-reconnect + OTA on hardware.
+
 ## 2026-01-10 13:33:21 +01:00 (notebook-ckrenn)
 Request: add per-folder pinned requirements for ESP32/sim.
 Summary:
@@ -121,6 +134,18 @@ Key files:
 - `ESP32/src/CANManager.cpp`
 Open items:
 - Check SimHub logs for CAN ISOTP errors during shifter uploads.
+
+## 2026-01-03 18:04:21 +01:00 (DESKTOP-6KO022D)
+Request: plan cleanup of legacy pre-protobuf struct-based protocol and unsafe code in the plugin.
+Summary:
+- Identified the main legacy surface area (DAP_config_st/payload structs, unsafe marshaling, raw checksum helpers) in the plugin.
+- Outlined a cleanup plan focusing on removing legacy structs/handlers and consolidating on protobuf-based config flow.
+Key files:
+- `SimhubPlugin/DiyFfbPlugin.cs`
+- `SimhubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimhubPlugin/OnlineProfile.xaml.cs`
+Open items:
+- Confirm which legacy import/export paths (if any) must remain before removal.
 
 ## 2026-01-03 16:28:43 +01:00 (DESKTOP-6KO022D)
 Request: shifter UI polish (live marker + axis range limits) and fix build error.
