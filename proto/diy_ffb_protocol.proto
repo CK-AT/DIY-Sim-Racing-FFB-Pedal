@@ -129,10 +129,10 @@ message AxisConfig {
     float min_amplitude = 2;
     // minimum velocity magnitude in contact point units per second
     float min_velocity = 3;
-    // minimum half-period frequency (sign flips per second)
-    float min_half_period_hz = 4;
-    // maximum half-period frequency (sign flips per second)
-    float max_half_period_hz = 5;
+    // minimum oscillation frequency (full period)
+    float min_frequency_hz = 4;
+    // maximum oscillation frequency (full period)
+    float max_frequency_hz = 5;
     // hold time in ms after detection
     uint32 hold_time_ms = 6;
     // ramp time in ms for damping gain

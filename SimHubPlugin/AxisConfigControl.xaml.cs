@@ -119,8 +119,8 @@ namespace User.PluginSdkDemo
                 KMax = 0.5f,
                 MinAmplitude = 0.2f,
                 MinVelocity = 0.5f,
-                MinHalfPeriodHz = 4.0f,
-                MaxHalfPeriodHz = 200.0f,
+                MinFrequencyHz = 2.0f,
+                MaxFrequencyHz = 100.0f,
                 HoldTimeMs = 150,
                 RampTimeMs = 80,
                 RequiredHits = 2
@@ -459,18 +459,18 @@ namespace User.PluginSdkDemo
                     guard.MinVelocity = Math.Max(0.0f, value);
                 }
             }
-            else if (ReferenceEquals(sender, TextOscMinHalfPeriodHz))
+            else if (ReferenceEquals(sender, TextOscMinFrequencyHz))
             {
-                if (TryParseFloat(TextOscMinHalfPeriodHz.Text, out float value))
+                if (TryParseFloat(TextOscMinFrequencyHz.Text, out float value))
                 {
-                    guard.MinHalfPeriodHz = Math.Max(0.0f, value);
+                    guard.MinFrequencyHz = Math.Max(0.0f, value);
                 }
             }
-            else if (ReferenceEquals(sender, TextOscMaxHalfPeriodHz))
+            else if (ReferenceEquals(sender, TextOscMaxFrequencyHz))
             {
-                if (TryParseFloat(TextOscMaxHalfPeriodHz.Text, out float value))
+                if (TryParseFloat(TextOscMaxFrequencyHz.Text, out float value))
                 {
-                    guard.MaxHalfPeriodHz = Math.Max(0.0f, value);
+                    guard.MaxFrequencyHz = Math.Max(0.0f, value);
                 }
             }
             else if (ReferenceEquals(sender, TextOscHoldMs))
@@ -516,8 +516,8 @@ namespace User.PluginSdkDemo
             TextOscKMax.Text = guard.KMax.ToString("0.###", CultureInfo.CurrentCulture);
             TextOscMinAmplitude.Text = guard.MinAmplitude.ToString("0.###", CultureInfo.CurrentCulture);
             TextOscMinVelocity.Text = guard.MinVelocity.ToString("0.###", CultureInfo.CurrentCulture);
-            TextOscMinHalfPeriodHz.Text = guard.MinHalfPeriodHz.ToString("0.###", CultureInfo.CurrentCulture);
-            TextOscMaxHalfPeriodHz.Text = guard.MaxHalfPeriodHz.ToString("0.###", CultureInfo.CurrentCulture);
+            TextOscMinFrequencyHz.Text = guard.MinFrequencyHz.ToString("0.###", CultureInfo.CurrentCulture);
+            TextOscMaxFrequencyHz.Text = guard.MaxFrequencyHz.ToString("0.###", CultureInfo.CurrentCulture);
             TextOscHoldMs.Text = guard.HoldTimeMs.ToString(CultureInfo.CurrentCulture);
             TextOscRampMs.Text = guard.RampTimeMs.ToString(CultureInfo.CurrentCulture);
             TextOscRequiredHits.Text = guard.RequiredHits.ToString(CultureInfo.CurrentCulture);

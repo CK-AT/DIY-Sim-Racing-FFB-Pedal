@@ -50,8 +50,8 @@ void ConfigManager::set_axis_config_defaults(void) {
     _axis_config.oscillation_guard.k_max = 0.5f;
     _axis_config.oscillation_guard.min_amplitude = 0.2f;
     _axis_config.oscillation_guard.min_velocity = 0.5f;
-    _axis_config.oscillation_guard.min_half_period_hz = 4.0f;
-    _axis_config.oscillation_guard.max_half_period_hz = 200.0f;
+    _axis_config.oscillation_guard.min_frequency_hz = 2.0f;
+    _axis_config.oscillation_guard.max_frequency_hz = 100.0f;
     _axis_config.oscillation_guard.hold_time_ms = 150;
     _axis_config.oscillation_guard.ramp_time_ms = 80;
     _axis_config.oscillation_guard.required_hits = 2;

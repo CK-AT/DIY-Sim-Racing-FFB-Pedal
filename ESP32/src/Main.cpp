@@ -147,8 +147,8 @@ static void apply_oscillation_guard_config(const AxisConfig *axis_cfg) {
     constexpr float k_default_k_max = 0.5f;
     constexpr float k_default_min_amplitude = 0.2f;
     constexpr float k_default_min_velocity = 0.5f;
-    constexpr float k_default_min_half_period_hz = 4.0f;
-    constexpr float k_default_max_half_period_hz = 200.0f;
+    constexpr float k_default_min_frequency_hz = 2.0f;
+    constexpr float k_default_max_frequency_hz = 100.0f;
     constexpr uint32_t k_default_hold_time_ms = 150;
     constexpr uint32_t k_default_ramp_time_ms = 80;
     constexpr uint8_t k_default_required_hits = 2;
@@ -156,8 +156,8 @@ static void apply_oscillation_guard_config(const AxisConfig *axis_cfg) {
     float k_max = k_default_k_max;
     float min_amplitude = k_default_min_amplitude;
     float min_velocity = k_default_min_velocity;
-    float min_half_period_hz = k_default_min_half_period_hz;
-    float max_half_period_hz = k_default_max_half_period_hz;
+    float min_frequency_hz = k_default_min_frequency_hz;
+    float max_frequency_hz = k_default_max_frequency_hz;
     uint32_t hold_time_ms = k_default_hold_time_ms;
     uint32_t ramp_time_ms = k_default_ramp_time_ms;
     uint8_t required_hits = k_default_required_hits;
@@ -167,29 +167,25 @@ static void apply_oscillation_guard_config(const AxisConfig *axis_cfg) {
         k_max = guard_cfg.k_max;
         min_amplitude = guard_cfg.min_amplitude;
         min_velocity = guard_cfg.min_velocity;
-        min_half_period_hz = guard_cfg.min_half_period_hz;
-        max_half_period_hz = guard_cfg.max_half_period_hz;
+        min_frequency_hz = guard_cfg.min_frequency_hz;
+        max_frequency_hz = guard_cfg.max_frequency_hz;
         hold_time_ms = guard_cfg.hold_time_ms;
         ramp_time_ms = guard_cfg.ramp_time_ms;
         required_hits = static_cast<uint8_t>(guard_cfg.required_hits);
     }
 
-    if (min_half_period_hz <= 0.0f) {
-        min_half_period_hz = k_default_min_half_period_hz;
+    if (min_frequency_hz <= 0.0f) {
+        min_frequency_hz = k_default_min_frequency_hz;
     }
-    if (max_half_period_hz <= 0.0f) {
-        max_half_period_hz = k_default_max_half_period_hz;
-    }
-
-    float hz_low = min(min_half_period_hz, max_half_period_hz);
-    float hz_high = max(min_half_period_hz, max_half_period_hz);
-    if (hz_low <= 0.0f || hz_high <= 0.0f) {
-        hz_low = k_default_min_half_period_hz;
-        hz_high = k_default_max_half_period_hz;
+    if (max_frequency_hz <= 0.0f) {
+        max_frequency_hz = k_default_max_frequency_hz;
     }
 
-    uint32_t min_half_period_us = static_cast<uint32_t>(1000000.0f / hz_high);
-    uint32_t max_half_period_us = static_cast<uint32_t>(1000000.0f / hz_low);
+    float freq_low = min(min_frequency_hz, max_frequency_hz);
+    float freq_high = max(min_frequency_hz, max_frequency_hz);
+
+    uint32_t min_half_period_us = static_cast<uint32_t>(1000000.0f / (2.0f * freq_high));
+    uint32_t max_half_period_us = static_cast<uint32_t>(1000000.0f / (2.0f * freq_low));
     uint64_t hold_time_us = static_cast<uint64_t>(hold_time_ms) * 1000ULL;
     uint64_t ramp_time_us = static_cast<uint64_t>(ramp_time_ms) * 1000ULL;
     if (hold_time_us > UINT32_MAX) {

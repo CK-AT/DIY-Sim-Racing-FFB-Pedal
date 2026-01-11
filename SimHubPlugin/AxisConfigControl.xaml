@@ -180,12 +180,12 @@
                                         <TextBox x:Name="TextOscMinVelocity" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                        <Label Content="Min half-period (Hz):" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
-                                        <TextBox x:Name="TextOscMinHalfPeriodHz" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
+                                        <Label Content="Min frequency (Hz):" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
+                                        <TextBox x:Name="TextOscMinFrequencyHz" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                        <Label Content="Max half-period (Hz):" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
-                                        <TextBox x:Name="TextOscMaxHalfPeriodHz" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
+                                        <Label Content="Max frequency (Hz):" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
+                                        <TextBox x:Name="TextOscMaxFrequencyHz" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                         <Label Content="Required hits:" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
