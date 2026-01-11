@@ -99,6 +99,29 @@ Key files:
 Open items:
 - Native tests not run here (PlatformIO/gcc unavailable); run `pio test -e native -f test_shifter_native` after installing toolchain.
 
+## 2026-01-03 21:01:21 +01:00 (DESKTOP-6KO022D)
+Request: debug USB gateway receive; add logging on ISOTP errors.
+Summary:
+- Increased PacketSerial receive buffer to 1024 bytes to allow larger USB packets.
+- Added throttled SerialManager overflow logging for oversized packets.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `ESP32/include/SerialManager.h`
+- `ESP32/src/SerialManager.cpp`
+Open items:
+- Verify gateway now receives shifter function configs over USB.
+
+## 2026-01-03 20:46:38 +01:00 (DESKTOP-6KO022D)
+Request: add ISOTP error logging for CAN path.
+Summary:
+- Added throttled ISOTP send/receive error logs with return codes and payload lengths.
+- Logged CAN ISOTP errors for gateway/axis traffic and log-ack messages.
+- Ran Python and C# tests (17/18 tests, 0 failures).
+Key files:
+- `ESP32/src/CANManager.cpp`
+Open items:
+- Check SimHub logs for CAN ISOTP errors during shifter uploads.
+
 ## 2026-01-03 16:28:43 +01:00 (DESKTOP-6KO022D)
 Request: shifter UI polish (live marker + axis range limits) and fix build error.
 Summary:
