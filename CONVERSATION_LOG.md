@@ -2,6 +2,41 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-12 23:17:47 +01:00 (DESKTOP-6KO022D)
+Request: capture the condensed final FFB design decisions.
+Summary:
+- X-Plane native plugin forwards selected datarefs via UDP; SimHub computes kq/krate/trim/buffet.
+- SimHub sends compact FLIGHT_FFB frames per function (pitch/roll/pedals) with CAN ID nibble targeting (no axis_id field).
+Key files:
+- `XPlanePlugin/DiyFfbDataProvider.cpp`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `ESP32/src/CANManager.cpp`
+Open items:
+- None.
+
+## 2026-01-12 23:13:37 +01:00 (DESKTOP-6KO022D)
+Request: make X-Plane FFB tunable per function with UI controls, add trim/position pointers, persist per-aircraft settings using CarId, add per-function FFB enable toggle, add ESP timeout to restore defaults, and show active aircraft name in System.
+Summary:
+- Added per-function X-Plane FFB settings in SimHub with UI controls on flight stick/pedals plus range slider markers for live position and trim center.
+- Implemented per-aircraft profile save/load keyed by CarId and surfaced CarName in the System tab.
+- Added per-function X-Plane FFB enable toggle and gated sends; ESP32 flight functions now restore default damping/spring after 200ms without FFB updates.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+- `SimHubPlugin/FunctionConfigControl.xaml.cs`
+- `ESP32/include/FlightStickFunction.h`
+- `ESP32/src/FlightStickFunction.cpp`
+- `ESP32/include/FlightPedalsFunction.h`
+- `ESP32/src/FlightPedalFunction.cpp`
+Open items:
+- Build/test SimHub plugin and verify CarId-based switching, UI updates, and ESP timeout behavior.
+
 ## 2026-01-11 15:08:33 +01:00 (DESKTOP-6KO022D)
 Request: make oscillation guard configurable via the UI (new OscillationGuard in AxisConfig, new AxisConfigControl tab, ms/Hz units).
 Summary:

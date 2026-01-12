@@ -35,3 +35,6 @@ ESP32/include/Version.h
 SimhubPlugin/DiyFfbPlugin.Tests/bin
 SimhubPlugin/DiyFfbPlugin.Tests/obj
 .env
+XPlanePlugin/.vs
+XPlanePlugin/Debug
+XPlanePlugin/Release/64

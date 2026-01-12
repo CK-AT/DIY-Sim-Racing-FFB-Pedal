@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+﻿using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Windows.Media.Converters;
 
 namespace User.PluginSdkDemo
@@ -9,6 +10,63 @@ namespace User.PluginSdkDemo
 
     public class DiyFfbPluginSettings
     {
+        public const float DefaultXPlaneFfbKq = 0.001f;
+        public const float DefaultXPlaneFfbKrate = 0.001f;
+        public const float DefaultXPlaneTrimMmPerDeg = 0.1f;
+        public const float DefaultXPlaneBuffetStartDeg = 10.0f;
+        public const float DefaultXPlaneBuffetFullDeg = 18.0f;
+        public const float DefaultXPlaneBuffetGain = 0.05f;
+
+        public class FunctionFfbSettings
+        {
+            public bool XPlaneFfbEnabled = true;
+            public float XPlaneFfbKq = DefaultXPlaneFfbKq;
+            public float XPlaneFfbKrate = DefaultXPlaneFfbKrate;
+            public float XPlaneTrimMmPerDeg = DefaultXPlaneTrimMmPerDeg;
+            public float XPlaneBuffetStartDeg = DefaultXPlaneBuffetStartDeg;
+            public float XPlaneBuffetFullDeg = DefaultXPlaneBuffetFullDeg;
+            public float XPlaneBuffetGain = DefaultXPlaneBuffetGain;
+
+            public void CopyFrom(FunctionSettings source)
+            {
+                if (source == null)
+                {
+                    return;
+                }
+
+                XPlaneFfbEnabled = source.XPlaneFfbEnabled;
+                XPlaneFfbKq = source.XPlaneFfbKq;
+                XPlaneFfbKrate = source.XPlaneFfbKrate;
+                XPlaneTrimMmPerDeg = source.XPlaneTrimMmPerDeg;
+                XPlaneBuffetStartDeg = source.XPlaneBuffetStartDeg;
+                XPlaneBuffetFullDeg = source.XPlaneBuffetFullDeg;
+                XPlaneBuffetGain = source.XPlaneBuffetGain;
+            }
+
+            public void ApplyTo(FunctionSettings target)
+            {
+                if (target == null)
+                {
+                    return;
+                }
+
+                target.XPlaneFfbEnabled = XPlaneFfbEnabled;
+                target.XPlaneFfbKq = XPlaneFfbKq;
+                target.XPlaneFfbKrate = XPlaneFfbKrate;
+                target.XPlaneTrimMmPerDeg = XPlaneTrimMmPerDeg;
+                target.XPlaneBuffetStartDeg = XPlaneBuffetStartDeg;
+                target.XPlaneBuffetFullDeg = XPlaneBuffetFullDeg;
+                target.XPlaneBuffetGain = XPlaneBuffetGain;
+            }
+        }
+
+        public class AircraftFfbProfile
+        {
+            public FunctionFfbSettings FlightStickPitch = new FunctionFfbSettings();
+            public FunctionFfbSettings FlightStickRoll = new FunctionFfbSettings();
+            public FunctionFfbSettings FlightPedals = new FunctionFfbSettings();
+        }
+
         public class AxisSettings
         {
             public string com_port_name = "COM1";
@@ -33,6 +91,13 @@ namespace User.PluginSdkDemo
             public string CV2_binding = "";
             public int action_interval = 30;
             public bool[,] effect_status_profiles = new bool[6, 8] { { false, false, false, false, false, false, false, false }, { false, false, false, false, false, false, false, false }, { false, false, false, false, false, false, false, false } , { false, false, false, false, false, false, false, false }, { false, false, false, false, false, false, false, false }, { false, false, false, false, false, false, false, false } };
+            public bool XPlaneFfbEnabled = true;
+            public float XPlaneFfbKq = DefaultXPlaneFfbKq;
+            public float XPlaneFfbKrate = DefaultXPlaneFfbKrate;
+            public float XPlaneTrimMmPerDeg = DefaultXPlaneTrimMmPerDeg;
+            public float XPlaneBuffetStartDeg = DefaultXPlaneBuffetStartDeg;
+            public float XPlaneBuffetFullDeg = DefaultXPlaneBuffetFullDeg;
+            public float XPlaneBuffetGain = DefaultXPlaneBuffetGain;
         }
 
         public DiyFfbPluginSettings()
@@ -75,6 +140,15 @@ namespace User.PluginSdkDemo
         public bool advanced_b = false;
         public string SSID_string = "";
         public string PASS_string = "";
+        public bool XPlaneUdpEnabled = false;
+        public int XPlaneUdpPort = 27015;
+        public float XPlaneFfbKq = DefaultXPlaneFfbKq;
+        public float XPlaneFfbKrate = DefaultXPlaneFfbKrate;
+        public float XPlaneTrimMmPerDeg = DefaultXPlaneTrimMmPerDeg;
+        public float XPlaneBuffetStartDeg = DefaultXPlaneBuffetStartDeg;
+        public float XPlaneBuffetFullDeg = DefaultXPlaneBuffetFullDeg;
+        public float XPlaneBuffetGain = DefaultXPlaneBuffetGain;
+        public Dictionary<string, AircraftFfbProfile> AircraftFfbProfiles = new Dictionary<string, AircraftFfbProfile>();
     }
         
 

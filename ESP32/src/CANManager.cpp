@@ -1,5 +1,6 @@
 #include <CANManager.h>
 #include <LogOutput.h>
+#include <math.h>
 
 /*****************************************************************************************************************/
 /* isotp-c shim functions */
@@ -79,6 +80,37 @@ extern "C" void isotp_user_debug(const char *message, ...) {
 
 /*****************************************************************************************************************/
 /* CANManager */
+namespace {
+    constexpr float kFfbScaleSpring = 0.01f;
+    constexpr float kFfbScaleDamper = 0.01f;
+    constexpr float kFfbScaleTrim = 0.1f;
+    constexpr float kFfbScaleBuffet = 0.01f;
+
+    struct FlightFfbPayload {
+        int16_t k_spring;
+        int16_t k_damper;
+        int16_t trim_offset;
+        int16_t buffet_amp;
+    };
+
+    FlightFfbPayload pack_flight_ffb(const FlightFfbAction &action) {
+        FlightFfbPayload payload = {};
+        payload.k_spring = (int16_t)lroundf(action.k_spring / kFfbScaleSpring);
+        payload.k_damper = (int16_t)lroundf(action.k_damper / kFfbScaleDamper);
+        payload.trim_offset = (int16_t)lroundf(action.trim_offset / kFfbScaleTrim);
+        payload.buffet_amp = (int16_t)lroundf(action.buffet_amp / kFfbScaleBuffet);
+        return payload;
+    }
+
+    FlightFfbAction unpack_flight_ffb(const FlightFfbPayload &payload) {
+        FlightFfbAction action = FlightFfbAction_init_default;
+        action.k_spring = payload.k_spring * kFfbScaleSpring;
+        action.k_damper = payload.k_damper * kFfbScaleDamper;
+        action.trim_offset = payload.trim_offset * kFfbScaleTrim;
+        action.buffet_amp = payload.buffet_amp * kFfbScaleBuffet;
+        return action;
+    }
+}
 /*****************************************************************************************************************/
 bool CANManager::get_force(AxisID axis_id, float &f_contact_point) {
     if (!MessageTools::check_axis_id(axis_id)) return false;
@@ -520,6 +552,18 @@ bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
                 action.function.automotive_pedal.trigger_abs = true;
                 on_ffb_action(action);
                 break;
+            case FFBFrameTypes::FLIGHT_FFB: {
+                if (rx_frame.data_length_code < sizeof(FlightFfbPayload)) {
+                    break;
+                }
+                FlightFfbPayload payload = {};
+                memcpy(&payload, rx_frame.data, sizeof(payload));
+                action.function_id = FunctionID(function_id);
+                action.which_function = FFBAction_flight_ffb_tag;
+                action.function.flight_ffb = unpack_flight_ffb(payload);
+                on_ffb_action(action);
+                break;
+            }
             default:
                 break;
         }
@@ -587,12 +631,33 @@ bool CANManager::send_abs_trigger(const FFBAction &action) {
     return true;
 }
 
+bool CANManager::send_flight_ffb(const FFBAction &action) {
+    if (action.which_function != FFBAction_flight_ffb_tag) {
+        return false;
+    }
+
+    FlightFfbPayload payload = pack_flight_ffb(action.function.flight_ffb);
+    CanFrame tx_frame = {};
+    tx_frame.identifier = 0x200 + (FFBFrameTypes::FLIGHT_FFB << 4) + action.function_id;
+    tx_frame.data_length_code = sizeof(payload);
+    memcpy(tx_frame.data, &payload, sizeof(payload));
+    if (!ESP32Can.writeFrame(&tx_frame, 0)) {
+        if (tx_err_cnt < 0xFFFFFFFF) {
+            tx_err_cnt++;
+        }
+        return false;
+    }
+    return true;
+}
+
 bool CANManager::send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
     switch (message.which_payload) {
         case Message_ffb_action_tag:
             if ((message.payload.ffb_action.which_function == FFBAction_automotive_pedal_tag) &&
                 message.payload.ffb_action.function.automotive_pedal.trigger_abs) {
                 return send_abs_trigger(message.payload.ffb_action);
+            } else if (message.payload.ffb_action.which_function == FFBAction_flight_ffb_tag) {
+                return send_flight_ffb(message.payload.ffb_action);
             } else {
                 return send_payload_to_axis(axis_id, raw_data, len_raw_data);
             }

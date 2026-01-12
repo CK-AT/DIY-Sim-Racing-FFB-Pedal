@@ -569,11 +569,23 @@ message AutomotivePedalFFBAction {
   bool trigger_cv_2 = 7;
 }
 
+message FlightFfbAction {
+  // centering spring gain (scaled by SimHub)
+  float k_spring = 1;
+  // damping gain (scaled by SimHub)
+  float k_damper = 2;
+  // trim offset in contact point units (mm)
+  float trim_offset = 3;
+  // buffet amplitude (0..1 or scaled by SimHub)
+  float buffet_amp = 4;
+}
+
 message FFBAction {
   // targeted function, will be used by gateways to dispatch to the correct axis
   FunctionID function_id = 1;
   oneof function {
     AutomotivePedalFFBAction automotive_pedal = 2;
+    FlightFfbAction flight_ffb = 3;
   }
 }
 

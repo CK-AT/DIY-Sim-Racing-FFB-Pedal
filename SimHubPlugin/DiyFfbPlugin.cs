@@ -7,6 +7,8 @@ using ProtbufTest;
 using SimHub.Plugins;
 using System;
 using System.IO.Ports;
+using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Windows.Media;
 using Windows.UI.Notifications;
@@ -82,6 +84,55 @@ namespace User.PluginSdkDemo
         private const int GatewayReconnectIntervalMs = 2000;
         private Timer gatewayReconnectTimer;
         private int gatewayReconnectBusy = 0;
+        private const uint XPlanePacketMagic = 0x46464244;
+        private const ushort XPlanePacketVersion = 1;
+        private const int XPlanePacketSizeBytes = 72;
+        private readonly object xplaneLock = new object();
+        private UdpClient xplaneUdpClient;
+        private Thread xplaneUdpThread;
+        private CancellationTokenSource xplaneUdpCts;
+        private XPlaneUdpPacket latestXPlanePacket;
+        private uint xplaneLastSequence;
+        private int xplaneDropouts;
+        private DateTime xplaneLastReceivedUtc = DateTime.MinValue;
+        private DateTime xplaneLastSendUtc = DateTime.MinValue;
+        private float xplaneTrimPitchMm;
+        private float xplaneTrimRollMm;
+        private float xplaneTrimRudderMm;
+        private DateTime xplaneTrimUtc = DateTime.MinValue;
+        private string activeCarId;
+        private string activeCarName;
+
+        private struct XPlaneFfbParams
+        {
+            public float Kq;
+            public float Krate;
+            public float TrimMmPerDeg;
+            public float BuffetStartDeg;
+            public float BuffetFullDeg;
+            public float BuffetGain;
+        }
+
+        private sealed class XPlaneUdpPacket
+        {
+            public uint Sequence;
+            public float IasKts;
+            public float TasMps;
+            public float AlphaDeg;
+            public float BetaDeg;
+            public float PRate;
+            public float QRate;
+            public float RRate;
+            public float ElevDefDeg;
+            public float AilDefDeg;
+            public float RudDefDeg;
+            public float ElevTrimDeg;
+            public float AilTrimDeg;
+            public float RudTrimDeg;
+            public float GNrml;
+            public bool OnGround;
+            public DateTime ReceivedUtc;
+        }
 
         //for (byte pedalIdx_lcl = 0; pedalIdx_lcl< 3; pedalIdx_lcl++)
         //{
@@ -207,6 +258,11 @@ namespace User.PluginSdkDemo
             bool MSFS_running_simhub = false;
             
             //bool WS_flag = false;
+
+            if (data.NewData != null)
+            {
+                HandleAircraftChange(data);
+            }
 
             if (data.GamePaused | (!data.GameRunning))
             {
@@ -650,6 +706,8 @@ namespace User.PluginSdkDemo
             }
 
 
+            ProcessXPlaneFfb();
+
             this.AttachDelegate("CurrentProfile", () => current_profile);
             pluginManager.SetPropertyValue("SelectedPedal", this.GetType(), current_pedal);
             pluginManager.SetPropertyValue("Action", this.GetType(), current_action);
@@ -693,6 +751,7 @@ namespace User.PluginSdkDemo
             this.SaveCommonSettings("GeneralSettings", Settings);
 
             StopGatewayAutoReconnect();
+            StopXPlaneUdpReceiver();
 
             // close serial communication
             if (ui != null)
@@ -752,6 +811,490 @@ namespace User.PluginSdkDemo
             {
                 gatewayReconnectTimer.Dispose();
                 gatewayReconnectTimer = null;
+            }
+        }
+
+        private void StartXPlaneUdpReceiver()
+        {
+            if (xplaneUdpThread != null || Settings == null || !Settings.XPlaneUdpEnabled)
+            {
+                return;
+            }
+
+            xplaneUdpCts = new CancellationTokenSource();
+            try
+            {
+                xplaneUdpClient = new UdpClient(Settings.XPlaneUdpPort);
+                xplaneUdpClient.Client.ReceiveTimeout = 500;
+            }
+            catch (Exception ex)
+            {
+                SimHub.Logging.Current.Error($"XPlane UDP receiver failed to start: {ex.Message}");
+                StopXPlaneUdpReceiver();
+                return;
+            }
+
+            xplaneUdpThread = new Thread(XPlaneUdpLoop)
+            {
+                IsBackground = true,
+                Name = "XPlaneUdpReceiver"
+            };
+            xplaneUdpThread.Start();
+        }
+
+        private void StopXPlaneUdpReceiver()
+        {
+            if (xplaneUdpCts != null)
+            {
+                xplaneUdpCts.Cancel();
+            }
+
+            if (xplaneUdpClient != null)
+            {
+                try
+                {
+                    xplaneUdpClient.Close();
+                }
+                catch
+                {
+                }
+            }
+
+            xplaneUdpThread = null;
+            xplaneUdpClient = null;
+            xplaneUdpCts = null;
+        }
+
+        private void XPlaneUdpLoop()
+        {
+            if (xplaneUdpClient == null || xplaneUdpCts == null)
+            {
+                return;
+            }
+
+            var endpoint = new IPEndPoint(IPAddress.Any, 0);
+            while (!xplaneUdpCts.IsCancellationRequested)
+            {
+                try
+                {
+                    byte[] data = xplaneUdpClient.Receive(ref endpoint);
+                    if (data != null && data.Length >= XPlanePacketSizeBytes)
+                    {
+                        ParseXPlanePacket(data);
+                    }
+                }
+                catch (SocketException ex)
+                {
+                    if (ex.SocketErrorCode != SocketError.TimedOut)
+                    {
+                        Thread.Sleep(50);
+                    }
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (Exception)
+                {
+                }
+            }
+        }
+
+        private void ParseXPlanePacket(byte[] data)
+        {
+            int offset = 0;
+            uint magic = ReadUInt32(data, ref offset);
+            if (magic != XPlanePacketMagic)
+            {
+                return;
+            }
+
+            ushort version = ReadUInt16(data, ref offset);
+            if (version != XPlanePacketVersion)
+            {
+                return;
+            }
+
+            ushort size = ReadUInt16(data, ref offset);
+            if (size > data.Length || size < XPlanePacketSizeBytes)
+            {
+                return;
+            }
+
+            uint sequence = ReadUInt32(data, ref offset);
+
+            var packet = new XPlaneUdpPacket
+            {
+                Sequence = sequence,
+                IasKts = ReadSingle(data, ref offset),
+                TasMps = ReadSingle(data, ref offset),
+                AlphaDeg = ReadSingle(data, ref offset),
+                BetaDeg = ReadSingle(data, ref offset),
+                PRate = ReadSingle(data, ref offset),
+                QRate = ReadSingle(data, ref offset),
+                RRate = ReadSingle(data, ref offset),
+                ElevDefDeg = ReadSingle(data, ref offset),
+                AilDefDeg = ReadSingle(data, ref offset),
+                RudDefDeg = ReadSingle(data, ref offset),
+                ElevTrimDeg = ReadSingle(data, ref offset),
+                AilTrimDeg = ReadSingle(data, ref offset),
+                RudTrimDeg = ReadSingle(data, ref offset),
+                GNrml = ReadSingle(data, ref offset),
+                OnGround = ReadByte(data, ref offset) != 0,
+                ReceivedUtc = DateTime.UtcNow
+            };
+
+            lock (xplaneLock)
+            {
+                if (xplaneLastSequence != 0 && sequence > xplaneLastSequence + 1)
+                {
+                    xplaneDropouts += (int)(sequence - xplaneLastSequence - 1);
+                }
+                xplaneLastSequence = sequence;
+                latestXPlanePacket = packet;
+                xplaneLastReceivedUtc = packet.ReceivedUtc;
+            }
+        }
+
+        private static ushort ReadUInt16(byte[] data, ref int offset)
+        {
+            ushort value = BitConverter.ToUInt16(data, offset);
+            offset += 2;
+            return value;
+        }
+
+        private static uint ReadUInt32(byte[] data, ref int offset)
+        {
+            uint value = BitConverter.ToUInt32(data, offset);
+            offset += 4;
+            return value;
+        }
+
+        private static float ReadSingle(byte[] data, ref int offset)
+        {
+            float value = BitConverter.ToSingle(data, offset);
+            offset += 4;
+            return value;
+        }
+
+        private static byte ReadByte(byte[] data, ref int offset)
+        {
+            byte value = data[offset];
+            offset += 1;
+            return value;
+        }
+
+        private void ProcessXPlaneFfb()
+        {
+            if (Settings == null || !Settings.XPlaneUdpEnabled || ESPsync_serialPort == null || !ESPsync_serialPort.IsOpen)
+            {
+                return;
+            }
+
+            XPlaneUdpPacket packet;
+            lock (xplaneLock)
+            {
+                if (latestXPlanePacket == null)
+                {
+                    return;
+                }
+                packet = latestXPlanePacket;
+            }
+
+            if ((DateTime.UtcNow - packet.ReceivedUtc).TotalMilliseconds > 500)
+            {
+                return;
+            }
+
+            if ((DateTime.UtcNow - xplaneLastSendUtc).TotalMilliseconds < 20)
+            {
+                return;
+            }
+            xplaneLastSendUtc = DateTime.UtcNow;
+
+            float iasMps = packet.IasKts * 0.514444f;
+            float qHat = iasMps * iasMps;
+            float pitchTrim = 0.0f;
+            float rollTrim = 0.0f;
+            float pedalsTrim = 0.0f;
+
+            if (IsXPlaneFfbEnabled(FunctionID.FlightStickPitch))
+            {
+                XPlaneFfbParams pitchParams = GetXPlaneFfbParams(FunctionID.FlightStickPitch);
+                float pitchSpring = pitchParams.Kq * qHat;
+                float pitchDamper = pitchParams.Krate * qHat;
+                float pitchBuffet = ComputeBuffet(packet.AlphaDeg, pitchParams, qHat);
+                pitchTrim = packet.ElevTrimDeg * pitchParams.TrimMmPerDeg;
+                SendFlightFfb(FunctionID.FlightStickPitch, pitchSpring, pitchDamper, pitchTrim, pitchBuffet);
+            }
+
+            if (IsXPlaneFfbEnabled(FunctionID.FlightStickRoll))
+            {
+                XPlaneFfbParams rollParams = GetXPlaneFfbParams(FunctionID.FlightStickRoll);
+                float rollSpring = rollParams.Kq * qHat;
+                float rollDamper = rollParams.Krate * qHat;
+                float rollBuffet = ComputeBuffet(packet.AlphaDeg, rollParams, qHat);
+                rollTrim = packet.AilTrimDeg * rollParams.TrimMmPerDeg;
+                SendFlightFfb(FunctionID.FlightStickRoll, rollSpring, rollDamper, rollTrim, rollBuffet);
+            }
+
+            if (IsXPlaneFfbEnabled(FunctionID.FlightPedals))
+            {
+                XPlaneFfbParams pedalsParams = GetXPlaneFfbParams(FunctionID.FlightPedals);
+                float pedalsSpring = pedalsParams.Kq * qHat;
+                float pedalsDamper = pedalsParams.Krate * qHat;
+                float pedalsBuffet = ComputeBuffet(packet.AlphaDeg, pedalsParams, qHat);
+                pedalsTrim = packet.RudTrimDeg * pedalsParams.TrimMmPerDeg;
+                SendFlightFfb(FunctionID.FlightPedals, pedalsSpring, pedalsDamper, pedalsTrim, pedalsBuffet);
+            }
+
+            lock (xplaneLock)
+            {
+                xplaneTrimPitchMm = pitchTrim;
+                xplaneTrimRollMm = rollTrim;
+                xplaneTrimRudderMm = pedalsTrim;
+                xplaneTrimUtc = packet.ReceivedUtc;
+            }
+        }
+
+        private void SendFlightFfb(FunctionID functionId, float kSpring, float kDamper, float trimOffset, float buffetAmp)
+        {
+            Message msg = new Message
+            {
+                FfbAction = new FFBAction
+                {
+                    FunctionId = functionId,
+                    FlightFfb = new FlightFfbAction
+                    {
+                        KSpring = kSpring,
+                        KDamper = kDamper,
+                        TrimOffset = trimOffset,
+                        BuffetAmp = buffetAmp
+                    }
+                }
+            };
+            ESPsync_serialPort.WriteMessage(msg);
+        }
+
+        public void ApplyXPlaneUdpSettings(bool enabled, int port)
+        {
+            if (Settings == null)
+            {
+                return;
+            }
+
+            Settings.XPlaneUdpEnabled = enabled;
+            Settings.XPlaneUdpPort = port;
+            StopXPlaneUdpReceiver();
+            StartXPlaneUdpReceiver();
+        }
+
+        public bool TryGetXPlaneTrimOffset(FunctionID functionId, out float trimMm)
+        {
+            trimMm = 0.0f;
+            lock (xplaneLock)
+            {
+                if ((DateTime.UtcNow - xplaneTrimUtc).TotalMilliseconds > 500)
+                {
+                    return false;
+                }
+
+                switch (functionId)
+                {
+                    case FunctionID.FlightStickPitch:
+                        trimMm = xplaneTrimPitchMm;
+                        return true;
+                    case FunctionID.FlightStickRoll:
+                        trimMm = xplaneTrimRollMm;
+                        return true;
+                    case FunctionID.FlightPedals:
+                        trimMm = xplaneTrimRudderMm;
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+        }
+
+        private DiyFfbPluginSettings.FunctionSettings GetFunctionSettings(FunctionID functionId)
+        {
+            if (Settings?.function_settings == null)
+            {
+                return null;
+            }
+
+            int index = (int)functionId - 1;
+            if (index < 0 || index >= Settings.function_settings.Length)
+            {
+                return null;
+            }
+
+            return Settings.function_settings[index];
+        }
+
+        private XPlaneFfbParams GetXPlaneFfbParams(FunctionID functionId)
+        {
+            var settings = GetFunctionSettings(functionId);
+            return new XPlaneFfbParams
+            {
+                Kq = settings?.XPlaneFfbKq ?? DiyFfbPluginSettings.DefaultXPlaneFfbKq,
+                Krate = settings?.XPlaneFfbKrate ?? DiyFfbPluginSettings.DefaultXPlaneFfbKrate,
+                TrimMmPerDeg = settings?.XPlaneTrimMmPerDeg ?? DiyFfbPluginSettings.DefaultXPlaneTrimMmPerDeg,
+                BuffetStartDeg = settings?.XPlaneBuffetStartDeg ?? DiyFfbPluginSettings.DefaultXPlaneBuffetStartDeg,
+                BuffetFullDeg = settings?.XPlaneBuffetFullDeg ?? DiyFfbPluginSettings.DefaultXPlaneBuffetFullDeg,
+                BuffetGain = settings?.XPlaneBuffetGain ?? DiyFfbPluginSettings.DefaultXPlaneBuffetGain
+            };
+        }
+
+        private bool IsXPlaneFfbEnabled(FunctionID functionId)
+        {
+            var settings = GetFunctionSettings(functionId);
+            return settings == null || settings.XPlaneFfbEnabled;
+        }
+
+        private static float ComputeBuffet(float alphaDeg, XPlaneFfbParams parameters, float qHat)
+        {
+            if (parameters.BuffetFullDeg <= parameters.BuffetStartDeg)
+            {
+                return 0.0f;
+            }
+            if (alphaDeg <= parameters.BuffetStartDeg)
+            {
+                return 0.0f;
+            }
+
+            float t = (alphaDeg - parameters.BuffetStartDeg) /
+                      (parameters.BuffetFullDeg - parameters.BuffetStartDeg);
+            t = Math.Max(0.0f, Math.Min(1.0f, t));
+            return t * parameters.BuffetGain * qHat;
+        }
+
+        private void ApplyXPlaneFunctionDefaultsFromLegacy()
+        {
+            if (Settings?.function_settings == null)
+            {
+                return;
+            }
+
+            bool legacyCustom =
+                !NearlyEqual(Settings.XPlaneFfbKq, DiyFfbPluginSettings.DefaultXPlaneFfbKq) ||
+                !NearlyEqual(Settings.XPlaneFfbKrate, DiyFfbPluginSettings.DefaultXPlaneFfbKrate) ||
+                !NearlyEqual(Settings.XPlaneTrimMmPerDeg, DiyFfbPluginSettings.DefaultXPlaneTrimMmPerDeg) ||
+                !NearlyEqual(Settings.XPlaneBuffetStartDeg, DiyFfbPluginSettings.DefaultXPlaneBuffetStartDeg) ||
+                !NearlyEqual(Settings.XPlaneBuffetFullDeg, DiyFfbPluginSettings.DefaultXPlaneBuffetFullDeg) ||
+                !NearlyEqual(Settings.XPlaneBuffetGain, DiyFfbPluginSettings.DefaultXPlaneBuffetGain);
+
+            if (!legacyCustom)
+            {
+                return;
+            }
+
+            foreach (var functionSettings in Settings.function_settings)
+            {
+                if (functionSettings == null || !IsXPlaneFfbDefault(functionSettings))
+                {
+                    continue;
+                }
+
+                functionSettings.XPlaneFfbKq = Settings.XPlaneFfbKq;
+                functionSettings.XPlaneFfbKrate = Settings.XPlaneFfbKrate;
+                functionSettings.XPlaneTrimMmPerDeg = Settings.XPlaneTrimMmPerDeg;
+                functionSettings.XPlaneBuffetStartDeg = Settings.XPlaneBuffetStartDeg;
+                functionSettings.XPlaneBuffetFullDeg = Settings.XPlaneBuffetFullDeg;
+                functionSettings.XPlaneBuffetGain = Settings.XPlaneBuffetGain;
+            }
+        }
+
+        private static bool IsXPlaneFfbDefault(DiyFfbPluginSettings.FunctionSettings functionSettings)
+        {
+            return NearlyEqual(functionSettings.XPlaneFfbKq, DiyFfbPluginSettings.DefaultXPlaneFfbKq) &&
+                   NearlyEqual(functionSettings.XPlaneFfbKrate, DiyFfbPluginSettings.DefaultXPlaneFfbKrate) &&
+                   NearlyEqual(functionSettings.XPlaneTrimMmPerDeg, DiyFfbPluginSettings.DefaultXPlaneTrimMmPerDeg) &&
+                   NearlyEqual(functionSettings.XPlaneBuffetStartDeg, DiyFfbPluginSettings.DefaultXPlaneBuffetStartDeg) &&
+                   NearlyEqual(functionSettings.XPlaneBuffetFullDeg, DiyFfbPluginSettings.DefaultXPlaneBuffetFullDeg) &&
+                   NearlyEqual(functionSettings.XPlaneBuffetGain, DiyFfbPluginSettings.DefaultXPlaneBuffetGain);
+        }
+
+        private static bool NearlyEqual(float a, float b)
+        {
+            return Math.Abs(a - b) < 0.000001f;
+        }
+
+        private void HandleAircraftChange(GameData data)
+        {
+            string carId = data.NewData?.CarId;
+            if (string.IsNullOrWhiteSpace(carId))
+            {
+                return;
+            }
+
+            if (string.Equals(carId, activeCarId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(activeCarId))
+            {
+                SaveCurrentAircraftProfile(activeCarId);
+            }
+
+            ApplyAircraftProfile(carId);
+            activeCarId = carId;
+            activeCarName = data.NewData?.CarModel;
+
+            if (ui != null)
+            {
+                string carName = activeCarName;
+                string carIdLabel = activeCarId;
+                ui.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    ui.RefreshXPlaneFfbSettings();
+                    ui.UpdateActiveAircraftLabel(carName, carIdLabel);
+                }));
+            }
+        }
+
+        private void SaveCurrentAircraftProfile(string carId)
+        {
+            if (Settings == null || string.IsNullOrWhiteSpace(carId))
+            {
+                return;
+            }
+
+            if (Settings.AircraftFfbProfiles == null)
+            {
+                Settings.AircraftFfbProfiles = new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+            }
+
+            var profile = new DiyFfbPluginSettings.AircraftFfbProfile();
+            profile.FlightStickPitch.CopyFrom(GetFunctionSettings(FunctionID.FlightStickPitch));
+            profile.FlightStickRoll.CopyFrom(GetFunctionSettings(FunctionID.FlightStickRoll));
+            profile.FlightPedals.CopyFrom(GetFunctionSettings(FunctionID.FlightPedals));
+
+            Settings.AircraftFfbProfiles[carId] = profile;
+        }
+
+        private void ApplyAircraftProfile(string carId)
+        {
+            if (Settings == null || string.IsNullOrWhiteSpace(carId))
+            {
+                return;
+            }
+
+            if (Settings.AircraftFfbProfiles == null)
+            {
+                Settings.AircraftFfbProfiles = new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+            }
+
+            if (Settings.AircraftFfbProfiles.TryGetValue(carId, out var profile))
+            {
+                profile.FlightStickPitch.ApplyTo(GetFunctionSettings(FunctionID.FlightStickPitch));
+                profile.FlightStickRoll.ApplyTo(GetFunctionSettings(FunctionID.FlightStickRoll));
+                profile.FlightPedals.ApplyTo(GetFunctionSettings(FunctionID.FlightPedals));
+            }
+            else
+            {
+                SaveCurrentAircraftProfile(carId);
             }
         }
 
@@ -824,6 +1367,7 @@ namespace User.PluginSdkDemo
 
             // Load settings
             Settings = this.ReadCommonSettings<DiyFfbPluginSettings>("GeneralSettings", () => new DiyFfbPluginSettings());
+            ApplyXPlaneFunctionDefaultsFromLegacy();
             Simhub_version = (String)pluginManager.GetPropertyValue("DataCorePlugin.SimHubVersion");
             // Declare a property available in the property list, this gets evaluated "on demand" (when shown or used in formulas)
             //this.AttachDelegate("CurrentDateTime", () => DateTime.Now);
@@ -1183,6 +1727,7 @@ namespace User.PluginSdkDemo
             }
 
             StartGatewayAutoReconnect();
+            StartXPlaneUdpReceiver();
 
         }
     }

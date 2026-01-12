@@ -132,6 +132,21 @@ namespace User.PluginSdkDemo
             }
         }
 
+        public void RefreshXPlaneFfbSettings()
+        {
+            switch (tc_specific_function.SelectedIndex)
+            {
+                case 1:
+                    FlightPedalsConfig.RefreshXPlaneFfbSettings();
+                    break;
+                case 2:
+                    FlightStickConfig.RefreshXPlaneFfbSettings();
+                    break;
+                default:
+                    break;
+            }
+        }
+
         public void SwitchFunction(Function function)
         {
             this.function = function;

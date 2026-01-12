@@ -201,6 +201,18 @@ namespace User.PluginSdkDemo
             {
                 textbox_PASS.Password = Plugin.Settings.PASS_string ?? string.Empty;
             }
+
+            if (CheckBox_XPlaneUdpEnabled != null)
+            {
+                CheckBox_XPlaneUdpEnabled.IsChecked = Plugin.Settings.XPlaneUdpEnabled;
+            }
+
+            if (TextBox_XPlanePort != null)
+            {
+                TextBox_XPlanePort.Text = Plugin.Settings.XPlaneUdpPort.ToString();
+            }
+
+            UpdateActiveAircraftLabel(null, null);
         }
 
         private void UpdateSerialPortList_click(object sender, RoutedEventArgs e)
@@ -236,6 +248,37 @@ namespace User.PluginSdkDemo
             {
                 Plugin.Settings.Pedal_ESPNow_auto_connect_flag = false;
             }
+        }
+
+        private void CheckBox_XPlaneUdpEnabled_Checked(object sender, RoutedEventArgs e)
+        {
+            UpdateXPlaneUdpSettings(true);
+        }
+
+        private void CheckBox_XPlaneUdpEnabled_Unchecked(object sender, RoutedEventArgs e)
+        {
+            UpdateXPlaneUdpSettings(false);
+        }
+
+        private void TextBox_XPlanePort_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            UpdateXPlaneUdpSettings(CheckBox_XPlaneUdpEnabled?.IsChecked == true);
+        }
+
+        private void UpdateXPlaneUdpSettings(bool enabled)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            int port = Plugin.Settings.XPlaneUdpPort;
+            if (TextBox_XPlanePort != null && int.TryParse(TextBox_XPlanePort.Text, out int parsedPort))
+            {
+                port = parsedPort;
+            }
+
+            Plugin.ApplyXPlaneUdpSettings(enabled, port);
         }
 
         private void textbox_SSID_TextChanged(object sender, TextChangedEventArgs e)
@@ -561,6 +604,23 @@ namespace User.PluginSdkDemo
             uc_function_config.OnAxisStateUpdate(axisState);
             uc_axis_config.OnAxisStateUpdate(axisState);
             UpdateVjoy(axisState);
+        }
+
+        public void RefreshXPlaneFfbSettings()
+        {
+            uc_function_config.RefreshXPlaneFfbSettings();
+        }
+
+        public void UpdateActiveAircraftLabel(string carName, string carId)
+        {
+            if (TextBlock_ActiveAircraft == null)
+            {
+                return;
+            }
+
+            string label = string.IsNullOrWhiteSpace(carName) ? "-" : carName;
+            TextBlock_ActiveAircraft.Text = label;
+            TextBlock_ActiveAircraft.ToolTip = string.IsNullOrWhiteSpace(carId) ? null : carId;
         }
 
         private void UpdateVjoy(AxisState axisState)

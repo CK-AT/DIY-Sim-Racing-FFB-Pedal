@@ -82,6 +82,36 @@ void OscillationGuard::update(Sim *sim, float &f_sum) {
     }
 }
 
+void Buffet::update(Sim *sim, float &f_sum) {
+    if (!_enabled || _amplitude <= 0.0f) return;
+
+    uint32_t now = micros();
+    float dt = 0.001f;
+    if (_last_update_us != 0) {
+        dt = (now - _last_update_us) / 1000000.0f;
+        if (dt <= 0.0f) {
+            dt = 0.001f;
+        }
+    }
+    _last_update_us = now;
+
+    // Xorshift32 RNG for repeatable noise.
+    _rng_state ^= _rng_state << 13;
+    _rng_state ^= _rng_state >> 17;
+    _rng_state ^= _rng_state << 5;
+    float noise = (int32_t)(_rng_state & 0x7FFFFF) / 4194303.5f - 1.0f;
+
+    const float tau_fast = 1.0f / (2.0f * PI * 25.0f);
+    const float tau_slow = 1.0f / (2.0f * PI * 5.0f);
+    float alpha_fast = dt / (tau_fast + dt);
+    float alpha_slow = dt / (tau_slow + dt);
+    _fast_state += alpha_fast * (noise - _fast_state);
+    _slow_state += alpha_slow * (noise - _slow_state);
+    float band_noise = _fast_state - _slow_state;
+
+    f_sum += band_noise * _amplitude;
+}
+
 void Friction::update(Sim *sim, float &f_sum) {
     if (!_enabled) return;
     if (sim->get_v() > 0.0) {

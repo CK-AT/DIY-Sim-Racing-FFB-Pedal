@@ -10,6 +10,7 @@ class FlightPedalsFunction : public IFunction {
     public:
         FlightPedalsFunction(void);
         void update_config(const FlightPedalsConfig &config);
+        void update(Sim *sim, float &f_sum) override;
         float get_x_contact_point_min(void) override {
             return _config.pos_near_lim;
         }
@@ -21,5 +22,9 @@ class FlightPedalsFunction : public IFunction {
     private:
         Spring centering_spring = Spring(0.0, 0.0);
         Damper damper = Damper(1.0);
+        Buffet buffet = Buffet(0.0f);
         FlightPedalsConfig _config = FlightPedalsConfig_init_default;
+        float _base_center = 0.0f;
+        uint32_t _last_ffb_ms = 0;
+        bool _ffb_overridden = false;
 };

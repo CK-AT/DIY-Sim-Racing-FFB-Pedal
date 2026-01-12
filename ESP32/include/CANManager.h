@@ -29,7 +29,8 @@ class CANManager : public ICommChannel {
         };
 
         enum FFBFrameTypes {
-            ABS = 0
+            ABS = 0,
+            FLIGHT_FFB = 1
         };
 
         struct ForceAndPosition {
@@ -158,6 +159,7 @@ class CANManager : public ICommChannel {
         bool try_process_axis_isotp_can_frame(CanFrame &rx_frame);
         bool send_payload_to_axis(AxisID axis_id, const uint8_t *data, uint32_t len);
         bool send_abs_trigger(const FFBAction &action);
+        bool send_flight_ffb(const FFBAction &action);
         IsotpState isotp_state[MessageTools::MAX_AXES_COUNT];
         IsotpStateInboundLogging inbound_logging_isotp_states[MessageTools::MAX_AXES_COUNT];
         OnAxisPayload on_axis_payload = nullptr;

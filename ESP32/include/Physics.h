@@ -248,6 +248,22 @@ class OscillationGuard : public SimElement {
         uint32_t _last_update_us = 0;
 };
 
+class Buffet : public SimElement {
+    public:
+        Buffet(float amplitude = 0.0f) : _amplitude(max(amplitude, 0.0f)) {}
+        void update(Sim *sim, float &f_sum);
+        void set_amplitude(float amplitude) {
+            _amplitude = max(amplitude, 0.0f);
+        }
+
+    private:
+        float _amplitude = 0.0f;
+        float _fast_state = 0.0f;
+        float _slow_state = 0.0f;
+        uint32_t _last_update_us = 0;
+        uint32_t _rng_state = 0x6d2b79f5;
+};
+
 class Friction : public SimElement {
     public:
         Friction(float f) : _f(f) {};
