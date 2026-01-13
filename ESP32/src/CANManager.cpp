@@ -87,18 +87,40 @@ namespace {
     constexpr float kFfbScaleBuffet = 0.01f;
 
     struct FlightFfbPayload {
-        int16_t k_spring;
-        int16_t k_damper;
+        uint16_t k_spring;
+        uint16_t k_damper;
         int16_t trim_offset;
-        int16_t buffet_amp;
+        uint16_t buffet_amp;
     };
+
+    int16_t clamp_ffb_i16(float value, float scale) {
+        int32_t scaled = (int32_t)lroundf(value / scale);
+        if (scaled > INT16_MAX) {
+            return INT16_MAX;
+        }
+        if (scaled < INT16_MIN) {
+            return INT16_MIN;
+        }
+        return (int16_t)scaled;
+    }
+
+    uint16_t clamp_ffb_u16(float value, float scale) {
+        int32_t scaled = (int32_t)lroundf(value / scale);
+        if (scaled < 0) {
+            return 0;
+        }
+        if (scaled > UINT16_MAX) {
+            return UINT16_MAX;
+        }
+        return (uint16_t)scaled;
+    }
 
     FlightFfbPayload pack_flight_ffb(const FlightFfbAction &action) {
         FlightFfbPayload payload = {};
-        payload.k_spring = (int16_t)lroundf(action.k_spring / kFfbScaleSpring);
-        payload.k_damper = (int16_t)lroundf(action.k_damper / kFfbScaleDamper);
-        payload.trim_offset = (int16_t)lroundf(action.trim_offset / kFfbScaleTrim);
-        payload.buffet_amp = (int16_t)lroundf(action.buffet_amp / kFfbScaleBuffet);
+        payload.k_spring = clamp_ffb_u16(action.k_spring, kFfbScaleSpring);
+        payload.k_damper = clamp_ffb_u16(action.k_damper, kFfbScaleDamper);
+        payload.trim_offset = clamp_ffb_i16(action.trim_offset, kFfbScaleTrim);
+        payload.buffet_amp = clamp_ffb_u16(action.buffet_amp, kFfbScaleBuffet);
         return payload;
     }
 
