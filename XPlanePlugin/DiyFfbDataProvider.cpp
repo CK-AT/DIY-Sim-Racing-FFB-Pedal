@@ -1,11 +1,8 @@
-// Downloaded from https://developer.x-plane.com/code-sample/motionplatformdata/
+// Based on https://developer.x-plane.com/code-sample/motionplatformdata/
 
 
 /*
-Plugin to show how to derive motion platform data from our datarefs
-Thanks to Austin for allowing us to use the original Xplane conversion code.
-
-Version 1.0.0.1			Intitial Sandy Barbour - 05/08/2007
+Plugin to provide FFB relevant data to the DIY FFB SimHub Plugin via UDP.
 */
 
 // has to be included first! X-Plane plugin SDK headers pull in windows.h, which leads to compiler errors
@@ -207,9 +204,12 @@ void DFFB_CalculateMotionData(void)
 	packet.ail_def_deg = DFFB_DR_ail_def ? XPLMGetDataf(DFFB_DR_ail_def) : 0.0f;
 	packet.rud_def_deg = DFFB_DR_rud_def ? XPLMGetDataf(DFFB_DR_rud_def) : 0.0f;
 	packet.elev_trim_deg = DFFB_DR_elev_trim ? XPLMGetDataf(DFFB_DR_elev_trim) : 0.0f;
+    XPLMSetDataf(DFFB_DR_elev_trim, 0.0f);
 	packet.ail_trim_deg = DFFB_DR_ail_trim ? XPLMGetDataf(DFFB_DR_ail_trim) : 0.0f;
-	packet.rud_trim_deg = DFFB_DR_rud_trim ? XPLMGetDataf(DFFB_DR_rud_trim) : 0.0f;
-	packet.g_nrml = DFFB_DR_g_nrml ? XPLMGetDataf(DFFB_DR_g_nrml) : 0.0f;
+    XPLMSetDataf(DFFB_DR_ail_trim, 0.0f);
+    packet.rud_trim_deg = DFFB_DR_rud_trim ? XPLMGetDataf(DFFB_DR_rud_trim) : 0.0f;
+    XPLMSetDataf(DFFB_DR_rud_trim, 0.0f);
+    packet.g_nrml = DFFB_DR_g_nrml ? XPLMGetDataf(DFFB_DR_g_nrml) : 0.0f;
 	packet.on_ground = DFFB_DR_on_ground ? (XPLMGetDatai(DFFB_DR_on_ground) != 0) : 0;
 
 	struct sockaddr_in ClientAddr;
