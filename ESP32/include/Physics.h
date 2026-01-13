@@ -106,6 +106,19 @@ class Sim {
         float get_dt_ms(void) const {
             return _dt_ms;
         }
+#ifdef UNIT_TEST
+        void set_state(float x, float x_prev) {
+            _x = x;
+            _x_prev = x_prev;
+        }
+        float get_x_prev(void) const {
+            return _x_prev;
+        }
+        void set_dt_ms(float dt_ms) {
+            _dt_ms = dt_ms;
+        }
+        float compute_force_sum(float f_in);
+#endif
         void set_m(float val) {
             _m = val;
         }

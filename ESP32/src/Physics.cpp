@@ -227,3 +227,13 @@ void Sim::update(float &dt, float &f_in, bool final_f) {
     _x = constrain(x_raw, _x_min, _x_max);
     _f_sum = f_sum;
 }
+
+#ifdef UNIT_TEST
+float Sim::compute_force_sum(float f_in) {
+    float f_sum = f_in;
+    for (auto element : _elements) {
+        element->update(this, f_sum);
+    }
+    return f_sum;
+}
+#endif
