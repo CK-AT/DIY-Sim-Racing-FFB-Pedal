@@ -774,6 +774,14 @@
                                                     <Label Content="Port:" Height="15" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
                                                     <TextBox x:Name="TextBox_XPlanePort" TextChanged="TextBox_XPlanePort_TextChanged" Height="20" Width="80" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10"/>
                                                 </StackPanel>
+                                                <StackPanel HorizontalAlignment="Left" Height="24" VerticalAlignment="Center" Width="540" Orientation="Horizontal" Margin="70,6,0,0">
+                                                    <styles:SHButtonPrimary x:Name="btn_save_aircraft_ffb" Click="btn_save_aircraft_ffb_Click" Width="120" Content="Save Aircraft FFB" Height="22" HorizontalAlignment="Left" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                                                    <styles:SHButtonPrimary x:Name="btn_load_aircraft_ffb" Click="btn_load_aircraft_ffb_Click" Width="120" Content="Load Aircraft FFB" Height="22" HorizontalAlignment="Left" Margin="6,0,0,0" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                                                </StackPanel>
+                                                <StackPanel HorizontalAlignment="Left" Height="24" VerticalAlignment="Center" Width="540" Orientation="Horizontal" Margin="70,4,0,0">
+                                                    <styles:SHButtonPrimary x:Name="btn_save_ffb_map" Click="btn_save_ffb_map_Click" Width="120" Content="Save FFB Map" Height="22" HorizontalAlignment="Left" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                                                    <styles:SHButtonPrimary x:Name="btn_load_ffb_map" Click="btn_load_ffb_map_Click" Width="120" Content="Load FFB Map" Height="22" HorizontalAlignment="Left" Margin="6,0,0,0" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                                                </StackPanel>
                                             </StackPanel>
                                         </Border>
                                     </StackPanel>

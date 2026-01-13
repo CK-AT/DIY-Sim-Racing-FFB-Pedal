@@ -1,4 +1,5 @@
 using Google.Protobuf;
+using Newtonsoft.Json;
 using ProtbufTest;
 using System;
 using System.Collections.Generic;
@@ -279,6 +280,124 @@ namespace User.PluginSdkDemo
             }
 
             Plugin.ApplyXPlaneUdpSettings(enabled, port);
+        }
+
+        private void btn_save_aircraft_ffb_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            string carId = Plugin.GetActiveCarId();
+            if (string.IsNullOrWhiteSpace(carId))
+            {
+                MessageBox.Show("No active aircraft detected.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            Microsoft.Win32.SaveFileDialog saveFileDialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                DefaultExt = "json",
+                FileName = $"{carId}_ffb.json"
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                if (!Plugin.Settings.AircraftFfbProfiles.TryGetValue(carId, out var profile))
+                {
+                    MessageBox.Show("No stored profile for current aircraft.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                string json = JsonConvert.SerializeObject(profile, Formatting.Indented);
+                System.IO.File.WriteAllText(saveFileDialog.FileName, json);
+            }
+        }
+
+        private void btn_load_aircraft_ffb_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            string carId = Plugin.GetActiveCarId();
+            if (string.IsNullOrWhiteSpace(carId))
+            {
+                MessageBox.Show("No active aircraft detected.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                DefaultExt = "json",
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string json = System.IO.File.ReadAllText(openFileDialog.FileName);
+                var profile = JsonConvert.DeserializeObject<DiyFfbPluginSettings.AircraftFfbProfile>(json);
+                if (profile == null)
+                {
+                    MessageBox.Show("Invalid profile JSON.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                Plugin.ApplyAircraftFfbProfile(carId, profile);
+                RefreshXPlaneFfbSettings();
+            }
+        }
+
+        private void btn_save_ffb_map_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            Microsoft.Win32.SaveFileDialog saveFileDialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                DefaultExt = "json",
+                FileName = "ffb_profiles.json"
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                string json = JsonConvert.SerializeObject(Plugin.Settings.AircraftFfbProfiles, Formatting.Indented);
+                System.IO.File.WriteAllText(saveFileDialog.FileName, json);
+            }
+        }
+
+        private void btn_load_ffb_map_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                DefaultExt = "json",
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string json = System.IO.File.ReadAllText(openFileDialog.FileName);
+                var profiles = JsonConvert.DeserializeObject<System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>>(json);
+                if (profiles == null)
+                {
+                    MessageBox.Show("Invalid profile map JSON.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                Plugin.ReplaceAircraftFfbProfiles(profiles);
+                RefreshXPlaneFfbSettings();
+            }
         }
 
         private void textbox_SSID_TextChanged(object sender, TextChangedEventArgs e)

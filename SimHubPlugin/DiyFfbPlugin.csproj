@@ -190,6 +190,8 @@
     <Compile Include="ControllerAxisSelector.xaml.cs">
       <DependentUpon>ControllerAxisSelector.xaml</DependentUpon>
     </Compile>
+    <Compile Include="XPlaneFfbMath.cs" />
+    <Compile Include="XPlaneFfbGraph.cs" />
     <Compile Include="AxisSelector.xaml.cs">
       <DependentUpon>AxisSelector.xaml</DependentUpon>
     </Compile>

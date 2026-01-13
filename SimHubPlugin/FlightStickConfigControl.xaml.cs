@@ -1,6 +1,9 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Shapes;
+using System.Windows.Threading;
 using MahApps.Metro.Controls;
 
 namespace User.PluginSdkDemo
@@ -23,6 +26,8 @@ namespace User.PluginSdkDemo
         private bool hasAxisPosition;
         private double latestTrimCenter;
         private bool hasTrimCenter;
+        private DispatcherTimer xplaneTimer;
+        private float lastIasKts;
 
         public FlightStickConfigControl()
         {
@@ -36,6 +41,22 @@ namespace User.PluginSdkDemo
             this.ui = ui;
             this.plugin = plugin;
             is_updating = false;
+            StartXPlaneTimer();
+        }
+
+        private void StartXPlaneTimer()
+        {
+            if (xplaneTimer != null)
+            {
+                return;
+            }
+
+            xplaneTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(200)
+            };
+            xplaneTimer.Tick += (sender, args) => UpdateXPlaneTelemetry();
+            xplaneTimer.Start();
         }
 
         public void OnKinematicParametersChanged(KinematicParameters parameters)
@@ -316,8 +337,11 @@ namespace User.PluginSdkDemo
             Slider_xplane_buffet_start_deg.Value = settings.XPlaneBuffetStartDeg;
             Slider_xplane_buffet_full_deg.Value = settings.XPlaneBuffetFullDeg;
             Slider_xplane_buffet_gain.Value = settings.XPlaneBuffetGain;
+            Slider_xplane_weathervane_gain.Value = settings.XPlaneWeathervaneGain;
+            Slider_xplane_vref.Value = settings.XPlaneVrefKts;
 
             UpdateXPlaneLabels();
+            UpdateGainGraph();
         }
 
         private void UpdateXPlaneLabels()
@@ -328,15 +352,15 @@ namespace User.PluginSdkDemo
             }
             if (label_xplane_kq != null)
             {
-                label_xplane_kq.Content = String.Format("Spring Gain (kq): {0:F4}", Slider_xplane_kq.Value);
+                label_xplane_kq.Content = String.Format("Spring Gain @ Vref: {0:F3}", Slider_xplane_kq.Value);
             }
             if (label_xplane_krate != null)
             {
-                label_xplane_krate.Content = String.Format("Damper Gain (krate): {0:F4}", Slider_xplane_krate.Value);
+                label_xplane_krate.Content = String.Format("Damper Gain @ Vref: {0:F3}", Slider_xplane_krate.Value);
             }
             if (label_xplane_trim_mm_per_deg != null)
             {
-                label_xplane_trim_mm_per_deg.Content = String.Format("Trim Scale: {0:F2} mm/deg", Slider_xplane_trim_mm_per_deg.Value);
+                label_xplane_trim_mm_per_deg.Content = String.Format("Trim Scale: {0:F3} mm/unit", Slider_xplane_trim_mm_per_deg.Value);
             }
             if (label_xplane_buffet_start_deg != null)
             {
@@ -348,7 +372,15 @@ namespace User.PluginSdkDemo
             }
             if (label_xplane_buffet_gain != null)
             {
-                label_xplane_buffet_gain.Content = String.Format("Buffet Gain: {0:F3}", Slider_xplane_buffet_gain.Value);
+                label_xplane_buffet_gain.Content = String.Format("Buffet Gain @ Vref: {0:F3}", Slider_xplane_buffet_gain.Value);
+            }
+            if (label_xplane_weathervane_gain != null)
+            {
+                label_xplane_weathervane_gain.Content = String.Format("Weather-Vaning Gain @ Vref: {0:F3}", Slider_xplane_weathervane_gain.Value);
+            }
+            if (label_xplane_vref != null)
+            {
+                label_xplane_vref.Content = String.Format("Vref (kts): {0:F0}", Slider_xplane_vref.Value);
             }
         }
 
@@ -368,6 +400,7 @@ namespace User.PluginSdkDemo
 
             settings.XPlaneFfbKq = (float)e.NewValue;
             UpdateXPlaneLabels();
+            UpdateGainGraph();
         }
 
         private void Toggle_xplane_ffb_enabled_Checked(object sender, RoutedEventArgs e)
@@ -414,6 +447,7 @@ namespace User.PluginSdkDemo
 
             settings.XPlaneFfbKrate = (float)e.NewValue;
             UpdateXPlaneLabels();
+            UpdateGainGraph();
         }
 
         private void OnXPlaneTrimScaleChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -486,6 +520,45 @@ namespace User.PluginSdkDemo
 
             settings.XPlaneBuffetGain = (float)e.NewValue;
             UpdateXPlaneLabels();
+            UpdateGainGraph();
+        }
+
+        private void OnXPlaneWeathervaneGainChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (is_updating)
+            {
+                UpdateXPlaneLabels();
+                return;
+            }
+
+            var settings = GetFunctionSettings();
+            if (settings == null)
+            {
+                return;
+            }
+
+            settings.XPlaneWeathervaneGain = (float)e.NewValue;
+            UpdateXPlaneLabels();
+            UpdateGainGraph();
+        }
+
+        private void OnXPlaneVrefChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (is_updating)
+            {
+                UpdateXPlaneLabels();
+                return;
+            }
+
+            var settings = GetFunctionSettings();
+            if (settings == null)
+            {
+                return;
+            }
+
+            settings.XPlaneVrefKts = (float)e.NewValue;
+            UpdateXPlaneLabels();
+            UpdateGainGraph();
         }
 
         private void UpdateTrimCenter()
@@ -496,6 +569,135 @@ namespace User.PluginSdkDemo
             {
                 latestTrimCenter = trimMm;
             }
+        }
+
+        private void UpdateXPlaneTelemetry()
+        {
+            if (plugin == null || TextBlock_xplane_ias == null)
+            {
+                return;
+            }
+
+            float iasKts;
+            float alphaDeg;
+            float betaDeg;
+            float elevTrim;
+            float ailTrim;
+            float rudTrim;
+            if (!plugin.TryGetXPlaneTelemetry(out iasKts, out alphaDeg, out betaDeg, out elevTrim, out ailTrim, out rudTrim))
+            {
+                lastIasKts = 0.0f;
+                TextBlock_xplane_ias.Text = "IAS: -- kt";
+                if (TextBlock_xplane_trim != null)
+                {
+                    TextBlock_xplane_trim.Text = "Trim: -- mm";
+                }
+                if (TextBlock_xplane_vane != null)
+                {
+                    TextBlock_xplane_vane.Text = "Vane: -- mm";
+                }
+                if (TextBlock_xplane_spring_value != null)
+                {
+                    TextBlock_xplane_spring_value.Text = "--";
+                }
+                if (TextBlock_xplane_damper_value != null)
+                {
+                    TextBlock_xplane_damper_value.Text = "--";
+                }
+                UpdateGainCursor();
+                return;
+            }
+
+            lastIasKts = iasKts;
+            float trimDeg = 0.0f;
+            float vaneDeg = 0.0f;
+            if (current_function_id == FunctionID.FlightStickPitch)
+            {
+                trimDeg = elevTrim;
+                vaneDeg = alphaDeg;
+            }
+            else if (current_function_id == FunctionID.FlightStickRoll)
+            {
+                trimDeg = ailTrim;
+                vaneDeg = 0.0f;
+            }
+
+            float trimMm = trimDeg * (float)Slider_xplane_trim_mm_per_deg.Value;
+            float qScale = XPlaneFfbMath.ComputeQScaleFromIasKts(iasKts, (float)Slider_xplane_vref.Value);
+            float vaneMm = (float)Slider_xplane_weathervane_gain.Value * qScale * vaneDeg;
+            float springGain = (float)Slider_xplane_kq.Value * qScale;
+            float damperGain = (float)Slider_xplane_krate.Value * qScale;
+
+            TextBlock_xplane_ias.Text = String.Format("IAS: {0:F0} kt", iasKts);
+            if (TextBlock_xplane_trim != null)
+            {
+                TextBlock_xplane_trim.Text = String.Format("Trim: {0:F2} mm", trimMm);
+            }
+            if (TextBlock_xplane_vane != null)
+            {
+                TextBlock_xplane_vane.Text = String.Format("Vane: {0:F2} mm", vaneMm);
+            }
+            if (TextBlock_xplane_spring_value != null)
+            {
+                TextBlock_xplane_spring_value.Text = String.Format("{0:F3}", springGain);
+            }
+            if (TextBlock_xplane_damper_value != null)
+            {
+                TextBlock_xplane_damper_value.Text = String.Format("{0:F3}", damperGain);
+            }
+            UpdateGainCursor();
+        }
+
+        private void UpdateGainGraph()
+        {
+            if (Canvas_xplane_gain == null || Polyline_xplane_spring == null || Polyline_xplane_damper == null)
+            {
+                return;
+            }
+
+            double width = Canvas_xplane_gain.Width;
+            double height = Canvas_xplane_gain.Height;
+            if (width <= 0.0 || height <= 0.0)
+            {
+                return;
+            }
+
+            float vrefKts = (float)Slider_xplane_vref.Value;
+            float springRef = (float)Slider_xplane_kq.Value;
+            float damperRef = (float)Slider_xplane_krate.Value;
+            PointCollection springPoints;
+            PointCollection damperPoints;
+            float maxIasKts;
+            float maxGain;
+            XPlaneFfbGraph.BuildGainCurves(vrefKts, springRef, damperRef, width, height,
+                                           out springPoints, out damperPoints,
+                                           out maxIasKts, out maxGain);
+            XPlaneFfbGraph.UpdateGainGrid(Canvas_xplane_gain, vrefKts, maxIasKts, maxGain);
+
+            Polyline_xplane_spring.Points = springPoints;
+            Polyline_xplane_damper.Points = damperPoints;
+            UpdateGainCursor();
+        }
+
+        private void UpdateGainCursor()
+        {
+            if (Line_xplane_cursor == null || Canvas_xplane_gain == null)
+            {
+                return;
+            }
+
+            double width = Canvas_xplane_gain.Width;
+            if (width <= 0.0)
+            {
+                return;
+            }
+
+            float vrefKts = (float)Slider_xplane_vref.Value;
+            float maxIasKts = XPlaneFfbGraph.GetMaxIasKts(vrefKts);
+            float clampedIas = Math.Max(0.0f, Math.Min(lastIasKts, maxIasKts));
+            double x = (clampedIas / maxIasKts) * width;
+            Line_xplane_cursor.X1 = x;
+            Line_xplane_cursor.X2 = x;
         }
 
         public void RefreshXPlaneFfbSettings()
@@ -525,8 +727,14 @@ namespace User.PluginSdkDemo
                 return;
             }
 
-            double posMin = GetPosMin();
-            double posMax = GetPosMax();
+            double posMin = Rangeslider_travel_range?.LowerValue ?? GetPosMin();
+            double posMax = Rangeslider_travel_range?.UpperValue ?? GetPosMax();
+            if (posMin > posMax)
+            {
+                double swap = posMin;
+                posMin = posMax;
+                posMax = swap;
+            }
             double range = posMax - posMin;
             if (range <= 0.0)
             {
@@ -535,16 +743,14 @@ namespace User.PluginSdkDemo
 
             if (hasAxisPosition)
             {
-                double posNorm = (latestAxisPosition - posMin) / range;
-                posNorm = Math.Max(0.0, Math.Min(1.0, posNorm));
+                double posNorm = Tools.Normalize(latestAxisPosition, posMin, posMax);
                 double posX = posNorm * width;
                 Canvas.SetLeft(Rect_axis_position, posX - Rect_axis_position.Width / 2.0);
             }
 
             if (hasTrimCenter)
             {
-                double trimNorm = (latestTrimCenter - posMin) / range;
-                trimNorm = Math.Max(0.0, Math.Min(1.0, trimNorm));
+                double trimNorm = Tools.Normalize(latestTrimCenter, posMin, posMax);
                 double trimX = trimNorm * width;
                 Canvas.SetLeft(Rect_trim_center, trimX - Rect_trim_center.Width / 2.0);
             }

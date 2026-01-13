@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="260" viewBox="0 0 900 260">
+  <rect width="900" height="260" fill="#0f1115"/>
+  <rect x="30" y="60" width="220" height="140" rx="10" fill="#1c2028" stroke="#5bd65b" stroke-width="2"/>
+  <text x="140" y="95" fill="#e6e6e6" font-family="Arial" font-size="16" text-anchor="middle">X-Plane Plugin</text>
+  <text x="140" y="120" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="middle">Datarefs</text>
+  <text x="140" y="140" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="middle">IAS / Alpha / Beta / Trim</text>
+
+  <rect x="340" y="40" width="220" height="180" rx="10" fill="#1c2028" stroke="#4aa3ff" stroke-width="2"/>
+  <text x="450" y="75" fill="#e6e6e6" font-family="Arial" font-size="16" text-anchor="middle">SimHub Plugin</text>
+  <text x="450" y="100" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="middle">q-scale + gains</text>
+  <text x="450" y="120" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="middle">buffet / trim / vane</text>
+  <text x="450" y="140" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="middle">per-function profiles</text>
+
+  <rect x="650" y="60" width="220" height="140" rx="10" fill="#1c2028" stroke="#ffd166" stroke-width="2"/>
+  <text x="760" y="95" fill="#e6e6e6" font-family="Arial" font-size="16" text-anchor="middle">ESP32 Firmware</text>
+  <text x="760" y="120" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="middle">spring / damper / trim</text>
+  <text x="760" y="140" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="middle">safety timeouts</text>
+
+  <line x1="250" y1="130" x2="340" y2="130" stroke="#5bd65b" stroke-width="2"/>
+  <polygon points="335,125 340,130 335,135" fill="#5bd65b"/>
+  <text x="295" y="115" fill="#a9b1ba" font-family="Arial" font-size="11" text-anchor="middle">UDP</text>
+
+  <line x1="560" y1="130" x2="650" y2="130" stroke="#4aa3ff" stroke-width="2"/>
+  <polygon points="645,125 650,130 645,135" fill="#4aa3ff"/>
+  <text x="605" y="115" fill="#a9b1ba" font-family="Arial" font-size="11" text-anchor="middle">FFB frames</text>
+</svg>

@@ -10,12 +10,13 @@ namespace User.PluginSdkDemo
 
     public class DiyFfbPluginSettings
     {
-        public const float DefaultXPlaneFfbKq = 0.001f;
-        public const float DefaultXPlaneFfbKrate = 0.001f;
+        public const float DefaultXPlaneFfbKq = 1.0f;
+        public const float DefaultXPlaneFfbKrate = 1.0f;
         public const float DefaultXPlaneTrimMmPerDeg = 0.1f;
         public const float DefaultXPlaneBuffetStartDeg = 10.0f;
         public const float DefaultXPlaneBuffetFullDeg = 18.0f;
         public const float DefaultXPlaneBuffetGain = 0.05f;
+        public const float DefaultXPlaneVrefKts = 60.0f;
 
         public class FunctionFfbSettings
         {
@@ -26,6 +27,8 @@ namespace User.PluginSdkDemo
             public float XPlaneBuffetStartDeg = DefaultXPlaneBuffetStartDeg;
             public float XPlaneBuffetFullDeg = DefaultXPlaneBuffetFullDeg;
             public float XPlaneBuffetGain = DefaultXPlaneBuffetGain;
+            public float XPlaneWeathervaneGain = 0.0f;
+            public float XPlaneVrefKts = DefaultXPlaneVrefKts;
 
             public void CopyFrom(FunctionSettings source)
             {
@@ -41,6 +44,8 @@ namespace User.PluginSdkDemo
                 XPlaneBuffetStartDeg = source.XPlaneBuffetStartDeg;
                 XPlaneBuffetFullDeg = source.XPlaneBuffetFullDeg;
                 XPlaneBuffetGain = source.XPlaneBuffetGain;
+                XPlaneWeathervaneGain = source.XPlaneWeathervaneGain;
+                XPlaneVrefKts = source.XPlaneVrefKts;
             }
 
             public void ApplyTo(FunctionSettings target)
@@ -57,6 +62,8 @@ namespace User.PluginSdkDemo
                 target.XPlaneBuffetStartDeg = XPlaneBuffetStartDeg;
                 target.XPlaneBuffetFullDeg = XPlaneBuffetFullDeg;
                 target.XPlaneBuffetGain = XPlaneBuffetGain;
+                target.XPlaneWeathervaneGain = XPlaneWeathervaneGain;
+                target.XPlaneVrefKts = XPlaneVrefKts;
             }
         }
 
@@ -98,6 +105,9 @@ namespace User.PluginSdkDemo
             public float XPlaneBuffetStartDeg = DefaultXPlaneBuffetStartDeg;
             public float XPlaneBuffetFullDeg = DefaultXPlaneBuffetFullDeg;
             public float XPlaneBuffetGain = DefaultXPlaneBuffetGain;
+            public float XPlaneWeathervaneGain = 0.0f;
+            public float XPlaneVrefKts = DefaultXPlaneVrefKts;
+            public bool XPlaneUsingVrefScaling = false;
         }
 
         public DiyFfbPluginSettings()

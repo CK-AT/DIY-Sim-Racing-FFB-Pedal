@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="260" viewBox="0 0 900 260">
+  <rect width="900" height="260" fill="#0f1115"/>
+  <rect x="60" y="30" width="780" height="200" rx="8" fill="#1c2028" stroke="#2b2f38" stroke-width="1"/>
+  <line x1="90" y1="200" x2="810" y2="200" stroke="#5c6370" stroke-width="1"/>
+  <line x1="90" y1="50" x2="90" y2="200" stroke="#5c6370" stroke-width="1"/>
+
+  <line x1="90" y1="200" x2="810" y2="200" stroke="#3a3f4b" stroke-dasharray="4,4"/>
+  <line x1="90" y1="125" x2="810" y2="125" stroke="#3a3f4b" stroke-dasharray="4,4"/>
+  <line x1="90" y1="50" x2="810" y2="50" stroke="#3a3f4b" stroke-dasharray="4,4"/>
+
+  <text x="90" y="220" fill="#a9b1ba" font-family="Arial" font-size="12">0</text>
+  <text x="450" y="220" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="middle">Vref</text>
+  <text x="810" y="220" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="end">2*Vref</text>
+
+  <text x="70" y="200" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="end">0.0</text>
+  <text x="70" y="125" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="end">1.0</text>
+  <text x="70" y="50" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="end">2.0</text>
+
+  <path d="M90 200 C180 170, 270 135, 360 110 C450 90, 540 75, 630 65 C720 58, 780 55, 810 55"
+        fill="none" stroke="#ffd166" stroke-width="3"/>
+
+  <text x="470" y="75" fill="#ffd166" font-family="Arial" font-size="12">q_scale</text>
+</svg>

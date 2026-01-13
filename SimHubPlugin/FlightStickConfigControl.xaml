@@ -70,21 +70,21 @@
                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="540">
                     <Label Content="X-Plane FFB" Width="150" Padding="0,5,0,10" VerticalContentAlignment="Center" FontFamily="Arial Black" HorizontalAlignment="Left" Margin="70,0,0,0"/>
                     <StackPanel Width="540" Orientation="Vertical">
-                        <StackPanel Width="400" Height="20" Orientation="Horizontal">
+                        <StackPanel Width="400" Height="30" Orientation="Horizontal">
                             <styles:SHToggleButton x:Name="Toggle_xplane_ffb_enabled" Content="" Checked="Toggle_xplane_ffb_enabled_Checked" Unchecked="Toggle_xplane_ffb_enabled_Unchecked" IsChecked="True" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Enable X-Plane FFB for this function" RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />
                             <Label x:Name="label_xplane_ffb_enabled" Content="Enable FFB" Height="20" Width="130" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
-                            <Label x:Name="label_xplane_kq" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Spring Gain (kq):" Padding="0,0,0,8"/>
-                            <Slider x:Name="Slider_xplane_kq" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="0.01" IsSnapToTickEnabled="True" Value="0.001" SmallChange="0.0001" TickFrequency="0.0001" ValueChanged="OnXPlaneKqChanged"/>
+                            <Label x:Name="label_xplane_kq" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Spring Gain @ Vref:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_xplane_kq" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="2.0" IsSnapToTickEnabled="True" Value="1.0" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneKqChanged"/>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
-                            <Label x:Name="label_xplane_krate" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Damper Gain (krate):" Padding="0,0,0,8"/>
-                            <Slider x:Name="Slider_xplane_krate" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="0.01" IsSnapToTickEnabled="True" Value="0.001" SmallChange="0.0001" TickFrequency="0.0001" ValueChanged="OnXPlaneKrateChanged"/>
+                            <Label x:Name="label_xplane_krate" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Damper Gain @ Vref:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_xplane_krate" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="2.0" IsSnapToTickEnabled="True" Value="1.0" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneKrateChanged"/>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_xplane_trim_mm_per_deg" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Trim Scale:" Padding="0,0,0,8"/>
-                            <Slider x:Name="Slider_xplane_trim_mm_per_deg" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="2.0" IsSnapToTickEnabled="True" Value="0.1" SmallChange="0.01" TickFrequency="0.01" ValueChanged="OnXPlaneTrimScaleChanged"/>
+                            <Slider x:Name="Slider_xplane_trim_mm_per_deg" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="50.0" IsSnapToTickEnabled="True" Value="0.1" SmallChange="0.01" TickFrequency="0.01" ValueChanged="OnXPlaneTrimScaleChanged"/>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_xplane_buffet_start_deg" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Buffet Start (deg):" Padding="0,0,0,8"/>
@@ -95,8 +95,42 @@
                             <Slider x:Name="Slider_xplane_buffet_full_deg" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="30.0" IsSnapToTickEnabled="True" Value="18" SmallChange="0.5" TickFrequency="0.5" ValueChanged="OnXPlaneBuffetFullChanged"/>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
-                            <Label x:Name="label_xplane_buffet_gain" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Buffet Gain:" Padding="0,0,0,8"/>
-                            <Slider x:Name="Slider_xplane_buffet_gain" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="0.2" IsSnapToTickEnabled="True" Value="0.05" SmallChange="0.005" TickFrequency="0.005" ValueChanged="OnXPlaneBuffetGainChanged"/>
+                            <Label x:Name="label_xplane_buffet_gain" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Buffet Gain @ Vref:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_xplane_buffet_gain" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="2.0" IsSnapToTickEnabled="True" Value="0.05" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneBuffetGainChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="400" Height="40">
+                            <Label x:Name="label_xplane_weathervane_gain" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Weather-Vaning Gain:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_xplane_weathervane_gain" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="2.0" IsSnapToTickEnabled="True" Value="0.0" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneWeathervaneGainChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="400" Height="40">
+                            <Label x:Name="label_xplane_vref" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Vref (kts):" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_xplane_vref" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="10" Maximum="200" IsSnapToTickEnabled="True" Value="60" SmallChange="1" TickFrequency="1" ValueChanged="OnXPlaneVrefChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="400" Margin="0,6,0,10">
+                            <Grid Width="400" Height="134" Background="#00252525">
+                                <Canvas x:Name="Canvas_xplane_gain" Width="400" Height="120">
+                                    <Polyline x:Name="Polyline_xplane_spring" Stroke="#FF6BD26B" StrokeThickness="1.5"/>
+                                    <Polyline x:Name="Polyline_xplane_damper" Stroke="#FF4AA3FF" StrokeThickness="1.5"/>
+                                    <Line x:Name="Line_xplane_cursor" Stroke="#FFFFD166" StrokeThickness="1" X1="0" X2="0" Y1="0" Y2="120"/>
+                                </Canvas>
+                                <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="6">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,2">
+                                        <Rectangle Width="10" Height="2" Fill="#FF6BD26B" VerticalAlignment="Center"/>
+                                        <TextBlock Foreground="White" FontSize="10" Text="Spring" Margin="6,0,11,0"/>
+                                        <TextBlock x:Name="TextBlock_xplane_spring_value" Foreground="White" FontSize="10" Text="--"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Rectangle Width="10" Height="2" Fill="#FF4AA3FF" VerticalAlignment="Center"/>
+                                        <TextBlock Foreground="White" FontSize="10" Text="Damper" Margin="6,0,4,0"/>
+                                        <TextBlock x:Name="TextBlock_xplane_damper_value" Foreground="White" FontSize="10" Text="--"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="TextBlock_xplane_ias" Foreground="White" FontSize="10" Width="120" Text="IAS: -- kt"/>
+                                <TextBlock x:Name="TextBlock_xplane_trim" Foreground="White" FontSize="10" Width="140" Text="Trim: -- mm"/>
+                                <TextBlock x:Name="TextBlock_xplane_vane" Foreground="White" FontSize="10" Width="140" Text="Vane: -- mm"/>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>

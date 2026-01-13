@@ -2,6 +2,30 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-13 20:05:57 +01:00 (DESKTOP-6KO022D)
+Request: expand X-Plane FFB UI and documentation, add graph polish, and refactor shared helpers.
+Summary:
+- Added shared X-Plane math/graph helpers and reused them across SimHub + UI; gain graph now includes axes, gridlines, legend values, and uses the new MaxQScale (2.0) scaling.
+- Updated q_scale saturation to 2.0 in the shared helper and aligned UI graph scaling with that cap.
+- Added gain panel mock and SVG diagrams; expanded docs with quick navigation, output signal descriptions, tuning-by-feel tips, troubleshooting, and a tuning checklist.
+- Added gain cursor, IAS/trim/weathervane readouts, and external tick labels in the X-Plane graphs for stick/pedals.
+- Simplified range marker normalization using the shared Tools helper.
+Key files:
+- `SimHubPlugin/XPlaneFfbMath.cs`
+- `SimHubPlugin/XPlaneFfbGraph.cs`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+- `SimHubPlugin/Docs/XPlane_FFB.md`
+- `SimHubPlugin/Docs/images/xplane_ffb_architecture.svg`
+- `SimHubPlugin/Docs/images/xplane_qscale_curve.svg`
+- `SimHubPlugin/Docs/images/xplane_gain_panel_mock.svg`
+- `SimHubPlugin/Docs/images/xplane_tuning_flow.svg`
+Open items:
+- Build/test the SimHub plugin and verify graph rendering, legend values, and X-Plane telemetry updates.
+
 ## 2026-01-12 23:17:47 +01:00 (DESKTOP-6KO022D)
 Request: capture the condensed final FFB design decisions.
 Summary:

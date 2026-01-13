@@ -111,6 +111,8 @@ namespace User.PluginSdkDemo
             public float BuffetStartDeg;
             public float BuffetFullDeg;
             public float BuffetGain;
+            public float WeathervaneGain;
+            public float VrefKts;
         }
 
         private sealed class XPlaneUdpPacket
@@ -1021,19 +1023,22 @@ namespace User.PluginSdkDemo
             if (IsXPlaneFfbEnabled(FunctionID.FlightStickPitch))
             {
                 XPlaneFfbParams pitchParams = GetXPlaneFfbParams(FunctionID.FlightStickPitch);
-                float pitchSpring = pitchParams.Kq * qHat;
-                float pitchDamper = pitchParams.Krate * qHat;
-                float pitchBuffet = ComputeBuffet(packet.AlphaDeg, pitchParams, qHat);
-                pitchTrim = packet.ElevTrimDeg * pitchParams.TrimMmPerDeg;
+                float pitchScale = XPlaneFfbMath.ComputeQScaleFromQHat(qHat, pitchParams.VrefKts);
+                float pitchSpring = pitchParams.Kq * pitchScale;
+                float pitchDamper = pitchParams.Krate * pitchScale;
+                float pitchBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, pitchParams.BuffetStartDeg, pitchParams.BuffetFullDeg, pitchParams.BuffetGain, pitchScale);
+                float pitchVane = pitchParams.WeathervaneGain * pitchScale * packet.AlphaDeg;
+                pitchTrim = packet.ElevTrimDeg * pitchParams.TrimMmPerDeg + pitchVane;
                 SendFlightFfb(FunctionID.FlightStickPitch, pitchSpring, pitchDamper, pitchTrim, pitchBuffet);
             }
 
             if (IsXPlaneFfbEnabled(FunctionID.FlightStickRoll))
             {
                 XPlaneFfbParams rollParams = GetXPlaneFfbParams(FunctionID.FlightStickRoll);
-                float rollSpring = rollParams.Kq * qHat;
-                float rollDamper = rollParams.Krate * qHat;
-                float rollBuffet = ComputeBuffet(packet.AlphaDeg, rollParams, qHat);
+                float rollScale = XPlaneFfbMath.ComputeQScaleFromQHat(qHat, rollParams.VrefKts);
+                float rollSpring = rollParams.Kq * rollScale;
+                float rollDamper = rollParams.Krate * rollScale;
+                float rollBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, rollParams.BuffetStartDeg, rollParams.BuffetFullDeg, rollParams.BuffetGain, rollScale);
                 rollTrim = packet.AilTrimDeg * rollParams.TrimMmPerDeg;
                 SendFlightFfb(FunctionID.FlightStickRoll, rollSpring, rollDamper, rollTrim, rollBuffet);
             }
@@ -1041,10 +1046,12 @@ namespace User.PluginSdkDemo
             if (IsXPlaneFfbEnabled(FunctionID.FlightPedals))
             {
                 XPlaneFfbParams pedalsParams = GetXPlaneFfbParams(FunctionID.FlightPedals);
-                float pedalsSpring = pedalsParams.Kq * qHat;
-                float pedalsDamper = pedalsParams.Krate * qHat;
-                float pedalsBuffet = ComputeBuffet(packet.AlphaDeg, pedalsParams, qHat);
-                pedalsTrim = packet.RudTrimDeg * pedalsParams.TrimMmPerDeg;
+                float pedalsScale = XPlaneFfbMath.ComputeQScaleFromQHat(qHat, pedalsParams.VrefKts);
+                float pedalsSpring = pedalsParams.Kq * pedalsScale;
+                float pedalsDamper = pedalsParams.Krate * pedalsScale;
+                float pedalsBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, pedalsParams.BuffetStartDeg, pedalsParams.BuffetFullDeg, pedalsParams.BuffetGain, pedalsScale);
+                float pedalsVane = pedalsParams.WeathervaneGain * pedalsScale * packet.BetaDeg;
+                pedalsTrim = packet.RudTrimDeg * pedalsParams.TrimMmPerDeg + pedalsVane;
                 SendFlightFfb(FunctionID.FlightPedals, pedalsSpring, pedalsDamper, pedalsTrim, pedalsBuffet);
             }
 
@@ -1116,6 +1123,37 @@ namespace User.PluginSdkDemo
             }
         }
 
+        public bool TryGetXPlaneTelemetry(out float iasKts, out float alphaDeg, out float betaDeg,
+                                          out float elevTrim, out float ailTrim, out float rudTrim)
+        {
+            iasKts = 0.0f;
+            alphaDeg = 0.0f;
+            betaDeg = 0.0f;
+            elevTrim = 0.0f;
+            ailTrim = 0.0f;
+            rudTrim = 0.0f;
+
+            lock (xplaneLock)
+            {
+                if (latestXPlanePacket == null)
+                {
+                    return false;
+                }
+                if ((DateTime.UtcNow - latestXPlanePacket.ReceivedUtc).TotalMilliseconds > 500)
+                {
+                    return false;
+                }
+
+                iasKts = latestXPlanePacket.IasKts;
+                alphaDeg = latestXPlanePacket.AlphaDeg;
+                betaDeg = latestXPlanePacket.BetaDeg;
+                elevTrim = latestXPlanePacket.ElevTrimDeg;
+                ailTrim = latestXPlanePacket.AilTrimDeg;
+                rudTrim = latestXPlanePacket.RudTrimDeg;
+                return true;
+            }
+        }
+
         private DiyFfbPluginSettings.FunctionSettings GetFunctionSettings(FunctionID functionId)
         {
             if (Settings?.function_settings == null)
@@ -1142,7 +1180,9 @@ namespace User.PluginSdkDemo
                 TrimMmPerDeg = settings?.XPlaneTrimMmPerDeg ?? DiyFfbPluginSettings.DefaultXPlaneTrimMmPerDeg,
                 BuffetStartDeg = settings?.XPlaneBuffetStartDeg ?? DiyFfbPluginSettings.DefaultXPlaneBuffetStartDeg,
                 BuffetFullDeg = settings?.XPlaneBuffetFullDeg ?? DiyFfbPluginSettings.DefaultXPlaneBuffetFullDeg,
-                BuffetGain = settings?.XPlaneBuffetGain ?? DiyFfbPluginSettings.DefaultXPlaneBuffetGain
+                BuffetGain = settings?.XPlaneBuffetGain ?? DiyFfbPluginSettings.DefaultXPlaneBuffetGain,
+                WeathervaneGain = settings?.XPlaneWeathervaneGain ?? 0.0f,
+                VrefKts = settings?.XPlaneVrefKts ?? DiyFfbPluginSettings.DefaultXPlaneVrefKts
             };
         }
 
@@ -1150,23 +1190,6 @@ namespace User.PluginSdkDemo
         {
             var settings = GetFunctionSettings(functionId);
             return settings == null || settings.XPlaneFfbEnabled;
-        }
-
-        private static float ComputeBuffet(float alphaDeg, XPlaneFfbParams parameters, float qHat)
-        {
-            if (parameters.BuffetFullDeg <= parameters.BuffetStartDeg)
-            {
-                return 0.0f;
-            }
-            if (alphaDeg <= parameters.BuffetStartDeg)
-            {
-                return 0.0f;
-            }
-
-            float t = (alphaDeg - parameters.BuffetStartDeg) /
-                      (parameters.BuffetFullDeg - parameters.BuffetStartDeg);
-            t = Math.Max(0.0f, Math.Min(1.0f, t));
-            return t * parameters.BuffetGain * qHat;
         }
 
         private void ApplyXPlaneFunctionDefaultsFromLegacy()
@@ -1202,6 +1225,47 @@ namespace User.PluginSdkDemo
                 functionSettings.XPlaneBuffetStartDeg = Settings.XPlaneBuffetStartDeg;
                 functionSettings.XPlaneBuffetFullDeg = Settings.XPlaneBuffetFullDeg;
                 functionSettings.XPlaneBuffetGain = Settings.XPlaneBuffetGain;
+                functionSettings.XPlaneUsingVrefScaling = true;
+            }
+
+            ApplyXPlaneVrefMigration(Settings.function_settings);
+        }
+
+        private void ApplyXPlaneVrefMigration(DiyFfbPluginSettings.FunctionSettings[] functionSettings)
+        {
+            if (functionSettings == null)
+            {
+                return;
+            }
+
+            float vrefMps = DiyFfbPluginSettings.DefaultXPlaneVrefKts * 0.514444f;
+            float qHatVref = vrefMps * vrefMps;
+            foreach (var settings in functionSettings)
+            {
+                if (settings == null || settings.XPlaneUsingVrefScaling)
+                {
+                    continue;
+                }
+
+                bool legacyScale = settings.XPlaneFfbKq < 0.05f &&
+                                   settings.XPlaneFfbKrate < 0.05f &&
+                                   settings.XPlaneBuffetGain <= 0.2f &&
+                                   settings.XPlaneWeathervaneGain <= 0.2f;
+                if (!legacyScale)
+                {
+                    settings.XPlaneUsingVrefScaling = true;
+                    continue;
+                }
+
+                settings.XPlaneFfbKq *= qHatVref;
+                settings.XPlaneFfbKrate *= qHatVref;
+                settings.XPlaneBuffetGain *= qHatVref;
+                settings.XPlaneWeathervaneGain *= qHatVref;
+                if (settings.XPlaneVrefKts <= 0.0f)
+                {
+                    settings.XPlaneVrefKts = DiyFfbPluginSettings.DefaultXPlaneVrefKts;
+                }
+                settings.XPlaneUsingVrefScaling = true;
             }
         }
 
@@ -1295,6 +1359,41 @@ namespace User.PluginSdkDemo
             else
             {
                 SaveCurrentAircraftProfile(carId);
+            }
+        }
+
+        public string GetActiveCarId()
+        {
+            return activeCarId;
+        }
+
+        public void ApplyAircraftFfbProfile(string carId, DiyFfbPluginSettings.AircraftFfbProfile profile)
+        {
+            if (Settings == null || string.IsNullOrWhiteSpace(carId) || profile == null)
+            {
+                return;
+            }
+
+            if (Settings.AircraftFfbProfiles == null)
+            {
+                Settings.AircraftFfbProfiles = new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+            }
+
+            Settings.AircraftFfbProfiles[carId] = profile;
+            ApplyAircraftProfile(carId);
+        }
+
+        public void ReplaceAircraftFfbProfiles(System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile> profiles)
+        {
+            if (Settings == null)
+            {
+                return;
+            }
+
+            Settings.AircraftFfbProfiles = profiles ?? new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+            if (!string.IsNullOrWhiteSpace(activeCarId))
+            {
+                ApplyAircraftProfile(activeCarId);
             }
         }
 

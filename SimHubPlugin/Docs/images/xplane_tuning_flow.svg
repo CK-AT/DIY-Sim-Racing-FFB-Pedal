@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="320" viewBox="0 0 900 320">
+  <rect width="900" height="320" fill="#0f1115"/>
+  <rect x="30" y="40" width="840" height="240" rx="10" fill="#1c2028" stroke="#2b2f38" stroke-width="1"/>
+
+  <rect x="70" y="80" width="160" height="60" rx="8" fill="#262b35" stroke="#4aa3ff" stroke-width="2"/>
+  <text x="150" y="115" fill="#e6e6e6" font-family="Arial" font-size="12" text-anchor="middle">Set Vref</text>
+
+  <rect x="260" y="80" width="160" height="60" rx="8" fill="#262b35" stroke="#5bd65b" stroke-width="2"/>
+  <text x="340" y="115" fill="#e6e6e6" font-family="Arial" font-size="12" text-anchor="middle">Tune k_q</text>
+
+  <rect x="450" y="80" width="160" height="60" rx="8" fill="#262b35" stroke="#5bd65b" stroke-width="2"/>
+  <text x="530" y="115" fill="#e6e6e6" font-family="Arial" font-size="12" text-anchor="middle">Tune k_rate</text>
+
+  <rect x="640" y="80" width="160" height="60" rx="8" fill="#262b35" stroke="#ffd166" stroke-width="2"/>
+  <text x="720" y="115" fill="#e6e6e6" font-family="Arial" font-size="12" text-anchor="middle">Trim / Vane</text>
+
+  <rect x="260" y="170" width="160" height="60" rx="8" fill="#262b35" stroke="#ffd166" stroke-width="2"/>
+  <text x="340" y="205" fill="#e6e6e6" font-family="Arial" font-size="12" text-anchor="middle">Buffet (opt)</text>
+
+  <rect x="450" y="170" width="160" height="60" rx="8" fill="#262b35" stroke="#ff6b6b" stroke-width="2"/>
+  <text x="530" y="205" fill="#e6e6e6" font-family="Arial" font-size="12" text-anchor="middle">Validate</text>
+
+  <line x1="230" y1="110" x2="260" y2="110" stroke="#a9b1ba" stroke-width="2"/>
+  <polygon points="255,105 260,110 255,115" fill="#a9b1ba"/>
+  <line x1="420" y1="110" x2="450" y2="110" stroke="#a9b1ba" stroke-width="2"/>
+  <polygon points="445,105 450,110 445,115" fill="#a9b1ba"/>
+  <line x1="610" y1="110" x2="640" y2="110" stroke="#a9b1ba" stroke-width="2"/>
+  <polygon points="635,105 640,110 635,115" fill="#a9b1ba"/>
+
+  <line x1="420" y1="200" x2="450" y2="200" stroke="#a9b1ba" stroke-width="2"/>
+  <polygon points="445,195 450,200 445,205" fill="#a9b1ba"/>
+  <line x1="340" y1="140" x2="340" y2="170" stroke="#a9b1ba" stroke-width="2"/>
+  <polygon points="335,165 340,170 345,165" fill="#a9b1ba"/>
+</svg>
