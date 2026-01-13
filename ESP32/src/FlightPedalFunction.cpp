@@ -19,7 +19,7 @@ void FlightPedalsFunction::on_ffb_action(const FFBAction &ffb_action) {
     if (ffb_action.which_function != FFBAction_flight_ffb_tag) {
         return;
     }
-    damper.set_k(ffb_action.function.flight_ffb.k_damper);
+    damper.set_k(max(_config.damping, ffb_action.function.flight_ffb.k_damper));
     centering_spring.set_k(ffb_action.function.flight_ffb.k_spring);
     centering_spring.set_offset(_base_center + ffb_action.function.flight_ffb.trim_offset);
     buffet.set_amplitude(ffb_action.function.flight_ffb.buffet_amp);
