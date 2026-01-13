@@ -100,6 +100,12 @@ class Sim {
         float get_f_sum(void) {
             return _f_sum;
         }
+        float get_m(void) const {
+            return _m;
+        }
+        float get_dt_ms(void) const {
+            return _dt_ms;
+        }
         void set_m(float val) {
             _m = val;
         }
@@ -141,6 +147,7 @@ class Sim {
         float _v = 0.0;
         float _a = 0.0;
         float _f_sum;
+        float _dt_ms = 0.0f;
 };
 
 class CompoundElement : public SimElement {

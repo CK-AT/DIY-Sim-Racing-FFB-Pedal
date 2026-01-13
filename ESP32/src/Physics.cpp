@@ -18,10 +18,19 @@ void Spring::update(Sim *sim, float &f_sum) {
 void Damper::update(Sim *sim, float &f_sum) {
     if (!_enabled) return;
     float v = sim->get_v();
+    float k_neg = _k_neg;
+    float k_pos = _k_pos;
+    float dt_ms = sim->get_dt_ms();
+    float m = sim->get_m();
+    if (dt_ms > 0.0f && m > 0.0f) {
+        float k_limit = 1.9f * m / dt_ms;
+        k_neg = min(k_neg, k_limit);
+        k_pos = min(k_pos, k_limit);
+    }
     if (v < 0.0) {
-        f_sum = f_sum - (v * _k_neg);
+        f_sum = f_sum - (v * k_neg);
     } else {
-        f_sum = f_sum - (v * _k_pos);
+        f_sum = f_sum - (v * k_pos);
     }
 }
 
@@ -200,6 +209,7 @@ void Cam::update(Sim *sim, float &f_sum) {
 
 void Sim::update(float &dt, float &f_in, bool final_f) {
     float f_sum = f_in;
+    _dt_ms = dt;
     _v = (_x - _x_prev) * 1000.0 / dt;
 
     if (!final_f) {
