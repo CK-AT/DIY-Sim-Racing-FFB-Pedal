@@ -102,6 +102,8 @@ namespace User.PluginSdkDemo
         private DateTime xplaneTrimUtc = DateTime.MinValue;
         private string activeCarId;
         private string activeCarName;
+        private DiyFfbPluginSettings.AircraftFfbProfile pendingFfbProfile;
+        private bool hasPendingFfbProfile;
 
         private struct XPlaneFfbParams
         {
@@ -1302,6 +1304,28 @@ namespace User.PluginSdkDemo
                 SaveCurrentAircraftProfile(activeCarId);
             }
 
+            bool applyPending = false;
+            if (hasPendingFfbProfile && pendingFfbProfile != null)
+            {
+                if (ui != null)
+                {
+                    applyPending = (bool)ui.Dispatcher.Invoke(new Func<bool>(() =>
+                        ui.ConfirmApplyPendingProfile(activeCarName, carId)));
+                }
+
+                if (applyPending)
+                {
+                    if (Settings.AircraftFfbProfiles == null)
+                    {
+                        Settings.AircraftFfbProfiles = new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+                    }
+                    Settings.AircraftFfbProfiles[carId] = pendingFfbProfile;
+                }
+
+                pendingFfbProfile = null;
+                hasPendingFfbProfile = false;
+            }
+
             ApplyAircraftProfile(carId);
             activeCarId = carId;
             activeCarName = data.NewData?.CarModel;
@@ -1381,6 +1405,25 @@ namespace User.PluginSdkDemo
 
             Settings.AircraftFfbProfiles[carId] = profile;
             ApplyAircraftProfile(carId);
+            ApplyFfbProfileToCurrentSettings(profile);
+        }
+
+        public void ApplyFfbProfileToCurrentSettings(DiyFfbPluginSettings.AircraftFfbProfile profile)
+        {
+            if (Settings == null || profile == null)
+            {
+                return;
+            }
+
+            profile.FlightStickPitch?.ApplyTo(GetFunctionSettings(FunctionID.FlightStickPitch));
+            profile.FlightStickRoll?.ApplyTo(GetFunctionSettings(FunctionID.FlightStickRoll));
+            profile.FlightPedals?.ApplyTo(GetFunctionSettings(FunctionID.FlightPedals));
+        }
+
+        public void SetPendingFfbProfile(DiyFfbPluginSettings.AircraftFfbProfile profile)
+        {
+            pendingFfbProfile = profile;
+            hasPendingFfbProfile = profile != null;
         }
 
         public void ReplaceAircraftFfbProfiles(System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile> profiles)

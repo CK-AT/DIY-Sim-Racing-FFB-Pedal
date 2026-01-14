@@ -24,6 +24,46 @@ namespace User.PluginSdkDemo
             }
             return (value - min) / range;
         }
+
+        public static bool TryComputeMarkerX(double value, double lower, double upper, double min, double max, double width, out double x)
+        {
+            x = 0.0;
+            if (width <= 0.0)
+            {
+                return false;
+            }
+
+            if (min > max)
+            {
+                double swap = min;
+                min = max;
+                max = swap;
+            }
+            if (lower > upper)
+            {
+                double swap = lower;
+                lower = upper;
+                upper = swap;
+            }
+            if (max - min <= 0.0)
+            {
+                return false;
+            }
+
+            double lowerNorm = Normalize(lower, min, max);
+            double upperNorm = Normalize(upper, min, max);
+            if (upperNorm < lowerNorm)
+            {
+                double swap = lowerNorm;
+                lowerNorm = upperNorm;
+                upperNorm = swap;
+            }
+
+            double selectedWidth = (upperNorm - lowerNorm) * width;
+            double valueNorm = Normalize(value, lower, upper);
+            x = (lowerNorm * width) + (valueNorm * selectedWidth);
+            return true;
+        }
     }
 
     internal static class TextBoxExtension

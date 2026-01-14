@@ -758,29 +758,29 @@
                                             </TabItem>
                                         </TabControl>
                                     </Border>
-                                    <StackPanel Width="540" Height="140" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="1,3,0,0">
-                                        <Border HorizontalAlignment="Left" Height="140" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5">
-                                            <StackPanel HorizontalAlignment="Left" Height="140" VerticalAlignment="Top" Width="540">
-                                                <Label Content="X-Plane UDP" FontFamily="Arial Black" FontSize="12" Height="25" Width="150" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" Margin="5,0,0,0"/>
-                                                <StackPanel HorizontalAlignment="Left" Height="20" VerticalAlignment="Center" Width="540" Orientation="Horizontal" Margin="70,0,0,0">
+                                    <StackPanel Width="540" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="1,3,0,0">
+                                        <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5">
+                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="540">
+                                                <Label Content="X-Plane FFB" FontFamily="Arial Black" FontSize="12" Height="25" Width="150" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" Margin="5,0,0,0"/>
+                                                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,0,0,0">
                                                     <Label Content="Aircraft:" Height="15" Width="55" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
                                                     <TextBlock x:Name="TextBlock_ActiveAircraft" Text="-" Height="15" Width="360" Padding="0,0,0,0" VerticalAlignment="Center" FontFamily="Arial" FontSize="10" TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
-                                                <StackPanel HorizontalAlignment="Left" Height="20" VerticalAlignment="Center" Width="540" Orientation="Horizontal" Margin="70,4,0,0">
+                                                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
                                                     <styles:SHToggleButton x:Name="CheckBox_XPlaneUdpEnabled" Content="" Checked="CheckBox_XPlaneUdpEnabled_Checked" Unchecked="CheckBox_XPlaneUdpEnabled_Unchecked" IsChecked="False" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Enable X-Plane UDP input" RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />
                                                     <Label Content="Enable" Height="20" Width="130" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
                                                 </StackPanel>
-                                                <StackPanel HorizontalAlignment="Left" Height="25" VerticalAlignment="Center" Width="540" Orientation="Horizontal" Margin="70,4,0,0">
+                                                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
                                                     <Label Content="Port:" Height="15" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
                                                     <TextBox x:Name="TextBox_XPlanePort" TextChanged="TextBox_XPlanePort_TextChanged" Height="20" Width="80" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10"/>
                                                 </StackPanel>
-                                                <StackPanel HorizontalAlignment="Left" Height="24" VerticalAlignment="Center" Width="540" Orientation="Horizontal" Margin="70,6,0,0">
-                                                    <styles:SHButtonPrimary x:Name="btn_save_aircraft_ffb" Click="btn_save_aircraft_ffb_Click" Width="120" Content="Save Aircraft FFB" Height="22" HorizontalAlignment="Left" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
-                                                    <styles:SHButtonPrimary x:Name="btn_load_aircraft_ffb" Click="btn_load_aircraft_ffb_Click" Width="120" Content="Load Aircraft FFB" Height="22" HorizontalAlignment="Left" Margin="6,0,0,0" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                                                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,6,0,0">
+                                                    <styles:SHButtonPrimary x:Name="btn_save_aircraft_ffb" Click="btn_save_aircraft_ffb_Click" Width="120" Content="Save Aircraft FFB" Height="24" HorizontalAlignment="Left" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="4,4,4,4" />
+                                                    <styles:SHButtonPrimary x:Name="btn_load_aircraft_ffb" Click="btn_load_aircraft_ffb_Click" Width="120" Content="Load Aircraft FFB" Height="24" HorizontalAlignment="Left" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
                                                 </StackPanel>
-                                                <StackPanel HorizontalAlignment="Left" Height="24" VerticalAlignment="Center" Width="540" Orientation="Horizontal" Margin="70,4,0,0">
-                                                    <styles:SHButtonPrimary x:Name="btn_save_ffb_map" Click="btn_save_ffb_map_Click" Width="120" Content="Save FFB Map" Height="22" HorizontalAlignment="Left" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
-                                                    <styles:SHButtonPrimary x:Name="btn_load_ffb_map" Click="btn_load_ffb_map_Click" Width="120" Content="Load FFB Map" Height="22" HorizontalAlignment="Left" Margin="6,0,0,0" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                                                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
+                                                    <styles:SHButtonPrimary x:Name="btn_save_ffb_map" Click="btn_save_ffb_map_Click" Width="120" Content="Save FFB Map" HorizontalAlignment="Left" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                                                    <styles:SHButtonPrimary x:Name="btn_load_ffb_map" Click="btn_load_ffb_map_Click" Width="120" Content="Load FFB Map" HorizontalAlignment="Left" Height="24" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
                                                 </StackPanel>
                                             </StackPanel>
                                         </Border>

@@ -588,6 +588,14 @@ namespace User.PluginSdkDemo
             {
                 lastIasKts = 0.0f;
                 TextBlock_xplane_ias.Text = "IAS: -- kt";
+                if (TextBlock_xplane_alpha != null)
+                {
+                    TextBlock_xplane_alpha.Text = "Alpha: -- deg";
+                }
+                if (TextBlock_xplane_beta != null)
+                {
+                    TextBlock_xplane_beta.Text = "Beta: -- deg";
+                }
                 if (TextBlock_xplane_trim != null)
                 {
                     TextBlock_xplane_trim.Text = "Trim: -- mm";
@@ -629,6 +637,14 @@ namespace User.PluginSdkDemo
             float damperGain = (float)Slider_xplane_krate.Value * qScale;
 
             TextBlock_xplane_ias.Text = String.Format("IAS: {0:F0} kt", iasKts);
+            if (TextBlock_xplane_alpha != null)
+            {
+                TextBlock_xplane_alpha.Text = String.Format("Alpha: {0:F1} deg", alphaDeg);
+            }
+            if (TextBlock_xplane_beta != null)
+            {
+                TextBlock_xplane_beta.Text = String.Format("Beta: {0:F1} deg", betaDeg);
+            }
             if (TextBlock_xplane_trim != null)
             {
                 TextBlock_xplane_trim.Text = String.Format("Trim: {0:F2} mm", trimMm);
@@ -729,30 +745,23 @@ namespace User.PluginSdkDemo
 
             double posMin = Rangeslider_travel_range?.LowerValue ?? GetPosMin();
             double posMax = Rangeslider_travel_range?.UpperValue ?? GetPosMax();
-            if (posMin > posMax)
-            {
-                double swap = posMin;
-                posMin = posMax;
-                posMax = swap;
-            }
-            double range = posMax - posMin;
-            if (range <= 0.0)
-            {
-                return;
-            }
+            double rangeMin = Rangeslider_travel_range?.Minimum ?? GetPosMin();
+            double rangeMax = Rangeslider_travel_range?.Maximum ?? GetPosMax();
 
             if (hasAxisPosition)
             {
-                double posNorm = Tools.Normalize(latestAxisPosition, posMin, posMax);
-                double posX = posNorm * width;
-                Canvas.SetLeft(Rect_axis_position, posX - Rect_axis_position.Width / 2.0);
+                if (Tools.TryComputeMarkerX(latestAxisPosition, posMin, posMax, rangeMin, rangeMax, width, out double posX))
+                {
+                    Canvas.SetLeft(Rect_axis_position, posX - Rect_axis_position.Width / 2.0);
+                }
             }
 
             if (hasTrimCenter)
             {
-                double trimNorm = Tools.Normalize(latestTrimCenter, posMin, posMax);
-                double trimX = trimNorm * width;
-                Canvas.SetLeft(Rect_trim_center, trimX - Rect_trim_center.Width / 2.0);
+                if (Tools.TryComputeMarkerX(latestTrimCenter, posMin, posMax, rangeMin, rangeMax, width, out double trimX))
+                {
+                    Canvas.SetLeft(Rect_trim_center, trimX - Rect_trim_center.Width / 2.0);
+                }
             }
         }
 

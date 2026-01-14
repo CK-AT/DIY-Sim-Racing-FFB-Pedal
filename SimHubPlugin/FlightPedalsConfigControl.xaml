@@ -46,8 +46,10 @@
                             <Grid Width="326" Height="20">
                                 <controls:RangeSlider x:Name="Rangeslider_travel_range" Style="{DynamicResource RangeSliderStyle}" MinRangeWidth="1" Grid.Column="2" Height="20" LowerValueChanged="Rangeslider_travel_range_LowerValueChanged" UpperValueChanged="Rangeslider_travel_range_UpperValueChanged" MinRange="1" SmallChange="1" IsSnapToTickEnabled="True" UpperValue="30" VerticalAlignment="Top" LowerValue="5" Minimum="-100" Maximum="100" Width="326" SizeChanged="Rangeslider_travel_range_SizeChanged"/>
                                 <Canvas x:Name="Canvas_travel_markers" Width="326" Height="20" IsHitTestVisible="False">
-                                    <Rectangle x:Name="Rect_axis_position" Width="2" Height="20" Fill="#FF5BD65B"/>
-                                    <Rectangle x:Name="Rect_trim_center" Width="2" Height="20" Fill="#FFF0B84A"/>
+                                    <Path x:Name="Rect_axis_position" Width="10" Height="8" Fill="#FF5BD65B" Stroke="#FF5BD65B" StrokeThickness="1" StrokeLineJoin="Round" Stretch="Fill" Canvas.Top="-2"
+                                          Data="M 0,0 L 1,0 L 0.5,1 Z"/>
+                                    <Path x:Name="Rect_trim_center" Width="8" Height="8" Fill="#FFF0B84A" Stroke="#FFF0B84A" StrokeThickness="1" StrokeLineJoin="Round" Stretch="Fill" Canvas.Top="15"
+                                          Data="M 0.5,0 L 1,0.5 L 0.5,1 L 0,0.5 Z"/>
                                 </Canvas>
                             </Grid>
                             <Label x:Name="Label_far_pos" Width="37" Height="30" Foreground="White" RenderTransformOrigin="0.5,0.5" Canvas.Top="3" FontSize="10" FontFamily="Arial" Canvas.Left="5" HorizontalAlignment="Right" VerticalAlignment="Top" Content="Min" Padding="0,0,0,0" HorizontalContentAlignment="Center"/>
@@ -158,10 +160,22 @@
                                     </StackPanel>
                                 </StackPanel>
                             </Grid>
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <TextBlock x:Name="TextBlock_xplane_ias" Foreground="White" FontSize="10" Width="120" Text="IAS: -- kt"/>
-                                <TextBlock x:Name="TextBlock_xplane_trim" Foreground="White" FontSize="10" Width="140" Text="Trim: -- mm"/>
-                                <TextBlock x:Name="TextBlock_xplane_vane" Foreground="White" FontSize="10" Width="140" Text="Vane: -- mm"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" HorizontalAlignment="Center">
+                                <StackPanel Width="70">
+                                    <TextBlock x:Name="TextBlock_xplane_ias" Foreground="White" FontSize="10" Text="IAS: -- kt" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Width="70">
+                                    <TextBlock x:Name="TextBlock_xplane_alpha" Foreground="White" FontSize="10" Text="Alpha: -- deg" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Width="70">
+                                    <TextBlock x:Name="TextBlock_xplane_beta" Foreground="White" FontSize="10" Text="Beta: -- deg" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Width="70">
+                                    <TextBlock x:Name="TextBlock_xplane_trim" Foreground="White" FontSize="10" Text="Trim: -- mm" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Width="70">
+                                    <TextBlock x:Name="TextBlock_xplane_vane" Foreground="White" FontSize="10" Text="Vane: -- mm" HorizontalAlignment="Center"/>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>

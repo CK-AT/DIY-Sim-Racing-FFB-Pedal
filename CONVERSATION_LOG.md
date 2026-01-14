@@ -2,6 +2,24 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-14 20:44:34 +01:00 (DESKTOP-6KO022D)
+Request: finish SimHub plugin tweaks for X-Plane FFB UI and profile handling.
+Summary:
+- Added pending-profile flow so profiles can be loaded without an active aircraft and applied on aircraft change with a confirmation dialog.
+- Updated flight stick/pedals UI with alpha/beta readouts and revised readout layout.
+- Switched range slider markers to triangle/diamond shapes and centralized marker scaling to keep position/trim inside selected ranges.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+- `SimHubPlugin/Tools.cs`
+Open items:
+- None.
+
 ## 2026-01-14 20:40:04 +01:00 (DESKTOP-6KO022D)
 Request: refine X-Plane FFB documentation plots.
 Summary:

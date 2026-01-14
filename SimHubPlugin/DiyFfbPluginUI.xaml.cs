@@ -324,12 +324,6 @@ namespace User.PluginSdkDemo
             }
 
             string carId = Plugin.GetActiveCarId();
-            if (string.IsNullOrWhiteSpace(carId))
-            {
-                MessageBox.Show("No active aircraft detected.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
             Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog
             {
                 Filter = "JSON files (*.json)|*.json",
@@ -346,7 +340,16 @@ namespace User.PluginSdkDemo
                     return;
                 }
 
-                Plugin.ApplyAircraftFfbProfile(carId, profile);
+                if (string.IsNullOrWhiteSpace(carId))
+                {
+                    Plugin.ApplyFfbProfileToCurrentSettings(profile);
+                    Plugin.SetPendingFfbProfile(profile);
+                    MessageBox.Show("Loaded profile into current settings (no active aircraft).", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    Plugin.ApplyAircraftFfbProfile(carId, profile);
+                }
                 RefreshXPlaneFfbSettings();
             }
         }
@@ -370,6 +373,15 @@ namespace User.PluginSdkDemo
                 string json = JsonConvert.SerializeObject(Plugin.Settings.AircraftFfbProfiles, Formatting.Indented);
                 System.IO.File.WriteAllText(saveFileDialog.FileName, json);
             }
+        }
+
+        public bool ConfirmApplyPendingProfile(string carName, string carId)
+        {
+            string label = string.IsNullOrWhiteSpace(carName) ? carId : $"{carName} ({carId})";
+            string message = $"A pending FFB profile is loaded without an active aircraft.\n\n" +
+                             $"Apply it to {label} or discard and use the stored profile?";
+            var result = MessageBox.Show(message, "FFB Profiles", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            return result == MessageBoxResult.Yes;
         }
 
         private void btn_load_ffb_map_Click(object sender, RoutedEventArgs e)
