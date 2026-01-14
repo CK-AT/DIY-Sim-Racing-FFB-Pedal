@@ -1028,7 +1028,7 @@ namespace User.PluginSdkDemo
                 float pitchDamper = pitchParams.Krate * pitchScale;
                 float pitchBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, pitchParams.BuffetStartDeg, pitchParams.BuffetFullDeg, pitchParams.BuffetGain, pitchScale);
                 float pitchVane = pitchParams.WeathervaneGain * pitchScale * packet.AlphaDeg;
-                pitchTrim = packet.ElevTrimDeg * pitchParams.TrimMmPerDeg + pitchVane;
+                pitchTrim = packet.ElevTrimDeg * pitchParams.TrimMmPerDeg - pitchVane;
                 SendFlightFfb(FunctionID.FlightStickPitch, pitchSpring, pitchDamper, pitchTrim, pitchBuffet);
             }
 
@@ -1051,7 +1051,7 @@ namespace User.PluginSdkDemo
                 float pedalsDamper = pedalsParams.Krate * pedalsScale;
                 float pedalsBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, pedalsParams.BuffetStartDeg, pedalsParams.BuffetFullDeg, pedalsParams.BuffetGain, pedalsScale);
                 float pedalsVane = pedalsParams.WeathervaneGain * pedalsScale * packet.BetaDeg;
-                pedalsTrim = packet.RudTrimDeg * pedalsParams.TrimMmPerDeg + pedalsVane;
+                pedalsTrim = packet.RudTrimDeg * pedalsParams.TrimMmPerDeg - pedalsVane;
                 SendFlightFfb(FunctionID.FlightPedals, pedalsSpring, pedalsDamper, pedalsTrim, pedalsBuffet);
             }
 
