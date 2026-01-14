@@ -306,7 +306,7 @@ float ShifterFunction::get_x_contact_point_max(void) {
 void ShifterFunction::on_ffb_action(const FFBAction &ffb_action) {
 }
 
-void ShifterFunction::update(Sim *sim, float &f_sum) {
+void ShifterFunction::update(const SimState &state, SimAccumulators &accum) {
     if (!_enabled) return;
     float x_pos = 0.0f, y_pos = 0.0f;
     _comm_manager->get_position(_axis_id_x, x_pos);
@@ -315,18 +315,17 @@ void ShifterFunction::update(Sim *sim, float &f_sum) {
     auto ctx = gateRt.updateAxisContext(x_pos, y_pos, _axis_role);
 
     // soft limits for integration
-    sim->set_x_min(ctx.soft.lo, true);
-    sim->set_x_max(ctx.soft.hi, true);
+    accum.set_limits(ctx.soft.lo, ctx.soft.hi, true);
 
-    CompoundElement::update(sim, f_sum);
+    CompoundElement::update(state, accum);
 
     // active detents for current lane
     auto detSpan = gateRt.detentsForLane(ctx, _axis_role);
 
     for (uint8_t i = 0; i < detSpan.count; i++) {
         const DetentPre& d = gateRt.dets[ detSpan.indices[i] ];
-        float z = (sim->get_x() - (_axis_role == AxisRole::X ? d.x_mm : d.y_mm)) / d.radius_mm;
+        float z = (state.x - (_axis_role == AxisRole::X ? d.x_mm : d.y_mm)) / d.radius_mm;
         if (z <= -1.0f || z >= 1.0f) continue;
-        f_sum += d.spring_N_per_mm * fastmath::fast_sinf(float(PI) * z);
+        accum.f_sum += d.spring_N_per_mm * fastmath::fast_sinf(float(PI) * z);
     }    
 }

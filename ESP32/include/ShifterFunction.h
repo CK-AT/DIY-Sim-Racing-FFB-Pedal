@@ -504,7 +504,7 @@ class ShifterFunction : public IFunction {
         float get_x_contact_point_min(void) override;
         float get_x_contact_point_max(void) override;
         void on_ffb_action(const FFBAction &ffb_action) override;
-        void update(Sim *sim, float &f_sum) override;
+        void update(const SimState &state, SimAccumulators &accum) override;
 
     private:
         void rebuild_map(void);

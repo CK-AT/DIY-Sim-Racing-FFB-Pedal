@@ -218,14 +218,25 @@ void test_shifter_function_gate_force_direction(void) {
 
     Sim sim(1.0f, -20.0f, 20.0f);
     SetSimPosition(sim, 10.0f);
-    float f_sum = 0.0f;
-    shifter.update(&sim, f_sum);
-    TEST_ASSERT_TRUE(f_sum < -0.1f);
+    SimState state = {};
+    SimAccumulators accum = {};
+    state.x = sim.get_x();
+    state.v = sim.get_v();
+    state.a = sim.get_a();
+    state.dt_ms = 1.0f;
+    state.m = sim.get_m();
+    state.x_min = sim.get_x_min();
+    state.x_max = sim.get_x_max();
+    accum.f_sum = 0.0f;
+    shifter.update(state, accum);
+    TEST_ASSERT_TRUE(accum.f_sum < -0.1f);
 
     SetSimPosition(sim, -10.0f);
-    f_sum = 0.0f;
-    shifter.update(&sim, f_sum);
-    TEST_ASSERT_TRUE(f_sum > 0.1f);
+    state.x = sim.get_x();
+    state.v = sim.get_v();
+    accum.f_sum = 0.0f;
+    shifter.update(state, accum);
+    TEST_ASSERT_TRUE(accum.f_sum > 0.1f);
 }
 
 void test_shifter_function_corridor_center_force_zero(void) {
@@ -244,9 +255,18 @@ void test_shifter_function_corridor_center_force_zero(void) {
 
     Sim sim(1.0f, -20.0f, 20.0f);
     SetSimPosition(sim, 0.0f);
-    float f_sum = 0.0f;
-    shifter.update(&sim, f_sum);
-    TEST_ASSERT_FLOAT_WITHIN(0.05f, 0.0f, f_sum);
+    SimState state = {};
+    SimAccumulators accum = {};
+    state.x = sim.get_x();
+    state.v = sim.get_v();
+    state.a = sim.get_a();
+    state.dt_ms = 1.0f;
+    state.m = sim.get_m();
+    state.x_min = sim.get_x_min();
+    state.x_max = sim.get_x_max();
+    accum.f_sum = 0.0f;
+    shifter.update(state, accum);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 0.0f, accum.f_sum);
 }
 
 void test_shifter_detect_demo_slots(void) {
@@ -312,14 +332,25 @@ void test_shifter_function_demo_gate_x_force_direction(void) {
 
     Sim sim(1.0f, float(config.pos_x_min), float(config.pos_x_max));
     SetSimPosition(sim, 10.0f);
-    float f_sum = 0.0f;
-    shifter.update(&sim, f_sum);
-    TEST_ASSERT_TRUE(f_sum < -0.1f);
+    SimState state = {};
+    SimAccumulators accum = {};
+    state.x = sim.get_x();
+    state.v = sim.get_v();
+    state.a = sim.get_a();
+    state.dt_ms = 1.0f;
+    state.m = sim.get_m();
+    state.x_min = sim.get_x_min();
+    state.x_max = sim.get_x_max();
+    accum.f_sum = 0.0f;
+    shifter.update(state, accum);
+    TEST_ASSERT_TRUE(accum.f_sum < -0.1f);
 
     SetSimPosition(sim, -10.0f);
-    f_sum = 0.0f;
-    shifter.update(&sim, f_sum);
-    TEST_ASSERT_TRUE(f_sum > 0.1f);
+    state.x = sim.get_x();
+    state.v = sim.get_v();
+    accum.f_sum = 0.0f;
+    shifter.update(state, accum);
+    TEST_ASSERT_TRUE(accum.f_sum > 0.1f);
 }
 
 void test_shifter_function_demo_neutral_centering(void) {
@@ -338,14 +369,25 @@ void test_shifter_function_demo_neutral_centering(void) {
 
     Sim sim(1.0f, float(config.pos_x_min), float(config.pos_x_max));
     SetSimPosition(sim, 10.0f);
-    float f_sum = 0.0f;
-    shifter.update(&sim, f_sum);
-    TEST_ASSERT_TRUE(f_sum < -0.05f);
+    SimState state = {};
+    SimAccumulators accum = {};
+    state.x = sim.get_x();
+    state.v = sim.get_v();
+    state.a = sim.get_a();
+    state.dt_ms = 1.0f;
+    state.m = sim.get_m();
+    state.x_min = sim.get_x_min();
+    state.x_max = sim.get_x_max();
+    accum.f_sum = 0.0f;
+    shifter.update(state, accum);
+    TEST_ASSERT_TRUE(accum.f_sum < -0.05f);
 
     SetSimPosition(sim, -10.0f);
-    f_sum = 0.0f;
-    shifter.update(&sim, f_sum);
-    TEST_ASSERT_TRUE(f_sum > 0.05f);
+    state.x = sim.get_x();
+    state.v = sim.get_v();
+    accum.f_sum = 0.0f;
+    shifter.update(state, accum);
+    TEST_ASSERT_TRUE(accum.f_sum > 0.05f);
 }
 
 int main(int argc, char **argv) {

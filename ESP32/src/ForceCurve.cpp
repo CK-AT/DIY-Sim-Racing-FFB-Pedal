@@ -9,11 +9,11 @@
 /**********************************************************************************************/
 
 // see https://swharden.com/blog/2022-01-22-spline-interpolation/
-void SplineForceCurve::update(Sim *sim, float &f_sum) {
+void SplineForceCurve::update(const SimState &state, SimAccumulators &accum) {
     if (!_enabled) return;
     if (!_config) return;
 
-    float splineSegment_fl32 = normalize_value(sim->get_x(), _config->pos_min, _config->pos_max) * float(NUMBER_OF_SPLINE_SEGMENTS);
+    float splineSegment_fl32 = normalize_value(state.x, _config->pos_min, _config->pos_max) * float(NUMBER_OF_SPLINE_SEGMENTS);
     uint8_t splineSegment_u8 = (uint8_t)floor(splineSegment_fl32);
 
     if (splineSegment_u8 < 0) {
@@ -39,10 +39,10 @@ void SplineForceCurve::update(Sim *sim, float &f_sum) {
 
     switch (_config->force_direction) {
         case ForceDirection_FORCE_DIRECTION_ADD:
-            f_sum += y;
+            accum.f_sum += y;
             break;
         case ForceDirection_FORCE_DIRECTION_SUBTRACT:
-            f_sum -= y;
+            accum.f_sum -= y;
             break;
         default:
             break;

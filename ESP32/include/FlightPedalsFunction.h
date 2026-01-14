@@ -10,7 +10,7 @@ class FlightPedalsFunction : public IFunction {
     public:
         FlightPedalsFunction(void);
         void update_config(const FlightPedalsConfig &config);
-        void update(Sim *sim, float &f_sum) override;
+        void update(const SimState &state, SimAccumulators &accum) override;
         float get_x_contact_point_min(void) override {
             return _config.pos_near_lim;
         }

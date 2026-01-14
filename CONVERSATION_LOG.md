@@ -2,6 +2,27 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-14 18:01:08 +01:00 (DESKTOP-6KO022D)
+Request: refactor physics updates to use a state/accumulator context and make damping/friction order-agnostic.
+Summary:
+- Replaced SimElement update signatures with `SimState`/`SimAccumulators` and moved damping/friction to a post-pass.
+- Aggregated damping contributions and applied the stability clamp once per update.
+- Implemented stick/slip friction with static/kinetic parameters and no-creep behavior; friction now runs order-agnostic.
+- Added accumulator-based soft limit override for shifter update.
+Key files:
+- `ESP32/include/Physics.h`
+- `ESP32/src/Physics.cpp`
+- `ESP32/include/ForceCurve.h`
+- `ESP32/src/ForceCurve.cpp`
+- `ESP32/include/ShifterFunction.h`
+- `ESP32/src/ShifterFunction.cpp`
+- `ESP32/include/FlightStickFunction.h`
+- `ESP32/src/FlightStickFunction.cpp`
+- `ESP32/include/FlightPedalsFunction.h`
+- `ESP32/src/FlightPedalFunction.cpp`
+Open items:
+- Run ESP32 physics unit tests and verify runtime stability on hardware.
+
 ## 2026-01-13 20:05:57 +01:00 (DESKTOP-6KO022D)
 Request: expand X-Plane FFB UI and documentation, add graph polish, and refactor shared helpers.
 Summary:

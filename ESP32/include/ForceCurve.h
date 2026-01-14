@@ -9,7 +9,7 @@
 class SplineForceCurve : public SimElement {
     public:
         SplineForceCurve(void) { }
-        void update(Sim *sim, float &f_sum);
+        void update(const SimState &state, SimAccumulators &accum);
         void set_config(const SplineForceCurveConfig &config) { _config = &config; }
     
     private:

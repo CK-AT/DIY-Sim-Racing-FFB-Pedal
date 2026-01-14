@@ -54,6 +54,35 @@ static inline float fast_sinf(float x) {
 
 class Sim;
 
+struct SimState {
+    float x = 0.0f;
+    float v = 0.0f;
+    float a = 0.0f;
+    float dt_ms = 0.0f;
+    float m = 0.0f;
+    float x_min = 0.0f;
+    float x_max = 0.0f;
+};
+
+struct SimAccumulators {
+    float f_sum = 0.0f;
+    float k_damp_sum = 0.0f;
+    float f_static_sum = 0.0f;
+    float f_kin_sum = 0.0f;
+    float v_eps_max = 0.0f;
+    bool has_limits_override = false;
+    bool limits_immediate = false;
+    float x_min_override = 0.0f;
+    float x_max_override = 0.0f;
+
+    void set_limits(float min_val, float max_val, bool immediate = false) {
+        has_limits_override = true;
+        limits_immediate = immediate;
+        x_min_override = min_val;
+        x_max_override = max_val;
+    }
+};
+
 inline float normalize_value(float value, float min_val, float max_val) {
     float val_range = (max_val - min_val);
     if (abs(val_range) < 0.01) {
@@ -71,7 +100,12 @@ inline float normalize_value(float value, float min_val, float max_val) {
 
 class SimElement {
     public:
-        virtual void update(Sim *sim, float &f_sum);
+        // f_sum accumulates forces (N), k_damp_sum accumulates total damping (N*s/mm).
+        // f_static_sum/f_kin_sum accumulate static/kinetic friction; v_eps_max is the stick/slide velocity threshold.
+        // Damping and friction are applied once in Sim::update after all elements contribute.
+        // New elements: read state.x/state.v/state.a, then add force to accum.f_sum, damping to accum.k_damp_sum,
+        // or friction parameters to the friction sums.
+        virtual void update(const SimState &state, SimAccumulators &accum);
         void enable(void) {
             _enabled = true;
         }
@@ -165,7 +199,7 @@ class Sim {
 
 class CompoundElement : public SimElement {
     public:
-        void update(Sim *sim, float &f_sum);
+        void update(const SimState &state, SimAccumulators &accum);
         void add_element(SimElement *element) {
             _elements.emplace_back(element);
         }
@@ -180,7 +214,7 @@ class CompoundElement : public SimElement {
 class Spring : public SimElement {
     public:
         Spring(float offset, float k) : _k(k), _offset(offset) {};
-        void update(Sim *sim, float &f_sum);
+        void update(const SimState &state, SimAccumulators &accum);
         void set_k(float val) {
             _k = val;
         }
@@ -197,7 +231,7 @@ class Damper : public SimElement {
     public:
         Damper(float k) : _k_neg(k), _k_pos(k) {};
         Damper(float k_neg, float k_pos) : _k_neg(k_neg), _k_pos(k_pos) {};
-        void update(Sim *sim, float &f_sum);
+        void update(const SimState &state, SimAccumulators &accum);
         void set_k(float val) {
             _k_neg = val;
             _k_pos = val;
@@ -232,7 +266,7 @@ class OscillationGuard : public SimElement {
               _hold_time_us(hold_time_us),
               _ramp_time_us(ramp_time_us),
               _required_hits(required_hits) {}
-        void update(Sim *sim, float &f_sum);
+        void update(const SimState &state, SimAccumulators &accum);
         void set_damping_gain(float k_max) {
             _k_max = max(k_max, 0.0f);
         }
@@ -271,7 +305,7 @@ class OscillationGuard : public SimElement {
 class Buffet : public SimElement {
     public:
         Buffet(float amplitude = 0.0f) : _amplitude(max(amplitude, 0.0f)) {}
-        void update(Sim *sim, float &f_sum);
+        void update(const SimState &state, SimAccumulators &accum);
         void set_amplitude(float amplitude) {
             _amplitude = max(amplitude, 0.0f);
         }
@@ -286,20 +320,34 @@ class Buffet : public SimElement {
 
 class Friction : public SimElement {
     public:
-        Friction(float f) : _f(f) {};
-        void update(Sim *sim, float &f_sum);
+        Friction(float f) : _f_static(max(f, 0.0f)), _f_kin(max(f, 0.0f)) {};
+        Friction(float f_static, float f_kin, float v_eps = 0.01f)
+            : _f_static(max(f_static, 0.0f)), _f_kin(max(f_kin, 0.0f)), _v_eps(max(v_eps, 0.0f)) {}
+        void update(const SimState &state, SimAccumulators &accum);
         void set_f(float val) {
-            _f = val;
+            _f_static = max(val, 0.0f);
+            _f_kin = _f_static;
+        }
+        void set_f_static(float val) {
+            _f_static = max(val, 0.0f);
+        }
+        void set_f_kin(float val) {
+            _f_kin = max(val, 0.0f);
+        }
+        void set_v_eps(float val) {
+            _v_eps = max(val, 0.0f);
         }
 
     private:
-        float _f;
+        float _f_static;
+        float _f_kin;
+        float _v_eps = 0.01f;
 };
 
 class ConstForce : public SimElement {
     public:
         ConstForce(float f) : _f(f) {};
-        void update(Sim *sim, float &f_sum);
+        void update(const SimState &state, SimAccumulators &accum);
         void set_f(float val) {
             _f = val;
         }
@@ -311,7 +359,7 @@ class ConstForce : public SimElement {
 class ForceMap : public SimElement {
     public:
         ForceMap(std::vector<float> x_vect, std::vector<float> f_vect) : _x_vect(x_vect), _f_vect(f_vect) {};
-        void update(Sim *sim, float &f_sum);
+        void update(const SimState &state, SimAccumulators &accum);
         void set_map(std::vector<float> x_vect, std::vector<float> f_vect) {
             _x_vect = x_vect;
             _f_vect = f_vect;
@@ -328,7 +376,7 @@ class DampingMap : public SimElement {
         DampingMap(std::vector<float> x_vect, std::vector<float> k_vect) : _x_vect(x_vect), _k_vect_pos(k_vect), _k_vect_neg(k_vect) {};
         DampingMap(std::vector<float> x_vect, std::vector<float> k_vect_neg, std::vector<float> k_vect_pos)
             : _x_vect(x_vect), _k_vect_neg(k_vect_neg), _k_vect_pos(k_vect_pos) {};
-        void update(Sim *sim, float &f_sum);
+        void update(const SimState &state, SimAccumulators &accum);
         void set_map(std::vector<float> x_vect, std::vector<float> k_vect) {
             _x_vect = x_vect;
             _k_vect_neg = k_vect;
@@ -350,7 +398,7 @@ class DampingMap : public SimElement {
 class Cam : public SimElement {
     public:
         Cam(float f_max, float center, float half_width) : _f_max(f_max), _center(center), _half_width(half_width) {};
-        void update(Sim *sim, float &f_sum);
+        void update(const SimState &state, SimAccumulators &accum);
         void set_f_max(float val) {
             _f_max = val;
         }

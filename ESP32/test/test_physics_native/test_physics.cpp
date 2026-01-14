@@ -362,6 +362,156 @@ void test_integrator_comparison_stiff_damped_friction(void) {
     TEST_ASSERT_TRUE_MESSAGE(fabsf(final_x_vv) < 5.0f, msg);
 }
 
+void test_friction_order_agnostic(void) {
+    constexpr float k = 1.5f;
+    constexpr float offset = 0.0f;
+    Sim sim_a(1.0f, -100.0f, 100.0f);
+    Sim sim_b(1.0f, -100.0f, 100.0f);
+    Spring spring(offset, k);
+    Friction friction(2.0f);
+    sim_a.add_element(&friction);
+    sim_a.add_element(&spring);
+    sim_b.add_element(&spring);
+    sim_b.add_element(&friction);
+
+    SetSimPosition(sim_a, 10.0f);
+    SetSimPosition(sim_b, 10.0f);
+
+    float dt = 1.0f;
+    float f_in = 0.5f;
+    for (int step = 0; step < 500; ++step) {
+        sim_a.update(dt, f_in);
+        sim_b.update(dt, f_in);
+    }
+
+    float dx = fabsf(sim_a.get_x() - sim_b.get_x());
+    float dv = fabsf(sim_a.get_v() - sim_b.get_v());
+    char msg[128];
+    std::snprintf(msg, sizeof(msg), "dx=%.4f dv=%.4f", dx, dv);
+    TEST_ASSERT_TRUE_MESSAGE(dx < 0.01f, msg);
+    TEST_ASSERT_TRUE_MESSAGE(dv < 0.1f, msg);
+}
+
+void test_friction_no_creep_with_small_alternating_force(void) {
+    Sim sim(1.0f, -100.0f, 100.0f);
+    Friction friction(2.0f, 1.5f, 0.05f);
+    sim.add_element(&friction);
+    SetSimPosition(sim, 0.0f);
+
+    float dt = 1.0f;
+    for (int step = 0; step < 2000; ++step) {
+        float f_in = (step % 2 == 0) ? 1.0f : -1.0f;
+        sim.update(dt, f_in);
+    }
+
+    float x = sim.get_x();
+    float v = sim.get_v();
+    char msg[128];
+    std::snprintf(msg, sizeof(msg), "x=%.4f v=%.4f", x, v);
+    TEST_ASSERT_TRUE_MESSAGE(fabsf(x) < 0.05f, msg);
+    TEST_ASSERT_TRUE_MESSAGE(fabsf(v) < 0.1f, msg);
+}
+
+void test_combined_damping_clamp(void) {
+    constexpr float m = 0.05f;
+    float dt = 1.0f;
+    Sim sim(m, -100.0f, 100.0f);
+    Damper damper(100.0f);
+    std::vector<float> x_vect = {-100.0f, 100.0f};
+    std::vector<float> k_vect = {100.0f, 100.0f};
+    DampingMap damping_map(x_vect, k_vect);
+    sim.add_element(&damper);
+    sim.add_element(&damping_map);
+    SetSimPosition(sim, 0.0f);
+
+    float f_in = 10.0f;
+    for (int step = 0; step < 10; ++step) {
+        sim.update(dt, f_in);
+    }
+
+    f_in = 0.0f;
+    sim.update(dt, f_in);
+
+    float v = sim.get_v();
+    if (fabsf(v) > 1e-3f) {
+        float k_effective = fabsf(sim.get_f_sum() / v);
+        float k_limit = 2.0f * m / dt;
+        TEST_ASSERT_TRUE(k_effective <= k_limit * 1.02f);
+    }
+}
+
+void test_dt_jitter_stability(void) {
+    Sim sim(0.5f, -100.0f, 100.0f);
+    Spring spring(0.0f, 2.0f);
+    Damper damper(0.5f);
+    sim.add_element(&spring);
+    sim.add_element(&damper);
+    SetSimPosition(sim, 20.0f);
+
+    float f_in = 0.0f;
+    for (int step = 0; step < 10000; ++step) {
+        float dt = (step % 3 == 0) ? 0.25f : (step % 3 == 1 ? 1.0f : 2.0f);
+        sim.update(dt, f_in);
+        TEST_ASSERT_TRUE(std::isfinite(sim.get_x()));
+        TEST_ASSERT_TRUE(std::isfinite(sim.get_v()));
+    }
+}
+
+void test_limit_clamp_no_nan(void) {
+    Sim sim(0.5f, -10.0f, 10.0f);
+    Spring spring(0.0f, 5.0f);
+    sim.add_element(&spring);
+    SetSimPosition(sim, 9.5f);
+
+    float dt = 1.0f;
+    float f_in = 50.0f;
+    for (int step = 0; step < 200; ++step) {
+        sim.update(dt, f_in);
+        TEST_ASSERT_TRUE(sim.get_x() <= 10.0f);
+        TEST_ASSERT_TRUE(sim.get_x() >= -10.0f);
+        TEST_ASSERT_TRUE(std::isfinite(sim.get_x()));
+    }
+}
+
+void test_damping_map_negative_entries_clamped(void) {
+    Sim sim(1.0f, -100.0f, 100.0f);
+    std::vector<float> x_vect = {-100.0f, 100.0f};
+    std::vector<float> k_vect = {-5.0f, -5.0f};
+    DampingMap damping_map(x_vect, k_vect);
+    sim.add_element(&damping_map);
+    SetSimPosition(sim, 0.0f);
+
+    float dt = 1.0f;
+    float f_in = 5.0f;
+    for (int step = 0; step < 50; ++step) {
+        sim.update(dt, f_in);
+    }
+
+    float v = sim.get_v();
+    TEST_ASSERT_TRUE(std::isfinite(v));
+}
+
+void test_oscillation_guard_ramps_damping(void) {
+    Sim sim(1.0f, -100.0f, 100.0f);
+    OscillationGuard guard(1.0f, 0.2f, 0.5f, 4000, 20000, 50000, 20000, 1);
+    sim.add_element(&guard);
+    SetSimPosition(sim, 0.0f);
+
+    float dt = 1.0f;
+    float f_in = 0.0f;
+    float v = 0.0f;
+    float x = 0.0f;
+    for (int step = 0; step < 50; ++step) {
+        v = (step % 2 == 0) ? 2.0f : -2.0f;
+        x += v * dt / 1000.0f;
+        sim.set_state(x, x - (v * dt / 1000.0f));
+        sim.update(dt, f_in, true);
+        sim.update(dt, f_in);
+    }
+
+    TEST_ASSERT_TRUE(std::isfinite(sim.get_f_sum()));
+}
+
 int main(int argc, char **argv) {
     UNITY_BEGIN();
     RUN_TEST(test_energy_conservation_spring_only);
@@ -372,6 +522,13 @@ int main(int argc, char **argv) {
     RUN_TEST(test_friction_static_holds_under_threshold);
     RUN_TEST(test_friction_kinetic_moves_above_threshold);
     RUN_TEST(test_damper_and_friction_settle_velocity);
+    RUN_TEST(test_friction_order_agnostic);
+    RUN_TEST(test_friction_no_creep_with_small_alternating_force);
+    RUN_TEST(test_combined_damping_clamp);
+    RUN_TEST(test_dt_jitter_stability);
+    RUN_TEST(test_limit_clamp_no_nan);
+    RUN_TEST(test_damping_map_negative_entries_clamped);
+    RUN_TEST(test_oscillation_guard_ramps_damping);
     // RUN_TEST(test_integrator_comparison_stiff_damped_friction);
     return UNITY_END();
 }

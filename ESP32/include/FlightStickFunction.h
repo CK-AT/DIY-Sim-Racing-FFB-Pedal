@@ -9,7 +9,7 @@ class FlightStickFunction : public IFunction {
         FlightStickFunction(void);
         void update_config(const FlightStickPitchConfig &config);
         void update_config(const FlightStickRollConfig &config);
-        void update(Sim *sim, float &f_sum) override;
+        void update(const SimState &state, SimAccumulators &accum) override;
         float get_x_contact_point_min(void) override {
             return _config.pos_min;
         }

@@ -45,7 +45,7 @@ void FlightStickFunction::on_ffb_action(const FFBAction &ffb_action) {
     _ffb_overridden = true;
 }
 
-void FlightStickFunction::update(Sim *sim, float &f_sum) {
+void FlightStickFunction::update(const SimState &state, SimAccumulators &accum) {
     if (_ffb_overridden) {
         uint32_t elapsed = millis() - _last_ffb_ms;
         if (elapsed > 200) {
@@ -57,5 +57,5 @@ void FlightStickFunction::update(Sim *sim, float &f_sum) {
         }
     }
 
-    CompoundElement::update(sim, f_sum);
+    CompoundElement::update(state, accum);
 }

@@ -1,44 +1,31 @@
 #include <Physics.h>
 
-void SimElement::update(Sim *sim, float &f_sum) {
+void SimElement::update(const SimState &state, SimAccumulators &accum) {
 }
 
-void CompoundElement::update(Sim *sim, float &f_sum) {
+void CompoundElement::update(const SimState &state, SimAccumulators &accum) {
     if (!_enabled) return;
     for (auto element : _elements) {
-        element->update(sim, f_sum);
+        element->update(state, accum);
     }
 }
 
-void Spring::update(Sim *sim, float &f_sum) {
+void Spring::update(const SimState &state, SimAccumulators &accum) {
     if (!_enabled) return;
-    f_sum = f_sum - ((sim->get_x() - _offset) * _k);
+    accum.f_sum = accum.f_sum - ((state.x - _offset) * _k);
 }
 
-void Damper::update(Sim *sim, float &f_sum) {
+void Damper::update(const SimState &state, SimAccumulators &accum) {
     if (!_enabled) return;
-    float v = sim->get_v();
-    float k_neg = _k_neg;
-    float k_pos = _k_pos;
-    float dt_ms = sim->get_dt_ms();
-    float m = sim->get_m();
-    if (dt_ms > 0.0f && m > 0.0f) {
-        float k_limit = 1.9f * m / dt_ms;
-        k_neg = min(k_neg, k_limit);
-        k_pos = min(k_pos, k_limit);
-    }
-    if (v < 0.0) {
-        f_sum = f_sum - (v * k_neg);
-    } else {
-        f_sum = f_sum - (v * k_pos);
-    }
+    float k = state.v < 0.0f ? _k_neg : _k_pos;
+    accum.k_damp_sum += max(k, 0.0f);
 }
 
-void OscillationGuard::update(Sim *sim, float &f_sum) {
+void OscillationGuard::update(const SimState &state, SimAccumulators &accum) {
     if (!_enabled) return;
     uint32_t now = micros();
-    float v = sim->get_v();
-    float x = sim->get_x();
+    float v = state.v;
+    float x = state.x;
 
     int8_t v_sign = 0;
     if (v > _min_velocity) {
@@ -87,11 +74,11 @@ void OscillationGuard::update(Sim *sim, float &f_sum) {
     _last_update_us = now;
 
     if (_damping_gain > 0.0f) {
-        f_sum -= v * _damping_gain;
+        accum.k_damp_sum += _damping_gain;
     }
 }
 
-void Buffet::update(Sim *sim, float &f_sum) {
+void Buffet::update(const SimState &state, SimAccumulators &accum) {
     if (!_enabled || _amplitude <= 0.0f) return;
 
     uint32_t now = micros();
@@ -118,39 +105,29 @@ void Buffet::update(Sim *sim, float &f_sum) {
     _slow_state += alpha_slow * (noise - _slow_state);
     float band_noise = _fast_state - _slow_state;
 
-    f_sum += band_noise * _amplitude;
+    accum.f_sum += band_noise * _amplitude;
 }
 
-void Friction::update(Sim *sim, float &f_sum) {
+void Friction::update(const SimState &state, SimAccumulators &accum) {
     if (!_enabled) return;
-    if (sim->get_v() > 0.0) {
-        f_sum = f_sum - _f;
-    } else if (sim->get_v() < 0.0) {
-        f_sum = f_sum + _f;
-    } else {
-        if (f_sum > _f) {
-            f_sum = f_sum - _f;
-        } else if (f_sum < -_f) {
-            f_sum = f_sum + _f;
-        } else {
-            f_sum = 0.0;
-        }
-    }
+    accum.f_static_sum += _f_static;
+    accum.f_kin_sum += _f_kin;
+    accum.v_eps_max = max(accum.v_eps_max, _v_eps);
 }
 
-void ConstForce::update(Sim *sim, float &f_sum) {
+void ConstForce::update(const SimState &state, SimAccumulators &accum) {
     if (!_enabled) return;
-    f_sum += _f;
+    accum.f_sum += _f;
 }
 
-void ForceMap::update(Sim *sim, float &f_sum) {
+void ForceMap::update(const SimState &state, SimAccumulators &accum) {
     if (!_enabled) return;
-    float x = sim->get_x();
+    float x = state.x;
     if (x <= _x_vect[0]) {
-        f_sum -= _f_vect[0];
+        accum.f_sum -= _f_vect[0];
         _last_idx = 0;
     } else if (x >= _x_vect.back()) {
-        f_sum -= _f_vect.back();
+        accum.f_sum -= _f_vect.back();
         _last_idx = _x_vect.size() - 1;
     } else {
         while ((_last_idx >= 0) && (_last_idx <= (_x_vect.size() - 1))) {
@@ -161,17 +138,17 @@ void ForceMap::update(Sim *sim, float &f_sum) {
             } else {
                 float k = (_f_vect[_last_idx + 1] - _f_vect[_last_idx]) / (_x_vect[_last_idx + 1] - _x_vect[_last_idx]);
                 float d = _f_vect[_last_idx] - (k * _x_vect[_last_idx]);
-                f_sum -= ((k * x) + d);
+                accum.f_sum -= ((k * x) + d);
                 return;
             }
         }
     }
 }
 
-void DampingMap::update(Sim *sim, float &f_sum) {
+void DampingMap::update(const SimState &state, SimAccumulators &accum) {
     if (!_enabled) return;
-    float x = sim->get_x();
-    float v = sim->get_v();
+    float x = state.x;
+    float v = state.v;
     std::vector<float> *k_vect;
     if (v < 0.0) {
         k_vect = &_k_vect_neg;
@@ -179,10 +156,10 @@ void DampingMap::update(Sim *sim, float &f_sum) {
         k_vect = &_k_vect_pos;
     }
     if (x <= _x_vect[0]) {
-        f_sum -= (sim->get_v() * k_vect->front());
+        accum.k_damp_sum += max(k_vect->front(), 0.0f);
         _last_idx = 0;
     } else if (x >= _x_vect.back()) {
-        f_sum -= (sim->get_v() * k_vect->back());
+        accum.k_damp_sum += max(k_vect->back(), 0.0f);
         _last_idx = _x_vect.size() - 1;
     } else {
         while ((_last_idx >= 0) && (_last_idx <= (_x_vect.size() - 1))) {
@@ -193,47 +170,135 @@ void DampingMap::update(Sim *sim, float &f_sum) {
             } else {
                 float k = (k_vect->at(_last_idx + 1) - k_vect->at(_last_idx)) / (_x_vect[_last_idx + 1] - _x_vect[_last_idx]);
                 float d = k_vect->at(_last_idx) - (k * _x_vect[_last_idx]);
-                f_sum -= (sim->get_v() * ((k * x) + d));
+                accum.k_damp_sum += max((k * x) + d, 0.0f);
                 return;
             }
         }
     }
 }
 
-void Cam::update(Sim *sim, float &f_sum) {
+void Cam::update(const SimState &state, SimAccumulators &accum) {
     if (!_enabled) return;
-    float z = (sim->get_x() - _center) / _half_width;
+    float z = (state.x - _center) / _half_width;
     if (z <= -1.0f || z >= 1.0f) return;
-    f_sum += _f_max * fastmath::fast_sinf(float(PI) * z);
+    accum.f_sum += _f_max * fastmath::fast_sinf(float(PI) * z);
 }
 
 void Sim::update(float &dt, float &f_in, bool final_f) {
-    float f_sum = f_in;
     _dt_ms = dt;
     _v = (_x - _x_prev) * 1000.0 / dt;
 
+    SimState state;
+    state.x = _x;
+    state.v = _v;
+    state.a = _a;
+    state.dt_ms = dt;
+    state.m = _m;
+    state.x_min = _x_min;
+    state.x_max = _x_max;
+
+    SimAccumulators accum;
+    accum.f_sum = f_in;
+
     if (!final_f) {
         for (auto element : _elements) {
-            element->update(this, f_sum);
+            element->update(state, accum);
+        }
+    }
+
+    if (accum.has_limits_override) {
+        _x_min_tgt = accum.x_min_override;
+        _x_max_tgt = accum.x_max_override;
+        if (accum.limits_immediate) {
+            _x_min = _x_min_tgt;
+            _x_max = _x_max_tgt;
         }
     }
 
     _x_min += constrain(_x_min_tgt - _x_min, -20.0 * dt / 1000.0, 20.0 * dt / 1000.0);
     _x_max += constrain(_x_max_tgt - _x_max, -20.0 * dt / 1000.0, 20.0 * dt / 1000.0);
 
-    _a = f_sum / _m * 1000.0;
+    float k_limit = 0.0f;
+    if (dt > 0.0f && _m > 0.0f) {
+        k_limit = 1.9f * _m / dt;
+    }
+    if (k_limit > 0.0f) {
+        accum.k_damp_sum = min(accum.k_damp_sum, k_limit);
+    }
+    if (accum.k_damp_sum > 0.0f) {
+        accum.f_sum -= _v * accum.k_damp_sum;
+    }
+
+    if (accum.f_static_sum > 0.0f || accum.f_kin_sum > 0.0f) {
+        float f_static = max(accum.f_static_sum, 0.0f);
+        float f_kin = accum.f_kin_sum > 0.0f ? accum.f_kin_sum : f_static;
+        float v_eps = max(accum.v_eps_max, 0.01f);
+        float v_abs = fabsf(_v);
+        if (v_abs < v_eps) {
+            if (fabsf(accum.f_sum) <= f_static) {
+                accum.f_sum = 0.0f;
+                _v = 0.0f;
+                _x_prev = _x;
+            } else {
+                float dir = accum.f_sum > 0.0f ? 1.0f : -1.0f;
+                accum.f_sum -= dir * f_kin;
+            }
+        } else {
+            float dir = _v > 0.0f ? 1.0f : -1.0f;
+            accum.f_sum -= dir * f_kin;
+        }
+    }
+
+    _a = accum.f_sum / _m * 1000.0;
     float x_raw = (2.0 * _x) - _x_prev + (((_a * dt * dt) / 1000.0) / 1000.0);
     _x_prev = _x;
     _x = constrain(x_raw, _x_min, _x_max);
-    _f_sum = f_sum;
+    _f_sum = accum.f_sum;
 }
 
 #ifdef UNIT_TEST
 float Sim::compute_force_sum(float f_in) {
-    float f_sum = f_in;
+    SimState state;
+    state.x = _x;
+    state.v = _v;
+    state.a = _a;
+    state.dt_ms = _dt_ms;
+    state.m = _m;
+    state.x_min = _x_min;
+    state.x_max = _x_max;
+
+    SimAccumulators accum;
+    accum.f_sum = f_in;
     for (auto element : _elements) {
-        element->update(this, f_sum);
+        element->update(state, accum);
     }
-    return f_sum;
+    float k_limit = 0.0f;
+    if (_dt_ms > 0.0f && _m > 0.0f) {
+        k_limit = 1.9f * _m / _dt_ms;
+    }
+    if (k_limit > 0.0f) {
+        accum.k_damp_sum = min(accum.k_damp_sum, k_limit);
+    }
+    if (accum.k_damp_sum > 0.0f) {
+        accum.f_sum -= _v * accum.k_damp_sum;
+    }
+    if (accum.f_static_sum > 0.0f || accum.f_kin_sum > 0.0f) {
+        float f_static = max(accum.f_static_sum, 0.0f);
+        float f_kin = accum.f_kin_sum > 0.0f ? accum.f_kin_sum : f_static;
+        float v_eps = max(accum.v_eps_max, 0.01f);
+        float v_abs = fabsf(_v);
+        if (v_abs < v_eps) {
+            if (fabsf(accum.f_sum) <= f_static) {
+                accum.f_sum = 0.0f;
+            } else {
+                float dir = accum.f_sum > 0.0f ? 1.0f : -1.0f;
+                accum.f_sum -= dir * f_kin;
+            }
+        } else {
+            float dir = _v > 0.0f ? 1.0f : -1.0f;
+            accum.f_sum -= dir * f_kin;
+        }
+    }
+    return accum.f_sum;
 }
 #endif
