@@ -96,7 +96,7 @@
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_xplane_buffet_gain" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Buffet Gain @ Vref:" Padding="0,0,0,8"/>
-                            <Slider x:Name="Slider_xplane_buffet_gain" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="2.0" IsSnapToTickEnabled="True" Value="0.05" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneBuffetGainChanged"/>
+                            <Slider x:Name="Slider_xplane_buffet_gain" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="200.0" IsSnapToTickEnabled="True" Value="0.05" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneBuffetGainChanged"/>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_xplane_weathervane_gain" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Weather-Vaning Gain:" Padding="0,0,0,8"/>
