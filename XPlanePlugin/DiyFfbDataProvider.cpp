@@ -37,6 +37,9 @@ XPLMDataRef	DFFB_DR_ail_trim = NULL;
 XPLMDataRef	DFFB_DR_rud_trim = NULL;
 XPLMDataRef	DFFB_DR_g_nrml = NULL;
 XPLMDataRef	DFFB_DR_on_ground = NULL;
+XPLMDataRef DFFB_DR_elev_trim_overr = NULL;
+XPLMDataRef DFFB_DR_ail_trim_overr = NULL;
+XPLMDataRef DFFB_DR_rud_trim_overr = NULL;
 
 WSADATA wsaData;
 SOCKET sendSocket = INVALID_SOCKET;
@@ -112,6 +115,10 @@ PLUGIN_API int XPluginStart(
 	DFFB_DR_rud_trim = XPLMFindDataRef("sim/flightmodel/controls/rud_trim");
 	DFFB_DR_g_nrml = XPLMFindDataRef("sim/flightmodel/forces/g_nrml");
 	DFFB_DR_on_ground = XPLMFindDataRef("sim/flightmodel/failures/onground_any");
+    DFFB_DR_elev_trim_overr = XPLMFindDataRef("sim/operation/override/override_pitch_trim");
+    DFFB_DR_ail_trim_overr = XPLMFindDataRef("sim/operation/override/override_roll_trim");
+    DFFB_DR_rud_trim_overr = XPLMFindDataRef("sim/operation/override/override_yaw_trim");
+    
 
 	DFFB_LoadConfig();
 
@@ -204,11 +211,11 @@ void DFFB_CalculateMotionData(void)
 	packet.ail_def_deg = DFFB_DR_ail_def ? XPLMGetDataf(DFFB_DR_ail_def) : 0.0f;
 	packet.rud_def_deg = DFFB_DR_rud_def ? XPLMGetDataf(DFFB_DR_rud_def) : 0.0f;
 	packet.elev_trim_deg = DFFB_DR_elev_trim ? XPLMGetDataf(DFFB_DR_elev_trim) : 0.0f;
-    XPLMSetDataf(DFFB_DR_elev_trim, 0.0f);
+    XPLMSetDatai(DFFB_DR_elev_trim_overr, 1);
 	packet.ail_trim_deg = DFFB_DR_ail_trim ? XPLMGetDataf(DFFB_DR_ail_trim) : 0.0f;
-    XPLMSetDataf(DFFB_DR_ail_trim, 0.0f);
+    XPLMSetDatai(DFFB_DR_ail_trim_overr, 1);
     packet.rud_trim_deg = DFFB_DR_rud_trim ? XPLMGetDataf(DFFB_DR_rud_trim) : 0.0f;
-    XPLMSetDataf(DFFB_DR_rud_trim, 0.0f);
+    XPLMSetDatai(DFFB_DR_rud_trim_overr, 1);
     packet.g_nrml = DFFB_DR_g_nrml ? XPLMGetDataf(DFFB_DR_g_nrml) : 0.0f;
 	packet.on_ground = DFFB_DR_on_ground ? (XPLMGetDatai(DFFB_DR_on_ground) != 0) : 0;
 
