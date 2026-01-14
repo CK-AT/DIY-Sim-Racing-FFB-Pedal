@@ -9,9 +9,10 @@
   <line x1="40" y1="115" x2="460" y2="115" stroke="#3a3f4b" stroke-dasharray="4,4"/>
   <line x1="40" y1="60" x2="460" y2="60" stroke="#3a3f4b" stroke-dasharray="4,4"/>
 
-  <path d="M40 170 C120 150, 200 125, 280 105 C340 90, 400 82, 460 78"
+  <!-- q_scale-shaped gains (spring above damper), flattening toward 2.0 -->
+  <path d="M40.0 170.0 L61.0 169.0 L82.0 166.2 L103.0 161.8 L124.0 156.3 L145.0 150.2 L166.0 143.8 L187.0 137.4 L208.0 131.4 L229.0 125.7 L250.0 120.5 L271.0 115.8 L292.0 111.6 L313.0 107.8 L334.0 104.4 L355.0 101.5 L376.0 98.8 L397.0 96.4 L418.0 94.3 L439.0 92.5 L460.0 90.8"
         fill="none" stroke="#6bd26b" stroke-width="2"/>
-  <path d="M40 170 C120 160, 200 140, 280 125 C340 115, 400 108, 460 104"
+  <path d="M40.0 170.0 L61.0 169.3 L82.0 167.5 L103.0 164.6 L124.0 160.9 L145.0 156.8 L166.0 152.5 L187.0 148.3 L208.0 144.2 L229.0 140.5 L250.0 137.0 L271.0 133.9 L292.0 131.0 L313.0 128.5 L334.0 126.3 L355.0 124.3 L376.0 122.5 L397.0 121.0 L418.0 119.6 L439.0 118.3 L460.0 117.2"
         fill="none" stroke="#4aa3ff" stroke-width="2"/>
   <line x1="250" y1="60" x2="250" y2="170" stroke="#ffd166" stroke-width="1"/>
 
@@ -21,7 +22,17 @@
   <line x1="342" y1="152" x2="354" y2="152" stroke="#4aa3ff" stroke-width="2"/>
   <text x="360" y="155" fill="#e6e6e6" font-family="Arial" font-size="10">Damper 0.52</text>
 
-  <text x="40" y="190" fill="#a9b1ba" font-family="Arial" font-size="10">IAS: 95 kt</text>
-  <text x="140" y="190" fill="#a9b1ba" font-family="Arial" font-size="10">Trim: -2.3 mm</text>
-  <text x="250" y="190" fill="#a9b1ba" font-family="Arial" font-size="10">Vane: +1.1 mm</text>
+  <line x1="145" y1="170" x2="145" y2="176" stroke="#5c6370" stroke-width="1"/>
+  <line x1="250" y1="170" x2="250" y2="176" stroke="#5c6370" stroke-width="1"/>
+  <line x1="355" y1="170" x2="355" y2="176" stroke="#5c6370" stroke-width="1"/>
+
+  <text x="40" y="184" fill="#a9b1ba" font-family="Arial" font-size="9">0</text>
+  <text x="145" y="184" fill="#a9b1ba" font-family="Arial" font-size="9" text-anchor="middle">0.5*Vref</text>
+  <text x="250" y="184" fill="#a9b1ba" font-family="Arial" font-size="9" text-anchor="middle">Vref</text>
+  <text x="355" y="184" fill="#a9b1ba" font-family="Arial" font-size="9" text-anchor="middle">1.5*Vref</text>
+  <text x="460" y="184" fill="#a9b1ba" font-family="Arial" font-size="9" text-anchor="end">2*Vref</text>
+
+  <text x="40" y="204" fill="#a9b1ba" font-family="Arial" font-size="10">IAS: 95 kt</text>
+  <text x="140" y="204" fill="#a9b1ba" font-family="Arial" font-size="10">Trim: -2.3 mm</text>
+  <text x="250" y="204" fill="#a9b1ba" font-family="Arial" font-size="10">Vane: +1.1 mm</text>
 </svg>

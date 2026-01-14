@@ -2,6 +2,17 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-14 20:40:04 +01:00 (DESKTOP-6KO022D)
+Request: refine X-Plane FFB documentation plots.
+Summary:
+- Smoothed the q_scale curve and gain panel plots with denser path segments.
+- Added tick labels and adjusted the q_scale plot to reach 2.0 at 2*Vref.
+Key files:
+- `SimHubPlugin/Docs/images/xplane_qscale_curve.svg`
+- `SimHubPlugin/Docs/images/xplane_gain_panel_mock.svg`
+Open items:
+- None.
+
 ## 2026-01-14 18:01:08 +01:00 (DESKTOP-6KO022D)
 Request: refactor physics updates to use a state/accumulator context and make damping/friction order-agnostic.
 Summary:

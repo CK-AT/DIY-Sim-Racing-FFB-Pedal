@@ -9,14 +9,20 @@
   <line x1="90" y1="50" x2="810" y2="50" stroke="#3a3f4b" stroke-dasharray="4,4"/>
 
   <text x="90" y="220" fill="#a9b1ba" font-family="Arial" font-size="12">0</text>
+  <text x="270" y="220" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="middle">0.5*Vref</text>
   <text x="450" y="220" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="middle">Vref</text>
+  <text x="630" y="220" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="middle">1.5*Vref</text>
   <text x="810" y="220" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="end">2*Vref</text>
+
+  <line x1="270" y1="200" x2="270" y2="206" stroke="#5c6370" stroke-width="1"/>
+  <line x1="630" y1="200" x2="630" y2="206" stroke="#5c6370" stroke-width="1"/>
 
   <text x="70" y="200" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="end">0.0</text>
   <text x="70" y="125" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="end">1.0</text>
   <text x="70" y="50" fill="#a9b1ba" font-family="Arial" font-size="12" text-anchor="end">2.0</text>
 
-  <path d="M90 200 C180 170, 270 135, 360 110 C450 90, 540 75, 630 65 C720 58, 780 55, 810 55"
+  <!-- q_scale = 2*q_hat/(q_hat+Vref^2), scaled to show full 0..2 range by 2*Vref -->
+  <path d="M90.0 200.0 L126.0 198.1 L162.0 192.8 L198.0 184.5 L234.0 174.1 L270.0 162.5 L306.0 150.4 L342.0 138.3 L378.0 126.8 L414.0 116.1 L450.0 106.2 L486.0 97.3 L522.0 89.3 L558.0 82.2 L594.0 75.8 L630.0 70.2 L666.0 65.2 L702.0 60.7 L738.0 56.7 L774.0 53.2 L810.0 50.0"
         fill="none" stroke="#ffd166" stroke-width="3"/>
 
   <text x="470" y="75" fill="#ffd166" font-family="Arial" font-size="12">q_scale</text>
