@@ -7,6 +7,8 @@ import socket
 import sys
 import threading
 import time
+import urllib.request
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -44,7 +46,7 @@ def resolve_host_ip(host: str, bind: str) -> str:
         return "127.0.0.1"
 
 
-def make_handler(json_bytes: bytes, firmware_path: Path, verbose: bool):
+def make_handler(json_bytes: bytes, firmware_bytes: bytes, verbose: bool):
     class OtaHandler(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path in ("/", "/update_info.json"):
@@ -55,20 +57,11 @@ def make_handler(json_bytes: bytes, firmware_path: Path, verbose: bool):
                 self.wfile.write(json_bytes)
                 return
             if self.path == "/firmware.bin":
-                try:
-                    size = firmware_path.stat().st_size
-                    self.send_response(200)
-                    self.send_header("Content-Type", "application/octet-stream")
-                    self.send_header("Content-Length", str(size))
-                    self.end_headers()
-                    with firmware_path.open("rb") as fh:
-                        while True:
-                            chunk = fh.read(16384)
-                            if not chunk:
-                                break
-                            self.wfile.write(chunk)
-                except OSError:
-                    self.send_error(500, "failed to read firmware")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Length", str(len(firmware_bytes)))
+                self.end_headers()
+                self.wfile.write(firmware_bytes)
                 return
             self.send_error(404, "not found")
 
@@ -79,21 +72,18 @@ def make_handler(json_bytes: bytes, firmware_path: Path, verbose: bool):
     return OtaHandler
 
 
-def compute_md5_hex(path: Path) -> str:
+def compute_md5_bytes(data: bytes) -> str:
     md5 = hashlib.md5()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(65536), b""):
-            md5.update(chunk)
+    md5.update(data)
     return md5.hexdigest()
 
 
-def start_ota_server(firmware_path: Path, board: str, version: str, bind: str, host: str, port: int, verbose: bool):
+def start_ota_server(firmware_bytes: bytes, board: str, version: str, md5_hex: str, bind: str, host: str, port: int, verbose: bool):
     host_ip = resolve_host_ip(host, bind)
     firmware_url = f"http://{host_ip}:{port}/firmware.bin"
-    md5_hex = compute_md5_hex(firmware_path)
     info_payload = {"Configurations": [{"Board": board, "Version": version, "URL": firmware_url, "MD5": md5_hex}]}
     json_bytes = json.dumps(info_payload).encode("ascii")
-    handler = make_handler(json_bytes, firmware_path, verbose)
+    handler = make_handler(json_bytes, firmware_bytes, verbose)
     server = ThreadingHTTPServer((bind, port), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -230,6 +220,8 @@ async def request_device_info(
 
 
 def find_failed_axes(device_info: dict[int, ffb_protocol.DeviceInfo], axis_ids: list[int], expected_version: str) -> list[int]:
+    if not expected_version:
+        return []
     failed: list[int] = []
     for axis_id in axis_ids:
         info = device_info.get(axis_id)
@@ -241,24 +233,71 @@ def find_failed_axes(device_info: dict[int, ffb_protocol.DeviceInfo], axis_ids: 
     return failed
 
 
+def load_ffbota(path: Path) -> tuple[dict, bytes]:
+    with zipfile.ZipFile(path, "r") as archive:
+        try:
+            manifest_bytes = archive.read("manifest.json")
+        except KeyError as exc:
+            raise ValueError("ffbota missing manifest.json") from exc
+        try:
+            firmware_bytes = archive.read("firmware.bin")
+        except KeyError as exc:
+            raise ValueError("ffbota missing firmware.bin") from exc
+    manifest = json.loads(manifest_bytes.decode("utf-8"))
+    return manifest, firmware_bytes
+
+
+def fetch_update_info(url: str) -> dict:
+    with urllib.request.urlopen(url) as response:
+        payload = response.read().decode("utf-8")
+    return json.loads(payload)
+
+
+def resolve_expected_version(info_payload: dict | None) -> str:
+    if info_payload:
+        configs = info_payload.get("Configurations", [])
+        if configs:
+            version = configs[0].get("Version", "")
+            return version.strip() if isinstance(version, str) else ""
+    return ""
+
+
 async def main_async(args) -> int:
     server = None
     thread = None
     info_url = args.url
+    info_payload = None
     if args.firmware:
         firmware_path = Path(args.firmware).expanduser()
         if not firmware_path.exists():
             raise FileNotFoundError(f"firmware not found: {firmware_path}")
+        if firmware_path.suffix.lower() != ".ffbota":
+            raise ValueError("--firmware expects a .ffbota container")
+        manifest, firmware_bytes = load_ffbota(firmware_path)
+        version = str(manifest.get("version", "")).strip()
+        board = str(manifest.get("board", "")).strip()
+        md5_hex = str(manifest.get("md5", "")).strip()
+        if not md5_hex:
+            raise ValueError("ffbota manifest.json missing md5")
+        computed_md5 = compute_md5_bytes(firmware_bytes)
+        if computed_md5.lower() != md5_hex.lower():
+            raise ValueError(f"ffbota MD5 mismatch: manifest {md5_hex} vs computed {computed_md5}")
+        info_payload = {"Configurations": [{"Board": board or "unknown", "Version": version, "URL": "", "MD5": md5_hex}]}
         server, thread, info_url = start_ota_server(
-            firmware_path=firmware_path,
-            board=args.board,
-            version=args.version,
+            firmware_bytes=firmware_bytes,
+            board=board or "unknown",
+            version=version,
+            md5_hex=md5_hex,
             bind=args.bind,
             host=args.host,
             port=args.serve_port,
             verbose=args.verbose,
         )
         print(f"Serving OTA at {info_url}")
+    elif args.url:
+        info_payload = fetch_update_info(args.url)
+
+    args.expected_version = resolve_expected_version(info_payload)
 
     loop = asyncio.get_running_loop()
     transport, protocol = await serial_asyncio.create_serial_connection(loop, OutputProtocol, args.port, baudrate=args.baud)
@@ -370,9 +409,7 @@ def main() -> int:
     parser.add_argument("--ssid", default=None, help="WiFi SSID (defaults to .env WIFI_SSID)")
     parser.add_argument("--password", default=None, help="WiFi password (defaults to .env WIFI_PASS)")
     parser.add_argument("--url", help="OTA info_json_url")
-    parser.add_argument("--firmware", help="Firmware binary to host over HTTP")
-    parser.add_argument("--board", default="CK-AT_A6_V1.0", help="Board name for OTA JSON")
-    parser.add_argument("--version", default="9999.0.0", help="Version string for OTA JSON")
+    parser.add_argument("--firmware", help="Firmware container (.ffbota) to host over HTTP")
     parser.add_argument("--bind", default="0.0.0.0", help="HTTP server bind address")
     parser.add_argument("--host", default="", help="Host/IP to embed in OTA URLs (auto-detect if empty)")
     parser.add_argument("--serve-port", type=int, default=8000, help="HTTP server port")
@@ -381,7 +418,7 @@ def main() -> int:
     parser.add_argument("--axis", type=int, help="Target a specific axis (1..8)")
     parser.add_argument("--gateway-last", action="store_true", help="Update axes first, then the gateway")
     parser.add_argument("--retry", type=int, default=1, help="Retry failed axis updates this many times")
-    parser.add_argument("--expected-version", default="", help="Expected fw version for device info checks (defaults to --version)")
+    # expected version is derived from manifest/update JSON
     parser.add_argument("--device-info-timeout", type=float, default=8.0, help="Seconds to wait for device info replies")
     parser.add_argument("--retry-monitor", type=float, default=30.0, help="Seconds to watch logs per retry")
     parser.add_argument("--baud", type=int, default=3000000, help="Serial baud rate")
@@ -404,10 +441,6 @@ def main() -> int:
             args.password = env_pass
         else:
             parser.error("password is required (pass --password or set WIFI_PASS in your environment or .env)")
-    if args.expected_version:
-        args.expected_version = args.expected_version.strip()
-    else:
-        args.expected_version = args.version
     if args.axis is not None and (args.axis < 1 or args.axis > MAX_AXES):
         parser.error(f"--axis must be within 1..{MAX_AXES}")
 
