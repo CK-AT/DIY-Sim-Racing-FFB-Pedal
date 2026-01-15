@@ -150,6 +150,11 @@ namespace User.PluginSdkDemo
         public bool advanced_b = false;
         public string SSID_string = "";
         public string PASS_string = "";
+        public string OtaCustomUrl = "";
+        public bool OtaUseCustomUrl = false;
+        public bool OtaUseLocalSource = false;
+        public string OtaLocalFfbotaPath = "";
+        public int OtaLocalPort = 8000;
         public bool XPlaneUdpEnabled = false;
         public int XPlaneUdpPort = 27015;
         public float XPlaneFfbKq = DefaultXPlaneFfbKq;

@@ -2,6 +2,21 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-15 22:12:19 +01:00 (DESKTOP-6KO022D)
+Request: rework SimHub OTA flow to match .ffbota + public JSON logic, add target selection and retries, and move OTA diagnostics into the dialog.
+Summary:
+- Added an OTA target selection dialog (gateway + online axes) with live version/log readouts.
+- Implemented an OTA coordinator to update axes first, retry until expected version, then update gateways.
+- Updated local OTA hosting to use a lightweight TCP server (no URL ACL) and surfaced the binding URL in the dialog; trimmed noisy debug output.
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/OtaSelectionDialog.xaml`
+- `SimHubPlugin/OtaSelectionDialog.xaml.cs`
+- `SimHubPlugin/OtaUpdateCoordinator.cs`
+Open items:
+- Validate OTA update flow end-to-end on hardware.
+
 ## 2026-01-14 20:44:34 +01:00 (DESKTOP-6KO022D)
 Request: finish SimHub plugin tweaks for X-Plane FFB UI and profile handling.
 Summary:

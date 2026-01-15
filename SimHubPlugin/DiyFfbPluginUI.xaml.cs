@@ -4,8 +4,15 @@ using ProtbufTest;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.IO.Ports;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -29,6 +36,17 @@ namespace User.PluginSdkDemo
         public SortedDictionary<AxisID, Axis> axes { get; } = new SortedDictionary<AxisID, Axis>();
         public SortedDictionary<FunctionID, Function> functions { get; } = new SortedDictionary<FunctionID, Function>();
         public Dictionary<AxisID, FunctionID> last_known_functions { get; } = new Dictionary<AxisID, FunctionID>();
+        public System.Collections.ObjectModel.ObservableCollection<OtaTargetEntry> ota_targets { get; } = new System.Collections.ObjectModel.ObservableCollection<OtaTargetEntry>();
+        private readonly Dictionary<AxisID, OtaTargetEntry> ota_axis_targets = new Dictionary<AxisID, OtaTargetEntry>();
+        private readonly Dictionary<GatewayID, OtaTargetEntry> ota_gateway_targets = new Dictionary<GatewayID, OtaTargetEntry>();
+        private readonly Dictionary<AxisID, string> ota_axis_logs = new Dictionary<AxisID, string>();
+        private readonly Dictionary<GatewayID, string> ota_gateway_logs = new Dictionary<GatewayID, string>();
+        private readonly Dictionary<AxisID, string> ota_axis_versions = new Dictionary<AxisID, string>();
+        private readonly Dictionary<GatewayID, string> ota_gateway_versions = new Dictionary<GatewayID, string>();
+        private GatewayID last_gateway_id = GatewayID.GatewayUndefined;
+        private OtaSelectionDialog otaSelectionDialog;
+        private CancellationTokenSource otaUpdateCancellation;
+        private bool otaAclWarned;
 
         internal vJoyInterfaceWrap.vJoy joystick;
 
@@ -42,9 +60,10 @@ namespace User.PluginSdkDemo
 
         private bool PersistConfig => persistConfigModifier;
 
-        private const int MaxWifiCredentialLength = 30;
-        private const string OtaInfoUrlRelease = "https://github.com/CK-AT/DIY-Sim-Racing-FFB-Pedal/raw/refs/heads/main/OTA/update_info.json";
-        private const string OtaInfoUrlDev = "https://github.com/CK-AT/DIY-Sim-Racing-FFB-Pedal/raw/refs/heads/ck_comm_rework/OTA/update_info.json";
+        private const int MaxWifiCredentialLength = 63;
+        private const string OtaInfoUrlDefault = "https://github.com/CK-AT/DIY-Sim-Racing-FFB-Pedal/raw/refs/heads/main/OTA/update_info.json";
+
+        private LocalOtaServer otaServer;
 
         private SaveSelectionDialog saveSelectionDialog;
         private LoadSelectionDialog loadSelectionDialog;
@@ -201,6 +220,49 @@ namespace User.PluginSdkDemo
             if (textbox_PASS != null)
             {
                 textbox_PASS.Password = Plugin.Settings.PASS_string ?? string.Empty;
+            }
+
+            if (TextBox_OtaCustomUrl != null)
+            {
+                TextBox_OtaCustomUrl.Text = Plugin.Settings.OtaCustomUrl ?? string.Empty;
+            }
+
+            if (TextBox_OtaFfbotaPath != null)
+            {
+                TextBox_OtaFfbotaPath.Text = Plugin.Settings.OtaLocalFfbotaPath ?? string.Empty;
+            }
+
+            if (TextBox_OtaLocalPort != null)
+            {
+                TextBox_OtaLocalPort.Text = Plugin.Settings.OtaLocalPort.ToString();
+            }
+
+            if (OTAUrl_Custom != null)
+            {
+                OTAUrl_Custom.IsChecked = Plugin.Settings.OtaUseCustomUrl;
+            }
+            if (OTAUrl_Default != null && OTAUrl_Custom?.IsChecked != true)
+            {
+                OTAUrl_Default.IsChecked = true;
+            }
+
+            if (OTASource_Local != null)
+            {
+                OTASource_Local.IsChecked = Plugin.Settings.OtaUseLocalSource;
+            }
+            if (OTASource_Public != null && OTASource_Local?.IsChecked != true)
+            {
+                OTASource_Public.IsChecked = true;
+            }
+
+            UpdateOtaSourceUi();
+            UpdateOtaInfoReadout("-", "-", "-");
+            if (Plugin.Settings.OtaUseLocalSource && !string.IsNullOrWhiteSpace(Plugin.Settings.OtaLocalFfbotaPath))
+            {
+                if (TryLoadFfbotaManifest(Plugin.Settings.OtaLocalFfbotaPath, out OtaManifest manifest, out _))
+                {
+                    UpdateOtaInfoReadout(manifest.Board, manifest.Version, manifest.Md5);
+                }
             }
 
             if (CheckBox_XPlaneUdpEnabled != null)
@@ -444,15 +506,417 @@ namespace User.PluginSdkDemo
 
         private string GetOtaInfoUrl()
         {
-            if (OTAChannel_Sel_2 != null && OTAChannel_Sel_2.IsChecked == true)
+            if (OTAUrl_Custom != null && OTAUrl_Custom.IsChecked == true)
             {
-                return OtaInfoUrlDev;
+                return TextBox_OtaCustomUrl?.Text?.Trim() ?? string.Empty;
             }
 
-            return OtaInfoUrlRelease;
+            return OtaInfoUrlDefault;
+        }
+
+        private void UpdateOtaSourceUi()
+        {
+            bool useLocal = OTASource_Local != null && OTASource_Local.IsChecked == true;
+            if (Panel_OtaPublic != null)
+            {
+                Panel_OtaPublic.IsEnabled = !useLocal;
+                Panel_OtaPublic.Opacity = useLocal ? 0.5 : 1.0;
+            }
+            if (Panel_OtaCustomUrl != null)
+            {
+                Panel_OtaCustomUrl.IsEnabled = !useLocal && OTAUrl_Custom?.IsChecked == true;
+                Panel_OtaCustomUrl.Opacity = Panel_OtaCustomUrl.IsEnabled ? 1.0 : 0.5;
+            }
+            if (Panel_OtaLocal != null)
+            {
+                Panel_OtaLocal.IsEnabled = useLocal;
+                Panel_OtaLocal.Opacity = useLocal ? 1.0 : 0.5;
+            }
+            if (Panel_OtaLocalPort != null)
+            {
+                Panel_OtaLocalPort.IsEnabled = useLocal;
+                Panel_OtaLocalPort.Opacity = useLocal ? 1.0 : 0.5;
+            }
+        }
+
+        private void OTAUrl_Default_Checked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.OtaUseCustomUrl = false;
+            }
+            UpdateOtaSourceUi();
+        }
+
+        private void OTAUrl_Custom_Checked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.OtaUseCustomUrl = true;
+            }
+            UpdateOtaSourceUi();
+        }
+
+        private void OTASource_Public_Checked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.OtaUseLocalSource = false;
+            }
+            UpdateOtaSourceUi();
+        }
+
+        private void OTASource_Local_Checked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.OtaUseLocalSource = true;
+            }
+            UpdateOtaSourceUi();
+            string ffbotaPath = TextBox_OtaFfbotaPath?.Text ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(ffbotaPath) && File.Exists(ffbotaPath))
+            {
+                if (TryLoadFfbotaManifest(ffbotaPath, out OtaManifest manifest, out string error))
+                {
+                    UpdateOtaInfoReadout(manifest.Board, manifest.Version, manifest.Md5);
+                }
+                else
+                {
+                    UpdateOtaInfoReadout("-", "-", "-");
+                    TextBox_debugOutput.Text = error;
+                }
+            }
+        }
+
+        private void TextBox_OtaCustomUrl_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.OtaCustomUrl = TextBox_OtaCustomUrl?.Text ?? string.Empty;
+            }
+        }
+
+        private void TextBox_OtaLocalPort_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            if (int.TryParse(TextBox_OtaLocalPort?.Text, out int port) && port > 0 && port <= 65535)
+            {
+                Plugin.Settings.OtaLocalPort = port;
+            }
+        }
+
+        private void btn_browse_ota_ffbota_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "FFB OTA container (*.ffbota)|*.ffbota",
+                DefaultExt = "ffbota",
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                TextBox_OtaFfbotaPath.Text = openFileDialog.FileName;
+                if (Plugin != null)
+                {
+                    Plugin.Settings.OtaLocalFfbotaPath = openFileDialog.FileName;
+                }
+                if (TryLoadFfbotaManifest(openFileDialog.FileName, out OtaManifest manifest, out string error))
+                {
+                    UpdateOtaInfoReadout(manifest.Board, manifest.Version, manifest.Md5);
+                }
+                else
+                {
+                    UpdateOtaInfoReadout("-", "-", "-");
+                    TextBox_debugOutput.Text = error;
+                }
+            }
+        }
+
+        private void UpdateOtaInfoReadout(string board, string version, string md5)
+        {
+            if (TextBlock_OtaBoard != null)
+            {
+                TextBlock_OtaBoard.Text = string.IsNullOrWhiteSpace(board) ? "-" : board;
+            }
+            if (TextBlock_OtaVersion != null)
+            {
+                TextBlock_OtaVersion.Text = string.IsNullOrWhiteSpace(version) ? "-" : version;
+            }
+            if (TextBlock_OtaMd5 != null)
+            {
+                TextBlock_OtaMd5.Text = string.IsNullOrWhiteSpace(md5) ? "-" : md5;
+            }
+        }
+
+        private bool TryLoadFfbotaManifest(string path, out OtaManifest manifest, out string error)
+        {
+            manifest = new OtaManifest();
+            error = string.Empty;
+            try
+            {
+                using (FileStream stream = File.OpenRead(path))
+                using (ZipArchive archive = new ZipArchive(stream, ZipArchiveMode.Read))
+                {
+                    ZipArchiveEntry manifestEntry = archive.GetEntry("manifest.json");
+                    ZipArchiveEntry firmwareEntry = archive.GetEntry("firmware.bin");
+                    if (manifestEntry == null || firmwareEntry == null)
+                    {
+                        error = "ffbota must contain manifest.json and firmware.bin.";
+                        return false;
+                    }
+
+                    using (StreamReader reader = new StreamReader(manifestEntry.Open()))
+                    {
+                        string json = reader.ReadToEnd();
+                        manifest = JsonConvert.DeserializeObject<OtaManifest>(json) ?? new OtaManifest();
+                    }
+
+                    string md5 = manifest.Md5?.Trim();
+                    if (string.IsNullOrWhiteSpace(md5))
+                    {
+                        error = "ffbota manifest.json is missing md5.";
+                        return false;
+                    }
+
+                    using (Stream firmwareStream = firmwareEntry.Open())
+                    using (MD5 md5Hasher = MD5.Create())
+                    {
+                        byte[] hash = md5Hasher.ComputeHash(firmwareStream);
+                        string computed = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                        if (!string.Equals(md5, computed, StringComparison.OrdinalIgnoreCase))
+                        {
+                            error = $"ffbota MD5 mismatch (manifest {md5}, computed {computed}).";
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = $"ffbota load failed: {ex.Message}";
+                return false;
+            }
+        }
+
+        private bool TryBuildLocalOtaPayload(string ffbotaPath, out byte[] infoJson, out byte[] firmwareBytes, out string infoUrl, out string expectedVersion, out string error)
+        {
+            infoJson = null;
+            firmwareBytes = null;
+            infoUrl = string.Empty;
+            expectedVersion = string.Empty;
+            error = string.Empty;
+
+            if (!TryLoadFfbotaManifest(ffbotaPath, out OtaManifest manifest, out error))
+            {
+                return false;
+            }
+
+            try
+            {
+                using (FileStream stream = File.OpenRead(ffbotaPath))
+                using (ZipArchive archive = new ZipArchive(stream, ZipArchiveMode.Read))
+                {
+                    ZipArchiveEntry firmwareEntry = archive.GetEntry("firmware.bin");
+                    using (Stream firmwareStream = firmwareEntry.Open())
+                    using (MemoryStream buffer = new MemoryStream())
+                    {
+                        firmwareStream.CopyTo(buffer);
+                        firmwareBytes = buffer.ToArray();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                error = $"ffbota read failed: {ex.Message}";
+                return false;
+            }
+
+            string hostIp = ResolveHostIp();
+            int port = Plugin?.Settings?.OtaLocalPort ?? 8000;
+            infoUrl = $"http://{hostIp}:{port}/update_info.json";
+            string firmwareUrl = $"http://{hostIp}:{port}/firmware.bin";
+            var infoPayload = new
+            {
+                Configurations = new[]
+                {
+                    new
+                    {
+                        Board = manifest.Board ?? string.Empty,
+                        Version = manifest.Version ?? string.Empty,
+                        URL = firmwareUrl,
+                        MD5 = manifest.Md5 ?? string.Empty
+                    }
+                }
+            };
+            infoJson = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(infoPayload));
+            UpdateOtaInfoReadout(manifest.Board, manifest.Version, manifest.Md5);
+            expectedVersion = manifest.Version ?? string.Empty;
+            return true;
+        }
+
+        private string ResolveHostIp()
+        {
+            try
+            {
+                using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp))
+                {
+                    socket.Connect("8.8.8.8", 80);
+                    if (socket.LocalEndPoint is IPEndPoint endPoint)
+                    {
+                        return endPoint.Address.ToString();
+                    }
+                }
+            }
+            catch
+            {
+            }
+            return "127.0.0.1";
+        }
+
+        private void WarnIfOtaUrlAclMissing()
+        {
+            int port = Plugin?.Settings?.OtaLocalPort ?? 8000;
+            string host = ResolveHostIp();
+            string prefix = $"http://{host}:{port}/";
+
+            try
+            {
+                TcpListener listener = new TcpListener(IPAddress.Any, port);
+                try
+                {
+                    listener.Start();
+                    listener.Stop();
+                }
+                finally
+                {
+                    listener.Stop();
+                }
+                otaSelectionDialog?.SetBindingUrl(prefix);
+            }
+            catch (SocketException ex) when (ex.SocketErrorCode == SocketError.AddressAlreadyInUse)
+            {
+                if (!otaAclWarned)
+                {
+                    LogOta($"OTA local binding failed (port {port} already in use).");
+                    otaAclWarned = true;
+                }
+            }
+            catch
+            {
+                // Ignore other listener issues; OTA start will surface them.
+            }
+        }
+
+        private void LogOta(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return;
+            }
+
+            if (otaSelectionDialog != null)
+            {
+                otaSelectionDialog.AppendLog(message);
+            }
+
+            if (TextBox_debugOutput != null)
+            {
+                TextBox_debugOutput.Text = message;
+            }
+        }
+
+        private void ShowCopyableMessage(string title, string message)
+        {
+            Window dialog = new Window
+            {
+                Title = title,
+                Width = 520,
+                Height = 220,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                ResizeMode = ResizeMode.NoResize,
+                Background = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x25)),
+                Foreground = Brushes.White,
+                Content = new Grid()
+            };
+
+            Grid grid = (Grid)dialog.Content;
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            TextBox textBox = new TextBox
+            {
+                Text = message,
+                IsReadOnly = true,
+                TextWrapping = TextWrapping.Wrap,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Background = new SolidColorBrush(Color.FromRgb(0x1F, 0x25, 0x25)),
+                BorderThickness = new Thickness(1),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x4E, 0x4E, 0x4E)),
+                Margin = new Thickness(12),
+                Foreground = Brushes.White
+            };
+            Grid.SetRow(textBox, 0);
+            grid.Children.Add(textBox);
+
+            Button okButton = new Button
+            {
+                Content = "OK",
+                Width = 80,
+                Height = 28,
+                Margin = new Thickness(0, 0, 12, 12),
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            okButton.Click += (_, __) => dialog.Close();
+            Grid.SetRow(okButton, 1);
+            grid.Children.Add(okButton);
+
+            dialog.ShowDialog();
         }
 
         private void btn_start_ota_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || Plugin.ESPsync_serialPort == null || !Plugin.ESPsync_serialPort.IsOpen)
+            {
+                LogOta("Connect the gateway before starting OTA.");
+                return;
+            }
+
+            BuildOtaTargets();
+            RequestOtaDeviceInfo();
+
+            if (otaSelectionDialog != null)
+            {
+                otaSelectionDialog.Close();
+                otaSelectionDialog = null;
+            }
+
+            otaSelectionDialog = new OtaSelectionDialog(ota_targets);
+            otaSelectionDialog.StartRequested += OnOtaStartRequested;
+            otaSelectionDialog.Closed += (s, args) =>
+            {
+                otaUpdateCancellation?.Cancel();
+                StopLocalOtaServer();
+                otaSelectionDialog = null;
+            };
+            WarnIfOtaUrlAclMissing();
+            otaSelectionDialog.Show();
+        }
+
+        private void StopLocalOtaServer()
+        {
+            if (otaServer != null)
+            {
+                otaServer.Dispose();
+                otaServer = null;
+            }
+        }
+
+        private async void OnOtaStartRequested(object sender, EventArgs e)
         {
             if (Plugin == null || Plugin.ESPsync_serialPort == null || !Plugin.ESPsync_serialPort.IsOpen)
             {
@@ -464,25 +928,278 @@ namespace User.PluginSdkDemo
             string pass = Plugin.Settings.PASS_string ?? string.Empty;
             if (ssid.Length > MaxWifiCredentialLength || pass.Length > MaxWifiCredentialLength)
             {
-                TextBox_debugOutput.Text = $"SSID and password must be {MaxWifiCredentialLength} characters or less.";
+                LogOta($"SSID and password must be {MaxWifiCredentialLength} characters or less.");
                 return;
             }
 
-            StartOtaUpdate startOtaUpdate = new StartOtaUpdate
+            string infoUrl = GetOtaInfoUrl();
+            string expectedVersion = string.Empty;
+            if (OTASource_Local != null && OTASource_Local.IsChecked == true)
             {
-                WifiInfo = new WifiInfo
+                string ffbotaPath = TextBox_OtaFfbotaPath?.Text ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(ffbotaPath) || !File.Exists(ffbotaPath))
                 {
-                    Ssid = ssid,
-                    Password = pass
-                },
-                InfoJsonUrl = GetOtaInfoUrl(),
-                AllowDowngrades = Checkbox_Force_flash != null && Checkbox_Force_flash.IsChecked == true,
-                Target = OtaTarget.GatewayOnly
-            };
+                    LogOta("Select a valid .ffbota file.");
+                    return;
+                }
 
-            Message msg = new Message { StartOtaUpdate = startOtaUpdate };
-            Plugin.ESPsync_serialPort.WriteMessage(msg);
-            TextBox_debugOutput.Text = "Gateway OTA update request sent.";
+                if (!TryBuildLocalOtaPayload(ffbotaPath, out byte[] infoJson, out byte[] firmwareBytes, out string localInfoUrl, out expectedVersion, out string error))
+                {
+                    LogOta(error);
+                    return;
+                }
+
+                StopLocalOtaServer();
+                try
+                {
+                    otaServer = new LocalOtaServer(localInfoUrl, infoJson, firmwareBytes, LogOta);
+                    otaServer.Start();
+                    infoUrl = otaServer.InfoUrl;
+                    otaSelectionDialog?.SetBindingUrl(infoUrl);
+                    otaSelectionDialog?.AppendLog($"Binding URL: {infoUrl}");
+                }
+                catch (Exception ex)
+                {
+                    LogOta($"Failed to start local OTA server: {ex.Message}");
+                    StopLocalOtaServer();
+                    return;
+                }
+            }
+            else
+            {
+                StopLocalOtaServer();
+                if (string.IsNullOrWhiteSpace(infoUrl))
+                {
+                    LogOta("Enter a valid OTA URL.");
+                    return;
+                }
+
+                if (!TryLoadOtaInfoFromUrl(infoUrl, out string board, out string version, out string md5, out expectedVersion, out string error))
+                {
+                    LogOta(error);
+                    return;
+                }
+                UpdateOtaInfoReadout(board, version, md5);
+                otaSelectionDialog?.SetBindingUrl(infoUrl);
+            }
+
+            bool allowDowngrades = Checkbox_Force_flash != null && Checkbox_Force_flash.IsChecked == true;
+            var selectedAxes = ota_targets.Where(t => t.Selected && t.IsOnline && t.AxisId != AxisID.AxisUndefined).ToList();
+            var selectedGateways = ota_targets.Where(t => t.Selected && t.IsOnline && t.GatewayId != GatewayID.GatewayUndefined).ToList();
+
+            otaUpdateCancellation?.Cancel();
+            otaUpdateCancellation = new CancellationTokenSource();
+
+            OtaUpdateCoordinator coordinator = new OtaUpdateCoordinator(
+                axisId => ota_axis_versions.TryGetValue(axisId, out string version) ? version : "-",
+                gatewayId => ota_gateway_versions.TryGetValue(gatewayId, out string version) ? version : "-",
+                axisId =>
+                {
+                    StartOtaUpdate startOtaUpdate = new StartOtaUpdate
+                    {
+                        WifiInfo = new WifiInfo
+                        {
+                            Ssid = ssid,
+                            Password = pass
+                        },
+                        InfoJsonUrl = infoUrl,
+                        AllowDowngrades = allowDowngrades,
+                        Target = OtaTarget.AxesOnly,
+                        TargetAxisId = axisId
+                    };
+                    Message msg = new Message { StartOtaUpdate = startOtaUpdate };
+                    Plugin.ESPsync_serialPort.WriteMessage(msg);
+                },
+                gatewayId =>
+                {
+                    StartOtaUpdate startOtaUpdate = new StartOtaUpdate
+                    {
+                        WifiInfo = new WifiInfo
+                        {
+                            Ssid = ssid,
+                            Password = pass
+                        },
+                        InfoJsonUrl = infoUrl,
+                        AllowDowngrades = allowDowngrades,
+                        Target = OtaTarget.GatewayOnly
+                    };
+                    Message msg = new Message { StartOtaUpdate = startOtaUpdate };
+                    Plugin.ESPsync_serialPort.WriteMessage(msg);
+                },
+                message => LogOta(message));
+
+            try
+            {
+                await coordinator.RunAsync(
+                    selectedAxes.Select(entry => entry.AxisId).ToList(),
+                    selectedGateways.Select(entry => entry.GatewayId).ToList(),
+                    expectedVersion,
+                    otaUpdateCancellation.Token);
+                LogOta("OTA update flow complete.");
+            }
+            catch (OperationCanceledException)
+            {
+                LogOta("OTA update cancelled.");
+            }
+        }
+
+        private void BuildOtaTargets()
+        {
+            ota_targets.Clear();
+            ota_axis_targets.Clear();
+            ota_gateway_targets.Clear();
+
+            if (Plugin?.ESPsync_serialPort != null && Plugin.ESPsync_serialPort.IsOpen)
+            {
+                GatewayID gatewayId = last_gateway_id == GatewayID.GatewayUndefined ? GatewayID._1 : last_gateway_id;
+                var gatewayEntry = new OtaTargetEntry(gatewayId)
+                {
+                    IsOnline = true,
+                    Selected = true
+                };
+                if (ota_gateway_logs.TryGetValue(gatewayId, out string gatewayLog))
+                {
+                    gatewayEntry.LatestLog = gatewayLog;
+                }
+                if (ota_gateway_versions.TryGetValue(gatewayId, out string gatewayVersion))
+                {
+                    gatewayEntry.LatestVersion = gatewayVersion;
+                }
+                ota_gateway_targets[gatewayId] = gatewayEntry;
+                ota_targets.Add(gatewayEntry);
+            }
+
+            foreach (var axis in axes.Values)
+            {
+                if (!axis.IsOnline)
+                {
+                    continue;
+                }
+                var axisEntry = new OtaTargetEntry(axis.ID)
+                {
+                    IsOnline = true,
+                    Selected = true
+                };
+                if (ota_axis_logs.TryGetValue(axis.ID, out string axisLog))
+                {
+                    axisEntry.LatestLog = axisLog;
+                }
+                if (ota_axis_versions.TryGetValue(axis.ID, out string axisVersion))
+                {
+                    axisEntry.LatestVersion = axisVersion;
+                }
+                ota_axis_targets[axis.ID] = axisEntry;
+                ota_targets.Add(axisEntry);
+            }
+        }
+
+        private void RequestOtaDeviceInfo()
+        {
+            if (Plugin?.ESPsync_serialPort == null || !Plugin.ESPsync_serialPort.IsOpen)
+            {
+                return;
+            }
+
+            foreach (var entry in ota_targets)
+            {
+                Message msg = new Message();
+                msg.DeviceInfoRequest = new DeviceInfoRequest();
+                if (entry.AxisId != AxisID.AxisUndefined)
+                {
+                    msg.DeviceInfoRequest.AxisId = entry.AxisId;
+                }
+                else if (entry.GatewayId != GatewayID.GatewayUndefined)
+                {
+                    msg.DeviceInfoRequest.GatewayId = entry.GatewayId;
+                }
+                Plugin.ESPsync_serialPort.WriteMessage(msg);
+            }
+        }
+
+        private void UpdateOtaAxisLog(AxisLogMessage msg)
+        {
+            if (msg.AxisId != AxisID.AxisUndefined && ota_axis_targets.TryGetValue(msg.AxisId, out var entry))
+            {
+                entry.LatestLog = msg.Msg ?? string.Empty;
+            }
+            if (msg.AxisId != AxisID.AxisUndefined)
+            {
+                ota_axis_logs[msg.AxisId] = msg.Msg ?? string.Empty;
+            }
+        }
+
+        private void UpdateOtaGatewayLog(GatewayLogMessage msg)
+        {
+            if (msg.GatewayId != GatewayID.GatewayUndefined && ota_gateway_targets.TryGetValue(msg.GatewayId, out var entry))
+            {
+                entry.LatestLog = msg.Msg ?? string.Empty;
+            }
+            if (msg.GatewayId != GatewayID.GatewayUndefined)
+            {
+                ota_gateway_logs[msg.GatewayId] = msg.Msg ?? string.Empty;
+            }
+        }
+
+        private void UpdateOtaDeviceInfo(DeviceInfo info)
+        {
+            if (info.AxisId != AxisID.AxisUndefined && ota_axis_targets.TryGetValue(info.AxisId, out var axisEntry))
+            {
+                axisEntry.LatestVersion = string.IsNullOrWhiteSpace(info.FwVersion) ? "-" : info.FwVersion;
+                axisEntry.IsOnline = true;
+            }
+            else if (info.GatewayId != GatewayID.GatewayUndefined && ota_gateway_targets.TryGetValue(info.GatewayId, out var gatewayEntry))
+            {
+                gatewayEntry.LatestVersion = string.IsNullOrWhiteSpace(info.FwVersion) ? "-" : info.FwVersion;
+                gatewayEntry.IsOnline = true;
+            }
+            if (info.AxisId != AxisID.AxisUndefined)
+            {
+                ota_axis_versions[info.AxisId] = string.IsNullOrWhiteSpace(info.FwVersion) ? "-" : info.FwVersion;
+            }
+            else if (info.GatewayId != GatewayID.GatewayUndefined)
+            {
+                ota_gateway_versions[info.GatewayId] = string.IsNullOrWhiteSpace(info.FwVersion) ? "-" : info.FwVersion;
+            }
+        }
+
+        private bool TryLoadOtaInfoFromUrl(string url, out string board, out string version, out string md5, out string expectedVersion, out string error)
+        {
+            board = "-";
+            version = "-";
+            md5 = "-";
+            expectedVersion = string.Empty;
+            error = string.Empty;
+            try
+            {
+                using (WebClient client = new WebClient())
+                {
+                    string json = client.DownloadString(url);
+                    var payload = JsonConvert.DeserializeObject<OtaInfoPayload>(json);
+                    if (payload?.Configurations == null || payload.Configurations.Count == 0)
+                    {
+                        error = "OTA JSON has no configurations.";
+                        return false;
+                    }
+
+                    var boards = payload.Configurations.Select(cfg => cfg.Board).Distinct().ToList();
+                    var versions = payload.Configurations.Select(cfg => cfg.Version).Distinct().ToList();
+                    var md5s = payload.Configurations.Select(cfg => cfg.Md5).Distinct().ToList();
+
+                    board = boards.Count == 1 ? boards[0] : "Multiple";
+                    version = versions.Count == 1 ? versions[0] : "Multiple";
+                    md5 = md5s.Count == 1 ? md5s[0] : "Multiple";
+                    if (versions.Count > 0)
+                    {
+                        expectedVersion = versions[0];
+                    }
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                error = $"Failed to load OTA JSON: {ex.Message}";
+                return false;
+            }
         }
 
         private void ConnectToPort(string portName)
@@ -671,6 +1388,11 @@ namespace User.PluginSdkDemo
             }
 
             ToastNotification("Axis Connection", msg);
+
+            if (ota_axis_targets.TryGetValue(axis_id, out OtaTargetEntry entry))
+            {
+                entry.IsOnline = new_online_state;
+            }
         }
 
         private void ToastNotification(string message1, string message2)
@@ -716,9 +1438,14 @@ namespace User.PluginSdkDemo
                     break;
                 case Message.PayloadOneofCase.AxisLogMessage:
                     AppendLog(BuildAxisLogLine(msg.AxisLogMessage));
+                    UpdateOtaAxisLog(msg.AxisLogMessage);
                     break;
                 case Message.PayloadOneofCase.GatewayLogMessage:
                     AppendLog(BuildGatewayLogLine(msg.GatewayLogMessage));
+                    UpdateOtaGatewayLog(msg.GatewayLogMessage);
+                    break;
+                case Message.PayloadOneofCase.DeviceInfo:
+                    UpdateOtaDeviceInfo(msg.DeviceInfo);
                     break;
                 case Message.PayloadOneofCase.ActiveFunction:
                     RegisterAxisChannel(msg.ActiveFunction.AxisId, port);
@@ -801,6 +1528,10 @@ namespace User.PluginSdkDemo
 
         private void ProcessGatewayState(ProtobufSerial<Message> port, GatewayState state)
         {
+            if (state.GatewayId != GatewayID.GatewayUndefined)
+            {
+                last_gateway_id = state.GatewayId;
+            }
             for (AxisID axisId = AxisID._1; axisId <= AxisID._8; axisId++)
             {
                 int flag = 1 << ((int)axisId - 1);
@@ -812,6 +1543,11 @@ namespace User.PluginSdkDemo
                 {
                     axes[axisId].SerialChannel = null;
                 }
+            }
+
+            if (ota_gateway_targets.TryGetValue(last_gateway_id, out OtaTargetEntry gatewayEntry))
+            {
+                gatewayEntry.IsOnline = true;
             }
         }
 
@@ -1112,6 +1848,186 @@ namespace User.PluginSdkDemo
                 btn_store_function_config_to_file.IsEnabled = false;
                 btn_store_axis_config_to_file.IsEnabled = false;
                 saveSelectionDialog.Show();
+            }
+        }
+
+        private sealed class OtaManifest
+        {
+            [JsonProperty("version")]
+            public string Version { get; set; } = string.Empty;
+
+            [JsonProperty("board")]
+            public string Board { get; set; } = string.Empty;
+
+            [JsonProperty("md5")]
+            public string Md5 { get; set; } = string.Empty;
+        }
+
+        private sealed class OtaInfoPayload
+        {
+            [JsonProperty("Configurations")]
+            public List<OtaInfoEntry> Configurations { get; set; } = new List<OtaInfoEntry>();
+        }
+
+        private sealed class OtaInfoEntry
+        {
+            [JsonProperty("Board")]
+            public string Board { get; set; } = string.Empty;
+
+            [JsonProperty("Version")]
+            public string Version { get; set; } = string.Empty;
+
+            [JsonProperty("MD5")]
+            public string Md5 { get; set; } = string.Empty;
+        }
+
+        private sealed class LocalOtaServer : IDisposable
+        {
+            private readonly byte[] infoJson;
+            private readonly byte[] firmwareBytes;
+            private readonly TcpListener listener;
+            private readonly Action<string> logger;
+            private CancellationTokenSource cancellation;
+            private Task loopTask;
+
+            public string InfoUrl { get; }
+            public string BindPrefixes { get; }
+
+            public LocalOtaServer(string infoUrl, byte[] infoJson, byte[] firmwareBytes, Action<string> logger)
+            {
+                if (string.IsNullOrWhiteSpace(infoUrl))
+                {
+                    throw new ArgumentException("infoUrl must be set.");
+                }
+
+                this.infoJson = infoJson ?? Array.Empty<byte>();
+                this.firmwareBytes = firmwareBytes ?? Array.Empty<byte>();
+                this.logger = logger;
+                InfoUrl = infoUrl;
+
+                Uri infoUri = new Uri(infoUrl);
+                BindPrefixes = $"{infoUri.Host}:{infoUri.Port}";
+                listener = new TcpListener(IPAddress.Any, infoUri.Port);
+            }
+
+            public void Start()
+            {
+                if (cancellation != null)
+                {
+                    return;
+                }
+
+                listener.Start();
+                cancellation = new CancellationTokenSource();
+                loopTask = Task.Run(() => ListenAsync(cancellation.Token));
+            }
+
+            private async Task ListenAsync(CancellationToken token)
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    TcpClient client = null;
+                    try
+                    {
+                        client = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                        _ = Task.Run(() => HandleClientAsync(client, token), token);
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        break;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            public void Dispose()
+            {
+                cancellation?.Cancel();
+                try
+                {
+                    listener.Stop();
+                }
+                catch
+                {
+                }
+                try
+                {
+                    loopTask?.Wait(500);
+                }
+                catch
+                {
+                }
+                cancellation?.Dispose();
+                cancellation = null;
+                loopTask = null;
+            }
+
+            private async Task HandleClientAsync(TcpClient client, CancellationToken token)
+            {
+                string logPath = "/";
+                int responseBytes = 0;
+                using (client)
+                using (NetworkStream stream = client.GetStream())
+                using (StreamReader reader = new StreamReader(stream, Encoding.ASCII, false, 1024, true))
+                {
+                    string requestLine = await reader.ReadLineAsync().ConfigureAwait(false);
+                    if (string.IsNullOrWhiteSpace(requestLine))
+                    {
+                        return;
+                    }
+
+                    string[] parts = requestLine.Split(' ');
+                    string path = parts.Length >= 2 ? parts[1] : "/";
+                    logPath = path;
+
+                    while (true)
+                    {
+                        string line = await reader.ReadLineAsync().ConfigureAwait(false);
+                        if (string.IsNullOrEmpty(line))
+                        {
+                            break;
+                        }
+                    }
+
+                    byte[] body;
+                    string contentType;
+                    int statusCode = 200;
+                    int bytesWritten = 0;
+
+                    if (path == "/" || path.Equals("/update_info.json", StringComparison.OrdinalIgnoreCase))
+                    {
+                        body = infoJson;
+                        contentType = "application/json";
+                    }
+                    else if (path.Equals("/firmware.bin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        body = firmwareBytes;
+                        contentType = "application/octet-stream";
+                    }
+                    else
+                    {
+                        statusCode = 404;
+                        body = Encoding.UTF8.GetBytes("Not Found");
+                        contentType = "text/plain";
+                    }
+
+                    StringBuilder header = new StringBuilder();
+                    header.Append($"HTTP/1.1 {statusCode} {(statusCode == 200 ? "OK" : "Not Found")}\r\n");
+                    header.Append($"Content-Type: {contentType}\r\n");
+                    header.Append($"Content-Length: {body.Length}\r\n");
+                    header.Append("Connection: close\r\n");
+                    header.Append("\r\n");
+
+                    byte[] headerBytes = Encoding.ASCII.GetBytes(header.ToString());
+                    await stream.WriteAsync(headerBytes, 0, headerBytes.Length, token).ConfigureAwait(false);
+                    await stream.WriteAsync(body, 0, body.Length, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+                    responseBytes = body.Length;
+                }
+                // Quiet by default; keep dialog log focused on OTA flow events.
             }
         }
     }
