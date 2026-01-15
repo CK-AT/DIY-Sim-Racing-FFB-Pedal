@@ -18,11 +18,11 @@ Firmware for the force‑feedback pedal axis used in the DIY Sim Racing project.
 
 ## Building & Flashing
 1) Install PlatformIO (VS Code extension or CLI).  
-2) Pick an environment from `platformio.ini` that matches your board; the default is `a6-servo-ffb-axis-controller-v10-ck-at` (ESP32-S3 + A6 servo, PCB v13).  
+2) Pick an environment from `platformio.ini` that matches your board; the default is `a6-ffb-v10-ck-at` (ESP32-S3 + A6 servo, PCB v10).  
 3) Build and flash:
 ```sh
-pio run -e a6-servo-ffb-axis-controller-v10-ck-at
-pio run -e a6-servo-ffb-axis-controller-v10-ck-at -t upload
+pio run -e a6-ffb-v10-ck-at
+pio run -e a6-ffb-v10-ck-at -t upload
 ```
 4) Open a serial monitor (3,000,000 baud for S3 builds, 115,200 for early boards) to watch logs:
 ```sh
@@ -36,7 +36,7 @@ pio device monitor -b 3000000
 Local OTA with `.ffbota`:
 
 ```sh
-./ESP32/sim/ota_update_cli.py COM3 --ssid YOUR_SSID --password YOUR_PASS --firmware OTA/firmware_a6-servo-ffb-axis-controller-v10-ck-at.ffbota
+./ESP32/sim/ota_update_cli.py COM3 --ssid YOUR_SSID --password YOUR_PASS --firmware OTA/firmware_a6-ffb-v10-ck-at.ffbota
 ```
 
 Public OTA JSON:
