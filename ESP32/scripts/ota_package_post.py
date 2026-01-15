@@ -61,7 +61,8 @@ def _write_ffbota(source, target, env):
 
     project_dir = Path(env.subst("$PROJECT_DIR"))
     repo_root = project_dir.parent
-    firmware_path = Path(env.subst("$PROG_PATH"))
+    build_dir = Path(env.subst("$BUILD_DIR"))
+    firmware_path = build_dir / "firmware.bin"
     if not firmware_path.exists():
         print(f"[ffbota] firmware not found: {firmware_path}")
         return
