@@ -1,0 +1,14 @@
+{
+  "boards": [
+    { "pcb_version": 3, "name": "V3_ESP32" },
+    { "pcb_version": 5, "name": "Speedcrafter" },
+    { "pcb_version": 6, "name": "V4_ESP32S3" },
+    { "pcb_version": 7, "name": "Gilphilbert_PCBAv1" },
+    { "pcb_version": 8, "name": "Gilphilbert_PCBAv2" },
+    { "pcb_version": 9, "name": "V3_ESP32" },
+    { "pcb_version": 10, "name": "V4_ESP32S3" },
+    { "pcb_version": 11, "name": "Switch-!t_ESP32S3" },
+    { "pcb_version": 12, "name": "CK-AT_Prototype" },
+    { "pcb_version": 13, "name": "CK-AT_A6_V1.0" }
+  ]
+}
