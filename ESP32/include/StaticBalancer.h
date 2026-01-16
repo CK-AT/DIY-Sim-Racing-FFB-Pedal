@@ -1,6 +1,7 @@
 #pragma once
 
 #include "diy_ffb_protocol.pb.h"
+#include "CommManager.fwd.h"
 #include "Physics.h"
 
 struct StaticBalanceResultData {
@@ -9,6 +10,7 @@ struct StaticBalanceResultData {
     float x_max = 0.0f;
     float step = 0.0f;
     const float *samples = nullptr;
+    CommChannel comm_channel = CommChannel::USB_SERIAL;
 };
 
 class StaticBalancer : public SimElement {
@@ -30,7 +32,8 @@ class StaticBalancer : public SimElement {
             _gain = gain;
         }
         float get_force(float x_mm, float base_force);
-        void start_calibration(float x_min, float x_max, float step_mm = 1.0f, uint32_t settle_ms = 30);
+        void start_calibration(float x_min, float x_max, float step_mm = 0.0f, uint32_t settle_ms = 30,
+                               CommChannel comm_channel = CommChannel::USB_SERIAL);
         bool calibration_done(StaticBalanceResultData &result);
         bool is_calibrating(void) const {
             return _calibration.state != CalState::Idle;
@@ -54,16 +57,20 @@ class StaticBalancer : public SimElement {
             CalState state = CalState::Idle;
             uint16_t sample_count = 0;
             uint16_t sample_index = 0;
+            uint16_t sample_accum_count = 0;
             float x_min = 0.0f;
             float x_max = 0.0f;
             float step = 0.0f;
             float target_x = 0.0f;
             float base_force = 0.0f;
+            float sample_accum = 0.0f;
             uint32_t last_step_ms = 0;
             uint32_t settle_ms = 30;
             float prev_x_min = 0.0f;
             float prev_x_max = 0.0f;
+            CommChannel comm_channel = CommChannel::USB_SERIAL;
             static constexpr uint16_t k_max_samples = 32;
+            static constexpr uint16_t k_samples_per_step = 10;
             float samples[k_max_samples] = {};
         } _calibration = {};
 };

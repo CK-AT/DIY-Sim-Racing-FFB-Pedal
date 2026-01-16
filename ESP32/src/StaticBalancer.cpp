@@ -1,6 +1,7 @@
 #include "StaticBalancer.h"
 
 #include "Arduino.h"
+#include "LogOutput.h"
 
 void StaticBalancer::update_config(const AxisConfig_StaticBalanceConfig *axis_cfg,
                                    const FunctionConfig_StaticBalanceTuning *tuning) {
@@ -25,27 +26,33 @@ void StaticBalancer::update_config(const AxisConfig_StaticBalanceConfig *axis_cf
     set_tuning(enabled, gain);
 }
 
-void StaticBalancer::start_calibration(float x_min, float x_max, float step_mm, uint32_t settle_ms) {
+void StaticBalancer::start_calibration(float x_min, float x_max, float step_mm, uint32_t settle_ms, CommChannel comm_channel) {
     if (_calibration.state != CalState::Idle && _calibration.state != CalState::Complete) {
         return;
-    }
-    if (step_mm <= 0.0f) {
-        step_mm = 1.0f;
     }
     if (x_max < x_min) {
         float tmp = x_min;
         x_min = x_max;
         x_max = tmp;
     }
-    uint16_t count = static_cast<uint16_t>((x_max - x_min) / step_mm) + 1;
+    float range = x_max - x_min;
+    if (range <= 0.0f) {
+        LogOutput::printf("StaticBalancer: invalid range (%.3f..%.3f)", x_min, x_max);
+        return;
+    }
+    if (step_mm <= 0.0f) {
+        step_mm = range / static_cast<float>(CalibrationState::k_max_samples - 1);
+    }
+    uint16_t count = static_cast<uint16_t>((range) / step_mm) + 1;
     if (count > CalibrationState::k_max_samples) {
         count = CalibrationState::k_max_samples;
         if (count > 1) {
-            step_mm = (x_max - x_min) / static_cast<float>(count - 1);
+            step_mm = range / static_cast<float>(count - 1);
         }
     }
     _calibration.sample_count = count;
     _calibration.sample_index = 0;
+    _calibration.sample_accum_count = 0;
     _calibration.x_min = x_min;
     _calibration.x_max = x_max;
     _calibration.step = step_mm;
@@ -54,8 +61,12 @@ void StaticBalancer::start_calibration(float x_min, float x_max, float step_mm, 
     _calibration.settle_ms = settle_ms;
     _calibration.prev_x_min = x_min;
     _calibration.prev_x_max = x_max;
+    _calibration.sample_accum = 0.0f;
+    _calibration.comm_channel = comm_channel;
     _calibration.state = CalState::Moving;
     enable();
+    LogOutput::printf("StaticBalancer: start %.3f..%.3f step=%.3f count=%u settle=%lu",
+                      x_min, x_max, step_mm, static_cast<unsigned>(count), static_cast<unsigned long>(settle_ms));
 }
 
 bool StaticBalancer::calibration_done(StaticBalanceResultData &result) {
@@ -67,6 +78,7 @@ bool StaticBalancer::calibration_done(StaticBalanceResultData &result) {
     result.x_max = _calibration.x_max;
     result.step = _calibration.step;
     result.samples = _calibration.samples;
+    result.comm_channel = _calibration.comm_channel;
     _calibration.state = CalState::Idle;
     return true;
 }
@@ -95,8 +107,16 @@ void StaticBalancer::update(const SimState &state, SimAccumulators &accum) {
     }
 
     if (_calibration.sample_index < _calibration.sample_count) {
-        _calibration.samples[_calibration.sample_index] = -_calibration.base_force;
+        _calibration.sample_accum += -_calibration.base_force;
+        _calibration.sample_accum_count++;
+        if (_calibration.sample_accum_count < CalibrationState::k_samples_per_step) {
+            return;
+        }
+        _calibration.samples[_calibration.sample_index] =
+            _calibration.sample_accum / static_cast<float>(_calibration.sample_accum_count);
         _calibration.sample_index++;
+        _calibration.sample_accum = 0.0f;
+        _calibration.sample_accum_count = 0;
     }
 
     _calibration.target_x = _calibration.x_min + (_calibration.step * static_cast<float>(_calibration.sample_index));
@@ -106,6 +126,7 @@ void StaticBalancer::update(const SimState &state, SimAccumulators &accum) {
         accum.set_limits(_calibration.prev_x_min, _calibration.prev_x_max);
         _calibration.state = CalState::Complete;
         disable();
+        LogOutput::printf("StaticBalancer: complete count=%u", static_cast<unsigned>(_calibration.sample_count));
         return;
     }
 

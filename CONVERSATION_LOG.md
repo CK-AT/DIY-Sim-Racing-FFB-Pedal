@@ -2,6 +2,18 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-17 19:06:24 +01:00 (DESKTOP-6KO022D)
+Request: improve static balance calibration range, logging, sampling, and reply channel handling.
+Summary:
+- Calibration now uses contact-point min/max, defaults to 32 samples via auto step sizing, and averages 10 force samples per step.
+- Added start/complete logs and ensured results are sent back on the same CommChannel as the request.
+Key files:
+- `ESP32/include/StaticBalancer.h`
+- `ESP32/src/StaticBalancer.cpp`
+- `ESP32/src/Main.cpp`
+Notes:
+- No tests run.
+
 ## 2026-01-17 18:42:19 +01:00 (DESKTOP-6KO022D)
 Request: route config uploads through the new request queue and make the dispatcher payload-aware.
 Summary:

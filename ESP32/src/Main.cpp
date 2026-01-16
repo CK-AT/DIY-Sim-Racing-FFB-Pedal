@@ -441,23 +441,33 @@ void loop() {
     pixels.Show();
 #endif
 
-    StaticBalanceResultData result = {};
-    if (static_balancer.calibration_done(result)) {
+    static StaticBalanceResultData pending_result = {};
+    static bool pending_static_balance_result = false;
+    if (!pending_static_balance_result) {
+        StaticBalanceResultData result = {};
+        if (static_balancer.calibration_done(result)) {
+            pending_result = result;
+            pending_static_balance_result = true;
+        }
+    }
+    if (pending_static_balance_result) {
         Message msg = Message_init_zero;
         msg.which_payload = Message_static_balance_result_tag;
         msg.payload.static_balance_result.axis_id = config_manager.get_axis_id();
-        msg.payload.static_balance_result.x_min = result.x_min;
-        msg.payload.static_balance_result.x_max = result.x_max;
-        msg.payload.static_balance_result.sample_step = result.step;
-        msg.payload.static_balance_result.f_offset_count = static_cast<pb_size_t>(result.count);
-        for (uint16_t idx = 0; idx < result.count; idx++) {
-            msg.payload.static_balance_result.f_offset[idx] = result.samples[idx];
+        msg.payload.static_balance_result.x_min = pending_result.x_min;
+        msg.payload.static_balance_result.x_max = pending_result.x_max;
+        msg.payload.static_balance_result.sample_step = pending_result.step;
+        msg.payload.static_balance_result.f_offset_count = static_cast<pb_size_t>(pending_result.count);
+        for (uint16_t idx = 0; idx < pending_result.count; idx++) {
+            msg.payload.static_balance_result.f_offset[idx] = pending_result.samples[idx];
         }
-        comm_manager.send_message_to_host(msg);
-        if (servo) {
-            servo->pause(1000);
+        if (comm_manager.send_message_to_gateway(msg, pending_result.comm_channel)) {
+            pending_static_balance_result = false;
+            if (servo) {
+                servo->pause(1000);
+            }
+            function_elements.enable();
         }
-        function_elements.enable();
     }
 }
 
@@ -598,7 +608,8 @@ void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel) {
             break;
         case AxisAction_start_static_balance_calibration_tag:
             function_elements.disable();
-            static_balancer.start_calibration(sim.get_x_min(), sim.get_x_max());
+            static_balancer.start_calibration(config_manager.get_x_contact_point_min(), config_manager.get_x_contact_point_max(),
+                                              /*step_mm=*/0.0f, /*settle_ms=*/30, comm_channel);
             break;
         default:
             break;
