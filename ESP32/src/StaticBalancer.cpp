@@ -44,8 +44,6 @@ void StaticBalancer::start_calibration(float x_min, float x_max, float step_mm, 
             step_mm = (x_max - x_min) / static_cast<float>(count - 1);
         }
     }
-    _calibration.active = true;
-    _calibration.result_ready = false;
     _calibration.sample_count = count;
     _calibration.sample_index = 0;
     _calibration.x_min = x_min;
