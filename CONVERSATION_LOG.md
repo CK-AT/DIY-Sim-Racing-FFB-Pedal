@@ -2,6 +2,15 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-17 00:29:27 +01:00 (DESKTOP-6KO022D)
+Request: fix OTA version comparison to handle multi-digit segments.
+Summary:
+- Replaced string comparison with numeric per-segment comparison in OTA pull update check.
+Key files:
+- `ESP32/include/ESP32OTAPull.h`
+Open items:
+- None.
+
 ## 2026-01-17 00:22:47 +01:00 (DESKTOP-6KO022D)
 Request: redo homing commit without tracking generated protobuf outputs.
 Summary:

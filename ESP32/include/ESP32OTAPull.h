@@ -49,6 +49,51 @@ private:
     bool DowngradesAllowed = false;
     bool SerialDebug = false;
 
+    static int CompareVersionStrings(const char *lhs, const char *rhs)
+    {
+        const char *lptr = lhs ? lhs : "";
+        const char *rptr = rhs ? rhs : "";
+        while (*lptr != '\0' || *rptr != '\0') {
+            long lval = 0;
+            long rval = 0;
+            bool lhas = false;
+            bool rhas = false;
+
+            while (*lptr != '\0' && *lptr != '.') {
+                if (*lptr >= '0' && *lptr <= '9') {
+                    lval = (lval * 10) + (*lptr - '0');
+                    lhas = true;
+                } else if (lhas) {
+                    break;
+                }
+                lptr++;
+            }
+            while (*lptr != '\0' && *lptr != '.') {
+                lptr++;
+            }
+
+            while (*rptr != '\0' && *rptr != '.') {
+                if (*rptr >= '0' && *rptr <= '9') {
+                    rval = (rval * 10) + (*rptr - '0');
+                    rhas = true;
+                } else if (rhas) {
+                    break;
+                }
+                rptr++;
+            }
+            while (*rptr != '\0' && *rptr != '.') {
+                rptr++;
+            }
+
+            if (lval < rval) return -1;
+            if (lval > rval) return 1;
+
+            if (*lptr == '.') lptr++;
+            if (*rptr == '.') rptr++;
+        }
+        return 0;
+    }
+
     int DoOTAUpdate(const char* URL, ActionType Action, const char* md5)
     {
         HTTPClient http;
@@ -270,8 +315,9 @@ public:
                 (CDevice.isEmpty() || CDevice == _Device) &&
                 (CConfig.isEmpty() || CConfig == _Config))
             {
-                if (CVersion.isEmpty() || CVersion > String(CurrentVersion) ||
-                    (DowngradesAllowed && CVersion != String(CurrentVersion))) {
+                int versionCmp = CompareVersionStrings(CVersion.c_str(), CurrentVersion);
+                if (CVersion.isEmpty() || versionCmp > 0 ||
+                    (DowngradesAllowed && versionCmp != 0)) {
                     return Action == DONT_DO_UPDATE ? UPDATE_AVAILABLE : DoOTAUpdate(config["URL"], Action, CMD5.c_str());
                 }
                 foundProfile = true;
