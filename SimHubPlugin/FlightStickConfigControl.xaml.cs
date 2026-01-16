@@ -758,7 +758,9 @@ namespace User.PluginSdkDemo
 
             if (hasTrimCenter)
             {
-                if (Tools.TryComputeMarkerX(latestTrimCenter, posMin, posMax, rangeMin, rangeMax, width, out double trimX))
+                double center = (posMin + posMax) / 2.0;
+                double trimPos = center + latestTrimCenter;
+                if (Tools.TryComputeMarkerX(trimPos, posMin, posMax, rangeMin, rangeMax, width, out double trimX))
                 {
                     Canvas.SetLeft(Rect_trim_center, trimX - Rect_trim_center.Width / 2.0);
                 }

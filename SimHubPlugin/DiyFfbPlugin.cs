@@ -1029,8 +1029,9 @@ namespace User.PluginSdkDemo
                 float pitchSpring = pitchParams.Kq * pitchScale;
                 float pitchDamper = pitchParams.Krate * pitchScale;
                 float pitchBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, pitchParams.BuffetStartDeg, pitchParams.BuffetFullDeg, pitchParams.BuffetGain, pitchScale);
+                float pitchTrimOnly = packet.ElevTrimDeg * pitchParams.TrimMmPerDeg;
                 float pitchVane = pitchParams.WeathervaneGain * pitchScale * packet.AlphaDeg;
-                pitchTrim = packet.ElevTrimDeg * pitchParams.TrimMmPerDeg - pitchVane;
+                pitchTrim = pitchTrimOnly - pitchVane;
                 SendFlightFfb(FunctionID.FlightStickPitch, pitchSpring, pitchDamper, pitchTrim, pitchBuffet);
             }
 
@@ -1041,7 +1042,8 @@ namespace User.PluginSdkDemo
                 float rollSpring = rollParams.Kq * rollScale;
                 float rollDamper = rollParams.Krate * rollScale;
                 float rollBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, rollParams.BuffetStartDeg, rollParams.BuffetFullDeg, rollParams.BuffetGain, rollScale);
-                rollTrim = packet.AilTrimDeg * rollParams.TrimMmPerDeg;
+                float rollTrimOnly = packet.AilTrimDeg * rollParams.TrimMmPerDeg;
+                rollTrim = rollTrimOnly;
                 SendFlightFfb(FunctionID.FlightStickRoll, rollSpring, rollDamper, rollTrim, rollBuffet);
             }
 
@@ -1052,16 +1054,17 @@ namespace User.PluginSdkDemo
                 float pedalsSpring = pedalsParams.Kq * pedalsScale;
                 float pedalsDamper = pedalsParams.Krate * pedalsScale;
                 float pedalsBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, pedalsParams.BuffetStartDeg, pedalsParams.BuffetFullDeg, pedalsParams.BuffetGain, pedalsScale);
+                float pedalsTrimOnly = packet.RudTrimDeg * pedalsParams.TrimMmPerDeg;
                 float pedalsVane = pedalsParams.WeathervaneGain * pedalsScale * packet.BetaDeg;
-                pedalsTrim = packet.RudTrimDeg * pedalsParams.TrimMmPerDeg - pedalsVane;
+                pedalsTrim = pedalsTrimOnly - pedalsVane;
                 SendFlightFfb(FunctionID.FlightPedals, pedalsSpring, pedalsDamper, pedalsTrim, pedalsBuffet);
             }
 
             lock (xplaneLock)
             {
-                xplaneTrimPitchMm = pitchTrim;
+                xplaneTrimPitchMm = pitchTrimOnly;
                 xplaneTrimRollMm = rollTrim;
-                xplaneTrimRudderMm = pedalsTrim;
+                xplaneTrimRudderMm = pedalsTrimOnly;
                 xplaneTrimUtc = packet.ReceivedUtc;
             }
         }
