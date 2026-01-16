@@ -2,6 +2,16 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-16 23:56:47 +01:00 (DESKTOP-6KO022D)
+Request: stage and commit updated AGENTS.md.
+Summary:
+- Read AGENTS.md update and prepared to stage it alongside the required conversation log entry.
+Key files:
+- `AGENTS.md`
+- `CONVERSATION_LOG.md`
+Open items:
+- Commit the AGENTS update and log entry.
+
 ## 2026-01-16 21:53:46 +01:00 (DESKTOP-6KO022D)
 Request: defer function range clamping until axis config is present.
 Summary:
