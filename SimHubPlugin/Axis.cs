@@ -14,6 +14,7 @@ namespace User.PluginSdkDemo
         public event OnlineStateChangedEventHandler OnlineStateChanged;
         private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public AxisConfig Config { get; set; }
+        public bool HasAxisConfig { get; set; }
         private AxisID _axisID;
         private string _axisName;
         private ProtobufSerial<Message> _serial_channel;

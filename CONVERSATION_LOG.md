@@ -2,6 +2,88 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-16 21:53:46 +01:00 (DESKTOP-6KO022D)
+Request: defer function range clamping until axis config is present.
+Summary:
+- Added axis-config-ready tracking so kinematic ranges are only applied after real axis configs arrive.
+- Added fallback travel range handling in function controls to avoid early range clamping.
+Key files:
+- `SimHubPlugin/Axis.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+- `SimHubPlugin/SplineForceCurve.xaml.cs`
+- `SimHubPlugin/AutomotivePedalConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-16 21:07:15 +01:00 (DESKTOP-6KO022D)
+Request: fix conversation log ordering to keep newest entries on top.
+Summary:
+- Reordered recent entries to newest-first and added the latest log entry at the top per AGENTS rule.
+Key files:
+- `CONVERSATION_LOG.md`
+Open items:
+- None.
+
+## 2026-01-16 21:04:24 +01:00 (DESKTOP-6KO022D)
+Request: add N/mm units and place static balance tick labels outside the plot.
+Summary:
+- Appended "mm" and "N" units to static balance tick labels and moved labels outside the plot area.
+Key files:
+- `SimHubPlugin/AxisConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-16 21:01:22 +01:00 (DESKTOP-6KO022D)
+Request: show axes with labeled ticks and grid lines for the static balance plot.
+Summary:
+- Added grid lines, axis lines, and labeled ticks to the static balance canvas.
+Key files:
+- `SimHubPlugin/AxisConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-16 20:59:15 +01:00 (DESKTOP-6KO022D)
+Request: make static balance x range match current kinematic motion range.
+Summary:
+- When no calibration samples exist, the static balance plot now uses kinematic contact-point min/max (from KinematicParameters) for the x range.
+Key files:
+- `SimHubPlugin/AxisConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-16 20:55:32 +01:00 (DESKTOP-6KO022D)
+Request: plot static balance fit curve even without calibration samples.
+Summary:
+- Updated static balance plotting to render the fit curve from stored coeffs when no sample data is present.
+Key files:
+- `SimHubPlugin/AxisConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-16 20:50:31 +01:00 (DESKTOP-6KO022D)
+Request: investigate why static balance config is not shown after connecting.
+Summary:
+- Reviewed axis config/UI flow for static balance and confirmed UI only shows stored coeffs/center/half-range plus live samples after calibration.
+Key files:
+- `SimHubPlugin/AxisConfigControl.xaml`
+- `SimHubPlugin/AxisConfigControl.xaml.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `ESP32/src/ConfigManager.cpp`
+Open items:
+- Confirm whether the device is returning `AxisConfig.static_balance_config` and whether the user expects stored coeffs or live sample plots.
+
+## 2026-01-16 20:34:46 +01:00 (DESKTOP-6KO022D)
+Request: pick up from agents.md and conversation_log-md.
+Summary:
+- Loaded AGENTS.md and CONVERSATION_LOG.md; awaiting clarification on next task.
+Key files:
+- `AGENTS.md`
+- `CONVERSATION_LOG.md`
+Open items:
+- Confirm the specific task to continue, and any expected changes in `ESP32/src/ShifterFunction.cpp`.
+
 ## 2026-01-17 19:06:24 +01:00 (DESKTOP-6KO022D)
 Request: improve static balance calibration range, logging, sampling, and reply channel handling.
 Summary:

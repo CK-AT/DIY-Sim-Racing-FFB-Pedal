@@ -26,6 +26,7 @@ namespace User.PluginSdkDemo
         public delegate void RangeSettingsChangedEventHandler(SplineForceCurve spline_force_curve);
         public event RangeSettingsChangedEventHandler RangeSettingsChanged;
         bool is_updating = false;
+        private bool hasAxisRange;
 
         public SplineForceCurve()
         {
@@ -38,6 +39,11 @@ namespace User.PluginSdkDemo
             this.ui = ui;
             this.plugin = plugin;
             DrawGridLines();
+        }
+
+        public void ResetAxisRange()
+        {
+            hasAxisRange = false;
         }
 
         public static SplineForceCurveConfig GetDefaultConfig()
@@ -55,14 +61,21 @@ namespace User.PluginSdkDemo
         }
         public void OnKinematicParametersChanged(KinematicParameters parameters)
         {
-            Rangeslider_travel_range.Minimum = parameters.ContactPointPosMinAbs / 10.0;
-            Rangeslider_travel_range.Maximum = parameters.ContactPointPosMaxAbs / 10.0;
+            hasAxisRange = true;
+            double min = parameters.ContactPointPosMinAbs / 10.0;
+            double max = parameters.ContactPointPosMaxAbs / 10.0;
+            Rangeslider_travel_range.Minimum = Math.Min(min, max);
+            Rangeslider_travel_range.Maximum = Math.Max(min, max);
         }
 
         public void UpdateConfig(SplineForceCurveConfig new_config)
         {
             config = new_config;
             is_updating = true;
+            if (!hasAxisRange)
+            {
+                ApplyFallbackTravelRange();
+            }
             Rangeslider_travel_range.LowerValue = config.PosMin;
             Rangeslider_travel_range.UpperValue = config.PosMax;
             Rangeslider_force_range.LowerValue = config.FMin / 9.81;
@@ -88,6 +101,19 @@ namespace User.PluginSdkDemo
             rect_BP_Control.Visibility = Visibility.Hidden;
 
             UpdateSpline();
+        }
+
+        private void ApplyFallbackTravelRange()
+        {
+            if (Rangeslider_travel_range == null)
+            {
+                return;
+            }
+
+            double min = Math.Min(config.PosMin, config.PosMax);
+            double max = Math.Max(config.PosMin, config.PosMax);
+            Rangeslider_travel_range.Minimum = min;
+            Rangeslider_travel_range.Maximum = max;
         }
 
         public void OnABSConfigUpdate(ABSEffectConfig abs_config)

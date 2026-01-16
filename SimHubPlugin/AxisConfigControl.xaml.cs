@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Globalization;
 using System.Collections.Generic;
 using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace User.PluginSdkDemo
 {
@@ -20,6 +21,7 @@ namespace User.PluginSdkDemo
         private float staticBalanceXMin;
         private float staticBalanceXMax;
         private float staticBalanceStep;
+        private const string StaticBalanceGridTag = "StaticBalanceGrid";
         public delegate void DebugMessageEventHandler(string message);
         public event DebugMessageEventHandler DebugMessage;
         public delegate void KinematicParametersChangedEventHandler(KinematicParameters parameters);
@@ -736,13 +738,6 @@ namespace User.PluginSdkDemo
             {
                 return;
             }
-            if (staticBalanceSamples.Count == 0)
-            {
-                Polyline_static_raw.Points = new PointCollection();
-                Polyline_static_fit.Points = new PointCollection();
-                return;
-            }
-
             double width = Canvas_static_balance.ActualWidth > 0 ? Canvas_static_balance.ActualWidth : Canvas_static_balance.Width;
             double height = Canvas_static_balance.ActualHeight > 0 ? Canvas_static_balance.ActualHeight : Canvas_static_balance.Height;
             if (width <= 1 || height <= 1)
@@ -750,16 +745,41 @@ namespace User.PluginSdkDemo
                 return;
             }
 
+            bool hasSamples = staticBalanceSamples.Count > 0;
             double xMin = staticBalanceXMin;
             double xMax = staticBalanceXMax;
+            var staticCfg = EnsureStaticBalanceConfig();
+            double center = staticCfg.XCenter;
+            double halfRange = staticCfg.XHalfRange;
+            if (!hasSamples)
+            {
+                bool rangeFromKinematics = false;
+                if (config?.KinematicParameters != null)
+                {
+                    double kMin = config.KinematicParameters.ContactPointPosMinAbs / 10.0;
+                    double kMax = config.KinematicParameters.ContactPointPosMaxAbs / 10.0;
+                    if (kMax > kMin)
+                    {
+                        xMin = kMin;
+                        xMax = kMax;
+                        rangeFromKinematics = true;
+                    }
+                }
+                if (!rangeFromKinematics)
+                {
+                    if (halfRange <= 0.0)
+                    {
+                        halfRange = 1.0;
+                    }
+                    xMin = center - halfRange;
+                    xMax = center + halfRange;
+                }
+            }
             if (xMax <= xMin)
             {
                 xMax = xMin + 1.0;
             }
 
-            var staticCfg = EnsureStaticBalanceConfig();
-            double center = staticCfg.XCenter;
-            double halfRange = staticCfg.XHalfRange;
             if (halfRange <= 0.0)
             {
                 halfRange = (xMax - xMin) * 0.5;
@@ -769,20 +789,36 @@ namespace User.PluginSdkDemo
                 }
             }
 
-            List<double> fitValues = new List<double>(staticBalanceSamples.Count);
+            int pointCount = hasSamples ? staticBalanceSamples.Count : 64;
+            double step = hasSamples ? staticBalanceStep : (xMax - xMin) / Math.Max(1, pointCount - 1);
+            if (step <= 0.0 || double.IsNaN(step) || double.IsInfinity(step))
+            {
+                step = (xMax - xMin) / Math.Max(1, pointCount - 1);
+            }
+
+            List<double> fitValues = new List<double>(pointCount);
             double yMin = double.MaxValue;
             double yMax = double.MinValue;
-            for (int i = 0; i < staticBalanceSamples.Count; i++)
+            for (int i = 0; i < pointCount; i++)
             {
-                double x = xMin + (i * staticBalanceStep);
+                double x = xMin + (i * step);
                 double xNorm = (x - center) / halfRange;
                 xNorm = Math.Max(-1.0, Math.Min(1.0, xNorm));
                 double yFit = EvaluatePoly(staticCfg, xNorm);
                 fitValues.Add(yFit);
-                yMin = Math.Min(yMin, staticBalanceSamples[i]);
-                yMax = Math.Max(yMax, staticBalanceSamples[i]);
+                if (hasSamples)
+                {
+                    yMin = Math.Min(yMin, staticBalanceSamples[i]);
+                    yMax = Math.Max(yMax, staticBalanceSamples[i]);
+                }
                 yMin = Math.Min(yMin, yFit);
                 yMax = Math.Max(yMax, yFit);
+            }
+
+            if (yMin == double.MaxValue || yMax == double.MinValue)
+            {
+                yMin = -1.0;
+                yMax = 1.0;
             }
 
             double pad = (yMax - yMin) * 0.1;
@@ -793,23 +829,130 @@ namespace User.PluginSdkDemo
             yMin -= pad;
             yMax += pad;
 
+            UpdateStaticBalanceGrid(xMin, xMax, yMin, yMax, width, height);
+
             PointCollection rawPoints = new PointCollection();
             PointCollection fitPoints = new PointCollection();
-            for (int i = 0; i < staticBalanceSamples.Count; i++)
+            for (int i = 0; i < pointCount; i++)
             {
-                double x = xMin + (i * staticBalanceStep);
+                double x = xMin + (i * step);
                 double xN = (x - xMin) / (xMax - xMin);
-                double yRaw = staticBalanceSamples[i];
-                double yFit = fitValues[i];
                 double rawX = xN * width;
-                double rawY = height - ((yRaw - yMin) / (yMax - yMin) * height);
+                if (hasSamples)
+                {
+                    double yRaw = staticBalanceSamples[i];
+                    double rawY = height - ((yRaw - yMin) / (yMax - yMin) * height);
+                    rawPoints.Add(new Point(rawX, rawY));
+                }
+                double yFit = fitValues[i];
                 double fitY = height - ((yFit - yMin) / (yMax - yMin) * height);
-                rawPoints.Add(new Point(rawX, rawY));
                 fitPoints.Add(new Point(rawX, fitY));
             }
 
             Polyline_static_raw.Points = rawPoints;
             Polyline_static_fit.Points = fitPoints;
+            Panel.SetZIndex(Polyline_static_raw, 1);
+            Panel.SetZIndex(Polyline_static_fit, 1);
+        }
+
+        private void UpdateStaticBalanceGrid(double xMin, double xMax, double yMin, double yMax, double width, double height)
+        {
+            if (Canvas_static_balance == null)
+            {
+                return;
+            }
+
+            for (int i = Canvas_static_balance.Children.Count - 1; i >= 0; i--)
+            {
+                if (Canvas_static_balance.Children[i] is FrameworkElement element &&
+                    element.Tag as string == StaticBalanceGridTag)
+                {
+                    Canvas_static_balance.Children.RemoveAt(i);
+                }
+            }
+
+            if (width <= 1 || height <= 1 || xMax <= xMin || yMax <= yMin)
+            {
+                return;
+            }
+
+            int xTicks = 5;
+            int yTicks = 5;
+
+            AddGridLine(0, 0, 0, height, true);
+            AddGridLine(0, height, width, height, true);
+
+            for (int i = 0; i < xTicks; i++)
+            {
+                double t = xTicks == 1 ? 0.5 : (double)i / (xTicks - 1);
+                double x = t * width;
+                AddGridLine(x, 0, x, height, false);
+                string label = (xMin + (xMax - xMin) * t).ToString("0.##", CultureInfo.CurrentCulture) + " mm";
+                AddXTickLabel(x, height, label);
+            }
+
+            for (int i = 0; i < yTicks; i++)
+            {
+                double t = yTicks == 1 ? 0.5 : (double)i / (yTicks - 1);
+                double y = height - (t * height);
+                AddGridLine(0, y, width, y, false);
+                string label = (yMin + (yMax - yMin) * t).ToString("0.##", CultureInfo.CurrentCulture) + " N";
+                AddYTickLabel(y, label);
+            }
+
+            void AddGridLine(double x1, double y1, double x2, double y2, bool axis)
+            {
+                Line line = new Line
+                {
+                    X1 = x1,
+                    Y1 = y1,
+                    X2 = x2,
+                    Y2 = y2,
+                    Stroke = new SolidColorBrush(Color.FromArgb(axis ? (byte)140 : (byte)80, 255, 255, 255)),
+                    StrokeThickness = axis ? 1.0 : 0.5,
+                    Tag = StaticBalanceGridTag
+                };
+                Panel.SetZIndex(line, 0);
+                Canvas_static_balance.Children.Add(line);
+            }
+
+            void AddXTickLabel(double x, double plotHeight, string text)
+            {
+                TextBlock label = new TextBlock
+                {
+                    Text = text,
+                    Foreground = Brushes.White,
+                    FontSize = 9,
+                    Opacity = 0.7,
+                    Tag = StaticBalanceGridTag
+                };
+                label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                double left = x - (label.DesiredSize.Width * 0.5);
+                left = Math.Max(0, Math.Min(width - label.DesiredSize.Width, left));
+                Canvas.SetLeft(label, left);
+                Canvas.SetTop(label, plotHeight + 2);
+                Panel.SetZIndex(label, 0);
+                Canvas_static_balance.Children.Add(label);
+            }
+
+            void AddYTickLabel(double y, string text)
+            {
+                TextBlock label = new TextBlock
+                {
+                    Text = text,
+                    Foreground = Brushes.White,
+                    FontSize = 9,
+                    Opacity = 0.7,
+                    Tag = StaticBalanceGridTag
+                };
+                label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                double top = y - (label.DesiredSize.Height * 0.5);
+                top = Math.Max(0, Math.Min(height - label.DesiredSize.Height, top));
+                Canvas.SetLeft(label, -label.DesiredSize.Width - 4);
+                Canvas.SetTop(label, top);
+                Panel.SetZIndex(label, 0);
+                Canvas_static_balance.Children.Add(label);
+            }
         }
 
         private static double EvaluatePoly(AxisConfig.Types.StaticBalanceConfig staticCfg, double x)

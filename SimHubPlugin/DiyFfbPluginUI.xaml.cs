@@ -123,6 +123,10 @@ namespace User.PluginSdkDemo
         {
             if (axes.TryGetValue(axis_id, out Axis axis))
             {
+                if (!axis.HasAxisConfig)
+                {
+                    return null;
+                }
                 return axis.Config?.KinematicParameters;
             }
             return null;
@@ -1762,9 +1766,41 @@ namespace User.PluginSdkDemo
             if (newAxisId != AxisID.AxisUndefined && newAxisId <= AxisID._8)
             {
                 axes[newAxisId].Config = newAxisConfig;
+                axes[newAxisId].HasAxisConfig = true;
                 if (newAxisId == selected_axis_id)
                 {
                     uc_axis_config.UpdateConfig(axes[newAxisId].Config);
+                }
+                if (selected_function_id != FunctionID.Undefined && functions.TryGetValue(selected_function_id, out Function function))
+                {
+                    FunctionConfig cfg = function.Config;
+                    bool affectsSelected = false;
+                    if (cfg?.Base != null)
+                    {
+                        foreach (var axis in cfg.Base.LinkedAxes)
+                        {
+                            if ((axis & AxisID.Mask) == newAxisId)
+                            {
+                                affectsSelected = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!affectsSelected && cfg?.AuxFunction != null)
+                    {
+                        foreach (var axis in cfg.AuxFunction.LinkedAxes)
+                        {
+                            if ((axis & AxisID.Mask) == newAxisId)
+                            {
+                                affectsSelected = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (affectsSelected)
+                    {
+                        uc_function_config.OnKinematicParametersChanged(newAxisConfig.KinematicParameters);
+                    }
                 }
             }
             else

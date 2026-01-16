@@ -99,6 +99,7 @@ namespace User.PluginSdkDemo
             update_lockout = true;
 
             AutomotivePedal_AxisSelector.Value = function_config.Base.LinkedAxes[0];
+            AutomotivePedal_SplineForceCurve.ResetAxisRange();
 
             if (function_config.Base.LinkedAxes[0] != AxisID.AxisUndefined)
             {
@@ -910,6 +911,7 @@ namespace User.PluginSdkDemo
         {
             function_config.Base.LinkedAxes.Clear();
             function_config.Base.LinkedAxes.AddRange(new AxisID[4] { e.Value, AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined });
+            AutomotivePedal_SplineForceCurve.ResetAxisRange();
             var kinematic_parameters = ui.GetKinematicParameters(e.Value);
             if (kinematic_parameters != null) {
                 OnKinematicParametersChanged(kinematic_parameters);

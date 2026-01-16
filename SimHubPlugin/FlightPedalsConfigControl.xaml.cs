@@ -30,6 +30,7 @@ namespace User.PluginSdkDemo
         private bool hasTrimCenter;
         private DispatcherTimer xplaneTimer;
         private float lastIasKts;
+        private bool hasAxisRange;
 
         public FlightPedalsConfigControl()
         {
@@ -61,8 +62,11 @@ namespace User.PluginSdkDemo
 
         public void OnKinematicParametersChanged(KinematicParameters parameters)
         {
-            Rangeslider_travel_range.Minimum = parameters.ContactPointPosMinAbs / 10.0f;
-            Rangeslider_travel_range.Maximum = parameters.ContactPointPosMaxAbs / 10.0f;
+            hasAxisRange = true;
+            double min = parameters.ContactPointPosMinAbs / 10.0f;
+            double max = parameters.ContactPointPosMaxAbs / 10.0f;
+            Rangeslider_travel_range.Minimum = Math.Min(min, max);
+            Rangeslider_travel_range.Maximum = Math.Max(min, max);
         }
 
         public void OnAxisStateUpdate(global::AxisState axis_state)
@@ -111,6 +115,7 @@ namespace User.PluginSdkDemo
             config = function_config.FlightPedals;
             brake_config = function_config.AuxFunction.RudderBrake;
             current_function_id = function_config.Base.FunctionId;
+            hasAxisRange = false;
 
             is_updating = true;
             uc_axis_selector_pilot_right.Value = function_config.Base.LinkedAxes[0];
@@ -125,6 +130,10 @@ namespace User.PluginSdkDemo
                 {
                     OnKinematicParametersChanged(kinematic_parameters);
                 }
+            }
+            if (!hasAxisRange)
+            {
+                ApplyFallbackTravelRange();
             }
 
             Slider_simulated_mass.Value = function_config.SimulatedMass;
@@ -211,6 +220,10 @@ namespace User.PluginSdkDemo
                 if (kinematic_parameters != null)
                 {
                     OnKinematicParametersChanged(kinematic_parameters);
+                }
+                else
+                {
+                    ApplyFallbackTravelRange();
                 }
                 function?.OnAxisUpdate();
             }
@@ -741,6 +754,19 @@ namespace User.PluginSdkDemo
         private void Rangeslider_travel_range_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             UpdateTravelMarkers();
+        }
+
+        private void ApplyFallbackTravelRange()
+        {
+            if (Rangeslider_travel_range == null)
+            {
+                return;
+            }
+
+            double min = Math.Min(config.PosNearLim, config.PosFarLim);
+            double max = Math.Max(config.PosNearLim, config.PosFarLim);
+            Rangeslider_travel_range.Minimum = min;
+            Rangeslider_travel_range.Maximum = max;
         }
 
     }
