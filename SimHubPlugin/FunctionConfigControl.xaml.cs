@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Globalization;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
@@ -35,6 +36,7 @@ namespace User.PluginSdkDemo
         private Function function;
         private FunctionConfig config;
         private FunctionID current_function_id;
+        private bool updatingStaticBalanceUi;
 
         public void SetGui(DiyFfbPluginUI ui, DiyFfbPlugin plugin)
         {
@@ -64,6 +66,11 @@ namespace User.PluginSdkDemo
             new_config.Base = new FunctionBase();
             new_config.Base.FunctionId = function_id;
             new_config.Base.LinkedAxes.AddRange(new AxisID[4] { AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined, AxisID.AxisUndefined });
+            new_config.StaticBalanceTuning = new FunctionConfig.Types.StaticBalanceTuning
+            {
+                Enabled = false,
+                Gain = 1.0f
+            };
             switch (function_id)
             {
                 case FunctionID.BrakePedal:
@@ -151,6 +158,8 @@ namespace User.PluginSdkDemo
         {
             this.function = function;
             config = function.Config;
+            EnsureStaticBalanceTuningConfig();
+            UpdateStaticBalanceTuningUi();
             switch (function.ID)
             {
                 case FunctionID.BrakePedal:
@@ -182,6 +191,85 @@ namespace User.PluginSdkDemo
                     tc_specific_function.SelectedIndex = 3;
                     break;
             }
+        }
+
+        private FunctionConfig.Types.StaticBalanceTuning EnsureStaticBalanceTuningConfig()
+        {
+            if (config.StaticBalanceTuning == null)
+            {
+                config.StaticBalanceTuning = new FunctionConfig.Types.StaticBalanceTuning
+                {
+                    Enabled = false,
+                    Gain = 1.0f
+                };
+            }
+            return config.StaticBalanceTuning;
+        }
+
+        private void UpdateStaticBalanceTuningUi()
+        {
+            if (updatingStaticBalanceUi)
+            {
+                return;
+            }
+            var tuning = EnsureStaticBalanceTuningConfig();
+            updatingStaticBalanceUi = true;
+            ToggleStaticBalanceEnabled.IsChecked = tuning.Enabled;
+            SliderStaticBalanceGain.Value = tuning.Gain;
+            TextStaticBalanceGain.Text = tuning.Gain.ToString("0.###", CultureInfo.CurrentCulture);
+            updatingStaticBalanceUi = false;
+        }
+
+        private void StaticBalanceEnabled_Checked(object sender, RoutedEventArgs e)
+        {
+            if (config == null)
+            {
+                return;
+            }
+            EnsureStaticBalanceTuningConfig().Enabled = true;
+        }
+
+        private void StaticBalanceEnabled_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (config == null)
+            {
+                return;
+            }
+            EnsureStaticBalanceTuningConfig().Enabled = false;
+        }
+
+        private void StaticBalanceGain_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (config == null || updatingStaticBalanceUi)
+            {
+                return;
+            }
+            var tuning = EnsureStaticBalanceTuningConfig();
+            tuning.Gain = (float)e.NewValue;
+            updatingStaticBalanceUi = true;
+            TextStaticBalanceGain.Text = tuning.Gain.ToString("0.###", CultureInfo.CurrentCulture);
+            updatingStaticBalanceUi = false;
+        }
+
+        private void StaticBalanceGain_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (config == null || updatingStaticBalanceUi)
+            {
+                return;
+            }
+            if (float.TryParse(TextStaticBalanceGain.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out float value))
+            {
+                var tuning = EnsureStaticBalanceTuningConfig();
+                tuning.Gain = value;
+                updatingStaticBalanceUi = true;
+                SliderStaticBalanceGain.Value = value;
+                updatingStaticBalanceUi = false;
+            }
+        }
+
+        private void StaticBalanceGain_LostFocus(object sender, RoutedEventArgs e)
+        {
+            UpdateStaticBalanceTuningUi();
         }
     }
 }

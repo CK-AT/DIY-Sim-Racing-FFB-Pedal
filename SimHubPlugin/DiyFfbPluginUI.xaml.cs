@@ -1451,6 +1451,17 @@ namespace User.PluginSdkDemo
                     RegisterAxisChannel(msg.ActiveFunction.AxisId, port);
                     UpdateActiveFunction(msg.ActiveFunction);
                     break;
+                case Message.PayloadOneofCase.StaticBalanceResult:
+                    RegisterAxisChannel(msg.StaticBalanceResult.AxisId, port);
+                    if (axes.TryGetValue(msg.StaticBalanceResult.AxisId, out Axis axis))
+                    {
+                        AxisConfigControl.ApplyStaticBalanceResult(axis.Config, msg.StaticBalanceResult);
+                        if (msg.StaticBalanceResult.AxisId == selected_axis_id)
+                        {
+                            uc_axis_config.OnStaticBalanceResult(msg.StaticBalanceResult);
+                        }
+                    }
+                    break;
                 default:
                     break;
             }
@@ -1467,6 +1478,43 @@ namespace User.PluginSdkDemo
         public void RefreshXPlaneFfbSettings()
         {
             uc_function_config.RefreshXPlaneFfbSettings();
+        }
+
+        public void RequestStaticBalanceCalibration(AxisID axisId)
+        {
+            if (axisId == AxisID.AxisUndefined)
+            {
+                TextBox_debugOutput.Text = "Static balance: Axis ID undefined";
+                return;
+            }
+            if (!axes.TryGetValue(axisId, out Axis axis))
+            {
+                TextBox_debugOutput.Text = $"Static balance: Axis {axisId} not found";
+                return;
+            }
+
+            Message msg = new Message
+            {
+                AxisAction = new AxisAction
+                {
+                    AxisId = axisId,
+                    StartStaticBalanceCalibration = true
+                }
+            };
+
+            var serialChannel = axis.SerialChannel;
+            if (serialChannel != null && serialChannel != Plugin.ESPsync_serialPort)
+            {
+                serialChannel.WriteMessage(msg);
+                return;
+            }
+            if (Plugin?.ESPsync_serialPort != null && Plugin.ESPsync_serialPort.IsOpen)
+            {
+                Plugin.ESPsync_serialPort.WriteMessage(msg);
+                return;
+            }
+
+            TextBox_debugOutput.Text = $"Static balance: Axis {axisId} offline";
         }
 
         public void UpdateActiveAircraftLabel(string carName, string carId)

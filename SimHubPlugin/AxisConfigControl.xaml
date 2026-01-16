@@ -211,6 +211,49 @@
                         </StackPanel>
                     </Border>
                 </TabItem>
+
+                <TabItem Width="108" Height="30" Padding="0,0,0,0">
+                    <TabItem.Header>
+                        <Border Width="108" Height="30" Margin="0,0,0,0">
+                            <Label Content="Static Bal" FontFamily="Arial Black" FontSize="10" Height="30" Width="108" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" UseLayoutRounding="True" ToolTip="Static balance calibration"/>
+                        </Border>
+                    </TabItem.Header>
+                    <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,2,0,0">
+                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="540">
+                            <Label Content="Static Balance" Height="15" Width="400" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial Black" Margin="0,10,0,0"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                <Button x:Name="BtnStaticBalanceCalibrate" Content="Start Calibration" Width="130" Height="22" FontSize="10" Click="StartStaticBalanceCalibration_Click"/>
+                                <Label x:Name="LabelStaticBalanceStatus" Content="Idle" FontSize="10" Margin="8,0,0,0" VerticalContentAlignment="Center"/>
+                                <Button x:Name="BtnStaticBalanceClear" Content="Clear" Width="70" Height="22" FontSize="10" Margin="10,0,0,0" Click="ClearStaticBalance_Click"/>
+                            </StackPanel>
+                            <Canvas x:Name="Canvas_static_balance" Width="400" Height="120" Background="#7F20232F" Margin="0,6,0,0">
+                                <Polyline x:Name="Polyline_static_raw" Stroke="#FF5BD65B" StrokeThickness="1.5"/>
+                                <Polyline x:Name="Polyline_static_fit" Stroke="#FFF0B84A" StrokeThickness="1.5"/>
+                            </Canvas>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <Label Content="Center (mm):" FontSize="10" Width="90" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TextStaticCenter" Width="70" Height="20" FontSize="10" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" TextChanged="StaticBalance_TextChanged" LostFocus="StaticBalance_LostFocus"/>
+                                <Label Content="Half range (mm):" FontSize="10" Width="100" Margin="10,0,0,0" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TextStaticHalfRange" Width="70" Height="20" FontSize="10" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" TextChanged="StaticBalance_TextChanged" LostFocus="StaticBalance_LostFocus"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <Label Content="Coeff 0:" FontSize="10" Width="60" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TextStaticCoeff0" Width="60" Height="20" FontSize="10" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" TextChanged="StaticBalance_TextChanged" LostFocus="StaticBalance_LostFocus"/>
+                                <Label Content="Coeff 1:" FontSize="10" Width="60" Margin="8,0,0,0" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TextStaticCoeff1" Width="60" Height="20" FontSize="10" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" TextChanged="StaticBalance_TextChanged" LostFocus="StaticBalance_LostFocus"/>
+                                <Label Content="Coeff 2:" FontSize="10" Width="60" Margin="8,0,0,0" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TextStaticCoeff2" Width="60" Height="20" FontSize="10" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" TextChanged="StaticBalance_TextChanged" LostFocus="StaticBalance_LostFocus"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <Label Content="Coeff 3:" FontSize="10" Width="60" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TextStaticCoeff3" Width="60" Height="20" FontSize="10" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" TextChanged="StaticBalance_TextChanged" LostFocus="StaticBalance_LostFocus"/>
+                                <Label Content="Coeff 4:" FontSize="10" Width="60" Margin="8,0,0,0" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TextStaticCoeff4" Width="60" Height="20" FontSize="10" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" TextChanged="StaticBalance_TextChanged" LostFocus="StaticBalance_LostFocus"/>
+                            </StackPanel>
+                            <Label Content="Enable/gain is set in function config." FontSize="10" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </TabItem>
         </TabControl>
     </Grid>
 </UserControl>

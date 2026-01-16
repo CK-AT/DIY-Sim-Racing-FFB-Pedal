@@ -17,6 +17,8 @@
 #include "ConfigManager.h"
 #include "IFunction.h"
 #include "Physics.h"
+#include "OscillationGuard.h"
+#include "StaticBalancer.h"
 #include "Version.h"
 #include "Version_Board.h"
 
@@ -120,6 +122,8 @@ const RgbColor k_purple = RgbColor(36, 0, 46);
 #endif
 
 Sim sim = Sim(1.0, 0.0, 0.0);
+StaticBalancer static_balancer = StaticBalancer();
+CompoundElement function_elements = CompoundElement();
 Friction friction = Friction(2.0);
 OscillationGuard oscillation_guard = OscillationGuard();
 
@@ -225,35 +229,42 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
         servo->set_homing_direction(to_homing_direction(axis_cfg));
     }
     apply_oscillation_guard_config(axis_cfg);
+
     if (active_function) {
         active_function->disable();
     }
     active_function = nullptr;
-    if (function_cfg->base.function_id == FunctionID_FUNCTION_ID_UNDEFINED) {
-        return nullptr;
+    if (function_cfg->base.function_id != FunctionID_FUNCTION_ID_UNDEFINED) {
+        switch (function_cfg->which_specific) {
+            case FunctionConfig_automotive_pedal_tag:
+                automotive_pedal_function.update_config(function_cfg->specific.automotive_pedal);
+                active_function = &automotive_pedal_function;
+                break;
+            case FunctionConfig_flight_pedals_tag:
+                flight_pedals_function.update_config(function_cfg->specific.flight_pedals);
+                active_function = &flight_pedals_function;
+                break;
+            case FunctionConfig_flight_stick_pitch_tag:
+                flight_stick_pitch_function.update_config(function_cfg->specific.flight_stick_pitch);
+                active_function = &flight_stick_pitch_function;
+                break;
+            case FunctionConfig_flight_stick_roll_tag:
+                flight_stick_roll_function.update_config(function_cfg->specific.flight_stick_roll);
+                active_function = &flight_stick_roll_function;
+                break;
+            case FunctionConfig_shifter_tag:
+                shifter_function.update_config(function_cfg->specific.shifter, function_cfg->aux_function.specific.shifter_detect, comm_manager, function_cfg->base.linked_axes);
+                active_function = &shifter_function;
+                break;
+            default:
+                break;
+        }
     }
-    switch (function_cfg->which_specific) {
-        case FunctionConfig_automotive_pedal_tag:
-            automotive_pedal_function.update_config(function_cfg->specific.automotive_pedal);
-            active_function = &automotive_pedal_function;
-            break;
-        case FunctionConfig_flight_pedals_tag:
-            flight_pedals_function.update_config(function_cfg->specific.flight_pedals);
-            active_function = &flight_pedals_function;
-            break;
-        case FunctionConfig_flight_stick_pitch_tag:
-            flight_stick_pitch_function.update_config(function_cfg->specific.flight_stick_pitch);
-            active_function = &flight_stick_pitch_function;
-            break;
-        case FunctionConfig_flight_stick_roll_tag:
-            flight_stick_roll_function.update_config(function_cfg->specific.flight_stick_roll);
-            active_function = &flight_stick_roll_function;
-            break;
-        case FunctionConfig_shifter_tag:
-            shifter_function.update_config(function_cfg->specific.shifter, function_cfg->aux_function.specific.shifter_detect, comm_manager, function_cfg->base.linked_axes);
-            active_function = &shifter_function;
-            break;
-    }
+    const AxisConfig_StaticBalanceConfig *static_balance_cfg =
+        (axis_cfg && axis_cfg->has_static_balance_config) ? &axis_cfg->static_balance_config : nullptr;
+    const FunctionConfig_StaticBalanceTuning *static_balance_tuning =
+        (function_cfg && function_cfg->has_static_balance_tuning) ? &function_cfg->static_balance_tuning : nullptr;
+    static_balancer.update_config(static_balance_cfg, static_balance_tuning);
     if (active_function) {
         float x_curr;
         comm_manager.get_position(comm_manager.get_axis_id(), x_curr);
@@ -370,11 +381,13 @@ void setup() {
             delay(100);
         }
 
-        sim.add_element(&automotive_pedal_function);
-        sim.add_element(&flight_pedals_function);
-        sim.add_element(&flight_stick_pitch_function);
-        sim.add_element(&flight_stick_roll_function);
-        sim.add_element(&shifter_function);
+        function_elements.add_element(&automotive_pedal_function);
+        function_elements.add_element(&flight_pedals_function);
+        function_elements.add_element(&flight_stick_pitch_function);
+        function_elements.add_element(&flight_stick_roll_function);
+        function_elements.add_element(&shifter_function);
+        sim.add_element(&static_balancer);
+        sim.add_element(&function_elements);
         sim.add_element(&friction);
         sim.add_element(&oscillation_guard);
 
@@ -427,6 +440,25 @@ void loop() {
     }
     pixels.Show();
 #endif
+
+    StaticBalanceResultData result = {};
+    if (static_balancer.calibration_done(result)) {
+        Message msg = Message_init_zero;
+        msg.which_payload = Message_static_balance_result_tag;
+        msg.payload.static_balance_result.axis_id = config_manager.get_axis_id();
+        msg.payload.static_balance_result.x_min = result.x_min;
+        msg.payload.static_balance_result.x_max = result.x_max;
+        msg.payload.static_balance_result.sample_step = result.step;
+        msg.payload.static_balance_result.f_offset_count = static_cast<pb_size_t>(result.count);
+        for (uint16_t idx = 0; idx < result.count; idx++) {
+            msg.payload.static_balance_result.f_offset[idx] = result.samples[idx];
+        }
+        comm_manager.send_message_to_host(msg);
+        if (servo) {
+            servo->pause(1000);
+        }
+        function_elements.enable();
+    }
 }
 
 /**********************************************************************************************/
@@ -497,8 +529,8 @@ void physics_task_func(void *pv_parameters) {
         float f_load_cell = filtered_reading * 9.81;
 
         float r_conv = config_manager.calc_force_conversion_factor(x_contact_point);
-
-        f_contact_point = f_load_cell * r_conv;
+        float f_raw_contact = f_load_cell * r_conv;
+        f_contact_point = static_balancer.get_force(x_contact_point, f_raw_contact);
 
 #ifdef HAS_CAN
         /* CommManager is designed to run CANManager's main processing from within the pedal task to ensure minimum latency on other axes' position
@@ -506,7 +538,7 @@ void physics_task_func(void *pv_parameters) {
         comm_manager.process();
 #endif
 
-        if (config_manager.get_function_id() != FunctionID_FUNCTION_ID_UNDEFINED) {
+        if (config_manager.get_function_id() != FunctionID_FUNCTION_ID_UNDEFINED || static_balancer.is_calibrating()) {
             if (comm_manager.calc_input_force_sum(f_contact_point, f_in)) {
                 // calc_input_force_sum returns true if this is a subtractive axis -> invert result
                 f_in *= -1.0f;
@@ -563,6 +595,10 @@ void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel) {
             break;
         case AxisAction_debug_flags_tag:
             debug_flags = axis_action.action.debug_flags;
+            break;
+        case AxisAction_start_static_balance_calibration_tag:
+            function_elements.disable();
+            static_balancer.start_calibration(sim.get_x_min(), sim.get_x_max());
             break;
         default:
             break;

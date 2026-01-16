@@ -2,6 +2,42 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-16 10:45:00 +01:00 (DESKTOP-6KO022D)
+Request: add static balance calibration + tuning across ESP32 + SimHub, with a new AxisConfig tab.
+Summary:
+- Added StaticBalanceConfig/StaticBalanceResult protocol support (polynomial coeffs + 32 sample cap) and a calibration flow on ESP32 using a state machine.
+- Moved StaticBalancer and OscillationGuard into dedicated sources and integrated calibration-driven limit control.
+- Added Static Balance tab on AxisConfig with calibration trigger, raw/fit plot, coeff editor, and clear button.
+- Added common Static Balance tuning panel (enable + gain) above the FunctionConfig tabs.
+- Routed StaticBalanceResult to the correct axis config even when a different axis is selected.
+Key files:
+- `proto/diy_ffb_protocol.proto`
+- `proto/diy_ffb_protocol.options`
+- `ESP32/include/StaticBalancer.h`
+- `ESP32/src/StaticBalancer.cpp`
+- `ESP32/include/OscillationGuard.h`
+- `ESP32/src/OscillationGuard.cpp`
+- `ESP32/src/Main.cpp`
+- `SimHubPlugin/AxisConfigControl.xaml`
+- `SimHubPlugin/AxisConfigControl.xaml.cs`
+- `SimHubPlugin/FunctionConfigControl.xaml`
+- `SimHubPlugin/FunctionConfigControl.xaml.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- Validate calibration flow end-to-end on hardware and review fit quality before manual upload.
+
+## 2026-01-16 09:05:10 +01:00 (DESKTOP-6KO022D)
+Request: fix trim center markers to reflect absolute travel center.
+Summary:
+- Store trim-only offsets (no weather-vaning) for UI markers.
+- Place trim markers at travel center + trim offset instead of plotting relative offset.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+Open items:
+- None.
+
 ## 2026-01-15 22:12:19 +01:00 (DESKTOP-6KO022D)
 Request: rework SimHub OTA flow to match .ffbota + public JSON logic, add target selection and retries, and move OTA diagnostics into the dialog.
 Summary:

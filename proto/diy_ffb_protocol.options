@@ -20,6 +20,7 @@ AxisConfig.physics_iterations_per_sample    int_size:IS_16
 AxisConfig.OscillationGuard.hold_time_ms    int_size:IS_16
 AxisConfig.OscillationGuard.ramp_time_ms    int_size:IS_16
 AxisConfig.OscillationGuard.required_hits   int_size:IS_8
+AxisConfig.StaticBalanceConfig.coeffs       max_count:5 fixed_count:true
 
 FunctionBase.linked_axes                    max_count:4 fixed_count:true
 
@@ -71,6 +72,8 @@ FlightStickRollConfig.pos_*                int_size:IS_16
 AxisAction.*                                int_size:IS_8
 
 AxisState.*                                 int_size:IS_16
+
+StaticBalanceResult.f_offset                max_count:32
 
 GatewayState.*                              int_size:IS_8
 

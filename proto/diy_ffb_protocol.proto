@@ -141,6 +141,19 @@ message AxisConfig {
     uint32 required_hits = 8;
   }
 
+  message StaticBalanceConfig {
+    // unix timestamp when the curve was captured (seconds)
+    uint32 created_at_epoch_s = 1;
+    // calibration revision
+    uint32 revision = 2;
+    // polynomial center in mm (x normalized around this center)
+    float x_center = 3;
+    // half range in mm (normalizes x to [-1..1])
+    float x_half_range = 4;
+    // polynomial coefficients (lowest order first)
+    repeated float coeffs = 5;
+  }
+
   // axis ID, will be used by gateways to dispatch to the correct axis and as the ID definition for HW w/o ID DIP switches
   AxisID axis_id = 1;
   // all kinematic parameters required to convert positions and forces including physical position limits
@@ -176,6 +189,8 @@ message AxisConfig {
   HomingDirection homing_direction = 15;
   // oscillation guard configuration
   OscillationGuard oscillation_guard = 17;
+  // static balance curve and metadata
+  StaticBalanceConfig static_balance_config = 18;
 }
 
 enum ControllerAxis {
@@ -526,6 +541,12 @@ message FunctionConfig {
   float simulated_mass = 5;
   // friction in N
   float friction = 6;
+  // static balance tuning (per function)
+  message StaticBalanceTuning {
+    bool enabled = 1;
+    float gain = 2;
+  }
+  StaticBalanceTuning static_balance_tuning = 10;
 }
 
 message AxisAction {
@@ -538,6 +559,7 @@ message AxisAction {
     bool return_function_config = 5;
     uint32 debug_flags = 6;
     bool return_active_function = 7;
+    bool start_static_balance_calibration = 8;
   }
 }
 
@@ -548,6 +570,19 @@ message AxisState {
   float position = 2;
   // relative force
   float force = 3;
+}
+
+message StaticBalanceResult {
+  // axis ID of the affected axis
+  AxisID axis_id = 1;
+  // minimum contact point position in mm
+  float x_min = 2;
+  // maximum contact point position in mm
+  float x_max = 3;
+  // sample spacing in mm
+  float sample_step = 4;
+  // force offsets in N for each sample from x_min to x_max
+  repeated float f_offset = 5;
 }
 
 message GatewayState {
@@ -648,6 +683,7 @@ message Message {
     StartOtaUpdate start_ota_update = 10;
     DeviceInfo device_info = 11;
     DeviceInfoRequest device_info_request = 12;
+    StaticBalanceResult static_balance_result = 13;
   }
 }
 

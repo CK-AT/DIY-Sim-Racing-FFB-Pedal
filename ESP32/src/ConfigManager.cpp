@@ -70,6 +70,9 @@ void ConfigManager::set_function_config_defaults(void) {
 
     _function_config.simulated_mass = 0.2f;
     _function_config.friction = 2.0f;
+    _function_config.has_static_balance_tuning = true;
+    _function_config.static_balance_tuning.enabled = false;
+    _function_config.static_balance_tuning.gain = 1.0f;
 }
 
 void ConfigManager::store_axis_config_raw(const uint8_t *data, uint16_t len) {

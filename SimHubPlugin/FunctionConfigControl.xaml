@@ -9,7 +9,27 @@
              xmlns:controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
              >
     <Grid>
-        <TabControl x:Name="tc_specific_function" Padding="0,0,0,0" Margin="-1,-1,-1,-1" Background="{x:Null}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Border Grid.Row="0" Background="#7F4E4E4E" CornerRadius="5,5,5,5">
+            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="540">
+                <Label Content="Static Balance Tuning" Height="15" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial Black" Margin="70,8,0,0"/>
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,8">
+                    <styles:SHToggleButton x:Name="ToggleStaticBalanceEnabled" Content="" IsChecked="False" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" Margin="60,0,0,0"
+                                           Checked="StaticBalanceEnabled_Checked" Unchecked="StaticBalanceEnabled_Unchecked"/>
+                    <Label Content="Enable" Height="20" Width="50" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="4,0,0,0"/>
+                    <Label Content="Gain" Height="20" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="20,0,0,0"/>
+                    <Slider x:Name="SliderStaticBalanceGain" Style="{DynamicResource SliderStyle_single_H}" Height="10" Width="180"
+                            Minimum="0" Maximum="2" ValueChanged="StaticBalanceGain_ValueChanged" IsSnapToTickEnabled="True" TickFrequency="0.05" SmallChange="0.01"/>
+                    <TextBox x:Name="TextStaticBalanceGain" Width="60" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0"
+                             Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                             Margin="8,0,0,0" TextChanged="StaticBalanceGain_TextChanged" LostFocus="StaticBalanceGain_LostFocus"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+        <TabControl x:Name="tc_specific_function" Grid.Row="1" Padding="0,3,0,0" Margin="-1,-1,-1,-1" Background="{x:Null}">
             <TabControl.ItemContainerStyle>
                 <Style TargetType="{x:Type TabItem}">
                     <Setter Property="Visibility" Value="Collapsed"/>

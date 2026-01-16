@@ -2,6 +2,8 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Globalization;
+using System.Collections.Generic;
+using System.Windows.Media;
 
 namespace User.PluginSdkDemo
 {
@@ -13,6 +15,11 @@ namespace User.PluginSdkDemo
         private AxisConfig config;
         private DiyFfbPluginUI ui;
         private DiyFfbPlugin plugin;
+        private bool updatingStaticBalanceUi;
+        private List<float> staticBalanceSamples = new List<float>();
+        private float staticBalanceXMin;
+        private float staticBalanceXMax;
+        private float staticBalanceStep;
         public delegate void DebugMessageEventHandler(string message);
         public event DebugMessageEventHandler DebugMessage;
         public delegate void KinematicParametersChangedEventHandler(KinematicParameters parameters);
@@ -23,6 +30,10 @@ namespace User.PluginSdkDemo
             config = GetDefaultConfig(AxisID.AxisUndefined);
             InitializeComponent();
             GeneralKinematicsControl.KinematicParametersChanged += GeneralKinematicsControl_KinematicParametersChanged;
+            if (Canvas_static_balance != null)
+            {
+                Canvas_static_balance.SizeChanged += StaticBalanceCanvas_SizeChanged;
+            }
         }
 
         private void GeneralKinematicsControl_KinematicParametersChanged(KinematicParameters parameters)
@@ -63,6 +74,7 @@ namespace User.PluginSdkDemo
             new_config.Store = false;
             new_config.HomingDirection = HomingDirection.HomingDirNegative;
             new_config.OscillationGuard = BuildDefaultOscillationGuard();
+            new_config.StaticBalanceConfig = BuildDefaultStaticBalanceConfig();
 
             return new_config;
         }
@@ -127,6 +139,20 @@ namespace User.PluginSdkDemo
             };
         }
 
+        private static AxisConfig.Types.StaticBalanceConfig BuildDefaultStaticBalanceConfig()
+        {
+            AxisConfig.Types.StaticBalanceConfig config = new AxisConfig.Types.StaticBalanceConfig
+            {
+                XCenter = 0.0f,
+                XHalfRange = 1.0f
+            };
+            while (config.Coeffs.Count < 5)
+            {
+                config.Coeffs.Add(0.0f);
+            }
+            return config;
+        }
+
         private AxisConfig.Types.OscillationGuard EnsureOscillationGuardConfig()
         {
             if (config.OscillationGuard == null)
@@ -135,10 +161,29 @@ namespace User.PluginSdkDemo
             }
             return config.OscillationGuard;
         }
+
+        private static AxisConfig.Types.StaticBalanceConfig EnsureStaticBalanceConfig(AxisConfig axisConfig)
+        {
+            if (axisConfig.StaticBalanceConfig == null)
+            {
+                axisConfig.StaticBalanceConfig = BuildDefaultStaticBalanceConfig();
+            }
+            while (axisConfig.StaticBalanceConfig.Coeffs.Count < 5)
+            {
+                axisConfig.StaticBalanceConfig.Coeffs.Add(0.0f);
+            }
+            return axisConfig.StaticBalanceConfig;
+        }
+
+        private AxisConfig.Types.StaticBalanceConfig EnsureStaticBalanceConfig()
+        {
+            return EnsureStaticBalanceConfig(config);
+        }
         public void UpdateConfig(AxisConfig new_config)
         {
             config = new_config;
             GeneralKinematicsControl.Visibility = Visibility.Visible;
+            ClearStaticBalanceSamples();
 
             try
             {
@@ -200,6 +245,12 @@ namespace User.PluginSdkDemo
             Slider_physics_oversampling.Value = config.PhysicsIterationsPerSample;
 
             UpdateOscillationGuardUi(EnsureOscillationGuardConfig());
+            UpdateStaticBalanceUi(EnsureStaticBalanceConfig());
+            UpdateStaticBalancePlot();
+            if (LabelStaticBalanceStatus != null && staticBalanceSamples.Count == 0)
+            {
+                LabelStaticBalanceStatus.Content = "Idle";
+            }
         }
 
         private static GeneralKinematicConfig ConvertDiyPedalToGeneral(DIYPedalKinematicConfig diy)
@@ -521,6 +572,362 @@ namespace User.PluginSdkDemo
             TextOscHoldMs.Text = guard.HoldTimeMs.ToString(CultureInfo.CurrentCulture);
             TextOscRampMs.Text = guard.RampTimeMs.ToString(CultureInfo.CurrentCulture);
             TextOscRequiredHits.Text = guard.RequiredHits.ToString(CultureInfo.CurrentCulture);
+        }
+
+        public void OnStaticBalanceResult(StaticBalanceResult result)
+        {
+            ApplyStaticBalanceResult(config, result);
+
+            staticBalanceSamples = new List<float>(result.FOffset);
+            staticBalanceXMin = result.XMin;
+            staticBalanceXMax = result.XMax;
+            staticBalanceStep = result.SampleStep;
+
+            LabelStaticBalanceStatus.Content = $"Samples: {staticBalanceSamples.Count}";
+            UpdateStaticBalanceUi(EnsureStaticBalanceConfig());
+            UpdateStaticBalancePlot();
+        }
+
+        private void ClearStaticBalance_Click(object sender, RoutedEventArgs e)
+        {
+            ClearStaticBalanceSamples();
+            var staticCfg = EnsureStaticBalanceConfig();
+            staticCfg.XCenter = 0.0f;
+            staticCfg.XHalfRange = 1.0f;
+            staticCfg.Coeffs.Clear();
+            while (staticCfg.Coeffs.Count < 5)
+            {
+                staticCfg.Coeffs.Add(0.0f);
+            }
+            UpdateStaticBalanceUi(staticCfg);
+            UpdateStaticBalancePlot();
+            LabelStaticBalanceStatus.Content = "Cleared";
+            DebugMessage?.Invoke("Static balance cleared. Upload axis config to apply.");
+        }
+
+        private void ClearStaticBalanceSamples()
+        {
+            staticBalanceSamples.Clear();
+            staticBalanceXMin = 0.0f;
+            staticBalanceXMax = 0.0f;
+            staticBalanceStep = 0.0f;
+        }
+
+        public static void ApplyStaticBalanceResult(AxisConfig axisConfig, StaticBalanceResult result)
+        {
+            if (axisConfig == null || result == null)
+            {
+                return;
+            }
+            if (axisConfig.AxisId != result.AxisId)
+            {
+                return;
+            }
+
+            float xMin = result.XMin;
+            float xMax = result.XMax;
+            float step = result.SampleStep;
+            float center = (xMin + xMax) * 0.5f;
+            float halfRange = (xMax - xMin) * 0.5f;
+            if (halfRange <= 0.0f)
+            {
+                halfRange = 1.0f;
+            }
+
+            float[] coeffs = FitPolynomial(result.FOffset, xMin, step, center, halfRange, 4);
+            var staticCfg = EnsureStaticBalanceConfig(axisConfig);
+            staticCfg.XCenter = center;
+            staticCfg.XHalfRange = halfRange;
+            staticCfg.Coeffs.Clear();
+            foreach (float coeff in coeffs)
+            {
+                staticCfg.Coeffs.Add(coeff);
+            }
+        }
+
+        private void StartStaticBalanceCalibration_Click(object sender, RoutedEventArgs e)
+        {
+            if (config == null || ui == null)
+            {
+                return;
+            }
+            LabelStaticBalanceStatus.Content = "Calibrating...";
+            ui.RequestStaticBalanceCalibration(config.AxisId);
+        }
+
+        private void StaticBalance_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (config == null || updatingStaticBalanceUi)
+            {
+                return;
+            }
+
+            var staticCfg = EnsureStaticBalanceConfig();
+
+            if (ReferenceEquals(sender, TextStaticCenter))
+            {
+                if (TryParseFloat(TextStaticCenter.Text, out float value))
+                {
+                    staticCfg.XCenter = value;
+                }
+            }
+            else if (ReferenceEquals(sender, TextStaticHalfRange))
+            {
+                if (TryParseFloat(TextStaticHalfRange.Text, out float value))
+                {
+                    staticCfg.XHalfRange = Math.Max(0.0f, value);
+                }
+            }
+            else
+            {
+                float[] coeffs = ReadStaticBalanceCoeffs();
+                staticCfg.Coeffs.Clear();
+                foreach (float coeff in coeffs)
+                {
+                    staticCfg.Coeffs.Add(coeff);
+                }
+            }
+
+            UpdateStaticBalancePlot();
+        }
+
+        private void StaticBalance_LostFocus(object sender, RoutedEventArgs e)
+        {
+            UpdateStaticBalanceUi(EnsureStaticBalanceConfig());
+        }
+
+        private void StaticBalanceCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateStaticBalancePlot();
+        }
+
+        private void UpdateStaticBalanceUi(AxisConfig.Types.StaticBalanceConfig staticCfg)
+        {
+            if (staticCfg == null)
+            {
+                return;
+            }
+
+            updatingStaticBalanceUi = true;
+            TextStaticCenter.Text = staticCfg.XCenter.ToString("0.###", CultureInfo.CurrentCulture);
+            TextStaticHalfRange.Text = staticCfg.XHalfRange.ToString("0.###", CultureInfo.CurrentCulture);
+            TextStaticCoeff0.Text = staticCfg.Coeffs.Count > 0 ? staticCfg.Coeffs[0].ToString("0.#####", CultureInfo.CurrentCulture) : "0";
+            TextStaticCoeff1.Text = staticCfg.Coeffs.Count > 1 ? staticCfg.Coeffs[1].ToString("0.#####", CultureInfo.CurrentCulture) : "0";
+            TextStaticCoeff2.Text = staticCfg.Coeffs.Count > 2 ? staticCfg.Coeffs[2].ToString("0.#####", CultureInfo.CurrentCulture) : "0";
+            TextStaticCoeff3.Text = staticCfg.Coeffs.Count > 3 ? staticCfg.Coeffs[3].ToString("0.#####", CultureInfo.CurrentCulture) : "0";
+            TextStaticCoeff4.Text = staticCfg.Coeffs.Count > 4 ? staticCfg.Coeffs[4].ToString("0.#####", CultureInfo.CurrentCulture) : "0";
+            updatingStaticBalanceUi = false;
+        }
+
+        private float[] ReadStaticBalanceCoeffs()
+        {
+            float[] coeffs = new float[5];
+            if (TryParseFloat(TextStaticCoeff0.Text, out float c0)) coeffs[0] = c0;
+            if (TryParseFloat(TextStaticCoeff1.Text, out float c1)) coeffs[1] = c1;
+            if (TryParseFloat(TextStaticCoeff2.Text, out float c2)) coeffs[2] = c2;
+            if (TryParseFloat(TextStaticCoeff3.Text, out float c3)) coeffs[3] = c3;
+            if (TryParseFloat(TextStaticCoeff4.Text, out float c4)) coeffs[4] = c4;
+            return coeffs;
+        }
+
+        private void UpdateStaticBalancePlot()
+        {
+            if (Canvas_static_balance == null || Polyline_static_raw == null || Polyline_static_fit == null)
+            {
+                return;
+            }
+            if (staticBalanceSamples.Count == 0)
+            {
+                Polyline_static_raw.Points = new PointCollection();
+                Polyline_static_fit.Points = new PointCollection();
+                return;
+            }
+
+            double width = Canvas_static_balance.ActualWidth > 0 ? Canvas_static_balance.ActualWidth : Canvas_static_balance.Width;
+            double height = Canvas_static_balance.ActualHeight > 0 ? Canvas_static_balance.ActualHeight : Canvas_static_balance.Height;
+            if (width <= 1 || height <= 1)
+            {
+                return;
+            }
+
+            double xMin = staticBalanceXMin;
+            double xMax = staticBalanceXMax;
+            if (xMax <= xMin)
+            {
+                xMax = xMin + 1.0;
+            }
+
+            var staticCfg = EnsureStaticBalanceConfig();
+            double center = staticCfg.XCenter;
+            double halfRange = staticCfg.XHalfRange;
+            if (halfRange <= 0.0)
+            {
+                halfRange = (xMax - xMin) * 0.5;
+                if (halfRange <= 0.0)
+                {
+                    halfRange = 1.0;
+                }
+            }
+
+            List<double> fitValues = new List<double>(staticBalanceSamples.Count);
+            double yMin = double.MaxValue;
+            double yMax = double.MinValue;
+            for (int i = 0; i < staticBalanceSamples.Count; i++)
+            {
+                double x = xMin + (i * staticBalanceStep);
+                double xNorm = (x - center) / halfRange;
+                xNorm = Math.Max(-1.0, Math.Min(1.0, xNorm));
+                double yFit = EvaluatePoly(staticCfg, xNorm);
+                fitValues.Add(yFit);
+                yMin = Math.Min(yMin, staticBalanceSamples[i]);
+                yMax = Math.Max(yMax, staticBalanceSamples[i]);
+                yMin = Math.Min(yMin, yFit);
+                yMax = Math.Max(yMax, yFit);
+            }
+
+            double pad = (yMax - yMin) * 0.1;
+            if (pad <= 0.001)
+            {
+                pad = 0.1;
+            }
+            yMin -= pad;
+            yMax += pad;
+
+            PointCollection rawPoints = new PointCollection();
+            PointCollection fitPoints = new PointCollection();
+            for (int i = 0; i < staticBalanceSamples.Count; i++)
+            {
+                double x = xMin + (i * staticBalanceStep);
+                double xN = (x - xMin) / (xMax - xMin);
+                double yRaw = staticBalanceSamples[i];
+                double yFit = fitValues[i];
+                double rawX = xN * width;
+                double rawY = height - ((yRaw - yMin) / (yMax - yMin) * height);
+                double fitY = height - ((yFit - yMin) / (yMax - yMin) * height);
+                rawPoints.Add(new Point(rawX, rawY));
+                fitPoints.Add(new Point(rawX, fitY));
+            }
+
+            Polyline_static_raw.Points = rawPoints;
+            Polyline_static_fit.Points = fitPoints;
+        }
+
+        private static double EvaluatePoly(AxisConfig.Types.StaticBalanceConfig staticCfg, double x)
+        {
+            if (staticCfg == null || staticCfg.Coeffs.Count == 0)
+            {
+                return 0.0;
+            }
+            double value = staticCfg.Coeffs[staticCfg.Coeffs.Count - 1];
+            for (int idx = staticCfg.Coeffs.Count - 2; idx >= 0; --idx)
+            {
+                value = (value * x) + staticCfg.Coeffs[idx];
+            }
+            return value;
+        }
+
+        private static float[] FitPolynomial(IList<float> samples, float xMin, float step, float center, float halfRange, int degree)
+        {
+            int n = degree + 1;
+            double[,] mat = new double[n, n];
+            double[] rhs = new double[n];
+            for (int i = 0; i < samples.Count; i++)
+            {
+                double x = xMin + (i * step);
+                double xNorm = (x - center) / halfRange;
+                xNorm = Math.Max(-1.0, Math.Min(1.0, xNorm));
+                double[] powers = new double[2 * n];
+                powers[0] = 1.0;
+                for (int p = 1; p < powers.Length; p++)
+                {
+                    powers[p] = powers[p - 1] * xNorm;
+                }
+
+                double y = samples[i];
+                for (int r = 0; r < n; r++)
+                {
+                    rhs[r] += y * powers[r];
+                    for (int c = 0; c < n; c++)
+                    {
+                        mat[r, c] += powers[r + c];
+                    }
+                }
+            }
+
+            double[] coeffs = SolveLinearSystem(mat, rhs);
+            float[] result = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                result[i] = (float)coeffs[i];
+            }
+            return result;
+        }
+
+        private static double[] SolveLinearSystem(double[,] mat, double[] rhs)
+        {
+            int n = rhs.Length;
+            double[,] a = new double[n, n + 1];
+            for (int r = 0; r < n; r++)
+            {
+                for (int c = 0; c < n; c++)
+                {
+                    a[r, c] = mat[r, c];
+                }
+                a[r, n] = rhs[r];
+            }
+
+            for (int i = 0; i < n; i++)
+            {
+                int pivot = i;
+                double max = Math.Abs(a[i, i]);
+                for (int r = i + 1; r < n; r++)
+                {
+                    double val = Math.Abs(a[r, i]);
+                    if (val > max)
+                    {
+                        max = val;
+                        pivot = r;
+                    }
+                }
+                if (pivot != i)
+                {
+                    for (int c = i; c <= n; c++)
+                    {
+                        double tmp = a[i, c];
+                        a[i, c] = a[pivot, c];
+                        a[pivot, c] = tmp;
+                    }
+                }
+
+                double diag = a[i, i];
+                if (Math.Abs(diag) < 1e-9)
+                {
+                    continue;
+                }
+                for (int c = i; c <= n; c++)
+                {
+                    a[i, c] /= diag;
+                }
+                for (int r = 0; r < n; r++)
+                {
+                    if (r == i)
+                    {
+                        continue;
+                    }
+                    double factor = a[r, i];
+                    for (int c = i; c <= n; c++)
+                    {
+                        a[r, c] -= factor * a[i, c];
+                    }
+                }
+            }
+
+            double[] result = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                result[i] = a[i, n];
+            }
+            return result;
         }
 
         private static bool TryParseFloat(string text, out float value)
