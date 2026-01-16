@@ -67,6 +67,7 @@ namespace User.PluginSdkDemo
 
         private SaveSelectionDialog saveSelectionDialog;
         private LoadSelectionDialog loadSelectionDialog;
+        private AxisRequestQueue axisRequestQueue;
 
         public DiyFfbPluginUI()
         {
@@ -97,8 +98,11 @@ namespace User.PluginSdkDemo
                 Axis axis = new Axis(id);
                 axis.Config = AxisConfigControl.GetDefaultConfig(id);
                 axis.OnlineStateChanged += OnOnlineStateChange;
+                axis.RequestDispatcher = EnqueueAxisRequest;
                 axes[id] = axis;
             }
+
+            axisRequestQueue = new AxisRequestQueue(this);
 
             UpdateUploadButtonLabels();
 
@@ -1421,6 +1425,7 @@ namespace User.PluginSdkDemo
 
         private void HandleMessage(ProtobufSerial<Message> port, Message msg)
         {
+            axisRequestQueue?.HandleResponse(msg);
             switch (msg.PayloadCase)
             {
                 case Message.PayloadOneofCase.AxisState:
@@ -1492,29 +1497,107 @@ namespace User.PluginSdkDemo
                 TextBox_debugOutput.Text = $"Static balance: Axis {axisId} not found";
                 return;
             }
+            EnqueueAxisRequest(axisId, AxisRequestType.StaticBalanceCalibration, null);
+        }
 
-            Message msg = new Message
+        private bool EnqueueAxisRequest(AxisID axisId, AxisRequestType type, Message payload)
+        {
+            axisRequestQueue?.Enqueue(axisId, type, payload);
+            return true;
+        }
+
+        public bool SendAxisRequest(AxisID axisId, AxisRequestType type, Message payload)
+        {
+            Message msg = payload ?? new Message();
+            switch (type)
             {
-                AxisAction = new AxisAction
+                case AxisRequestType.AxisConfig:
+                    msg.AxisAction = new AxisAction { AxisId = axisId, ReturnAxisConfig = true };
+                    break;
+                case AxisRequestType.FunctionConfig:
+                    msg.AxisAction = new AxisAction { AxisId = axisId, ReturnFunctionConfig = true };
+                    break;
+                case AxisRequestType.ActiveFunction:
+                    msg.AxisAction = new AxisAction { AxisId = axisId, ReturnActiveFunction = true };
+                    break;
+                case AxisRequestType.DeviceInfo:
+                    msg.DeviceInfoRequest = new DeviceInfoRequest { AxisId = axisId };
+                    break;
+                case AxisRequestType.StaticBalanceCalibration:
+                    msg.AxisAction = new AxisAction { AxisId = axisId, StartStaticBalanceCalibration = true };
+                    break;
+                case AxisRequestType.AxisConfigUpload:
+                case AxisRequestType.FunctionConfigUpload:
+                    break;
+                default:
+                    return false;
+            }
+
+            if (axes.TryGetValue(axisId, out Axis axis))
+            {
+                var serialChannel = axis.SerialChannel;
+                if (serialChannel != null && serialChannel != Plugin.ESPsync_serialPort)
                 {
-                    AxisId = axisId,
-                    StartStaticBalanceCalibration = true
+                    serialChannel.WriteMessage(msg);
+                    return true;
                 }
-            };
-
-            var serialChannel = axis.SerialChannel;
-            if (serialChannel != null && serialChannel != Plugin.ESPsync_serialPort)
-            {
-                serialChannel.WriteMessage(msg);
-                return;
             }
             if (Plugin?.ESPsync_serialPort != null && Plugin.ESPsync_serialPort.IsOpen)
             {
                 Plugin.ESPsync_serialPort.WriteMessage(msg);
+                return true;
+            }
+            return false;
+        }
+
+        private void EnqueueAxisConfigUpload(AxisID axisId, AxisConfig axisConfig, bool store)
+        {
+            if (axisId == AxisID.AxisUndefined)
+            {
                 return;
             }
+            AxisConfig configToSend = axisConfig.Clone();
+            configToSend.Store = store;
+            Message msg = new Message { AxisConfig = configToSend };
+            axisRequestQueue?.Enqueue(axisId, AxisRequestType.AxisConfigUpload, msg);
+        }
 
-            TextBox_debugOutput.Text = $"Static balance: Axis {axisId} offline";
+        private void EnqueueFunctionConfigUpload(FunctionConfig functionConfig, bool store)
+        {
+            FunctionConfig configToSend = functionConfig.Clone();
+            configToSend.Base.Store = store;
+            Message msg = new Message { FunctionConfig = configToSend };
+            bool broadcastRequired = false;
+            HashSet<AxisID> queuedAxes = new HashSet<AxisID>();
+            foreach (var linkedAxisId in configToSend.Base.LinkedAxes)
+            {
+                var axisId = linkedAxisId & AxisID.Mask;
+                if (axisId == AxisID.AxisUndefined)
+                {
+                    continue;
+                }
+                if (!axes.TryGetValue(axisId, out Axis axis))
+                {
+                    continue;
+                }
+                var serialChannel = axis.SerialChannel;
+                if (serialChannel != null && serialChannel != Plugin.ESPsync_serialPort)
+                {
+                    if (queuedAxes.Add(axisId))
+                    {
+                        axisRequestQueue?.Enqueue(axisId, AxisRequestType.FunctionConfigUpload, msg);
+                    }
+                }
+                else
+                {
+                    broadcastRequired = true;
+                }
+            }
+
+            if (broadcastRequired)
+            {
+                axisRequestQueue?.Enqueue(AxisID.AxisUndefined, AxisRequestType.FunctionConfigUpload, msg);
+            }
         }
 
         public void UpdateActiveAircraftLabel(string carName, string carId)
@@ -1649,35 +1732,12 @@ namespace User.PluginSdkDemo
             }
 
             FunctionConfig functionConfig = functions[selected_function_id].Config;
-            UploadFunctionConfig(functionConfig, PersistConfig);
+            EnqueueFunctionConfigUpload(functionConfig, PersistConfig);
         }
 
         private void UploadFunctionConfig(FunctionConfig functionConfig, bool store)
         {
-            functionConfig.Base.Store = store;
-            Message msg = new Message { FunctionConfig = functionConfig };
-            bool broadcastRequired = false;
-            foreach (var linkedAxisId in functionConfig.Base.LinkedAxes)
-            {
-                var axisId = linkedAxisId & AxisID.Mask;
-                if (axisId != AxisID.AxisUndefined)
-                {
-                    var serialChannel = axes[axisId].SerialChannel;
-                    if (serialChannel != null && serialChannel != Plugin.ESPsync_serialPort)
-                    {
-                        serialChannel.WriteMessage(msg);
-                    }
-                    else
-                    {
-                        broadcastRequired = true;
-                    }
-                }
-            }
-
-            if (broadcastRequired && Plugin.ESPsync_serialPort != null && Plugin.ESPsync_serialPort.IsOpen)
-            {
-                Plugin.ESPsync_serialPort.WriteMessage(msg);
-            }
+            EnqueueFunctionConfigUpload(functionConfig, store);
         }
 
         private void OnFunctionConfigUpdate(FunctionConfig newFunctionConfig)
@@ -1782,9 +1842,9 @@ namespace User.PluginSdkDemo
                 {
                     OnAxisConfigUpdate(cfg);
                 }
-                if (loadSelectionDialog.UploadRequested && axis.SelectedToLoad)
+                if (loadSelectionDialog.UploadRequested && axis.SelectedToLoad && loadSelectionDialog.axis_configs.TryGetValue(axis.ID, out AxisConfig uploadCfg))
                 {
-                    axis.UploadConfig(false);
+                    EnqueueAxisConfigUpload(axis.ID, uploadCfg, false);
                 }
                 axis.SelectedToLoad = false;
                 axis.SelectableToLoad = false;
@@ -1797,7 +1857,7 @@ namespace User.PluginSdkDemo
                 }
                 if (loadSelectionDialog.UploadRequested && function.SelectedToLoad && loadSelectionDialog.function_configs.TryGetValue(function.ID, out FunctionConfig uploadCfg))
                 {
-                    UploadFunctionConfig(uploadCfg, false);
+                    EnqueueFunctionConfigUpload(uploadCfg, false);
                 }
                 function.SelectedToLoad = false;
                 function.SelectableToLoad = false;
@@ -1874,7 +1934,7 @@ namespace User.PluginSdkDemo
                 return;
             }
 
-            axes[selected_axis_id].UploadConfig(PersistConfig);
+            EnqueueAxisConfigUpload(selected_axis_id, axes[selected_axis_id].Config, PersistConfig);
         }
 
         private void btn_store_axis_config_to_file_Click(object sender, RoutedEventArgs e)

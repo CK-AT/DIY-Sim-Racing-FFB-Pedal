@@ -66,6 +66,7 @@ namespace User.PluginSdkDemo
         public bool SelectableToLoad { get; set; }
         public AxisID ID { get { return _axisID; } }
         public string Name { get { return _axisName; } }
+        public Func<AxisID, AxisRequestType, Message, bool> RequestDispatcher { get; set; }
 
         public KinematicParameters KinematicParameters
         {
@@ -85,6 +86,11 @@ namespace User.PluginSdkDemo
         {
             if (IsOnline)
             {
+                if (RequestDispatcher != null)
+                {
+                    RequestDispatcher(ID, AxisRequestType.AxisConfig, null);
+                    return;
+                }
                 Message msg = new Message();
                 msg.AxisAction = new AxisAction();
                 msg.AxisAction.AxisId = ID;
@@ -97,6 +103,11 @@ namespace User.PluginSdkDemo
         {
             if (IsOnline)
             {
+                if (RequestDispatcher != null)
+                {
+                    RequestDispatcher(ID, AxisRequestType.FunctionConfig, null);
+                    return;
+                }
                 Message msg = new Message();
                 msg.AxisAction = new AxisAction();
                 msg.AxisAction.AxisId = ID;
@@ -109,6 +120,11 @@ namespace User.PluginSdkDemo
         {
             if (IsOnline)
             {
+                if (RequestDispatcher != null)
+                {
+                    RequestDispatcher(ID, AxisRequestType.ActiveFunction, null);
+                    return;
+                }
                 Message msg = new Message();
                 msg.AxisAction = new AxisAction();
                 msg.AxisAction.AxisId = ID;
@@ -121,9 +137,14 @@ namespace User.PluginSdkDemo
         {
             if (IsOnline)
             {
-                Message msg = new Message();
-                Config.Store = store;
-                msg.AxisConfig = Config;
+                AxisConfig configToSend = Config.Clone();
+                configToSend.Store = store;
+                Message msg = new Message { AxisConfig = configToSend };
+                if (RequestDispatcher != null)
+                {
+                    RequestDispatcher(ID, AxisRequestType.AxisConfigUpload, msg);
+                    return;
+                }
                 _serial_channel.WriteMessage(msg);
             }
         }

@@ -2,6 +2,19 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-17 18:42:19 +01:00 (DESKTOP-6KO022D)
+Request: route config uploads through the new request queue and make the dispatcher payload-aware.
+Summary:
+- Added a shared axis request queue with retries and a payload-aware dispatcher to route upload messages alongside request/response traffic.
+- Wired axis config uploads and function config uploads to use the queue, keeping direct-send fallbacks intact.
+Key files:
+- `SimHubPlugin/AxisRequestQueue.cs`
+- `SimHubPlugin/Axis.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/DiyFfbPlugin.csproj`
+Notes:
+- No tests run.
+
 ## 2026-01-16 10:45:00 +01:00 (DESKTOP-6KO022D)
 Request: add static balance calibration + tuning across ESP32 + SimHub, with a new AxisConfig tab.
 Summary:
