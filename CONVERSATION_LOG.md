@@ -2,6 +2,16 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-16 23:57:56 +01:00 (DESKTOP-6KO022D)
+Request: add AGENTS guidance about async/out-of-order data arrival.
+Summary:
+- Added a rule to call out async/out-of-order data dependencies and their handling.
+Key files:
+- `AGENTS.md`
+- `CONVERSATION_LOG.md`
+Open items:
+- None.
+
 ## 2026-01-16 23:56:47 +01:00 (DESKTOP-6KO022D)
 Request: stage and commit updated AGENTS.md.
 Summary:
