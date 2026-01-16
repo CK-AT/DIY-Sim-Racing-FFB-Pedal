@@ -291,6 +291,45 @@ namespace User.PluginSdkDemo
             UpdateSerialPortList();
         }
 
+        private void btn_restart_all_axes_Click(object sender, RoutedEventArgs e)
+        {
+            int sentCount = 0;
+            int totalCount = 0;
+            foreach (var axis in axes.Values)
+            {
+                if (axis.ID == AxisID.AxisUndefined)
+                {
+                    continue;
+                }
+                if (!axis.IsOnline)
+                {
+                    continue;
+                }
+                totalCount++;
+                if (SendAxisRequest(axis.ID, AxisRequestType.Restart, null))
+                {
+                    sentCount++;
+                }
+            }
+
+            if (totalCount == 0)
+            {
+                TextBox_debugOutput.Text = "Restart: No axes configured.";
+            }
+            else if (sentCount == 0)
+            {
+                TextBox_debugOutput.Text = "Restart: No axes reachable.";
+            }
+            else if (sentCount == totalCount)
+            {
+                TextBox_debugOutput.Text = $"Restart: Sent to {sentCount} axes.";
+            }
+            else
+            {
+                TextBox_debugOutput.Text = $"Restart: Sent to {sentCount} of {totalCount} axes.";
+            }
+        }
+
         private void ESPNow_SerialPortSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (Plugin == null)
@@ -1526,6 +1565,9 @@ namespace User.PluginSdkDemo
                     break;
                 case AxisRequestType.DeviceInfo:
                     msg.DeviceInfoRequest = new DeviceInfoRequest { AxisId = axisId };
+                    break;
+                case AxisRequestType.Restart:
+                    msg.AxisAction = new AxisAction { AxisId = axisId, Restart = true };
                     break;
                 case AxisRequestType.StaticBalanceCalibration:
                     msg.AxisAction = new AxisAction { AxisId = axisId, StartStaticBalanceCalibration = true };

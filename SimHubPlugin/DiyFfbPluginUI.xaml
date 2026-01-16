@@ -687,6 +687,7 @@
                                                 <styles:SHToggleButton x:Name="CheckBox_Pedal_ESPNow_autoconnect" Content="" Checked="CheckBox_Pedal_ESPNow_autoconnect_Checked" Unchecked="CheckBox_Pedal_ESPNow_autoconnect_Unchecked" IsChecked="False" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Auto reconnect to gateway" RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />
                                                 <Label Content="Auto Reconnect" Height="20" Width="130" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
                                             </StackPanel>
+                                            <styles:SHButtonPrimary x:Name="btn_restart_all_axes" Click="btn_restart_all_axes_Click" Width="160" Height="25" Content="Restart All Axes" HorizontalAlignment="Left" Margin="0,6,0,0" Padding="15,0,15,0" VerticalContentAlignment="Center" ToolTip="Send a restart command to every axis." />
                                             <TextBlock x:Name="Label_Status" Text="Disconnected" FontFamily="Arial" FontSize="10" Margin="0,6,0,0"/>
                                         </StackPanel>
                                     </Border>

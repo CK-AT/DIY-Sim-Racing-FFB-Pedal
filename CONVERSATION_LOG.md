@@ -2,6 +2,27 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-17 00:02:43 +01:00 (DESKTOP-6KO022D)
+Request: limit Restart All Axes to online axes only.
+Summary:
+- Skip offline axes when sending restart actions from the System tab.
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 00:01:23 +01:00 (DESKTOP-6KO022D)
+Request: add a "Restart All Axes" button in the System tab.
+Summary:
+- Added a System tab button that sends restart actions to all axes and reports reachability.
+- Wired restart requests through the existing axis message send path.
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/AxisRequestQueue.cs`
+Open items:
+- None.
+
 ## 2026-01-16 23:57:56 +01:00 (DESKTOP-6KO022D)
 Request: add AGENTS guidance about async/out-of-order data arrival.
 Summary:
