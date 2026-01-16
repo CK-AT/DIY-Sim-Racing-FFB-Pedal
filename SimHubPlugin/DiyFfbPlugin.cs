@@ -1021,6 +1021,9 @@ namespace User.PluginSdkDemo
             float pitchTrim = 0.0f;
             float rollTrim = 0.0f;
             float pedalsTrim = 0.0f;
+            float pitchTrimOnly = 0.0f;
+            float rollTrimOnly = 0.0f;
+            float pedalsTrimOnly = 0.0f;
 
             if (IsXPlaneFfbEnabled(FunctionID.FlightStickPitch))
             {
@@ -1029,7 +1032,7 @@ namespace User.PluginSdkDemo
                 float pitchSpring = pitchParams.Kq * pitchScale;
                 float pitchDamper = pitchParams.Krate * pitchScale;
                 float pitchBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, pitchParams.BuffetStartDeg, pitchParams.BuffetFullDeg, pitchParams.BuffetGain, pitchScale);
-                float pitchTrimOnly = packet.ElevTrimDeg * pitchParams.TrimMmPerDeg;
+                pitchTrimOnly = packet.ElevTrimDeg * pitchParams.TrimMmPerDeg;
                 float pitchVane = pitchParams.WeathervaneGain * pitchScale * packet.AlphaDeg;
                 pitchTrim = pitchTrimOnly - pitchVane;
                 SendFlightFfb(FunctionID.FlightStickPitch, pitchSpring, pitchDamper, pitchTrim, pitchBuffet);
@@ -1042,7 +1045,7 @@ namespace User.PluginSdkDemo
                 float rollSpring = rollParams.Kq * rollScale;
                 float rollDamper = rollParams.Krate * rollScale;
                 float rollBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, rollParams.BuffetStartDeg, rollParams.BuffetFullDeg, rollParams.BuffetGain, rollScale);
-                float rollTrimOnly = packet.AilTrimDeg * rollParams.TrimMmPerDeg;
+                rollTrimOnly = packet.AilTrimDeg * rollParams.TrimMmPerDeg;
                 rollTrim = rollTrimOnly;
                 SendFlightFfb(FunctionID.FlightStickRoll, rollSpring, rollDamper, rollTrim, rollBuffet);
             }
@@ -1054,7 +1057,7 @@ namespace User.PluginSdkDemo
                 float pedalsSpring = pedalsParams.Kq * pedalsScale;
                 float pedalsDamper = pedalsParams.Krate * pedalsScale;
                 float pedalsBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, pedalsParams.BuffetStartDeg, pedalsParams.BuffetFullDeg, pedalsParams.BuffetGain, pedalsScale);
-                float pedalsTrimOnly = packet.RudTrimDeg * pedalsParams.TrimMmPerDeg;
+                pedalsTrimOnly = packet.RudTrimDeg * pedalsParams.TrimMmPerDeg;
                 float pedalsVane = pedalsParams.WeathervaneGain * pedalsScale * packet.BetaDeg;
                 pedalsTrim = pedalsTrimOnly - pedalsVane;
                 SendFlightFfb(FunctionID.FlightPedals, pedalsSpring, pedalsDamper, pedalsTrim, pedalsBuffet);
@@ -1063,7 +1066,7 @@ namespace User.PluginSdkDemo
             lock (xplaneLock)
             {
                 xplaneTrimPitchMm = pitchTrimOnly;
-                xplaneTrimRollMm = rollTrim;
+                xplaneTrimRollMm = rollTrimOnly;
                 xplaneTrimRudderMm = pedalsTrimOnly;
                 xplaneTrimUtc = packet.ReceivedUtc;
             }
