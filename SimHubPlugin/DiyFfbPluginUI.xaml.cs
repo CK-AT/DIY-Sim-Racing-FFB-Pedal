@@ -1569,6 +1569,9 @@ namespace User.PluginSdkDemo
                 case AxisRequestType.Restart:
                     msg.AxisAction = new AxisAction { AxisId = axisId, Restart = true };
                     break;
+                case AxisRequestType.Homing:
+                    msg.AxisAction = new AxisAction { AxisId = axisId, StartHoming = true };
+                    break;
                 case AxisRequestType.StaticBalanceCalibration:
                     msg.AxisAction = new AxisAction { AxisId = axisId, StartStaticBalanceCalibration = true };
                     break;
@@ -2013,6 +2016,31 @@ namespace User.PluginSdkDemo
             }
 
             EnqueueAxisConfigUpload(selected_axis_id, axes[selected_axis_id].Config, PersistConfig);
+        }
+
+        private void btn_home_axis_Click(object sender, RoutedEventArgs e)
+        {
+            if (selected_axis_id == AxisID.AxisUndefined)
+            {
+                TextBox_debugOutput.Text = "No axis selected.";
+                return;
+            }
+            if (!axes.TryGetValue(selected_axis_id, out Axis axis))
+            {
+                TextBox_debugOutput.Text = $"Axis {(int)selected_axis_id} not found.";
+                return;
+            }
+            if (!axis.IsOnline)
+            {
+                TextBox_debugOutput.Text = $"Axis {(int)selected_axis_id} is offline.";
+                return;
+            }
+            if (!SendAxisRequest(selected_axis_id, AxisRequestType.Homing, null))
+            {
+                TextBox_debugOutput.Text = $"Axis {(int)selected_axis_id}: homing send failed.";
+                return;
+            }
+            TextBox_debugOutput.Text = $"Axis {(int)selected_axis_id}: homing started.";
         }
 
         private void btn_store_axis_config_to_file_Click(object sender, RoutedEventArgs e)

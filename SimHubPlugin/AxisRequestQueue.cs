@@ -12,6 +12,7 @@ namespace User.PluginSdkDemo
         ActiveFunction,
         DeviceInfo,
         Restart,
+        Homing,
         StaticBalanceCalibration,
         AxisConfigUpload,
         FunctionConfigUpload
@@ -193,6 +194,7 @@ namespace User.PluginSdkDemo
                 case AxisRequestType.DeviceInfo:
                     return true;
                 case AxisRequestType.Restart:
+                case AxisRequestType.Homing:
                 case AxisRequestType.StaticBalanceCalibration:
                 case AxisRequestType.AxisConfigUpload:
                 case AxisRequestType.FunctionConfigUpload:

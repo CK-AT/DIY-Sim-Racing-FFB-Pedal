@@ -560,6 +560,7 @@ message AxisAction {
     uint32 debug_flags = 6;
     bool return_active_function = 7;
     bool start_static_balance_calibration = 8;
+    bool start_homing = 9;
   }
 }
 

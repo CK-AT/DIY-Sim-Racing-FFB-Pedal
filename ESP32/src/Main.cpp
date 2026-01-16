@@ -611,6 +611,11 @@ void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel) {
             static_balancer.start_calibration(config_manager.get_x_contact_point_min(), config_manager.get_x_contact_point_max(),
                                               /*step_mm=*/0.0f, /*settle_ms=*/30, comm_channel);
             break;
+        case AxisAction_start_homing_tag:
+            if (servo) {
+                servo->home();
+            }
+            break;
         default:
             break;
     }

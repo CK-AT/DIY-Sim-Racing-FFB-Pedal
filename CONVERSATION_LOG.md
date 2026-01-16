@@ -2,6 +2,36 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-17 00:22:47 +01:00 (DESKTOP-6KO022D)
+Request: redo homing commit without tracking generated protobuf outputs.
+Summary:
+- Preparing to re-stage and commit homing changes while leaving ignored generated files untracked.
+Key files:
+- `proto/diy_ffb_protocol.proto`
+- `ESP32/src/Main.cpp`
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/AxisRequestQueue.cs`
+- `CONVERSATION_LOG.md`
+Open items:
+- Commit the homing changes without adding ignored generated files.
+
+## 2026-01-17 00:12:05 +01:00 (DESKTOP-6KO022D)
+Request: add a homing button to the axis tab.
+Summary:
+- Added a Home button on the axis tab that sends a start_homing axis action to the selected online axis.
+- Extended the protocol with start_homing and regenerated protobuf outputs; firmware now handles homing requests.
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/AxisRequestQueue.cs`
+- `SimHubPlugin/DiyFfbProtocol.cs`
+- `proto/diy_ffb_protocol.proto`
+- `ESP32/src/Main.cpp`
+- `ESP32/sim/diy_ffb_protocol_pb2.py`
+Open items:
+- None.
+
 ## 2026-01-17 00:02:43 +01:00 (DESKTOP-6KO022D)
 Request: limit Restart All Axes to online axes only.
 Summary:
