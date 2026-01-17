@@ -1784,6 +1784,52 @@ namespace User.PluginSdkDemo
             EnqueueFunctionConfigUpload(functionConfig, PersistConfig);
         }
 
+        private void OnDownloadFunctionConfigClicked(object sender, RoutedEventArgs e)
+        {
+            if (selected_function_id == FunctionID.Undefined)
+            {
+                TextBox_debugOutput.Text = "No function selected.";
+                return;
+            }
+
+            FunctionConfig functionConfig = functions[selected_function_id].Config;
+            AxisID targetAxis = AxisID.AxisUndefined;
+            foreach (var linkedAxis in functionConfig.Base.LinkedAxes)
+            {
+                AxisID axisId = linkedAxis & AxisID.Mask;
+                if (axisId == AxisID.AxisUndefined)
+                {
+                    continue;
+                }
+                if (axes.TryGetValue(axisId, out Axis axis) && axis.IsOnline)
+                {
+                    targetAxis = axisId;
+                    break;
+                }
+                if (targetAxis == AxisID.AxisUndefined)
+                {
+                    targetAxis = axisId;
+                }
+            }
+
+            if (targetAxis == AxisID.AxisUndefined && selected_axis_id != AxisID.AxisUndefined)
+            {
+                targetAxis = selected_axis_id;
+            }
+
+            if (targetAxis == AxisID.AxisUndefined)
+            {
+                TextBox_debugOutput.Text = "No axis available for function config download.";
+                return;
+            }
+            if (!axes.TryGetValue(targetAxis, out Axis targetAxisInfo) || !targetAxisInfo.IsOnline)
+            {
+                TextBox_debugOutput.Text = $"Axis {(int)targetAxis} is offline.";
+                return;
+            }
+            EnqueueAxisRequest(targetAxis, AxisRequestType.FunctionConfig, null);
+        }
+
         private void UploadFunctionConfig(FunctionConfig functionConfig, bool store)
         {
             EnqueueFunctionConfigUpload(functionConfig, store);
@@ -2016,6 +2062,21 @@ namespace User.PluginSdkDemo
             }
 
             EnqueueAxisConfigUpload(selected_axis_id, axes[selected_axis_id].Config, PersistConfig);
+        }
+
+        private void OnDownloadAxisConfigClicked(object sender, RoutedEventArgs e)
+        {
+            if (selected_axis_id == AxisID.AxisUndefined)
+            {
+                TextBox_debugOutput.Text = "No axis selected.";
+                return;
+            }
+            if (!axes.TryGetValue(selected_axis_id, out Axis axis) || !axis.IsOnline)
+            {
+                TextBox_debugOutput.Text = $"Axis {(int)selected_axis_id} is offline.";
+                return;
+            }
+            EnqueueAxisRequest(selected_axis_id, AxisRequestType.AxisConfig, null);
         }
 
         private void btn_home_axis_Click(object sender, RoutedEventArgs e)

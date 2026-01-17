@@ -2,6 +2,28 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-17 01:00:44 +01:00 (DESKTOP-6KO022D)
+Request: stage layout tweaks; include dedicated download buttons and bump FW version in commit message.
+Summary:
+- Staged UI/layout and download button changes plus conversation log; commit attempt was rejected by user.
+Key files:
+- `SimHubPlugin/AxisConfigControl.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `CONVERSATION_LOG.md`
+Open items:
+- Re-run commit with message including "bump ESP32 FW version" when approved.
+
+## 2026-01-17 00:39:54 +01:00 (DESKTOP-6KO022D)
+Request: add dedicated download buttons for axis and function configs.
+Summary:
+- Added Download buttons for axis/function configs that request configs from connected axes.
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- None.
+
 ## 2026-01-17 00:29:27 +01:00 (DESKTOP-6KO022D)
 Request: fix OTA version comparison to handle multi-digit segments.
 Summary:

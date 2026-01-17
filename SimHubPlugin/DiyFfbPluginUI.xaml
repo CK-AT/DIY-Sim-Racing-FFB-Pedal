@@ -488,6 +488,7 @@
                                     <Border  HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5"  Margin="0,0,0,3">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                             <styles:SHButtonPrimary x:Name="btn_upload_function_config" Click="OnUploadFunctionConfigClicked" Width="125"  Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends this function configuration to the affected axes.&#x0a;Hold CTRL while clicking to store it into the axes' persistent memory as well." />
+                                            <styles:SHButtonPrimary x:Name="btn_download_function_config" Click="OnDownloadFunctionConfigClicked" Width="125" Height="28" Content="Download" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Request the function config from a connected axis." />
                                             <styles:SHButtonPrimary x:Name="btn_load_function_config_from_file" Click="OnLoadConfigClick" Width="125" Height="28" Content="Load" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Load a function config from a .json file." />
                                             <styles:SHButtonPrimary x:Name="btn_store_function_config_to_file" Click="btn_store_function_config_to_file_Click" Width="125" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this function config to a .json file." />
                                         </StackPanel>
@@ -627,10 +628,10 @@
                                     <Line  X1="3" Y1="2" X2="3" Y2="836" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
                                 </Canvas>
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Margin="3,0,3,0">
-                                    <StackPanel HorizontalAlignment="Center" Grid.Row="3" VerticalAlignment="Top" Grid.RowSpan="3">
+                                    <StackPanel HorizontalAlignment="Center" Grid.Row="3" VerticalAlignment="Top" Grid.RowSpan="2" Width="124">
                                         <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,0,0,0" HorizontalAlignment="Center" Padding="3,3,3,3">
-                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Width="160" Margin="0,5,0,0">
-                                                <StackPanel Height="15" Width="160" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0">
+                                                <StackPanel Height="15" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
                                                     <Label Content="Pedal Info" FontFamily="Arial Black" FontSize="12" Height="15" Width="80" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" />
                                                 </StackPanel>
                                                 <TextBox x:Name="TextBox_debugOutput" HorizontalAlignment="Left" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="160" Height="72" AutomationProperties.Name="TextBox2" BorderBrush="#00CCCCCC" Background="#00252525" FontSize="8" FontFamily="Arial" />
@@ -639,12 +640,13 @@
                                     </StackPanel>
                                 </StackPanel>
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
-                                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Margin="0,0,0,3">
+                                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="580" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Margin="0,0,0,3">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                            <styles:SHButtonPrimary x:Name="btn_upload_axis_config" Click="OnUploadAxisConfigClicked" Width="125" Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends the axis configuration to the axis currently selected.&#x0a;Hold CTRL while clicking to store it into the axis' persistent memory as well." />
-                                            <styles:SHButtonPrimary x:Name="btn_load_axis_config_from_file" Click="OnLoadConfigClick" Width="125" Height="28" Content="Load" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Load a axis config from a .json file." />
-                                            <styles:SHButtonPrimary x:Name="btn_store_axis_config_to_file" Click="btn_store_axis_config_to_file_Click" Width="125" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this axis config to a .json file." />
-                                            <styles:SHButtonPrimary x:Name="btn_home_axis" Click="btn_home_axis_Click" Width="125" Height="28" Content="Home" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Run the homing routine on the selected axis." />
+                                            <styles:SHButtonPrimary x:Name="btn_upload_axis_config" Click="OnUploadAxisConfigClicked" Width="110" Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends the axis configuration to the axis currently selected.&#x0a;Hold CTRL while clicking to store it into the axis' persistent memory as well." />
+                                            <styles:SHButtonPrimary x:Name="btn_download_axis_config" Click="OnDownloadAxisConfigClicked" Width="110" Height="28" Content="Download" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Request the axis config from the selected axis." />
+                                            <styles:SHButtonPrimary x:Name="btn_load_axis_config_from_file" Click="OnLoadConfigClick" Width="110" Height="28" Content="Load" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Load a axis config from a .json file." />
+                                            <styles:SHButtonPrimary x:Name="btn_store_axis_config_to_file" Click="btn_store_axis_config_to_file_Click" Width="110" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this axis config to a .json file." />
+                                            <styles:SHButtonPrimary x:Name="btn_home_axis" Click="btn_home_axis_Click" Width="110" Height="28" Content="Home" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Run the homing routine on the selected axis." />
                                         </StackPanel>
                                     </Border>
                                     <local:AxisConfigControl x:Name="uc_axis_config" VerticalAlignment="Center" Height="762"></local:AxisConfigControl>
