@@ -145,6 +145,23 @@
                                     <TextBlock x:Name="TextBlock_xplane_vane" Foreground="White" FontSize="10" Text="Vane: -- mm" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </StackPanel>
+                            <UniformGrid Columns="3" Rows="5" Margin="0,6,0,0">
+                                <TextBlock x:Name="TextBlock_xplane_tas" Foreground="White" FontSize="9" Text="TAS: -- m/s" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_qhat" Foreground="White" FontSize="9" Text="qHat: --" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_g" Foreground="White" FontSize="9" Text="G: --" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_on_ground" Foreground="White" FontSize="9" Text="Ground: --" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_qscale" Foreground="White" FontSize="9" Text="Scale: --" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_buffet" Foreground="White" FontSize="9" Text="Buffet: --" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_rotor" Foreground="White" FontSize="9" Text="Rotor: --" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_torque" Foreground="White" FontSize="9" Text="Torque: -- Nm" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_omega" Foreground="White" FontSize="9" Text="Omega: -- RPM" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_prop" Foreground="White" FontSize="9" Text="Prop: --" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_nominal_rpm" Foreground="White" FontSize="9" Text="Nominal: -- RPM" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_omega_scale" Foreground="White" FontSize="9" Text="Omega scale: --" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_gscale" Foreground="White" FontSize="9" Text="G scale: --" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_load" Foreground="White" FontSize="9" Text="Load: --" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="TextBlock_xplane_trim_deg" Foreground="White" FontSize="9" Text="Trim: -- deg" HorizontalAlignment="Center"/>
+                            </UniformGrid>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>

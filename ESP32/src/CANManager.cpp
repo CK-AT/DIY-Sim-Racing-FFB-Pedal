@@ -90,7 +90,7 @@ namespace {
         uint16_t k_spring;
         uint16_t k_damper;
         int16_t trim_offset;
-        uint16_t buffet_amp;
+        int16_t buffet_amp;
     };
 
     int16_t clamp_ffb_i16(float value, float scale) {
@@ -120,7 +120,7 @@ namespace {
         payload.k_spring = clamp_ffb_u16(action.k_spring, kFfbScaleSpring);
         payload.k_damper = clamp_ffb_u16(action.k_damper, kFfbScaleDamper);
         payload.trim_offset = clamp_ffb_i16(action.trim_offset, kFfbScaleTrim);
-        payload.buffet_amp = clamp_ffb_u16(action.buffet_amp, kFfbScaleBuffet);
+        payload.buffet_amp = clamp_ffb_i16(action.buffet_amp, kFfbScaleBuffet);
         return payload;
     }
 

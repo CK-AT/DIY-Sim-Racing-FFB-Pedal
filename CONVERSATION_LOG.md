@@ -2,6 +2,59 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-17 22:31:03 +01:00 (DESKTOP-6KO022D)
+Request: tighten collective load gain slider range to 0.0–0.1 with 0.0001 steps.
+Summary:
+- Added a collective-specific slider range for load gain and adjusted label precision for finer tuning.
+- Async/out-of-order dependency: not applicable (UI tuning).
+Key files:
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 22:27:55 +01:00 (DESKTOP-6KO022D)
+Request: fix CAN load force sign loss and persist X-Plane FFB settings per aircraft.
+Summary:
+- Switched CAN flight FFB payload buffet/load field to signed int16 so negative load forces survive; saved active aircraft profile on shutdown to persist tuning.
+- Async/out-of-order dependency: not applicable (serialization + save timing).
+Key files:
+- `ESP32/src/CANManager.cpp`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+Open items:
+- None.
+
+## 2026-01-17 22:13:43 +01:00 (DESKTOP-6KO022D)
+Request: show collective cursor in RPM view while tuning.
+Summary:
+- The telemetry readout now switches the cursor display to RPM for the collective function.
+- Async/out-of-order dependency: diagnostics are gated by fresh X-Plane packets; RPM cursor only updates when diagnostics are available.
+Key files:
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 21:54:39 +01:00 (DESKTOP-6KO022D)
+Request: add observable readouts for collective/X-Plane parameters while tuning.
+Summary:
+- Added X-Plane FFB diagnostics capture in the plugin and exposed it to the flight stick tuning UI with a new diagnostics grid.
+- Async/out-of-order dependency: telemetry is gated by packet freshness; diagnostics update alongside the X-Plane telemetry timer.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 21:16:15 +01:00 (DESKTOP-6KO022D)
+Request: invert collective load force so resistance opposes increasing collective.
+Summary:
+- Flipped the sign on collective load force based on torque so positive torque resists upward collective motion.
+- Async/out-of-order dependency: not applicable (force sign change).
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+Open items:
+- None.
+
 ## 2026-01-17 20:24:36 +01:00 (DESKTOP-6KO022D)
 Request: adjust nominal RPM slider range for collective.
 Summary:

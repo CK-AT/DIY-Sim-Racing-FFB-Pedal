@@ -102,6 +102,9 @@ namespace User.PluginSdkDemo
         private float xplaneTrimRudderMm;
         private float xplaneTrimCollectiveMm;
         private DateTime xplaneTrimUtc = DateTime.MinValue;
+        private XPlaneFfbDiagnostics xplanePitchDiagnostics;
+        private XPlaneFfbDiagnostics xplaneRollDiagnostics;
+        private XPlaneFfbDiagnostics xplaneCollectiveDiagnostics;
         private string activeCarId;
         private string activeCarName;
         private DiyFfbPluginSettings.AircraftFfbProfile pendingFfbProfile;
@@ -117,6 +120,34 @@ namespace User.PluginSdkDemo
             public float BuffetGain;
             public float WeathervaneGain;
             public float VrefKts;
+        }
+
+        public struct XPlaneFfbDiagnostics
+        {
+            public DateTime Utc;
+            public float IasKts;
+            public float TasMps;
+            public float QHat;
+            public float QScale;
+            public float AlphaDeg;
+            public float BetaDeg;
+            public float GNrml;
+            public bool OnGround;
+            public float SpringGain;
+            public float DamperGain;
+            public float Buffet;
+            public float TrimDeg;
+            public float TrimMm;
+            public float VaneMm;
+            public int RotorIndex;
+            public float TorqueNm;
+            public float OmegaRad;
+            public float OmegaRpm;
+            public float PropRatio;
+            public float NominalRpm;
+            public float OmegaScale;
+            public float GScale;
+            public float LoadForce;
         }
 
         private sealed class XPlaneUdpPacket
@@ -756,6 +787,11 @@ namespace User.PluginSdkDemo
         /// <param name="pluginManager"></param>
         public void End(PluginManager pluginManager)
         {           
+            if (!string.IsNullOrWhiteSpace(activeCarId))
+            {
+                SaveCurrentAircraftProfile(activeCarId);
+            }
+
             // Save settings
             this.SaveCommonSettings("GeneralSettings", Settings);
 
@@ -1045,7 +1081,6 @@ namespace User.PluginSdkDemo
             float pedalsTrimOnly = 0.0f;
             float collectiveTrimOnly = 0.0f;
 
-            if (IsXPlaneFfbEnabled(FunctionID.FlightStickPitch))
             {
                 XPlaneFfbParams pitchParams = GetXPlaneFfbParams(FunctionID.FlightStickPitch);
                 float pitchScale = XPlaneFfbMath.ComputeQScaleFromQHat(qHat, pitchParams.VrefKts);
@@ -1055,10 +1090,13 @@ namespace User.PluginSdkDemo
                 pitchTrimOnly = packet.ElevTrimDeg * pitchParams.TrimMmPerDeg;
                 float pitchVane = pitchParams.WeathervaneGain * pitchScale * packet.AlphaDeg;
                 pitchTrim = pitchTrimOnly - pitchVane;
-                SendFlightFfb(FunctionID.FlightStickPitch, pitchSpring, pitchDamper, pitchTrim, pitchBuffet, 0.0f);
+                UpdateXPlaneDiagnostics(FunctionID.FlightStickPitch, packet, pitchScale, pitchSpring, pitchDamper, pitchBuffet, packet.ElevTrimDeg, pitchTrim, pitchVane, 0.0f, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+                if (IsXPlaneFfbEnabled(FunctionID.FlightStickPitch))
+                {
+                    SendFlightFfb(FunctionID.FlightStickPitch, pitchSpring, pitchDamper, pitchTrim, pitchBuffet, 0.0f);
+                }
             }
 
-            if (IsXPlaneFfbEnabled(FunctionID.FlightStickRoll))
             {
                 XPlaneFfbParams rollParams = GetXPlaneFfbParams(FunctionID.FlightStickRoll);
                 float rollScale = XPlaneFfbMath.ComputeQScaleFromQHat(qHat, rollParams.VrefKts);
@@ -1067,7 +1105,11 @@ namespace User.PluginSdkDemo
                 float rollBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, rollParams.BuffetStartDeg, rollParams.BuffetFullDeg, rollParams.BuffetGain, rollScale);
                 rollTrimOnly = packet.AilTrimDeg * rollParams.TrimMmPerDeg;
                 rollTrim = rollTrimOnly;
-                SendFlightFfb(FunctionID.FlightStickRoll, rollSpring, rollDamper, rollTrim, rollBuffet, 0.0f);
+                UpdateXPlaneDiagnostics(FunctionID.FlightStickRoll, packet, rollScale, rollSpring, rollDamper, rollBuffet, packet.AilTrimDeg, rollTrim, 0.0f, 0.0f, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+                if (IsXPlaneFfbEnabled(FunctionID.FlightStickRoll))
+                {
+                    SendFlightFfb(FunctionID.FlightStickRoll, rollSpring, rollDamper, rollTrim, rollBuffet, 0.0f);
+                }
             }
 
             if (IsXPlaneFfbEnabled(FunctionID.FlightPedals))
@@ -1083,7 +1125,6 @@ namespace User.PluginSdkDemo
                 SendFlightFfb(FunctionID.FlightPedals, pedalsSpring, pedalsDamper, pedalsTrim, pedalsBuffet, 0.0f);
             }
 
-            if (IsXPlaneFfbEnabled(FunctionID.FlightStickCollective))
             {
                 XPlaneFfbParams collectiveParams = GetXPlaneFfbParams(FunctionID.FlightStickCollective);
                 int rotorIndex = ResolveXPlaneRotorIndex(packet);
@@ -1095,10 +1136,14 @@ namespace User.PluginSdkDemo
                 float omegaScale = omegaRpm / nominalRpm;
                 float collectiveDamper = collectiveParams.Krate * omegaScale;
                 float gScale = Math.Max(0.0f, packet.GNrml);
-                float collectiveLoadForce = collectiveParams.Kq * torqueNm * gScale;
+                float collectiveLoadForce = -collectiveParams.Kq * torqueNm * gScale;
                 collectiveTrimOnly = (propRatio - 0.5f) * collectiveParams.TrimMmPerDeg;
                 collectiveTrim = collectiveTrimOnly;
-                SendFlightFfb(FunctionID.FlightStickCollective, 0.0f, collectiveDamper, collectiveTrim, 0.0f, collectiveLoadForce);
+                UpdateXPlaneDiagnostics(FunctionID.FlightStickCollective, packet, omegaScale, 0.0f, collectiveDamper, 0.0f, 0.0f, collectiveTrim, 0.0f, collectiveLoadForce, rotorIndex, torqueNm, omegaRad, propRatio, nominalRpm, omegaScale, gScale);
+                if (IsXPlaneFfbEnabled(FunctionID.FlightStickCollective))
+                {
+                    SendFlightFfb(FunctionID.FlightStickCollective, 0.0f, collectiveDamper, collectiveTrim, 0.0f, collectiveLoadForce);
+                }
             }
 
             lock (xplaneLock)
@@ -1226,6 +1271,86 @@ namespace User.PluginSdkDemo
                 ailTrim = latestXPlanePacket.AilTrimDeg;
                 rudTrim = latestXPlanePacket.RudTrimDeg;
                 return true;
+            }
+        }
+
+        public bool TryGetXPlaneFfbDiagnostics(FunctionID functionId, out XPlaneFfbDiagnostics diagnostics)
+        {
+            diagnostics = new XPlaneFfbDiagnostics();
+            lock (xplaneLock)
+            {
+                if (latestXPlanePacket == null)
+                {
+                    return false;
+                }
+                if ((DateTime.UtcNow - latestXPlanePacket.ReceivedUtc).TotalMilliseconds > 500)
+                {
+                    return false;
+                }
+
+                switch (functionId)
+                {
+                    case FunctionID.FlightStickPitch:
+                        diagnostics = xplanePitchDiagnostics;
+                        return true;
+                    case FunctionID.FlightStickRoll:
+                        diagnostics = xplaneRollDiagnostics;
+                        return true;
+                    case FunctionID.FlightStickCollective:
+                        diagnostics = xplaneCollectiveDiagnostics;
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+        }
+
+        private void UpdateXPlaneDiagnostics(FunctionID functionId, XPlaneUdpPacket packet, float qScale, float springGain,
+            float damperGain, float buffet, float trimDeg, float trimMm, float vaneMm, float loadForce, int rotorIndex,
+            float torqueNm, float omegaRad, float propRatio, float nominalRpm, float omegaScale, float gScale)
+        {
+            var diagnostics = new XPlaneFfbDiagnostics
+            {
+                Utc = packet.ReceivedUtc,
+                IasKts = packet.IasKts,
+                TasMps = packet.TasMps,
+                QHat = (packet.IasKts * 0.514444f) * (packet.IasKts * 0.514444f),
+                QScale = qScale,
+                AlphaDeg = packet.AlphaDeg,
+                BetaDeg = packet.BetaDeg,
+                GNrml = packet.GNrml,
+                OnGround = packet.OnGround,
+                SpringGain = springGain,
+                DamperGain = damperGain,
+                Buffet = buffet,
+                TrimDeg = trimDeg,
+                TrimMm = trimMm,
+                VaneMm = vaneMm,
+                RotorIndex = rotorIndex,
+                TorqueNm = torqueNm,
+                OmegaRad = omegaRad,
+                OmegaRpm = omegaRad * 60.0f / (float)(2.0 * Math.PI),
+                PropRatio = propRatio,
+                NominalRpm = nominalRpm,
+                OmegaScale = omegaScale,
+                GScale = gScale,
+                LoadForce = loadForce
+            };
+
+            lock (xplaneLock)
+            {
+                switch (functionId)
+                {
+                    case FunctionID.FlightStickPitch:
+                        xplanePitchDiagnostics = diagnostics;
+                        break;
+                    case FunctionID.FlightStickRoll:
+                        xplaneRollDiagnostics = diagnostics;
+                        break;
+                    case FunctionID.FlightStickCollective:
+                        xplaneCollectiveDiagnostics = diagnostics;
+                        break;
+                }
             }
         }
 

@@ -456,8 +456,32 @@ namespace User.PluginSdkDemo
             Slider_xplane_weathervane_gain.Value = settings.XPlaneWeathervaneGain;
             Slider_xplane_vref.Value = settings.XPlaneVrefKts;
 
+            UpdateCollectiveLoadRange();
             UpdateXPlaneLabels();
             UpdateGainGraph();
+        }
+
+        private void UpdateCollectiveLoadRange()
+        {
+            if (Slider_xplane_kq == null)
+            {
+                return;
+            }
+
+            if (current_function_id == FunctionID.FlightStickCollective)
+            {
+                Slider_xplane_kq.Minimum = 0.0;
+                Slider_xplane_kq.Maximum = 0.1;
+                Slider_xplane_kq.SmallChange = 0.0001;
+                Slider_xplane_kq.TickFrequency = 0.0001;
+            }
+            else
+            {
+                Slider_xplane_kq.Minimum = 0.0;
+                Slider_xplane_kq.Maximum = 2.0;
+                Slider_xplane_kq.SmallChange = 0.001;
+                Slider_xplane_kq.TickFrequency = 0.001;
+            }
         }
 
         private void UpdateXPlaneLabels()
@@ -470,7 +494,7 @@ namespace User.PluginSdkDemo
             {
                 if (current_function_id == FunctionID.FlightStickCollective)
                 {
-                    label_xplane_kq.Content = String.Format("Load Gain (N/Nm): {0:F3}", Slider_xplane_kq.Value);
+                    label_xplane_kq.Content = String.Format("Load Gain (N/Nm): {0:F4}", Slider_xplane_kq.Value);
                 }
                 else
                 {
@@ -759,7 +783,14 @@ namespace User.PluginSdkDemo
             if (!plugin.TryGetXPlaneTelemetry(out iasKts, out alphaDeg, out betaDeg, out elevTrim, out ailTrim, out rudTrim))
             {
                 lastIasKts = 0.0f;
-                TextBlock_xplane_ias.Text = "IAS: -- kt";
+                if (current_function_id == FunctionID.FlightStickCollective)
+                {
+                    TextBlock_xplane_ias.Text = "RPM: --";
+                }
+                else
+                {
+                    TextBlock_xplane_ias.Text = "IAS: -- kt";
+                }
                 if (TextBlock_xplane_alpha != null)
                 {
                     TextBlock_xplane_alpha.Text = "Alpha: -- deg";
@@ -784,6 +815,7 @@ namespace User.PluginSdkDemo
                 {
                     TextBlock_xplane_damper_value.Text = "--";
                 }
+                UpdateXPlaneDiagnosticsUnavailable();
                 UpdateGainCursor();
                 return;
             }
@@ -813,7 +845,18 @@ namespace User.PluginSdkDemo
             float springGain = (float)Slider_xplane_kq.Value * qScale;
             float damperGain = (float)Slider_xplane_krate.Value * qScale;
 
-            TextBlock_xplane_ias.Text = String.Format("IAS: {0:F0} kt", iasKts);
+            if (current_function_id == FunctionID.FlightStickCollective &&
+                plugin.TryGetXPlaneFfbDiagnostics(current_function_id, out DiyFfbPlugin.XPlaneFfbDiagnostics diagnostics) &&
+                diagnostics.RotorIndex >= 0)
+            {
+                lastIasKts = diagnostics.OmegaRpm;
+                TextBlock_xplane_ias.Text = String.Format("RPM: {0:F0}", diagnostics.OmegaRpm);
+            }
+            else
+            {
+                lastIasKts = iasKts;
+                TextBlock_xplane_ias.Text = String.Format("IAS: {0:F0} kt", iasKts);
+            }
             if (TextBlock_xplane_alpha != null)
             {
                 TextBlock_xplane_alpha.Text = String.Format("Alpha: {0:F1} deg", alphaDeg);
@@ -838,7 +881,149 @@ namespace User.PluginSdkDemo
             {
                 TextBlock_xplane_damper_value.Text = String.Format("{0:F3}", damperGain);
             }
+            UpdateXPlaneDiagnostics();
             UpdateGainCursor();
+        }
+
+        private void UpdateXPlaneDiagnostics()
+        {
+            if (plugin == null)
+            {
+                return;
+            }
+
+            if (!plugin.TryGetXPlaneFfbDiagnostics(current_function_id, out DiyFfbPlugin.XPlaneFfbDiagnostics diagnostics))
+            {
+                UpdateXPlaneDiagnosticsUnavailable();
+                return;
+            }
+
+            if (TextBlock_xplane_tas != null)
+            {
+                TextBlock_xplane_tas.Text = String.Format("TAS: {0:F1} m/s", diagnostics.TasMps);
+            }
+            if (TextBlock_xplane_qhat != null)
+            {
+                TextBlock_xplane_qhat.Text = String.Format("qHat: {0:F1}", diagnostics.QHat);
+            }
+            if (TextBlock_xplane_g != null)
+            {
+                TextBlock_xplane_g.Text = String.Format("G: {0:F2}", diagnostics.GNrml);
+            }
+            if (TextBlock_xplane_on_ground != null)
+            {
+                TextBlock_xplane_on_ground.Text = diagnostics.OnGround ? "Ground: yes" : "Ground: no";
+            }
+            if (TextBlock_xplane_qscale != null)
+            {
+                TextBlock_xplane_qscale.Text = String.Format("Scale: {0:F3}", diagnostics.QScale);
+            }
+            if (TextBlock_xplane_buffet != null)
+            {
+                TextBlock_xplane_buffet.Text = String.Format("Buffet: {0:F3}", diagnostics.Buffet);
+            }
+
+            bool hasRotor = diagnostics.RotorIndex >= 0;
+            if (TextBlock_xplane_rotor != null)
+            {
+                TextBlock_xplane_rotor.Text = hasRotor ? String.Format("Rotor: {0}", diagnostics.RotorIndex + 1) : "Rotor: --";
+            }
+            if (TextBlock_xplane_torque != null)
+            {
+                TextBlock_xplane_torque.Text = hasRotor ? String.Format("Torque: {0:F1} Nm", diagnostics.TorqueNm) : "Torque: --";
+            }
+            if (TextBlock_xplane_omega != null)
+            {
+                TextBlock_xplane_omega.Text = hasRotor ? String.Format("Omega: {0:F0} RPM", diagnostics.OmegaRpm) : "Omega: --";
+            }
+            if (TextBlock_xplane_prop != null)
+            {
+                TextBlock_xplane_prop.Text = hasRotor ? String.Format("Prop: {0:F2}", diagnostics.PropRatio) : "Prop: --";
+            }
+            if (TextBlock_xplane_nominal_rpm != null)
+            {
+                TextBlock_xplane_nominal_rpm.Text = hasRotor ? String.Format("Nominal: {0:F0} RPM", diagnostics.NominalRpm) : "Nominal: --";
+            }
+            if (TextBlock_xplane_omega_scale != null)
+            {
+                TextBlock_xplane_omega_scale.Text = hasRotor ? String.Format("Omega scale: {0:F2}", diagnostics.OmegaScale) : "Omega scale: --";
+            }
+            if (TextBlock_xplane_gscale != null)
+            {
+                TextBlock_xplane_gscale.Text = hasRotor ? String.Format("G scale: {0:F2}", diagnostics.GScale) : "G scale: --";
+            }
+            if (TextBlock_xplane_load != null)
+            {
+                TextBlock_xplane_load.Text = hasRotor ? String.Format("Load: {0:F2}", diagnostics.LoadForce) : "Load: --";
+            }
+            if (TextBlock_xplane_trim_deg != null)
+            {
+                TextBlock_xplane_trim_deg.Text = String.Format("Trim: {0:F2} deg", diagnostics.TrimDeg);
+            }
+        }
+
+        private void UpdateXPlaneDiagnosticsUnavailable()
+        {
+            if (TextBlock_xplane_tas != null)
+            {
+                TextBlock_xplane_tas.Text = "TAS: -- m/s";
+            }
+            if (TextBlock_xplane_qhat != null)
+            {
+                TextBlock_xplane_qhat.Text = "qHat: --";
+            }
+            if (TextBlock_xplane_g != null)
+            {
+                TextBlock_xplane_g.Text = "G: --";
+            }
+            if (TextBlock_xplane_on_ground != null)
+            {
+                TextBlock_xplane_on_ground.Text = "Ground: --";
+            }
+            if (TextBlock_xplane_qscale != null)
+            {
+                TextBlock_xplane_qscale.Text = "Scale: --";
+            }
+            if (TextBlock_xplane_buffet != null)
+            {
+                TextBlock_xplane_buffet.Text = "Buffet: --";
+            }
+            if (TextBlock_xplane_rotor != null)
+            {
+                TextBlock_xplane_rotor.Text = "Rotor: --";
+            }
+            if (TextBlock_xplane_torque != null)
+            {
+                TextBlock_xplane_torque.Text = "Torque: --";
+            }
+            if (TextBlock_xplane_omega != null)
+            {
+                TextBlock_xplane_omega.Text = "Omega: --";
+            }
+            if (TextBlock_xplane_prop != null)
+            {
+                TextBlock_xplane_prop.Text = "Prop: --";
+            }
+            if (TextBlock_xplane_nominal_rpm != null)
+            {
+                TextBlock_xplane_nominal_rpm.Text = "Nominal: --";
+            }
+            if (TextBlock_xplane_omega_scale != null)
+            {
+                TextBlock_xplane_omega_scale.Text = "Omega scale: --";
+            }
+            if (TextBlock_xplane_gscale != null)
+            {
+                TextBlock_xplane_gscale.Text = "G scale: --";
+            }
+            if (TextBlock_xplane_load != null)
+            {
+                TextBlock_xplane_load.Text = "Load: --";
+            }
+            if (TextBlock_xplane_trim_deg != null)
+            {
+                TextBlock_xplane_trim_deg.Text = "Trim: -- deg";
+            }
         }
 
         private void UpdateGainGraph()
