@@ -40,6 +40,9 @@ XPLMDataRef	DFFB_DR_on_ground = NULL;
 XPLMDataRef DFFB_DR_elev_trim_overr = NULL;
 XPLMDataRef DFFB_DR_ail_trim_overr = NULL;
 XPLMDataRef DFFB_DR_rud_trim_overr = NULL;
+XPLMDataRef DFFB_DR_torque = NULL;
+XPLMDataRef DFFB_DR_omega = NULL;
+XPLMDataRef DFFB_DR_prop_ratio = NULL;
 
 WSADATA wsaData;
 SOCKET sendSocket = INVALID_SOCKET;
@@ -57,6 +60,8 @@ void DFFB_CalculateMotionData(void);
 void DFFB_LoadConfig(void);
 
 #pragma pack(push, 1)
+static const uint8_t kMaxRotors = 4;
+
 struct FfbDataPacket {
     uint32_t magic;
     uint16_t version;
@@ -76,13 +81,16 @@ struct FfbDataPacket {
     float ail_trim_deg;
     float rud_trim_deg;
     float g_nrml;
+    float torque_nm[kMaxRotors];
+    float omega_rad[kMaxRotors];
+    float prop_ratio[kMaxRotors];
     uint8_t on_ground;
     uint8_t reserved[3];
 };
 #pragma pack(pop)
 
 static const uint32_t kPacketMagic = 0x46464244; // "DFFB"
-static const uint16_t kPacketVersion = 1;
+static const uint16_t kPacketVersion = 2;
 static const char* kUdpConfigFile = "DiyFfbDataProvider.cfg";
 static uint32_t g_udp_sequence = 0;
 
@@ -118,6 +126,9 @@ PLUGIN_API int XPluginStart(
     DFFB_DR_elev_trim_overr = XPLMFindDataRef("sim/operation/override/override_pitch_trim");
     DFFB_DR_ail_trim_overr = XPLMFindDataRef("sim/operation/override/override_roll_trim");
     DFFB_DR_rud_trim_overr = XPLMFindDataRef("sim/operation/override/override_yaw_trim");
+    DFFB_DR_torque = XPLMFindDataRef("sim/flightmodel/engine/POINT_drag_TRQ");
+    DFFB_DR_omega = XPLMFindDataRef("sim/flightmodel/engine/POINT_tacrad");
+    DFFB_DR_prop_ratio = XPLMFindDataRef("sim/cockpit2/engine/actuators/prop_ratio");
     
 
 	DFFB_LoadConfig();
@@ -217,6 +228,30 @@ void DFFB_CalculateMotionData(void)
     packet.rud_trim_deg = DFFB_DR_rud_trim ? XPLMGetDataf(DFFB_DR_rud_trim) : 0.0f;
     XPLMSetDatai(DFFB_DR_rud_trim_overr, 1);
     packet.g_nrml = DFFB_DR_g_nrml ? XPLMGetDataf(DFFB_DR_g_nrml) : 0.0f;
+    if (DFFB_DR_torque) {
+        int count = XPLMGetDatavf(DFFB_DR_torque, packet.torque_nm, 0, kMaxRotors);
+        for (int idx = count; idx < kMaxRotors; ++idx) {
+            packet.torque_nm[idx] = 0.0f;
+        }
+    } else {
+        memset(packet.torque_nm, 0, sizeof(packet.torque_nm));
+    }
+    if (DFFB_DR_omega) {
+        int count = XPLMGetDatavf(DFFB_DR_omega, packet.omega_rad, 0, kMaxRotors);
+        for (int idx = count; idx < kMaxRotors; ++idx) {
+            packet.omega_rad[idx] = 0.0f;
+        }
+    } else {
+        memset(packet.omega_rad, 0, sizeof(packet.omega_rad));
+    }
+    if (DFFB_DR_prop_ratio) {
+        int count = XPLMGetDatavf(DFFB_DR_prop_ratio, packet.prop_ratio, 0, kMaxRotors);
+        for (int idx = count; idx < kMaxRotors; ++idx) {
+            packet.prop_ratio[idx] = 0.0f;
+        }
+    } else {
+        memset(packet.prop_ratio, 0, sizeof(packet.prop_ratio));
+    }
 	packet.on_ground = DFFB_DR_on_ground ? (XPLMGetDatai(DFFB_DR_on_ground) != 0) : 0;
 
 	struct sockaddr_in ClientAddr;

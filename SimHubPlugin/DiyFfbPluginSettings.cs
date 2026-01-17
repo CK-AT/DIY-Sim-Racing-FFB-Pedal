@@ -71,7 +71,9 @@ namespace User.PluginSdkDemo
         {
             public FunctionFfbSettings FlightStickPitch = new FunctionFfbSettings();
             public FunctionFfbSettings FlightStickRoll = new FunctionFfbSettings();
+            public FunctionFfbSettings FlightStickCollective = new FunctionFfbSettings();
             public FunctionFfbSettings FlightPedals = new FunctionFfbSettings();
+            public int XPlaneRotorIndex = -1;
         }
 
         public class AxisSettings
@@ -124,6 +126,7 @@ namespace User.PluginSdkDemo
         public FunctionSettings[] function_settings = new FunctionSettings[8];
         public uint axis_tab_selected = 0;
         public uint function_tab_selected = 0;
+        public int XPlaneRotorIndex = -1;
 
         public string[] selectedJsonFileNames = { "1", "2", "3" };
         public int reading_config = 0;

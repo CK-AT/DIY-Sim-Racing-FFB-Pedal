@@ -583,6 +583,10 @@ bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
                 action.function_id = FunctionID(function_id);
                 action.which_function = FFBAction_flight_ffb_tag;
                 action.function.flight_ffb = unpack_flight_ffb(payload);
+                if (action.function_id == FunctionID_FUNCTION_ID_FLIGHT_STICK_COLLECTIVE) {
+                    action.function.flight_ffb.load_force = action.function.flight_ffb.buffet_amp;
+                    action.function.flight_ffb.buffet_amp = 0.0f;
+                }
                 on_ffb_action(action);
                 break;
             }
@@ -658,7 +662,12 @@ bool CANManager::send_flight_ffb(const FFBAction &action) {
         return false;
     }
 
-    FlightFfbPayload payload = pack_flight_ffb(action.function.flight_ffb);
+    FlightFfbAction payload_action = action.function.flight_ffb;
+    if (action.function_id == FunctionID_FUNCTION_ID_FLIGHT_STICK_COLLECTIVE) {
+        payload_action.buffet_amp = payload_action.load_force;
+        payload_action.load_force = 0.0f;
+    }
+    FlightFfbPayload payload = pack_flight_ffb(payload_action);
     CanFrame tx_frame = {};
     tx_frame.identifier = 0x200 + (FFBFrameTypes::FLIGHT_FFB << 4) + action.function_id;
     tx_frame.data_length_code = sizeof(payload);

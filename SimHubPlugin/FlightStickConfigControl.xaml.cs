@@ -21,6 +21,7 @@ namespace User.PluginSdkDemo
         private FunctionID current_function_id;
         private FlightStickPitchConfig pitch_config;
         private FlightStickRollConfig roll_config;
+        private FlightStickCollectiveConfig collective_config;
         private bool is_updating = true;
         private double latestAxisPosition;
         private bool hasAxisPosition;
@@ -34,6 +35,7 @@ namespace User.PluginSdkDemo
         {
             pitch_config = GetDefaultPitchConfig();
             roll_config = GetDefaultRollConfig();
+            collective_config = GetDefaultCollectiveConfig();
             InitializeComponent();
         }
 
@@ -108,96 +110,177 @@ namespace User.PluginSdkDemo
             return new_config;
         }
 
-        private bool IsPitchConfig()
+        public static FlightStickCollectiveConfig GetDefaultCollectiveConfig()
         {
-            return current_function_id == FunctionID.FlightStickPitch;
+            FlightStickCollectiveConfig new_config = new FlightStickCollectiveConfig();
+            new_config.PosMin = -50;
+            new_config.PosMax = 50;
+            new_config.Damping = 0.5f;
+            new_config.CenteringSpringConst = 1.5f;
+            return new_config;
+        }
+
+        private enum FlightStickMode
+        {
+            Pitch,
+            Roll,
+            Collective
+        }
+
+        private FlightStickMode GetMode()
+        {
+            switch (current_function_id)
+            {
+                case FunctionID.FlightStickRoll:
+                    return FlightStickMode.Roll;
+                case FunctionID.FlightStickCollective:
+                    return FlightStickMode.Collective;
+                default:
+                    return FlightStickMode.Pitch;
+            }
         }
 
         private void EnsureConfigInitialized()
         {
-            if (IsPitchConfig())
+            switch (GetMode())
             {
-                if (function_config.FlightStickPitch == null)
-                {
-                    function_config.FlightStickPitch = GetDefaultPitchConfig();
-                }
-                pitch_config = function_config.FlightStickPitch;
-            }
-            else
-            {
-                if (function_config.FlightStickRoll == null)
-                {
-                    function_config.FlightStickRoll = GetDefaultRollConfig();
-                }
-                roll_config = function_config.FlightStickRoll;
+                case FlightStickMode.Roll:
+                    if (function_config.FlightStickRoll == null)
+                    {
+                        function_config.FlightStickRoll = GetDefaultRollConfig();
+                    }
+                    roll_config = function_config.FlightStickRoll;
+                    break;
+                case FlightStickMode.Collective:
+                    if (function_config.FlightStickCollective == null)
+                    {
+                        function_config.FlightStickCollective = GetDefaultCollectiveConfig();
+                    }
+                    collective_config = function_config.FlightStickCollective;
+                    break;
+                default:
+                    if (function_config.FlightStickPitch == null)
+                    {
+                        function_config.FlightStickPitch = GetDefaultPitchConfig();
+                    }
+                    pitch_config = function_config.FlightStickPitch;
+                    break;
             }
         }
 
         private int GetPosMin()
         {
-            return IsPitchConfig() ? pitch_config.PosMin : roll_config.PosMin;
+            switch (GetMode())
+            {
+                case FlightStickMode.Roll:
+                    return roll_config.PosMin;
+                case FlightStickMode.Collective:
+                    return collective_config.PosMin;
+                default:
+                    return pitch_config.PosMin;
+            }
         }
 
         private int GetPosMax()
         {
-            return IsPitchConfig() ? pitch_config.PosMax : roll_config.PosMax;
+            switch (GetMode())
+            {
+                case FlightStickMode.Roll:
+                    return roll_config.PosMax;
+                case FlightStickMode.Collective:
+                    return collective_config.PosMax;
+                default:
+                    return pitch_config.PosMax;
+            }
         }
 
         private void SetPosMin(int value)
         {
-            if (IsPitchConfig())
+            switch (GetMode())
             {
-                pitch_config.PosMin = value;
-            }
-            else
-            {
-                roll_config.PosMin = value;
+                case FlightStickMode.Roll:
+                    roll_config.PosMin = value;
+                    break;
+                case FlightStickMode.Collective:
+                    collective_config.PosMin = value;
+                    break;
+                default:
+                    pitch_config.PosMin = value;
+                    break;
             }
         }
 
         private void SetPosMax(int value)
         {
-            if (IsPitchConfig())
+            switch (GetMode())
             {
-                pitch_config.PosMax = value;
-            }
-            else
-            {
-                roll_config.PosMax = value;
+                case FlightStickMode.Roll:
+                    roll_config.PosMax = value;
+                    break;
+                case FlightStickMode.Collective:
+                    collective_config.PosMax = value;
+                    break;
+                default:
+                    pitch_config.PosMax = value;
+                    break;
             }
         }
 
         private float GetDamping()
         {
-            return IsPitchConfig() ? pitch_config.Damping : roll_config.Damping;
+            switch (GetMode())
+            {
+                case FlightStickMode.Roll:
+                    return roll_config.Damping;
+                case FlightStickMode.Collective:
+                    return collective_config.Damping;
+                default:
+                    return pitch_config.Damping;
+            }
         }
 
         private float GetCenteringSpringConst()
         {
-            return IsPitchConfig() ? pitch_config.CenteringSpringConst : roll_config.CenteringSpringConst;
+            switch (GetMode())
+            {
+                case FlightStickMode.Roll:
+                    return roll_config.CenteringSpringConst;
+                case FlightStickMode.Collective:
+                    return collective_config.CenteringSpringConst;
+                default:
+                    return pitch_config.CenteringSpringConst;
+            }
         }
 
         private void SetDamping(float value)
         {
-            if (IsPitchConfig())
+            switch (GetMode())
             {
-                pitch_config.Damping = value;
-            }
-            else
-            {
-                roll_config.Damping = value;
+                case FlightStickMode.Roll:
+                    roll_config.Damping = value;
+                    break;
+                case FlightStickMode.Collective:
+                    collective_config.Damping = value;
+                    break;
+                default:
+                    pitch_config.Damping = value;
+                    break;
             }
         }
 
         private void SetCenteringSpringConst(float value)
         {
-            if (IsPitchConfig())
+            switch (GetMode())
             {
-                pitch_config.CenteringSpringConst = value;
-            }
-            else
-            {
-                roll_config.CenteringSpringConst = value;
+                case FlightStickMode.Roll:
+                    roll_config.CenteringSpringConst = value;
+                    break;
+                case FlightStickMode.Collective:
+                    collective_config.CenteringSpringConst = value;
+                    break;
+                default:
+                    pitch_config.CenteringSpringConst = value;
+                    break;
             }
         }
 
@@ -346,6 +429,26 @@ namespace User.PluginSdkDemo
             Toggle_xplane_ffb_enabled.IsChecked = settings.XPlaneFfbEnabled;
             Slider_xplane_kq.Value = settings.XPlaneFfbKq;
             Slider_xplane_krate.Value = settings.XPlaneFfbKrate;
+            if (current_function_id == FunctionID.FlightStickCollective)
+            {
+                Slider_xplane_vref.Minimum = 100.0;
+                Slider_xplane_vref.Maximum = 600.0;
+                Slider_xplane_vref.SmallChange = 5.0;
+                Slider_xplane_vref.TickFrequency = 5.0;
+                Slider_xplane_trim_mm_per_deg.Maximum = 200.0;
+                Slider_xplane_trim_mm_per_deg.TickFrequency = 1.0;
+                Slider_xplane_trim_mm_per_deg.SmallChange = 0.5;
+            }
+            else
+            {
+                Slider_xplane_vref.Minimum = 10.0;
+                Slider_xplane_vref.Maximum = 200.0;
+                Slider_xplane_vref.SmallChange = 1.0;
+                Slider_xplane_vref.TickFrequency = 1.0;
+                Slider_xplane_trim_mm_per_deg.Maximum = 50.0;
+                Slider_xplane_trim_mm_per_deg.TickFrequency = 0.01;
+                Slider_xplane_trim_mm_per_deg.SmallChange = 0.01;
+            }
             Slider_xplane_trim_mm_per_deg.Value = settings.XPlaneTrimMmPerDeg;
             Slider_xplane_buffet_start_deg.Value = settings.XPlaneBuffetStartDeg;
             Slider_xplane_buffet_full_deg.Value = settings.XPlaneBuffetFullDeg;
@@ -365,35 +468,91 @@ namespace User.PluginSdkDemo
             }
             if (label_xplane_kq != null)
             {
-                label_xplane_kq.Content = String.Format("Spring Gain @ Vref: {0:F3}", Slider_xplane_kq.Value);
+                if (current_function_id == FunctionID.FlightStickCollective)
+                {
+                    label_xplane_kq.Content = String.Format("Load Gain (N/Nm): {0:F3}", Slider_xplane_kq.Value);
+                }
+                else
+                {
+                    label_xplane_kq.Content = String.Format("Spring Gain @ Vref: {0:F3}", Slider_xplane_kq.Value);
+                }
             }
             if (label_xplane_krate != null)
             {
-                label_xplane_krate.Content = String.Format("Damper Gain @ Vref: {0:F3}", Slider_xplane_krate.Value);
+                if (current_function_id == FunctionID.FlightStickCollective)
+                {
+                    label_xplane_krate.Content = String.Format("Damper Gain @ Nominal RPM: {0:F3}", Slider_xplane_krate.Value);
+                }
+                else
+                {
+                    label_xplane_krate.Content = String.Format("Damper Gain @ Vref: {0:F3}", Slider_xplane_krate.Value);
+                }
             }
             if (label_xplane_trim_mm_per_deg != null)
             {
-                label_xplane_trim_mm_per_deg.Content = String.Format("Trim Scale: {0:F3} mm/unit", Slider_xplane_trim_mm_per_deg.Value);
+                if (current_function_id == FunctionID.FlightStickCollective)
+                {
+                    label_xplane_trim_mm_per_deg.Content = String.Format("Trim Scale (mm/ratio): {0:F1}", Slider_xplane_trim_mm_per_deg.Value);
+                }
+                else
+                {
+                    label_xplane_trim_mm_per_deg.Content = String.Format("Trim Scale: {0:F3} mm/unit", Slider_xplane_trim_mm_per_deg.Value);
+                }
             }
             if (label_xplane_buffet_start_deg != null)
             {
-                label_xplane_buffet_start_deg.Content = String.Format("Buffet Start (deg): {0:F1}", Slider_xplane_buffet_start_deg.Value);
+                if (current_function_id == FunctionID.FlightStickCollective)
+                {
+                    label_xplane_buffet_start_deg.Content = "Buffet Start (unused)";
+                }
+                else
+                {
+                    label_xplane_buffet_start_deg.Content = String.Format("Buffet Start (deg): {0:F1}", Slider_xplane_buffet_start_deg.Value);
+                }
             }
             if (label_xplane_buffet_full_deg != null)
             {
-                label_xplane_buffet_full_deg.Content = String.Format("Buffet Full (deg): {0:F1}", Slider_xplane_buffet_full_deg.Value);
+                if (current_function_id == FunctionID.FlightStickCollective)
+                {
+                    label_xplane_buffet_full_deg.Content = "Buffet Full (unused)";
+                }
+                else
+                {
+                    label_xplane_buffet_full_deg.Content = String.Format("Buffet Full (deg): {0:F1}", Slider_xplane_buffet_full_deg.Value);
+                }
             }
             if (label_xplane_buffet_gain != null)
             {
-                label_xplane_buffet_gain.Content = String.Format("Buffet Gain @ Vref: {0:F3}", Slider_xplane_buffet_gain.Value);
+                if (current_function_id == FunctionID.FlightStickCollective)
+                {
+                    label_xplane_buffet_gain.Content = "Buffet Gain (unused)";
+                }
+                else
+                {
+                    label_xplane_buffet_gain.Content = String.Format("Buffet Gain @ Vref: {0:F3}", Slider_xplane_buffet_gain.Value);
+                }
             }
             if (label_xplane_weathervane_gain != null)
             {
-                label_xplane_weathervane_gain.Content = String.Format("Weather-Vaning Gain @ Vref: {0:F3}", Slider_xplane_weathervane_gain.Value);
+                if (current_function_id == FunctionID.FlightStickCollective)
+                {
+                    label_xplane_weathervane_gain.Content = "Weathervane Gain (unused)";
+                }
+                else
+                {
+                    label_xplane_weathervane_gain.Content = String.Format("Weather-Vaning Gain @ Vref: {0:F3}", Slider_xplane_weathervane_gain.Value);
+                }
             }
             if (label_xplane_vref != null)
             {
-                label_xplane_vref.Content = String.Format("Vref (kts): {0:F0}", Slider_xplane_vref.Value);
+                if (current_function_id == FunctionID.FlightStickCollective)
+                {
+                    label_xplane_vref.Content = String.Format("Nominal RPM: {0:F0}", Slider_xplane_vref.Value);
+                }
+                else
+                {
+                    label_xplane_vref.Content = String.Format("Vref (kts): {0:F0}", Slider_xplane_vref.Value);
+                }
             }
         }
 
@@ -632,15 +791,20 @@ namespace User.PluginSdkDemo
             lastIasKts = iasKts;
             float trimDeg = 0.0f;
             float vaneDeg = 0.0f;
-            if (current_function_id == FunctionID.FlightStickPitch)
+            switch (current_function_id)
             {
-                trimDeg = elevTrim;
-                vaneDeg = alphaDeg;
-            }
-            else if (current_function_id == FunctionID.FlightStickRoll)
-            {
-                trimDeg = ailTrim;
-                vaneDeg = 0.0f;
+                case FunctionID.FlightStickPitch:
+                    trimDeg = elevTrim;
+                    vaneDeg = alphaDeg;
+                    break;
+                case FunctionID.FlightStickRoll:
+                    trimDeg = ailTrim;
+                    vaneDeg = 0.0f;
+                    break;
+                case FunctionID.FlightStickCollective:
+                    trimDeg = 0.0f;
+                    vaneDeg = 0.0f;
+                    break;
             }
 
             float trimMm = trimDeg * (float)Slider_xplane_trim_mm_per_deg.Value;

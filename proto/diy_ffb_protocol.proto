@@ -217,6 +217,7 @@ enum FunctionID {
   FUNCTION_ID_FLIGHT_STICK_PITCH = 5;
   FUNCTION_ID_FLIGHT_STICK_ROLL = 6;
   FUNCTION_ID_SHIFTER = 7;
+  FUNCTION_ID_FLIGHT_STICK_COLLECTIVE = 8;
 }
 
 enum OutputMode {
@@ -483,6 +484,17 @@ message FlightStickRollConfig {
   float centering_spring_const = 4;
 }
 
+message FlightStickCollectiveConfig {
+  // minimum position in mm
+  int32 pos_min = 1;
+  // maximum position in mm
+  int32 pos_max = 2;
+  // damping in (N*s)/mm
+  float damping = 3;
+  // centering spring constant in N/mm
+  float centering_spring_const = 4;
+}
+
 message ShifterGateSegment {
   // start/end in 0.1mm units
   sint32 x0 = 1;
@@ -535,6 +547,7 @@ message FunctionConfig {
     FlightStickPitchConfig flight_stick_pitch = 7;
     FlightStickRollConfig flight_stick_roll = 8;
     ShifterConfig shifter = 9;
+    FlightStickCollectiveConfig flight_stick_collective = 11;
   }
   AuxFunctionConfig aux_function = 4;
   // simulated mass in kg
@@ -614,6 +627,8 @@ message FlightFfbAction {
   float trim_offset = 3;
   // buffet amplitude (0..1 or scaled by SimHub)
   float buffet_amp = 4;
+  // constant load force in N
+  float load_force = 5;
 }
 
 message FFBAction {

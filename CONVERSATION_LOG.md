@@ -2,6 +2,92 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-17 20:24:36 +01:00 (DESKTOP-6KO022D)
+Request: adjust nominal RPM slider range for collective.
+Summary:
+- Set the collective nominal RPM slider range to 100–600 RPM with 5 RPM steps; restored the fixed airspeed range for non-collective functions.
+- Async/out-of-order dependency: not applicable (UI range change).
+Key files:
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 20:21:45 +01:00 (DESKTOP-6KO022D)
+Request: express collective nominal rotor speed in RPM instead of rad/s.
+Summary:
+- Converted rotor speed to RPM for collective damping scaling and relabeled the UI to show nominal RPM in rpm units.
+- Async/out-of-order dependency: not applicable (unit change only).
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 20:17:38 +01:00 (DESKTOP-6KO022D)
+Request: update collective UI label to use “Nominal RPM” terminology.
+Summary:
+- Renamed the collective damper reference label and Vref label to “Nominal RPM” in the flight stick X‑Plane panel.
+- Async/out-of-order dependency: not applicable (UI text change).
+Key files:
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 20:09:12 +01:00 (DESKTOP-6KO022D)
+Request: add realistic helicopter collective FFB with rotor selection and load-force support.
+Summary:
+- Protocol: added `load_force` to `FlightFfbAction` and new `FlightStickCollectiveConfig`.
+- ESP32: collective uses `FlightStickFunction` with constant load force; CAN path maps load force via buffet slot for collective frames.
+- SimHub/X-Plane: extended UDP packet v2 with torque/omega/prop_ratio arrays, added rotor selector (Auto or specific), and computed collective load/trim/damper from rotor telemetry.
+- Async/out-of-order dependency: X-Plane UDP packets are timestamp-gated; collective FFB uses the latest packet within the 500 ms freshness window, and rotor auto selection is based on the newest torque sample.
+Key files:
+- `proto/diy_ffb_protocol.proto`
+- `proto/diy_ffb_protocol.options`
+- `ESP32/include/FlightStickFunction.h`
+- `ESP32/src/FlightStickFunction.cpp`
+- `ESP32/src/CANManager.cpp`
+- `ESP32/src/Main.cpp`
+- `XPlanePlugin/DiyFfbDataProvider.cpp`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+Open items:
+- Regenerate protobuf outputs (`SimHubPlugin/DiyFfbProtocol.cs`, ESP32 nanopb) after proto changes.
+
+## 2026-01-17 19:32:44 +01:00 (DESKTOP-6KO022D)
+Request: add helicopter collective pitch support reusing the flight stick model.
+Summary:
+- Protocol: added FUNCTION_ID_FLIGHT_STICK_COLLECTIVE and FlightStickCollectiveConfig, with sizing in options and FunctionConfig wiring.
+- ESP32: reused FlightStickFunction for collective, wired config handling and element registration in Main.cpp.
+- SimHub: collective support in function defaults, FlightStickConfigControl, function list, and aircraft FFB profile persistence.
+- Async/out-of-order dependency: not applicable (config-driven behavior).
+Key files:
+- `proto/diy_ffb_protocol.proto`
+- `proto/diy_ffb_protocol.options`
+- `ESP32/include/FlightStickFunction.h`
+- `ESP32/src/FlightStickFunction.cpp`
+- `ESP32/src/Main.cpp`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FunctionConfigControl.xaml.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+Open items:
+- Regenerate `SimHubPlugin/DiyFfbProtocol.cs` and firmware nanopb outputs from the updated proto.
+
+## 2026-01-17 19:18:43 +01:00 (DESKTOP-6KO022D)
+Request: read project .md files to sync after work on another machine.
+Summary:
+- Reviewed `AGENTS.md` rules and scanned recent entries in `CONVERSATION_LOG.md` for continuity.
+- Async/out-of-order dependency: not applicable (status sync).
+Key files:
+- `AGENTS.md`
+- `CONVERSATION_LOG.md`
+Open items:
+- None.
+
 ## 2026-01-17 02:40:12 +01:00 (DESKTOP-6KO022D)
 Request: confirm log spacing fix via negative margins.
 Summary:

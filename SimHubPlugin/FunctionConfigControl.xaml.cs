@@ -92,6 +92,9 @@ namespace User.PluginSdkDemo
                 case FunctionID.FlightStickRoll:
                     new_config.FlightStickRoll = FlightStickConfigControl.GetDefaultRollConfig();
                     break;
+                case FunctionID.FlightStickCollective:
+                    new_config.FlightStickCollective = FlightStickConfigControl.GetDefaultCollectiveConfig();
+                    break;
                 case FunctionID.Shifter:
                     new_config.Shifter = ShifterConfigControl.GetDefaultConfig();
                     new_config.AuxFunction = ShifterConfigControl.GetDefaultDetectConfig();
@@ -183,6 +186,10 @@ namespace User.PluginSdkDemo
                     tc_specific_function.SelectedIndex = 2;
                     break;
                 case FunctionID.FlightStickRoll:
+                    FlightStickConfig.SwitchFunction(function);
+                    tc_specific_function.SelectedIndex = 2;
+                    break;
+                case FunctionID.FlightStickCollective:
                     FlightStickConfig.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 2;
                     break;

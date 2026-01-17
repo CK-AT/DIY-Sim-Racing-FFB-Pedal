@@ -40,6 +40,7 @@ AutomotivePedalFunction automotive_pedal_function = {};
 FlightPedalsFunction flight_pedals_function = {};
 FlightStickFunction flight_stick_pitch_function = {};
 FlightStickFunction flight_stick_roll_function = {};
+FlightStickFunction flight_stick_collective_function = {};
 RudderBrake rudder_brake = {};
 ShifterDetect shifter_detect = {};
 ShifterFunction shifter_function = {};
@@ -252,6 +253,10 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
                 flight_stick_roll_function.update_config(function_cfg->specific.flight_stick_roll);
                 active_function = &flight_stick_roll_function;
                 break;
+            case FunctionConfig_flight_stick_collective_tag:
+                flight_stick_collective_function.update_config(function_cfg->specific.flight_stick_collective);
+                active_function = &flight_stick_collective_function;
+                break;
             case FunctionConfig_shifter_tag:
                 shifter_function.update_config(function_cfg->specific.shifter, function_cfg->aux_function.specific.shifter_detect, comm_manager, function_cfg->base.linked_axes);
                 active_function = &shifter_function;
@@ -385,6 +390,7 @@ void setup() {
         function_elements.add_element(&flight_pedals_function);
         function_elements.add_element(&flight_stick_pitch_function);
         function_elements.add_element(&flight_stick_roll_function);
+        function_elements.add_element(&flight_stick_collective_function);
         function_elements.add_element(&shifter_function);
         sim.add_element(&static_balancer);
         sim.add_element(&function_elements);

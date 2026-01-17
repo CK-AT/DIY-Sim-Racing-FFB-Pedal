@@ -157,7 +157,7 @@ namespace User.PluginSdkDemo
             uc_function_config.SetGui(this, plugin);
             uc_axis_config.SetGui(this, plugin);
 
-            for (FunctionID id = FunctionID.BrakePedal; id <= FunctionID.Shifter; id++)
+            for (FunctionID id = FunctionID.BrakePedal; id <= FunctionID.FlightStickCollective; id++)
             {
                 Function function = new Function(id);
                 function.Config = FunctionConfigControl.GetDefaultConfig(id);
@@ -402,8 +402,48 @@ namespace User.PluginSdkDemo
             {
                 TextBox_XPlanePort.Text = Plugin.Settings.XPlaneUdpPort.ToString();
             }
+            InitializeXPlaneRotorSelector();
 
             UpdateActiveAircraftLabel(null, null);
+        }
+
+        private bool updatingXPlaneRotor;
+
+        private void InitializeXPlaneRotorSelector()
+        {
+            if (ComboBox_XPlaneRotor == null)
+            {
+                return;
+            }
+            ComboBox_XPlaneRotor.Items.Clear();
+            ComboBox_XPlaneRotor.Items.Add("Auto");
+            for (int idx = 1; idx <= 4; idx++)
+            {
+                ComboBox_XPlaneRotor.Items.Add($"Rotor {idx}");
+            }
+            RefreshXPlaneRotorSelection();
+        }
+
+        public void RefreshXPlaneRotorSelection()
+        {
+            if (ComboBox_XPlaneRotor == null || Plugin?.Settings == null)
+            {
+                return;
+            }
+            updatingXPlaneRotor = true;
+            int rotorIndex = Plugin.Settings.XPlaneRotorIndex;
+            ComboBox_XPlaneRotor.SelectedIndex = rotorIndex < 0 ? 0 : rotorIndex + 1;
+            updatingXPlaneRotor = false;
+        }
+
+        private void ComboBox_XPlaneRotor_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (updatingXPlaneRotor || Plugin?.Settings == null || ComboBox_XPlaneRotor == null)
+            {
+                return;
+            }
+            int selected = ComboBox_XPlaneRotor.SelectedIndex;
+            Plugin.Settings.XPlaneRotorIndex = selected <= 0 ? -1 : selected - 1;
         }
 
         private void UpdateSerialPortList_click(object sender, RoutedEventArgs e)

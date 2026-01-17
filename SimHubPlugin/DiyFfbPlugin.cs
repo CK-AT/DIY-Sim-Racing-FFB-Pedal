@@ -85,8 +85,9 @@ namespace User.PluginSdkDemo
         private Timer gatewayReconnectTimer;
         private int gatewayReconnectBusy = 0;
         private const uint XPlanePacketMagic = 0x46464244;
-        private const ushort XPlanePacketVersion = 1;
-        private const int XPlanePacketSizeBytes = 72;
+        private const ushort XPlanePacketVersion = 2;
+        private const int XPlaneMaxRotors = 4;
+        private const int XPlanePacketSizeBytes = 120;
         private readonly object xplaneLock = new object();
         private UdpClient xplaneUdpClient;
         private Thread xplaneUdpThread;
@@ -99,6 +100,7 @@ namespace User.PluginSdkDemo
         private float xplaneTrimPitchMm;
         private float xplaneTrimRollMm;
         private float xplaneTrimRudderMm;
+        private float xplaneTrimCollectiveMm;
         private DateTime xplaneTrimUtc = DateTime.MinValue;
         private string activeCarId;
         private string activeCarName;
@@ -134,6 +136,9 @@ namespace User.PluginSdkDemo
             public float AilTrimDeg;
             public float RudTrimDeg;
             public float GNrml;
+            public float[] TorqueNm = new float[XPlaneMaxRotors];
+            public float[] OmegaRad = new float[XPlaneMaxRotors];
+            public float[] PropRatio = new float[XPlaneMaxRotors];
             public bool OnGround;
             public DateTime ReceivedUtc;
         }
@@ -944,9 +949,22 @@ namespace User.PluginSdkDemo
                 AilTrimDeg = ReadSingle(data, ref offset),
                 RudTrimDeg = ReadSingle(data, ref offset),
                 GNrml = ReadSingle(data, ref offset),
-                OnGround = ReadByte(data, ref offset) != 0,
                 ReceivedUtc = DateTime.UtcNow
             };
+            for (int idx = 0; idx < XPlaneMaxRotors; idx++)
+            {
+                packet.TorqueNm[idx] = ReadSingle(data, ref offset);
+            }
+            for (int idx = 0; idx < XPlaneMaxRotors; idx++)
+            {
+                packet.OmegaRad[idx] = ReadSingle(data, ref offset);
+            }
+            for (int idx = 0; idx < XPlaneMaxRotors; idx++)
+            {
+                packet.PropRatio[idx] = ReadSingle(data, ref offset);
+            }
+            packet.OnGround = ReadByte(data, ref offset) != 0;
+            offset += 3;
 
             lock (xplaneLock)
             {
@@ -1021,9 +1039,11 @@ namespace User.PluginSdkDemo
             float pitchTrim = 0.0f;
             float rollTrim = 0.0f;
             float pedalsTrim = 0.0f;
+            float collectiveTrim = 0.0f;
             float pitchTrimOnly = 0.0f;
             float rollTrimOnly = 0.0f;
             float pedalsTrimOnly = 0.0f;
+            float collectiveTrimOnly = 0.0f;
 
             if (IsXPlaneFfbEnabled(FunctionID.FlightStickPitch))
             {
@@ -1035,7 +1055,7 @@ namespace User.PluginSdkDemo
                 pitchTrimOnly = packet.ElevTrimDeg * pitchParams.TrimMmPerDeg;
                 float pitchVane = pitchParams.WeathervaneGain * pitchScale * packet.AlphaDeg;
                 pitchTrim = pitchTrimOnly - pitchVane;
-                SendFlightFfb(FunctionID.FlightStickPitch, pitchSpring, pitchDamper, pitchTrim, pitchBuffet);
+                SendFlightFfb(FunctionID.FlightStickPitch, pitchSpring, pitchDamper, pitchTrim, pitchBuffet, 0.0f);
             }
 
             if (IsXPlaneFfbEnabled(FunctionID.FlightStickRoll))
@@ -1047,7 +1067,7 @@ namespace User.PluginSdkDemo
                 float rollBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, rollParams.BuffetStartDeg, rollParams.BuffetFullDeg, rollParams.BuffetGain, rollScale);
                 rollTrimOnly = packet.AilTrimDeg * rollParams.TrimMmPerDeg;
                 rollTrim = rollTrimOnly;
-                SendFlightFfb(FunctionID.FlightStickRoll, rollSpring, rollDamper, rollTrim, rollBuffet);
+                SendFlightFfb(FunctionID.FlightStickRoll, rollSpring, rollDamper, rollTrim, rollBuffet, 0.0f);
             }
 
             if (IsXPlaneFfbEnabled(FunctionID.FlightPedals))
@@ -1060,7 +1080,25 @@ namespace User.PluginSdkDemo
                 pedalsTrimOnly = packet.RudTrimDeg * pedalsParams.TrimMmPerDeg;
                 float pedalsVane = pedalsParams.WeathervaneGain * pedalsScale * packet.BetaDeg;
                 pedalsTrim = pedalsTrimOnly - pedalsVane;
-                SendFlightFfb(FunctionID.FlightPedals, pedalsSpring, pedalsDamper, pedalsTrim, pedalsBuffet);
+                SendFlightFfb(FunctionID.FlightPedals, pedalsSpring, pedalsDamper, pedalsTrim, pedalsBuffet, 0.0f);
+            }
+
+            if (IsXPlaneFfbEnabled(FunctionID.FlightStickCollective))
+            {
+                XPlaneFfbParams collectiveParams = GetXPlaneFfbParams(FunctionID.FlightStickCollective);
+                int rotorIndex = ResolveXPlaneRotorIndex(packet);
+                float torqueNm = packet.TorqueNm[rotorIndex];
+                float omegaRad = packet.OmegaRad[rotorIndex];
+                float propRatio = packet.PropRatio[rotorIndex];
+                float omegaRpm = omegaRad * 60.0f / (float)(2.0 * Math.PI);
+                float nominalRpm = Math.Max(collectiveParams.VrefKts, 1.0f);
+                float omegaScale = omegaRpm / nominalRpm;
+                float collectiveDamper = collectiveParams.Krate * omegaScale;
+                float gScale = Math.Max(0.0f, packet.GNrml);
+                float collectiveLoadForce = collectiveParams.Kq * torqueNm * gScale;
+                collectiveTrimOnly = (propRatio - 0.5f) * collectiveParams.TrimMmPerDeg;
+                collectiveTrim = collectiveTrimOnly;
+                SendFlightFfb(FunctionID.FlightStickCollective, 0.0f, collectiveDamper, collectiveTrim, 0.0f, collectiveLoadForce);
             }
 
             lock (xplaneLock)
@@ -1068,11 +1106,36 @@ namespace User.PluginSdkDemo
                 xplaneTrimPitchMm = pitchTrimOnly;
                 xplaneTrimRollMm = rollTrimOnly;
                 xplaneTrimRudderMm = pedalsTrimOnly;
+                xplaneTrimCollectiveMm = collectiveTrimOnly;
                 xplaneTrimUtc = packet.ReceivedUtc;
             }
         }
 
-        private void SendFlightFfb(FunctionID functionId, float kSpring, float kDamper, float trimOffset, float buffetAmp)
+        private int ResolveXPlaneRotorIndex(XPlaneUdpPacket packet)
+        {
+            if (Settings == null)
+            {
+                return 0;
+            }
+            if (Settings.XPlaneRotorIndex >= 0 && Settings.XPlaneRotorIndex < XPlaneMaxRotors)
+            {
+                return Settings.XPlaneRotorIndex;
+            }
+            int bestIndex = 0;
+            float bestTorque = Math.Abs(packet.TorqueNm[0]);
+            for (int idx = 1; idx < XPlaneMaxRotors; idx++)
+            {
+                float torque = Math.Abs(packet.TorqueNm[idx]);
+                if (torque > bestTorque)
+                {
+                    bestTorque = torque;
+                    bestIndex = idx;
+                }
+            }
+            return bestIndex;
+        }
+
+        private void SendFlightFfb(FunctionID functionId, float kSpring, float kDamper, float trimOffset, float buffetAmp, float loadForce)
         {
             Message msg = new Message
             {
@@ -1084,7 +1147,8 @@ namespace User.PluginSdkDemo
                         KSpring = kSpring,
                         KDamper = kDamper,
                         TrimOffset = trimOffset,
-                        BuffetAmp = buffetAmp
+                        BuffetAmp = buffetAmp,
+                        LoadForce = loadForce
                     }
                 }
             };
@@ -1121,6 +1185,9 @@ namespace User.PluginSdkDemo
                         return true;
                     case FunctionID.FlightStickRoll:
                         trimMm = xplaneTrimRollMm;
+                        return true;
+                    case FunctionID.FlightStickCollective:
+                        trimMm = xplaneTrimCollectiveMm;
                         return true;
                     case FunctionID.FlightPedals:
                         trimMm = xplaneTrimRudderMm;
@@ -1343,6 +1410,7 @@ namespace User.PluginSdkDemo
                 ui.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     ui.RefreshXPlaneFfbSettings();
+                    ui.RefreshXPlaneRotorSelection();
                     ui.UpdateActiveAircraftLabel(carName, carIdLabel);
                 }));
             }
@@ -1363,7 +1431,9 @@ namespace User.PluginSdkDemo
             var profile = new DiyFfbPluginSettings.AircraftFfbProfile();
             profile.FlightStickPitch.CopyFrom(GetFunctionSettings(FunctionID.FlightStickPitch));
             profile.FlightStickRoll.CopyFrom(GetFunctionSettings(FunctionID.FlightStickRoll));
+            profile.FlightStickCollective.CopyFrom(GetFunctionSettings(FunctionID.FlightStickCollective));
             profile.FlightPedals.CopyFrom(GetFunctionSettings(FunctionID.FlightPedals));
+            profile.XPlaneRotorIndex = Settings.XPlaneRotorIndex;
 
             Settings.AircraftFfbProfiles[carId] = profile;
         }
@@ -1384,7 +1454,9 @@ namespace User.PluginSdkDemo
             {
                 profile.FlightStickPitch.ApplyTo(GetFunctionSettings(FunctionID.FlightStickPitch));
                 profile.FlightStickRoll.ApplyTo(GetFunctionSettings(FunctionID.FlightStickRoll));
+                profile.FlightStickCollective.ApplyTo(GetFunctionSettings(FunctionID.FlightStickCollective));
                 profile.FlightPedals.ApplyTo(GetFunctionSettings(FunctionID.FlightPedals));
+                Settings.XPlaneRotorIndex = profile.XPlaneRotorIndex;
             }
             else
             {
@@ -1412,6 +1484,10 @@ namespace User.PluginSdkDemo
             Settings.AircraftFfbProfiles[carId] = profile;
             ApplyAircraftProfile(carId);
             ApplyFfbProfileToCurrentSettings(profile);
+            ui?.Dispatcher?.BeginInvoke(new Action(() =>
+            {
+                ui.RefreshXPlaneRotorSelection();
+            }));
         }
 
         public void ApplyFfbProfileToCurrentSettings(DiyFfbPluginSettings.AircraftFfbProfile profile)
@@ -1423,7 +1499,9 @@ namespace User.PluginSdkDemo
 
             profile.FlightStickPitch?.ApplyTo(GetFunctionSettings(FunctionID.FlightStickPitch));
             profile.FlightStickRoll?.ApplyTo(GetFunctionSettings(FunctionID.FlightStickRoll));
+            profile.FlightStickCollective?.ApplyTo(GetFunctionSettings(FunctionID.FlightStickCollective));
             profile.FlightPedals?.ApplyTo(GetFunctionSettings(FunctionID.FlightPedals));
+            Settings.XPlaneRotorIndex = profile.XPlaneRotorIndex;
         }
 
         public void SetPendingFfbProfile(DiyFfbPluginSettings.AircraftFfbProfile profile)
