@@ -1491,6 +1491,10 @@ namespace User.PluginSdkDemo
                 }
 
                 ESPsync_serialPort.Open();
+                if (ui != null)
+                {
+                    ui.NotifyGatewayPortAutoConnected(portName);
+                }
             }
             catch (Exception)
             {

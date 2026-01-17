@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using ProtbufTest;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.IO.Compression;
 using System.IO.Ports;
@@ -17,6 +18,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Data;
 using vJoyInterfaceWrap;
 using Windows.UI.Notifications;
 
@@ -37,16 +39,24 @@ namespace User.PluginSdkDemo
         public SortedDictionary<FunctionID, Function> functions { get; } = new SortedDictionary<FunctionID, Function>();
         public Dictionary<AxisID, FunctionID> last_known_functions { get; } = new Dictionary<AxisID, FunctionID>();
         public System.Collections.ObjectModel.ObservableCollection<OtaTargetEntry> ota_targets { get; } = new System.Collections.ObjectModel.ObservableCollection<OtaTargetEntry>();
+        public System.Collections.ObjectModel.ObservableCollection<UiLogEntry> UiLogEntries { get; } = new System.Collections.ObjectModel.ObservableCollection<UiLogEntry>();
+        public System.Collections.ObjectModel.ObservableCollection<LogSourceFilterItem> LogSourceFilters { get; } = new System.Collections.ObjectModel.ObservableCollection<LogSourceFilterItem>();
+        public ICollectionView UiLogView { get; }
         private readonly Dictionary<AxisID, OtaTargetEntry> ota_axis_targets = new Dictionary<AxisID, OtaTargetEntry>();
         private readonly Dictionary<GatewayID, OtaTargetEntry> ota_gateway_targets = new Dictionary<GatewayID, OtaTargetEntry>();
         private readonly Dictionary<AxisID, string> ota_axis_logs = new Dictionary<AxisID, string>();
         private readonly Dictionary<GatewayID, string> ota_gateway_logs = new Dictionary<GatewayID, string>();
+        private readonly Dictionary<string, LogSourceFilterItem> logSourceFilterLookup = new Dictionary<string, LogSourceFilterItem>();
         private readonly Dictionary<AxisID, string> ota_axis_versions = new Dictionary<AxisID, string>();
         private readonly Dictionary<GatewayID, string> ota_gateway_versions = new Dictionary<GatewayID, string>();
         private GatewayID last_gateway_id = GatewayID.GatewayUndefined;
+        private readonly HashSet<AxisID> seenAxisSources = new HashSet<AxisID>();
+        private readonly HashSet<GatewayID> seenGatewaySources = new HashSet<GatewayID>();
         private OtaSelectionDialog otaSelectionDialog;
         private CancellationTokenSource otaUpdateCancellation;
         private bool otaAclWarned;
+        private bool suppressSerialPortSelectionChange;
+        private ProtobufSerial<Message> attachedGatewayPort;
 
         internal vJoyInterfaceWrap.vJoy joystick;
 
@@ -60,6 +70,7 @@ namespace User.PluginSdkDemo
 
         private bool PersistConfig => persistConfigModifier;
 
+        private const int UiLogMaxEntries = 200;
         private const int MaxWifiCredentialLength = 63;
         private const string OtaInfoUrlDefault = "https://github.com/CK-AT/DIY-Sim-Racing-FFB-Pedal/raw/refs/heads/main/OTA/update_info.json";
 
@@ -69,9 +80,69 @@ namespace User.PluginSdkDemo
         private LoadSelectionDialog loadSelectionDialog;
         private AxisRequestQueue axisRequestQueue;
 
+        private enum UiLogLevel
+        {
+            Info,
+            Warning,
+            Error,
+            Debug
+        }
+
+        public enum UiLogSourceKind
+        {
+            Plugin,
+            Gateway,
+            Axis
+        }
+
+        public sealed class LogSourceFilterItem : INotifyPropertyChanged
+        {
+            private bool isSelected;
+
+            public UiLogSourceKind Kind { get; }
+            public int? Id { get; }
+            public string Label { get; }
+
+            public bool IsSelected
+            {
+                get => isSelected;
+                set
+                {
+                    if (isSelected == value)
+                    {
+                        return;
+                    }
+                    isSelected = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+                }
+            }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+
+            public LogSourceFilterItem(UiLogSourceKind kind, int? id, string label, bool isSelected)
+            {
+                Kind = kind;
+                Id = id;
+                Label = label;
+                this.isSelected = isSelected;
+            }
+        }
+
+        public sealed class UiLogEntry
+        {
+            public string Time { get; set; } = string.Empty;
+            public string Level { get; set; } = string.Empty;
+            public string Source { get; set; } = string.Empty;
+            public string Message { get; set; } = string.Empty;
+            public UiLogSourceKind SourceKind { get; set; }
+            public int? SourceId { get; set; }
+        }
+
         public DiyFfbPluginUI()
         {
             InitializeComponent();
+            UiLogView = CollectionViewSource.GetDefaultView(UiLogEntries);
+            UiLogView.Filter = FilterLogEntry;
         }
 
         public DiyFfbPluginUI(DiyFfbPlugin plugin) : this()
@@ -105,11 +176,14 @@ namespace User.PluginSdkDemo
             axisRequestQueue = new AxisRequestQueue(this);
 
             UpdateUploadButtonLabels();
+            InitializeLogSourceFilters();
 
             UpdateSerialPortList();
             InitializeSystemSettings();
 
-            if (Plugin.Settings.Pedal_ESPNow_auto_connect_flag && !string.IsNullOrWhiteSpace(Plugin.Settings.ESPNow_port))
+            if (Plugin.Settings.Pedal_ESPNow_auto_connect_flag
+                && !string.IsNullOrWhiteSpace(Plugin.Settings.ESPNow_port)
+                && SerialPort.GetPortNames().Any(port => string.Equals(port, Plugin.Settings.ESPNow_port, StringComparison.OrdinalIgnoreCase)))
             {
                 ConnectToPort(Plugin.Settings.ESPNow_port);
             }
@@ -130,6 +204,46 @@ namespace User.PluginSdkDemo
                 return axis.Config?.KinematicParameters;
             }
             return null;
+        }
+
+        public void NotifyGatewayPortAutoConnected(string portName)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.Invoke(() => NotifyGatewayPortAutoConnected(portName));
+                return;
+            }
+
+            UpdateSerialPortList();
+
+            if (Plugin?.ESPsync_serialPort == null)
+            {
+                return;
+            }
+
+            if (attachedGatewayPort != Plugin.ESPsync_serialPort)
+            {
+                if (attachedGatewayPort != null)
+                {
+                    attachedGatewayPort.OnMessage -= OnMessage;
+                }
+                Plugin.ESPsync_serialPort.OnMessage += OnMessage;
+                attachedGatewayPort = Plugin.ESPsync_serialPort;
+            }
+
+            if (SerialPortSelection_ESPNow != null && !string.IsNullOrWhiteSpace(portName))
+            {
+                suppressSerialPortSelectionChange = true;
+                SerialPortSelection_ESPNow.SelectedItem = portName;
+                suppressSerialPortSelectionChange = false;
+            }
+
+            if (Plugin.ESPsync_serialPort.IsOpen)
+            {
+                Label_Status.Text = "Connected";
+                btn_connect_espnow_port.Content = "Disconnect";
+                SetDebugOutput($"Auto-connected to {portName}.");
+            }
         }
 
         private void InitializeVjoyIfEnabled()
@@ -196,16 +310,22 @@ namespace User.PluginSdkDemo
                 return;
             }
 
+            suppressSerialPortSelectionChange = true;
             SerialPortSelection_ESPNow.ItemsSource = ports;
 
             if (Plugin != null && !string.IsNullOrWhiteSpace(Plugin.Settings.ESPNow_port) && ports.Contains(Plugin.Settings.ESPNow_port))
             {
                 SerialPortSelection_ESPNow.SelectedItem = Plugin.Settings.ESPNow_port;
             }
-            else
+            else if (ports.Count == 1 && ports[0] == "NA")
             {
                 SerialPortSelection_ESPNow.SelectedIndex = 0;
             }
+            else
+            {
+                SerialPortSelection_ESPNow.SelectedIndex = -1;
+            }
+            suppressSerialPortSelectionChange = false;
         }
 
         private void InitializeSystemSettings()
@@ -314,19 +434,19 @@ namespace User.PluginSdkDemo
 
             if (totalCount == 0)
             {
-                TextBox_debugOutput.Text = "Restart: No axes configured.";
+                SetDebugOutput("Restart: No axes configured.", UiLogLevel.Warning);
             }
             else if (sentCount == 0)
             {
-                TextBox_debugOutput.Text = "Restart: No axes reachable.";
+                SetDebugOutput("Restart: No axes reachable.", UiLogLevel.Warning);
             }
             else if (sentCount == totalCount)
             {
-                TextBox_debugOutput.Text = $"Restart: Sent to {sentCount} axes.";
+                SetDebugOutput($"Restart: Sent to {sentCount} axes.");
             }
             else
             {
-                TextBox_debugOutput.Text = $"Restart: Sent to {sentCount} of {totalCount} axes.";
+                SetDebugOutput($"Restart: Sent to {sentCount} of {totalCount} axes.");
             }
         }
 
@@ -339,8 +459,16 @@ namespace User.PluginSdkDemo
 
             if (SerialPortSelection_ESPNow.SelectedItem is string portName)
             {
+                if (suppressSerialPortSelectionChange)
+                {
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(portName) || portName == "NA")
+                {
+                    return;
+                }
                 Plugin.Settings.ESPNow_port = portName;
-                TextBox_debugOutput.Text = $"Gateway port selected: {portName}";
+                SetDebugOutput($"Gateway port selected: {portName}");
             }
         }
 
@@ -630,7 +758,7 @@ namespace User.PluginSdkDemo
                 else
                 {
                     UpdateOtaInfoReadout("-", "-", "-");
-                    TextBox_debugOutput.Text = error;
+                    SetDebugOutput(error, UiLogLevel.Error);
                 }
             }
         }
@@ -678,7 +806,7 @@ namespace User.PluginSdkDemo
                 else
                 {
                     UpdateOtaInfoReadout("-", "-", "-");
-                    TextBox_debugOutput.Text = error;
+                    SetDebugOutput(error, UiLogLevel.Error);
                 }
             }
         }
@@ -871,10 +999,7 @@ namespace User.PluginSdkDemo
                 otaSelectionDialog.AppendLog(message);
             }
 
-            if (TextBox_debugOutput != null)
-            {
-                TextBox_debugOutput.Text = message;
-            }
+            SetDebugOutput(message);
         }
 
         private void ShowCopyableMessage(string title, string message)
@@ -967,7 +1092,7 @@ namespace User.PluginSdkDemo
         {
             if (Plugin == null || Plugin.ESPsync_serialPort == null || !Plugin.ESPsync_serialPort.IsOpen)
             {
-                TextBox_debugOutput.Text = "Connect the gateway before starting OTA.";
+                SetDebugOutput("Connect the gateway before starting OTA.", UiLogLevel.Warning);
                 return;
             }
 
@@ -1258,7 +1383,7 @@ namespace User.PluginSdkDemo
 
             if (string.IsNullOrWhiteSpace(portName) || portName == "NA")
             {
-                TextBox_debugOutput.Text = "Select a valid port before connecting.";
+                SetDebugOutput("Select a valid port before connecting.", UiLogLevel.Warning);
                 return;
             }
 
@@ -1271,13 +1396,13 @@ namespace User.PluginSdkDemo
                 Plugin.ESPsync_serialPort.Open();
                 Label_Status.Text = "Connected";
                 btn_connect_espnow_port.Content = "Disconnect";
-                TextBox_debugOutput.Text = $"Connected to {portName}.";
+                SetDebugOutput($"Connected to {portName}.");
             }
             catch (Exception ex)
             {
                 Label_Status.Text = "Disconnected";
                 btn_connect_espnow_port.Content = "Connect";
-                TextBox_debugOutput.Text = $"Failed to connect to {portName}: {ex.Message}";
+                SetDebugOutput($"Failed to connect to {portName}: {ex.Message}", UiLogLevel.Error);
             }
         }
 
@@ -1298,7 +1423,7 @@ namespace User.PluginSdkDemo
             }
             catch (Exception ex)
             {
-                TextBox_debugOutput.Text = $"Disconnect failed: {ex.Message}";
+                SetDebugOutput($"Disconnect failed: {ex.Message}", UiLogLevel.Error);
             }
 
             foreach (Axis axis in axes.Values)
@@ -1414,7 +1539,154 @@ namespace User.PluginSdkDemo
 
         private void OnDebugMessage(string message)
         {
-            TextBox_debugOutput.Text = message;
+            SetDebugOutput(message, UiLogLevel.Debug);
+        }
+
+        private void btn_clear_log_Click(object sender, RoutedEventArgs e)
+        {
+            ClearUiLog();
+        }
+
+        private void InitializeLogSourceFilters()
+        {
+            AddLogSourceFilter(UiLogSourceKind.Plugin, null, "Plugin");
+        }
+
+        private void AddLogSourceFilter(UiLogSourceKind kind, int? id, string label)
+        {
+            string key = GetSourceKey(kind, id);
+            if (logSourceFilterLookup.ContainsKey(key))
+            {
+                return;
+            }
+
+            var item = new LogSourceFilterItem(kind, id, label, true);
+            item.PropertyChanged += OnLogSourceFilterChanged;
+            logSourceFilterLookup[key] = item;
+            int insertIndex = 0;
+            int itemRank = GetLogSourceSortRank(kind, id);
+            while (insertIndex < LogSourceFilters.Count)
+            {
+                var existing = LogSourceFilters[insertIndex];
+                if (GetLogSourceSortRank(existing.Kind, existing.Id) > itemRank)
+                {
+                    break;
+                }
+                insertIndex++;
+            }
+            LogSourceFilters.Insert(insertIndex, item);
+        }
+
+        private void OnLogSourceFilterChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(LogSourceFilterItem.IsSelected))
+            {
+                UiLogView?.Refresh();
+            }
+        }
+
+        private bool FilterLogEntry(object entry)
+        {
+            if (entry is UiLogEntry logEntry)
+            {
+                if (LogSourceFilters.Count == 0)
+                {
+                    return true;
+                }
+
+                string key = GetSourceKey(logEntry.SourceKind, logEntry.SourceId);
+                if (logSourceFilterLookup.TryGetValue(key, out LogSourceFilterItem filterItem))
+                {
+                    return filterItem.IsSelected;
+                }
+            }
+
+            return true;
+        }
+
+        private static string GetSourceKey(UiLogSourceKind kind, int? id)
+        {
+            return id.HasValue ? $"{kind}:{id.Value}" : $"{kind}";
+        }
+
+        private static int GetLogSourceSortRank(UiLogSourceKind kind, int? id)
+        {
+            int kindRank = kind == UiLogSourceKind.Plugin ? 0 : kind == UiLogSourceKind.Gateway ? 1 : 2;
+            int idRank = id ?? -1;
+            return (kindRank * 100) + idRank;
+        }
+
+        private void ClearUiLog()
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.Invoke(ClearUiLog);
+                return;
+            }
+
+            UiLogEntries.Clear();
+        }
+
+        private void SetDebugOutput(string message, UiLogLevel level = UiLogLevel.Info)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.Invoke(() => SetDebugOutput(message, level));
+                return;
+            }
+
+            string resolvedMessage = (message ?? string.Empty).TrimEnd('\r', '\n');
+            if (TextBlock_Status != null)
+            {
+                TextBlock_Status.Text = resolvedMessage;
+            }
+
+            if (string.IsNullOrWhiteSpace(resolvedMessage))
+            {
+                return;
+            }
+
+            AppendUiLog(resolvedMessage, level, UiLogSourceKind.Plugin, null);
+        }
+
+        private void AppendUiLog(string message, UiLogLevel level, UiLogSourceKind sourceKind, int? sourceId)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.Invoke(() => AppendUiLog(message, level, sourceKind, sourceId));
+                return;
+            }
+
+            var entry = new UiLogEntry
+            {
+                Time = DateTime.Now.ToString("HH:mm:ss"),
+                Level = level.ToString().ToUpperInvariant(),
+                Source = BuildSourceLabel(sourceKind, sourceId),
+                Message = (message ?? string.Empty).TrimEnd('\r', '\n')
+            };
+            entry.SourceKind = sourceKind;
+            entry.SourceId = sourceId;
+
+            UiLogEntries.Add(entry);
+            while (UiLogEntries.Count > UiLogMaxEntries)
+            {
+                UiLogEntries.RemoveAt(0);
+            }
+
+            ListBox_UiLog?.ScrollIntoView(entry);
+        }
+
+        private static string BuildSourceLabel(UiLogSourceKind kind, int? id)
+        {
+            switch (kind)
+            {
+                case UiLogSourceKind.Gateway:
+                    return id.HasValue ? $"Gateway {id.Value}" : "Gateway";
+                case UiLogSourceKind.Axis:
+                    return id.HasValue ? $"Axis {id.Value}" : "Axis";
+                default:
+                    return "Plugin";
+            }
         }
 
         private void OnKinematicParametersChanged(KinematicParameters parameters)
@@ -1439,6 +1711,11 @@ namespace User.PluginSdkDemo
             if (ota_axis_targets.TryGetValue(axis_id, out OtaTargetEntry entry))
             {
                 entry.IsOnline = new_online_state;
+            }
+
+            if (new_online_state && axis_id != AxisID.AxisUndefined && seenAxisSources.Add(axis_id))
+            {
+                AddLogSourceFilter(UiLogSourceKind.Axis, (int)axis_id, $"Axis {(int)axis_id}");
             }
         }
 
@@ -1485,11 +1762,13 @@ namespace User.PluginSdkDemo
                     OnFunctionConfigUpdate(msg.FunctionConfig);
                     break;
                 case Message.PayloadOneofCase.AxisLogMessage:
-                    AppendLog(BuildAxisLogLine(msg.AxisLogMessage));
+                    int? axisSourceId = msg.AxisLogMessage.AxisId != AxisID.AxisUndefined ? (int)msg.AxisLogMessage.AxisId : (int?)null;
+                    AppendUiLog(BuildAxisLogLine(msg.AxisLogMessage), MapLogLevel(msg.AxisLogMessage.Level), UiLogSourceKind.Axis, axisSourceId);
                     UpdateOtaAxisLog(msg.AxisLogMessage);
                     break;
                 case Message.PayloadOneofCase.GatewayLogMessage:
-                    AppendLog(BuildGatewayLogLine(msg.GatewayLogMessage));
+                    int? gatewaySourceId = msg.GatewayLogMessage.GatewayId != GatewayID.GatewayUndefined ? (int)msg.GatewayLogMessage.GatewayId : (int?)null;
+                    AppendUiLog(BuildGatewayLogLine(msg.GatewayLogMessage), MapLogLevel(msg.GatewayLogMessage.Level), UiLogSourceKind.Gateway, gatewaySourceId);
                     UpdateOtaGatewayLog(msg.GatewayLogMessage);
                     break;
                 case Message.PayloadOneofCase.DeviceInfo:
@@ -1532,12 +1811,12 @@ namespace User.PluginSdkDemo
         {
             if (axisId == AxisID.AxisUndefined)
             {
-                TextBox_debugOutput.Text = "Static balance: Axis ID undefined";
+                SetDebugOutput("Static balance: Axis ID undefined", UiLogLevel.Warning);
                 return;
             }
             if (!axes.TryGetValue(axisId, out Axis axis))
             {
-                TextBox_debugOutput.Text = $"Static balance: Axis {axisId} not found";
+                SetDebugOutput($"Static balance: Axis {axisId} not found", UiLogLevel.Warning);
                 return;
             }
             EnqueueAxisRequest(axisId, AxisRequestType.StaticBalanceCalibration, null);
@@ -1711,6 +1990,10 @@ namespace User.PluginSdkDemo
             if (state.GatewayId != GatewayID.GatewayUndefined)
             {
                 last_gateway_id = state.GatewayId;
+                if (seenGatewaySources.Add(state.GatewayId))
+                {
+                    AddLogSourceFilter(UiLogSourceKind.Gateway, (int)state.GatewayId, $"Gateway {(int)state.GatewayId}");
+                }
             }
             for (AxisID axisId = AxisID._1; axisId <= AxisID._8; axisId++)
             {
@@ -1733,28 +2016,29 @@ namespace User.PluginSdkDemo
 
         private string BuildAxisLogLine(AxisLogMessage msg)
         {
-            if (msg.AxisId != AxisID.AxisUndefined)
-            {
-                return $"A{(int)msg.AxisId} : {msg.Msg}";
-            }
-
-            return $"A? : {msg.Msg}";
+            return msg.Msg ?? string.Empty;
         }
 
         private string BuildGatewayLogLine(GatewayLogMessage msg)
         {
-            if (msg.GatewayId != GatewayID.GatewayUndefined)
-            {
-                return $"G{(int)msg.GatewayId} : {msg.Msg}";
-            }
-
-            return $"G? : {msg.Msg}";
+            return msg.Msg ?? string.Empty;
         }
 
-        private void AppendLog(string line)
+        private UiLogLevel MapLogLevel(LogLevel level)
         {
-            TextBox_Log.AppendText(line + Environment.NewLine);
-            TextBox_Log.ScrollToEnd();
+            switch (level)
+            {
+                case LogLevel.Debug:
+                    return UiLogLevel.Debug;
+                case LogLevel.Info:
+                    return UiLogLevel.Info;
+                case LogLevel.Warning:
+                    return UiLogLevel.Warning;
+                case LogLevel.Error:
+                    return UiLogLevel.Error;
+                default:
+                    return UiLogLevel.Info;
+            }
         }
 
         private void UpdateActiveFunction(ActiveFunction msg)
@@ -1776,7 +2060,7 @@ namespace User.PluginSdkDemo
         {
             if (selected_function_id == FunctionID.Undefined)
             {
-                TextBox_debugOutput.Text = "No function selected.";
+                SetDebugOutput("No function selected.", UiLogLevel.Warning);
                 return;
             }
 
@@ -1788,7 +2072,7 @@ namespace User.PluginSdkDemo
         {
             if (selected_function_id == FunctionID.Undefined)
             {
-                TextBox_debugOutput.Text = "No function selected.";
+                SetDebugOutput("No function selected.", UiLogLevel.Warning);
                 return;
             }
 
@@ -1819,12 +2103,12 @@ namespace User.PluginSdkDemo
 
             if (targetAxis == AxisID.AxisUndefined)
             {
-                TextBox_debugOutput.Text = "No axis available for function config download.";
+                SetDebugOutput("No axis available for function config download.", UiLogLevel.Warning);
                 return;
             }
             if (!axes.TryGetValue(targetAxis, out Axis targetAxisInfo) || !targetAxisInfo.IsOnline)
             {
-                TextBox_debugOutput.Text = $"Axis {(int)targetAxis} is offline.";
+                SetDebugOutput($"Axis {(int)targetAxis} is offline.", UiLogLevel.Warning);
                 return;
             }
             EnqueueAxisRequest(targetAxis, AxisRequestType.FunctionConfig, null);
@@ -1840,7 +2124,7 @@ namespace User.PluginSdkDemo
             FunctionID newFunctionId = newFunctionConfig.Base.FunctionId;
             if (newFunctionId == FunctionID.Undefined)
             {
-                TextBox_debugOutput.Text = "Function ID undefined (ignored)";
+                SetDebugOutput("Function ID undefined (ignored)", UiLogLevel.Warning);
                 return;
             }
 
@@ -1896,7 +2180,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
-                TextBox_debugOutput.Text = $"Invalid axis ID ({(int)newAxisId})";
+                SetDebugOutput($"Invalid axis ID ({(int)newAxisId})", UiLogLevel.Warning);
             }
         }
 
@@ -2057,7 +2341,7 @@ namespace User.PluginSdkDemo
         {
             if (selected_axis_id == AxisID.AxisUndefined)
             {
-                TextBox_debugOutput.Text = "No axis selected.";
+                SetDebugOutput("No axis selected.", UiLogLevel.Warning);
                 return;
             }
 
@@ -2068,12 +2352,12 @@ namespace User.PluginSdkDemo
         {
             if (selected_axis_id == AxisID.AxisUndefined)
             {
-                TextBox_debugOutput.Text = "No axis selected.";
+                SetDebugOutput("No axis selected.", UiLogLevel.Warning);
                 return;
             }
             if (!axes.TryGetValue(selected_axis_id, out Axis axis) || !axis.IsOnline)
             {
-                TextBox_debugOutput.Text = $"Axis {(int)selected_axis_id} is offline.";
+                SetDebugOutput($"Axis {(int)selected_axis_id} is offline.", UiLogLevel.Warning);
                 return;
             }
             EnqueueAxisRequest(selected_axis_id, AxisRequestType.AxisConfig, null);
@@ -2083,25 +2367,25 @@ namespace User.PluginSdkDemo
         {
             if (selected_axis_id == AxisID.AxisUndefined)
             {
-                TextBox_debugOutput.Text = "No axis selected.";
+                SetDebugOutput("No axis selected.", UiLogLevel.Warning);
                 return;
             }
             if (!axes.TryGetValue(selected_axis_id, out Axis axis))
             {
-                TextBox_debugOutput.Text = $"Axis {(int)selected_axis_id} not found.";
+                SetDebugOutput($"Axis {(int)selected_axis_id} not found.", UiLogLevel.Warning);
                 return;
             }
             if (!axis.IsOnline)
             {
-                TextBox_debugOutput.Text = $"Axis {(int)selected_axis_id} is offline.";
+                SetDebugOutput($"Axis {(int)selected_axis_id} is offline.", UiLogLevel.Warning);
                 return;
             }
             if (!SendAxisRequest(selected_axis_id, AxisRequestType.Homing, null))
             {
-                TextBox_debugOutput.Text = $"Axis {(int)selected_axis_id}: homing send failed.";
+                SetDebugOutput($"Axis {(int)selected_axis_id}: homing send failed.", UiLogLevel.Error);
                 return;
             }
-            TextBox_debugOutput.Text = $"Axis {(int)selected_axis_id}: homing started.";
+            SetDebugOutput($"Axis {(int)selected_axis_id}: homing started.");
         }
 
         private void btn_store_axis_config_to_file_Click(object sender, RoutedEventArgs e)

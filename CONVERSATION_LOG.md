@@ -2,6 +2,204 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-17 02:40:12 +01:00 (DESKTOP-6KO022D)
+Request: confirm log spacing fix via negative margins.
+Summary:
+- User noted negative top/bottom margins resolved the spacing; no code change applied in this step.
+- Async/out-of-order dependency: not applicable (status update).
+Key files:
+- None.
+Open items:
+- If needed, capture the exact margin values to bake into XAML.
+
+## 2026-01-17 02:38:31 +01:00 (DESKTOP-6KO022D)
+Request: reduce log row height to 6 px.
+Summary:
+- Dropped log font size to 6 px, set fixed 6 px height for fixed columns, and zeroed minimum heights.
+- Async/out-of-order dependency: not applicable (UI spacing).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+Open items:
+- None.
+
+## 2026-01-17 02:34:10 +01:00 (DESKTOP-6KO022D)
+Request: reduce log row height to 6 px.
+Summary:
+- Set the log row TextBox heights to 6 px for tighter spacing.
+- Async/out-of-order dependency: not applicable (UI layout).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+Open items:
+- None.
+
+## 2026-01-17 02:31:56 +01:00 (DESKTOP-6KO022D)
+Request: fix XAML errors from LineHeight/LineStackingStrategy on TextBox.
+Summary:
+- Removed unsupported LineHeight/LineStackingStrategy from log TextBoxes and tightened row height using fixed Height/VerticalContentAlignment.
+- Async/out-of-order dependency: not applicable (XAML fix).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+Open items:
+- None.
+
+## 2026-01-17 02:30:01 +01:00 (DESKTOP-6KO022D)
+Request: find origin of "Abort previous message, transmission in progress."
+Summary:
+- Located in isotp-c library used by the axis firmware; string includes a trailing newline.
+- Async/out-of-order dependency: not applicable (investigation).
+Key files:
+- `ESP32/.pio/libdeps/a6-servo-ffb-axis-controller-v10-ck-at/isotp-c/isotp.c`
+Open items:
+- None.
+
+## 2026-01-17 02:29:11 +01:00 (DESKTOP-6KO022D)
+Request: locate origin of "Abort previous message, transmission in progress."
+Summary:
+- Searched repo (SimHub + ESP32) for the exact text; no matches found, likely emitted by firmware or an external dependency.
+- Async/out-of-order dependency: not applicable (investigation).
+Key files:
+- None.
+Open items:
+- Confirm where the log line appears (gateway vs axis) to narrow down.
+
+## 2026-01-17 02:27:45 +01:00 (DESKTOP-6KO022D)
+Request: tighten log line spacing again after making lines selectable.
+Summary:
+- Set fixed line height and removed margins on log TextBoxes to reduce row height.
+- Async/out-of-order dependency: not applicable (UI spacing).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+Open items:
+- None.
+
+## 2026-01-17 02:25:05 +01:00 (DESKTOP-6KO022D)
+Request: make log lines selectable and remove stray trailing line breaks.
+Summary:
+- Switched log columns to read-only TextBoxes for selection and trimmed trailing newlines when adding log entries.
+- Async/out-of-order dependency: not applicable (UI presentation).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 02:16:49 +01:00 (DESKTOP-6KO022D)
+Request: normalize log line spacing.
+Summary:
+- Locked log row padding to zero and set a fixed line height for log columns to avoid uneven spacing.
+- Async/out-of-order dependency: not applicable (layout change).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+Open items:
+- None.
+
+## 2026-01-17 02:14:02 +01:00 (DESKTOP-6KO022D)
+Request: fix autoconnect when the port appears after SimHub starts.
+Summary:
+- UI now attaches the gateway message handler and updates connection state when auto-reconnect opens the port.
+- Async/out-of-order dependency: handled via auto-reconnect timer; UI attach is dispatched to the UI thread when the port becomes available.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 02:08:21 +01:00 (DESKTOP-6KO022D)
+Request: keep source checkboxes sorted (Plugin, Gateway, Axis) and prevent autoconnect fallback to COM1.
+Summary:
+- Source filters now insert in sorted order as they appear online; serial port list refresh no longer overwrites the saved ESPNow port when missing, and autoconnect only runs if the saved port exists.
+- Async/out-of-order dependency: not applicable (UI sorting and port selection).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 02:02:36 +01:00 (DESKTOP-6KO022D)
+Request: only show source filters for axes/gateways seen online; tighten log line spacing.
+Summary:
+- Filter list now adds axis/gateway sources only after they come online; log row spacing reduced.
+- Async/out-of-order dependency: not applicable (UI filtering and layout).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 01:53:49 +01:00 (DESKTOP-6KO022D)
+Request: add a source column and filtering for the log drawer.
+Summary:
+- Added per-entry source metadata (Plugin/Gateway/Axis), a source column, and filter checkboxes backed by a CollectionView filter.
+- Async/out-of-order dependency: not applicable (UI filtering).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 01:50:53 +01:00 (DESKTOP-6KO022D)
+Request: add source column and filtering for log entries.
+Summary:
+- Discussed approach: add Source to log entries, track per message (Plugin/Gateway/Axis), and filter via CollectionView.
+- Async/out-of-order dependency: not applicable (UI filtering).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- Decide desired filter UI (single select vs multi-select) and default visibility.
+
+## 2026-01-17 01:45:59 +01:00 (DESKTOP-6KO022D)
+Request: move the main UI gateway log into the new log drawer location.
+Summary:
+- Moved the log drawer UI from the axis tab into the system tab in place of the gateway log panel.
+- Async/out-of-order dependency: not applicable (UI relocation).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+Open items:
+- None.
+
+## 2026-01-17 01:43:24 +01:00 (DESKTOP-6KO022D)
+Request: replace main UI gateway log with the log drawer solution.
+Summary:
+- Removed the main UI Gateway Log TextBox and routed axis/gateway log messages into the new log drawer with level mapping.
+- Async/out-of-order dependency: not applicable (UI log routing).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 01:41:22 +01:00 (DESKTOP-6KO022D)
+Request: consider replacing the gateway log with the new log drawer approach.
+Summary:
+- Pending scope confirmation; need to know which log view to replace and whether to keep OTA dialog logs separate.
+- Async/out-of-order dependency: not applicable (UI-only decision).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- Confirm target log view and desired behavior.
+
+## 2026-01-17 01:17:07 +01:00 (DESKTOP-6KO022D)
+Request: replace TextBox_debugOutput with a usable log drawer (#2 option).
+Summary:
+- Added UI log drawer bindings (status line + capped log list) and centralized debug logging with severity levels.
+- Async/out-of-order dependency: not applicable (UI-only changes).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-17 01:05:34 +01:00 (DESKTOP-6KO022D)
+Request: improve debug logging beyond TextBox_debugOutput.
+Summary:
+- Logged request to design a more useful debug logging UX; awaiting scope/requirements.
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- Confirm desired log behavior (history, severity, filtering, export, etc.).
+
 ## 2026-01-17 01:00:44 +01:00 (DESKTOP-6KO022D)
 Request: stage layout tweaks; include dedicated download buttons and bump FW version in commit message.
 Summary:
