@@ -17,6 +17,7 @@ namespace User.PluginSdkDemo
         public const float DefaultXPlaneBuffetFullDeg = 18.0f;
         public const float DefaultXPlaneBuffetGain = 0.05f;
         public const float DefaultXPlaneVrefKts = 60.0f;
+        public const float DefaultXPlaneAeroMomentGain = 0.0f;
 
         public class FunctionFfbSettings
         {
@@ -29,6 +30,7 @@ namespace User.PluginSdkDemo
             public float XPlaneBuffetGain = DefaultXPlaneBuffetGain;
             public float XPlaneWeathervaneGain = 0.0f;
             public float XPlaneVrefKts = DefaultXPlaneVrefKts;
+            public float XPlaneAeroMomentGain = DefaultXPlaneAeroMomentGain;
 
             public void CopyFrom(FunctionSettings source)
             {
@@ -46,6 +48,7 @@ namespace User.PluginSdkDemo
                 XPlaneBuffetGain = source.XPlaneBuffetGain;
                 XPlaneWeathervaneGain = source.XPlaneWeathervaneGain;
                 XPlaneVrefKts = source.XPlaneVrefKts;
+                XPlaneAeroMomentGain = source.XPlaneAeroMomentGain;
             }
 
             public void ApplyTo(FunctionSettings target)
@@ -64,6 +67,7 @@ namespace User.PluginSdkDemo
                 target.XPlaneBuffetGain = XPlaneBuffetGain;
                 target.XPlaneWeathervaneGain = XPlaneWeathervaneGain;
                 target.XPlaneVrefKts = XPlaneVrefKts;
+                target.XPlaneAeroMomentGain = XPlaneAeroMomentGain;
             }
         }
 
@@ -109,6 +113,7 @@ namespace User.PluginSdkDemo
             public float XPlaneBuffetGain = DefaultXPlaneBuffetGain;
             public float XPlaneWeathervaneGain = 0.0f;
             public float XPlaneVrefKts = DefaultXPlaneVrefKts;
+            public float XPlaneAeroMomentGain = DefaultXPlaneAeroMomentGain;
             public bool XPlaneUsingVrefScaling = false;
         }
 

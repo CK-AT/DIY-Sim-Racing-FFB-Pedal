@@ -85,9 +85,9 @@ namespace User.PluginSdkDemo
         private Timer gatewayReconnectTimer;
         private int gatewayReconnectBusy = 0;
         private const uint XPlanePacketMagic = 0x46464244;
-        private const ushort XPlanePacketVersion = 2;
+        private const ushort XPlanePacketVersion = 3;
         private const int XPlaneMaxRotors = 4;
-        private const int XPlanePacketSizeBytes = 120;
+        private const int XPlanePacketSizeBytes = 132;
         private readonly object xplaneLock = new object();
         private UdpClient xplaneUdpClient;
         private Thread xplaneUdpThread;
@@ -120,6 +120,7 @@ namespace User.PluginSdkDemo
             public float BuffetGain;
             public float WeathervaneGain;
             public float VrefKts;
+            public float AeroMomentGain;
         }
 
         public struct XPlaneFfbDiagnostics
@@ -170,6 +171,9 @@ namespace User.PluginSdkDemo
             public float[] TorqueNm = new float[XPlaneMaxRotors];
             public float[] OmegaRad = new float[XPlaneMaxRotors];
             public float[] PropRatio = new float[XPlaneMaxRotors];
+            public float LAero;
+            public float MAero;
+            public float NAero;
             public bool OnGround;
             public DateTime ReceivedUtc;
         }
@@ -999,6 +1003,9 @@ namespace User.PluginSdkDemo
             {
                 packet.PropRatio[idx] = ReadSingle(data, ref offset);
             }
+            packet.LAero = ReadSingle(data, ref offset);
+            packet.MAero = ReadSingle(data, ref offset);
+            packet.NAero = ReadSingle(data, ref offset);
             packet.OnGround = ReadByte(data, ref offset) != 0;
             offset += 3;
 
@@ -1087,13 +1094,14 @@ namespace User.PluginSdkDemo
                 float pitchSpring = pitchParams.Kq * pitchScale;
                 float pitchDamper = pitchParams.Krate * pitchScale;
                 float pitchBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, pitchParams.BuffetStartDeg, pitchParams.BuffetFullDeg, pitchParams.BuffetGain, pitchScale);
+                float pitchLoadForce = pitchParams.AeroMomentGain * packet.MAero;
                 pitchTrimOnly = packet.ElevTrimDeg * pitchParams.TrimMmPerDeg;
                 float pitchVane = pitchParams.WeathervaneGain * pitchScale * packet.AlphaDeg;
                 pitchTrim = pitchTrimOnly - pitchVane;
-                UpdateXPlaneDiagnostics(FunctionID.FlightStickPitch, packet, pitchScale, pitchSpring, pitchDamper, pitchBuffet, packet.ElevTrimDeg, pitchTrim, pitchVane, 0.0f, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+                UpdateXPlaneDiagnostics(FunctionID.FlightStickPitch, packet, pitchScale, pitchSpring, pitchDamper, pitchBuffet, packet.ElevTrimDeg, pitchTrim, pitchVane, pitchLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
                 if (IsXPlaneFfbEnabled(FunctionID.FlightStickPitch))
                 {
-                    SendFlightFfb(FunctionID.FlightStickPitch, pitchSpring, pitchDamper, pitchTrim, pitchBuffet, 0.0f);
+                    SendFlightFfb(FunctionID.FlightStickPitch, pitchSpring, pitchDamper, pitchTrim, pitchBuffet, pitchLoadForce);
                 }
             }
 
@@ -1103,12 +1111,13 @@ namespace User.PluginSdkDemo
                 float rollSpring = rollParams.Kq * rollScale;
                 float rollDamper = rollParams.Krate * rollScale;
                 float rollBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, rollParams.BuffetStartDeg, rollParams.BuffetFullDeg, rollParams.BuffetGain, rollScale);
+                float rollLoadForce = rollParams.AeroMomentGain * packet.LAero;
                 rollTrimOnly = packet.AilTrimDeg * rollParams.TrimMmPerDeg;
                 rollTrim = rollTrimOnly;
-                UpdateXPlaneDiagnostics(FunctionID.FlightStickRoll, packet, rollScale, rollSpring, rollDamper, rollBuffet, packet.AilTrimDeg, rollTrim, 0.0f, 0.0f, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+                UpdateXPlaneDiagnostics(FunctionID.FlightStickRoll, packet, rollScale, rollSpring, rollDamper, rollBuffet, packet.AilTrimDeg, rollTrim, 0.0f, rollLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
                 if (IsXPlaneFfbEnabled(FunctionID.FlightStickRoll))
                 {
-                    SendFlightFfb(FunctionID.FlightStickRoll, rollSpring, rollDamper, rollTrim, rollBuffet, 0.0f);
+                    SendFlightFfb(FunctionID.FlightStickRoll, rollSpring, rollDamper, rollTrim, rollBuffet, rollLoadForce);
                 }
             }
 
@@ -1119,10 +1128,11 @@ namespace User.PluginSdkDemo
                 float pedalsSpring = pedalsParams.Kq * pedalsScale;
                 float pedalsDamper = pedalsParams.Krate * pedalsScale;
                 float pedalsBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, pedalsParams.BuffetStartDeg, pedalsParams.BuffetFullDeg, pedalsParams.BuffetGain, pedalsScale);
+                float pedalsLoadForce = pedalsParams.AeroMomentGain * packet.NAero;
                 pedalsTrimOnly = packet.RudTrimDeg * pedalsParams.TrimMmPerDeg;
                 float pedalsVane = pedalsParams.WeathervaneGain * pedalsScale * packet.BetaDeg;
                 pedalsTrim = pedalsTrimOnly - pedalsVane;
-                SendFlightFfb(FunctionID.FlightPedals, pedalsSpring, pedalsDamper, pedalsTrim, pedalsBuffet, 0.0f);
+                SendFlightFfb(FunctionID.FlightPedals, pedalsSpring, pedalsDamper, pedalsTrim, pedalsBuffet, pedalsLoadForce);
             }
 
             {
@@ -1382,7 +1392,8 @@ namespace User.PluginSdkDemo
                 BuffetFullDeg = settings?.XPlaneBuffetFullDeg ?? DiyFfbPluginSettings.DefaultXPlaneBuffetFullDeg,
                 BuffetGain = settings?.XPlaneBuffetGain ?? DiyFfbPluginSettings.DefaultXPlaneBuffetGain,
                 WeathervaneGain = settings?.XPlaneWeathervaneGain ?? 0.0f,
-                VrefKts = settings?.XPlaneVrefKts ?? DiyFfbPluginSettings.DefaultXPlaneVrefKts
+                VrefKts = settings?.XPlaneVrefKts ?? DiyFfbPluginSettings.DefaultXPlaneVrefKts,
+                AeroMomentGain = settings?.XPlaneAeroMomentGain ?? DiyFfbPluginSettings.DefaultXPlaneAeroMomentGain
             };
         }
 
@@ -1476,7 +1487,8 @@ namespace User.PluginSdkDemo
                    NearlyEqual(functionSettings.XPlaneTrimMmPerDeg, DiyFfbPluginSettings.DefaultXPlaneTrimMmPerDeg) &&
                    NearlyEqual(functionSettings.XPlaneBuffetStartDeg, DiyFfbPluginSettings.DefaultXPlaneBuffetStartDeg) &&
                    NearlyEqual(functionSettings.XPlaneBuffetFullDeg, DiyFfbPluginSettings.DefaultXPlaneBuffetFullDeg) &&
-                   NearlyEqual(functionSettings.XPlaneBuffetGain, DiyFfbPluginSettings.DefaultXPlaneBuffetGain);
+                   NearlyEqual(functionSettings.XPlaneBuffetGain, DiyFfbPluginSettings.DefaultXPlaneBuffetGain) &&
+                   NearlyEqual(functionSettings.XPlaneAeroMomentGain, DiyFfbPluginSettings.DefaultXPlaneAeroMomentGain);
         }
 
         private static bool NearlyEqual(float a, float b)

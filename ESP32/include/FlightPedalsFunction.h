@@ -23,6 +23,7 @@ class FlightPedalsFunction : public IFunction {
         Spring centering_spring = Spring(0.0, 0.0);
         Damper damper = Damper(1.0);
         Buffet buffet = Buffet(0.0f);
+        ConstForce load_force = ConstForce(0.0f);
         FlightPedalsConfig _config = FlightPedalsConfig_init_default;
         float _base_center = 0.0f;
         uint32_t _last_ffb_ms = 0;

@@ -335,6 +335,7 @@ namespace User.PluginSdkDemo
             Slider_xplane_buffet_full_deg.Value = settings.XPlaneBuffetFullDeg;
             Slider_xplane_buffet_gain.Value = settings.XPlaneBuffetGain;
             Slider_xplane_weathervane_gain.Value = settings.XPlaneWeathervaneGain;
+            Slider_xplane_aero_moment_gain.Value = settings.XPlaneAeroMomentGain;
             Slider_xplane_vref.Value = settings.XPlaneVrefKts;
 
             UpdateXPlaneLabels();
@@ -374,6 +375,10 @@ namespace User.PluginSdkDemo
             if (label_xplane_weathervane_gain != null)
             {
                 label_xplane_weathervane_gain.Content = String.Format("Weather-Vaning Gain @ Vref: {0:F3}", Slider_xplane_weathervane_gain.Value);
+            }
+            if (label_xplane_aero_moment_gain != null)
+            {
+                label_xplane_aero_moment_gain.Content = String.Format("Aero Moment Gain: {0:F4}", Slider_xplane_aero_moment_gain.Value);
             }
             if (label_xplane_vref != null)
             {
@@ -537,6 +542,24 @@ namespace User.PluginSdkDemo
             settings.XPlaneWeathervaneGain = (float)e.NewValue;
             UpdateXPlaneLabels();
             UpdateGainGraph();
+        }
+
+        private void OnXPlaneAeroMomentGainChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (is_updating)
+            {
+                UpdateXPlaneLabels();
+                return;
+            }
+
+            var settings = GetFunctionSettings();
+            if (settings == null)
+            {
+                return;
+            }
+
+            settings.XPlaneAeroMomentGain = (float)e.NewValue;
+            UpdateXPlaneLabels();
         }
 
         private void OnXPlaneVrefChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

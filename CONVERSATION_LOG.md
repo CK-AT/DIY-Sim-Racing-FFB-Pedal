@@ -2,6 +2,60 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-18 19:12:53 +01:00 (DESKTOP-6KO022D)
+Request: collapse unused collective sliders to remove empty gaps.
+Summary:
+- Added named stack panels for the X-Plane buffet/weathervane/aero-moment controls.
+- Collapsed those panels when the collective function is selected so they take no height.
+- Async/out-of-order dependency: not applicable (UI-only change).
+Key files:
+- `SimHubPlugin/FlightStickConfigControl.xaml`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-18 19:07:06 +01:00 (DESKTOP-6KO022D)
+Request: add load-force support to FlightPedalsFunction.
+Summary:
+- Added a const force element to the flight pedals function to apply `load_force` from flight FFB.
+- Reset load-force state on config updates and timeout recovery.
+- Async/out-of-order dependency: not applicable (single function update).
+Key files:
+- `ESP32/include/FlightPedalsFunction.h`
+- `ESP32/src/FlightPedalFunction.cpp`
+Open items:
+- None.
+
+## 2026-01-18 19:04:17 +01:00 (DESKTOP-6KO022D)
+Request: move aero moment gain slider below damper gain and hide unused sliders for collective.
+Summary:
+- Reordered the aero moment gain slider directly under the damper gain slider in both stick and pedals panels.
+- Collapsed buffet, weathervane, and aero moment controls for the collective function to reduce clutter.
+- Async/out-of-order dependency: not applicable (UI-only change).
+Key files:
+- `SimHubPlugin/FlightStickConfigControl.xaml`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml`
+Open items:
+- None.
+
+## 2026-01-18 18:54:36 +01:00 (DESKTOP-6KO022D)
+Request: add aero-moment load forces for non-collective flight FFB, plus a dedicated CAN load-force frame.
+Summary:
+- Added a per-function aero moment gain slider (signed) and wired L/M/N aero moments into pitch/roll/pedals load-force output.
+- Split flight FFB CAN into base + load frames and removed the collective buffet/load repurposing.
+- Async/out-of-order dependency: flight load frames can arrive before base frames; the axis caches load and base values to merge them when both are present.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+- `ESP32/include/CANManager.h`
+- `ESP32/src/CANManager.cpp`
+Open items:
+- None.
+
 ## 2026-01-17 22:31:03 +01:00 (DESKTOP-6KO022D)
 Request: tighten collective load gain slider range to 0.0–0.1 with 0.0001 steps.
 Summary:

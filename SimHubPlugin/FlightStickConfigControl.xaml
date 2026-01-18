@@ -84,23 +84,27 @@
                             <Label x:Name="label_xplane_krate" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Damper Gain @ Vref:" Padding="0,0,0,8"/>
                             <Slider x:Name="Slider_xplane_krate" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="2.0" IsSnapToTickEnabled="True" Value="1.0" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneKrateChanged"/>
                         </StackPanel>
+                        <StackPanel x:Name="Panel_xplane_aero_moment_gain" Width="400" Height="40">
+                            <Label x:Name="label_xplane_aero_moment_gain" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Aero Moment Gain:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_xplane_aero_moment_gain" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="-0.1" Maximum="0.1" IsSnapToTickEnabled="True" Value="0.0" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneAeroMomentGainChanged"/>
+                        </StackPanel>
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_xplane_trim_mm_per_deg" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Trim Scale:" Padding="0,0,0,8"/>
                             <Slider x:Name="Slider_xplane_trim_mm_per_deg" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="50.0" IsSnapToTickEnabled="True" Value="0.1" SmallChange="0.01" TickFrequency="0.01" ValueChanged="OnXPlaneTrimScaleChanged"/>
                         </StackPanel>
-                        <StackPanel Width="400" Height="40">
+                        <StackPanel x:Name="Panel_xplane_buffet_start" Width="400" Height="40">
                             <Label x:Name="label_xplane_buffet_start_deg" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Buffet Start (deg):" Padding="0,0,0,8"/>
                             <Slider x:Name="Slider_xplane_buffet_start_deg" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="30.0" IsSnapToTickEnabled="True" Value="10" SmallChange="0.5" TickFrequency="0.5" ValueChanged="OnXPlaneBuffetStartChanged"/>
                         </StackPanel>
-                        <StackPanel Width="400" Height="40">
+                        <StackPanel x:Name="Panel_xplane_buffet_full" Width="400" Height="40">
                             <Label x:Name="label_xplane_buffet_full_deg" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Buffet Full (deg):" Padding="0,0,0,8"/>
                             <Slider x:Name="Slider_xplane_buffet_full_deg" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="30.0" IsSnapToTickEnabled="True" Value="18" SmallChange="0.5" TickFrequency="0.5" ValueChanged="OnXPlaneBuffetFullChanged"/>
                         </StackPanel>
-                        <StackPanel Width="400" Height="40">
+                        <StackPanel x:Name="Panel_xplane_buffet_gain" Width="400" Height="40">
                             <Label x:Name="label_xplane_buffet_gain" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Buffet Gain @ Vref:" Padding="0,0,0,8"/>
                             <Slider x:Name="Slider_xplane_buffet_gain" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="200.0" IsSnapToTickEnabled="True" Value="0.05" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneBuffetGainChanged"/>
                         </StackPanel>
-                        <StackPanel Width="400" Height="40">
+                        <StackPanel x:Name="Panel_xplane_weathervane_gain" Width="400" Height="40">
                             <Label x:Name="label_xplane_weathervane_gain" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Weather-Vaning Gain:" Padding="0,0,0,8"/>
                             <Slider x:Name="Slider_xplane_weathervane_gain" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="2.0" IsSnapToTickEnabled="True" Value="0.0" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneWeathervaneGainChanged"/>
                         </StackPanel>

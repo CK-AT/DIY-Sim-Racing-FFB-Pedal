@@ -85,12 +85,17 @@ namespace {
     constexpr float kFfbScaleDamper = 0.01f;
     constexpr float kFfbScaleTrim = 0.1f;
     constexpr float kFfbScaleBuffet = 0.01f;
+    constexpr float kFfbScaleLoad = 0.1f;
 
     struct FlightFfbPayload {
         uint16_t k_spring;
         uint16_t k_damper;
         int16_t trim_offset;
         int16_t buffet_amp;
+    };
+
+    struct FlightFfbLoadPayload {
+        int16_t load_force;
     };
 
     int16_t clamp_ffb_i16(float value, float scale) {
@@ -124,6 +129,12 @@ namespace {
         return payload;
     }
 
+    FlightFfbLoadPayload pack_flight_ffb_load(float load_force) {
+        FlightFfbLoadPayload payload = {};
+        payload.load_force = clamp_ffb_i16(load_force, kFfbScaleLoad);
+        return payload;
+    }
+
     FlightFfbAction unpack_flight_ffb(const FlightFfbPayload &payload) {
         FlightFfbAction action = FlightFfbAction_init_default;
         action.k_spring = payload.k_spring * kFfbScaleSpring;
@@ -131,6 +142,10 @@ namespace {
         action.trim_offset = payload.trim_offset * kFfbScaleTrim;
         action.buffet_amp = payload.buffet_amp * kFfbScaleBuffet;
         return action;
+    }
+
+    float unpack_flight_ffb_load(const FlightFfbLoadPayload &payload) {
+        return payload.load_force * kFfbScaleLoad;
     }
 }
 /*****************************************************************************************************************/
@@ -575,18 +590,45 @@ bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
                 on_ffb_action(action);
                 break;
             case FFBFrameTypes::FLIGHT_FFB: {
+                if (function_id == 0 || function_id > MessageTools::MAX_AXES_COUNT) {
+                    break;
+                }
                 if (rx_frame.data_length_code < sizeof(FlightFfbPayload)) {
                     break;
                 }
                 FlightFfbPayload payload = {};
                 memcpy(&payload, rx_frame.data, sizeof(payload));
+                FlightFfbCache &cache = flight_ffb_cache[function_id - 1];
+                cache.base = unpack_flight_ffb(payload);
+                cache.has_base = true;
+                if (cache.has_load) {
+                    cache.base.load_force = cache.load_force;
+                }
                 action.function_id = FunctionID(function_id);
                 action.which_function = FFBAction_flight_ffb_tag;
-                action.function.flight_ffb = unpack_flight_ffb(payload);
-                if (action.function_id == FunctionID_FUNCTION_ID_FLIGHT_STICK_COLLECTIVE) {
-                    action.function.flight_ffb.load_force = action.function.flight_ffb.buffet_amp;
-                    action.function.flight_ffb.buffet_amp = 0.0f;
+                action.function.flight_ffb = cache.base;
+                on_ffb_action(action);
+                break;
+            }
+            case FFBFrameTypes::FLIGHT_FFB_LOAD: {
+                if (function_id == 0 || function_id > MessageTools::MAX_AXES_COUNT) {
+                    break;
                 }
+                if (rx_frame.data_length_code < sizeof(FlightFfbLoadPayload)) {
+                    break;
+                }
+                FlightFfbLoadPayload payload = {};
+                memcpy(&payload, rx_frame.data, sizeof(payload));
+                FlightFfbCache &cache = flight_ffb_cache[function_id - 1];
+                cache.load_force = unpack_flight_ffb_load(payload);
+                cache.has_load = true;
+                if (!cache.has_base) {
+                    break;
+                }
+                action.function_id = FunctionID(function_id);
+                action.which_function = FFBAction_flight_ffb_tag;
+                action.function.flight_ffb = cache.base;
+                action.function.flight_ffb.load_force = cache.load_force;
                 on_ffb_action(action);
                 break;
             }
@@ -662,23 +704,29 @@ bool CANManager::send_flight_ffb(const FFBAction &action) {
         return false;
     }
 
-    FlightFfbAction payload_action = action.function.flight_ffb;
-    if (action.function_id == FunctionID_FUNCTION_ID_FLIGHT_STICK_COLLECTIVE) {
-        payload_action.buffet_amp = payload_action.load_force;
-        payload_action.load_force = 0.0f;
-    }
-    FlightFfbPayload payload = pack_flight_ffb(payload_action);
+    FlightFfbPayload payload = pack_flight_ffb(action.function.flight_ffb);
+    FlightFfbLoadPayload load_payload = pack_flight_ffb_load(action.function.flight_ffb.load_force);
     CanFrame tx_frame = {};
     tx_frame.identifier = 0x200 + (FFBFrameTypes::FLIGHT_FFB << 4) + action.function_id;
     tx_frame.data_length_code = sizeof(payload);
     memcpy(tx_frame.data, &payload, sizeof(payload));
-    if (!ESP32Can.writeFrame(&tx_frame, 0)) {
+    bool base_ok = ESP32Can.writeFrame(&tx_frame, 0);
+    if (!base_ok) {
         if (tx_err_cnt < 0xFFFFFFFF) {
             tx_err_cnt++;
         }
-        return false;
     }
-    return true;
+    CanFrame load_frame = {};
+    load_frame.identifier = 0x200 + (FFBFrameTypes::FLIGHT_FFB_LOAD << 4) + action.function_id;
+    load_frame.data_length_code = sizeof(load_payload);
+    memcpy(load_frame.data, &load_payload, sizeof(load_payload));
+    bool load_ok = ESP32Can.writeFrame(&load_frame, 0);
+    if (!load_ok) {
+        if (tx_err_cnt < 0xFFFFFFFF) {
+            tx_err_cnt++;
+        }
+    }
+    return base_ok && load_ok;
 }
 
 bool CANManager::send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {

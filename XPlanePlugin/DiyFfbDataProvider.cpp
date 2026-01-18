@@ -43,6 +43,9 @@ XPLMDataRef DFFB_DR_rud_trim_overr = NULL;
 XPLMDataRef DFFB_DR_torque = NULL;
 XPLMDataRef DFFB_DR_omega = NULL;
 XPLMDataRef DFFB_DR_prop_ratio = NULL;
+XPLMDataRef DFFB_DR_l_aero = NULL;
+XPLMDataRef DFFB_DR_m_aero = NULL;
+XPLMDataRef DFFB_DR_n_aero = NULL;
 
 WSADATA wsaData;
 SOCKET sendSocket = INVALID_SOCKET;
@@ -84,13 +87,16 @@ struct FfbDataPacket {
     float torque_nm[kMaxRotors];
     float omega_rad[kMaxRotors];
     float prop_ratio[kMaxRotors];
+    float l_aero;
+    float m_aero;
+    float n_aero;
     uint8_t on_ground;
     uint8_t reserved[3];
 };
 #pragma pack(pop)
 
 static const uint32_t kPacketMagic = 0x46464244; // "DFFB"
-static const uint16_t kPacketVersion = 2;
+static const uint16_t kPacketVersion = 3;
 static const char* kUdpConfigFile = "DiyFfbDataProvider.cfg";
 static uint32_t g_udp_sequence = 0;
 
@@ -129,6 +135,9 @@ PLUGIN_API int XPluginStart(
     DFFB_DR_torque = XPLMFindDataRef("sim/flightmodel/engine/POINT_drag_TRQ");
     DFFB_DR_omega = XPLMFindDataRef("sim/flightmodel/engine/POINT_tacrad");
     DFFB_DR_prop_ratio = XPLMFindDataRef("sim/cockpit2/engine/actuators/prop_ratio");
+    DFFB_DR_l_aero = XPLMFindDataRef("sim/flightmodel/forces/L_aero");
+    DFFB_DR_m_aero = XPLMFindDataRef("sim/flightmodel/forces/M_aero");
+    DFFB_DR_n_aero = XPLMFindDataRef("sim/flightmodel/forces/N_aero");
     
 
 	DFFB_LoadConfig();
@@ -252,6 +261,9 @@ void DFFB_CalculateMotionData(void)
     } else {
         memset(packet.prop_ratio, 0, sizeof(packet.prop_ratio));
     }
+    packet.l_aero = DFFB_DR_l_aero ? XPLMGetDataf(DFFB_DR_l_aero) : 0.0f;
+    packet.m_aero = DFFB_DR_m_aero ? XPLMGetDataf(DFFB_DR_m_aero) : 0.0f;
+    packet.n_aero = DFFB_DR_n_aero ? XPLMGetDataf(DFFB_DR_n_aero) : 0.0f;
 	packet.on_ground = DFFB_DR_on_ground ? (XPLMGetDatai(DFFB_DR_on_ground) != 0) : 0;
 
 	struct sockaddr_in ClientAddr;

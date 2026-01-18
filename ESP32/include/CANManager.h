@@ -30,7 +30,8 @@ class CANManager : public ICommChannel {
 
         enum FFBFrameTypes {
             ABS = 0,
-            FLIGHT_FFB = 1
+            FLIGHT_FFB = 1,
+            FLIGHT_FFB_LOAD = 2
         };
 
         struct ForceAndPosition {
@@ -52,6 +53,13 @@ class CANManager : public ICommChannel {
                 uint32_t ti_timeout;
                 bool online;
                 bool status_valid;
+        };
+
+        struct FlightFfbCache {
+                FlightFfbAction base;
+                float load_force;
+                bool has_base;
+                bool has_load;
         };
 
         struct IsotpState {
@@ -152,6 +160,7 @@ class CANManager : public ICommChannel {
         float _x_contact_point_max = 0.0f;
         FunctionID _function_id = FunctionID_FUNCTION_ID_UNDEFINED;
         bool _gateway_online = false;
+        FlightFfbCache flight_ffb_cache[MessageTools::MAX_AXES_COUNT] = {};
         /* Gateway related */
         bool _is_gateway = false;
         bool _last_log_ack_received = true;
