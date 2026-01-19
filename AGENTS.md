@@ -9,3 +9,5 @@
 - Avoid duplicated code.
 - Suggest useful additions to AGENTS.md 
 - Call out when a change relies on async/out-of-order data arrival and how it is handled.
+- FFB tuning parameter references shall be normalized to make tuning across models more intuitive.
+- Avoid committing build artifacts (e.g., `SimHubPlugin/bin`, `OTA/*.bin`, `OTA/*.ffbota`) unless explicitly requested.

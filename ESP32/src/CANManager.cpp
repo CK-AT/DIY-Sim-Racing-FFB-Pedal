@@ -86,6 +86,7 @@ namespace {
     constexpr float kFfbScaleTrim = 0.1f;
     constexpr float kFfbScaleBuffet = 0.01f;
     constexpr float kFfbScaleLoad = 0.1f;
+    constexpr float kFfbScaleFriction = 0.1f;
 
     struct FlightFfbPayload {
         uint16_t k_spring;
@@ -96,6 +97,7 @@ namespace {
 
     struct FlightFfbLoadPayload {
         int16_t load_force;
+        uint16_t k_friction;
     };
 
     int16_t clamp_ffb_i16(float value, float scale) {
@@ -129,9 +131,10 @@ namespace {
         return payload;
     }
 
-    FlightFfbLoadPayload pack_flight_ffb_load(float load_force) {
+    FlightFfbLoadPayload pack_flight_ffb_load(const FlightFfbAction &action) {
         FlightFfbLoadPayload payload = {};
-        payload.load_force = clamp_ffb_i16(load_force, kFfbScaleLoad);
+        payload.load_force = clamp_ffb_i16(action.load_force, kFfbScaleLoad);
+        payload.k_friction = clamp_ffb_u16(action.k_friction, kFfbScaleFriction);
         return payload;
     }
 
@@ -144,8 +147,9 @@ namespace {
         return action;
     }
 
-    float unpack_flight_ffb_load(const FlightFfbLoadPayload &payload) {
-        return payload.load_force * kFfbScaleLoad;
+    void unpack_flight_ffb_load(const FlightFfbLoadPayload &payload, float &load_force, float &k_friction) {
+        load_force = payload.load_force * kFfbScaleLoad;
+        k_friction = payload.k_friction * kFfbScaleFriction;
     }
 }
 /*****************************************************************************************************************/
@@ -603,6 +607,7 @@ bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
                 cache.has_base = true;
                 if (cache.has_load) {
                     cache.base.load_force = cache.load_force;
+                    cache.base.k_friction = cache.k_friction;
                 }
                 action.function_id = FunctionID(function_id);
                 action.which_function = FFBAction_flight_ffb_tag;
@@ -620,7 +625,7 @@ bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
                 FlightFfbLoadPayload payload = {};
                 memcpy(&payload, rx_frame.data, sizeof(payload));
                 FlightFfbCache &cache = flight_ffb_cache[function_id - 1];
-                cache.load_force = unpack_flight_ffb_load(payload);
+                unpack_flight_ffb_load(payload, cache.load_force, cache.k_friction);
                 cache.has_load = true;
                 if (!cache.has_base) {
                     break;
@@ -629,6 +634,7 @@ bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
                 action.which_function = FFBAction_flight_ffb_tag;
                 action.function.flight_ffb = cache.base;
                 action.function.flight_ffb.load_force = cache.load_force;
+                action.function.flight_ffb.k_friction = cache.k_friction;
                 on_ffb_action(action);
                 break;
             }
@@ -705,7 +711,7 @@ bool CANManager::send_flight_ffb(const FFBAction &action) {
     }
 
     FlightFfbPayload payload = pack_flight_ffb(action.function.flight_ffb);
-    FlightFfbLoadPayload load_payload = pack_flight_ffb_load(action.function.flight_ffb.load_force);
+    FlightFfbLoadPayload load_payload = pack_flight_ffb_load(action.function.flight_ffb);
     CanFrame tx_frame = {};
     tx_frame.identifier = 0x200 + (FFBFrameTypes::FLIGHT_FFB << 4) + action.function_id;
     tx_frame.data_length_code = sizeof(payload);

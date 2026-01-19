@@ -1,4 +1,5 @@
 ﻿
+using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Windows.Controls;
@@ -62,6 +63,40 @@ namespace User.PluginSdkDemo
             double selectedWidth = (upperNorm - lowerNorm) * width;
             double valueNorm = Normalize(value, lower, upper);
             x = (lowerNorm * width) + (valueNorm * selectedWidth);
+            return true;
+        }
+
+        public static bool TryAutoTuneLoadGain(double axisForceAbs, double loadForceAbs, double currentGain, double minGainAbs, double maxGainAbs,
+                                               double ratioLow, double ratioHigh, double gainStep, double minForceAbs,
+                                               out double updatedGain)
+        {
+            updatedGain = currentGain;
+            if (axisForceAbs < minForceAbs)
+            {
+                return false;
+            }
+
+            double ratio = loadForceAbs / axisForceAbs;
+            double sign = Math.Sign(currentGain);
+            if (sign == 0.0)
+            {
+                sign = 1.0;
+            }
+            double gainAbs = Math.Abs(currentGain);
+            if (ratio > ratioHigh)
+            {
+                gainAbs = Math.Max(minGainAbs, gainAbs - gainStep);
+            }
+            else if (ratio < ratioLow)
+            {
+                gainAbs = Math.Min(maxGainAbs, gainAbs + gainStep);
+            }
+            else
+            {
+                return false;
+            }
+
+            updatedGain = sign * gainAbs;
             return true;
         }
     }

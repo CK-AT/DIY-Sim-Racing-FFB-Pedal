@@ -26,11 +26,21 @@ namespace User.PluginSdkDemo
         bool is_updating = true;
         private double latestAxisPosition;
         private bool hasAxisPosition;
+        private double latestAxisForce;
+        private bool hasAxisForce;
         private double latestTrimCenter;
         private bool hasTrimCenter;
         private DispatcherTimer xplaneTimer;
         private float lastIasKts;
         private bool hasAxisRange;
+        private bool autoTuneLoadGain;
+        private DateTime autoTuneLastUpdateUtc = DateTime.MinValue;
+        private const double AutoTuneUpdateMs = 250.0;
+        private const double AutoTuneRatioLow = 0.25;
+        private const double AutoTuneRatioHigh = 0.55;
+        private const double AutoTuneGainStep = 0.0005;
+        private const double AutoTuneMinForce = 0.05;
+        private const double AutoTuneMinVrefRatio = 0.7;
 
         public FlightPedalsConfigControl()
         {
@@ -84,6 +94,8 @@ namespace User.PluginSdkDemo
 
             latestAxisPosition = axis_state.Position;
             hasAxisPosition = true;
+            latestAxisForce = axis_state.Force;
+            hasAxisForce = true;
             UpdateTrimCenter();
             UpdateTravelMarkers();
         }
@@ -327,19 +339,77 @@ namespace User.PluginSdkDemo
                 return;
             }
 
+            bool isHeli = plugin?.IsXPlaneHelicopter() ?? false;
             Toggle_xplane_ffb_enabled.IsChecked = settings.XPlaneFfbEnabled;
             Slider_xplane_kq.Value = settings.XPlaneFfbKq;
             Slider_xplane_krate.Value = settings.XPlaneFfbKrate;
+            Slider_xplane_kcenter.Value = settings.XPlaneFfbKcenter;
+            Slider_xplane_friction_q.Value = settings.XPlaneFrictionQ;
+            Slider_xplane_friction_torque.Value = settings.XPlaneFrictionTorque;
+            Slider_xplane_friction_low_rpm.Value = settings.XPlaneFrictionLowRpm;
+            Slider_xplane_rpm_blend.Value = settings.XPlaneRpmBlend;
+            Slider_xplane_load_force_clamp.Value = settings.XPlaneLoadForceClamp;
             Slider_xplane_trim_mm_per_deg.Value = settings.XPlaneTrimMmPerDeg;
             Slider_xplane_buffet_start_deg.Value = settings.XPlaneBuffetStartDeg;
             Slider_xplane_buffet_full_deg.Value = settings.XPlaneBuffetFullDeg;
             Slider_xplane_buffet_gain.Value = settings.XPlaneBuffetGain;
             Slider_xplane_weathervane_gain.Value = settings.XPlaneWeathervaneGain;
             Slider_xplane_aero_moment_gain.Value = settings.XPlaneAeroMomentGain;
-            Slider_xplane_vref.Value = settings.XPlaneVrefKts;
+            Slider_xplane_vref.Value = isHeli
+                ? plugin?.GetXPlaneNominalRpm() ?? DiyFfbPluginSettings.DefaultXPlaneNominalRpm
+                : plugin?.GetXPlaneVrefKts() ?? DiyFfbPluginSettings.DefaultXPlaneVrefKts;
+            Slider_xplane_vref.IsEnabled = false;
 
+            UpdateXPlaneVisibility();
             UpdateXPlaneLabels();
             UpdateGainGraph();
+        }
+
+        private void UpdateXPlaneVisibility()
+        {
+            bool isHeli = plugin?.IsXPlaneHelicopter() ?? false;
+            var heliVisibility = isHeli ? Visibility.Visible : Visibility.Collapsed;
+            var planeVisibility = isHeli ? Visibility.Collapsed : Visibility.Visible;
+            if (Panel_xplane_buffet_start != null)
+            {
+                Panel_xplane_buffet_start.Visibility = planeVisibility;
+            }
+            if (Panel_xplane_buffet_full != null)
+            {
+                Panel_xplane_buffet_full.Visibility = planeVisibility;
+            }
+            if (Panel_xplane_buffet_gain != null)
+            {
+                Panel_xplane_buffet_gain.Visibility = planeVisibility;
+            }
+            if (Panel_xplane_kq != null)
+            {
+                Panel_xplane_kq.Visibility = planeVisibility;
+            }
+            if (Panel_xplane_kcenter != null)
+            {
+                Panel_xplane_kcenter.Visibility = heliVisibility;
+            }
+            if (Panel_xplane_rpm_blend != null)
+            {
+                Panel_xplane_rpm_blend.Visibility = heliVisibility;
+            }
+            if (Panel_xplane_friction_q != null)
+            {
+                Panel_xplane_friction_q.Visibility = planeVisibility;
+            }
+            if (Panel_xplane_friction_torque != null)
+            {
+                Panel_xplane_friction_torque.Visibility = heliVisibility;
+            }
+            if (Panel_xplane_friction_low_rpm != null)
+            {
+                Panel_xplane_friction_low_rpm.Visibility = heliVisibility;
+            }
+            if (Panel_xplane_load_force_clamp != null)
+            {
+                Panel_xplane_load_force_clamp.Visibility = Visibility.Visible;
+            }
         }
 
         private void UpdateXPlaneLabels()
@@ -352,9 +422,40 @@ namespace User.PluginSdkDemo
             {
                 label_xplane_kq.Content = String.Format("Spring Gain @ Vref: {0:F3}", Slider_xplane_kq.Value);
             }
+            if (label_xplane_kcenter != null)
+            {
+                label_xplane_kcenter.Content = String.Format("Center Gain: {0:F3}", Slider_xplane_kcenter.Value);
+            }
             if (label_xplane_krate != null)
             {
-                label_xplane_krate.Content = String.Format("Damper Gain @ Vref: {0:F3}", Slider_xplane_krate.Value);
+                if (plugin?.IsXPlaneHelicopter() == true)
+                {
+                    label_xplane_krate.Content = String.Format("Damper Gain (blend): {0:F3}", Slider_xplane_krate.Value);
+                }
+                else
+                {
+                    label_xplane_krate.Content = String.Format("Damper Gain @ Vref: {0:F3}", Slider_xplane_krate.Value);
+                }
+            }
+            if (label_xplane_rpm_blend != null)
+            {
+                label_xplane_rpm_blend.Content = String.Format("RPM Blend: {0:F2}", Slider_xplane_rpm_blend.Value);
+            }
+            if (label_xplane_friction_q != null)
+            {
+                label_xplane_friction_q.Content = String.Format("Friction Gain @ Vref: {0:F3}", Slider_xplane_friction_q.Value);
+            }
+            if (label_xplane_friction_torque != null)
+            {
+                label_xplane_friction_torque.Content = String.Format("Friction Gain @ {0} Nm: {1:F3}", FormatMainRotorTorqueRefNm(), Slider_xplane_friction_torque.Value);
+            }
+            if (label_xplane_friction_low_rpm != null)
+            {
+                label_xplane_friction_low_rpm.Content = String.Format("Low RPM Friction Gain: {0:F3}", Slider_xplane_friction_low_rpm.Value);
+            }
+            if (label_xplane_load_force_clamp != null)
+            {
+                label_xplane_load_force_clamp.Content = String.Format("Load Clamp: {0:F0} N", Slider_xplane_load_force_clamp.Value);
             }
             if (label_xplane_trim_mm_per_deg != null)
             {
@@ -378,11 +479,18 @@ namespace User.PluginSdkDemo
             }
             if (label_xplane_aero_moment_gain != null)
             {
-                label_xplane_aero_moment_gain.Content = String.Format("Aero Moment Gain: {0:F4}", Slider_xplane_aero_moment_gain.Value);
+                label_xplane_aero_moment_gain.Content = String.Format("Aero Moment Gain @ {0} Nm: {1:F4}", FormatTorqueRefNm(), Slider_xplane_aero_moment_gain.Value);
             }
             if (label_xplane_vref != null)
             {
-                label_xplane_vref.Content = String.Format("Vref (kts): {0:F0}", Slider_xplane_vref.Value);
+                if (plugin?.IsXPlaneHelicopter() == true)
+                {
+                    label_xplane_vref.Content = String.Format("Nominal RPM (system): {0:F0}", Slider_xplane_vref.Value);
+                }
+                else
+                {
+                    label_xplane_vref.Content = String.Format("Vref (system): {0:F0}", Slider_xplane_vref.Value);
+                }
             }
         }
 
@@ -450,6 +558,114 @@ namespace User.PluginSdkDemo
             settings.XPlaneFfbKrate = (float)e.NewValue;
             UpdateXPlaneLabels();
             UpdateGainGraph();
+        }
+
+        private void OnXPlaneKcenterChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (is_updating)
+            {
+                UpdateXPlaneLabels();
+                return;
+            }
+
+            var settings = GetFunctionSettings();
+            if (settings == null)
+            {
+                return;
+            }
+
+            settings.XPlaneFfbKcenter = (float)e.NewValue;
+            UpdateXPlaneLabels();
+        }
+
+        private void OnXPlaneFrictionQChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (is_updating)
+            {
+                UpdateXPlaneLabels();
+                return;
+            }
+
+            var settings = GetFunctionSettings();
+            if (settings == null)
+            {
+                return;
+            }
+
+            settings.XPlaneFrictionQ = (float)e.NewValue;
+            UpdateXPlaneLabels();
+        }
+
+        private void OnXPlaneFrictionTorqueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (is_updating)
+            {
+                UpdateXPlaneLabels();
+                return;
+            }
+
+            var settings = GetFunctionSettings();
+            if (settings == null)
+            {
+                return;
+            }
+
+            settings.XPlaneFrictionTorque = (float)e.NewValue;
+            UpdateXPlaneLabels();
+        }
+
+        private void OnXPlaneFrictionLowRpmChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (is_updating)
+            {
+                UpdateXPlaneLabels();
+                return;
+            }
+
+            var settings = GetFunctionSettings();
+            if (settings == null)
+            {
+                return;
+            }
+
+            settings.XPlaneFrictionLowRpm = (float)e.NewValue;
+            UpdateXPlaneLabels();
+        }
+
+        private void OnXPlaneRpmBlendChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (is_updating)
+            {
+                UpdateXPlaneLabels();
+                return;
+            }
+
+            var settings = GetFunctionSettings();
+            if (settings == null)
+            {
+                return;
+            }
+
+            settings.XPlaneRpmBlend = (float)e.NewValue;
+            UpdateXPlaneLabels();
+        }
+
+        private void OnXPlaneLoadForceClampChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (is_updating)
+            {
+                UpdateXPlaneLabels();
+                return;
+            }
+
+            var settings = GetFunctionSettings();
+            if (settings == null)
+            {
+                return;
+            }
+
+            settings.XPlaneLoadForceClamp = (float)e.NewValue;
+            UpdateXPlaneLabels();
         }
 
         private void OnXPlaneTrimScaleChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -562,8 +778,34 @@ namespace User.PluginSdkDemo
             UpdateXPlaneLabels();
         }
 
+        private void Toggle_xplane_auto_tune_Checked(object sender, RoutedEventArgs e)
+        {
+            autoTuneLoadGain = true;
+            var settings = GetFunctionSettings();
+            if (settings != null)
+            {
+                settings.XPlaneReferenceFlightMode = true;
+            }
+        }
+
+        private void Toggle_xplane_auto_tune_Unchecked(object sender, RoutedEventArgs e)
+        {
+            autoTuneLoadGain = false;
+            var settings = GetFunctionSettings();
+            if (settings != null)
+            {
+                settings.XPlaneReferenceFlightMode = false;
+            }
+        }
+
         private void OnXPlaneVrefChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            if (Slider_xplane_vref != null && !Slider_xplane_vref.IsEnabled)
+            {
+                UpdateXPlaneLabels();
+                UpdateGainGraph();
+                return;
+            }
             if (is_updating)
             {
                 UpdateXPlaneLabels();
@@ -576,7 +818,6 @@ namespace User.PluginSdkDemo
                 return;
             }
 
-            settings.XPlaneVrefKts = (float)e.NewValue;
             UpdateXPlaneLabels();
             UpdateGainGraph();
         }
@@ -668,6 +909,10 @@ namespace User.PluginSdkDemo
             {
                 TextBlock_xplane_damper_value.Text = String.Format("{0:F3}", damperGain);
             }
+            if (plugin.TryGetXPlaneFfbDiagnostics(current_function_id, out DiyFfbPlugin.XPlaneFfbDiagnostics diagnostics))
+            {
+                UpdateAutoTuneLoadGain(diagnostics);
+            }
             UpdateGainCursor();
         }
 
@@ -721,6 +966,75 @@ namespace User.PluginSdkDemo
             double x = (clampedIas / maxIasKts) * width;
             Line_xplane_cursor.X1 = x;
             Line_xplane_cursor.X2 = x;
+        }
+
+        private void UpdateAutoTuneLoadGain(DiyFfbPlugin.XPlaneFfbDiagnostics diagnostics)
+        {
+            if (!autoTuneLoadGain)
+            {
+                return;
+            }
+            if (!hasAxisForce)
+            {
+                return;
+            }
+            double elapsedMs = (DateTime.UtcNow - autoTuneLastUpdateUtc).TotalMilliseconds;
+            if (elapsedMs < AutoTuneUpdateMs)
+            {
+                return;
+            }
+
+            var settings = GetFunctionSettings();
+            if (settings == null)
+            {
+                return;
+            }
+
+            float refSpeed = plugin?.GetXPlaneVrefKts() ?? DiyFfbPluginSettings.DefaultXPlaneVrefKts;
+            if (refSpeed > 0.0f && diagnostics.IasKts < refSpeed * AutoTuneMinVrefRatio)
+            {
+                autoTuneLastUpdateUtc = DateTime.UtcNow;
+                return;
+            }
+
+            double axisForceAbs = Math.Abs(latestAxisForce);
+            double loadAbs = Math.Abs(diagnostics.LoadForce);
+            double currentGain = Slider_xplane_aero_moment_gain.Value;
+            double maxAbs = Slider_xplane_aero_moment_gain.Maximum;
+            if (!Tools.TryAutoTuneLoadGain(axisForceAbs, loadAbs, currentGain, 0.0, maxAbs,
+                                           AutoTuneRatioLow, AutoTuneRatioHigh, AutoTuneGainStep, AutoTuneMinForce,
+                                           out double updatedGain))
+            {
+                autoTuneLastUpdateUtc = DateTime.UtcNow;
+                return;
+            }
+
+            settings.XPlaneAeroMomentGain = (float)updatedGain;
+            is_updating = true;
+            Slider_xplane_aero_moment_gain.Value = updatedGain;
+            is_updating = false;
+            UpdateXPlaneLabels();
+            autoTuneLastUpdateUtc = DateTime.UtcNow;
+        }
+
+        private string FormatTorqueRefNm()
+        {
+            var settings = GetFunctionSettings();
+            if (settings == null || settings.XPlaneTorqueRefNm <= 0.0f)
+            {
+                return "--";
+            }
+            return settings.XPlaneTorqueRefNm.ToString("F0");
+        }
+
+        private string FormatMainRotorTorqueRefNm()
+        {
+            if (plugin?.Settings == null || plugin.Settings.XPlaneMainRotorTorqueRefNmSystem <= 0.0f)
+            {
+                return "--";
+            }
+
+            return plugin.Settings.XPlaneMainRotorTorqueRefNmSystem.ToString("F0");
         }
 
         public void RefreshXPlaneFfbSettings()

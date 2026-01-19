@@ -623,6 +623,8 @@ message FlightFfbAction {
   float k_spring = 1;
   // damping gain (scaled by SimHub)
   float k_damper = 2;
+  // friction gain (scaled by SimHub)
+  float k_friction = 6;
   // trim offset in contact point units (mm)
   float trim_offset = 3;
   // buffet amplitude (0..1 or scaled by SimHub)

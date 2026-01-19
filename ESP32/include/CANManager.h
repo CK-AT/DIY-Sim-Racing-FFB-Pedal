@@ -58,6 +58,7 @@ class CANManager : public ICommChannel {
         struct FlightFfbCache {
                 FlightFfbAction base;
                 float load_force;
+                float k_friction;
                 bool has_base;
                 bool has_load;
         };

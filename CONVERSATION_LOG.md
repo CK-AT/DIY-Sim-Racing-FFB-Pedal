@@ -2,6 +2,501 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-19 23:05:40 +01:00 (DESKTOP-6KO022D)
+Request: update commit scope to reflect full FFB design and include autotune helper.
+Summary:
+- Staged `SimHubPlugin/Tools.cs` for the X-Plane autotune helper so it ships with the new FFB design work.
+- Reframed the pending commit message to cover the full future-state FFB implementation rather than incremental UI updates.
+Key files:
+- `SimHubPlugin/Tools.cs`
+Open items:
+- None.
+
+## 2026-01-19 23:00:08 +01:00 (DESKTOP-6KO022D)
+Request: prepare a commit for the recent FFB changes to test.
+Summary:
+- Collected staged changes for FFB tuning updates, UI tweaks, heli buffet hiding, and per-aircraft save prompts.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+- `proto/diy_ffb_protocol.proto`
+- `ESP32/src/CANManager.cpp`
+- `ESP32/include/CANManager.h`
+- `ESP32/src/Main.cpp`
+Open items:
+- None.
+
+## 2026-01-19 22:53:04 +01:00 (DESKTOP-6KO022D)
+Request: prompt to save/discard per-aircraft FFB edits on aircraft change.
+Summary:
+- Added a save/discard dialog on aircraft switch when current settings differ from the stored profile or defaults.
+- Removed implicit profile creation on unknown aircraft and reset to default FFB values until explicitly saved.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-19 22:23:09 +01:00 (DESKTOP-6KO022D)
+Request: finish UI wiring and update AGENTS guidance.
+Summary:
+- Synced the FlightPedals X-Plane system reference display to show Nominal RPM for helis and Vref for planes.
+- Added an AGENTS rule to avoid committing build artifacts unless explicitly requested.
+Key files:
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+- `AGENTS.md`
+Open items:
+- Verify regenerated protobuf/C# bindings if the new KFriction field is not yet available during builds.
+
+## 2026-01-19 22:36:50 +01:00 (DESKTOP-6KO022D)
+Request: hide buffet settings in helicopter mode.
+Summary:
+- Hid buffet sliders in heli mode for both FlightStick and FlightPedals X-Plane panels.
+Key files:
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-19 22:41:54 +01:00 (DESKTOP-6KO022D)
+Request: fix missing buffet panel names in FlightPedals XAML.
+Summary:
+- Added `Panel_xplane_buffet_*` names so the heli/plane visibility logic can target those panels.
+Key files:
+- `SimHubPlugin/FlightPedalsConfigControl.xaml`
+Open items:
+- None.
+
+## 2026-01-19 22:21:30 +01:00 (DESKTOP-6KO022D)
+Request: resume after future FFB design edits; confirm rotor auto-selection and begin implementation.
+Summary:
+- Reviewed the future FFB design doc and confirmed the rotor auto-selection rule (lowest sustained RPM, only when on_ground=false) matches the current implementation.
+- No new code changes yet; ready to proceed with any remaining UI polish or firmware/proto regeneration steps.
+- Async/out-of-order dependency: rotor auto-selection and max tracking remain gated by 200 ms freshness with a 3 s RPM window to avoid stale data.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+Open items:
+- Verify UI wiring for new tuning sliders in `SimHubPlugin/FlightPedalsConfigControl.xaml.cs` and regenerate protobuf/C# bindings if needed.
+
+## 2026-01-19 21:17:47 +01:00 (DESKTOP-6KO022D)
+Request: continue implementation (load sign, damping blend, rotor window, friction scaling transport).
+Summary:
+- Added friction scaling settings, load clamp settings, and main-rotor torque ref persistence.
+- Implemented rotor RPM windowed auto-selection, heli damping blend, load sign correction, and load clamp in SimHub processing.
+- Extended FlightFfbAction with dynamic friction and applied it on ESP32, including CAN payload updates.
+- Async/out-of-order dependency: rotor selection and max tracking use a 200 ms freshness gate with a 3 s RPM window; stale packets do not update maxima.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `proto/diy_ffb_protocol.proto`
+- `ESP32/src/CANManager.cpp`
+- `ESP32/include/CANManager.h`
+- `ESP32/src/Main.cpp`
+Open items:
+- Add UI controls and labels for the new tuning fields and confirm regeneration of protobuf/C# bindings.
+
+## 2026-01-19 21:10:48 +01:00 (DESKTOP-6KO022D)
+Request: start implementing the future-state FFB behavior.
+Summary:
+- Added new X-Plane FFB tuning fields (k_center, torque/rpm blend, friction scaling knobs, load clamp) and persisted main-rotor torque refs per aircraft profile.
+- Implemented telemetry freshness gating, 3 s rotor RPM history, lowest-RPM auto-selection, and reference-flight gating for torque tracking.
+- Updated load sign convention, heli damper scaling blend, and load clamp handling in FFB processing.
+- Async/out-of-order dependency: max-torque tracking and rotor auto-selection skip stale packets older than 200 ms.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+Open items:
+- Implement friction scaling delivery to ESP32 (requires protocol/firmware changes) and add UI controls for new tuning fields.
+## 2026-01-19 20:49:32 +01:00 (DESKTOP-6KO022D)
+Request: update future design doc with sign convention, telemetry gating, and rotor window, then start implementation.
+Summary:
+- Added explicit `f_load = -(k * trq_aero_norm)` sign convention, 200 ms telemetry freshness, on-ground gating, and 3 s rotor window to the future doc.
+- Async/out-of-order dependency: max tracking and rotor auto-selection must ignore stale telemetry beyond 200 ms.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- Begin implementation of the future-state FFB behavior.
+
+## 2026-01-19 20:47:48 +01:00 (DESKTOP-6KO022D)
+Request: define rotor auto-selection gating and window duration.
+Summary:
+- Confirmed rotor RPM auto-selection should use on_ground gating and a 3-second window.
+- Async/out-of-order dependency: rotor selection must ignore stale UDP packets beyond 200 ms while accumulating the 3-second window.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- None.
+
+## 2026-01-19 20:44:50 +01:00 (DESKTOP-6KO022D)
+Request: confirm remaining implementation inputs for the future FFB design.
+Summary:
+- Confirmed telemetry freshness uses the same 200 ms budget as ESP, load sign is `f_load = -(k * trq_aero_norm)`, rotor auto-selection should use a few-second window, and multi-rotor datarefs already exist (up to 4 rotors).
+- Async/out-of-order dependency: rotor auto-selection and max tracking should ignore stale telemetry older than the 200 ms window.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- Choose a concrete auto-selection window duration (e.g., 2–3 s).
+
+## 2026-01-19 20:39:03 +01:00 (DESKTOP-6KO022D)
+Request: clarify that only the total load force is clamped.
+Summary:
+- Updated the future design doc to state that only a total force clamp applies, and only to load terms.
+- Async/out-of-order dependency: total clamp should still guard against stale telemetry spikes.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- None.
+
+## 2026-01-19 20:36:43 +01:00 (DESKTOP-6KO022D)
+Request: check for any remaining gaps in the future FFB design doc.
+Summary:
+- Suggested minor doc clarifications (sign convention examples, stale-telemetry timeouts, and a note on per-term clamps vs total clamp).
+- Async/out-of-order dependency: telemetry freshness gating should be defined for max tracking and auto-selection.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- Decide on the exact telemetry freshness timeout and clamp strategy wording.
+
+## 2026-01-19 20:35:47 +01:00 (DESKTOP-6KO022D)
+Request: update rotor auto-selection to pick the lowest RPM rotor (main rotor).
+Summary:
+- Clarified auto-selection to choose the lowest sustained RPM as the main rotor, avoiding tail rotor selection.
+- Async/out-of-order dependency: rotor selection depends on stable RPM telemetry; consider a windowed average to avoid flapping.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- None.
+
+## 2026-01-19 20:32:48 +01:00 (DESKTOP-6KO022D)
+Request: add conventions and safety notes to the future FFB design doc.
+Summary:
+- Added sign conventions, unit conversion notes, rotor auto-selection behavior, and output safety clamps.
+- Async/out-of-order dependency: auto-selection and safety clamping should consider stale telemetry to avoid oscillations.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- Confirm the desired rotor auto-selection heuristic (highest sustained RPM vs torque).
+
+## 2026-01-19 20:30:01 +01:00 (DESKTOP-6KO022D)
+Request: add definitions and clarify gaps in the future FFB design doc.
+Summary:
+- Added a Definitions/Inputs table and clarified assist_loss clamping, trim vs k_center behavior, and max-torque tracking rules.
+- Async/out-of-order dependency: reference-flight max tracking depends on fresh telemetry; gated updates and explicit save flow are required.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- Confirm the exact datarefs for `mr_torque` and `rpm` if multiple rotor indices are present.
+
+## 2026-01-19 20:27:41 +01:00 (DESKTOP-6KO022D)
+Request: identify blind spots or logical gaps in the future FFB design doc.
+Summary:
+- Flagged gaps around clamp behavior for assist_loss when rpm_norm > 1.0, missing explicit dataref/unit mapping, and undefined low_rpm_factor/ramp shapes.
+- Async/out-of-order dependency: max-torque tracking and profile staging depend on fresh telemetry; needs gating and user-confirmed save flow.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- Clarify assist_loss clamp behavior and define low_rpm_factor/ramp function.
+- Add a short mapping table for datarefs, units, and normalization inputs.
+
+## 2026-01-19 20:26:18 +01:00 (DESKTOP-6KO022D)
+Request: fill in the remaining placeholder in the future design doc rationale sentence.
+Summary:
+- Replaced the placeholder with “aerodynamic hinge moments” in the non-assisted controls rationale.
+- Async/out-of-order dependency: not applicable (documentation only).
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- None.
+
+## 2026-01-19 20:24:58 +01:00 (DESKTOP-6KO022D)
+Request: replace the rationale sentence placeholder in the future design doc.
+Summary:
+- Rewrote the general rationale sentence to avoid servo-valve specificity and cover aerodynamic/rotor loads plus assist flow limits.
+- Async/out-of-order dependency: not applicable (documentation only).
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- None.
+
+## 2026-01-19 20:19:37 +01:00 (DESKTOP-6KO022D)
+Request: review the new general rationale sentence in the future FFB design doc.
+Summary:
+- Flagged the sentence as slightly too specific to hydraulic servo-valve systems and suggested broadening it to cover aerodynamic hinge moments and linkage friction, with hydraulics as a contributing factor.
+- Async/out-of-order dependency: not applicable (documentation review).
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- Decide whether the rationale should be framed as “typical hydraulic” or as a general control‑load explanation.
+
+## 2026-01-19 20:13:10 +01:00 (DESKTOP-6KO022D)
+Request: clarify trq_aero_norm clamping and add friction/damper scaling rationales.
+Summary:
+- Documented that trq_aero_norm is not clamped and added rationale notes for heli/plane friction and damping scaling choices.
+- Async/out-of-order dependency: not applicable (documentation only).
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- None.
+
+## 2026-01-19 20:10:56 +01:00 (DESKTOP-6KO022D)
+Request: clamp only torque_norm_mr/rpm_norm to 1.1 and make k_rpm_blend tunable.
+Summary:
+- Updated the future design doc to clamp rotor torque and RPM normalization to 0..1.1 and marked k_rpm_blend as a tunable parameter.
+- Async/out-of-order dependency: reference-flight max tracking must be gated on fresh samples before updating maxima.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- None.
+
+## 2026-01-19 20:07:30 +01:00 (DESKTOP-6KO022D)
+Request: allow 10% overtorque/overspeed before clamping in the future-state doc.
+Summary:
+- Noted the clamp range adjustment to 0..1.1 for normalized values to avoid premature clipping.
+- Async/out-of-order dependency: not applicable (documentation note).
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- Confirm whether the same 1.1 clamp applies to both aero and main-rotor torque normalization.
+
+## 2026-01-19 20:03:58 +01:00 (DESKTOP-6KO022D)
+Request: apply future-doc updates (k_center, torque_norm_mr, damping blend, save prompt).
+Summary:
+- Updated the future design doc with `k_center` naming, `torque_norm_mr` normalization, a heli damping blend formula, and explicit save/discard prompting on aircraft change.
+- Async/out-of-order dependency: reference-flight max tracking must be gated on fresh samples before updating maxima.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- Decide whether `k_rpm_blend` is a fixed constant or a tunable parameter.
+
+## 2026-01-19 20:01:04 +01:00 (DESKTOP-6KO022D)
+Request: clarify heli spring naming, damper blend strategy, torque_norm naming, and profile-save confirmation.
+Summary:
+- Agreed to rename heli spring to `k_center` (trim-affected centering) and to use `torque_norm_mr` for main-rotor normalization.
+- Discussed blending RPM- and torque-based damping and explicit user confirmation before saving modified profiles.
+- Async/out-of-order dependency: max-torque tracking must be gated on fresh reference-flight samples before updating saved maxima.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- Choose a specific RPM/torque blend function for heli damping.
+
+## 2026-01-19 19:52:05 +01:00 (DESKTOP-6KO022D)
+Request: review edits to the future-state FFB design doc.
+Summary:
+- Reviewed the updated future-state doc and noted open questions on heli spring naming (`k_trim`), damper scaling (torque vs RPM), and naming alignment for torque normalization.
+- Async/out-of-order dependency: the tracked max torque references rely on reference-flight sampling; ensure stale/out-of-order telemetry is gated before updating maxima.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- Confirm heli cyclic/pedals spring term naming and whether it maps to trim or centering.
+- Decide on damper scaling source for helis (torque vs RPM or blend).
+
+## 2026-01-19 19:08:25 +01:00 (DESKTOP-6KO022D)
+Request: rewrite the future-state FFB design doc to reflect the full target state.
+Summary:
+- Replaced the future doc with a full future-state definition (not just additions), mirroring the current-state structure with planned terms integrated.
+- Async/out-of-order dependency: not applicable (documentation only).
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- Review variable naming in the future doc and align with actual config field names before implementation.
+
+## 2026-01-19 19:00:31 +01:00 (DESKTOP-6KO022D)
+Request: split the FFB design doc into current and future state files.
+Summary:
+- Renamed the original design doc to a current-state version and removed planned items.
+- Added a future-state doc capturing agreed additions and ongoing design notes.
+- Async/out-of-order dependency: not applicable (documentation only).
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Current.md`
+- `SimHubPlugin/Docs/FFB_Design_Future.md`
+Open items:
+- Decide whether to link these docs from `SimHubPlugin/Docs/XPlane_FFB.md`.
+
+## 2026-01-19 18:55:22 +01:00 (DESKTOP-6KO022D)
+Request: add heli low-RPM friction to the design list and write an FFB design document.
+Summary:
+- Created an FFB design doc that consolidates agreed spring/damper/friction/load terms per aircraft type/axis/function.
+- Captured the planned heli low-RPM friction term as a future addition.
+- Async/out-of-order dependency: not applicable (documentation only).
+Key files:
+- `SimHubPlugin/Docs/FFB_Design.md`
+Open items:
+- Decide if the doc should be linked from `SimHubPlugin/Docs/XPlane_FFB.md`.
+- Implement the heli low-RPM friction term in code.
+
+## 2026-01-19 17:45:45 +01:00 (DESKTOP-6KO022D)
+Request: discuss RPM impact on hydraulic feel (damping/friction).
+Summary:
+- Noted that lower RPM reduces assist/flow, which can feel heavier but also reduces true viscous damping; suggested separating assist scaling from flow‑limit damping.
+- Async/out-of-order dependency: not applicable (design guidance).
+Key files:
+- None.
+Open items:
+- None.
+
+## 2026-01-19 16:41:40 +01:00 (DESKTOP-6KO022D)
+Request: fix missing torqueRefNm argument in X-Plane diagnostics calls.
+Summary:
+- Corrected fixed-wing diagnostics calls to pass the new torque reference parameter.
+- Async/out-of-order dependency: not applicable (bug fix).
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+Open items:
+- None.
+
+## 2026-01-19 14:40:41 +01:00 (DESKTOP-6KO022D)
+Request: remove per-function Vref and migrate to system Vref using mean of used functions.
+Summary:
+- Dropped per-function Vref from profile settings and migrated to system Vref/Nominal RPM using the mean of enabled functions and collective fallback.
+- Cleared legacy per-function Vref values after migration; UI now shows system-only references.
+- Async/out-of-order dependency: not applicable (settings migration).
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+Open items:
+- Decide if legacy Vref values should be retained for audit instead of zeroed.
+
+## 2026-01-19 14:29:53 +01:00 (DESKTOP-6KO022D)
+Request: move Vref/RPM reference to system tab with per-aircraft plane/heli selection.
+Summary:
+- Added system-level plane/heli selector and reference fields (Vref kts, nominal RPM) and saved them per aircraft profile.
+- Routed qhat scaling to the system Vref and collective RPM scaling to the system nominal RPM; per-function Vref sliders are now read-only.
+- Async/out-of-order dependency: not applicable (UI/settings wiring).
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+Open items:
+- Decide if per-function Vref fields should be removed entirely from settings.
+
+## 2026-01-19 14:13:46 +01:00 (DESKTOP-6KO022D)
+Request: clarify friction/damping scaling: rotor torque for helis, qhat_eff for planes.
+Summary:
+- Confirmed the plan to scale friction/damping with rotor torque on helicopters and qhat_eff on fixed‑wing aircraft.
+- Async/out-of-order dependency: not applicable (design clarification).
+Key files:
+- None.
+Open items:
+- None.
+
+## 2026-01-19 14:09:03 +01:00 (DESKTOP-6KO022D)
+Request: discuss servo-like feel via torque/IAS-dependent friction + damping.
+Summary:
+- Confirmed the friction/damping split is a good approximation of servo feel; advised gentle IAS scaling and torque-based friction for static breakaway.
+- Async/out-of-order dependency: not applicable (design guidance).
+Key files:
+- None.
+Open items:
+- None.
+
+## 2026-01-19 13:29:48 +01:00 (DESKTOP-6KO022D)
+Request: provide guidance on torque/IAS-dependent friction.
+Summary:
+- Discussed that friction should be torque-dependent for static hold and optionally IAS-dependent for aerodynamic feel, with guards to avoid creep/latch.
+- Async/out-of-order dependency: not applicable (design guidance).
+Key files:
+- None.
+Open items:
+- None.
+
+## 2026-01-19 09:12:18 +01:00 (DESKTOP-6KO022D)
+Request: add an AGENTS rule for normalized FFB tuning references.
+Summary:
+- Added a requirement to normalize FFB tuning parameter references for cross-model consistency.
+- Async/out-of-order dependency: not applicable (documentation change).
+Key files:
+- `AGENTS.md`
+Open items:
+- None.
+
+## 2026-01-19 09:11:28 +01:00 (DESKTOP-6KO022D)
+Request: normalize load gains by per-aircraft max torque and gate auto-tune below Vref.
+Summary:
+- Added per-function torque reference tracking and normalized load force to “gain @ max torque”.
+- Updated load labels to show the torque reference and gated auto-tune updates below a Vref/RPM threshold.
+- Async/out-of-order dependency: torque references and diagnostics update with the latest X-Plane packets; auto-tune skips stale/low-speed samples.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+Open items:
+- Decide whether to expose a reset for torque references in the UI.
+
+## 2026-01-19 09:03:28 +01:00 (DESKTOP-6KO022D)
+Request: propose torque-normalized tuning using per-aircraft max torque references.
+Summary:
+- Proposed normalizing load/friction/damping gains to an observed per-aircraft max torque and showing it as a reference in the UI.
+- Async/out-of-order dependency: not applicable (design discussion).
+Key files:
+- None.
+Open items:
+- Decide whether to persist max torque per function/aircraft and how to reset it.
+
+## 2026-01-19 08:46:58 +01:00 (DESKTOP-6KO022D)
+Request: confirm load-dependent friction/damping for collective feel.
+Summary:
+- Agreed to add torque/load-dependent friction and damping alongside load force to avoid creep and tune for hydraulics vs light helis.
+- Async/out-of-order dependency: not applicable (design agreement).
+Key files:
+- None.
+Open items:
+- Add tuning knobs for load-scaled friction and damping.
+
+## 2026-01-19 08:38:06 +01:00 (DESKTOP-6KO022D)
+Request: note that auto-tuning below Vref is unreliable due to low load.
+Summary:
+- Captured the constraint that auto-tuning should avoid low-speed regimes where load is too small.
+- Async/out-of-order dependency: not applicable (design note).
+Key files:
+- None.
+Open items:
+- Consider gating auto-tune updates on IAS/RPM vs Vref to avoid low-load samples.
+
+## 2026-01-19 08:25:00 +01:00 (DESKTOP-6KO022D)
+Request: add reference-flight auto tuning to freeze aero moment gains.
+Summary:
+- Added auto-tune toggles to the X-Plane FFB panels and a shared auto-tune helper for load-gain updates.
+- Exposed pedal diagnostics in the plugin so the pedals panel can use load-force data for tuning.
+- Async/out-of-order dependency: diagnostics updates depend on the latest X-Plane packets; the tuner skips updates when telemetry is stale or axis force is too small.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+- `SimHubPlugin/Tools.cs`
+Open items:
+- None.
+
+## 2026-01-19 08:14:45 +01:00 (DESKTOP-6KO022D)
+Request: discuss adaptive tuning workflow for aero load balancing.
+Summary:
+- Proposed a “reference flight” calibration mode to adjust k_aero, then freeze the resulting gain for normal use.
+- Async/out-of-order dependency: not applicable (design discussion).
+Key files:
+- None.
+Open items:
+- None.
+
 ## 2026-01-18 19:12:53 +01:00 (DESKTOP-6KO022D)
 Request: collapse unused collective sliders to remove empty gaps.
 Summary:

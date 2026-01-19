@@ -597,6 +597,13 @@ void physics_task_func(void *pv_parameters) {
 }
 
 void on_ffb_action(const FFBAction &ffb_action) {
+    if (ffb_action.which_function == FFBAction_flight_ffb_tag) {
+        const FunctionConfig *function_cfg = config_manager.get_function_config();
+        if (function_cfg) {
+            float friction_ffb = function_cfg->friction + max(0.0f, ffb_action.function.flight_ffb.k_friction);
+            friction.set_f(max(function_cfg->friction, friction_ffb));
+        }
+    }
     IFunction *active_function = config_manager.get_active_function();
     if (active_function) {
         active_function->on_ffb_action(ffb_action);

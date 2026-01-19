@@ -76,17 +76,49 @@
                             <styles:SHToggleButton x:Name="Toggle_xplane_ffb_enabled" Content="" Checked="Toggle_xplane_ffb_enabled_Checked" Unchecked="Toggle_xplane_ffb_enabled_Unchecked" IsChecked="True" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Enable X-Plane FFB for this function" RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />
                             <Label x:Name="label_xplane_ffb_enabled" Content="Enable FFB" Height="20" Width="130" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
                         </StackPanel>
-                        <StackPanel Width="400" Height="40">
+                        <StackPanel x:Name="Panel_xplane_kq" Width="400" Height="40">
                             <Label x:Name="label_xplane_kq" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Spring Gain @ Vref:" Padding="0,0,0,8"/>
                             <Slider x:Name="Slider_xplane_kq" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="2.0" IsSnapToTickEnabled="True" Value="1.0" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneKqChanged"/>
+                        </StackPanel>
+                        <StackPanel x:Name="Panel_xplane_kcenter" Width="400" Height="40">
+                            <Label x:Name="label_xplane_kcenter" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Center Gain:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_xplane_kcenter" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="5.0" IsSnapToTickEnabled="True" Value="1.0" SmallChange="0.01" TickFrequency="0.01" ValueChanged="OnXPlaneKcenterChanged"/>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_xplane_krate" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Damper Gain @ Vref:" Padding="0,0,0,8"/>
                             <Slider x:Name="Slider_xplane_krate" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="2.0" IsSnapToTickEnabled="True" Value="1.0" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneKrateChanged"/>
                         </StackPanel>
+                        <StackPanel x:Name="Panel_xplane_rpm_blend" Width="400" Height="40">
+                            <Label x:Name="label_xplane_rpm_blend" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="RPM Blend:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_xplane_rpm_blend" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="1.0" IsSnapToTickEnabled="True" Value="0.5" SmallChange="0.01" TickFrequency="0.01" ValueChanged="OnXPlaneRpmBlendChanged"/>
+                        </StackPanel>
+                        <StackPanel x:Name="Panel_xplane_friction_q" Width="400" Height="40">
+                            <Label x:Name="label_xplane_friction_q" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Friction Gain @ Vref:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_xplane_friction_q" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="5.0" IsSnapToTickEnabled="True" Value="0.0" SmallChange="0.01" TickFrequency="0.01" ValueChanged="OnXPlaneFrictionQChanged"/>
+                        </StackPanel>
+                        <StackPanel x:Name="Panel_xplane_friction_torque" Width="400" Height="40">
+                            <Label x:Name="label_xplane_friction_torque" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Friction Gain @ Torque:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_xplane_friction_torque" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="20.0" IsSnapToTickEnabled="True" Value="0.0" SmallChange="0.1" TickFrequency="0.1" ValueChanged="OnXPlaneFrictionTorqueChanged"/>
+                        </StackPanel>
+                        <StackPanel x:Name="Panel_xplane_friction_low_rpm" Width="400" Height="40">
+                            <Label x:Name="label_xplane_friction_low_rpm" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Low RPM Friction Gain:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_xplane_friction_low_rpm" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="20.0" IsSnapToTickEnabled="True" Value="0.0" SmallChange="0.1" TickFrequency="0.1" ValueChanged="OnXPlaneFrictionLowRpmChanged"/>
+                        </StackPanel>
+                        <StackPanel x:Name="Panel_xplane_load_torque_gain" Width="400" Height="40">
+                            <Label x:Name="label_xplane_load_torque_gain" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Load Gain @ Torque:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_xplane_load_torque_gain" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="5.0" IsSnapToTickEnabled="True" Value="1.0" SmallChange="0.01" TickFrequency="0.01" ValueChanged="OnXPlaneLoadTorqueGainChanged"/>
+                        </StackPanel>
+                        <StackPanel x:Name="Panel_xplane_load_force_clamp" Width="400" Height="40">
+                            <Label x:Name="label_xplane_load_force_clamp" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Load Force Clamp:" Padding="0,0,0,8"/>
+                            <Slider x:Name="Slider_xplane_load_force_clamp" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="5000.0" IsSnapToTickEnabled="True" Value="1000.0" SmallChange="10.0" TickFrequency="10.0" ValueChanged="OnXPlaneLoadForceClampChanged"/>
+                        </StackPanel>
                         <StackPanel x:Name="Panel_xplane_aero_moment_gain" Width="400" Height="40">
                             <Label x:Name="label_xplane_aero_moment_gain" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Aero Moment Gain:" Padding="0,0,0,8"/>
                             <Slider x:Name="Slider_xplane_aero_moment_gain" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="-0.1" Maximum="0.1" IsSnapToTickEnabled="True" Value="0.0" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneAeroMomentGainChanged"/>
+                        </StackPanel>
+                        <StackPanel x:Name="Panel_xplane_auto_tune" Width="400" Height="30" Orientation="Horizontal">
+                            <styles:SHToggleButton x:Name="Toggle_xplane_auto_tune" Content="" Checked="Toggle_xplane_auto_tune_Checked" Unchecked="Toggle_xplane_auto_tune_Unchecked" IsChecked="False" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Auto-tune the aero moment gain during a reference flight" RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />
+                            <Label x:Name="label_xplane_auto_tune" Content="Auto-tune load gain (reference flight)" Height="20" Width="300" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_xplane_trim_mm_per_deg" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Trim Scale:" Padding="0,0,0,8"/>
