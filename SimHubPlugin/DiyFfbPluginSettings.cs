@@ -216,6 +216,7 @@ namespace User.PluginSdkDemo
         public int OtaLocalPort = 8000;
         public bool XPlaneUdpEnabled = false;
         public int XPlaneUdpPort = 27015;
+        public bool XPlaneTorqueCaptureEnabled = true;
         public float XPlaneFfbKq = DefaultXPlaneFfbKq;
         public float XPlaneFfbKrate = DefaultXPlaneFfbKrate;
         public float XPlaneTrimMmPerDeg = DefaultXPlaneTrimMmPerDeg;

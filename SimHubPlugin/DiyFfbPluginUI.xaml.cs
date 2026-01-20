@@ -462,6 +462,10 @@ namespace User.PluginSdkDemo
             {
                 ComboBox_XPlaneAircraftType.SelectedIndex = Plugin.Settings.XPlaneAircraftIsHelicopter ? 1 : 0;
             }
+            if (Toggle_xplane_torque_capture != null)
+            {
+                Toggle_xplane_torque_capture.IsChecked = Plugin.Settings.XPlaneTorqueCaptureEnabled;
+            }
             if (TextBox_XPlaneVref != null)
             {
                 TextBox_XPlaneVref.Text = Plugin.Settings.XPlaneVrefKtsSystem.ToString("F0");
@@ -500,6 +504,26 @@ namespace User.PluginSdkDemo
             Plugin.Settings.XPlaneAircraftIsHelicopter = ComboBox_XPlaneAircraftType.SelectedIndex == 1;
             RefreshXPlaneSystemSettings();
             RefreshXPlaneFfbSettings();
+        }
+
+        private void Toggle_xplane_torque_capture_Checked(object sender, RoutedEventArgs e)
+        {
+            SetTorqueCaptureEnabled(true);
+        }
+
+        private void Toggle_xplane_torque_capture_Unchecked(object sender, RoutedEventArgs e)
+        {
+            SetTorqueCaptureEnabled(false);
+        }
+
+        private void SetTorqueCaptureEnabled(bool enabled)
+        {
+            if (updatingXPlaneSystem || Plugin?.Settings == null)
+            {
+                return;
+            }
+
+            Plugin.Settings.XPlaneTorqueCaptureEnabled = enabled;
         }
 
         private void TextBox_XPlaneVref_TextChanged(object sender, TextChangedEventArgs e)

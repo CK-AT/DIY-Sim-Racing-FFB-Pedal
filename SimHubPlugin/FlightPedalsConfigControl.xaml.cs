@@ -355,6 +355,15 @@ namespace User.PluginSdkDemo
             Slider_xplane_buffet_gain.Value = settings.XPlaneBuffetGain;
             Slider_xplane_weathervane_gain.Value = settings.XPlaneWeathervaneGain;
             Slider_xplane_aero_moment_gain.Value = settings.XPlaneAeroMomentGain;
+            if (TextBox_xplane_aero_torque_ref != null)
+            {
+                TextBox_xplane_aero_torque_ref.Text = settings.XPlaneTorqueRefNm.ToString("F0");
+            }
+            if (Toggle_xplane_auto_tune != null)
+            {
+                Toggle_xplane_auto_tune.IsChecked = settings.XPlaneReferenceFlightMode;
+            }
+            autoTuneLoadGain = settings.XPlaneReferenceFlightMode;
             Slider_xplane_vref.Value = isHeli
                 ? plugin?.GetXPlaneNominalRpm() ?? DiyFfbPluginSettings.DefaultXPlaneNominalRpm
                 : plugin?.GetXPlaneVrefKts() ?? DiyFfbPluginSettings.DefaultXPlaneVrefKts;
@@ -409,6 +418,10 @@ namespace User.PluginSdkDemo
             if (Panel_xplane_load_force_clamp != null)
             {
                 Panel_xplane_load_force_clamp.Visibility = Visibility.Visible;
+            }
+            if (Panel_xplane_aero_torque_ref != null)
+            {
+                Panel_xplane_aero_torque_ref.Visibility = Visibility.Visible;
             }
         }
 
@@ -776,6 +789,26 @@ namespace User.PluginSdkDemo
 
             settings.XPlaneAeroMomentGain = (float)e.NewValue;
             UpdateXPlaneLabels();
+        }
+
+        private void OnXPlaneTorqueRefChanged(object sender, TextChangedEventArgs e)
+        {
+            if (is_updating)
+            {
+                return;
+            }
+
+            var settings = GetFunctionSettings();
+            if (settings == null || TextBox_xplane_aero_torque_ref == null)
+            {
+                return;
+            }
+
+            if (float.TryParse(TextBox_xplane_aero_torque_ref.Text, out float value))
+            {
+                settings.XPlaneTorqueRefNm = Math.Max(0.0f, value);
+                UpdateXPlaneLabels();
+            }
         }
 
         private void Toggle_xplane_auto_tune_Checked(object sender, RoutedEventArgs e)

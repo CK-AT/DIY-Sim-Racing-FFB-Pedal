@@ -2,6 +2,106 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-20 08:32:24 +01:00 (DESKTOP-6KO022D)
+Request: prepare a commit for the latest UI/system FFB refinements.
+Summary:
+- Staged the latest SimHub UI/FFB settings changes and AGENTS/log updates for a new commit.
+Commit highlights:
+- Added aircraft-change save/discard prompt and removed implicit profile auto-save on new aircraft.
+- Added system-wide torque capture toggle and per-function aero torque reference inputs.
+- Broadened aero moment gain slider range and fixed auto-tune checkbox syncing per function.
+- Hid buffet controls in heli mode and fixed missing buffet panel names in pedals UI.
+- Promoted future FFB design doc to current and updated AGENTS rules (FFB design updates, CAN payload guidance, commit highlights).
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Design_Current.md`
+- `AGENTS.md`
+Open items:
+- None.
+
+## 2026-01-20 08:29:26 +01:00 (DESKTOP-6KO022D)
+Request: add commit-highlights tracking rule to avoid missing big changes in commit messages.
+Summary:
+- Added an AGENTS rule to maintain a short "Commit highlights" list in the latest conversation log entry and confirm it before committing.
+Commit highlights:
+- Added aircraft-change save/discard prompt and removed implicit profile auto-save on new aircraft.
+- Added system-wide torque capture toggle and per-function aero torque reference inputs.
+- Broadened aero moment gain slider range and fixed auto-tune checkbox syncing per function.
+- Hid buffet controls in heli mode and fixed missing buffet panel names in pedals UI.
+- Promoted future FFB design doc to current and updated AGENTS rules (FFB design updates, CAN payload guidance, commit highlights).
+Key files:
+- `AGENTS.md`
+Open items:
+- None.
+
+## 2026-01-20 08:20:48 +01:00 (DESKTOP-6KO022D)
+Request: extend AGENTS rules for CAN payload changes.
+Summary:
+- Added guidance to document CAN frame sizing and update pack/unpack/cache handling when payloads change.
+Key files:
+- `AGENTS.md`
+Open items:
+- None.
+
+## 2026-01-20 08:18:43 +01:00 (DESKTOP-6KO022D)
+Request: promote future FFB design to current and add policy to keep it updated.
+Summary:
+- Replaced `SimHubPlugin/Docs/FFB_Design_Current.md` with the future design content.
+- Added an AGENTS rule to update the current FFB design doc whenever the design changes.
+Key files:
+- `SimHubPlugin/Docs/FFB_Design_Current.md`
+- `AGENTS.md`
+Open items:
+- None.
+
+## 2026-01-20 08:11:56 +01:00 (DESKTOP-6KO022D)
+Request: fix auto-tune checkbox state per function in flight stick/pedals.
+Summary:
+- Synced the auto-tune toggle and internal flag with per-function settings when switching functions.
+Key files:
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-20 08:08:04 +01:00 (DESKTOP-6KO022D)
+Request: add system-wide torque capture toggle and manual aero torque refs with broader gain range.
+Summary:
+- Added a system-level torque capture toggle to gate reference-flight torque tracking.
+- Added per-function aero torque reference text boxes and expanded aero moment gain slider ranges.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+Open items:
+- None.
+
+## 2026-01-20 01:36:17 +01:00 (DESKTOP-6KO022D)
+Request: fix aircraft-change prompt timing and add manual aero torque references with better gain range.
+Summary:
+- Added the save/discard prompt to aircraft changes (previously only on shutdown).
+- Added per-function aero torque ref text boxes and widened aero moment gain slider range.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/FlightStickConfigControl.xaml`
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+Open items:
+- None.
+
 ## 2026-01-19 23:05:40 +01:00 (DESKTOP-6KO022D)
 Request: update commit scope to reflect full FFB design and include autotune helper.
 Summary:

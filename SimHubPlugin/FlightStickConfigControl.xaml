@@ -114,7 +114,11 @@
                         </StackPanel>
                         <StackPanel x:Name="Panel_xplane_aero_moment_gain" Width="400" Height="40">
                             <Label x:Name="label_xplane_aero_moment_gain" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Aero Moment Gain:" Padding="0,0,0,8"/>
-                            <Slider x:Name="Slider_xplane_aero_moment_gain" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="-0.1" Maximum="0.1" IsSnapToTickEnabled="True" Value="0.0" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnXPlaneAeroMomentGainChanged"/>
+                            <Slider x:Name="Slider_xplane_aero_moment_gain" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="-50.0" Maximum="50.0" IsSnapToTickEnabled="True" Value="0.0" SmallChange="0.1" TickFrequency="0.1" ValueChanged="OnXPlaneAeroMomentGainChanged"/>
+                        </StackPanel>
+                        <StackPanel x:Name="Panel_xplane_aero_torque_ref" Width="400" Height="30" Orientation="Horizontal">
+                            <Label Foreground="White" FontSize="10" FontFamily="Arial" Content="Aero Torque Ref (Nm):" VerticalAlignment="Center" Width="150" HorizontalAlignment="Left"/>
+                            <TextBox x:Name="TextBox_xplane_aero_torque_ref" TextChanged="OnXPlaneTorqueRefChanged" Height="20" Width="80" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10" ToolTip="Manual aero torque reference for normalization (0 = auto)"/>
                         </StackPanel>
                         <StackPanel x:Name="Panel_xplane_auto_tune" Width="400" Height="30" Orientation="Horizontal">
                             <styles:SHToggleButton x:Name="Toggle_xplane_auto_tune" Content="" Checked="Toggle_xplane_auto_tune_Checked" Unchecked="Toggle_xplane_auto_tune_Unchecked" IsChecked="False" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Auto-tune the aero moment gain during a reference flight" RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />

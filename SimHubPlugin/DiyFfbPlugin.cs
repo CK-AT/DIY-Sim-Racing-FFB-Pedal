@@ -1571,7 +1571,8 @@ namespace User.PluginSdkDemo
             }
 
             float refNm = settings.XPlaneTorqueRefNm;
-            if (settings.XPlaneReferenceFlightMode && IsTelemetryFresh(receivedUtc) && torqueAbs > refNm)
+            if (Settings != null && Settings.XPlaneTorqueCaptureEnabled &&
+                settings.XPlaneReferenceFlightMode && IsTelemetryFresh(receivedUtc) && torqueAbs > refNm)
             {
                 refNm = torqueAbs;
                 settings.XPlaneTorqueRefNm = refNm;
@@ -1589,7 +1590,8 @@ namespace User.PluginSdkDemo
 
             float refNm = Settings.XPlaneMainRotorTorqueRefNmSystem;
             var collectiveSettings = GetFunctionSettings(FunctionID.FlightStickCollective);
-            bool allowUpdate = collectiveSettings != null && collectiveSettings.XPlaneReferenceFlightMode;
+            bool allowUpdate = Settings.XPlaneTorqueCaptureEnabled &&
+                collectiveSettings != null && collectiveSettings.XPlaneReferenceFlightMode;
             if (allowUpdate && IsTelemetryFresh(receivedUtc) && torqueAbs > refNm)
             {
                 refNm = torqueAbs;
@@ -1824,9 +1826,19 @@ namespace User.PluginSdkDemo
                 return;
             }
 
-            if (!string.IsNullOrWhiteSpace(activeCarId))
+            if (!string.IsNullOrWhiteSpace(activeCarId) && HasUnsavedProfileChanges(activeCarId))
             {
-                SaveCurrentAircraftProfile(activeCarId);
+                bool saveCurrent = false;
+                if (ui != null)
+                {
+                    saveCurrent = (bool)ui.Dispatcher.Invoke(new Func<bool>(() =>
+                        ui.ConfirmSaveCurrentProfile(activeCarName, activeCarId)));
+                }
+
+                if (saveCurrent)
+                {
+                    SaveCurrentAircraftProfile(activeCarId);
+                }
             }
 
             bool applyPending = false;
