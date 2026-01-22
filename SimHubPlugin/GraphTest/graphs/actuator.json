@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "nodes": [
+    { "id": "cmd_force", "type": "Input", "name": "cmd_force" },
+    { "id": "pressure", "type": "Input", "name": "pressure" },
+    { "id": "k_force", "type": "Param", "name": "actuator_gain" },
+    { "id": "scaled", "type": "Op", "op": "Mul", "args": ["cmd_force", "k_force"] },
+    { "id": "clamp_max", "type": "Param", "name": "actuator_max" },
+    { "id": "out_force", "type": "Op", "op": "Clamp", "args": ["scaled", "pressure", "clamp_max"] },
+    { "id": "out_force_out", "type": "Output", "name": "out_force", "src": "out_force" }
+  ]
+}

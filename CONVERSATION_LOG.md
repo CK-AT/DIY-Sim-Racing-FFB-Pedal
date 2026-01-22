@@ -2,6 +2,934 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-22 12:33:42 +01:00 (DESKTOP-6KO022D)
+Request: prep commit for graph editor UX advancements on ck_ffb_graph.
+Summary:
+- Graph editor UX improvements (edge preview/rewire, sizing, port visibility, single-input enforcement).
+- Graph docs/roadmap/progress added and maintained.
+- Graph test harness/editor projects integrated into solution and UI.
+Commit highlights:
+- Graph editor: edge preview/rewire UX, port hover handles, tighter sizing, and input single-link enforcement.
+- Docs: graph design/roadmap/progress added and kept current.
+- Tooling: GraphEditor/GraphTest/PluginTest added to solution/UI integration.
+Key files:
+- `.gitignore`
+- `AGENTS.md`
+- `SimHubPlugin/GraphEditor/`
+- `SimHubPlugin/GraphTest/`
+- `SimHubPlugin/PluginTest/`
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+- `SimHubPlugin/Docs/FFB_Graph_Roadmap.md`
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/DiyFfbPlugin.csproj`
+- `SimHubPlugin/DiyFfbPlugin.sln`
+Open items:
+- Confirm commit highlights before committing.
+
+## 2026-01-22 12:27:23 +01:00 (DESKTOP-6KO022D)
+Request: allow multiple ports on input/output/param nodes.
+Summary:
+- Added inspector buttons to add input/output ports for those node types.
+- Wired port creation through unique-name helper and surface rebuild.
+- Logged the change in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Rebuild to confirm port add buttons show on the expected node types.
+
+## 2026-01-22 12:21:08 +01:00 (DESKTOP-6KO022D)
+Request: show connectors when cursor is close to allow edge drawing without selection.
+Summary:
+- Added hover-based port visibility when the cursor is near a node.
+- Kept selection/drag visibility logic intact.
+- Logged the change in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Rebuild to verify hover-based port handles appear and do not interfere with drag.
+
+## 2026-01-22 12:17:29 +01:00 (DESKTOP-6KO022D)
+Request: edge preview starts from top-left when dragging from inputs.
+Summary:
+- Preview anchor now uses the pending port kind instead of forcing output anchors.
+- Logged the UX fix in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Rebuild to confirm preview originates from input port anchors.
+
+## 2026-01-22 12:14:49 +01:00 (DESKTOP-6KO022D)
+Request: show selected function on func nodes like op nodes.
+Summary:
+- Appended the selected function name to func node titles.
+- Logged the change in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Rebuild to confirm func node titles show the selected function.
+
+## 2026-01-22 12:12:19 +01:00 (DESKTOP-6KO022D)
+Request: output edges for op/func/include nodes start from wrong vertical position.
+Summary:
+- Switched port layout to separate input/output stacks so anchors match visuals.
+- Node height now uses max(input, output) port count.
+- Logged the change in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Rebuild to confirm edge anchors align with output ports.
+
+## 2026-01-22 12:08:47 +01:00 (DESKTOP-6KO022D)
+Request: make node sizing much tighter.
+Summary:
+- Reduced minimum width, padding, and label spacing for tighter nodes.
+- Trimmed extra width slack in sizing calculation.
+- Logged the change in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Rebuild to confirm node sizing matches expectations.
+
+## 2026-01-22 12:04:35 +01:00 (DESKTOP-6KO022D)
+Request: fix C# 7.3 shadowing error in port connection logic.
+Summary:
+- Renamed the local link variable to avoid CS0136 shadowing.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Rebuild to confirm CS0136 is resolved.
+
+## 2026-01-22 12:02:29 +01:00 (DESKTOP-6KO022D)
+Request: direct edge drag should rewire source or target based on pickup position.
+Summary:
+- Added pickup-distance logic to choose source vs target rewiring on link drag.
+- Logged the UX change in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Rebuild to verify pickup-based source/target rewiring works as expected.
+
+## 2026-01-22 11:58:47 +01:00 (DESKTOP-6KO022D)
+Request: node widths still too wide, likely due to label sizing.
+Summary:
+- Switched node sizing to measured label widths using FormattedText.
+- Right-aligned output labels based on measured width and updated sizing logic.
+- Logged the change in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Rebuild to confirm tighter node widths with long output labels.
+
+## 2026-01-22 11:54:11 +01:00 (DESKTOP-6KO022D)
+Request: prevent multiple edges to a single input.
+Summary:
+- Enforced single incoming link per input on new links and target rewires.
+- Logged the change in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Rebuild to confirm input ports reject multiple edges.
+
+## 2026-01-22 11:50:38 +01:00 (DESKTOP-6KO022D)
+Request: allow dragging edges to a new source.
+Summary:
+- Added source rewiring mode and preview path for source-side drag.
+- Added a context menu option to start source rewiring.
+- Updated graph progress tracking.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Rebuild to confirm source rewiring works and preview path behaves correctly.
+
+## 2026-01-22 11:46:02 +01:00 (DESKTOP-6KO022D)
+Request: op labels missing and nodes not resizing to content.
+Summary:
+- Defaulted Op/Func nodes to a starting operation/function on creation.
+- Refresh node title/size when op/func selection changes.
+- Noted the update in the graph progress log.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Rebuild to confirm op labels and sizing updates are visible.
+
+## 2026-01-22 11:41:20 +01:00 (DESKTOP-6KO022D)
+Request: edge preview not showing after first use.
+Summary:
+- Reset preview/selection visuals on graph rebuild so the edge preview is reattached to the canvas.
+- Logged the fix in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Rebuild to confirm preview edge persists across consecutive attempts.
+
+## 2026-01-22 11:36:57 +01:00 (DESKTOP-6KO022D)
+Request: restore edge drop targets while keeping port handles on selected nodes.
+Summary:
+- Port handles now show while dragging edges or rewiring so drop targets are hittable.
+- Kept selected-only handles outside drag/rewire.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Rebuild to confirm edge drop works with handle visibility changes.
+
+## 2026-01-22 11:32:10 +01:00 (DESKTOP-6KO022D)
+Request: fix missing edge preview symbols in graph editor.
+Summary:
+- Added missing edge preview source field and preview start helper.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Rebuild to confirm edge preview fixes the CS0103 errors.
+
+## 2026-01-22 11:06:39 +01:00 (DESKTOP-6KO022D)
+Request: show port handles on selected nodes and improve edge drawing feedback.
+Summary:
+- Added port handle visibility toggles for selected nodes.
+- Added preview edge while drawing/reconnecting edges.
+- Updated graph progress document with port handle behavior.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Validate port handle visibility if node selection is empty.
+
+## 2026-01-22 10:54:17 +01:00 (DESKTOP-6KO022D)
+Request: add a reset option for reroute handles.
+Summary:
+- Added a "Reset Reroute" option to the edge context menu.
+- Updated the graph progress document with the new UX polish item.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- (none)
+
+## 2026-01-22 10:53:07 +01:00 (DESKTOP-6KO022D)
+Request: add edge rewiring and auto-sized nodes.
+Summary:
+- Added edge drag rewiring with preview path during drag.
+- Nodes now size to fit titles/ports and Op nodes show their operation.
+- Updated graph progress document with new UX polish items.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Consider persisting edge reroute handles in layout metadata.
+
+## 2026-01-22 10:38:13 +01:00 (DESKTOP-6KO022D)
+Request: make reroute handles visible.
+Summary:
+- Reroute handles now appear on edge hover as well as selection/drag.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Consider increasing handle size or adding a toggle to always show them.
+
+## 2026-01-22 10:35:43 +01:00 (DESKTOP-6KO022D)
+Request: add rule for correct C#/.NET versions.
+Summary:
+- Added an AGENTS rule to adhere to the project language/framework versions.
+Commit highlights:
+- (none yet)
+Key files:
+- `AGENTS.md`
+Open items:
+- (none)
+
+## 2026-01-22 10:34:11 +01:00 (DESKTOP-6KO022D)
+Request: fix C# 7.3 incompatibility in GraphEditor reroute handle.
+Summary:
+- Replaced `is not` pattern with C# 7.3-compatible checks.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- (none)
+
+## 2026-01-22 10:30:16 +01:00 (DESKTOP-6KO022D)
+Request: add edge reroute handles and update progress tracking.
+Summary:
+- Added draggable edge reroute handles to adjust Bezier routing.
+- Updated the graph progress document with reroute handle status.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Consider persisting manual edge control points in layout metadata.
+
+## 2026-01-22 10:27:22 +01:00 (DESKTOP-6KO022D)
+Request: continue UX polish (alignment, distribution, edge curvature).
+Summary:
+- Added alignment/distribution tools and edge curvature adjustment controls.
+- Updated graph progress document with the new UX polish items.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Add visual handles for rerouting or orthogonal edges.
+
+## 2026-01-22 10:23:03 +01:00 (DESKTOP-6KO022D)
+Request: add AGENTS rule for graph progress document updates.
+Summary:
+- Added a rule to keep the graph progress doc updated with graph work.
+Commit highlights:
+- (none yet)
+Key files:
+- `AGENTS.md`
+Open items:
+- (none)
+
+## 2026-01-22 10:21:03 +01:00 (DESKTOP-6KO022D)
+Request: continue UX polish and add a progress document.
+Summary:
+- Added edge tooltips and node context menu actions (delete/duplicate).
+- Added a graph progress document and updated it with current status.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Keep the progress doc updated as UX work progresses.
+
+## 2026-01-22 10:17:19 +01:00 (DESKTOP-6KO022D)
+Request: add mitigations to the graph roadmap.
+Summary:
+- Added mitigation tasks to the roadmap for schema, compatibility, units, and runtime fallback.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Roadmap.md`
+Open items:
+- (none)
+
+## 2026-01-22 10:00:49 +01:00 (DESKTOP-6KO022D)
+Request: add risks/mitigations to the graph design doc.
+Summary:
+- Added a risks and mitigations section covering schema, compatibility, and runtime concerns.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+Open items:
+- (none)
+
+## 2026-01-22 09:57:46 +01:00 (DESKTOP-6KO022D)
+Request: switch structured naming to dot-notation.
+Summary:
+- Clarified dot-notation convention for inputs/outputs/params naming.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+Open items:
+- (none)
+
+## 2026-01-22 09:55:46 +01:00 (DESKTOP-6KO022D)
+Request: add param UI schema and naming examples to graph design.
+Summary:
+- Documented param UI schema fields for graph param nodes.
+- Added examples for structured input/output naming.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+Open items:
+- Decide on the final naming convention format (dot vs slash).
+
+## 2026-01-22 09:49:12 +01:00 (DESKTOP-6KO022D)
+Request: align roadmap with graph design requirements.
+Summary:
+- Added compilation step, structured naming, param UI schema, multi-port nodes, and layout persistence to the roadmap.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Roadmap.md`
+Open items:
+- Decide on param UI schema details.
+
+## 2026-01-22 09:47:22 +01:00 (DESKTOP-6KO022D)
+Request: incorporate graph design requirements (compiled runtime, naming, params, layout).
+Summary:
+- Added compilation requirement for fast runtime evaluation.
+- Documented structured naming for inputs/outputs/params and param UI grouping.
+- Added multi-port nodes, param-driven controls, and layout persistence notes.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+Open items:
+- Confirm control types for param nodes (slider/knob/checkbox schema).
+
+## 2026-01-22 09:31:28 +01:00 (DESKTOP-6KO022D)
+Request: formalize FFB graph development with design docs.
+Summary:
+- Added draft design and roadmap documents for the FFB graph system.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Roadmap.md`
+Open items:
+- Review and refine scope/requirements before next implementation phase.
+
+## 2026-01-21 09:05:04 +01:00 (DESKTOP-6KO022D)
+Request: resolve Path ambiguity in include path helpers.
+Summary:
+- Qualified System.IO.Path usages in MakeRelativePath helpers.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- (none)
+
+## 2026-01-21 09:03:43 +01:00 (DESKTOP-6KO022D)
+Request: fix remaining Path ambiguity in GraphEditor.
+Summary:
+- Qualified Path usages in link creation and LinkVisual to avoid System.IO.Path conflicts.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- (none)
+
+## 2026-01-21 09:01:31 +01:00 (DESKTOP-6KO022D)
+Request: fix Path ambiguity in GraphEditor edge handlers.
+Summary:
+- Qualified Path references in edge event handlers to resolve System.IO.Path vs Shapes.Path.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- (none)
+
+## 2026-01-21 08:58:32 +01:00 (DESKTOP-6KO022D)
+Request: improve edge routing visuals.
+Summary:
+- Switched edges from straight lines to curved Bezier paths with consistent styling.
+- Updated edge selection/hover handlers to use path geometry.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Consider configurable curve tension or orthogonal routing.
+
+## 2026-01-21 08:11:49 +01:00 (DESKTOP-6KO022D)
+Request: add include path picker and library browser.
+Summary:
+- Added include path browse button with relative path support.
+- Added a library list under the hierarchy tree with open actions.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
+Open items:
+- Consider persisting include cache across sessions.
+
+## 2026-01-21 07:56:06 +01:00 (DESKTOP-6KO022D)
+Request: add hierarchy panel and include navigation entry points.
+Summary:
+- Added a hierarchy tree panel for root/include graphs with selection-based navigation.
+- Added inspector and context menu actions to open include graphs.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- (none)
+
+## 2026-01-21 07:38:41 +01:00 (DESKTOP-6KO022D)
+Request: add edge hover cues and context actions.
+Summary:
+- Added edge hover styling and a context menu to delete a selected edge.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- (none)
+
+## 2026-01-21 07:36:27 +01:00 (DESKTOP-6KO022D)
+Request: add edge selection/removal and rounded node boxes.
+Summary:
+- Added selectable edges with delete support and visual highlighting.
+- Switched nodes to rounded borders while keeping port layout intact.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Consider adding edge hover cues or context menu actions.
+
+## 2026-01-21 07:27:13 +01:00 (DESKTOP-6KO022D)
+Request: fix GraphEditorControl build error from shadowed locals.
+Summary:
+- Renamed selection/pan locals in CanvasSurface_MouseMove to avoid shadowing.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- (none)
+
+## 2026-01-20 23:30:11 +01:00 (DESKTOP-6KO022D)
+Request: add include port editing and node/port renaming support.
+Summary:
+- Added include input/output editors with add/remove and rename support.
+- Added ports panel with editable port names for all nodes, updating links and visuals.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Consider exposing add/remove ports for non-include nodes if desired.
+
+## 2026-01-20 23:20:16 +01:00 (DESKTOP-6KO022D)
+Request: add inspector editing for graph nodes.
+Summary:
+- Added inspector fields to edit node title, const value, op/func, include path, and param ranges.
+- Wired inspector edits to live preview, unique naming, and node label updates.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Add include input/output port editing if needed.
+
+## 2026-01-20 20:22:09 +01:00 (DESKTOP-6KO022D)
+Request: improve graph editor ergonomics.
+Summary:
+- Added grid background, selection rectangle, multi-select, delete, and zoom-to-fit.
+- Added snap-to-grid for node dragging and selection visuals.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Add inspector editing for node properties (op/func/const/include).
+
+## 2026-01-20 20:03:05 +01:00 (DESKTOP-6KO022D)
+Request: add include/func node support in the graph editor UI.
+Summary:
+- Added context menu entries and default ports for Const/Func/Include nodes.
+- Wired include output ports into preview evaluation via synthetic output IDs.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphPreviewEvaluator.cs`
+Open items:
+- Add UI for selecting op/func/const/include settings.
+
+## 2026-01-20 19:56:19 +01:00 (DESKTOP-6KO022D)
+Request: fix plugin/PluginTest build errors (GraphIncludeResolver + access levels).
+Summary:
+- Included GraphIncludeResolver/GraphLoader/GraphSaver in the plugin build to satisfy GraphEvaluator dependencies.
+- Made GraphPreviewEvaluator public so PluginTest can use it.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.csproj`
+- `SimHubPlugin/GraphEditor/GraphPreviewEvaluator.cs`
+Open items:
+- Re-run PluginTest after rebuilding the plugin assembly.
+
+## 2026-01-20 19:51:48 +01:00 (DESKTOP-6KO022D)
+Request: add PluginTest to the SimHub solution.
+Summary:
+- Added the PluginTest project to `DiyFfbPlugin.sln` for easier build/run.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.sln`
+Open items:
+- (none)
+
+## 2026-01-20 19:48:51 +01:00 (DESKTOP-6KO022D)
+Request: start a plugin test harness.
+Summary:
+- Added a net48 PluginTest console project referencing the SimHub plugin.
+- Added tests for GraphEditor JSON roundtrip and graph preview evaluation.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/PluginTest/PluginTest.csproj`
+- `SimHubPlugin/PluginTest/Program.cs`
+Open items:
+- Consider adding this project to a solution for one-command builds.
+
+## 2026-01-20 19:42:36 +01:00 (DESKTOP-6KO022D)
+Request: fix GraphTest build error from GraphEditor types.
+Summary:
+- Removed GraphEditor JSON roundtrip test to keep GraphTest isolated from SimHub plugin types.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+Open items:
+- If needed, move GraphEditor JSON tests into the plugin test harness.
+
+## 2026-01-20 19:41:26 +01:00 (DESKTOP-6KO022D)
+Request: add a rule to keep graph runtime logic shared.
+Summary:
+- Added an AGENTS rule to reuse shared graph evaluators for editor previews/tests.
+Commit highlights:
+- (none yet)
+Key files:
+- `AGENTS.md`
+Open items:
+- (none)
+
+## 2026-01-20 19:36:54 +01:00 (DESKTOP-6KO022D)
+Request: add live evaluation preview for selected graph nodes and integrate the editor into SimHub UI.
+Summary:
+- Added preview inputs/params in the inspector with live evaluation results for selected nodes.
+- Added a graph preview evaluator that converts editor graphs into runtime graphs for evaluation traces.
+- Wired graph editor sources into the SimHub plugin project and added a Graph Editor window handle.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphPreviewEvaluator.cs`
+- `SimHubPlugin/GraphTest/GraphEvaluator.cs`
+- `SimHubPlugin/DiyFfbPlugin.csproj`
+Open items:
+- Confirm preview input defaults and extend node types (include/func) in the UI.
+
+## 2026-01-20 19:14:13 +01:00 (DESKTOP-6KO022D)
+Request: add an inspector panel for the graph editor.
+Summary:
+- Added a right-side inspector panel showing selected node metadata and live values.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Integrate the editor in a dedicated window from the SimHub UI.
+
+## 2026-01-20 19:06:18 +01:00 (DESKTOP-6KO022D)
+Request: prototype the node graph editor surface.
+Summary:
+- Added a minimal WPF graph editor control with pan/zoom, node creation, and basic port-to-port wiring.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Add an inspector panel or live evaluation preview for nodes.
+
+## 2026-01-20 19:02:06 +01:00 (DESKTOP-6KO022D)
+Request: draft the graph editor model/binding layer and expand tests.
+Summary:
+- Added graph editor model/serializer (nodes/ports/links/params) and JSON roundtrip validation.
+- Added a GraphTest check covering the editor JSON roundtrip.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphModel.cs`
+- `SimHubPlugin/GraphEditor/GraphSerializer.cs`
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+Open items:
+- None.
+
+## 2026-01-20 18:54:29 +01:00 (DESKTOP-6KO022D)
+Request: start planning the node graph UI for FFB tuning.
+Summary:
+- Laid out a plan covering framework selection, model/UI binding, editor prototype, and live evaluation previews.
+Commit highlights:
+- (none yet)
+Key files:
+- (none)
+Open items:
+- Choose WPF GraphX vs NodeNetwork (or WebView) for the editor surface.
+
+## 2026-01-20 18:51:57 +01:00 (DESKTOP-6KO022D)
+Request: fix include warning test failure due to missing path rule.
+Summary:
+- Allowed include nodes to omit path when inline graph is present and updated the missing-path test accordingly.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphLoader.cs`
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+Open items:
+- None.
+
+## 2026-01-20 18:49:12 +01:00 (DESKTOP-6KO022D)
+Request: fix failing include mapping warnings test.
+Summary:
+- Adjusted the include warning test to avoid referencing unmapped outputs while still exercising warnings.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+Open items:
+- None.
+
+## 2026-01-20 18:47:03 +01:00 (DESKTOP-6KO022D)
+Request: user added a new AGENTS rule.
+Summary:
+- Recorded the new AGENTS rule: add unit tests for new features whenever feasible.
+Commit highlights:
+- (none yet)
+Key files:
+- `AGENTS.md`
+Open items:
+- None.
+
+## 2026-01-20 18:45:33 +01:00 (DESKTOP-6KO022D)
+Request: add additional graph validator checks and tests.
+Summary:
+- Added op arg-count validation and clamp-bound warnings, plus corresponding tests.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphLoader.cs`
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+Open items:
+- None.
+
+## 2026-01-20 18:43:36 +01:00 (DESKTOP-6KO022D)
+Request: expand GraphTest suite with additional validation scenarios.
+Summary:
+- Added tests for schema version mismatch, unknown functions, missing output sources, include missing path, and include mapping warnings.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+Open items:
+- None.
+
+## 2026-01-20 18:41:04 +01:00 (DESKTOP-6KO022D)
+Request: add a printed unit test suite for graph features.
+Summary:
+- Replaced the single throw-on-fail check with a multi-test runner that prints pass/fail for core features.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+Open items:
+- None.
+
+## 2026-01-20 18:36:07 +01:00 (DESKTOP-6KO022D)
+Request: add block library index and include validation tests.
+Summary:
+- Added a block library index for cached includes and validation for include input/output names.
+- Added a small validation test runner for include output mapping.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphIncludeResolver.cs`
+- `SimHubPlugin/GraphTest/GraphLoader.cs`
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+- `SimHubPlugin/GraphTest/Program.cs`
+Open items:
+- None.
+
+## 2026-01-20 18:31:49 +01:00 (DESKTOP-6KO022D)
+Request: support inline include graphs with block library caching.
+Summary:
+- Added inline include support, JSON export of embedded graphs, and a resolver that writes embedded graphs to a local library.
+- Updated the test harness to exercise inline includes alongside file paths.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphEvaluator.cs`
+- `SimHubPlugin/GraphTest/GraphLoader.cs`
+- `SimHubPlugin/GraphTest/GraphSaver.cs`
+- `SimHubPlugin/GraphTest/GraphIncludeResolver.cs`
+- `SimHubPlugin/GraphTest/Program.cs`
+Open items:
+- None.
+
+## 2026-01-20 18:12:15 +01:00 (DESKTOP-6KO022D)
+Request: fix include output validation for JSON graph loading.
+Summary:
+- Allowed output nodes to reference include output mappings without requiring a local node.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphLoader.cs`
+Open items:
+- None.
+
+## 2026-01-20 18:07:58 +01:00 (DESKTOP-6KO022D)
+Request: add include nodes to the graph test harness.
+Summary:
+- Added include-node support with path/input/output mappings and a simple file resolver.
+- Added a sample actuator subgraph and wired it into the test graph + JSON sample.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphEvaluator.cs`
+- `SimHubPlugin/GraphTest/GraphLoader.cs`
+- `SimHubPlugin/GraphTest/GraphSaver.cs`
+- `SimHubPlugin/GraphTest/GraphIncludeResolver.cs`
+- `SimHubPlugin/GraphTest/graphs/actuator.json`
+- `SimHubPlugin/GraphTest/Program.cs`
+Open items:
+- None.
+
+## 2026-01-20 17:53:24 +01:00 (DESKTOP-6KO022D)
+Request: fix GraphTest JSON dependency for net48.
+Summary:
+- Switched GraphTest JSON handling to Newtonsoft.Json and added the package reference.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphTest.csproj`
+- `SimHubPlugin/GraphTest/GraphLoader.cs`
+- `SimHubPlugin/GraphTest/GraphSaver.cs`
+Open items:
+- None.
+
+## 2026-01-20 17:50:40 +01:00 (DESKTOP-6KO022D)
+Request: fix GraphTest build error due to nullable/implicit usings on C# 7.3.
+Summary:
+- Disabled nullable and implicit usings in GraphTest to keep compatibility with .NET Framework 4.8/C# 7.3.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphTest.csproj`
+Open items:
+- None.
+
+## 2026-01-20 16:43:52 +01:00 (DESKTOP-6KO022D)
+Request: align GraphTest target framework with SimHub plugin.
+Summary:
+- Switched GraphTest to target .NET Framework 4.8 to match the plugin project.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphTest.csproj`
+Open items:
+- None.
+
+## 2026-01-20 09:09:25 +01:00 (DESKTOP-6KO022D)
+Request: add schema versioning, strict validation, and JSON export for graph tests.
+Summary:
+- Added schema version tracking, strict enum/function validation, and JSON export utilities for graph definitions.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphEvaluator.cs`
+- `SimHubPlugin/GraphTest/GraphLoader.cs`
+- `SimHubPlugin/GraphTest/GraphSaver.cs`
+- `SimHubPlugin/GraphTest/Program.cs`
+Open items:
+- None.
+
+## 2026-01-20 09:06:43 +01:00 (DESKTOP-6KO022D)
+Request: add JSON parsing and validation to the graph test harness.
+Summary:
+- Added a JSON loader and validator plus a sample JSON run in the GraphTest console app.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphLoader.cs`
+- `SimHubPlugin/GraphTest/Program.cs`
+Open items:
+- None.
+
+## 2026-01-20 09:00:06 +01:00 (DESKTOP-6KO022D)
+Request: add a runnable graph evaluator test harness.
+Summary:
+- Added a minimal `GraphTest` console app with a sample FFB graph and evaluator.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/GraphTest.csproj`
+- `SimHubPlugin/GraphTest/GraphEvaluator.cs`
+- `SimHubPlugin/GraphTest/Program.cs`
+Open items:
+- Decide whether to add JSON parsing and validation for graph definitions.
+
+## 2026-01-20 08:45:12 +01:00 (DESKTOP-6KO022D)
+Request: propose a minimal node-graph DSL for flexible FFB tuning.
+Summary:
+- Sketched a JSON schema for graph nodes (inputs/params/ops/outputs) and a lightweight evaluation model.
+Commit highlights:
+- (none yet)
+Key files:
+- (none)
+Open items:
+- Decide on UI framework (WPF GraphX/NodeNetwork vs WebView + LiteGraph/Rete).
+
 ## 2026-01-20 08:32:24 +01:00 (DESKTOP-6KO022D)
 Request: prepare a commit for the latest UI/system FFB refinements.
 Summary:

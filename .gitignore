@@ -41,3 +41,8 @@ XPlanePlugin/.vs
 XPlanePlugin/Debug
 XPlanePlugin/Release/64
 .pio-home
+SimHubPlugin/GraphTest/.vs
+SimHubPlugin/GraphTest/bin
+SimHubPlugin/GraphTest/obj
+SimHubPlugin/PluginTest/bin
+SimHubPlugin/PluginTest/obj

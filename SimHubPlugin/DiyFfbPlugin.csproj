@@ -193,6 +193,19 @@
     <Compile Include="ControllerAxisSelector.xaml.cs">
       <DependentUpon>ControllerAxisSelector.xaml</DependentUpon>
     </Compile>
+    <Compile Include="GraphEditor\GraphEditorControl.xaml.cs">
+      <DependentUpon>GraphEditorControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="GraphEditor\GraphEditorWindow.xaml.cs">
+      <DependentUpon>GraphEditorWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="GraphEditor\GraphModel.cs" />
+    <Compile Include="GraphEditor\GraphPreviewEvaluator.cs" />
+    <Compile Include="GraphEditor\GraphSerializer.cs" />
+    <Compile Include="GraphTest\GraphEvaluator.cs" />
+    <Compile Include="GraphTest\GraphIncludeResolver.cs" />
+    <Compile Include="GraphTest\GraphLoader.cs" />
+    <Compile Include="GraphTest\GraphSaver.cs" />
     <Compile Include="XPlaneFfbMath.cs" />
     <Compile Include="XPlaneFfbGraph.cs" />
     <Compile Include="AxisSelector.xaml.cs">
@@ -262,6 +275,14 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="ControllerAxisSelector.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="GraphEditor\GraphEditorControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="GraphEditor\GraphEditorWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

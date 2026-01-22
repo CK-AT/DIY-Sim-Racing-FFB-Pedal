@@ -18,6 +18,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using User.PluginSdkDemo.GraphEditor;
 using System.Windows.Data;
 using vJoyInterfaceWrap;
 using Windows.UI.Notifications;
@@ -79,6 +80,7 @@ namespace User.PluginSdkDemo
         private SaveSelectionDialog saveSelectionDialog;
         private LoadSelectionDialog loadSelectionDialog;
         private AxisRequestQueue axisRequestQueue;
+        private GraphEditorWindow graphEditorWindow;
 
         private enum UiLogLevel
         {
@@ -2505,6 +2507,20 @@ namespace User.PluginSdkDemo
                 btn_store_function_config_to_file.IsEnabled = false;
                 btn_store_axis_config_to_file.IsEnabled = false;
                 saveSelectionDialog.Show();
+            }
+        }
+
+        private void OnOpenGraphEditorClicked(object sender, RoutedEventArgs e)
+        {
+            if (graphEditorWindow == null)
+            {
+                graphEditorWindow = new GraphEditorWindow();
+                graphEditorWindow.Closed += (_, __) => graphEditorWindow = null;
+                graphEditorWindow.Show();
+            }
+            else
+            {
+                graphEditorWindow.Activate();
             }
         }
 
