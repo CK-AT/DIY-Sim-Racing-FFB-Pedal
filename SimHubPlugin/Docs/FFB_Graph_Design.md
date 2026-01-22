@@ -94,6 +94,7 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 - Runtime uses graph output values to feed spring/damper/friction/load.
 - Config persistence is separate from graph file storage.
 - Graph params are surfaced in the function UI for tuning.
+- A single top-level graph is resolved per vehicle `(GameId, CarId)` with a per-game fallback graph.
 
 ## Testing
 - GraphTest (runtime model validation and evaluator checks).
@@ -102,7 +103,7 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 ## Open Questions
 - Should we add typed ports or keep all numeric?
 - Should we allow stateful nodes (e.g., integrator, delay)?
-- How to expose graph selection per function/axis cleanly in the UI?
+- How should per-vehicle graph overrides be surfaced and edited?
 
 ## Risks and Mitigations
 - Param UI schema complexity: start with slider/knob/checkbox, add advanced widgets later.
@@ -111,4 +112,4 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 - Unit mismatches: add optional unit metadata and validator warnings.
 - Include versioning: allow pinning include hashes or explicit version tags.
 - Runtime failure: fall back to last-known-good compiled graph.
-- Performance: cache compiled graphs per function/axis and invalidate on edits.
+- Performance: cache compiled graphs per vehicle and invalidate on edits.

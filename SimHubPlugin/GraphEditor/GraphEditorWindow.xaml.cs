@@ -26,6 +26,26 @@ namespace User.PluginSdkDemo.GraphEditor
             RefreshHierarchy();
         }
 
+        public void SetLiveInputProvider(Func<IDictionary<string, double>> provider)
+        {
+            GraphEditor.LiveInputProvider = provider;
+        }
+
+        public void LoadGraphFromPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                return;
+            }
+
+            rootGraphPath = path;
+            GraphEditor.LoadGraphFromFile(path);
+            rootGraph = GraphEditor.GetGraph();
+            currentGraphPath = null;
+            GraphEditor.BaseDirectory = GetRootDirectory();
+            RefreshHierarchy();
+        }
+
         private void ButtonLoad_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new OpenFileDialog

@@ -778,7 +778,7 @@
                                             <TabItem Width="120" Height="30" Padding="0,0,0,0" ToolTip="OTA settings">
                                                 <TabItem.Header>
                                                     <Border Width="120" Height="30" Margin="0,0,0,0">
-                                                        <Label Content="X-Plane FFB" FontFamily="Arial Black" FontSize="10" Height="30" Width="120" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" UseLayoutRounding="True" />
+                                                        <Label Content="X-Plane FFB" FontFamily="Arial Black" FontSize="10" Height="30" Width="120" Padding="0,0,0,0" VerticalAlignment="Bottom" HorizontalAlignment="Center" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" UseLayoutRounding="True" />
                                                     </Border>
                                                 </TabItem.Header>
                                                 <StackPanel Width="540" Margin="1,3,0,0">
@@ -824,6 +824,22 @@
                                                                 <Label Content="Capture:" Height="15" Width="55" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
                                                                 <styles:SHToggleButton x:Name="Toggle_xplane_torque_capture" Content="" Checked="Toggle_xplane_torque_capture_Checked" Unchecked="Toggle_xplane_torque_capture_Unchecked" IsChecked="True" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Enable reference flight torque capture for aero/rotor max tracking." RenderTransformOrigin="0.5,0.5" Margin="0,0,0,0" />
                                                                 <Label Content="Torque capture" Height="15" Width="90" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="6,0,0,0"/>
+                                                            </StackPanel>
+                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,6,0,0">
+                                                                <Label Content="Vehicle graph:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
+                                                                <TextBox x:Name="TextBox_VehicleGraphPath" Height="20" Width="260" Padding="2,0,2,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10" IsReadOnly="True" ToolTip="Graph path for this vehicle (GameId + CarId)."/>
+                                                                <styles:SHButtonPrimary x:Name="btn_select_vehicle_graph" Click="btn_select_vehicle_graph_Click" Width="55" Height="20" Content="Browse" Margin="6,0,0,0" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="9" />
+                                                                <styles:SHButtonPrimary x:Name="btn_clear_vehicle_graph" Click="btn_clear_vehicle_graph_Click" Width="45" Height="20" Content="Clear" Margin="4,0,0,0" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="9" />
+                                                            </StackPanel>
+                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
+                                                                <Label Content="Game graph:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
+                                                                <TextBox x:Name="TextBox_GameGraphPath" Height="20" Width="260" Padding="2,0,2,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10" IsReadOnly="True" ToolTip="Default graph path for the current game (fallback when no vehicle graph exists)."/>
+                                                                <styles:SHButtonPrimary x:Name="btn_select_game_graph" Click="btn_select_game_graph_Click" Width="55" Height="20" Content="Browse" Margin="6,0,0,0" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="9" />
+                                                                <styles:SHButtonPrimary x:Name="btn_clear_game_graph" Click="btn_clear_game_graph_Click" Width="45" Height="20" Content="Clear" Margin="4,0,0,0" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="9" />
+                                                            </StackPanel>
+                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
+                                                                <Label Content="Active graph:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
+                                                                <TextBlock x:Name="TextBlock_ActiveGraph" Text="Active graph: (none)" Width="380" Padding="0,0,0,0" VerticalAlignment="Center" FontFamily="Arial" FontSize="10" TextTrimming="CharacterEllipsis" ToolTip="Resolved active graph for this vehicle." TextWrapping="Wrap"/>
                                                             </StackPanel>
                                                             <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,6,0,0">
                                                                 <styles:SHButtonPrimary x:Name="btn_save_aircraft_ffb" Click="btn_save_aircraft_ffb_Click" Width="120" Content="Save Aircraft FFB" Height="24" HorizontalAlignment="Left" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="4,4,4,4" />

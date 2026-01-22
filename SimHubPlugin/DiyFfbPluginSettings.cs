@@ -184,6 +184,9 @@ namespace User.PluginSdkDemo
         public float XPlaneNominalRpmSystem = DefaultXPlaneNominalRpm;
         public float XPlaneMainRotorTorqueRefNmSystem = DefaultXPlaneMrTorqueRefNm;
 
+        public Dictionary<string, string> VehicleGraphPaths = new Dictionary<string, string>();
+        public Dictionary<string, string> GameGraphPaths = new Dictionary<string, string>();
+
         public string[] selectedJsonFileNames = { "1", "2", "3" };
         public int reading_config = 0;
         public uint RPM_effect_type = 0;

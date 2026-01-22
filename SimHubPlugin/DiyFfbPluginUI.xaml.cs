@@ -81,6 +81,7 @@ namespace User.PluginSdkDemo
         private LoadSelectionDialog loadSelectionDialog;
         private AxisRequestQueue axisRequestQueue;
         private GraphEditorWindow graphEditorWindow;
+        private string lastGraphEditorPath;
 
         private enum UiLogLevel
         {
@@ -483,7 +484,122 @@ namespace User.PluginSdkDemo
                 TextBox_XPlaneMrTorqueRef.Text = Plugin.Settings.XPlaneMainRotorTorqueRefNmSystem.ToString("F0");
                 TextBox_XPlaneMrTorqueRef.IsEnabled = Plugin.Settings.XPlaneAircraftIsHelicopter;
             }
+            RefreshGraphSelectionUI();
             updatingXPlaneSystem = false;
+        }
+
+        private void RefreshGraphSelectionUI()
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            string gameId = Plugin.GetActiveGameId();
+            string carId = Plugin.GetActiveCarId();
+
+            if (TextBox_VehicleGraphPath != null)
+            {
+                TextBox_VehicleGraphPath.Text = Plugin.GetVehicleGraphPath(gameId, carId);
+            }
+            if (TextBox_GameGraphPath != null)
+            {
+                TextBox_GameGraphPath.Text = Plugin.GetGameGraphPath(gameId);
+            }
+            if (TextBlock_ActiveGraph != null)
+            {
+                TextBlock_ActiveGraph.Text = Plugin.GetActiveGraphStatus();
+            }
+
+            string activeGraphPath = Plugin.GetActiveGraphPath();
+            if (graphEditorWindow != null && !string.IsNullOrWhiteSpace(activeGraphPath))
+            {
+                if (!string.Equals(activeGraphPath, lastGraphEditorPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    graphEditorWindow.LoadGraphFromPath(activeGraphPath);
+                    lastGraphEditorPath = activeGraphPath;
+                }
+            }
+        }
+
+        private void btn_select_vehicle_graph_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            string gameId = Plugin.GetActiveGameId();
+            string carId = Plugin.GetActiveCarId();
+            if (string.IsNullOrWhiteSpace(carId))
+            {
+                SetDebugOutput("No active vehicle for graph selection.", UiLogLevel.Warning);
+                return;
+            }
+
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "Graph JSON (*.json)|*.json",
+                DefaultExt = "json"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                Plugin.SetVehicleGraphPath(gameId, carId, dialog.FileName);
+                RefreshGraphSelectionUI();
+            }
+        }
+
+        private void btn_clear_vehicle_graph_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            string gameId = Plugin.GetActiveGameId();
+            string carId = Plugin.GetActiveCarId();
+            Plugin.SetVehicleGraphPath(gameId, carId, "");
+            RefreshGraphSelectionUI();
+        }
+
+        private void btn_select_game_graph_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            string gameId = Plugin.GetActiveGameId();
+            if (string.IsNullOrWhiteSpace(gameId))
+            {
+                SetDebugOutput("No active game for graph selection.", UiLogLevel.Warning);
+                return;
+            }
+
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "Graph JSON (*.json)|*.json",
+                DefaultExt = "json"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                Plugin.SetGameGraphPath(gameId, dialog.FileName);
+                RefreshGraphSelectionUI();
+            }
+        }
+
+        private void btn_clear_game_graph_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            string gameId = Plugin.GetActiveGameId();
+            Plugin.SetGameGraphPath(gameId, "");
+            RefreshGraphSelectionUI();
         }
 
         private void ComboBox_XPlaneRotor_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -2515,11 +2631,25 @@ namespace User.PluginSdkDemo
             if (graphEditorWindow == null)
             {
                 graphEditorWindow = new GraphEditorWindow();
+                graphEditorWindow.SetLiveInputProvider(() => Plugin != null ? Plugin.GetLiveGraphInputs() : null);
+                string activeGraphPath = Plugin?.GetActiveGraphPath();
+                if (!string.IsNullOrWhiteSpace(activeGraphPath))
+                {
+                    graphEditorWindow.LoadGraphFromPath(activeGraphPath);
+                    lastGraphEditorPath = activeGraphPath;
+                }
                 graphEditorWindow.Closed += (_, __) => graphEditorWindow = null;
                 graphEditorWindow.Show();
             }
             else
             {
+                graphEditorWindow.SetLiveInputProvider(() => Plugin != null ? Plugin.GetLiveGraphInputs() : null);
+                string activeGraphPath = Plugin?.GetActiveGraphPath();
+                if (!string.IsNullOrWhiteSpace(activeGraphPath))
+                {
+                    graphEditorWindow.LoadGraphFromPath(activeGraphPath);
+                    lastGraphEditorPath = activeGraphPath;
+                }
                 graphEditorWindow.Activate();
             }
         }

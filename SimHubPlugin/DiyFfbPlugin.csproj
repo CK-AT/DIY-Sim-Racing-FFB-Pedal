@@ -201,11 +201,13 @@
     </Compile>
     <Compile Include="GraphEditor\GraphModel.cs" />
     <Compile Include="GraphEditor\GraphPreviewEvaluator.cs" />
+    <Compile Include="GraphEditor\GraphRuntimeConverter.cs" />
     <Compile Include="GraphEditor\GraphSerializer.cs" />
     <Compile Include="GraphTest\GraphEvaluator.cs" />
     <Compile Include="GraphTest\GraphIncludeResolver.cs" />
     <Compile Include="GraphTest\GraphLoader.cs" />
     <Compile Include="GraphTest\GraphSaver.cs" />
+    <Compile Include="GraphSignals.cs" />
     <Compile Include="XPlaneFfbMath.cs" />
     <Compile Include="XPlaneFfbGraph.cs" />
     <Compile Include="AxisSelector.xaml.cs">

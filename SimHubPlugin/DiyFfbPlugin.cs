@@ -7,11 +7,13 @@ using ProtbufTest;
 using SimHub.Plugins;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.IO.Ports;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Windows.Media;
+using User.PluginSdkDemo.GraphEditor;
 using Windows.UI.Notifications;
 using IPlugin = SimHub.Plugins.IPlugin;
 namespace User.PluginSdkDemo
@@ -111,6 +113,18 @@ namespace User.PluginSdkDemo
         private XPlaneFfbDiagnostics xplanePedalsDiagnostics;
         private string activeCarId;
         private string activeCarName;
+        private string activeGameId;
+        private string activeGraphKey;
+        private string activeGraphPath;
+        private GraphDefinition activeVehicleGraph;
+        private GraphValidationResult activeGraphValidation;
+        private DiyFfb.GraphTest.GraphDefinition activeGraphRuntime;
+        private DiyFfb.GraphTest.GraphEvaluator activeGraphEvaluator;
+        private DiyFfb.GraphTest.GraphIncludeResolver activeGraphResolver;
+        private readonly Dictionary<string, double> graphInputs = new Dictionary<string, double>();
+        private readonly Dictionary<string, double> graphParams = new Dictionary<string, double>();
+        private DiyFfb.GraphTest.GraphEvaluationResult lastGraphEvaluation;
+        private static Func<GameData, string> gameIdGetter;
         private DiyFfbPluginSettings.AircraftFfbProfile pendingFfbProfile;
         private bool hasPendingFfbProfile;
         private readonly Queue<RotorRpmSample>[] rotorRpmHistory = new Queue<RotorRpmSample>[XPlaneMaxRotors];
@@ -167,7 +181,7 @@ namespace User.PluginSdkDemo
             public float TorqueRefNm;
         }
 
-        private sealed class XPlaneUdpPacket
+        internal sealed class XPlaneUdpPacket
         {
             public uint Sequence;
             public float IasKts;
@@ -327,7 +341,9 @@ namespace User.PluginSdkDemo
 
             if (data.NewData != null)
             {
-                HandleAircraftChange(data);
+                string gameId = GetGameIdSafe(data);
+                HandleGameChange(gameId);
+                HandleAircraftChange(data, gameId);
             }
 
             if (data.GamePaused | (!data.GameRunning))
@@ -458,6 +474,7 @@ namespace User.PluginSdkDemo
             if (data.GameRunning)
             {
                 UpdateFFBData(data);
+                EvaluateActiveGraph(data);
                 // Send ABS trigger signal via serial
                 //for (uint function_idx = 0; function_idx < Settings.function_settings.Length; function_idx++)
                 //{
@@ -1079,7 +1096,7 @@ namespace User.PluginSdkDemo
             return start + (end - start) * t;
         }
 
-        private static float ToRpm(float omegaRad)
+        internal static float ToRpm(float omegaRad)
         {
             return omegaRad * 60.0f / (float)(2.0 * Math.PI);
         }
@@ -1377,6 +1394,19 @@ namespace User.PluginSdkDemo
             }
 
             return hasAutoRotorIndex ? lastAutoRotorIndex : 0;
+        }
+
+        internal XPlaneUdpPacket GetLatestXPlanePacket()
+        {
+            lock (xplaneLock)
+            {
+                return latestXPlanePacket;
+            }
+        }
+
+        internal int ResolveXPlaneRotorIndexForGraph(XPlaneUdpPacket packet)
+        {
+            return ResolveXPlaneRotorIndex(packet);
         }
 
         private void SendFlightFfb(FunctionID functionId, float kSpring, float kDamper, float kFriction, float trimOffset, float buffetAmp, float loadForce)
@@ -1813,7 +1843,189 @@ namespace User.PluginSdkDemo
             return Math.Abs(a - b) < 0.000001f;
         }
 
-        private void HandleAircraftChange(GameData data)
+        private void HandleGameChange(string gameId)
+        {
+            if (string.IsNullOrWhiteSpace(gameId))
+            {
+                return;
+            }
+
+            if (string.Equals(gameId, activeGameId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            activeGameId = gameId;
+            if (!string.IsNullOrWhiteSpace(activeCarId))
+            {
+                ResolveActiveGraph(activeGameId, activeCarId);
+            }
+        }
+
+        private static string GetGameIdSafe(GameData data)
+        {
+            if (data == null)
+            {
+                return "";
+            }
+
+            if (gameIdGetter == null)
+            {
+                var type = data.GetType();
+                var property = type.GetProperty("GameName") ?? type.GetProperty("GameId") ?? type.GetProperty("Game");
+                if (property != null && property.PropertyType == typeof(string))
+                {
+                    gameIdGetter = d => (string)property.GetValue(d, null);
+                }
+                else
+                {
+                    gameIdGetter = d => "";
+                }
+            }
+
+            return (gameIdGetter(data) ?? "").Trim();
+        }
+
+        private static string BuildVehicleGraphKey(string gameId, string carId)
+        {
+            if (string.IsNullOrWhiteSpace(carId))
+            {
+                return "";
+            }
+
+            string trimmedGame = (gameId ?? "").Trim();
+            return string.IsNullOrWhiteSpace(trimmedGame) ? carId : $"{trimmedGame}::{carId}";
+        }
+
+        private string ResolveGraphPath(string gameId, string carId)
+        {
+            if (Settings == null)
+            {
+                return "";
+            }
+
+            string vehicleKey = BuildVehicleGraphKey(gameId, carId);
+            if (!string.IsNullOrWhiteSpace(vehicleKey) &&
+                Settings.VehicleGraphPaths != null &&
+                Settings.VehicleGraphPaths.TryGetValue(vehicleKey, out var vehiclePath) &&
+                !string.IsNullOrWhiteSpace(vehiclePath))
+            {
+                return vehiclePath;
+            }
+
+            if (!string.IsNullOrWhiteSpace(gameId) &&
+                Settings.GameGraphPaths != null &&
+                Settings.GameGraphPaths.TryGetValue(gameId, out var gamePath) &&
+                !string.IsNullOrWhiteSpace(gamePath))
+            {
+                return gamePath;
+            }
+
+            return "";
+        }
+
+        private static string ResolveGraphFilePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return "";
+            }
+
+            return Path.IsPathRooted(path)
+                ? path
+                : Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path));
+        }
+
+        private void ResolveActiveGraph(string gameId, string carId)
+        {
+            activeGraphKey = BuildVehicleGraphKey(gameId, carId);
+            activeGraphPath = ResolveGraphPath(gameId, carId);
+            activeVehicleGraph = null;
+            activeGraphValidation = null;
+            activeGraphRuntime = null;
+            activeGraphEvaluator = null;
+            activeGraphResolver = null;
+            lastGraphEvaluation = null;
+
+            if (string.IsNullOrWhiteSpace(activeGraphPath))
+            {
+                return;
+            }
+
+            string resolvedPath = ResolveGraphFilePath(activeGraphPath);
+            if (!File.Exists(resolvedPath))
+            {
+                activeGraphValidation = new GraphValidationResult();
+                activeGraphValidation.Errors.Add($"Graph file not found: {resolvedPath}");
+                return;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(resolvedPath);
+                activeVehicleGraph = GraphSerializer.Deserialize(json, out activeGraphValidation);
+                if (activeVehicleGraph != null && activeGraphValidation != null && activeGraphValidation.IsValid)
+                {
+                    activeGraphRuntime = GraphRuntimeConverter.Convert(activeVehicleGraph);
+                    string baseDir = Path.GetDirectoryName(resolvedPath) ?? AppDomain.CurrentDomain.BaseDirectory;
+                    activeGraphResolver = new DiyFfb.GraphTest.GraphIncludeResolver(baseDir);
+                    activeGraphEvaluator = new DiyFfb.GraphTest.GraphEvaluator(activeGraphRuntime, activeGraphResolver);
+                }
+            }
+            catch (Exception ex)
+            {
+                activeGraphValidation = new GraphValidationResult();
+                activeGraphValidation.Errors.Add($"Graph load failed: {ex.Message}");
+            }
+        }
+
+        private void EvaluateActiveGraph(GameData data)
+        {
+            if (activeGraphEvaluator == null)
+            {
+                return;
+            }
+
+            try
+            {
+                BuildGraphInputs(data);
+                BuildGraphParams();
+                lastGraphEvaluation = activeGraphEvaluator.EvaluateWithTrace(graphInputs, graphParams);
+            }
+            catch
+            {
+                // Ignore evaluation errors for now; graph output mapping is not wired yet.
+            }
+        }
+
+        private void BuildGraphInputs(GameData data)
+        {
+            graphInputs.Clear();
+            GraphSignalCatalog.BuildXPlaneInputs(this, data, graphInputs);
+        }
+
+        internal Dictionary<string, double> GetLiveGraphInputs()
+        {
+            var inputs = new Dictionary<string, double>();
+            GraphSignalCatalog.BuildXPlaneInputs(this, null, inputs);
+            return inputs;
+        }
+
+        private void BuildGraphParams()
+        {
+            graphParams.Clear();
+            if (activeVehicleGraph == null)
+            {
+                return;
+            }
+
+            foreach (var param in activeVehicleGraph.Params.Values)
+            {
+                graphParams[param.Name] = param.DefaultValue;
+            }
+        }
+
+        private void HandleAircraftChange(GameData data, string gameId)
         {
             string carId = data.NewData?.CarId;
             if (string.IsNullOrWhiteSpace(carId))
@@ -1866,6 +2078,7 @@ namespace User.PluginSdkDemo
             ApplyAircraftProfile(carId);
             activeCarId = carId;
             activeCarName = data.NewData?.CarModel;
+            ResolveActiveGraph(gameId, carId);
 
             if (ui != null)
             {
@@ -2007,6 +2220,119 @@ namespace User.PluginSdkDemo
         public string GetActiveCarId()
         {
             return activeCarId;
+        }
+
+        public string GetActiveGameId()
+        {
+            return activeGameId;
+        }
+
+        public string GetVehicleGraphPath(string gameId, string carId)
+        {
+            if (Settings?.VehicleGraphPaths == null)
+            {
+                return "";
+            }
+
+            string key = BuildVehicleGraphKey(gameId, carId);
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return "";
+            }
+
+            return Settings.VehicleGraphPaths.TryGetValue(key, out var path) ? path : "";
+        }
+
+        public string GetGameGraphPath(string gameId)
+        {
+            if (Settings?.GameGraphPaths == null || string.IsNullOrWhiteSpace(gameId))
+            {
+                return "";
+            }
+
+            return Settings.GameGraphPaths.TryGetValue(gameId, out var path) ? path : "";
+        }
+
+        public string GetActiveGraphStatus()
+        {
+            if (string.IsNullOrWhiteSpace(activeGraphPath))
+            {
+                return "Active graph: (none)";
+            }
+
+            if (activeGraphValidation == null)
+            {
+                return $"Active graph: {activeGraphPath}";
+            }
+
+            if (activeGraphValidation.IsValid)
+            {
+                return $"Active graph: {activeGraphPath}";
+            }
+
+            string error = activeGraphValidation.Errors.Count > 0
+                ? activeGraphValidation.Errors[0]
+                : "Invalid graph.";
+            return $"Active graph: {activeGraphPath} ({error})";
+        }
+
+        public string GetActiveGraphPath()
+        {
+            return activeGraphPath ?? "";
+        }
+
+        public void SetVehicleGraphPath(string gameId, string carId, string path)
+        {
+            if (Settings == null)
+            {
+                return;
+            }
+
+            string key = BuildVehicleGraphKey(gameId, carId);
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return;
+            }
+
+            if (Settings.VehicleGraphPaths == null)
+            {
+                Settings.VehicleGraphPaths = new Dictionary<string, string>();
+            }
+
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                Settings.VehicleGraphPaths.Remove(key);
+            }
+            else
+            {
+                Settings.VehicleGraphPaths[key] = path;
+            }
+
+            ResolveActiveGraph(gameId, carId);
+        }
+
+        public void SetGameGraphPath(string gameId, string path)
+        {
+            if (Settings == null || string.IsNullOrWhiteSpace(gameId))
+            {
+                return;
+            }
+
+            if (Settings.GameGraphPaths == null)
+            {
+                Settings.GameGraphPaths = new Dictionary<string, string>();
+            }
+
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                Settings.GameGraphPaths.Remove(gameId);
+            }
+            else
+            {
+                Settings.GameGraphPaths[gameId] = path;
+            }
+
+            ResolveActiveGraph(gameId, activeCarId);
         }
 
         public void ApplyAircraftFfbProfile(string carId, DiyFfbPluginSettings.AircraftFfbProfile profile)

@@ -1,0 +1,246 @@
+{
+  "Version": 1,
+  "Nodes": [
+    {
+      "Id": "ias",
+      "Title": "IAS",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 60.0,
+      "Ports": [
+        {
+          "Name": "XPlane.IAS_kts",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "vref",
+      "Title": "Vref",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 120.0,
+      "Ports": [
+        {
+          "Name": "XPlane.Vref_kts",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "qhat",
+      "Title": "Qhat",
+      "Kind": "Func",
+      "X": 220.0,
+      "Y": 90.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "",
+      "Func": "qhat_eff",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "k_pitch",
+      "Title": "Pitch k",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 210.0,
+      "Ports": [
+        {
+          "Name": "FlightStickPitch.SpringGain",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "k_roll",
+      "Title": "Roll k",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 260.0,
+      "Ports": [
+        {
+          "Name": "FlightStickRoll.SpringGain",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "spring_pitch",
+      "Title": "Pitch Spring",
+      "Kind": "Op",
+      "X": 420.0,
+      "Y": 190.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "spring_roll",
+      "Title": "Roll Spring",
+      "Kind": "Op",
+      "X": 420.0,
+      "Y": 260.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "out_pitch",
+      "Title": "Pitch Out",
+      "Kind": "Output",
+      "X": 640.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Name": "FlightStickPitch.SpringGain",
+          "Kind": "Input"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "out_roll",
+      "Title": "Roll Out",
+      "Kind": "Output",
+      "X": 640.0,
+      "Y": 270.0,
+      "Ports": [
+        {
+          "Name": "FlightStickRoll.SpringGain",
+          "Kind": "Input"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    }
+  ],
+  "Links": [
+    {
+      "FromNodeId": "qhat",
+      "FromPort": "out",
+      "ToNodeId": "spring_pitch",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "qhat",
+      "FromPort": "out",
+      "ToNodeId": "spring_roll",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "ias",
+      "FromPort": "XPlane.IAS_kts",
+      "ToNodeId": "qhat",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "vref",
+      "FromPort": "XPlane.Vref_kts",
+      "ToNodeId": "qhat",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "k_pitch",
+      "FromPort": "FlightStickPitch.SpringGain",
+      "ToNodeId": "spring_pitch",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "k_roll",
+      "FromPort": "FlightStickRoll.SpringGain",
+      "ToNodeId": "spring_roll",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "spring_pitch",
+      "FromPort": "out",
+      "ToNodeId": "out_pitch",
+      "ToPort": "FlightStickPitch.SpringGain"
+    },
+    {
+      "FromNodeId": "spring_roll",
+      "FromPort": "out",
+      "ToNodeId": "out_roll",
+      "ToPort": "FlightStickRoll.SpringGain"
+    }
+  ],
+  "Params": [
+    {
+      "Name": "FlightStickPitch.SpringGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 5.0
+    },
+    {
+      "Name": "FlightStickRoll.SpringGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 5.0
+    }
+  ]
+}

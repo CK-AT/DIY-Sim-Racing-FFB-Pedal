@@ -2,6 +2,536 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-22 21:22:07 +01:00 (DESKTOP-6KO022D)
+Request: revert grid/zoom/pan changes made after 15:34.
+Summary:
+- Removed the grid background canvas child and restored the grid brush on the canvas.
+- Dropped auto-centering logic from `UpdateCanvasExtent` to avoid overwriting pan/zoom.
+- Updated graph progress tracking.
+Commit highlights:
+- Graph editor UX improvements (edge rewiring/preview, tighter nodes, inspector live previews).
+- Signal catalog + hierarchical picker with per-port mapping and sample graphs.
+- Live input preview plumbing and active graph loading hooks.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm pan/zoom behavior is back to baseline and decide on a safe grid padding approach.
+
+## 2026-01-22 21:09:15 +01:00 (DESKTOP-6KO022D)
+Request: revert graph centering/zoom changes after pan/zoom broke.
+Summary:
+- Restored the previous centering/clamping behavior and grid background positioning.
+- Reverted zoom-to-fit back to the pre-padding version.
+- Updated the graph progress document to reflect the rollback and open item.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Reintroduce left/top grid padding without breaking pan/zoom.
+
+## 2026-01-22 20:59:08 +01:00 (DESKTOP-6KO022D)
+Request: center graph with grid padding on all sides and keep the initial view fully visible.
+Summary:
+- Reworked initial centering to compute zoom-to-fit (capped at 1.0) with 200px padding around bounds.
+- Sized and positioned the grid background to the padded bounds so it renders left/top padding.
+- Updated graph progress tracking.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm grid shows on all four sides with ~200px padding and panning works as expected.
+
+## 2026-01-22 16:12:18 +01:00 (DESKTOP-6KO022D)
+Request: grid missing to the left/top of the graph.
+Summary:
+- Moved the grid into a canvas child so it follows the graph transform.
+- Ensured the grid rectangle sizes with the canvas extents.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm grid is visible on all sides after panning.
+
+## 2026-01-22 16:06:48 +01:00 (DESKTOP-6KO022D)
+Request: graph still shows top-left; want true centering in the visible area.
+Summary:
+- Centering now uses the visible graph column size instead of full canvas.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm initial view centers the graph in the visible panel.
+
+## 2026-01-22 16:00:52 +01:00 (DESKTOP-6KO022D)
+Request: initial view still hugs top-left; graph not centered.
+Summary:
+- Apply initial centering once after layout sizing, clamped to padding limits.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm initial view centers the graph without huge empty space.
+
+## 2026-01-22 15:56:55 +01:00 (DESKTOP-6KO022D)
+Request: center graph in view with space on all sides.
+Summary:
+- Centered the graph bounds within the viewport, clamped to padding limits.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm initial view centers the graph without pushing the grid out of view.
+
+## 2026-01-22 15:50:43 +01:00 (DESKTOP-6KO022D)
+Request: avoid enormous grid while keeping padding around the graph.
+Summary:
+- Reworked canvas sizing to pad ~300 px on all sides based on graph bounds.
+- Initial translate now uses the same padded bounds, avoiding huge extents.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm performance improves and padding feels sufficient.
+
+## 2026-01-22 15:55:07 +01:00 (DESKTOP-6KO022D)
+Request: build error after refactor (missing ApplyInitialTranslate).
+Summary:
+- Removed stale ApplyInitialTranslate call after folding translate logic into UpdateCanvasExtent.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Rebuild to confirm CS0103 is gone.
+
+## 2026-01-22 15:41:54 +01:00 (DESKTOP-6KO022D)
+Request: center graph with more space to the left/top.
+Summary:
+- Added an initial translate offset to provide top/left padding until the user pans.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm initial view gives sufficient top/left margin without disrupting manual panning.
+
+## 2026-01-22 15:46:08 +01:00 (DESKTOP-6KO022D)
+Request: initial translate still shows graph in top-left corner.
+Summary:
+- Initial translate now aligns the graph bounds to a fixed top/left padding.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm the graph starts centered with visible padding.
+
+## 2026-01-22 15:37:56 +01:00 (DESKTOP-6KO022D)
+Request: extend grid far beyond graph bounds.
+Summary:
+- Increased canvas extents to add ~1000 px padding beyond graph bounds.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm grid extends far enough in all directions while panning.
+
+## 2026-01-22 15:34:44 +01:00 (DESKTOP-6KO022D)
+Request: func IO changes in inspector do not reflect on the canvas.
+Summary:
+- Rebuild the surface after func changes so ports update on the node visuals.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm func port changes update on the canvas immediately.
+
+## 2026-01-22 15:30:42 +01:00 (DESKTOP-6KO022D)
+Request: allow typing "l" in node title edits (keyboard shortcut conflict).
+Summary:
+- Ignored editor shortcuts when focus is in a text field or combo box.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm node title editing accepts "l" and other shortcut letters.
+
+## 2026-01-22 15:25:02 +01:00 (DESKTOP-6KO022D)
+Request: make signal picker show the current value and be hierarchical.
+Summary:
+- Replaced the signal ComboBox with a custom popup tree picker.
+- Added hierarchical signal grouping and selection logic.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm the popup picker shows the current signal and updates the port name.
+
+## 2026-01-22 15:14:38 +01:00 (DESKTOP-6KO022D)
+Request: selector still doesn’t show selected signal.
+Summary:
+- Switched to SelectedValue binding and disabled text search to show the current signal.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm the selected signal now renders in the closed selector.
+
+## 2026-01-22 15:19:12 +01:00 (DESKTOP-6KO022D)
+Request: selector still not showing the selected signal.
+Summary:
+- Reverted to SelectedItem binding and kept Text binding for editable display.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm selector now shows current port name when closed.
+
+## 2026-01-22 15:10:42 +01:00 (DESKTOP-6KO022D)
+Request: fix func port counts/names (assist_loss uses one input; names match functions).
+Summary:
+- Added function-specific input port schemas (qhat_eff, torque_norm, rpm_norm, assist_loss).
+- Func nodes now update ports on load and when the function changes.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm func port names update correctly for existing graphs.
+
+## 2026-01-22 15:05:26 +01:00 (DESKTOP-6KO022D)
+Request: fix group drag and missing selection text in signal selector.
+Summary:
+- Keep multi-selection when dragging a selected node so group moves together.
+- Signal selector now binds text to show the current port name even if not in list.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm group drag moves all selected nodes.
+- Confirm selector shows current port name in closed state.
+
+## 2026-01-22 14:59:33 +01:00 (DESKTOP-6KO022D)
+Request: pan with right mouse and move groups of selected nodes.
+Summary:
+- Right mouse drag pans; left drag now always selects without needing Shift.
+- Multi-select dragging moves all selected nodes together.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm right-drag pan doesn’t interfere with context menus.
+
+## 2026-01-22 14:44:12 +01:00 (DESKTOP-6KO022D)
+Request: add a "Live inputs" toggle to drive preview values from telemetry.
+Summary:
+- Added a Live inputs checkbox with a timer to pull latest input snapshots into the preview.
+- Wired the editor window to request live inputs from the plugin.
+- Logged progress update in the graph progress document.
+Async/out-of-order note:
+- Live inputs use the latest X-Plane packet snapshot via `xplaneLock` to avoid stale/out-of-order data.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Verify live inputs populate preview values when enabled.
+
+## 2026-01-22 14:50:20 +01:00 (DESKTOP-6KO022D)
+Request: stop the graph from drawing over the inspector and extend the grid.
+Summary:
+- Clipped the editor surface to its column and resized the canvas to cover larger panning extents.
+- Logged progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm the grid background continues during pan/zoom.
+
+## 2026-01-22 14:18:24 +01:00 (DESKTOP-6KO022D)
+Request: make graph inputs/outputs selectable so port values map to real signals.
+Summary:
+- Added signal catalog for known inputs/outputs and wired graph input building to it.
+- Switched runtime mapping to per-port IDs for input/param/output nodes.
+- Inspector now offers signal selectors on input/output ports; param ports expose default/min/max per port.
+- Updated sample graphs to use real signal names for inputs/params/outputs.
+- Logged progress updates in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphRuntimeConverter.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/GraphSignals.cs`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPlugin.csproj`
+- `SimHubPlugin/GraphTest/graphs/multi_function.json`
+- `SimHubPlugin/GraphTest/graphs/plane_basic.json`
+- `SimHubPlugin/GraphTest/graphs/heli_collective.json`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm live X-Plane inputs resolve to non-zero values after mapping.
+- Decide if output signal list needs expansion beyond current defaults.
+
+## 2026-01-22 14:23:06 +01:00 (DESKTOP-6KO022D)
+Request: document the signal catalog for easier tweaking.
+Summary:
+- Added a dedicated signal catalog document covering current input/output keys.
+- Noted where to update the catalog in code and the naming conventions.
+- Logged the progress update in the graph progress document.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Signal_Catalog.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm the catalog stays in sync when we add new graph signals.
+
+## 2026-01-22 14:31:36 +01:00 (DESKTOP-6KO022D)
+Request: fix missing values on input nodes after signal mapping changes.
+Summary:
+- Output value labels now use per-port IDs for input/param nodes.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Verify input node value labels show live data after re-open.
+
+## 2026-01-22 14:34:05 +01:00 (DESKTOP-6KO022D)
+Request: selector list shows no current selection when closed.
+Summary:
+- Switched port signal selector to bind `SelectedItem` so chosen names display.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+Open items:
+- Confirm selected signal now renders in the closed combo box.
+
+## 2026-01-22 14:38:57 +01:00 (DESKTOP-6KO022D)
+Request: make inspector width adjustable.
+Summary:
+- Added a draggable splitter between the graph canvas and inspector.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+Open items:
+- Confirm the inspector can be resized to reveal full port/param fields.
+
+## 2026-01-22 14:27:48 +01:00 (DESKTOP-6KO022D)
+Request: fix accessibility errors for graph signal helpers.
+Summary:
+- Exposed the XPlane UDP packet type to match the internal graph helpers.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+Open items:
+- Rebuild to confirm accessibility errors are gone.
+
+## 2026-01-22 13:32:11 +01:00 (DESKTOP-6KO022D)
+Request: show current values near each output port in the editor.
+Summary:
+- Added per-output value labels next to output ports.
+- Output labels update from the preview evaluator node values.
+- Logged the progress update in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Confirm output values render for include outputs and regular nodes.
+
+## 2026-01-22 13:25:12 +01:00 (DESKTOP-6KO022D)
+Request: implement Phase 2 runtime pieces without applying outputs.
+Summary:
+- Added shared graph runtime converter and compiled evaluator cache in the plugin.
+- Wired input/param collection and evaluation per update (no output mapping yet).
+- Logged progress for runtime evaluation pipeline.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphEditor/GraphRuntimeConverter.cs`
+- `SimHubPlugin/GraphEditor/GraphPreviewEvaluator.cs`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPlugin.csproj`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Surface evaluation results in UI/debug and map outputs into FFB later.
+
+## 2026-01-22 13:17:13 +01:00 (DESKTOP-6KO022D)
+Request: keep graph editor in sync when active graph changes while open.
+Summary:
+- Graph selection refresh now reloads the active graph in an open editor window.
+- Cached last loaded path to avoid redundant reloads.
+- Logged the update in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Verify editor updates when active graph path changes.
+
+## 2026-01-22 13:11:41 +01:00 (DESKTOP-6KO022D)
+Request: graph editor should load the active graph path automatically.
+Summary:
+- Exposed active graph path from the plugin.
+- Graph editor window now loads the active graph on open.
+- Logged the progress update in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Verify that the editor loads the active graph when opened.
+
+## 2026-01-22 13:04:42 +01:00 (DESKTOP-6KO022D)
+Request: convert test graphs to editor schema to avoid empty input nodes.
+Summary:
+- Rewrote sample graphs in editor JSON format (nodes/ports/links/params).
+- Updated the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/graphs/plane_basic.json`
+- `SimHubPlugin/GraphTest/graphs/heli_collective.json`
+- `SimHubPlugin/GraphTest/graphs/multi_function.json`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Reload graphs in the editor to confirm proper node wiring.
+
+## 2026-01-22 12:56:53 +01:00 (DESKTOP-6KO022D)
+Request: add test graphs for the graph editor/runtime.
+Summary:
+- Added sample graphs for plane, heli collective, and multi-function spring outputs.
+- Logged the additions in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/GraphTest/graphs/plane_basic.json`
+- `SimHubPlugin/GraphTest/graphs/heli_collective.json`
+- `SimHubPlugin/GraphTest/graphs/multi_function.json`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Validate graphs in GraphTest or editor load flow.
+
+## 2026-01-22 12:51:39 +01:00 (DESKTOP-6KO022D)
+Request: add UI for per-vehicle/per-game graph selection.
+Summary:
+- Added graph pickers and active graph status to the X-Plane system tab.
+- Exposed graph path getters/setters and active graph status in the plugin.
+- Logged the progress update in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Verify UI updates with active vehicle/game changes.
+
+## 2026-01-22 12:44:19 +01:00 (DESKTOP-6KO022D)
+Request: start Phase 2 with vehicle-level graph resolution.
+Summary:
+- Added per-vehicle/per-game graph path settings and runtime graph resolution.
+- Active graph loads on game/vehicle changes with validation and fallback.
+- Logged the progress update in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Wire UI for graph path selection and surface active graph status.
+
+## 2026-01-22 12:36:01 +01:00 (DESKTOP-6KO022D)
+Request: switch to a single top-level graph per vehicle with per-game fallback.
+Summary:
+- Updated graph design and roadmap to reflect per-vehicle graph resolution.
+- Noted the selection model in the graph progress document.
+Commit highlights:
+- (none yet)
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Roadmap.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- (none)
+
 ## 2026-01-22 12:33:42 +01:00 (DESKTOP-6KO022D)
 Request: prep commit for graph editor UX advancements on ck_ffb_graph.
 Summary:

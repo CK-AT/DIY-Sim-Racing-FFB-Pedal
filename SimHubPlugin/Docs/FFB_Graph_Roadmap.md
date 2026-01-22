@@ -9,7 +9,7 @@ Status: iteration plan for the node-graph system and editor.
 - Hierarchy panel for root/include navigation.
 
 ## Phase 2: Runtime Integration
-- Store graph selection per function and per axis.
+- Resolve a single top-level graph per vehicle `(GameId, CarId)` with per-game fallback.
 - Map graph outputs into spring/damper/friction/load contributions.
 - Provide default graph templates per aircraft type.
 - Add validation and safe fallback to legacy tuning.

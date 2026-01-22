@@ -1,0 +1,429 @@
+{
+  "Version": 1,
+  "Nodes": [
+    {
+      "Id": "ias",
+      "Title": "IAS",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 40.0,
+      "Ports": [
+        {
+          "Name": "XPlane.IAS_kts",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "vref",
+      "Title": "Vref",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 90.0,
+      "Ports": [
+        {
+          "Name": "XPlane.Vref_kts",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "aero_trq",
+      "Title": "Aero Trq",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 160.0,
+      "Ports": [
+        {
+          "Name": "XPlane.AeroTorque.PitchNm",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "k_spring",
+      "Title": "Spring k",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 220.0,
+      "Ports": [
+        {
+          "Name": "FlightStickPitch.SpringGain",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "k_damper",
+      "Title": "Damper k",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 280.0,
+      "Ports": [
+        {
+          "Name": "FlightStickPitch.DamperGain",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "k_friction",
+      "Title": "Friction k",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 340.0,
+      "Ports": [
+        {
+          "Name": "FlightStickPitch.FrictionGain",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "k_load",
+      "Title": "Load k",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 410.0,
+      "Ports": [
+        {
+          "Name": "FlightStickPitch.LoadGain",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "qhat",
+      "Title": "Qhat",
+      "Kind": "Func",
+      "X": 220.0,
+      "Y": 70.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "",
+      "Func": "qhat_eff",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "spring",
+      "Title": "Spring",
+      "Kind": "Op",
+      "X": 420.0,
+      "Y": 170.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "damper",
+      "Title": "Damper",
+      "Kind": "Op",
+      "X": 420.0,
+      "Y": 250.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "friction",
+      "Title": "Friction",
+      "Kind": "Op",
+      "X": 420.0,
+      "Y": 330.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "load",
+      "Title": "Load",
+      "Kind": "Op",
+      "X": 420.0,
+      "Y": 400.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "out_spring",
+      "Title": "Spring Out",
+      "Kind": "Output",
+      "X": 650.0,
+      "Y": 180.0,
+      "Ports": [
+        {
+          "Name": "FlightStickPitch.SpringGain",
+          "Kind": "Input"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "out_damper",
+      "Title": "Damper Out",
+      "Kind": "Output",
+      "X": 650.0,
+      "Y": 260.0,
+      "Ports": [
+        {
+          "Name": "FlightStickPitch.DamperGain",
+          "Kind": "Input"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "out_friction",
+      "Title": "Friction Out",
+      "Kind": "Output",
+      "X": 670.0,
+      "Y": 330.0,
+      "Ports": [
+        {
+          "Name": "FlightStickPitch.Friction",
+          "Kind": "Input"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "out_load",
+      "Title": "Load Out",
+      "Kind": "Output",
+      "X": 670.0,
+      "Y": 400.0,
+      "Ports": [
+        {
+          "Name": "FlightStickPitch.LoadForce",
+          "Kind": "Input"
+        }
+      ],
+      "Op": "",
+      "Func": "",
+      "IncludePath": "",
+      "ConstValue": 0.0
+    }
+  ],
+  "Links": [
+    {
+      "FromNodeId": "qhat",
+      "FromPort": "out",
+      "ToNodeId": "spring",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "qhat",
+      "FromPort": "out",
+      "ToNodeId": "damper",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "qhat",
+      "FromPort": "out",
+      "ToNodeId": "friction",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "ias",
+      "FromPort": "XPlane.IAS_kts",
+      "ToNodeId": "qhat",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "vref",
+      "FromPort": "XPlane.Vref_kts",
+      "ToNodeId": "qhat",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "aero_trq",
+      "FromPort": "XPlane.AeroTorque.PitchNm",
+      "ToNodeId": "load",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "k_spring",
+      "FromPort": "FlightStickPitch.SpringGain",
+      "ToNodeId": "spring",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "k_damper",
+      "FromPort": "FlightStickPitch.DamperGain",
+      "ToNodeId": "damper",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "k_friction",
+      "FromPort": "FlightStickPitch.FrictionGain",
+      "ToNodeId": "friction",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "k_load",
+      "FromPort": "FlightStickPitch.LoadGain",
+      "ToNodeId": "load",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "spring",
+      "FromPort": "out",
+      "ToNodeId": "out_spring",
+      "ToPort": "FlightStickPitch.SpringGain"
+    },
+    {
+      "FromNodeId": "damper",
+      "FromPort": "out",
+      "ToNodeId": "out_damper",
+      "ToPort": "FlightStickPitch.DamperGain"
+    },
+    {
+      "FromNodeId": "friction",
+      "FromPort": "out",
+      "ToNodeId": "out_friction",
+      "ToPort": "FlightStickPitch.Friction"
+    },
+    {
+      "FromNodeId": "load",
+      "FromPort": "out",
+      "ToNodeId": "out_load",
+      "ToPort": "FlightStickPitch.LoadForce"
+    }
+  ],
+  "Params": [
+    {
+      "Name": "FlightStickPitch.SpringGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 5.0
+    },
+    {
+      "Name": "FlightStickPitch.DamperGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 5.0
+    },
+    {
+      "Name": "FlightStickPitch.FrictionGain",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 5.0
+    },
+    {
+      "Name": "FlightStickPitch.LoadGain",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 5.0
+    }
+  ]
+}
