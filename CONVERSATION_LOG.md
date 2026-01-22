@@ -2,6 +2,20 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-23 00:44:31 +01:00 (DESKTOP-6KO022D)
+Request: keep the grid behavior as-is and commit.
+Summary:
+- Kept the graph editor grid behavior and clipping adjustment as-is.
+- Added a dedicated grid/centering intent doc for future work.
+Commit highlights:
+- Restore graph canvas clipping behavior.
+- Add grid/centering intent doc for future implementation.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/Docs/FFB_Graph_Grid_Centering.md`
+Open items:
+- Revisit grid padding/centering once pan/zoom behavior is locked.
+
 ## 2026-01-22 21:22:07 +01:00 (DESKTOP-6KO022D)
 Request: revert grid/zoom/pan changes made after 15:34.
 Summary:

@@ -32,7 +32,7 @@
             <ColumnDefinition x:Name="SplitterColumn" Width="6" />
             <ColumnDefinition x:Name="InspectorColumn" Width="320" MinWidth="160" />
         </Grid.ColumnDefinitions>
-        <Canvas x:Name="CanvasSurface" ClipToBounds="True" Background="{StaticResource GraphGridBrush}"
+        <Canvas x:Name="CanvasSurface" ClipToBounds="False" Background="{StaticResource GraphGridBrush}"
                 MouseLeftButtonDown="CanvasSurface_MouseLeftButtonDown"
                 MouseLeftButtonUp="CanvasSurface_MouseLeftButtonUp"
                 MouseMove="CanvasSurface_MouseMove"
