@@ -2,6 +2,65 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-23 09:19:38 +01:00 (DESKTOP-6KO022D)
+Request: wrap up compiled evaluator work and sync progress.
+Summary:
+- Marked compiled evaluator as done in the graph progress doc.
+Async/out-of-order note:
+- No async/out-of-order impact; doc-only change.
+Commit highlights:
+- Update graph progress with compiled evaluator completion.
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Continue UX polish and grid padding/centering.
+
+## 2026-01-23 09:12:41 +01:00 (DESKTOP-6KO022D)
+Request: fix GraphTest build error (duplicate compile item).
+Summary:
+- Removed the explicit GraphCompiledEvaluator compile include from GraphTest to avoid SDK duplicate compile items.
+Async/out-of-order note:
+- No async/out-of-order impact; build-only change.
+Commit highlights:
+- Fix GraphTest compile item duplication.
+Key files:
+- `SimHubPlugin/GraphTest/GraphTest.csproj`
+Open items:
+- Re-run GraphTest to confirm NETSDK1022 is resolved.
+
+## 2026-01-23 08:54:11 +01:00 (DESKTOP-6KO022D)
+Request: start compiled graph evaluation pipeline.
+Summary:
+- Added a compiled evaluator that precomputes node order and index lookups, including include handling.
+- Wired compiled evaluation into preview and runtime evaluation.
+- Added a test to compare compiled vs. legacy evaluator outputs.
+Async/out-of-order note:
+- Runtime uses compiled evaluator with the same input snapshot timing as before (`lastGraphEvaluation`), so ordering remains consistent.
+Commit highlights:
+- Add compiled evaluator and hook it into preview/runtime.
+- Add compiled-vs-legacy parity test.
+Key files:
+- `SimHubPlugin/GraphTest/GraphCompiledEvaluator.cs`
+- `SimHubPlugin/GraphEditor/GraphPreviewEvaluator.cs`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+- `SimHubPlugin/DiyFfbPlugin.csproj`
+- `SimHubPlugin/GraphTest/GraphTest.csproj`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Run GraphTest to validate compiled evaluator parity.
+
+## 2026-01-23 08:46:59 +01:00 (DESKTOP-6KO022D)
+Request: sync the graph progress document with current state.
+Summary:
+- Collapsed duplicated open sections and aligned Done/In Progress/Open lists to current features.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Continue roadmap (compiled evaluator, param UI schema, persistence).
+
 ## 2026-01-23 08:39:36 +01:00 (DESKTOP-6KO022D)
 Request: fix GraphSignalCatalogData reference in plugin build.
 Summary:

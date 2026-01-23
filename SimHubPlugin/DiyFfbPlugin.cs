@@ -119,7 +119,7 @@ namespace User.PluginSdkDemo
         private GraphDefinition activeVehicleGraph;
         private GraphValidationResult activeGraphValidation;
         private DiyFfb.GraphTest.GraphDefinition activeGraphRuntime;
-        private DiyFfb.GraphTest.GraphEvaluator activeGraphEvaluator;
+        private DiyFfb.GraphTest.GraphCompiledEvaluator activeGraphEvaluator;
         private DiyFfb.GraphTest.GraphIncludeResolver activeGraphResolver;
         private readonly Dictionary<string, double> graphInputs = new Dictionary<string, double>();
         private readonly Dictionary<string, double> graphParams = new Dictionary<string, double>();
@@ -2040,7 +2040,7 @@ namespace User.PluginSdkDemo
                     activeGraphRuntime = GraphRuntimeConverter.Convert(activeVehicleGraph);
                     string baseDir = Path.GetDirectoryName(resolvedPath) ?? AppDomain.CurrentDomain.BaseDirectory;
                     activeGraphResolver = new DiyFfb.GraphTest.GraphIncludeResolver(baseDir);
-                    activeGraphEvaluator = new DiyFfb.GraphTest.GraphEvaluator(activeGraphRuntime, activeGraphResolver);
+                    activeGraphEvaluator = new DiyFfb.GraphTest.GraphCompiledEvaluator(activeGraphRuntime, activeGraphResolver);
                 }
             }
             catch (Exception ex)

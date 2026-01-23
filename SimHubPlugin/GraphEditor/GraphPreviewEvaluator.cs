@@ -17,7 +17,7 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             var runtime = GraphRuntimeConverter.Convert(graph);
-            var evaluator = new GraphEvaluator(runtime);
+            var evaluator = new GraphCompiledEvaluator(runtime);
             return evaluator.EvaluateWithTrace(inputs, parameters);
         }
     }

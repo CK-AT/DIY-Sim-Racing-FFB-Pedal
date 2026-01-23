@@ -41,35 +41,23 @@ Status: living progress document for graph editor/runtime integration.
 - Runtime mapping now applies graph outputs to spring/damper/friction/load/trim per function.
 - Reverted initial centering/zoom changes after pan/zoom regressions.
 - Restored grid to canvas background and removed auto-centering while stabilizing pan/zoom.
-
-## Open
-- Restore grid padding left/top without breaking pan/zoom.
-- Input/output ports can pick known signals via selector in the inspector.
-- Param nodes expose per-port default/min/max values in the port list.
-- Runtime mapping now uses per-port IDs for input/param/output nodes.
-- Sample graphs now bind to real input/output signal names.
-- Added a signal catalog document for input/output keys.
-- Live inputs toggle feeds the preview from latest telemetry snapshots.
-- Graph canvas now clips to bounds and extends its grid beyond the initial view.
-- Right mouse button pans; selection rectangle uses left drag without modifiers.
-- Multi-select node drag now moves all selected nodes.
-- Signal selector now shows the current port name even if it is not in the list.
-- Func ports now match function signatures (e.g. assist_loss uses a single input).
-- Signal selector binds selected item/text to show the current signal reliably.
-- Replaced signal ComboBox with a hierarchical popup picker.
-- Editor keyboard shortcuts no longer intercept text input in fields.
-- Func port changes now refresh the canvas after inspector edits.
-- Grid extents padded by ~300 px around the graph bounds for panning.
-- Initial view centering uses the visible graph column size (not full canvas).
-- Grid background now moves with the graph transform for proper left/top space.
-- Initial view recenters the graph within the viewport while honoring padding limits.
+- Signal catalog document with hierarchical keys.
+- Input/output ports use a hierarchical selector with current-value display.
+- Param nodes expose per-port default/min/max values in the inspector.
+- Runtime mapping uses per-port IDs for input/param/output nodes.
+- Sample graphs bind to real input/output signal names.
+- Live inputs toggle feeds preview from latest telemetry snapshots.
+- Right mouse button pans; left drag selects.
+- Multi-select node drag moves all selected nodes.
+- Func ports match function signatures (e.g. assist_loss uses a single input).
+- Compiled evaluator precomputes node order/index and is used for preview/runtime with parity test.
 
 ## In Progress
 - UX polish (orthogonal routing, mini-map).
+- Grid padding/centering strategy (grid currently background brush; padding intent documented).
+- (none)
 
 ## Open
-- Runtime integration (graph selection per function/axis).
-- Compiled graph evaluation pipeline.
 - Param UI schema controls in function UI.
 - Typed units and validation.
 - Graph persistence in profiles and migrations.

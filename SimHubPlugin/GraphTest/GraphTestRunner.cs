@@ -11,6 +11,7 @@ namespace DiyFfb.GraphTest
             var results = new List<TestResult>
             {
                 RunTest("Evaluator basic outputs", TestEvaluatorBasicOutputs),
+                RunTest("Compiled evaluator matches outputs", TestCompiledEvaluatorMatches),
                 RunTest("Evaluator trace values", TestEvaluatorTraceValues),
                 RunTest("JSON load/save roundtrip", TestJsonRoundtrip),
                 RunTest("Validation catches missing output", TestIncludeOutputValidation),
@@ -63,6 +64,19 @@ namespace DiyFfb.GraphTest
             return result.NodeValues.ContainsKey("qhat") &&
                    result.NodeValues.ContainsKey("spring") &&
                    result.Outputs.ContainsKey("spring");
+        }
+
+        private static bool TestCompiledEvaluatorMatches()
+        {
+            var graph = BuildBaseGraph();
+            var inputs = new Dictionary<string, double> { ["ias_kts"] = 85.0, ["vref_kts"] = 70.0 };
+            var parameters = new Dictionary<string, double> { ["k_q"] = 1.3, ["k_rate"] = 0.6, ["k_friction"] = 0.2 };
+            var legacy = new GraphEvaluator(graph).Evaluate(inputs, parameters);
+            var compiled = new GraphCompiledEvaluator(graph).Evaluate(inputs, parameters);
+
+            return Math.Abs(legacy["spring"] - compiled["spring"]) < 1e-6 &&
+                   Math.Abs(legacy["damper"] - compiled["damper"]) < 1e-6 &&
+                   Math.Abs(legacy["friction"] - compiled["friction"]) < 1e-6;
         }
 
         private static bool TestJsonRoundtrip()
