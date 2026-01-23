@@ -36,8 +36,9 @@ Status: living progress document for graph editor/runtime integration.
 - Converted sample graphs to editor JSON schema for proper display.
 - Graph editor auto-loads the active vehicle graph when opened.
 - Graph editor refreshes the active graph when the selection changes.
-- Runtime graph evaluation is wired (inputs/params + cached evaluator) without output mapping yet.
+- Runtime graph evaluation is wired (inputs/params + cached evaluator) with output mapping.
 - Output port labels show live preview values in the editor.
+- Runtime mapping now applies graph outputs to spring/damper/friction/load/trim per function.
 - Reverted initial centering/zoom changes after pan/zoom regressions.
 - Restored grid to canvas background and removed auto-centering while stabilizing pan/zoom.
 

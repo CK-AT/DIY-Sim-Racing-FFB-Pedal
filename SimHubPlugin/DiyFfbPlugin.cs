@@ -1249,6 +1249,7 @@ namespace User.PluginSdkDemo
                     ? (pitchParams.FrictionTorque * torqueNormMrAbs) + (pitchParams.FrictionLowRpm * assistLoss)
                     : (pitchParams.FrictionQ * pitchScale);
                 pitchFriction = Math.Max(0.0f, pitchFriction);
+                ApplyGraphOutputs(FunctionID.FlightStickPitch, ref pitchSpring, ref pitchDamper, ref pitchFriction, ref pitchTrim, ref pitchLoadForce);
                 UpdateXPlaneDiagnostics(FunctionID.FlightStickPitch, packet, pitchScale, pitchSpring, pitchDamper, pitchBuffet, packet.ElevTrimDeg, pitchTrim, pitchVane, pitchLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, pitchTorqueRef);
                 if (IsXPlaneFfbEnabled(FunctionID.FlightStickPitch))
                 {
@@ -1273,6 +1274,7 @@ namespace User.PluginSdkDemo
                     ? (rollParams.FrictionTorque * torqueNormMrAbs) + (rollParams.FrictionLowRpm * assistLoss)
                     : (rollParams.FrictionQ * rollScale);
                 rollFriction = Math.Max(0.0f, rollFriction);
+                ApplyGraphOutputs(FunctionID.FlightStickRoll, ref rollSpring, ref rollDamper, ref rollFriction, ref rollTrim, ref rollLoadForce);
                 UpdateXPlaneDiagnostics(FunctionID.FlightStickRoll, packet, rollScale, rollSpring, rollDamper, rollBuffet, packet.AilTrimDeg, rollTrim, 0.0f, rollLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, rollTorqueRef);
                 if (IsXPlaneFfbEnabled(FunctionID.FlightStickRoll))
                 {
@@ -1298,6 +1300,7 @@ namespace User.PluginSdkDemo
                     ? (pedalsParams.FrictionTorque * torqueNormMrAbs) + (pedalsParams.FrictionLowRpm * assistLoss)
                     : (pedalsParams.FrictionQ * pedalsScale);
                 pedalsFriction = Math.Max(0.0f, pedalsFriction);
+                ApplyGraphOutputs(FunctionID.FlightPedals, ref pedalsSpring, ref pedalsDamper, ref pedalsFriction, ref pedalsTrim, ref pedalsLoadForce);
                 UpdateXPlaneDiagnostics(FunctionID.FlightPedals, packet, pedalsScale, pedalsSpring, pedalsDamper, pedalsBuffet, packet.RudTrimDeg, pedalsTrim, pedalsVane, pedalsLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, pedalsTorqueRef);
                 if (IsXPlaneFfbEnabled(FunctionID.FlightPedals))
                 {
@@ -1308,6 +1311,7 @@ namespace User.PluginSdkDemo
             if (isHeli)
             {
                 XPlaneFfbParams collectiveParams = GetXPlaneFfbParams(FunctionID.FlightStickCollective);
+                float collectiveSpring = 0.0f;
                 float omegaScale = nominalRpm > 0.0f ? omegaRpm / nominalRpm : 0.0f;
                 float collectiveDampScale = Lerp(torqueNormMrAbs, torqueNormMrAbs + assistLoss, collectiveParams.RpmBlend);
                 float collectiveDamper = collectiveParams.Krate * collectiveDampScale;
@@ -1317,10 +1321,11 @@ namespace User.PluginSdkDemo
                 collectiveTrim = collectiveTrimOnly;
                 float collectiveFriction = (collectiveParams.FrictionTorque * torqueNormMrAbs) + (collectiveParams.FrictionLowRpm * assistLoss);
                 collectiveFriction = Math.Max(0.0f, collectiveFriction);
-                UpdateXPlaneDiagnostics(FunctionID.FlightStickCollective, packet, omegaScale, 0.0f, collectiveDamper, 0.0f, 0.0f, collectiveTrim, 0.0f, collectiveLoadForce, rotorIndex, torqueNm, omegaRad, propRatio, nominalRpm, omegaScale, Math.Max(0.0f, packet.GNrml), torqueRef);
+                ApplyGraphOutputs(FunctionID.FlightStickCollective, ref collectiveSpring, ref collectiveDamper, ref collectiveFriction, ref collectiveTrim, ref collectiveLoadForce);
+                UpdateXPlaneDiagnostics(FunctionID.FlightStickCollective, packet, omegaScale, collectiveSpring, collectiveDamper, 0.0f, 0.0f, collectiveTrim, 0.0f, collectiveLoadForce, rotorIndex, torqueNm, omegaRad, propRatio, nominalRpm, omegaScale, Math.Max(0.0f, packet.GNrml), torqueRef);
                 if (IsXPlaneFfbEnabled(FunctionID.FlightStickCollective))
                 {
-                    SendFlightFfb(FunctionID.FlightStickCollective, 0.0f, collectiveDamper, collectiveFriction, collectiveTrim, 0.0f, collectiveLoadForce);
+                    SendFlightFfb(FunctionID.FlightStickCollective, collectiveSpring, collectiveDamper, collectiveFriction, collectiveTrim, 0.0f, collectiveLoadForce);
                 }
             }
 
@@ -1428,6 +1433,72 @@ namespace User.PluginSdkDemo
                 }
             };
             ESPsync_serialPort.WriteMessage(msg);
+        }
+
+        private static string GetGraphFunctionPrefix(FunctionID functionId)
+        {
+            switch (functionId)
+            {
+                case FunctionID.FlightStickPitch:
+                    return "FlightStickPitch";
+                case FunctionID.FlightStickRoll:
+                    return "FlightStickRoll";
+                case FunctionID.FlightPedals:
+                    return "FlightPedals";
+                case FunctionID.FlightStickCollective:
+                    return "FlightStickCollective";
+                default:
+                    return null;
+            }
+        }
+
+        private bool TryGetGraphOutput(string key, out float value)
+        {
+            value = 0.0f;
+            if (lastGraphEvaluation?.Outputs == null)
+            {
+                return false;
+            }
+
+            if (lastGraphEvaluation.Outputs.TryGetValue(key, out var raw))
+            {
+                value = (float)raw;
+                return true;
+            }
+
+            return false;
+        }
+
+        private void ApplyGraphOutputs(FunctionID functionId, ref float kSpring, ref float kDamper, ref float kFriction,
+            ref float trimOffset, ref float loadForce)
+        {
+            string prefix = GetGraphFunctionPrefix(functionId);
+            if (string.IsNullOrWhiteSpace(prefix))
+            {
+                return;
+            }
+
+            float value;
+            if (TryGetGraphOutput($"{prefix}.SpringGain", out value))
+            {
+                kSpring = value;
+            }
+            if (TryGetGraphOutput($"{prefix}.DamperGain", out value))
+            {
+                kDamper = value;
+            }
+            if (TryGetGraphOutput($"{prefix}.Friction", out value))
+            {
+                kFriction = value;
+            }
+            if (TryGetGraphOutput($"{prefix}.TrimOffset", out value))
+            {
+                trimOffset = value;
+            }
+            if (TryGetGraphOutput($"{prefix}.LoadForce", out value))
+            {
+                loadForce = value;
+            }
         }
 
         public void ApplyXPlaneUdpSettings(bool enabled, int port)

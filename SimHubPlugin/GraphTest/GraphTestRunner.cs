@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using User.PluginSdkDemo;
 
 namespace DiyFfb.GraphTest
 {
@@ -21,7 +22,8 @@ namespace DiyFfb.GraphTest
                 RunTest("Include missing path validation", TestIncludeMissingPath),
                 RunTest("Include mapping warnings", TestIncludeMappingWarnings),
                 RunTest("Op arg count validation", TestOpArgValidation),
-                RunTest("Clamp bound order warning", TestClampBoundOrderWarning)
+                RunTest("Clamp bound order warning", TestClampBoundOrderWarning),
+                RunTest("Graph output names unique", TestGraphOutputNamesUnique)
             };
 
             PrintResults(results);
@@ -223,6 +225,20 @@ namespace DiyFfb.GraphTest
             graph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "out", Src = "clamp" };
             var validation = GraphValidator.Validate(graph);
             return validation.IsValid && validation.Warnings.Count > 0;
+        }
+
+        private static bool TestGraphOutputNamesUnique()
+        {
+            var outputs = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var name in GraphSignalCatalogData.OutputNames)
+            {
+                if (!outputs.Add(name))
+                {
+                    return false;
+                }
+            }
+
+            return outputs.Contains("FlightStickPitch.SpringGain");
         }
 
         private static GraphDefinition BuildBaseGraph()

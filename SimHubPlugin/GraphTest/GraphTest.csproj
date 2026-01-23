@@ -7,4 +7,7 @@
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\GraphSignalCatalogData.cs" Link="GraphSignalCatalogData.cs" />
+  </ItemGroup>
 </Project>

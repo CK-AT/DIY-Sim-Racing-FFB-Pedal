@@ -2,6 +2,52 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-23 08:39:36 +01:00 (DESKTOP-6KO022D)
+Request: fix GraphSignalCatalogData reference in plugin build.
+Summary:
+- Added the shared signal catalog source file to the SimHub plugin project.
+Commit highlights:
+- Wire graph outputs into X-Plane FFB spring/damper/friction/load/trim.
+- Split graph signal catalog for shared use in plugin and GraphTest.
+- Add output-name uniqueness test using the shared catalog.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.csproj`
+Open items:
+- Rebuild the SimHub plugin to confirm the namespace error is resolved.
+
+## 2026-01-23 08:33:35 +01:00 (DESKTOP-6KO022D)
+Request: fix GraphTest build error for graph output name test.
+Summary:
+- Split graph signal lists into a shared, dependency-free catalog.
+- Linked the catalog into GraphTest and re-used it in the uniqueness test.
+Commit highlights:
+- (pending)
+Key files:
+- `SimHubPlugin/GraphSignalCatalogData.cs`
+- `SimHubPlugin/GraphSignals.cs`
+- `SimHubPlugin/GraphTest/GraphTest.csproj`
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+Open items:
+- Re-run GraphTest build to confirm the namespace error is resolved.
+
+## 2026-01-23 00:56:32 +01:00 (DESKTOP-6KO022D)
+Request: continue roadmap with graph output mapping.
+Summary:
+- Applied graph output values (spring/damper/friction/load/trim) per function during X-Plane FFB processing.
+- Added a small graph test to ensure output signal names are unique.
+- Updated graph progress tracking to reflect output mapping now wired.
+Async/out-of-order note:
+- Uses `lastGraphEvaluation` from the latest DataUpdate tick; ProcessXPlaneFfb reads the most recent outputs without blocking.
+Commit highlights:
+- Wire graph outputs into X-Plane FFB spring/damper/friction/load/trim.
+- Add output-name uniqueness test for the graph runtime.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Verify graph outputs override legacy values as expected per function.
+
 ## 2026-01-23 00:44:31 +01:00 (DESKTOP-6KO022D)
 Request: keep the grid behavior as-is and commit.
 Summary:
