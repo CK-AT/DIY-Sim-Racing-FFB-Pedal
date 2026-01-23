@@ -66,12 +66,16 @@ namespace User.PluginSdkDemo.GraphEditor
         private const double NodeMinWidth = 80.0;
         private const double NodePadding = 4.0;
         private const double PortLabelPadding = 6.0;
+        private const double PortRowSpacing = 25.0;
         private const double EdgeRewirePickRadius = 28.0;
         private const double PortHoverPadding = 12.0;
         private const double GridSize = 10.0;
+        private const double ParamControlHeight = 18.0;
+        private const double ParamControlWidth = 120.0;
         private bool _isInspectorUpdating;
         private readonly string[] _opChoices = { "add", "sub", "mul", "div", "min", "max", "abs", "clamp", "lerp" };
         private readonly string[] _funcChoices = { "qhat_eff", "torque_norm", "rpm_norm", "assist_loss" };
+        private readonly string[] _paramWidgetChoices = { "slider", "knob", "checkbox", "enum", "text" };
         private double _curveTension = 0.5;
         private const double HandleSize = 10.0;
         private LinkVisual _draggingHandle;
@@ -322,7 +326,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 portEllipse.MouseRightButtonDown += Port_MouseRightButtonDown;
 
                 int portIndex = port.Kind == GraphPortKind.Input ? inputIndex : outputIndex;
-                double y = 26 + portIndex * 14;
+                double y = 26 + portIndex * PortRowSpacing;
                 double x = port.Kind == GraphPortKind.Input ? -5 : nodeCanvas.Width - 5;
                 Canvas.SetLeft(portEllipse, x);
                 Canvas.SetTop(portEllipse, y);
@@ -337,9 +341,34 @@ namespace User.PluginSdkDemo.GraphEditor
                     Tag = portVisual
                 };
                 double labelWidth = MeasureTextWidth(port.Name, PortFontSize);
-                Canvas.SetLeft(label, port.Kind == GraphPortKind.Input ? PortLabelPadding : width - PortLabelPadding - labelWidth);
+                double labelX;
+                if (port.Kind == GraphPortKind.Input)
+                {
+                    labelX = PortLabelPadding;
+                }
+                else if (node.Kind == GraphNodeKind.Param)
+                {
+                    labelX = width - ParamControlWidth - PortLabelPadding - labelWidth - 6;
+                }
+                else
+                {
+                    labelX = width - PortLabelPadding - labelWidth;
+                }
+                Canvas.SetLeft(label, labelX);
                 Canvas.SetTop(label, y - 2);
                 nodeCanvas.Children.Add(label);
+
+                if (node.Kind == GraphNodeKind.Param && port.Kind == GraphPortKind.Output)
+                {
+                    var param = GetOrCreateParam(node, port.Name);
+                    var ui = param.Ui ?? new GraphParamUi();
+                    var controlInfo = BuildParamControl(param, ui, port.Name, ParamControlWidth);
+                    controlInfo.Control.Height = ParamControlHeight;
+                    controlInfo.Control.Tag = new ParamControlTag(port.Name, controlInfo.YOffset);
+                    Canvas.SetLeft(controlInfo.Control, width - ParamControlWidth - PortLabelPadding);
+                    Canvas.SetTop(controlInfo.Control, y + controlInfo.YOffset);
+                    nodeCanvas.Children.Add(controlInfo.Control);
+                }
 
                 if (port.Kind == GraphPortKind.Output)
                 {
@@ -384,6 +413,224 @@ namespace User.PluginSdkDemo.GraphEditor
             };
         }
 
+        private ParamControlInfo BuildParamControl(GraphParam param, GraphParamUi ui, string paramName, double width)
+        {
+            string widget = (ui?.Widget ?? "").Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(widget))
+            {
+                widget = "slider";
+            }
+
+            double yOffset = widget == "text" ? -7 : -4;
+            if (widget == "checkbox")
+            {
+                var check = new CheckBox
+                {
+                    Content = string.IsNullOrWhiteSpace(ui.Label) ? "Enabled" : ui.Label,
+                    Foreground = Brushes.LightGray,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    IsChecked = param.DefaultValue > 0.5
+                };
+                check.Checked += (_, __) => SetParamDefault(paramName, 1.0);
+                check.Unchecked += (_, __) => SetParamDefault(paramName, 0.0);
+                return new ParamControlInfo(check, yOffset);
+            }
+
+            if (widget == "enum")
+            {
+                var combo = new ComboBox
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                    Foreground = Brushes.White,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(74, 74, 74)),
+                    BorderThickness = new Thickness(1),
+                    ItemsSource = ui.Options,
+                    DisplayMemberPath = "Label",
+                    SelectedValuePath = "Value",
+                    Width = width
+                };
+                combo.SelectedItem = FindOptionForValue(ui.Options, param.DefaultValue);
+                combo.SelectionChanged += (_, __) =>
+                {
+                    if (combo.SelectedItem is GraphParamOption option)
+                    {
+                        double value = ParseOptionValue(option.Value, param.DefaultValue);
+                        SetParamDefault(paramName, value);
+                    }
+                };
+                return new ParamControlInfo(combo, yOffset);
+            }
+
+            if (widget == "slider" || widget == "knob")
+            {
+                double min;
+                double max;
+                GetParamRange(param, out min, out max);
+                var slider = new Slider
+                {
+                    Minimum = min,
+                    Maximum = max,
+                    Value = param.DefaultValue,
+                    Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                    Foreground = Brushes.White,
+                    Width = width,
+                    Margin = new Thickness(0, 0, 0, 0)
+                };
+                if (ui.Step.HasValue && ui.Step.Value > 0)
+                {
+                    slider.SmallChange = ui.Step.Value;
+                }
+                if (widget == "knob")
+                {
+                    slider.IsSnapToTickEnabled = ui.Step.HasValue && ui.Step.Value > 0;
+                    slider.TickFrequency = ui.Step.HasValue && ui.Step.Value > 0 ? ui.Step.Value : (max - min) / 10.0;
+                    slider.BorderBrush = new SolidColorBrush(Color.FromRgb(90, 90, 120));
+                    slider.BorderThickness = new Thickness(1);
+                }
+                slider.ValueChanged += (_, __) => SetParamDefault(paramName, slider.Value);
+                return new ParamControlInfo(slider, yOffset);
+            }
+
+            var text = new TextBox
+            {
+                Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                Foreground = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(74, 74, 74)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(0, 0, 0, 0),
+                Width = width,
+                Height = ParamControlHeight,
+                Text = param.DefaultValue.ToString("F3", CultureInfo.InvariantCulture)
+            };
+            text.TextChanged += (_, __) =>
+            {
+                if (TryParseDouble(text.Text, out var value))
+                {
+                    SetParamDefault(paramName, value);
+                }
+            };
+            return new ParamControlInfo(text, yOffset);
+        }
+
+        private static GraphParamOption FindOptionForValue(List<GraphParamOption> options, double value)
+        {
+            if (options == null)
+            {
+                return null;
+            }
+
+            foreach (var option in options)
+            {
+                double parsed = ParseOptionValue(option.Value, double.NaN);
+                if (!double.IsNaN(parsed) && Math.Abs(parsed - value) < 1e-6)
+                {
+                    return option;
+                }
+            }
+            return options.Count > 0 ? options[0] : null;
+        }
+
+        private static double ParseOptionValue(string text, double fallback)
+        {
+            if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+            {
+                return value;
+            }
+            return fallback;
+        }
+
+        private void SetParamDefault(string name, double value)
+        {
+            if (_graph.Params.TryGetValue(name, out var param))
+            {
+                param.DefaultValue = value;
+            }
+            else
+            {
+                _graph.Params[name] = new GraphParam { Name = name, DefaultValue = value };
+            }
+
+            SyncPreviewEntries();
+            if (_previewParamLookup.TryGetValue(name, out var entry))
+            {
+                entry.Value = value;
+            }
+        }
+
+        private static int GetPortRowCount(GraphNode node)
+        {
+            int inputCount = 0;
+            int outputCount = 0;
+            foreach (var port in node.Ports)
+            {
+                if (port.Kind == GraphPortKind.Input)
+                {
+                    inputCount++;
+                }
+                else
+                {
+                    outputCount++;
+                }
+            }
+            return Math.Max(1, Math.Max(inputCount, outputCount));
+        }
+
+        private sealed class ParamControlTag
+        {
+            public string PortName { get; }
+            public double YOffset { get; }
+
+            public ParamControlTag(string portName, double yOffset)
+            {
+                PortName = portName;
+                YOffset = yOffset;
+            }
+        }
+
+        private sealed class ParamControlInfo
+        {
+            public FrameworkElement Control { get; }
+            public double YOffset { get; }
+
+            public ParamControlInfo(FrameworkElement control, double yOffset)
+            {
+                Control = control;
+                YOffset = yOffset;
+            }
+        }
+
+        private static int GetOutputPortIndex(GraphNode node, string portName)
+        {
+            if (node == null)
+            {
+                return -1;
+            }
+
+            int index = 0;
+            foreach (var port in node.Ports)
+            {
+                if (port.Kind == GraphPortKind.Output)
+                {
+                    if (port.Name == portName)
+                    {
+                        return index;
+                    }
+                    index++;
+                }
+            }
+            return -1;
+        }
+
+        private static void GetParamRange(GraphParam param, out double min, out double max)
+        {
+            min = param.Min;
+            max = param.Max;
+            if (Math.Abs(max - min) < 1e-9)
+            {
+                max = min + 1.0;
+            }
+        }
+
         private void UpdateAllLinkGeometry()
         {
             foreach (var linkVisual in _linkVisuals)
@@ -410,7 +657,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 if (port.Kind == kind && port.Name == portName)
                 {
                     double x = node.X + (kind == GraphPortKind.Input ? 0 : nodeVisual.Container.Width);
-                    double y = node.Y + 26 + index * 14 + 5;
+                    double y = node.Y + 26 + index * PortRowSpacing + 5;
                     return new Point(x, y);
                 }
                 if (port.Kind == kind)
@@ -1536,7 +1783,6 @@ namespace User.PluginSdkDemo.GraphEditor
             PanelOp.Visibility = node.Kind == GraphNodeKind.Op ? Visibility.Visible : Visibility.Collapsed;
             PanelFunc.Visibility = node.Kind == GraphNodeKind.Func ? Visibility.Visible : Visibility.Collapsed;
             PanelInclude.Visibility = node.Kind == GraphNodeKind.Include ? Visibility.Visible : Visibility.Collapsed;
-            PanelParam.Visibility = Visibility.Collapsed;
             PanelPorts.Visibility = Visibility.Visible;
             ButtonAddInputPort.Visibility = node.Kind == GraphNodeKind.Output ? Visibility.Visible : Visibility.Collapsed;
             ButtonAddOutputPort.Visibility = (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Param)
@@ -1757,36 +2003,6 @@ namespace User.PluginSdkDemo.GraphEditor
             ButtonOpenInclude.IsEnabled = !string.IsNullOrWhiteSpace(_selectedNode.Node.IncludePath);
         }
 
-        private void EditParamDefault_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            UpdateParamValue(EditParamDefault.Text, (param, value) => param.DefaultValue = value);
-        }
-
-        private void EditParamMin_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            UpdateParamValue(EditParamMin.Text, (param, value) => param.Min = value);
-        }
-
-        private void EditParamMax_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            UpdateParamValue(EditParamMax.Text, (param, value) => param.Max = value);
-        }
-
-        private void UpdateParamValue(string text, Action<GraphParam, double> assign)
-        {
-            if (_isInspectorUpdating || _selectedNode == null || _selectedNode.Node.Kind != GraphNodeKind.Param)
-            {
-                return;
-            }
-
-            if (!TryParseDouble(text, out var value))
-            {
-                return;
-            }
-
-            var param = GetOrCreateParam(_selectedNode.Node, GetNodeName(_selectedNode.Node));
-            assign(param, value);
-        }
 
         private void SyncPortEntries(GraphNode node)
         {
@@ -1872,6 +2088,41 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             RefreshPreview();
+        }
+
+        private void EditParamUi_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null)
+            {
+                return;
+            }
+
+            var button = sender as Button;
+            var entry = button?.DataContext as PortEditEntry;
+            var param = entry?.Param;
+            if (param == null)
+            {
+                return;
+            }
+
+            var dialog = new GraphParamUiDialog(param, _paramWidgetChoices)
+            {
+                Owner = Window.GetWindow(this)
+            };
+            if (dialog.ShowDialog() == true)
+            {
+                entry.RefreshParamReference(param);
+                RebuildSurface();
+                if (_nodeVisuals.TryGetValue(_selectedNode.Node.Id, out var visual))
+                {
+                    _selectedNode = visual;
+                    _selectedNodes.Clear();
+                    _selectedNodes.Add(visual);
+                    UpdateSelectionVisuals();
+                }
+                SyncPreviewEntries();
+                RefreshPreview();
+            }
         }
 
         private void SignalPickerButton_Click(object sender, RoutedEventArgs e)
@@ -2119,6 +2370,10 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             double contentWidth = Math.Max(titleWidth, maxInput + maxOutput + 18.0);
+            if (node != null && node.Kind == GraphNodeKind.Param && node.Ports.Any(p => p.Kind == GraphPortKind.Output))
+            {
+                contentWidth = Math.Max(contentWidth, maxInput + maxOutput + ParamControlWidth + 18.0);
+            }
             return Math.Max(NodeMinWidth, contentWidth + NodePadding * 2.0);
         }
 
@@ -2142,7 +2397,7 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             int portCount = Math.Max(1, Math.Max(inputCount, outputCount));
-            return 34 + portCount * 14;
+            return 34 + portCount * PortRowSpacing;
         }
 
         private void UpdateNodeSize(NodeVisual visual)
@@ -2171,10 +2426,35 @@ namespace User.PluginSdkDemo.GraphEditor
                 if (label?.Tag is PortVisual labelPort)
                 {
                     double labelWidth = MeasureTextWidth(labelPort.PortName, PortFontSize);
-                    double x = labelPort.Kind == GraphPortKind.Input
-                        ? PortLabelPadding
-                        : width - PortLabelPadding - labelWidth;
+                    double x;
+                    if (labelPort.Kind == GraphPortKind.Input)
+                    {
+                        x = PortLabelPadding;
+                    }
+                    else if (visual.Node.Kind == GraphNodeKind.Param)
+                    {
+                        x = width - ParamControlWidth - PortLabelPadding - labelWidth - 6;
+                    }
+                    else
+                    {
+                        x = width - PortLabelPadding - labelWidth;
+                    }
                     Canvas.SetLeft(label, x);
+                }
+
+                var element = child as FrameworkElement;
+                var tag = element?.Tag as ParamControlTag;
+                if (tag != null && visual.Node.Kind == GraphNodeKind.Param)
+                {
+                    int index = GetOutputPortIndex(visual.Node, tag.PortName);
+                    if (index >= 0)
+                    {
+                        double y = 26 + index * PortRowSpacing;
+                        Canvas.SetLeft(element, width - ParamControlWidth - PortLabelPadding);
+                        Canvas.SetTop(element, y + tag.YOffset);
+                        element.Width = ParamControlWidth;
+                        element.Height = ParamControlHeight;
+                    }
                 }
             }
 
@@ -2221,31 +2501,10 @@ namespace User.PluginSdkDemo.GraphEditor
             foreach (var output in visual.OutputValues)
             {
                 int outputIndex = GetOutputPortIndex(visual.Node, output.PortName);
-                double y = 26 + outputIndex * 14;
+                double y = 26 + outputIndex * PortRowSpacing;
                 Canvas.SetLeft(output.Label, width + 6);
                 Canvas.SetTop(output.Label, y - 2);
             }
-        }
-
-        private int GetOutputPortIndex(GraphNode node, string portName)
-        {
-            int outputIndex = 0;
-            foreach (var port in node.Ports)
-            {
-                if (port.Kind != GraphPortKind.Output)
-                {
-                    continue;
-                }
-
-                if (string.Equals(port.Name, portName, StringComparison.Ordinal))
-                {
-                    return outputIndex;
-                }
-
-                outputIndex++;
-            }
-
-            return 0;
         }
 
         private string GetOutputValueKey(GraphNode node, string portName)
@@ -2766,6 +3025,7 @@ namespace User.PluginSdkDemo.GraphEditor
             }
         }
 
+
         private sealed class PortEditEntry : INotifyPropertyChanged
         {
             private string _name;
@@ -2773,6 +3033,7 @@ namespace User.PluginSdkDemo.GraphEditor
             private string _paramMin;
             private string _paramMax;
             private GraphParam _param;
+            private GraphParamUi _paramUi;
             private bool _isSignalPopupOpen;
 
             public PortEditEntry(GraphPort port, bool useSignalOptions, IReadOnlyList<string> signalOptions,
@@ -2785,10 +3046,12 @@ namespace User.PluginSdkDemo.GraphEditor
                 SignalTree = BuildSignalTree(SignalOptions);
                 ShowParamFields = showParamFields;
                 _param = param;
+                _paramUi = EnsureParamUi();
                 SyncParamText();
             }
 
             public GraphPort Port { get; }
+            public GraphParam Param => _param;
             public string KindLabel => Port.Kind == GraphPortKind.Input ? "Input" : "Output";
             public bool UseSignalOptions { get; }
             public IReadOnlyList<string> SignalOptions { get; }
@@ -2883,6 +3146,7 @@ namespace User.PluginSdkDemo.GraphEditor
             public void RefreshParamReference(GraphParam param)
             {
                 _param = param;
+                _paramUi = EnsureParamUi();
                 SyncParamText();
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ParamDefault)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ParamMin)));
@@ -2911,6 +3175,46 @@ namespace User.PluginSdkDemo.GraphEditor
             private static bool TryParse(string text, out double value)
             {
                 return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+            }
+
+            private GraphParamUi EnsureParamUi()
+            {
+                if (_param == null)
+                {
+                    return null;
+                }
+
+                if (_param.Ui == null)
+                {
+                    _param.Ui = new GraphParamUi();
+                }
+                return _param.Ui;
+            }
+
+            private static double? ParseNullableDouble(string text)
+            {
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    return null;
+                }
+                if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+                {
+                    return value;
+                }
+                return null;
+            }
+
+            private static int? ParseNullableInt(string text)
+            {
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    return null;
+                }
+                if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+                {
+                    return value;
+                }
+                return null;
             }
 
             private static ObservableCollection<SignalTreeNode> BuildSignalTree(IReadOnlyList<string> options)

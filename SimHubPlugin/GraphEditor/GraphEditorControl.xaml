@@ -188,35 +188,6 @@
                                 Height="22"
                                 Click="ButtonAddIncludeOutput_Click" />
                     </StackPanel>
-                    <StackPanel x:Name="PanelParam">
-                        <TextBlock Text="Param Default" Foreground="#BBBBBB" FontSize="10" />
-                        <TextBox x:Name="EditParamDefault"
-                                 Margin="0,2,0,6"
-                                 Background="#1E1E1E"
-                                 Foreground="White"
-                                 BorderBrush="#4A4A4A"
-                                 BorderThickness="1"
-                                 Padding="3,2,3,2"
-                                 TextChanged="EditParamDefault_TextChanged" />
-                        <TextBlock Text="Param Min" Foreground="#BBBBBB" FontSize="10" />
-                        <TextBox x:Name="EditParamMin"
-                                 Margin="0,2,0,6"
-                                 Background="#1E1E1E"
-                                 Foreground="White"
-                                 BorderBrush="#4A4A4A"
-                                 BorderThickness="1"
-                                 Padding="3,2,3,2"
-                                 TextChanged="EditParamMin_TextChanged" />
-                        <TextBlock Text="Param Max" Foreground="#BBBBBB" FontSize="10" />
-                        <TextBox x:Name="EditParamMax"
-                                 Margin="0,2,0,6"
-                                 Background="#1E1E1E"
-                                 Foreground="White"
-                                 BorderBrush="#4A4A4A"
-                                 BorderThickness="1"
-                                 Padding="3,2,3,2"
-                                 TextChanged="EditParamMax_TextChanged" />
-                    </StackPanel>
                     <StackPanel x:Name="PanelPorts">
                         <TextBlock Text="Ports" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
@@ -311,9 +282,17 @@
                                                     </Border>
                                                 </Popup>
                                             </Grid>
-                                            <StackPanel Orientation="Horizontal" Margin="6,0,0,0">
-                                                <StackPanel.Style>
-                                                    <Style TargetType="StackPanel">
+                                            <Button Content="Settings..."
+                                                    Margin="6,0,0,0"
+                                                    Height="22"
+                                                    Background="#1E1E1E"
+                                                    Foreground="White"
+                                                    BorderBrush="#4A4A4A"
+                                                    BorderThickness="1"
+                                                    Padding="4,1,4,1"
+                                                    Click="EditParamUi_Click">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
                                                         <Setter Property="Visibility" Value="Collapsed" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding ShowParamFields}" Value="True">
@@ -321,34 +300,8 @@
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
-                                                </StackPanel.Style>
-                                                <TextBox Width="52"
-                                                         Text="{Binding ParamDefault, UpdateSourceTrigger=PropertyChanged}"
-                                                         Background="#1E1E1E"
-                                                         Foreground="White"
-                                                         BorderBrush="#4A4A4A"
-                                                         BorderThickness="1"
-                                                         Padding="2,1,2,1"
-                                                         FontSize="10"
-                                                         Margin="0,0,6,0" />
-                                                <TextBox Width="52"
-                                                         Text="{Binding ParamMin, UpdateSourceTrigger=PropertyChanged}"
-                                                         Background="#1E1E1E"
-                                                         Foreground="White"
-                                                         BorderBrush="#4A4A4A"
-                                                         BorderThickness="1"
-                                                         Padding="2,1,2,1"
-                                                         FontSize="10"
-                                                         Margin="0,0,6,0" />
-                                                <TextBox Width="52"
-                                                         Text="{Binding ParamMax, UpdateSourceTrigger=PropertyChanged}"
-                                                         Background="#1E1E1E"
-                                                         Foreground="White"
-                                                         BorderBrush="#4A4A4A"
-                                                         BorderThickness="1"
-                                                         Padding="2,1,2,1"
-                                                         FontSize="10" />
-                                            </StackPanel>
+                                                </Button.Style>
+                                            </Button>
                                         </StackPanel>
                                     </DockPanel>
                                 </DataTemplate>

@@ -71,12 +71,13 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 ### Param UI Schema (Draft)
 - Param nodes declare their control type and UI metadata.
 - Proposed fields:
-  - `ui_type`: `slider` | `knob` | `checkbox` | `dropdown`
-  - `min`, `max`, `step`, `default`
+  - `widget`: `slider` | `knob` | `checkbox` | `enum` | `text`
+  - `min`, `max`, `step`, `default`, `precision`
   - `units`: string (e.g., `N`, `N/mm`, `Hz`)
-  - `format`: display format (e.g., `F2`)
+  - `label`: display label for the control
   - `group`: UI grouping key (function name or section)
-  - `description`: optional tooltip text
+  - `logScale`: bool for decades-spanning gains
+  - `options`: enum values (`value`, `label`)
 
 ### Graph Hierarchy
 - Tree panel showing root graph and include graphs.

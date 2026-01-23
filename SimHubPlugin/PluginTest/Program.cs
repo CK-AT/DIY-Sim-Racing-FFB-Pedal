@@ -11,6 +11,7 @@ namespace User.PluginSdkDemo.PluginTest
             var results = new List<TestResult>
             {
                 RunTest("GraphEditor JSON roundtrip", TestGraphEditorJsonRoundtrip),
+                RunTest("Graph param UI schema roundtrip", TestGraphParamUiRoundtrip),
                 RunTest("Graph preview evaluation", TestGraphPreviewEvaluation)
             };
 
@@ -109,6 +110,48 @@ namespace User.PluginSdkDemo.PluginTest
                 new Dictionary<string, double> { ["k_q"] = 3.0 });
 
             return result.Outputs.Count > 0;
+        }
+
+        private static bool TestGraphParamUiRoundtrip()
+        {
+            var graph = new GraphDefinition();
+            graph.Params["k_q"] = new GraphParam
+            {
+                Name = "k_q",
+                DefaultValue = 1.0,
+                Min = 0.0,
+                Max = 5.0,
+                Ui = new GraphParamUi
+                {
+                    Widget = "slider",
+                    Label = "Spring Gain",
+                    Group = "FlightStickPitch",
+                    Units = "N",
+                    Step = 0.1,
+                    Precision = 2,
+                    LogScale = true
+                }
+            };
+            graph.Params["k_q"].Ui.Options.Add(new GraphParamOption { Value = "A", Label = "Mode A" });
+
+            string json = GraphSerializer.Serialize(graph);
+            var loaded = GraphSerializer.Deserialize(json, out var validation);
+            if (!validation.IsValid || !loaded.Params.TryGetValue("k_q", out var param))
+            {
+                return false;
+            }
+
+            return param.Ui != null &&
+                   param.Ui.Widget == "slider" &&
+                   param.Ui.Label == "Spring Gain" &&
+                   param.Ui.Group == "FlightStickPitch" &&
+                   param.Ui.Units == "N" &&
+                   param.Ui.Step.HasValue &&
+                   Math.Abs(param.Ui.Step.Value - 0.1) < 1e-9 &&
+                   param.Ui.Precision == 2 &&
+                   param.Ui.LogScale &&
+                   param.Ui.Options.Count == 1 &&
+                   param.Ui.Options[0].Label == "Mode A";
         }
 
         private static void PrintResults(List<TestResult> results)

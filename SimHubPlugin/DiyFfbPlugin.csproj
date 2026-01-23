@@ -196,6 +196,9 @@
     <Compile Include="GraphEditor\GraphEditorControl.xaml.cs">
       <DependentUpon>GraphEditorControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="GraphEditor\GraphParamUiDialog.xaml.cs">
+      <DependentUpon>GraphParamUiDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="GraphEditor\GraphEditorWindow.xaml.cs">
       <DependentUpon>GraphEditorWindow.xaml</DependentUpon>
     </Compile>
@@ -283,6 +286,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="GraphEditor\GraphEditorControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="GraphEditor\GraphParamUiDialog.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

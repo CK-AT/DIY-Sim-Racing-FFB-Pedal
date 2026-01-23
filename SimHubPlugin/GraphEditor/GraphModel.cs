@@ -63,5 +63,24 @@ namespace User.PluginSdkDemo.GraphEditor
         public double DefaultValue { get; set; }
         public double Min { get; set; }
         public double Max { get; set; }
+        public GraphParamUi Ui { get; set; }
+    }
+
+    public sealed class GraphParamUi
+    {
+        public string Widget { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Group { get; set; } = "";
+        public string Units { get; set; } = "";
+        public double? Step { get; set; }
+        public int? Precision { get; set; }
+        public bool LogScale { get; set; }
+        public List<GraphParamOption> Options { get; } = new List<GraphParamOption>();
+    }
+
+    public sealed class GraphParamOption
+    {
+        public string Value { get; set; } = "";
+        public string Label { get; set; } = "";
     }
 }

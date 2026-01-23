@@ -51,6 +51,9 @@ Status: living progress document for graph editor/runtime integration.
 - Multi-select node drag moves all selected nodes.
 - Func ports match function signatures (e.g. assist_loss uses a single input).
 - Compiled evaluator precomputes node order/index and is used for preview/runtime with parity test.
+- Param nodes store UI metadata (widget/label/group/units/etc.) per port and expose it in the inspector.
+- Param UI editor dialog replaces inline fields (including default/min/max) for cleaner editing.
+- Param nodes render widget-based controls for direct tuning in the canvas.
 
 ## In Progress
 - UX polish (orthogonal routing, mini-map).

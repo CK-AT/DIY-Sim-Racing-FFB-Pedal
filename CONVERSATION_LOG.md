@@ -2,18 +2,246 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
-## 2026-01-23 09:19:38 +01:00 (DESKTOP-6KO022D)
-Request: wrap up compiled evaluator work and sync progress.
+## 2026-01-23 11:24:52 +01:00 (DESKTOP-6KO022D)
+Request: add param settings dialog and polish param node widgets.
 Summary:
-- Marked compiled evaluator as done in the graph progress doc.
+- Added a param settings dialog (widget/label/group/units/step/precision/log/options + default/min/max).
+- Replaced inline inspector fields with a Settings button and render widgets next to param outputs.
+- Tuned port row spacing and per-widget offsets; BuildParamControl now returns control + offset.
 Async/out-of-order note:
-- No async/out-of-order impact; doc-only change.
+- No async/out-of-order impact; editor-only UI metadata.
 Commit highlights:
-- Update graph progress with compiled evaluator completion.
+- Add param settings dialog and hook it into the inspector.
+- Render param widgets beside output labels with per-widget offsets and spacing tweaks.
 Key files:
+- `SimHubPlugin/GraphEditor/GraphParamUiDialog.xaml`
+- `SimHubPlugin/GraphEditor/GraphParamUiDialog.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphModel.cs`
+- `SimHubPlugin/GraphEditor/GraphSerializer.cs`
+- `SimHubPlugin/DiyFfbPlugin.csproj`
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+- `SimHubPlugin/PluginTest/Program.cs`
+Open items:
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 11:03:12 +01:00 (DESKTOP-6KO022D)
+Request: add spacing between output ports so param sliders don’t overlap.
+Summary:
+- Increased port row spacing to separate output labels and sliders.
+Async/out-of-order note:
+- No async/out-of-order impact; editor-only layout.
+Commit highlights:
+- Increase port row spacing and reuse constant for anchors/labels.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 11:05:48 +01:00 (DESKTOP-6KO022D)
+Request: align text box height with slider height in param nodes.
+Summary:
+- Set param text box height to match the slider height for consistent spacing.
+Async/out-of-order note:
+- No async/out-of-order impact; editor-only layout.
+Commit highlights:
+- Align param text box height with slider height.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 11:08:11 +01:00 (DESKTOP-6KO022D)
+Request: reduce param text box padding.
+Summary:
+- Reduced text box padding to make param inputs less cramped.
+Async/out-of-order note:
+- No async/out-of-order impact; editor-only layout.
+Commit highlights:
+- Reduce param text box padding for tighter layout.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 11:12:27 +01:00 (DESKTOP-6KO022D)
+Request: increase port row spacing for param controls.
+Summary:
+- Increased port row spacing to add vertical room for sliders/text boxes.
+Async/out-of-order note:
+- No async/out-of-order impact; editor-only layout.
+Commit highlights:
+- Increase port row spacing for param controls.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 11:15:02 +01:00 (DESKTOP-6KO022D)
+Request: align param text boxes with port label center line.
+Summary:
+- Nudged param control Y offset to better align text boxes with output labels.
+Async/out-of-order note:
+- No async/out-of-order impact; editor-only layout.
+Commit highlights:
+- Align param controls vertically with port labels.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 11:16:58 +01:00 (DESKTOP-6KO022D)
+Request: align param controls per widget type.
+Summary:
+- Apply a different Y offset for text boxes vs sliders to keep labels aligned.
+Async/out-of-order note:
+- No async/out-of-order impact; editor-only layout.
+Commit highlights:
+- Per-widget Y offsets for param controls.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 11:20:41 +01:00 (DESKTOP-6KO022D)
+Request: move param control offset logic into BuildParamControl.
+Summary:
+- BuildParamControl now returns both the control and its widget-specific Y offset.
+- UpdateNodeSize uses the stored offset instead of type checks.
+Async/out-of-order note:
+- No async/out-of-order impact; editor-only UI layout.
+Commit highlights:
+- Return param control + offset from BuildParamControl for cleaner layout.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 10:55:07 +01:00 (DESKTOP-6KO022D)
+Request: place param widgets beside output labels on the node.
+Summary:
+- Moved param controls into the port row and aligned them next to output labels.
+- Adjusted node sizing and label placement for param output rows.
+- Rebuilt positioning logic to keep controls aligned on resize.
+Async/out-of-order note:
+- No async/out-of-order impact; editor-only UI layout.
+Commit highlights:
+- Render param controls beside output labels on param nodes.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 10:58:21 +01:00 (DESKTOP-6KO022D)
+Request: fix duplicate GetOutputPortIndex definition.
+Summary:
+- Removed the duplicate instance method to resolve the CS0111 error.
+Async/out-of-order note:
+- No async/out-of-order impact.
+Commit highlights:
+- Delete duplicate GetOutputPortIndex method.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 10:36:31 +01:00 (DESKTOP-6KO022D)
+Request: clean up param inspector fields and align node widgets to configured types.
+Summary:
+- Removed param min/max/default fields from the inspector and kept them in the settings dialog.
+- “Settings...” button now only appears for param ports.
+- Param nodes render widget-specific controls; knob uses a distinct slider style.
+Async/out-of-order note:
+- No async/out-of-order impact; editor-only UI metadata.
+Commit highlights:
+- Simplify inspector and keep param ranges in the settings dialog.
+- Render widget-specific controls on param nodes.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
 - `SimHubPlugin/Docs/FFB_Graph_Progress.md`
 Open items:
-- Continue UX polish and grid padding/centering.
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 10:48:36 +01:00 (DESKTOP-6KO022D)
+Request: refresh param node widgets after editing settings.
+Summary:
+- Rebuilds the node surface after param settings changes so widget updates render immediately.
+Async/out-of-order note:
+- No async/out-of-order impact; editor-only UI metadata.
+Commit highlights:
+- Rebuild graph surface after saving param settings.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 10:22:49 +01:00 (DESKTOP-6KO022D)
+Request: move param UI settings into a dialog and add direct tuning on param nodes.
+Summary:
+- Moved param UI editing to a modal settings dialog and included default/min/max there.
+- Replaced inline editor fields with a “Settings...” button per param port.
+- Added direct tuning controls on param nodes based on widget type.
+Async/out-of-order note:
+- No async/out-of-order impact; editor-only UI metadata.
+Commit highlights:
+- Add param settings dialog with default/min/max and option list editing.
+- Replace inline UI fields and add direct tuning controls on param nodes.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphParamUiDialog.xaml`
+- `SimHubPlugin/GraphEditor/GraphParamUiDialog.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 10:06:18 +01:00 (DESKTOP-6KO022D)
+Request: move param UI editing into a dedicated dialog.
+Summary:
+- Added a param UI editor dialog (widget/label/group/units/step/precision/logscale/options).
+- Replaced inline param UI fields with an “Edit UI...” dialog button in the inspector.
+- Updated PluginTest to cover param UI schema JSON roundtrip.
+- Updated graph progress to note the dialog.
+Async/out-of-order note:
+- No async/out-of-order impact; editor-only UI metadata.
+Commit highlights:
+- Add param UI editor dialog and hook it into the inspector.
+- Keep param UI metadata in graph model/serializer and update PluginTest coverage.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphParamUiDialog.xaml`
+- `SimHubPlugin/GraphEditor/GraphParamUiDialog.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/PluginTest/Program.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Surface param UI schema controls in function UI panels.
+
+## 2026-01-23 09:41:12 +01:00 (DESKTOP-6KO022D)
+Request: add param UI schema for graph params and expose it in the editor.
+Summary:
+- Added UI metadata to graph params (widget/label/group/units/step/precision/logScale/options) and serialized it.
+- Extended the port inspector to edit param UI metadata per param port.
+- Added PluginTest coverage for UI schema JSON roundtrip.
+- Updated graph design/progress docs to reflect param UI schema handling.
+Async/out-of-order note:
+- No async/out-of-order impact; editor-only UI metadata.
+Commit highlights:
+- Add param UI schema to graph model/serializer and editor inspector.
+- Add PluginTest UI schema roundtrip.
+- Update graph design/progress docs.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphModel.cs`
+- `SimHubPlugin/GraphEditor/GraphSerializer.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/PluginTest/Program.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Surface param UI schema controls in function UI panels.
 
 ## 2026-01-23 09:12:41 +01:00 (DESKTOP-6KO022D)
 Request: fix GraphTest build error (duplicate compile item).

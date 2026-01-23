@@ -266,6 +266,7 @@ namespace User.PluginSdkDemo.GraphEditor
         public double DefaultValue { get; set; }
         public double Min { get; set; }
         public double Max { get; set; }
+        public GraphParamUiDto Ui { get; set; }
 
         public static GraphParamDto FromModel(GraphParam param)
         {
@@ -274,7 +275,8 @@ namespace User.PluginSdkDemo.GraphEditor
                 Name = param.Name,
                 DefaultValue = param.DefaultValue,
                 Min = param.Min,
-                Max = param.Max
+                Max = param.Max,
+                Ui = param.Ui != null ? GraphParamUiDto.FromModel(param.Ui) : null
             };
         }
 
@@ -285,7 +287,85 @@ namespace User.PluginSdkDemo.GraphEditor
                 Name = Name,
                 DefaultValue = DefaultValue,
                 Min = Min,
-                Max = Max
+                Max = Max,
+                Ui = Ui?.ToModel()
+            };
+        }
+    }
+
+    internal sealed class GraphParamUiDto
+    {
+        public string Widget { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Group { get; set; } = "";
+        public string Units { get; set; } = "";
+        public double? Step { get; set; }
+        public int? Precision { get; set; }
+        public bool LogScale { get; set; }
+        public List<GraphParamOptionDto> Options { get; set; } = new List<GraphParamOptionDto>();
+
+        public static GraphParamUiDto FromModel(GraphParamUi ui)
+        {
+            var dto = new GraphParamUiDto
+            {
+                Widget = ui.Widget,
+                Label = ui.Label,
+                Group = ui.Group,
+                Units = ui.Units,
+                Step = ui.Step,
+                Precision = ui.Precision,
+                LogScale = ui.LogScale
+            };
+            foreach (var option in ui.Options)
+            {
+                dto.Options.Add(GraphParamOptionDto.FromModel(option));
+            }
+            return dto;
+        }
+
+        public GraphParamUi ToModel()
+        {
+            var ui = new GraphParamUi
+            {
+                Widget = Widget ?? "",
+                Label = Label ?? "",
+                Group = Group ?? "",
+                Units = Units ?? "",
+                Step = Step,
+                Precision = Precision,
+                LogScale = LogScale
+            };
+            if (Options != null)
+            {
+                foreach (var option in Options)
+                {
+                    ui.Options.Add(option.ToModel());
+                }
+            }
+            return ui;
+        }
+    }
+
+    internal sealed class GraphParamOptionDto
+    {
+        public string Value { get; set; } = "";
+        public string Label { get; set; } = "";
+
+        public static GraphParamOptionDto FromModel(GraphParamOption option)
+        {
+            return new GraphParamOptionDto
+            {
+                Value = option.Value,
+                Label = option.Label
+            };
+        }
+
+        public GraphParamOption ToModel()
+        {
+            return new GraphParamOption
+            {
+                Value = Value ?? "",
+                Label = Label ?? ""
             };
         }
     }
