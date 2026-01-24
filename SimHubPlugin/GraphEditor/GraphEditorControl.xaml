@@ -218,7 +218,7 @@
                                         <TextBlock Text="{Binding KindLabel}" Foreground="#CCCCCC" FontSize="10" Width="54" />
                                         <StackPanel Orientation="Horizontal">
                                             <TextBox
-                                                     Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                     Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
                                                      Background="#1E1E1E"
                                                      Foreground="White"
                                                      BorderBrush="#4A4A4A"
@@ -251,7 +251,7 @@
                                                     <ColumnDefinition Width="20" />
                                                 </Grid.ColumnDefinitions>
                                                 <TextBox Grid.Column="0"
-                                                         Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                         Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
                                                          Background="#1E1E1E"
                                                          Foreground="White"
                                                          BorderBrush="#4A4A4A"
@@ -302,6 +302,18 @@
                                                     </Style>
                                                 </Button.Style>
                                             </Button>
+                                            <Button Content="×"
+                                                    Margin="6,0,0,0"
+                                                    Width="22"
+                                                    Height="22"
+                                                    Background="#1E1E1E"
+                                                    Foreground="#CC6666"
+                                                    BorderBrush="#4A4A4A"
+                                                    BorderThickness="1"
+                                                    Padding="0"
+                                                    FontSize="14"
+                                                    ToolTip="Remove port"
+                                                    Click="ButtonRemovePort_Click" />
                                         </StackPanel>
                                     </DockPanel>
                                 </DataTemplate>

@@ -80,11 +80,13 @@ namespace User.PluginSdkDemo.GraphEditor
         private const double HandleSize = 10.0;
         private LinkVisual _draggingHandle;
         private Point _handleDragOffset;
+        private bool _updatingParamValue;
 
         public event Action<string> IncludeOpenRequested;
         public event Action GraphChanged;
         public string BaseDirectory { get; set; }
         public Func<IDictionary<string, double>> LiveInputProvider { get; set; }
+        public Action<string, double> ParamValueChanged { get; set; }
 
         public GraphEditorControl()
         {
@@ -541,6 +543,12 @@ namespace User.PluginSdkDemo.GraphEditor
 
         private void SetParamDefault(string name, double value)
         {
+            // Prevent recursion when updating from external source
+            if (_updatingParamValue)
+            {
+                return;
+            }
+
             if (_graph.Params.TryGetValue(name, out var param))
             {
                 param.DefaultValue = value;
@@ -554,6 +562,74 @@ namespace User.PluginSdkDemo.GraphEditor
             if (_previewParamLookup.TryGetValue(name, out var entry))
             {
                 entry.Value = value;
+            }
+
+            // Notify external listeners (e.g., plugin)
+            ParamValueChanged?.Invoke(name, value);
+        }
+
+        public void UpdateParamValue(string name, double value)
+        {
+            _updatingParamValue = true;
+            try
+            {
+                // Update graph param
+                if (_graph.Params.TryGetValue(name, out var param))
+                {
+                    param.DefaultValue = value;
+                }
+
+                // Update preview entry
+                if (_previewParamLookup.TryGetValue(name, out var entry))
+                {
+                    entry.Value = value;
+                }
+
+                // Update the control for this parameter (find and update slider/textbox/etc)
+                foreach (var nodeVisual in _nodeVisuals.Values)
+                {
+                    if (nodeVisual.Node.Kind == GraphNodeKind.Param && nodeVisual.Node.Ports.Count > 0)
+                    {
+                        // Check ALL ports, not just the first one (param nodes can have multiple output ports)
+                        foreach (var port in nodeVisual.Node.Ports)
+                        {
+                            if (port.Name == name && port.Kind == GraphPortKind.Output)
+                            {
+                                // Find the control in the node's inner canvas children
+                                foreach (var child in nodeVisual.InnerCanvas.Children)
+                                {
+                                    if (child is FrameworkElement element && element.Tag is ParamControlTag tag && tag.PortName == port.Name)
+                                    {
+                                        if (element is Slider slider)
+                                        {
+                                            slider.Value = value;
+                                            slider.UpdateLayout();
+                                        }
+                                        else if (element is TextBox textBox)
+                                        {
+                                            int precision = param.Ui?.Precision ?? 3;
+                                            textBox.Text = value.ToString($"F{precision}", CultureInfo.InvariantCulture);
+                                        }
+                                        else if (element is CheckBox checkBox)
+                                        {
+                                            checkBox.IsChecked = value > 0.5;
+                                        }
+                                        else if (element is ComboBox comboBox)
+                                        {
+                                            comboBox.SelectedItem = FindOptionForValue(param.Ui?.Options, value);
+                                        }
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                _updatingParamValue = false;
             }
         }
 
@@ -1830,6 +1906,25 @@ namespace User.PluginSdkDemo.GraphEditor
             RebuildSurface();
         }
 
+        private void ButtonRemovePort_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null || !(sender is Button button))
+            {
+                return;
+            }
+
+            if (!(button.DataContext is PortEditEntry entry))
+            {
+                return;
+            }
+
+            var node = _selectedNode.Node;
+            RemovePort(node, entry.Port);
+            SyncPortEntries(node);
+            RebuildSurface();
+            RefreshPreview();
+        }
+
         private void EnsureFuncPorts(GraphNode node)
         {
             if (node == null || node.Kind != GraphNodeKind.Func)
@@ -2074,10 +2169,67 @@ namespace User.PluginSdkDemo.GraphEditor
                     RenameParam(oldName, unique);
                 }
                 entry.RefreshParamReference(GetParam(unique));
-                RebuildSurface();
+
+                // Update port visual directly instead of rebuilding entire surface
+                UpdatePortVisual(node.Id, oldName, unique);
+                UpdateNodeTitleVisual(node);
+
                 SyncPreviewEntries();
                 RefreshPreview();
             }
+        }
+
+        private void UpdatePortVisual(string nodeId, string oldName, string newName)
+        {
+            if (!_nodeVisuals.TryGetValue(nodeId, out var visual))
+            {
+                return;
+            }
+
+            foreach (var child in visual.InnerCanvas.Children)
+            {
+                // Update TextBlock labels
+                if (child is TextBlock label && label.Tag is PortVisual portVisual)
+                {
+                    if (portVisual.PortName == oldName)
+                    {
+                        label.Text = newName;
+                        portVisual.PortName = newName;
+                    }
+                }
+
+                // Update param control tags
+                if (child is FrameworkElement element && element.Tag is ParamControlTag tag)
+                {
+                    if (tag.PortName == oldName)
+                    {
+                        element.Tag = new ParamControlTag(newName, tag.YOffset);
+                    }
+                }
+
+                // Update ellipse port visuals
+                if (child is Ellipse ellipse && ellipse.Tag is PortVisual ellipsePort)
+                {
+                    if (ellipsePort.PortName == oldName)
+                    {
+                        ellipsePort.PortName = newName;
+                    }
+                }
+            }
+
+            // Update output value visuals
+            if (visual.OutputValues != null)
+            {
+                foreach (var output in visual.OutputValues)
+                {
+                    if (output.PortName == oldName)
+                    {
+                        output.PortName = newName;
+                    }
+                }
+            }
+
+            UpdateNodeSize(visual);
         }
 
         private void OnPortParamChanged(object sender, EventArgs e)
