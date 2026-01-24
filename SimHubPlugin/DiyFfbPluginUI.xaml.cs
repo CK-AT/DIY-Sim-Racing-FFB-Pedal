@@ -517,15 +517,9 @@ namespace User.PluginSdkDemo
                 TextBlock_ActiveGraph.Text = Plugin.GetActiveGraphStatus();
             }
 
-            string activeGraphPath = Plugin.GetActiveGraphPath();
-            if (graphEditorWindow != null && !string.IsNullOrWhiteSpace(activeGraphPath))
-            {
-                if (!string.Equals(activeGraphPath, lastGraphEditorPath, StringComparison.OrdinalIgnoreCase))
-                {
-                    graphEditorWindow.LoadGraphFromPath(activeGraphPath);
-                    lastGraphEditorPath = activeGraphPath;
-                }
-            }
+            // Note: Do not auto-sync the graph editor window here.
+            // The editor should be allowed to browse includes without being forced back to the vehicle graph.
+            // Auto-sync only happens when opening the editor window initially.
         }
 
         private void btn_select_vehicle_graph_Click(object sender, RoutedEventArgs e)

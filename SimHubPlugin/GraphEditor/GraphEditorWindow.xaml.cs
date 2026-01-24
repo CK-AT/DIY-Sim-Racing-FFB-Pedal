@@ -22,7 +22,6 @@ namespace User.PluginSdkDemo.GraphEditor
             rootGraph = GraphEditor.GetGraph();
             currentGraphPath = null;
             GraphEditor.IncludeOpenRequested += OnIncludeOpenRequested;
-            GraphEditor.GraphChanged += RefreshHierarchy;
             GraphEditor.GraphChanged += OnGraphChanged;
             GraphEditor.BaseDirectory = GetRootDirectory();
             RefreshHierarchy();

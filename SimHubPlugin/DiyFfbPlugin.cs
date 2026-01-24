@@ -2607,7 +2607,15 @@ namespace User.PluginSdkDemo
             {
                 return new Dictionary<string, GraphParam>();
             }
-            return activeVehicleGraph.Params;
+
+            // Collect all params from main graph and includes
+            var allParams = CollectAllGraphParams(activeVehicleGraph, activeGraphResolver);
+            var result = new Dictionary<string, GraphParam>();
+            foreach (var param in allParams)
+            {
+                result[param.Name] = param;
+            }
+            return result;
         }
 
         public double GetGraphParamValue(string paramName)
