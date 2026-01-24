@@ -1,0 +1,410 @@
+{
+  "Version": 1,
+  "Nodes": [
+    {
+      "Id": "ias",
+      "Title": "IAS",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 40.0,
+      "Ports": [
+        {
+          "Name": "in_ias",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "vref",
+      "Title": "Vref",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 90.0,
+      "Ports": [
+        {
+          "Name": "in_vref",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "aero_trq",
+      "Title": "Pitch Torque",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 160.0,
+      "Ports": [
+        {
+          "Name": "in_aero_trq",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "k_spring",
+      "Title": "Spring k",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 220.0,
+      "Ports": [
+        {
+          "Name": "p_spring_gain",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "k_damper",
+      "Title": "Damper k",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 280.0,
+      "Ports": [
+        {
+          "Name": "p_damper_gain",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "k_friction",
+      "Title": "Friction k",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 340.0,
+      "Ports": [
+        {
+          "Name": "p_friction_gain",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "k_load",
+      "Title": "Load k",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 410.0,
+      "Ports": [
+        {
+          "Name": "p_load_gain",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "qhat",
+      "Title": "Qhat",
+      "Kind": "Func",
+      "X": 220.0,
+      "Y": 70.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Func": "qhat_eff"
+    },
+    {
+      "Id": "spring",
+      "Title": "Spring",
+      "Kind": "Op",
+      "X": 420.0,
+      "Y": 170.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "damper",
+      "Title": "Damper",
+      "Kind": "Op",
+      "X": 420.0,
+      "Y": 250.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "friction",
+      "Title": "Friction",
+      "Kind": "Op",
+      "X": 420.0,
+      "Y": 330.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "load",
+      "Title": "Load",
+      "Kind": "Op",
+      "X": 420.0,
+      "Y": 400.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "out_spring",
+      "Title": "Spring Out",
+      "Kind": "Output",
+      "X": 650.0,
+      "Y": 180.0,
+      "Ports": [
+        {
+          "Name": "out_spring",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "out_damper",
+      "Title": "Damper Out",
+      "Kind": "Output",
+      "X": 650.0,
+      "Y": 260.0,
+      "Ports": [
+        {
+          "Name": "out_damper",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "out_friction",
+      "Title": "Friction Out",
+      "Kind": "Output",
+      "X": 670.0,
+      "Y": 330.0,
+      "Ports": [
+        {
+          "Name": "out_friction",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "out_load",
+      "Title": "Load Out",
+      "Kind": "Output",
+      "X": 670.0,
+      "Y": 400.0,
+      "Ports": [
+        {
+          "Name": "out_load",
+          "Kind": "Output"
+        }
+      ]
+    }
+  ],
+  "Links": [
+    {
+      "FromNodeId": "ias",
+      "FromPort": "in_ias",
+      "ToNodeId": "qhat",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "vref",
+      "FromPort": "in_vref",
+      "ToNodeId": "qhat",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "qhat",
+      "FromPort": "out",
+      "ToNodeId": "spring",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "qhat",
+      "FromPort": "out",
+      "ToNodeId": "damper",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "qhat",
+      "FromPort": "out",
+      "ToNodeId": "friction",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "aero_trq",
+      "FromPort": "in_aero_trq",
+      "ToNodeId": "load",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "k_spring",
+      "FromPort": "p_spring_gain",
+      "ToNodeId": "spring",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "k_damper",
+      "FromPort": "p_damper_gain",
+      "ToNodeId": "damper",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "k_friction",
+      "FromPort": "p_friction_gain",
+      "ToNodeId": "friction",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "k_load",
+      "FromPort": "p_load_gain",
+      "ToNodeId": "load",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "spring",
+      "FromPort": "out",
+      "ToNodeId": "out_spring",
+      "ToPort": "out_spring"
+    },
+    {
+      "FromNodeId": "damper",
+      "FromPort": "out",
+      "ToNodeId": "out_damper",
+      "ToPort": "out_damper"
+    },
+    {
+      "FromNodeId": "friction",
+      "FromPort": "out",
+      "ToNodeId": "out_friction",
+      "ToPort": "out_friction"
+    },
+    {
+      "FromNodeId": "load",
+      "FromPort": "out",
+      "ToNodeId": "out_load",
+      "ToPort": "out_load"
+    }
+  ],
+  "Params": [
+    {
+      "Name": "p_spring_gain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Spring Gain",
+        "Group": "FlightStickPitch",
+        "Units": "multiplier",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "p_damper_gain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Damper Gain",
+        "Group": "FlightStickPitch",
+        "Units": "multiplier",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "p_friction_gain",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Friction Gain",
+        "Group": "FlightStickPitch",
+        "Units": "multiplier",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "p_load_gain",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Load Gain",
+        "Group": "FlightStickPitch",
+        "Units": "multiplier",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    }
+  ]
+}

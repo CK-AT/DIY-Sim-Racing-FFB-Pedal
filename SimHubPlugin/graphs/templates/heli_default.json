@@ -1,0 +1,162 @@
+{
+  "Version": 1,
+  "Nodes": [
+    {
+      "Id": "collective_include",
+      "Title": "Collective FFB",
+      "Kind": "Include",
+      "X": 200.0,
+      "Y": 200.0,
+      "Ports": [],
+      "IncludePath": "../_embedded/heli_collective.json"
+    },
+    {
+      "Id": "pitch_spring",
+      "Title": "Pitch Spring",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 40.0,
+      "Ports": [
+        {
+          "Name": "FlightStickPitch.SpringGain",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "pitch_spring_out",
+      "Title": "Pitch Spring Out",
+      "Kind": "Output",
+      "X": 300.0,
+      "Y": 40.0,
+      "Ports": [
+        {
+          "Name": "FlightStickPitch.SpringGain",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "roll_spring",
+      "Title": "Roll Spring",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 100.0,
+      "Ports": [
+        {
+          "Name": "FlightStickRoll.SpringGain",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "roll_spring_out",
+      "Title": "Roll Spring Out",
+      "Kind": "Output",
+      "X": 300.0,
+      "Y": 100.0,
+      "Ports": [
+        {
+          "Name": "FlightStickRoll.SpringGain",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "yaw_spring",
+      "Title": "Yaw Spring",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 360.0,
+      "Ports": [
+        {
+          "Name": "FlightPedals.SpringGain",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "yaw_spring_out",
+      "Title": "Yaw Spring Out",
+      "Kind": "Output",
+      "X": 300.0,
+      "Y": 360.0,
+      "Ports": [
+        {
+          "Name": "FlightPedals.SpringGain",
+          "Kind": "Input"
+        }
+      ]
+    }
+  ],
+  "Links": [
+    {
+      "FromNodeId": "pitch_spring",
+      "FromPort": "FlightStickPitch.SpringGain",
+      "ToNodeId": "pitch_spring_out",
+      "ToPort": "FlightStickPitch.SpringGain"
+    },
+    {
+      "FromNodeId": "roll_spring",
+      "FromPort": "FlightStickRoll.SpringGain",
+      "ToNodeId": "roll_spring_out",
+      "ToPort": "FlightStickRoll.SpringGain"
+    },
+    {
+      "FromNodeId": "yaw_spring",
+      "FromPort": "FlightPedals.SpringGain",
+      "ToNodeId": "yaw_spring_out",
+      "ToPort": "FlightPedals.SpringGain"
+    }
+  ],
+  "Params": [
+    {
+      "Name": "FlightStickPitch.SpringGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Cyclic Pitch Centering",
+        "Group": "FlightStickPitch",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickRoll.SpringGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Cyclic Roll Centering",
+        "Group": "FlightStickRoll",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.SpringGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Pedal Centering",
+        "Group": "FlightPedals",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    }
+  ]
+}

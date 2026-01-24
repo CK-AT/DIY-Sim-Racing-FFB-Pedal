@@ -73,13 +73,25 @@ namespace User.PluginSdkDemo.GraphEditor
 
         public void LoadGraphFromPath(string path)
         {
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            if (string.IsNullOrWhiteSpace(path))
             {
                 return;
             }
 
-            rootGraphPath = path;
-            GraphEditor.LoadGraphFromFile(path);
+            // Convert to absolute path if needed
+            string absolutePath = path;
+            if (!Path.IsPathRooted(path))
+            {
+                absolutePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path);
+            }
+
+            if (!File.Exists(absolutePath))
+            {
+                return;
+            }
+
+            rootGraphPath = absolutePath;
+            GraphEditor.LoadGraphFromFile(absolutePath);
             rootGraph = GraphEditor.GetGraph();
             currentGraphPath = null;
             GraphEditor.BaseDirectory = GetRootDirectory();

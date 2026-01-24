@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Ports;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -2007,6 +2008,93 @@ namespace User.PluginSdkDemo
                 : Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path));
         }
 
+        private string PromptForGraphTemplate(string gameId, string carId)
+        {
+            if (ui == null)
+            {
+                return null;
+            }
+
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var templates = GraphEditor.GraphTemplateRegistry.GetTemplates(gameId, baseDir);
+
+            if (!templates.Any())
+            {
+                // No templates available for this game - show info message
+                ui.Dispatcher.Invoke(new Action(() =>
+                {
+                    var parentWindow = System.Windows.Window.GetWindow(ui);
+                    System.Windows.MessageBox.Show(
+                        parentWindow,
+                        $"No graph templates are available for {gameId}.\n\nYou can create a custom graph in the Graph Editor tab.",
+                        "No Templates Available",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information);
+                }));
+                return null;
+            }
+
+            // Show template selector dialog on UI thread
+            var result = ui.Dispatcher.Invoke(new Func<GraphEditor.GraphTemplateEntry>(() =>
+            {
+                var dialog = new GraphEditor.GraphTemplateSelectorDialog(gameId, carId, templates);
+
+                // Find parent window for owner
+                var parentWindow = System.Windows.Window.GetWindow(ui);
+                if (parentWindow != null)
+                {
+                    dialog.Owner = parentWindow;
+                }
+
+                if (dialog.ShowDialog() == true)
+                {
+                    return dialog.SelectedTemplate;
+                }
+
+                return null;
+            }));
+
+            if (result == null)
+            {
+                return null;
+            }
+
+            // Resolve template path
+            string templatePath = GraphEditor.GraphTemplateRegistry.ResolveTemplatePath(result.TemplatePath, baseDir);
+            if (string.IsNullOrWhiteSpace(templatePath) || !File.Exists(templatePath))
+            {
+                return null;
+            }
+
+            // Create vehicle-specific graph path
+            string graphsDir = Path.Combine(baseDir, "graphs", "vehicles");
+            if (!Directory.Exists(graphsDir))
+            {
+                Directory.CreateDirectory(graphsDir);
+            }
+
+            string vehicleKey = BuildVehicleGraphKey(gameId, carId);
+            string safeFileName = string.Join("_", vehicleKey.Split(Path.GetInvalidFileNameChars()));
+            string destPath = Path.Combine(graphsDir, $"{safeFileName}.json");
+
+            // Copy template to vehicle-specific path
+            try
+            {
+                File.Copy(templatePath, destPath, overwrite: true);
+            }
+            catch (Exception ex)
+            {
+                SimHub.Logging.Current.Error($"[Graph] Failed to copy template: {ex.Message}", ex);
+                return null;
+            }
+
+            // Store relative path in settings
+            string relativePath = $"graphs/vehicles/{Path.GetFileName(destPath)}";
+            SetVehicleGraphPath(gameId, carId, relativePath);
+
+            return relativePath;
+        }
+
         private void ResolveActiveGraph(string gameId, string carId)
         {
             activeGraphKey = BuildVehicleGraphKey(gameId, carId);
@@ -2020,7 +2108,16 @@ namespace User.PluginSdkDemo
 
             if (string.IsNullOrWhiteSpace(activeGraphPath))
             {
-                return;
+                // No graph configured for this vehicle - prompt user to select a template
+                string templatePath = PromptForGraphTemplate(gameId, carId);
+                if (!string.IsNullOrWhiteSpace(templatePath))
+                {
+                    activeGraphPath = templatePath;
+                }
+                else
+                {
+                    return;
+                }
             }
 
             string resolvedPath = ResolveGraphFilePath(activeGraphPath);
@@ -2123,25 +2220,84 @@ namespace User.PluginSdkDemo
         }
 
         private List<GraphParam> CollectAllGraphParams(
-            GraphDefinition graph,
+            GraphEditor.GraphDefinition graph,
             DiyFfb.GraphTest.GraphIncludeResolver resolver)
         {
-            var result = new List<GraphParam>();
+            var result = new Dictionary<string, GraphEditor.GraphParam>();
 
             if (graph == null)
             {
-                return result;
+                return new List<GraphEditor.GraphParam>();
             }
 
-            // Collect params from root graph only
-            // Note: Include graphs are reusable snippets; any params they need
-            // should be defined at the root level for tuning purposes
+            // First, recursively collect params from includes (these are defaults)
+            if (graph.Nodes != null)
+            {
+                foreach (var node in graph.Nodes)
+                {
+                    if (node.Kind == GraphEditor.GraphNodeKind.Include
+                        && !string.IsNullOrWhiteSpace(node.IncludePath))
+                    {
+                        var includedGraph = LoadIncludeGraphForParams(node.IncludePath);
+                        if (includedGraph != null)
+                        {
+                            var includeParams = CollectAllGraphParams(includedGraph, resolver);
+                            foreach (var param in includeParams)
+                            {
+                                // Add if not already present (parent can override)
+                                if (!result.ContainsKey(param.Name))
+                                {
+                                    result[param.Name] = param;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Then collect params from this graph (these override include defaults)
             foreach (var param in graph.Params.Values)
             {
-                result.Add(param);
+                result[param.Name] = param;
             }
 
-            return result;
+            return result.Values.ToList();
+        }
+
+        private GraphEditor.GraphDefinition LoadIncludeGraphForParams(string includePath)
+        {
+            if (string.IsNullOrWhiteSpace(includePath))
+            {
+                return null;
+            }
+
+            // Resolve path relative to active graph
+            string resolved = includePath;
+            if (!Path.IsPathRooted(includePath) && !string.IsNullOrWhiteSpace(activeGraphPath))
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string graphFullPath = Path.Combine(baseDir, activeGraphPath);
+                string graphDir = Path.GetDirectoryName(graphFullPath);
+                if (!string.IsNullOrWhiteSpace(graphDir))
+                {
+                    resolved = Path.Combine(graphDir, includePath);
+                }
+            }
+
+            if (!File.Exists(resolved))
+            {
+                return null;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(resolved);
+                return GraphEditor.GraphSerializer.Deserialize(json, out _);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private DiyFfbPluginSettings.AircraftFfbProfile GetCurrentAircraftProfile()

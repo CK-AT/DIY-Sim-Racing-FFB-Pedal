@@ -68,15 +68,21 @@ Status: living progress document for graph editor/runtime integration.
 - ParamValues serialization tests verify JSON roundtrip of graph-level parameter overrides.
 - KinematicsTests validates general kinematics solver (pin/bar validation, collinearity, coefficient calculations).
 - FlightPedalsConfigControl replaced X-Plane FFB section with FFB Parameters showing filtered graph params.
+- Port name editing without focus loss (UpdateSourceTrigger=LostFocus).
+- Port remove button functionality in inspector.
+- Multi-port param sync for shared parameters across functions.
+- Graph template selector dialog prompts on first vehicle encounter.
+- Template registry system filters templates by game ID.
+- Default graph templates (plane_default.json, heli_default.json) replicating legacy X-Plane FFB.
+- Template selection auto-copies to vehicle-specific path and saves to settings.
 
 ## In Progress
+
 - UX polish (orthogonal routing, mini-map).
 - Grid padding/centering strategy (grid currently background brush; padding intent documented).
-- Graph template selector dialog for first-seen vehicles.
 
 ## Open
-- Default graphs (plane_default.json, heli_default.json) replicating legacy X-Plane FFB.
-- Graph template registry with per-game templates.
+
 - Typed units and validation.
 - Graph persistence in profiles and migrations.
 - Future: Tooltips with mini-curves and live cursors on param nodes.

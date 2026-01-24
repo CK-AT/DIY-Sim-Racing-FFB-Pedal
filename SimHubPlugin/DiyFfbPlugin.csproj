@@ -199,10 +199,14 @@
     <Compile Include="GraphEditor\GraphParamUiDialog.xaml.cs">
       <DependentUpon>GraphParamUiDialog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="GraphEditor\GraphTemplateSelectorDialog.xaml.cs">
+      <DependentUpon>GraphTemplateSelectorDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="GraphEditor\GraphEditorWindow.xaml.cs">
       <DependentUpon>GraphEditorWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="GraphEditor\GraphModel.cs" />
+    <Compile Include="GraphEditor\GraphTemplateRegistry.cs" />
     <Compile Include="GraphEditor\GraphPreviewEvaluator.cs" />
     <Compile Include="GraphEditor\GraphRuntimeConverter.cs" />
     <Compile Include="GraphEditor\GraphSerializer.cs" />
@@ -294,6 +298,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="GraphEditor\GraphTemplateSelectorDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="GraphEditor\GraphEditorWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -342,6 +350,15 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="sdkmenuicon.png" />
+    <Content Include="graphs\templates\plane_default.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="graphs\templates\heli_default.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="graphs\_embedded\heli_collective.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx">
