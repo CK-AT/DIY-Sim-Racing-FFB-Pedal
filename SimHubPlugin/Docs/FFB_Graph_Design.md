@@ -90,12 +90,73 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 - Paths can be stored relative to the root graph directory.
 - Layout data persists in the JSON to preserve editor state.
 
+### Three-Tier Parameter System
+Parameters support cascading overrides at three levels (later overrides earlier):
+
+1. **Include/Graph Default**: Defined in param definition (`defaultValue`)
+2. **Graph Override**: Stored in root graph `paramValues` dictionary
+3. **Vehicle Profile Override**: Stored in `AircraftFfbProfile.GraphParamValues`
+
+**Rationale**: This allows:
+- Reusable include graphs with sensible defaults
+- Graph-level tuning shared across vehicles
+- Per-vehicle fine-tuning without modifying shared graphs
+
+**Storage**:
+```json
+{
+  "version": 1,
+  "nodes": [...],
+  "params": {
+    "FlightStickPitch.SpringGain": {
+      "defaultValue": 1.0,
+      "min": 0.0,
+      "max": 10.0,
+      "ui": {"widget": "slider", "group": "FlightStickPitch", ...}
+    }
+  },
+  "paramValues": {
+    "FlightStickPitch.SpringGain": 1.5  // Graph-level override
+  }
+}
+```
+
+Vehicle profile (in plugin settings):
+```json
+{
+  "GraphParamValues": {
+    "FlightStickPitch.SpringGain": 2.0  // Vehicle-specific override
+  }
+}
+```
+
 ## Integration Boundaries
 - Editor does not write into live FFB pipeline yet.
 - Runtime uses graph output values to feed spring/damper/friction/load.
 - Config persistence is separate from graph file storage.
 - Graph params are surfaced in the function UI for tuning.
 - A single top-level graph is resolved per vehicle `(GameId, CarId)` with a per-game fallback graph.
+
+### Parameter UI Surfacing
+Parameters are exposed in function configuration panels based on their `group` attribute:
+
+- **Function Params**: Group = `"FlightStickPitch"`, `"FlightStickRoll"`, `"FlightPedals"`, etc.
+  - Shown in respective function config tabs under "FFB Parameters" section
+  - Controls dynamically generated from param UI metadata
+  - Replace legacy X-Plane FFB sliders with graph-driven params
+
+- **System Params**: Group = `"System"`
+  - Shown in System tab under "System Parameters" section
+  - Global settings like Vref, nominal RPM, torque references
+
+**UI Generation**:
+- `GraphParamControlBuilder` creates WPF controls based on param metadata
+- Supports: slider, knob, checkbox, enum, text widget types
+- Changes update vehicle profile immediately (in-memory)
+- Explicit save required to persist to profile file
+
+**Future Enhancement**:
+- Add tooltips with mini-curves and live cursors for visual feedback on param nodes
 
 ## Testing
 - GraphTest (runtime model validation and evaluator checks).

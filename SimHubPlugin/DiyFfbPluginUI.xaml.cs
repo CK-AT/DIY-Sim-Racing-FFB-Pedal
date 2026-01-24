@@ -184,6 +184,12 @@ namespace User.PluginSdkDemo
             UpdateSerialPortList();
             InitializeSystemSettings();
 
+            if (plugin != null)
+            {
+                plugin.ActiveGraphChanged += OnActiveGraphChanged_UI;
+            }
+            RefreshSystemGraphParams();
+
             if (Plugin.Settings.Pedal_ESPNow_auto_connect_flag
                 && !string.IsNullOrWhiteSpace(Plugin.Settings.ESPNow_port)
                 && SerialPort.GetPortNames().Any(port => string.Equals(port, Plugin.Settings.ESPNow_port, StringComparison.OrdinalIgnoreCase)))
@@ -2631,6 +2637,7 @@ namespace User.PluginSdkDemo
             if (graphEditorWindow == null)
             {
                 graphEditorWindow = new GraphEditorWindow();
+                graphEditorWindow.SetPlugin(Plugin);
                 graphEditorWindow.SetLiveInputProvider(() => Plugin != null ? Plugin.GetLiveGraphInputs() : null);
                 string activeGraphPath = Plugin?.GetActiveGraphPath();
                 if (!string.IsNullOrWhiteSpace(activeGraphPath))
@@ -2643,6 +2650,7 @@ namespace User.PluginSdkDemo
             }
             else
             {
+                graphEditorWindow.SetPlugin(Plugin);
                 graphEditorWindow.SetLiveInputProvider(() => Plugin != null ? Plugin.GetLiveGraphInputs() : null);
                 string activeGraphPath = Plugin?.GetActiveGraphPath();
                 if (!string.IsNullOrWhiteSpace(activeGraphPath))
@@ -2905,6 +2913,77 @@ namespace User.PluginSdkDemo
                 }
                 // Quiet by default; keep dialog log focused on OTA flow events.
             }
+        }
+
+        private void OnActiveGraphChanged_UI(object sender, EventArgs e)
+        {
+            Dispatcher.Invoke(RefreshSystemGraphParams);
+        }
+
+        private Dictionary<string, FrameworkElement> systemGraphParamControls = new Dictionary<string, FrameworkElement>();
+
+        private void RefreshSystemGraphParams()
+        {
+            SystemGraphParamsPanel.Items.Clear();
+            systemGraphParamControls.Clear();
+
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            var allParams = Plugin.GetActiveGraphParams();
+            if (allParams == null || allParams.Count == 0)
+            {
+                return;
+            }
+
+            // Filter by System group
+            var filteredParams = allParams.Values
+                .Where(p => "System".Equals(p.Ui?.Group, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(p => p.Ui?.Label ?? p.Name);
+
+            foreach (var param in filteredParams)
+            {
+                var panel = new StackPanel
+                {
+                    Width = 400,
+                    Height = 40,
+                    Orientation = Orientation.Vertical
+                };
+
+                var label = new Label
+                {
+                    Foreground = Brushes.White,
+                    FontSize = 10,
+                    FontFamily = new FontFamily("Arial"),
+                    Content = FormatParamLabel(param),
+                    Padding = new Thickness(0, 0, 0, 8)
+                };
+
+                double currentValue = Plugin.GetGraphParamValue(param.Name);
+                var control = GraphParamControlBuilder.BuildControl(
+                    param,
+                    value => Plugin.SetGraphParamValue(param.Name, value),
+                    width: 400,
+                    initialValue: currentValue
+                );
+
+                panel.Children.Add(label);
+                panel.Children.Add(control);
+                SystemGraphParamsPanel.Items.Add(panel);
+                systemGraphParamControls[param.Name] = control;
+            }
+        }
+
+        private string FormatParamLabel(GraphParam param)
+        {
+            string label = param.Ui?.Label ?? param.Name;
+            if (!string.IsNullOrWhiteSpace(param.Ui?.Units))
+            {
+                label += $" ({param.Ui.Units})";
+            }
+            return label;
         }
     }
 }

@@ -43,11 +43,11 @@
       "Y": 90.0,
       "Ports": [
         {
-          "Name": "a",
+          "Name": "ias_kts",
           "Kind": "Input"
         },
         {
-          "Name": "b",
+          "Name": "vref_kts",
           "Kind": "Input"
         },
         {
@@ -82,10 +82,14 @@
       "Title": "Roll k",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 260.0,
+      "Y": 280.0,
       "Ports": [
         {
           "Name": "FlightStickRoll.SpringGain",
+          "Kind": "Output"
+        },
+        {
+          "Name": "FlightPedals.SpringGain",
           "Kind": "Output"
         }
       ],
@@ -196,13 +200,13 @@
       "FromNodeId": "ias",
       "FromPort": "XPlane.IAS_kts",
       "ToNodeId": "qhat",
-      "ToPort": "a"
+      "ToPort": "ias_kts"
     },
     {
       "FromNodeId": "vref",
       "FromPort": "XPlane.Vref_kts",
       "ToNodeId": "qhat",
-      "ToPort": "b"
+      "ToPort": "vref_kts"
     },
     {
       "FromNodeId": "k_pitch",
@@ -234,13 +238,41 @@
       "Name": "FlightStickPitch.SpringGain",
       "DefaultValue": 1.0,
       "Min": 0.0,
-      "Max": 5.0
+      "Max": 5.0,
+      "Ui": null
     },
     {
       "Name": "FlightStickRoll.SpringGain",
       "DefaultValue": 1.0,
       "Min": 0.0,
-      "Max": 5.0
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "",
+        "Group": "FlightStickRoll",
+        "Units": "",
+        "Step": null,
+        "Precision": null,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.SpringGain",
+      "DefaultValue": 0.95400000000000007,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Spring Gain",
+        "Group": "FlightPedals",
+        "Units": "N/mm",
+        "Step": null,
+        "Precision": null,
+        "LogScale": false,
+        "Options": []
+      }
     }
-  ]
+  ],
+  "ParamValues": null
 }

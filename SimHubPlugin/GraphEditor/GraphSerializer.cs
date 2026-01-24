@@ -94,6 +94,7 @@ namespace User.PluginSdkDemo.GraphEditor
         public List<GraphNodeDto> Nodes { get; set; } = new List<GraphNodeDto>();
         public List<GraphLinkDto> Links { get; set; } = new List<GraphLinkDto>();
         public List<GraphParamDto> Params { get; set; } = new List<GraphParamDto>();
+        public Dictionary<string, double> ParamValues { get; set; }
 
         public static GraphDefinitionDto FromModel(GraphDefinition graph)
         {
@@ -112,6 +113,10 @@ namespace User.PluginSdkDemo.GraphEditor
             foreach (var param in graph.Params.Values)
             {
                 dto.Params.Add(GraphParamDto.FromModel(param));
+            }
+            if (graph.ParamValues != null && graph.ParamValues.Count > 0)
+            {
+                dto.ParamValues = new Dictionary<string, double>(graph.ParamValues);
             }
             return dto;
         }
@@ -141,6 +146,13 @@ namespace User.PluginSdkDemo.GraphEditor
                 foreach (var param in Params)
                 {
                     graph.Params[param.Name] = param.ToModel();
+                }
+            }
+            if (ParamValues != null)
+            {
+                foreach (var kvp in ParamValues)
+                {
+                    graph.ParamValues[kvp.Key] = kvp.Value;
                 }
             }
             return graph;

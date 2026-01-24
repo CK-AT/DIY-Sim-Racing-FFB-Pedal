@@ -1,10 +1,14 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using MahApps.Metro.Controls;
+using User.PluginSdkDemo.GraphEditor;
 
 namespace User.PluginSdkDemo
 {
@@ -41,6 +45,9 @@ namespace User.PluginSdkDemo
         private const double AutoTuneGainStep = 0.0005;
         private const double AutoTuneMinForce = 0.05;
         private const double AutoTuneMinVrefRatio = 0.7;
+        private Dictionary<string, FrameworkElement> graphParamControls = new Dictionary<string, FrameworkElement>();
+        private Dictionary<string, Label> graphParamLabels = new Dictionary<string, Label>();
+        private bool isUpdatingGraphParams = false;
 
         public FlightPedalsConfigControl()
         {
@@ -51,8 +58,16 @@ namespace User.PluginSdkDemo
         {
             this.ui = ui;
             this.plugin = plugin;
+
+            if (plugin != null)
+            {
+                plugin.ActiveGraphChanged += OnActiveGraphChanged;
+                plugin.GraphParamChanged += OnGraphParamChanged;
+            }
+
             is_updating = false;
             StartXPlaneTimer();
+            RefreshGraphParams();
         }
 
         private void StartXPlaneTimer()
@@ -156,7 +171,6 @@ namespace User.PluginSdkDemo
             uc_controller_axis_pedals.Value = function_config.Base.ControllerOutputAxis;
             uc_controller_axis_right_brake.Value = function_config.AuxFunction.RudderBrake.ControllerOutputAxisRightPedal;
             uc_controller_axis_left_brake.Value = function_config.AuxFunction.RudderBrake.ControllerOutputAxisLeftPedal;
-            UpdateXPlaneSettingsUi();
             Rangeslider_travel_range.UpperValue = config.PosFarLim;
             function_config.Base.OutputMax = config.PosFarLim;
             Rangeslider_travel_range.LowerValue = config.PosNearLim;
@@ -166,6 +180,7 @@ namespace User.PluginSdkDemo
             UpdateTrimCenter();
             UpdateTravelMarkers();
             is_updating = false;
+            RefreshGraphParams();
 
         }
 
@@ -333,178 +348,20 @@ namespace User.PluginSdkDemo
 
         private void UpdateXPlaneSettingsUi()
         {
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            bool isHeli = plugin?.IsXPlaneHelicopter() ?? false;
-            Toggle_xplane_ffb_enabled.IsChecked = settings.XPlaneFfbEnabled;
-            Slider_xplane_kq.Value = settings.XPlaneFfbKq;
-            Slider_xplane_krate.Value = settings.XPlaneFfbKrate;
-            Slider_xplane_kcenter.Value = settings.XPlaneFfbKcenter;
-            Slider_xplane_friction_q.Value = settings.XPlaneFrictionQ;
-            Slider_xplane_friction_torque.Value = settings.XPlaneFrictionTorque;
-            Slider_xplane_friction_low_rpm.Value = settings.XPlaneFrictionLowRpm;
-            Slider_xplane_rpm_blend.Value = settings.XPlaneRpmBlend;
-            Slider_xplane_load_force_clamp.Value = settings.XPlaneLoadForceClamp;
-            Slider_xplane_trim_mm_per_deg.Value = settings.XPlaneTrimMmPerDeg;
-            Slider_xplane_buffet_start_deg.Value = settings.XPlaneBuffetStartDeg;
-            Slider_xplane_buffet_full_deg.Value = settings.XPlaneBuffetFullDeg;
-            Slider_xplane_buffet_gain.Value = settings.XPlaneBuffetGain;
-            Slider_xplane_weathervane_gain.Value = settings.XPlaneWeathervaneGain;
-            Slider_xplane_aero_moment_gain.Value = settings.XPlaneAeroMomentGain;
-            if (TextBox_xplane_aero_torque_ref != null)
-            {
-                TextBox_xplane_aero_torque_ref.Text = settings.XPlaneTorqueRefNm.ToString("F0");
-            }
-            if (Toggle_xplane_auto_tune != null)
-            {
-                Toggle_xplane_auto_tune.IsChecked = settings.XPlaneReferenceFlightMode;
-            }
-            autoTuneLoadGain = settings.XPlaneReferenceFlightMode;
-            Slider_xplane_vref.Value = isHeli
-                ? plugin?.GetXPlaneNominalRpm() ?? DiyFfbPluginSettings.DefaultXPlaneNominalRpm
-                : plugin?.GetXPlaneVrefKts() ?? DiyFfbPluginSettings.DefaultXPlaneVrefKts;
-            Slider_xplane_vref.IsEnabled = false;
-
-            UpdateXPlaneVisibility();
-            UpdateXPlaneLabels();
-            UpdateGainGraph();
+            // X-Plane UI controls removed - method kept for compatibility
+            return;
         }
 
         private void UpdateXPlaneVisibility()
         {
-            bool isHeli = plugin?.IsXPlaneHelicopter() ?? false;
-            var heliVisibility = isHeli ? Visibility.Visible : Visibility.Collapsed;
-            var planeVisibility = isHeli ? Visibility.Collapsed : Visibility.Visible;
-            if (Panel_xplane_buffet_start != null)
-            {
-                Panel_xplane_buffet_start.Visibility = planeVisibility;
-            }
-            if (Panel_xplane_buffet_full != null)
-            {
-                Panel_xplane_buffet_full.Visibility = planeVisibility;
-            }
-            if (Panel_xplane_buffet_gain != null)
-            {
-                Panel_xplane_buffet_gain.Visibility = planeVisibility;
-            }
-            if (Panel_xplane_kq != null)
-            {
-                Panel_xplane_kq.Visibility = planeVisibility;
-            }
-            if (Panel_xplane_kcenter != null)
-            {
-                Panel_xplane_kcenter.Visibility = heliVisibility;
-            }
-            if (Panel_xplane_rpm_blend != null)
-            {
-                Panel_xplane_rpm_blend.Visibility = heliVisibility;
-            }
-            if (Panel_xplane_friction_q != null)
-            {
-                Panel_xplane_friction_q.Visibility = planeVisibility;
-            }
-            if (Panel_xplane_friction_torque != null)
-            {
-                Panel_xplane_friction_torque.Visibility = heliVisibility;
-            }
-            if (Panel_xplane_friction_low_rpm != null)
-            {
-                Panel_xplane_friction_low_rpm.Visibility = heliVisibility;
-            }
-            if (Panel_xplane_load_force_clamp != null)
-            {
-                Panel_xplane_load_force_clamp.Visibility = Visibility.Visible;
-            }
-            if (Panel_xplane_aero_torque_ref != null)
-            {
-                Panel_xplane_aero_torque_ref.Visibility = Visibility.Visible;
-            }
+            // X-Plane UI controls removed - method kept for compatibility
+            return;
         }
 
         private void UpdateXPlaneLabels()
         {
-            if (label_xplane_ffb_enabled != null)
-            {
-                label_xplane_ffb_enabled.Content = Toggle_xplane_ffb_enabled.IsChecked == true ? "Enable FFB" : "FFB Disabled";
-            }
-            if (label_xplane_kq != null)
-            {
-                label_xplane_kq.Content = String.Format("Spring Gain @ Vref: {0:F3}", Slider_xplane_kq.Value);
-            }
-            if (label_xplane_kcenter != null)
-            {
-                label_xplane_kcenter.Content = String.Format("Center Gain: {0:F3}", Slider_xplane_kcenter.Value);
-            }
-            if (label_xplane_krate != null)
-            {
-                if (plugin?.IsXPlaneHelicopter() == true)
-                {
-                    label_xplane_krate.Content = String.Format("Damper Gain (blend): {0:F3}", Slider_xplane_krate.Value);
-                }
-                else
-                {
-                    label_xplane_krate.Content = String.Format("Damper Gain @ Vref: {0:F3}", Slider_xplane_krate.Value);
-                }
-            }
-            if (label_xplane_rpm_blend != null)
-            {
-                label_xplane_rpm_blend.Content = String.Format("RPM Blend: {0:F2}", Slider_xplane_rpm_blend.Value);
-            }
-            if (label_xplane_friction_q != null)
-            {
-                label_xplane_friction_q.Content = String.Format("Friction Gain @ Vref: {0:F3}", Slider_xplane_friction_q.Value);
-            }
-            if (label_xplane_friction_torque != null)
-            {
-                label_xplane_friction_torque.Content = String.Format("Friction Gain @ {0} Nm: {1:F3}", FormatMainRotorTorqueRefNm(), Slider_xplane_friction_torque.Value);
-            }
-            if (label_xplane_friction_low_rpm != null)
-            {
-                label_xplane_friction_low_rpm.Content = String.Format("Low RPM Friction Gain: {0:F3}", Slider_xplane_friction_low_rpm.Value);
-            }
-            if (label_xplane_load_force_clamp != null)
-            {
-                label_xplane_load_force_clamp.Content = String.Format("Load Clamp: {0:F0} N", Slider_xplane_load_force_clamp.Value);
-            }
-            if (label_xplane_trim_mm_per_deg != null)
-            {
-                label_xplane_trim_mm_per_deg.Content = String.Format("Trim Scale: {0:F3} mm/unit", Slider_xplane_trim_mm_per_deg.Value);
-            }
-            if (label_xplane_buffet_start_deg != null)
-            {
-                label_xplane_buffet_start_deg.Content = String.Format("Buffet Start (deg): {0:F1}", Slider_xplane_buffet_start_deg.Value);
-            }
-            if (label_xplane_buffet_full_deg != null)
-            {
-                label_xplane_buffet_full_deg.Content = String.Format("Buffet Full (deg): {0:F1}", Slider_xplane_buffet_full_deg.Value);
-            }
-            if (label_xplane_buffet_gain != null)
-            {
-                label_xplane_buffet_gain.Content = String.Format("Buffet Gain @ Vref: {0:F3}", Slider_xplane_buffet_gain.Value);
-            }
-            if (label_xplane_weathervane_gain != null)
-            {
-                label_xplane_weathervane_gain.Content = String.Format("Weather-Vaning Gain @ Vref: {0:F3}", Slider_xplane_weathervane_gain.Value);
-            }
-            if (label_xplane_aero_moment_gain != null)
-            {
-                label_xplane_aero_moment_gain.Content = String.Format("Aero Moment Gain @ {0} Nm: {1:F4}", FormatTorqueRefNm(), Slider_xplane_aero_moment_gain.Value);
-            }
-            if (label_xplane_vref != null)
-            {
-                if (plugin?.IsXPlaneHelicopter() == true)
-                {
-                    label_xplane_vref.Content = String.Format("Nominal RPM (system): {0:F0}", Slider_xplane_vref.Value);
-                }
-                else
-                {
-                    label_xplane_vref.Content = String.Format("Vref (system): {0:F0}", Slider_xplane_vref.Value);
-                }
-            }
+            // X-Plane UI controls removed - method kept for compatibility
+            return;
         }
 
         private void OnXPlaneKqChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -793,22 +650,8 @@ namespace User.PluginSdkDemo
 
         private void OnXPlaneTorqueRefChanged(object sender, TextChangedEventArgs e)
         {
-            if (is_updating)
-            {
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null || TextBox_xplane_aero_torque_ref == null)
-            {
-                return;
-            }
-
-            if (float.TryParse(TextBox_xplane_aero_torque_ref.Text, out float value))
-            {
-                settings.XPlaneTorqueRefNm = Math.Max(0.0f, value);
-                UpdateXPlaneLabels();
-            }
+            // X-Plane UI controls removed - method kept for compatibility
+            return;
         }
 
         private void Toggle_xplane_auto_tune_Checked(object sender, RoutedEventArgs e)
@@ -833,26 +676,8 @@ namespace User.PluginSdkDemo
 
         private void OnXPlaneVrefChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (Slider_xplane_vref != null && !Slider_xplane_vref.IsEnabled)
-            {
-                UpdateXPlaneLabels();
-                UpdateGainGraph();
-                return;
-            }
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            UpdateXPlaneLabels();
-            UpdateGainGraph();
+            // X-Plane UI controls removed - method kept for compatibility
+            return;
         }
 
         private void UpdateTrimCenter()
@@ -867,7 +692,8 @@ namespace User.PluginSdkDemo
 
         private void UpdateXPlaneTelemetry()
         {
-            if (plugin == null || TextBlock_xplane_ias == null)
+            // X-Plane telemetry UI removed from this tab - keep method for compatibility
+            if (plugin == null)
             {
                 return;
             }
@@ -881,173 +707,29 @@ namespace User.PluginSdkDemo
             if (!plugin.TryGetXPlaneTelemetry(out iasKts, out alphaDeg, out betaDeg, out elevTrim, out ailTrim, out rudTrim))
             {
                 lastIasKts = 0.0f;
-                TextBlock_xplane_ias.Text = "IAS: -- kt";
-                if (TextBlock_xplane_alpha != null)
-                {
-                    TextBlock_xplane_alpha.Text = "Alpha: -- deg";
-                }
-                if (TextBlock_xplane_beta != null)
-                {
-                    TextBlock_xplane_beta.Text = "Beta: -- deg";
-                }
-                if (TextBlock_xplane_trim != null)
-                {
-                    TextBlock_xplane_trim.Text = "Trim: -- mm";
-                }
-                if (TextBlock_xplane_vane != null)
-                {
-                    TextBlock_xplane_vane.Text = "Vane: -- mm";
-                }
-                if (TextBlock_xplane_spring_value != null)
-                {
-                    TextBlock_xplane_spring_value.Text = "--";
-                }
-                if (TextBlock_xplane_damper_value != null)
-                {
-                    TextBlock_xplane_damper_value.Text = "--";
-                }
-                UpdateGainCursor();
                 return;
             }
 
             lastIasKts = iasKts;
-            float trimMm = rudTrim * (float)Slider_xplane_trim_mm_per_deg.Value;
-            float qScale = XPlaneFfbMath.ComputeQScaleFromIasKts(iasKts, (float)Slider_xplane_vref.Value);
-            float vaneMm = (float)Slider_xplane_weathervane_gain.Value * qScale * betaDeg;
-            float springGain = (float)Slider_xplane_kq.Value * qScale;
-            float damperGain = (float)Slider_xplane_krate.Value * qScale;
-
-            TextBlock_xplane_ias.Text = String.Format("IAS: {0:F0} kt", iasKts);
-            if (TextBlock_xplane_alpha != null)
-            {
-                TextBlock_xplane_alpha.Text = String.Format("Alpha: {0:F1} deg", alphaDeg);
-            }
-            if (TextBlock_xplane_beta != null)
-            {
-                TextBlock_xplane_beta.Text = String.Format("Beta: {0:F1} deg", betaDeg);
-            }
-            if (TextBlock_xplane_trim != null)
-            {
-                TextBlock_xplane_trim.Text = String.Format("Trim: {0:F2} mm", trimMm);
-            }
-            if (TextBlock_xplane_vane != null)
-            {
-                TextBlock_xplane_vane.Text = String.Format("Vane: {0:F2} mm", vaneMm);
-            }
-            if (TextBlock_xplane_spring_value != null)
-            {
-                TextBlock_xplane_spring_value.Text = String.Format("{0:F3}", springGain);
-            }
-            if (TextBlock_xplane_damper_value != null)
-            {
-                TextBlock_xplane_damper_value.Text = String.Format("{0:F3}", damperGain);
-            }
-            if (plugin.TryGetXPlaneFfbDiagnostics(current_function_id, out DiyFfbPlugin.XPlaneFfbDiagnostics diagnostics))
-            {
-                UpdateAutoTuneLoadGain(diagnostics);
-            }
-            UpdateGainCursor();
+            // X-Plane UI controls removed - telemetry still tracked for backend use
         }
 
         private void UpdateGainGraph()
         {
-            if (Canvas_xplane_gain == null || Polyline_xplane_spring == null || Polyline_xplane_damper == null)
-            {
-                return;
-            }
-
-            double width = Canvas_xplane_gain.Width;
-            double height = Canvas_xplane_gain.Height;
-            if (width <= 0.0 || height <= 0.0)
-            {
-                return;
-            }
-
-            float vrefKts = (float)Slider_xplane_vref.Value;
-            float springRef = (float)Slider_xplane_kq.Value;
-            float damperRef = (float)Slider_xplane_krate.Value;
-            PointCollection springPoints;
-            PointCollection damperPoints;
-            float maxIasKts;
-            float maxGain;
-            XPlaneFfbGraph.BuildGainCurves(vrefKts, springRef, damperRef, width, height,
-                                           out springPoints, out damperPoints,
-                                           out maxIasKts, out maxGain);
-            XPlaneFfbGraph.UpdateGainGrid(Canvas_xplane_gain, vrefKts, maxIasKts, maxGain);
-
-            Polyline_xplane_spring.Points = springPoints;
-            Polyline_xplane_damper.Points = damperPoints;
-            UpdateGainCursor();
+            // X-Plane UI controls removed - method kept for compatibility
+            return;
         }
 
         private void UpdateGainCursor()
         {
-            if (Line_xplane_cursor == null || Canvas_xplane_gain == null)
-            {
-                return;
-            }
-
-            double width = Canvas_xplane_gain.Width;
-            if (width <= 0.0)
-            {
-                return;
-            }
-
-            float vrefKts = (float)Slider_xplane_vref.Value;
-            float maxIasKts = XPlaneFfbGraph.GetMaxIasKts(vrefKts);
-            float clampedIas = Math.Max(0.0f, Math.Min(lastIasKts, maxIasKts));
-            double x = (clampedIas / maxIasKts) * width;
-            Line_xplane_cursor.X1 = x;
-            Line_xplane_cursor.X2 = x;
+            // X-Plane UI controls removed - method kept for compatibility
+            return;
         }
 
         private void UpdateAutoTuneLoadGain(DiyFfbPlugin.XPlaneFfbDiagnostics diagnostics)
         {
-            if (!autoTuneLoadGain)
-            {
-                return;
-            }
-            if (!hasAxisForce)
-            {
-                return;
-            }
-            double elapsedMs = (DateTime.UtcNow - autoTuneLastUpdateUtc).TotalMilliseconds;
-            if (elapsedMs < AutoTuneUpdateMs)
-            {
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            float refSpeed = plugin?.GetXPlaneVrefKts() ?? DiyFfbPluginSettings.DefaultXPlaneVrefKts;
-            if (refSpeed > 0.0f && diagnostics.IasKts < refSpeed * AutoTuneMinVrefRatio)
-            {
-                autoTuneLastUpdateUtc = DateTime.UtcNow;
-                return;
-            }
-
-            double axisForceAbs = Math.Abs(latestAxisForce);
-            double loadAbs = Math.Abs(diagnostics.LoadForce);
-            double currentGain = Slider_xplane_aero_moment_gain.Value;
-            double maxAbs = Slider_xplane_aero_moment_gain.Maximum;
-            if (!Tools.TryAutoTuneLoadGain(axisForceAbs, loadAbs, currentGain, 0.0, maxAbs,
-                                           AutoTuneRatioLow, AutoTuneRatioHigh, AutoTuneGainStep, AutoTuneMinForce,
-                                           out double updatedGain))
-            {
-                autoTuneLastUpdateUtc = DateTime.UtcNow;
-                return;
-            }
-
-            settings.XPlaneAeroMomentGain = (float)updatedGain;
-            is_updating = true;
-            Slider_xplane_aero_moment_gain.Value = updatedGain;
-            is_updating = false;
-            UpdateXPlaneLabels();
-            autoTuneLastUpdateUtc = DateTime.UtcNow;
+            // X-Plane UI controls removed - method kept for compatibility
+            return;
         }
 
         private string FormatTorqueRefNm()
@@ -1072,16 +754,8 @@ namespace User.PluginSdkDemo
 
         public void RefreshXPlaneFfbSettings()
         {
-            if (is_updating)
-            {
-                return;
-            }
-
-            is_updating = true;
-            UpdateXPlaneSettingsUi();
-            UpdateTrimCenter();
-            UpdateTravelMarkers();
-            is_updating = false;
+            // X-Plane UI controls removed - method kept for compatibility
+            return;
         }
 
         private void UpdateTravelMarkers()
@@ -1137,6 +811,187 @@ namespace User.PluginSdkDemo
             double max = Math.Max(config.PosNearLim, config.PosFarLim);
             Rangeslider_travel_range.Minimum = min;
             Rangeslider_travel_range.Maximum = max;
+        }
+
+        private void Toggle_ffb_enabled_Checked(object sender, RoutedEventArgs e)
+        {
+            // FFB toggle - currently no action needed
+        }
+
+        private void Toggle_ffb_enabled_Unchecked(object sender, RoutedEventArgs e)
+        {
+            // FFB toggle - currently no action needed
+        }
+
+        private void OnActiveGraphChanged(object sender, EventArgs e)
+        {
+            Dispatcher.Invoke(RefreshGraphParams);
+        }
+
+        private void OnGraphParamChanged(object sender, GraphParamChangedEventArgs e)
+        {
+            if (isUpdatingGraphParams)
+            {
+                return;
+            }
+
+            Dispatcher.Invoke(() =>
+            {
+                isUpdatingGraphParams = true;
+                try
+                {
+                    if (graphParamLabels.TryGetValue(e.ParamName, out var label))
+                    {
+                        var allParams = plugin?.GetActiveGraphParams();
+                        if (allParams != null && allParams.TryGetValue(e.ParamName, out var param))
+                        {
+                            label.Content = FormatParamLabel(param, e.Value);
+                        }
+                    }
+
+                    if (graphParamControls.TryGetValue(e.ParamName, out var control))
+                    {
+                        if (control is Slider slider)
+                        {
+                            slider.Value = e.Value;
+                        }
+                        else if (control is TextBox textBox)
+                        {
+                            int precision = 3;
+                            var allParams = plugin?.GetActiveGraphParams();
+                            if (allParams != null && allParams.TryGetValue(e.ParamName, out var param))
+                            {
+                                precision = param.Ui?.Precision ?? 3;
+                            }
+                            textBox.Text = e.Value.ToString($"F{precision}");
+                        }
+                    }
+                }
+                finally
+                {
+                    isUpdatingGraphParams = false;
+                }
+            });
+        }
+
+        private string FormatParamLabel(GraphParam param, double currentValue)
+        {
+            string label = param.Ui?.Label ?? param.Name;
+            int precision = param.Ui?.Precision ?? 3;
+            string valueStr = currentValue.ToString($"F{precision}");
+
+            if (!string.IsNullOrWhiteSpace(param.Ui?.Units))
+            {
+                return $"{label}: {valueStr}{param.Ui.Units}";
+            }
+            else
+            {
+                return $"{label}: {valueStr}";
+            }
+        }
+
+        private void RefreshGraphParams()
+        {
+            try
+            {
+                GraphParamsPanel.Children.Clear();
+                graphParamControls.Clear();
+                graphParamLabels.Clear();
+
+                if (plugin == null)
+                {
+                    return;
+                }
+
+                var allParams = plugin.GetActiveGraphParams();
+                if (allParams == null || allParams.Count == 0)
+                {
+                    return;
+                }
+
+                string groupFilter = GetGraphParamGroupFilter();
+                var filteredParams = allParams.Values
+                    .Where(p => MatchesGroup(p.Ui?.Group, groupFilter))
+                    .OrderBy(p => p.Ui?.Label ?? p.Name)
+                    .ToList();
+
+                foreach (var param in filteredParams)
+                {
+                    double currentValue = plugin.GetGraphParamValue(param.Name);
+
+                    var panel = new StackPanel
+                    {
+                        Width = 400,
+                        Height = 40,
+                        Orientation = Orientation.Vertical,
+                        Background = null
+                    };
+
+                    var label = new Label
+                    {
+                        Foreground = Brushes.White,
+                        FontSize = 10,
+                        FontFamily = new FontFamily("Arial"),
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        VerticalAlignment = VerticalAlignment.Top,
+                        Content = FormatParamLabel(param, currentValue),
+                        Padding = new Thickness(0, 0, 0, 8)
+                    };
+
+                    var control = GraphParamControlBuilder.BuildControl(
+                        param,
+                        value =>
+                        {
+                            if (!isUpdatingGraphParams)
+                            {
+                                try
+                                {
+                                    isUpdatingGraphParams = true;
+                                    plugin.SetGraphParamValue(param.Name, value);
+                                    if (graphParamLabels.TryGetValue(param.Name, out var lbl))
+                                    {
+                                        lbl.Content = FormatParamLabel(param, value);
+                                    }
+                                }
+                                finally
+                                {
+                                    isUpdatingGraphParams = false;
+                                }
+                            }
+                        },
+                        width: 400,
+                        initialValue: currentValue
+                    );
+
+                    panel.Children.Add(label);
+                    panel.Children.Add(control);
+                    GraphParamsPanel.Children.Add(panel);
+                    graphParamControls[param.Name] = control;
+                    graphParamLabels[param.Name] = label;
+                }
+            }
+            catch (Exception ex)
+            {
+                SimHub.Logging.Current.Error($"[FlightPedals] RefreshGraphParams failed: {ex.Message}", ex);
+            }
+        }
+
+        private string GetGraphParamGroupFilter()
+        {
+            if (current_function_id == FunctionID.FlightPedals)
+            {
+                return "FlightPedals";
+            }
+            return "";
+        }
+
+        private bool MatchesGroup(string paramGroup, string filter)
+        {
+            if (string.IsNullOrWhiteSpace(filter))
+                return false;
+            if (string.IsNullOrWhiteSpace(paramGroup))
+                return false;
+            return paramGroup.StartsWith(filter, StringComparison.OrdinalIgnoreCase);
         }
 
     }

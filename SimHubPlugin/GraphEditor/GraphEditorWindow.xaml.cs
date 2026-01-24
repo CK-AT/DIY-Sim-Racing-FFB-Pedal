@@ -13,6 +13,7 @@ namespace User.PluginSdkDemo.GraphEditor
         private string currentGraphPath;
         private readonly Dictionary<string, GraphDefinition> includeCache = new Dictionary<string, GraphDefinition>();
         private bool suppressTreeSelection;
+        private DiyFfbPlugin plugin;
 
         public GraphEditorWindow()
         {
@@ -22,6 +23,7 @@ namespace User.PluginSdkDemo.GraphEditor
             currentGraphPath = null;
             GraphEditor.IncludeOpenRequested += OnIncludeOpenRequested;
             GraphEditor.GraphChanged += RefreshHierarchy;
+            GraphEditor.GraphChanged += OnGraphChanged;
             GraphEditor.BaseDirectory = GetRootDirectory();
             RefreshHierarchy();
         }
@@ -29,6 +31,44 @@ namespace User.PluginSdkDemo.GraphEditor
         public void SetLiveInputProvider(Func<IDictionary<string, double>> provider)
         {
             GraphEditor.LiveInputProvider = provider;
+        }
+
+        public void SetPlugin(DiyFfbPlugin pluginInstance)
+        {
+            // Unsubscribe from old plugin if any
+            if (plugin != null)
+            {
+                plugin.GraphParamChanged -= OnPluginGraphParamChanged;
+            }
+
+            plugin = pluginInstance;
+
+            // Subscribe to new plugin parameter changes
+            if (plugin != null)
+            {
+                plugin.GraphParamChanged += OnPluginGraphParamChanged;
+            }
+
+            // Wire up graph editor parameter changes to plugin
+            GraphEditor.ParamValueChanged = (paramName, value) =>
+            {
+                plugin?.SetGraphParamValue(paramName, value);
+            };
+        }
+
+        private void OnPluginGraphParamChanged(object sender, GraphParamChangedEventArgs e)
+        {
+            // Update graph editor when plugin parameters change externally
+            Dispatcher.Invoke(() =>
+            {
+                GraphEditor.UpdateParamValue(e.ParamName, e.Value);
+            });
+        }
+
+        private void OnGraphChanged()
+        {
+            // Notify plugin that graph content changed (for parameter UI refresh)
+            plugin?.OnGraphContentChanged();
         }
 
         public void LoadGraphFromPath(string path)

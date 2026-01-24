@@ -116,6 +116,7 @@ namespace User.PluginSdkDemo
             public float XPlaneVrefKts = DefaultXPlaneVrefKts;
             public float XPlaneNominalRpm = DefaultXPlaneNominalRpm;
             public float XPlaneMainRotorTorqueRefNm = DefaultXPlaneMrTorqueRefNm;
+            public Dictionary<string, double> GraphParamValues = new Dictionary<string, double>();
         }
 
         public class AxisSettings

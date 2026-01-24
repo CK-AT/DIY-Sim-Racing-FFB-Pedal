@@ -2035,16 +2035,21 @@ namespace User.PluginSdkDemo
             {
                 string json = File.ReadAllText(resolvedPath);
                 activeVehicleGraph = GraphSerializer.Deserialize(json, out activeGraphValidation);
+
                 if (activeVehicleGraph != null && activeGraphValidation != null && activeGraphValidation.IsValid)
                 {
                     activeGraphRuntime = GraphRuntimeConverter.Convert(activeVehicleGraph);
                     string baseDir = Path.GetDirectoryName(resolvedPath) ?? AppDomain.CurrentDomain.BaseDirectory;
                     activeGraphResolver = new DiyFfb.GraphTest.GraphIncludeResolver(baseDir);
                     activeGraphEvaluator = new DiyFfb.GraphTest.GraphCompiledEvaluator(activeGraphRuntime, activeGraphResolver);
+
+                    // Notify UI that graph has changed
+                    ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
                 }
             }
             catch (Exception ex)
             {
+                SimHub.Logging.Current.Error($"[Graph] Graph load exception: {ex.Message}", ex);
                 activeGraphValidation = new GraphValidationResult();
                 activeGraphValidation.Errors.Add($"Graph load failed: {ex.Message}");
             }
@@ -2090,10 +2095,68 @@ namespace User.PluginSdkDemo
                 return;
             }
 
-            foreach (var param in activeVehicleGraph.Params.Values)
+            var profile = GetCurrentAircraftProfile();
+            var vehicleOverrides = profile?.GraphParamValues ?? new Dictionary<string, double>();
+
+            // Collect all params from graph + includes (includes provide defaults)
+            var allParams = CollectAllGraphParams(activeVehicleGraph, activeGraphResolver);
+
+            foreach (var param in allParams)
             {
-                graphParams[param.Name] = param.DefaultValue;
+                double value = param.DefaultValue; // Tier 1: include/graph default
+
+                // Tier 2: Graph paramValues override
+                if (activeVehicleGraph.ParamValues != null
+                    && activeVehicleGraph.ParamValues.TryGetValue(param.Name, out var graphOverride))
+                {
+                    value = graphOverride;
+                }
+
+                // Tier 3: Vehicle profile override
+                if (vehicleOverrides.TryGetValue(param.Name, out var vehicleOverride))
+                {
+                    value = vehicleOverride;
+                }
+
+                graphParams[param.Name] = value;
             }
+        }
+
+        private List<GraphParam> CollectAllGraphParams(
+            GraphDefinition graph,
+            DiyFfb.GraphTest.GraphIncludeResolver resolver)
+        {
+            var result = new List<GraphParam>();
+
+            if (graph == null)
+            {
+                return result;
+            }
+
+            // Collect params from root graph only
+            // Note: Include graphs are reusable snippets; any params they need
+            // should be defined at the root level for tuning purposes
+            foreach (var param in graph.Params.Values)
+            {
+                result.Add(param);
+            }
+
+            return result;
+        }
+
+        private DiyFfbPluginSettings.AircraftFfbProfile GetCurrentAircraftProfile()
+        {
+            if (Settings?.AircraftFfbProfiles == null || string.IsNullOrWhiteSpace(activeCarId))
+            {
+                return null;
+            }
+
+            if (Settings.AircraftFfbProfiles.TryGetValue(activeCarId, out var profile))
+            {
+                return profile;
+            }
+
+            return null;
         }
 
         private void HandleAircraftChange(GameData data, string gameId)
@@ -2222,6 +2285,14 @@ namespace User.PluginSdkDemo
             profile.XPlaneVrefKts = Settings.XPlaneVrefKtsSystem;
             profile.XPlaneNominalRpm = Settings.XPlaneNominalRpmSystem;
             profile.XPlaneMainRotorTorqueRefNm = Settings.XPlaneMainRotorTorqueRefNmSystem;
+
+            // Include current graph param values
+            var currentProfile = GetCurrentAircraftProfile();
+            if (currentProfile?.GraphParamValues != null)
+            {
+                profile.GraphParamValues = new Dictionary<string, double>(currentProfile.GraphParamValues);
+            }
+
             return profile;
         }
 
@@ -2257,7 +2328,29 @@ namespace User.PluginSdkDemo
                    left.XPlaneAircraftIsHelicopter == right.XPlaneAircraftIsHelicopter &&
                    NearlyEqual(left.XPlaneVrefKts, right.XPlaneVrefKts) &&
                    NearlyEqual(left.XPlaneNominalRpm, right.XPlaneNominalRpm) &&
-                   NearlyEqual(left.XPlaneMainRotorTorqueRefNm, right.XPlaneMainRotorTorqueRefNm);
+                   NearlyEqual(left.XPlaneMainRotorTorqueRefNm, right.XPlaneMainRotorTorqueRefNm) &&
+                   AreGraphParamValuesEqual(left.GraphParamValues, right.GraphParamValues);
+        }
+
+        private bool AreGraphParamValuesEqual(Dictionary<string, double> left, Dictionary<string, double> right)
+        {
+            if (left == null && right == null) return true;
+            if (left == null || right == null) return false;
+            if (left.Count != right.Count) return false;
+
+            foreach (var kvp in left)
+            {
+                if (!right.TryGetValue(kvp.Key, out var rightValue))
+                {
+                    return false;
+                }
+                if (!NearlyEqual((float)kvp.Value, (float)rightValue))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private bool AreFunctionFfbSettingsEqual(DiyFfbPluginSettings.FunctionFfbSettings left,
@@ -2350,6 +2443,69 @@ namespace User.PluginSdkDemo
         public string GetActiveGraphPath()
         {
             return activeGraphPath ?? "";
+        }
+
+        public IReadOnlyDictionary<string, GraphParam> GetActiveGraphParams()
+        {
+            if (activeVehicleGraph == null)
+            {
+                return new Dictionary<string, GraphParam>();
+            }
+            return activeVehicleGraph.Params;
+        }
+
+        public double GetGraphParamValue(string paramName)
+        {
+            if (graphParams.TryGetValue(paramName, out var value))
+            {
+                return value;
+            }
+            // Fallback to default if not in runtime dict
+            if (activeVehicleGraph?.Params.TryGetValue(paramName, out var param) == true)
+            {
+                return param.DefaultValue;
+            }
+            return 0.0;
+        }
+
+        public void SetGraphParamValue(string paramName, double value)
+        {
+            // Update runtime param
+            graphParams[paramName] = value;
+
+            // Save to current aircraft profile (temporary, in-memory)
+            var profile = GetCurrentAircraftProfile();
+            if (profile != null)
+            {
+                if (profile.GraphParamValues == null)
+                {
+                    profile.GraphParamValues = new Dictionary<string, double>();
+                }
+                profile.GraphParamValues[paramName] = value;
+                MarkProfileDirty();
+            }
+
+            // Notify listeners of parameter change
+            GraphParamChanged?.Invoke(this, new GraphParamChangedEventArgs(paramName, value));
+        }
+
+        private bool hasDirtyGraphParams = false;
+
+        private void MarkProfileDirty()
+        {
+            hasDirtyGraphParams = true;
+        }
+
+        public event EventHandler ActiveGraphChanged;
+        public event EventHandler<GraphParamChangedEventArgs> GraphParamChanged;
+
+        /// <summary>
+        /// Called by graph editor when graph content changes (e.g., reload, edit).
+        /// Fires ActiveGraphChanged event to refresh parameter UI in function tabs.
+        /// </summary>
+        public void OnGraphContentChanged()
+        {
+            ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public void SetVehicleGraphPath(string gameId, string carId, string path)
@@ -2902,6 +3058,21 @@ namespace User.PluginSdkDemo
             StartGatewayAutoReconnect();
             StartXPlaneUdpReceiver();
 
+        }
+    }
+
+    /// <summary>
+    /// Event arguments for graph parameter changes
+    /// </summary>
+    public class GraphParamChangedEventArgs : EventArgs
+    {
+        public string ParamName { get; }
+        public double Value { get; }
+
+        public GraphParamChangedEventArgs(string paramName, double value)
+        {
+            ParamName = paramName;
+            Value = value;
         }
     }
 }

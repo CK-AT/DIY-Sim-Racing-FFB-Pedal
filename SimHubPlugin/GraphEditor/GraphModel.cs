@@ -26,6 +26,7 @@ namespace User.PluginSdkDemo.GraphEditor
         public List<GraphNode> Nodes { get; } = new List<GraphNode>();
         public List<GraphLink> Links { get; } = new List<GraphLink>();
         public Dictionary<string, GraphParam> Params { get; } = new Dictionary<string, GraphParam>();
+        public Dictionary<string, double> ParamValues { get; set; } = new Dictionary<string, double>();
     }
 
     public sealed class GraphNode
