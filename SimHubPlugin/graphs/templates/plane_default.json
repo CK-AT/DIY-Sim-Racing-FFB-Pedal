@@ -1,138 +1,110 @@
 {
-  "Version": 1,
+  "Version": 2,
   "Nodes": [
     {
       "Id": "ias",
-      "Title": "IAS",
       "Kind": "Input",
       "X": 40.0,
       "Y": 40.0,
       "Ports": [
         {
-          "Name": "XPlane.IAS_kts",
-          "Kind": "Output"
+          "Kind": "Output",
+          "SignalSuffix": "Speed.IAS"
         }
       ],
-      "Op": "",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "SignalGroup": "XPlane"
     },
     {
       "Id": "vref",
-      "Title": "Vref",
-      "Kind": "Input",
-      "X": 40.0,
-      "Y": 90.0,
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 110.0,
       "Ports": [
         {
-          "Name": "XPlane.Vref_kts",
-          "Kind": "Output"
+          "Kind": "Output",
+          "SignalSuffix": "Vref"
         }
       ],
-      "Op": "",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "SignalGroup": "Aircraft"
     },
     {
       "Id": "aero_trq_pitch",
-      "Title": "Pitch Torque",
       "Kind": "Input",
       "X": 30.0,
-      "Y": 160.0,
+      "Y": 190.0,
       "Ports": [
         {
-          "Name": "XPlane.AeroTorque.PitchNm",
-          "Kind": "Output"
+          "Kind": "Output",
+          "SignalSuffix": "AeroTorque.Pitch"
         }
       ],
-      "Op": "",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "SignalGroup": "XPlane"
     },
     {
       "Id": "k_spring",
-      "Title": "Spring k",
       "Kind": "Param",
-      "X": 40.0,
-      "Y": 220.0,
+      "X": 20.0,
+      "Y": 260.0,
       "Ports": [
         {
-          "Name": "FlightStickPitch.SpringGain",
-          "Kind": "Output"
+          "Kind": "Output",
+          "SignalSuffix": "SpringGain"
         }
       ],
-      "Op": "",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "SignalGroup": "FlightStickPitch"
     },
     {
       "Id": "k_damper",
-      "Title": "Damper k",
       "Kind": "Param",
-      "X": 30.0,
-      "Y": 280.0,
-      "Ports": [
-        {
-          "Name": "FlightStickPitch.DamperGain",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
-    },
-    {
-      "Id": "k_friction",
-      "Title": "Friction k",
-      "Kind": "Param",
-      "X": 30.0,
+      "X": 20.0,
       "Y": 340.0,
       "Ports": [
         {
-          "Name": "FlightStickPitch.FrictionGain",
-          "Kind": "Output"
+          "Kind": "Output",
+          "SignalSuffix": "DamperGain"
         }
       ],
-      "Op": "",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "SignalGroup": "FlightStickPitch"
+    },
+    {
+      "Id": "k_friction",
+      "Kind": "Param",
+      "X": 20.0,
+      "Y": 430.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FrictionGain"
+        }
+      ],
+      "SignalGroup": "FlightStickPitch"
     },
     {
       "Id": "k_load",
-      "Title": "Load k",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 410.0,
+      "Y": 520.0,
       "Ports": [
         {
-          "Name": "FlightStickPitch.LoadGain",
-          "Kind": "Output"
+          "Kind": "Output",
+          "SignalSuffix": "LoadGain"
         }
       ],
-      "Op": "",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "SignalGroup": "FlightStickPitch"
     },
     {
       "Id": "qhat",
       "Title": "Qhat",
       "Kind": "Func",
-      "X": 220.0,
-      "Y": 70.0,
+      "X": 280.0,
+      "Y": 60.0,
       "Ports": [
         {
-          "Name": "a",
+          "Name": "ias_kts",
           "Kind": "Input"
         },
         {
-          "Name": "b",
+          "Name": "vref_kts",
           "Kind": "Input"
         },
         {
@@ -140,10 +112,8 @@
           "Kind": "Output"
         }
       ],
-      "Op": "",
       "Func": "qhat_eff",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "IncludePath": ""
     },
     {
       "Id": "spring",
@@ -165,17 +135,14 @@
           "Kind": "Output"
         }
       ],
-      "Op": "mul",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "Op": "mul"
     },
     {
       "Id": "damper",
       "Title": "Damper",
       "Kind": "Op",
       "X": 420.0,
-      "Y": 250.0,
+      "Y": 270.0,
       "Ports": [
         {
           "Name": "a",
@@ -190,17 +157,14 @@
           "Kind": "Output"
         }
       ],
-      "Op": "mul",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "Op": "mul"
     },
     {
       "Id": "friction",
       "Title": "Friction",
       "Kind": "Op",
-      "X": 420.0,
-      "Y": 330.0,
+      "X": 410.0,
+      "Y": 370.0,
       "Ports": [
         {
           "Name": "a",
@@ -215,17 +179,14 @@
           "Kind": "Output"
         }
       ],
-      "Op": "mul",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "Op": "mul"
     },
     {
       "Id": "load",
       "Title": "Load",
       "Kind": "Op",
-      "X": 420.0,
-      "Y": 400.0,
+      "X": 410.0,
+      "Y": 480.0,
       "Ports": [
         {
           "Name": "a",
@@ -240,78 +201,59 @@
           "Kind": "Output"
         }
       ],
-      "Op": "mul",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "Op": "mul"
     },
     {
       "Id": "out_spring",
-      "Title": "Spring Out",
       "Kind": "Output",
       "X": 650.0,
       "Y": 180.0,
       "Ports": [
         {
-          "Name": "FlightStickPitch.SpringGain",
-          "Kind": "Input"
+          "Kind": "Input",
+          "SignalSuffix": "SpringGain"
         }
       ],
-      "Op": "",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "SignalGroup": "FlightStickPitch"
     },
     {
       "Id": "out_damper",
-      "Title": "Damper Out",
       "Kind": "Output",
       "X": 650.0,
       "Y": 260.0,
       "Ports": [
         {
-          "Name": "FlightStickPitch.DamperGain",
-          "Kind": "Input"
+          "Kind": "Input",
+          "SignalSuffix": "DamperGain"
         }
       ],
-      "Op": "",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "SignalGroup": "FlightStickPitch"
     },
     {
       "Id": "out_friction",
-      "Title": "Friction Out",
       "Kind": "Output",
       "X": 670.0,
       "Y": 330.0,
       "Ports": [
         {
-          "Name": "FlightStickPitch.Friction",
-          "Kind": "Input"
+          "Kind": "Input",
+          "SignalSuffix": "Friction"
         }
       ],
-      "Op": "",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "SignalGroup": "FlightStickPitch"
     },
     {
       "Id": "out_load",
-      "Title": "Load Out",
       "Kind": "Output",
       "X": 670.0,
       "Y": 400.0,
       "Ports": [
         {
-          "Name": "FlightStickPitch.LoadForce",
-          "Kind": "Input"
+          "Kind": "Input",
+          "SignalSuffix": "LoadForce"
         }
       ],
-      "Op": "",
-      "Func": "",
-      "IncludePath": "",
-      "ConstValue": 0.0
+      "SignalGroup": "FlightStickPitch"
     }
   ],
   "Links": [
@@ -335,43 +277,43 @@
     },
     {
       "FromNodeId": "ias",
-      "FromPort": "XPlane.IAS_kts",
+      "FromPort": "Speed.IAS",
       "ToNodeId": "qhat",
-      "ToPort": "a"
+      "ToPort": "ias_kts"
     },
     {
       "FromNodeId": "vref",
-      "FromPort": "XPlane.Vref_kts",
+      "FromPort": "Vref",
       "ToNodeId": "qhat",
-      "ToPort": "b"
+      "ToPort": "vref_kts"
     },
     {
       "FromNodeId": "aero_trq_pitch",
-      "FromPort": "XPlane.AeroTorque.PitchNm",
+      "FromPort": "AeroTorque.Pitch",
       "ToNodeId": "load",
       "ToPort": "a"
     },
     {
       "FromNodeId": "k_spring",
-      "FromPort": "FlightStickPitch.SpringGain",
+      "FromPort": "SpringGain",
       "ToNodeId": "spring",
       "ToPort": "b"
     },
     {
       "FromNodeId": "k_damper",
-      "FromPort": "FlightStickPitch.DamperGain",
+      "FromPort": "DamperGain",
       "ToNodeId": "damper",
       "ToPort": "b"
     },
     {
       "FromNodeId": "k_friction",
-      "FromPort": "FlightStickPitch.FrictionGain",
+      "FromPort": "FrictionGain",
       "ToNodeId": "friction",
       "ToPort": "b"
     },
     {
       "FromNodeId": "k_load",
-      "FromPort": "FlightStickPitch.LoadGain",
+      "FromPort": "LoadGain",
       "ToNodeId": "load",
       "ToPort": "b"
     },
@@ -379,28 +321,44 @@
       "FromNodeId": "spring",
       "FromPort": "out",
       "ToNodeId": "out_spring",
-      "ToPort": "FlightStickPitch.SpringGain"
+      "ToPort": "SpringGain"
     },
     {
       "FromNodeId": "damper",
       "FromPort": "out",
       "ToNodeId": "out_damper",
-      "ToPort": "FlightStickPitch.DamperGain"
+      "ToPort": "DamperGain"
     },
     {
       "FromNodeId": "friction",
       "FromPort": "out",
       "ToNodeId": "out_friction",
-      "ToPort": "FlightStickPitch.Friction"
+      "ToPort": "Friction"
     },
     {
       "FromNodeId": "load",
       "FromPort": "out",
       "ToNodeId": "out_load",
-      "ToPort": "FlightStickPitch.LoadForce"
+      "ToPort": "LoadForce"
     }
   ],
   "Params": [
+    {
+      "Name": "Aircraft.Vref",
+      "DefaultValue": 100.0,
+      "Min": 50.0,
+      "Max": 300.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Reference Speed",
+        "Group": "Aircraft",
+        "Units": "kts",
+        "Step": 1.0,
+        "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    },
     {
       "Name": "FlightStickPitch.SpringGain",
       "DefaultValue": 1.0,
@@ -465,5 +423,6 @@
         "Options": []
       }
     }
-  ]
+  ],
+  "ParamValues": null
 }

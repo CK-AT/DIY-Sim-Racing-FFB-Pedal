@@ -111,15 +111,28 @@
                 </ItemsControl>
                 <StackPanel x:Name="PanelEditFields" Margin="0,10,0,0">
                     <TextBlock Text="Edit" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
-                    <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
-                    <TextBox x:Name="EditTitle"
-                             Margin="0,2,0,6"
-                             Background="#1E1E1E"
-                             Foreground="White"
-                             BorderBrush="#4A4A4A"
-                             BorderThickness="1"
-                             Padding="3,2,3,2"
-                             TextChanged="EditTitle_TextChanged" />
+                    <StackPanel x:Name="PanelTitle">
+                        <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
+                        <TextBox x:Name="EditTitle"
+                                 Margin="0,2,0,6"
+                                 Background="#1E1E1E"
+                                 Foreground="White"
+                                 BorderBrush="#4A4A4A"
+                                 BorderThickness="1"
+                                 Padding="3,2,3,2"
+                                 TextChanged="EditTitle_TextChanged" />
+                    </StackPanel>
+                    <StackPanel x:Name="PanelSignalGroup">
+                        <TextBlock Text="Signal Group" Foreground="#BBBBBB" FontSize="10" />
+                        <ComboBox x:Name="EditSignalGroup"
+                                  Margin="0,2,0,6"
+                                  Background="#1E1E1E"
+                                  Foreground="White"
+                                  BorderBrush="#4A4A4A"
+                                  BorderThickness="1"
+                                  IsEditable="False"
+                                  SelectionChanged="EditSignalGroup_SelectionChanged" />
+                    </StackPanel>
                     <StackPanel x:Name="PanelConst">
                         <TextBlock Text="Const Value" Foreground="#BBBBBB" FontSize="10" />
                         <TextBox x:Name="EditConst"

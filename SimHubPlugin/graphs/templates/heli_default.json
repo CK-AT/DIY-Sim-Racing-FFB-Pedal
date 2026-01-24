@@ -1,5 +1,5 @@
 {
-  "Version": 1,
+  "Version": 2,
   "Nodes": [
     {
       "Id": "collective_include",
@@ -12,101 +12,101 @@
     },
     {
       "Id": "pitch_spring",
-      "Title": "Pitch Spring",
       "Kind": "Param",
       "X": 40.0,
       "Y": 40.0,
       "Ports": [
         {
-          "Name": "FlightStickPitch.SpringGain",
-          "Kind": "Output"
+          "Kind": "Output",
+          "SignalSuffix": "SpringGain"
         }
-      ]
+      ],
+      "SignalGroup": "FlightStickPitch"
     },
     {
       "Id": "pitch_spring_out",
-      "Title": "Pitch Spring Out",
       "Kind": "Output",
       "X": 300.0,
       "Y": 40.0,
       "Ports": [
         {
-          "Name": "FlightStickPitch.SpringGain",
-          "Kind": "Input"
+          "Kind": "Input",
+          "SignalSuffix": "SpringGain"
         }
-      ]
+      ],
+      "SignalGroup": "FlightStickPitch"
     },
     {
       "Id": "roll_spring",
-      "Title": "Roll Spring",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 100.0,
+      "Y": 110.0,
       "Ports": [
         {
-          "Name": "FlightStickRoll.SpringGain",
-          "Kind": "Output"
+          "Kind": "Output",
+          "SignalSuffix": "SpringGain"
         }
-      ]
+      ],
+      "SignalGroup": "FlightStickRoll"
     },
     {
       "Id": "roll_spring_out",
-      "Title": "Roll Spring Out",
       "Kind": "Output",
       "X": 300.0,
-      "Y": 100.0,
+      "Y": 110.0,
       "Ports": [
         {
-          "Name": "FlightStickRoll.SpringGain",
-          "Kind": "Input"
+          "Kind": "Input",
+          "SignalSuffix": "SpringGain"
         }
-      ]
+      ],
+      "SignalGroup": "FlightStickRoll"
     },
     {
       "Id": "yaw_spring",
-      "Title": "Yaw Spring",
       "Kind": "Param",
       "X": 40.0,
       "Y": 360.0,
       "Ports": [
         {
-          "Name": "FlightPedals.SpringGain",
-          "Kind": "Output"
+          "Kind": "Output",
+          "SignalSuffix": "SpringGain"
         }
-      ]
+      ],
+      "SignalGroup": "FlightPedals"
     },
     {
       "Id": "yaw_spring_out",
-      "Title": "Yaw Spring Out",
       "Kind": "Output",
       "X": 300.0,
       "Y": 360.0,
       "Ports": [
         {
-          "Name": "FlightPedals.SpringGain",
-          "Kind": "Input"
+          "Kind": "Input",
+          "SignalSuffix": "SpringGain"
         }
-      ]
+      ],
+      "SignalGroup": "FlightPedals"
     }
   ],
   "Links": [
     {
       "FromNodeId": "pitch_spring",
-      "FromPort": "FlightStickPitch.SpringGain",
+      "FromPort": "SpringGain",
       "ToNodeId": "pitch_spring_out",
-      "ToPort": "FlightStickPitch.SpringGain"
+      "ToPort": "SpringGain"
     },
     {
       "FromNodeId": "roll_spring",
-      "FromPort": "FlightStickRoll.SpringGain",
+      "FromPort": "SpringGain",
       "ToNodeId": "roll_spring_out",
-      "ToPort": "FlightStickRoll.SpringGain"
+      "ToPort": "SpringGain"
     },
     {
       "FromNodeId": "yaw_spring",
-      "FromPort": "FlightPedals.SpringGain",
+      "FromPort": "SpringGain",
       "ToNodeId": "yaw_spring_out",
-      "ToPort": "FlightPedals.SpringGain"
+      "ToPort": "SpringGain"
     }
   ],
   "Params": [
@@ -158,5 +158,6 @@
         "Options": []
       }
     }
-  ]
+  ],
+  "ParamValues": null
 }

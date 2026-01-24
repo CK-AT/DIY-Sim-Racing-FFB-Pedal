@@ -34,6 +34,7 @@ namespace User.PluginSdkDemo.GraphEditor
         private readonly GraphEditorTabManager tabManager;
         private bool suppressTreeSelection;
         private DiyFfbPlugin plugin;
+        private Func<IDictionary<string, double>> liveInputProvider;
 
         public GraphEditorWindow()
         {
@@ -66,6 +67,7 @@ namespace User.PluginSdkDemo.GraphEditor
 
         public void SetLiveInputProvider(Func<IDictionary<string, double>> provider)
         {
+            liveInputProvider = provider;
             // Apply to all tabs
             foreach (var tab in tabManager.Tabs)
             {
@@ -205,9 +207,9 @@ namespace User.PluginSdkDemo.GraphEditor
             WireTabParamChanges(tab);
 
             // Apply live input provider if set
-            if (plugin != null)
+            if (liveInputProvider != null)
             {
-                tab.EditorControl.LiveInputProvider = CurrentEditor?.LiveInputProvider;
+                tab.EditorControl.LiveInputProvider = liveInputProvider;
             }
         }
 

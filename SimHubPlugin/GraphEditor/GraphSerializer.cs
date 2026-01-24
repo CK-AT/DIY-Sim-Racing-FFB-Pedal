@@ -7,6 +7,8 @@ namespace User.PluginSdkDemo.GraphEditor
 {
     public static class GraphSerializer
     {
+        public const int CurrentVersion = 2;
+
         public static string Serialize(GraphDefinition graph)
         {
             if (graph == null)
@@ -14,6 +16,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 throw new ArgumentNullException(nameof(graph));
             }
 
+            graph.Version = CurrentVersion;
             var dto = GraphDefinitionDto.FromModel(graph);
             return JsonConvert.SerializeObject(dto, Formatting.Indented, JsonSettings());
         }
@@ -27,8 +30,128 @@ namespace User.PluginSdkDemo.GraphEditor
 
             GraphDefinitionDto dto = JsonConvert.DeserializeObject<GraphDefinitionDto>(json, JsonSettings());
             var graph = dto?.ToModel() ?? new GraphDefinition();
+
+            // Migrate from v1 to v2: extract SignalGroup/SignalSuffix from legacy port names
+            if (graph.Version < 2)
+            {
+                MigrateV1ToV2(graph);
+                graph.Version = CurrentVersion;
+            }
+
             validation = GraphValidator.Validate(graph);
             return graph;
+        }
+
+        private static void MigrateV1ToV2(GraphDefinition graph)
+        {
+            foreach (var node in graph.Nodes)
+            {
+                if (node.Kind == GraphNodeKind.Input)
+                {
+                    MigrateInputNode(node);
+                }
+                else if (node.Kind == GraphNodeKind.Output)
+                {
+                    MigrateOutputNode(node);
+                }
+                else if (node.Kind == GraphNodeKind.Param)
+                {
+                    MigrateParamNode(node);
+                }
+            }
+        }
+
+        private static void MigrateInputNode(GraphNode node)
+        {
+            // Try to infer SignalGroup from port names (e.g., "XPlane.IAS_kts" → group="XPlane", suffix="IAS_kts")
+            foreach (var port in node.Ports)
+            {
+                if (port.Kind != GraphPortKind.Output || string.IsNullOrEmpty(port.Name))
+                    continue;
+
+                foreach (var group in GraphSignalCatalog.InputGroups)
+                {
+                    string prefix = group + ".";
+                    if (port.Name.StartsWith(prefix, StringComparison.Ordinal))
+                    {
+                        if (string.IsNullOrEmpty(node.SignalGroup))
+                            node.SignalGroup = group;
+                        port.SignalSuffix = port.Name.Substring(prefix.Length);
+                        port.Name = port.SignalSuffix;
+                        break;
+                    }
+                }
+            }
+
+            // Default to first input group if not set
+            if (string.IsNullOrEmpty(node.SignalGroup) && GraphSignalCatalog.InputGroups.Count > 0)
+            {
+                node.SignalGroup = GraphSignalCatalog.InputGroups[0];
+            }
+        }
+
+        private static void MigrateOutputNode(GraphNode node)
+        {
+            // Try to infer SignalGroup from port names (e.g., "FlightStickPitch.SpringGain")
+            foreach (var port in node.Ports)
+            {
+                if (port.Kind != GraphPortKind.Input || string.IsNullOrEmpty(port.Name))
+                    continue;
+
+                foreach (var group in GraphSignalCatalog.OutputGroups)
+                {
+                    string prefix = group + ".";
+                    if (port.Name.StartsWith(prefix, StringComparison.Ordinal))
+                    {
+                        if (string.IsNullOrEmpty(node.SignalGroup))
+                            node.SignalGroup = group;
+                        port.SignalSuffix = port.Name.Substring(prefix.Length);
+                        port.Name = port.SignalSuffix;
+                        break;
+                    }
+                }
+            }
+
+            // Default to first output group if not set
+            if (string.IsNullOrEmpty(node.SignalGroup) && GraphSignalCatalog.OutputGroups.Count > 0)
+            {
+                node.SignalGroup = GraphSignalCatalog.OutputGroups[0];
+            }
+        }
+
+        private static void MigrateParamNode(GraphNode node)
+        {
+            // Try to infer SignalGroup from port names
+            foreach (var port in node.Ports)
+            {
+                if (port.Kind != GraphPortKind.Output || string.IsNullOrEmpty(port.Name))
+                    continue;
+
+                foreach (var group in GraphSignalCatalog.ParamGroups)
+                {
+                    string prefix = group + ".";
+                    if (port.Name.StartsWith(prefix, StringComparison.Ordinal))
+                    {
+                        if (string.IsNullOrEmpty(node.SignalGroup))
+                            node.SignalGroup = group;
+                        port.SignalSuffix = port.Name.Substring(prefix.Length);
+                        port.Name = port.SignalSuffix;
+                        break;
+                    }
+                }
+
+                // For params, if no group matched, use the port name as suffix
+                if (string.IsNullOrEmpty(port.SignalSuffix))
+                {
+                    port.SignalSuffix = port.Name;
+                }
+            }
+
+            // Default to first param group if not set
+            if (string.IsNullOrEmpty(node.SignalGroup) && GraphSignalCatalog.ParamGroups.Count > 0)
+            {
+                node.SignalGroup = GraphSignalCatalog.ParamGroups[0];
+            }
         }
 
         private static JsonSerializerSettings JsonSettings()
@@ -171,24 +294,55 @@ namespace User.PluginSdkDemo.GraphEditor
         public string Func { get; set; } = "";
         public string IncludePath { get; set; } = "";
         public double ConstValue { get; set; }
+        public string SignalGroup { get; set; } = "";
+
+        // Conditional serialization: only include kind-specific fields when relevant
+        public bool ShouldSerializeTitle() =>
+            Kind != GraphNodeKind.Input && Kind != GraphNodeKind.Output && Kind != GraphNodeKind.Param;
+        public bool ShouldSerializeOp() => Kind == GraphNodeKind.Op;
+        public bool ShouldSerializeFunc() => Kind == GraphNodeKind.Func;
+        public bool ShouldSerializeIncludePath() => Kind == GraphNodeKind.Include || Kind == GraphNodeKind.Func;
+        public bool ShouldSerializeConstValue() => Kind == GraphNodeKind.Const;
+        public bool ShouldSerializeSignalGroup() =>
+            Kind == GraphNodeKind.Input || Kind == GraphNodeKind.Output || Kind == GraphNodeKind.Param;
 
         public static GraphNodeDto FromModel(GraphNode node)
         {
             var dto = new GraphNodeDto
             {
                 Id = node.Id,
-                Title = node.Title,
                 Kind = node.Kind,
                 X = node.X,
-                Y = node.Y,
-                Op = node.Op,
-                Func = node.Func,
-                IncludePath = node.IncludePath,
-                ConstValue = node.ConstValue
+                Y = node.Y
             };
+
+            // Only populate fields appropriate for this Kind (normalization)
+            bool isSignalNode = node.Kind == GraphNodeKind.Input ||
+                                node.Kind == GraphNodeKind.Output ||
+                                node.Kind == GraphNodeKind.Param;
+            if (isSignalNode)
+            {
+                dto.SignalGroup = node.SignalGroup;
+            }
+            else
+            {
+                dto.Title = node.Title;
+                if (node.Kind == GraphNodeKind.Op)
+                    dto.Op = node.Op;
+                if (node.Kind == GraphNodeKind.Func)
+                {
+                    dto.Func = node.Func;
+                    dto.IncludePath = node.IncludePath;
+                }
+                if (node.Kind == GraphNodeKind.Include)
+                    dto.IncludePath = node.IncludePath;
+                if (node.Kind == GraphNodeKind.Const)
+                    dto.ConstValue = node.ConstValue;
+            }
+
             foreach (var port in node.Ports)
             {
-                dto.Ports.Add(GraphPortDto.FromModel(port));
+                dto.Ports.Add(GraphPortDto.FromModel(port, isSignalNode));
             }
             return dto;
         }
@@ -198,20 +352,40 @@ namespace User.PluginSdkDemo.GraphEditor
             var node = new GraphNode
             {
                 Id = Id,
-                Title = Title,
                 Kind = Kind,
                 X = X,
-                Y = Y,
-                Op = Op,
-                Func = Func,
-                IncludePath = IncludePath,
-                ConstValue = ConstValue
+                Y = Y
             };
+
+            // Only populate fields appropriate for this Kind (normalization)
+            bool isSignalNode = Kind == GraphNodeKind.Input ||
+                                Kind == GraphNodeKind.Output ||
+                                Kind == GraphNodeKind.Param;
+            if (isSignalNode)
+            {
+                node.SignalGroup = SignalGroup ?? "";
+            }
+            else
+            {
+                node.Title = Title ?? "";
+                if (Kind == GraphNodeKind.Op)
+                    node.Op = Op ?? "";
+                if (Kind == GraphNodeKind.Func)
+                {
+                    node.Func = Func ?? "";
+                    node.IncludePath = IncludePath ?? "";
+                }
+                if (Kind == GraphNodeKind.Include)
+                    node.IncludePath = IncludePath ?? "";
+                if (Kind == GraphNodeKind.Const)
+                    node.ConstValue = ConstValue;
+            }
+
             if (Ports != null)
             {
                 foreach (var port in Ports)
                 {
-                    node.Ports.Add(port.ToModel());
+                    node.Ports.Add(port.ToModel(isSignalNode));
                 }
             }
             return node;
@@ -222,23 +396,47 @@ namespace User.PluginSdkDemo.GraphEditor
     {
         public string Name { get; set; } = "";
         public GraphPortKind Kind { get; set; }
+        public string SignalSuffix { get; set; } = "";
 
-        public static GraphPortDto FromModel(GraphPort port)
+        // Conditional serialization: Name for non-signal ports, SignalSuffix for signal ports
+        public bool ShouldSerializeName() => string.IsNullOrEmpty(SignalSuffix);
+        public bool ShouldSerializeSignalSuffix() => !string.IsNullOrEmpty(SignalSuffix);
+
+        public static GraphPortDto FromModel(GraphPort port, bool isSignalNode)
         {
-            return new GraphPortDto
+            var dto = new GraphPortDto { Kind = port.Kind };
+            if (isSignalNode)
             {
-                Name = port.Name,
-                Kind = port.Kind
-            };
+                // Signal ports use SignalSuffix; Name is derived
+                dto.SignalSuffix = port.SignalSuffix;
+            }
+            else
+            {
+                // Non-signal ports use Name only
+                dto.Name = port.Name;
+            }
+            return dto;
         }
 
-        public GraphPort ToModel()
+        /// <summary>
+        /// Converts DTO to model. For signal ports, Name = SignalSuffix for link/ID matching.
+        /// Full signal name is built by GraphRuntimeConverter from SignalGroup + SignalSuffix.
+        /// </summary>
+        public GraphPort ToModel(bool isSignalNode)
         {
-            return new GraphPort
+            var port = new GraphPort { Kind = Kind };
+            if (isSignalNode)
             {
-                Name = Name,
-                Kind = Kind
-            };
+                // Signal ports: Name = SignalSuffix (for link matching / ID generation)
+                port.SignalSuffix = SignalSuffix ?? "";
+                port.Name = port.SignalSuffix;
+            }
+            else
+            {
+                // Non-signal ports: Name is canonical
+                port.Name = Name ?? "";
+            }
+            return port;
         }
     }
 

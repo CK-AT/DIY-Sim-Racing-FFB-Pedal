@@ -368,15 +368,16 @@ namespace User.PluginSdkDemo.GraphEditor
                 Canvas.SetTop(portEllipse, y);
                 nodeCanvas.Children.Add(portEllipse);
 
+                string portLabel = GetPortDisplayLabel(node, port);
                 var label = new TextBlock
                 {
-                    Text = port.Name,
+                    Text = portLabel,
                     Foreground = Brushes.LightGray,
                     FontSize = PortFontSize,
                     FontFamily = NodeFontFamily,
                     Tag = portVisual
                 };
-                double labelWidth = MeasureTextWidth(port.Name, PortFontSize);
+                double labelWidth = MeasureTextWidth(portLabel, PortFontSize);
                 double labelX;
                 if (port.Kind == GraphPortKind.Input)
                 {
@@ -396,9 +397,10 @@ namespace User.PluginSdkDemo.GraphEditor
 
                 if (node.Kind == GraphNodeKind.Param && port.Kind == GraphPortKind.Output)
                 {
-                    var param = GetOrCreateParam(node, port.Name);
+                    string paramName = GetPortSignalName(node, port);
+                    var param = GetOrCreateParam(node, paramName);
                     var ui = param.Ui ?? new GraphParamUi();
-                    var controlInfo = BuildParamControl(param, ui, port.Name, ParamControlWidth);
+                    var controlInfo = BuildParamControl(param, ui, paramName, ParamControlWidth);
                     controlInfo.Control.Height = ParamControlHeight;
                     controlInfo.Control.Tag = new ParamControlTag(port.Name, controlInfo.YOffset);
                     Canvas.SetLeft(controlInfo.Control, width - ParamControlWidth - PortLabelPadding);
@@ -1772,7 +1774,7 @@ namespace User.PluginSdkDemo.GraphEditor
             {
                 foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
                 {
-                    string name = port.Name;
+                    string name = GetPortSignalName(node, port);
                     inputNames.Add(name);
                     if (!_previewInputLookup.ContainsKey(name))
                     {
@@ -1787,7 +1789,7 @@ namespace User.PluginSdkDemo.GraphEditor
             {
                 foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
                 {
-                    string name = port.Name;
+                    string name = GetPortSignalName(node, port);
                     paramNames.Add(name);
                     if (!_previewParamLookup.ContainsKey(name))
                     {
@@ -1910,6 +1912,32 @@ namespace User.PluginSdkDemo.GraphEditor
             return string.IsNullOrWhiteSpace(node.Title) ? node.Id : node.Title;
         }
 
+        /// <summary>
+        /// Gets the display label for a port. For Input/Output nodes, shows SignalSuffix if set.
+        /// </summary>
+        private static string GetPortDisplayLabel(GraphNode node, GraphPort port)
+        {
+            if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output) &&
+                !string.IsNullOrEmpty(port.SignalSuffix))
+            {
+                return port.SignalSuffix;
+            }
+            return port.Name;
+        }
+
+        /// <summary>
+        /// Builds the full signal name for a port (e.g., "XPlane.IAS_kts").
+        /// Uses SignalGroup + SignalSuffix if both are set, otherwise falls back to port.Name.
+        /// </summary>
+        private static string GetPortSignalName(GraphNode node, GraphPort port)
+        {
+            if (!string.IsNullOrEmpty(node.SignalGroup) && !string.IsNullOrEmpty(port.SignalSuffix))
+            {
+                return node.SignalGroup + "." + port.SignalSuffix;
+            }
+            return port.Name ?? "";
+        }
+
         private string BuildNodeInfo(GraphNode node)
         {
             if (node.Kind == GraphNodeKind.Const)
@@ -1948,6 +1976,17 @@ namespace User.PluginSdkDemo.GraphEditor
                 ? Visibility.Visible
                 : Visibility.Collapsed;
 
+            // Signal group panel for Input/Output/Param nodes (replaces Title)
+            bool showSignalGroup = node.Kind == GraphNodeKind.Input ||
+                                   node.Kind == GraphNodeKind.Output ||
+                                   node.Kind == GraphNodeKind.Param;
+            PanelSignalGroup.Visibility = showSignalGroup ? Visibility.Visible : Visibility.Collapsed;
+            PanelTitle.Visibility = showSignalGroup ? Visibility.Collapsed : Visibility.Visible;
+            if (showSignalGroup)
+            {
+                PopulateSignalGroupDropdown(node);
+            }
+
             EditConst.Text = node.ConstValue.ToString("F3", CultureInfo.InvariantCulture);
             EditOp.SelectedItem = string.IsNullOrWhiteSpace(node.Op) ? "mul" : node.Op.ToLowerInvariant();
             EditFunc.SelectedItem = string.IsNullOrWhiteSpace(node.Func) ? _funcChoices[0] : node.Func;
@@ -1962,6 +2001,75 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             _isInspectorUpdating = false;
+        }
+
+        private void PopulateSignalGroupDropdown(GraphNode node)
+        {
+            IReadOnlyList<string> groups;
+            switch (node.Kind)
+            {
+                case GraphNodeKind.Input:
+                    groups = GraphSignalCatalog.InputGroups;
+                    EditSignalGroup.IsEditable = false;
+                    break;
+                case GraphNodeKind.Output:
+                    groups = GraphSignalCatalog.OutputGroups;
+                    EditSignalGroup.IsEditable = false;
+                    break;
+                case GraphNodeKind.Param:
+                    groups = GraphSignalCatalog.ParamGroups;
+                    EditSignalGroup.IsEditable = false;
+                    break;
+                default:
+                    groups = Array.Empty<string>();
+                    break;
+            }
+
+            EditSignalGroup.ItemsSource = groups;
+
+            // Select current group or default to first
+            string currentGroup = node.SignalGroup;
+            if (!string.IsNullOrEmpty(currentGroup) && groups.Contains(currentGroup))
+            {
+                EditSignalGroup.SelectedItem = currentGroup;
+            }
+            else if (groups.Count > 0)
+            {
+                EditSignalGroup.SelectedIndex = 0;
+                node.SignalGroup = groups[0];
+            }
+        }
+
+        private void EditSignalGroup_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null)
+            {
+                return;
+            }
+
+            string selectedGroup = EditSignalGroup.SelectedItem as string ?? "";
+            if (_selectedNode.Node.SignalGroup == selectedGroup)
+            {
+                return;
+            }
+
+            var node = _selectedNode.Node;
+            node.SignalGroup = selectedGroup;
+
+            // Rebuild node visual to show new group and port labels
+            RebuildSurface();
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+
+            // Re-sync port entries to update signal options based on new group
+            SyncPortEntries(node);
+
+            GraphChanged?.Invoke();
         }
 
         private void ButtonAddInputPort_Click(object sender, RoutedEventArgs e)
@@ -2204,23 +2312,66 @@ namespace User.PluginSdkDemo.GraphEditor
                 if (node.Kind == GraphNodeKind.Input && port.Kind == GraphPortKind.Output)
                 {
                     useSignalOptions = true;
-                    signalOptions = GraphSignalCatalog.InputNames;
+                    // Get signal suffixes for the selected group
+                    signalOptions = GraphSignalCatalog.GetInputSignalsForGroup(node.SignalGroup);
+
+                    // Migrate: if SignalSuffix is empty but Name looks like a full signal, extract suffix
+                    MigratePortSignalSuffix(port, node.SignalGroup);
                 }
                 else if (node.Kind == GraphNodeKind.Output && port.Kind == GraphPortKind.Input)
                 {
                     useSignalOptions = true;
-                    signalOptions = GraphSignalCatalog.OutputNames;
+                    // Get signal suffixes for the selected group
+                    signalOptions = GraphSignalCatalog.GetOutputSignalsForGroup(node.SignalGroup);
+
+                    // Migrate: if SignalSuffix is empty but Name looks like a full signal, extract suffix
+                    MigratePortSignalSuffix(port, node.SignalGroup);
                 }
                 else if (node.Kind == GraphNodeKind.Param && port.Kind == GraphPortKind.Output)
                 {
                     showParamFields = true;
-                    param = GetOrCreateParam(node, port.Name);
+                    string paramName = GetPortSignalName(node, port);
+                    param = GetOrCreateParam(node, paramName);
+
+                    // For Param nodes, SignalSuffix stores the freeform signal name
+                    if (string.IsNullOrEmpty(port.SignalSuffix))
+                    {
+                        port.SignalSuffix = port.Name;
+                    }
                 }
 
                 var entry = new PortEditEntry(port, useSignalOptions, signalOptions, showParamFields, param);
                 entry.NameChanged += OnPortNameChanged;
                 entry.ParamChanged += OnPortParamChanged;
                 _portEntries.Add(entry);
+            }
+        }
+
+        /// <summary>
+        /// Migrates old-style port names (full signal names) to the new SignalSuffix property.
+        /// </summary>
+        private static void MigratePortSignalSuffix(GraphPort port, string group)
+        {
+            if (!string.IsNullOrEmpty(port.SignalSuffix))
+            {
+                // Already migrated
+                return;
+            }
+
+            string name = port.Name ?? "";
+            string prefix = group + ".";
+
+            if (name.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                // Old-style full signal name, extract suffix
+                port.SignalSuffix = name.Substring(prefix.Length);
+                port.Name = port.SignalSuffix;
+            }
+            else if (!string.IsNullOrEmpty(name) && !name.Equals("out", StringComparison.OrdinalIgnoreCase) &&
+                     !name.Equals("in", StringComparison.OrdinalIgnoreCase))
+            {
+                // Assume it's already a suffix or a valid signal name
+                port.SignalSuffix = name;
             }
         }
 
@@ -2251,11 +2402,41 @@ namespace User.PluginSdkDemo.GraphEditor
                 string oldName = entry.Port.Name;
                 RenamePort(node, oldName, unique);
                 entry.Port.Name = unique;
-                if (node.Kind == GraphNodeKind.Param && entry.Port.Kind == GraphPortKind.Output)
+
+                // For Input/Output nodes, also update SignalSuffix
+                if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output) && entry.UseSignalOptions)
                 {
-                    RenameParam(oldName, unique);
+                    entry.Port.SignalSuffix = unique;
                 }
-                entry.RefreshParamReference(GetParam(unique));
+                else if (node.Kind == GraphNodeKind.Param && entry.Port.Kind == GraphPortKind.Output)
+                {
+                    // For Param nodes, validate that the full signal name doesn't collide with output signals
+                    string oldFullName = GraphSignalCatalog.BuildSignalName(node.SignalGroup, oldName);
+                    string newFullName = GraphSignalCatalog.BuildSignalName(node.SignalGroup, unique);
+                    if (GraphSignalCatalog.IsValidOutputSignal(newFullName))
+                    {
+                        // Collision with output signal - revert and warn
+                        _isInspectorUpdating = true;
+                        entry.Name = oldName;
+                        _isInspectorUpdating = false;
+                        System.Windows.MessageBox.Show(
+                            $"Parameter name '{newFullName}' conflicts with a reserved output signal name.",
+                            "Invalid Parameter Name",
+                            System.Windows.MessageBoxButton.OK,
+                            System.Windows.MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    // For Param nodes, SignalSuffix stores the freeform signal name
+                    entry.Port.SignalSuffix = unique;
+                    RenameParam(oldFullName, newFullName);
+                }
+
+                // Use full signal name for param lookup
+                string paramLookupName = node.Kind == GraphNodeKind.Param
+                    ? GetPortSignalName(node, entry.Port)
+                    : unique;
+                entry.RefreshParamReference(GetParam(paramLookupName));
 
                 // Update port visual directly instead of rebuilding entire surface
                 UpdatePortVisual(node.Id, oldName, unique);
@@ -2538,6 +2719,13 @@ namespace User.PluginSdkDemo.GraphEditor
             if (node == null)
             {
                 return "";
+            }
+
+            // For Input/Output/Param nodes, show SignalGroup as the title
+            if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output || node.Kind == GraphNodeKind.Param)
+                && !string.IsNullOrWhiteSpace(node.SignalGroup))
+            {
+                return node.SignalGroup;
             }
 
             string title = string.IsNullOrWhiteSpace(node.Title) ? node.Kind.ToString() : node.Title;
@@ -3294,7 +3482,11 @@ namespace User.PluginSdkDemo.GraphEditor
                 bool showParamFields, GraphParam param)
             {
                 Port = port;
-                _name = port.Name;
+                // For Input/Output nodes with signal options, use SignalSuffix for display
+                // For Param nodes or other cases, use Name
+                _name = useSignalOptions && !string.IsNullOrEmpty(port.SignalSuffix)
+                    ? port.SignalSuffix
+                    : port.Name;
                 UseSignalOptions = useSignalOptions;
                 SignalOptions = signalOptions ?? Array.Empty<string>();
                 SignalTree = BuildSignalTree(SignalOptions);

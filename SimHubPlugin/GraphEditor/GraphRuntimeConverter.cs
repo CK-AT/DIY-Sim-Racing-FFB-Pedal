@@ -50,10 +50,12 @@ namespace User.PluginSdkDemo.GraphEditor
                     {
                         if (TryGetInputSource(nodes, graph.Links, node.Id, port.Name, out var source))
                         {
+                            // Build full signal name from SignalGroup + SignalSuffix
+                            string signalName = BuildFullSignalName(node.SignalGroup, port.SignalSuffix, port.Name);
                             var outputNode = new DiyFfb.GraphTest.GraphNode
                             {
                                 Id = BuildPortId(node.Id, port.Name),
-                                Name = port.Name,
+                                Name = signalName,
                                 Type = NodeType.Output,
                                 Src = source
                             };
@@ -84,10 +86,12 @@ namespace User.PluginSdkDemo.GraphEditor
                 {
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
                     {
+                        // Build full signal name from SignalGroup + SignalSuffix
+                        string signalName = BuildFullSignalName(node.SignalGroup, port.SignalSuffix, port.Name);
                         var inputNode = new DiyFfb.GraphTest.GraphNode
                         {
                             Id = BuildPortId(node.Id, port.Name),
-                            Name = port.Name,
+                            Name = signalName,
                             Type = node.Kind == GraphNodeKind.Input ? NodeType.Input : NodeType.Param
                         };
                         runtime.Nodes[inputNode.Id] = inputNode;
@@ -180,6 +184,21 @@ namespace User.PluginSdkDemo.GraphEditor
         private static string BuildPortId(string nodeId, string portName)
         {
             return $"{nodeId}:{portName}";
+        }
+
+        /// <summary>
+        /// Builds full signal name from group and suffix, with fallback to legacy port name.
+        /// </summary>
+        private static string BuildFullSignalName(string group, string suffix, string legacyName)
+        {
+            // If we have both group and suffix, build the full name
+            if (!string.IsNullOrEmpty(group) && !string.IsNullOrEmpty(suffix))
+            {
+                return group + "." + suffix;
+            }
+
+            // Fall back to legacy port name for backward compatibility
+            return legacyName ?? "";
         }
     }
 }

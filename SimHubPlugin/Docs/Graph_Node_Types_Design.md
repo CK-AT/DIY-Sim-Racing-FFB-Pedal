@@ -82,26 +82,65 @@ case NodeType.Input:
 
 ### Proposed Improvements
 
-#### 1. Default Value
+#### 1. Group Dropdown with Signal Selection
+
+Replace freeform title with a **group dropdown**. Each node selects one group (top-level signal namespace), and ports select signals from within that group.
+
+**Visual**:
+```
+┌─────────────────────────┐
+│ ▶ [XPlane          ▼]   │  ← Group dropdown (blue title bar)
+├─────────────────────────┤
+│ [Speed.IAS     ▼] ○ out │  ← Port dropdown selects within group
+│ [Angle.Alpha   ▼] ○ out │
+│ [Rate.Roll     ▼] ○ out │
+└─────────────────────────┘
+```
+
+**Behavior**:
+- One group per node (e.g., "XPlane")
+- Port dropdowns show available signals within that group
+- Port display shows suffix only (e.g., "Speed.IAS" not "XPlane.Speed.IAS")
+- Runtime uses full signal name: `{group}.{portSelection}` → `XPlane.Speed.IAS`
+
+**Validation**:
+- Group must be valid (from `GraphSignalCatalog.InputGroups`)
+- Signal selection must exist in catalog (`GraphSignalCatalog.InputNames`)
+- Unknown signals are blocked at edit time
+
+**Data Model Change**:
+```csharp
+public sealed class GraphNode
+{
+    // ... existing ...
+    public string SignalGroup { get; set; }  // e.g., "XPlane"
+}
+
+public sealed class GraphPort
+{
+    // ... existing ...
+    public string SignalSuffix { get; set; }  // e.g., "Speed.IAS"
+}
+```
+
+**Status**: [x] Implemented
+
+#### 2. Default Value
 Allow Input nodes to specify a fallback value when no external input is provided.
 
 ```csharp
 public double InputDefaultValue { get; set; } = 0.0;
 ```
 
-**Visual**:
+**Visual** (shown as hint on port):
 ```
-┌─────────────────────────┐
-│ ▶ velocity              │
-├─────────────────────────┤
-│ (default: 0)     ○ out  │  ← Shows default value
-└─────────────────────────┘
+│ [Speed.IAS ▼] (0)  ○ out │  ← Default in parentheses
 ```
 
 **Status**: [ ] Not implemented
 
-#### 2. Input Metadata
-Optional units and description for documentation.
+#### 3. Input Metadata
+Optional units and description for documentation (in inspector).
 
 ```csharp
 public string InputUnits { get; set; }        // "m/s", "kts", etc.
@@ -112,9 +151,10 @@ public string InputDescription { get; set; }  // Tooltip text
 
 ### Edge Cases
 
-1. **Empty name**: Disallow, require non-empty title
-2. **Duplicate port names**: Enforced unique via `EnsureUniquePortName()`
-3. **Unconnected at runtime**: Returns 0.0 (or default if implemented)
+1. **No group selected**: Show placeholder "Select group..."
+2. **No signal selected**: Show placeholder "Select signal..."
+3. **Duplicate port signals**: Allowed (same signal mapped to multiple outputs)
+4. **Unknown signal at runtime**: Blocked at edit time via validation
 
 ---
 
@@ -181,8 +221,40 @@ case NodeType.Output:
 
 ### Proposed Improvements
 
-#### 1. Output Metadata
-Optional units and description for documentation.
+#### 1. Group Dropdown with Output Signal Selection
+
+Same pattern as Input nodes: replace freeform title with a **group dropdown**. Each node selects one output group, and ports select signals within that group.
+
+**Visual**:
+```
+┌───────────────────────────────┐
+│   [FlightStickPitch   ▼] ◀   │  ← Group dropdown (orange title bar)
+├───────────────────────────────┤
+│ [SpringGain  ▼] ○             │  ← Port dropdown selects within group
+│ [DamperGain  ▼] ○             │
+│ [LoadForce   ▼] ○             │
+└───────────────────────────────┘
+```
+
+**Behavior**:
+
+- One group per node (e.g., "FlightStickPitch", "FlightPedals")
+- Port dropdowns show available signals within that group
+- Port display shows suffix only (e.g., "SpringGain" not "FlightStickPitch.SpringGain")
+- Runtime uses full signal name: `{group}.{portSelection}` → `FlightStickPitch.SpringGain`
+
+**Validation**:
+
+- Group must be valid (from `GraphSignalCatalog.OutputGroups`)
+- Signal selection must exist in catalog (`GraphSignalCatalog.OutputNames`)
+- Unknown signals are blocked at edit time
+
+**Data Model Change**: Same as Input nodes - uses `SignalGroup` on node and `SignalSuffix` on port.
+
+**Status**: [x] Implemented
+
+#### 2. Output Metadata
+Optional units and description for documentation (in inspector).
 
 ```csharp
 public string OutputUnits { get; set; }        // "N", "Nm", etc.
@@ -191,16 +263,12 @@ public string OutputDescription { get; set; }  // Tooltip text
 
 **Status**: [ ] Not implemented
 
-#### 2. Value Display
+#### 3. Value Display
 Show live output value on the node during preview.
 
 **Visual**:
 ```
-┌─────────────────────────┐
-│         force ◀         │
-├─────────────────────────┤
-│ in ○          [42.5]    │  ← Live value during preview
-└─────────────────────────┘
+│ [SpringGain ▼] ○  [42.5]  │  ← Live value during preview
 ```
 
 **Status**: [ ] Partially implemented (values shown on output ports elsewhere)
@@ -297,13 +365,46 @@ case NodeType.Param:
 
 ### Proposed Improvements
 
-#### 1. Inline Value Display
+#### 1. Freeform Group Dropdown with Signal Naming
+
+Similar pattern to Input/Output nodes: group from catalog, but **freeform signal names** within the group.
+
+**Visual**:
+```
+┌───────────────────────────────────────┐
+│           [Aircraft       ▼]          │  ← Group dropdown (from catalog)
+├───────────────────────────────────────┤
+│ [========■====] 0.85                  │
+│ [Vref          ]              ○ out   │  ← Freeform signal name
+│                                       │
+│ [====■========] 1200                  │
+│ [Rotor.SpeedNom]              ○ out   │  ← Can use dot notation
+└───────────────────────────────────────┘
+```
+
+**Behavior**:
+
+- Group must be from catalog-defined set: `Aircraft`, `System`, `Vehicle`, or `<function name>`
+- Port signal names are freeform (user types the suffix)
+- Runtime uses full signal name: `{group}.{portName}` → `Aircraft.Vref`
+
+**Validation**:
+
+- Group must be from `GraphSignalCatalog.ParamGroups`
+- Signal names cannot match known **output** signals (e.g., cannot use `FlightStickPitch.SpringGain`)
+- This prevents accidental parameter/output name collisions
+
+**Data Model Change**: Same as Input/Output nodes - uses `SignalGroup` on node and `SignalSuffix` on port.
+
+**Status**: [x] Implemented
+
+#### 2. Inline Value Display
 Show current value next to slider on node.
 
 **Status**: [x] Already implemented - widgets show values
 
-#### 2. Parameter Grouping on Node
-Visually group related parameters.
+#### 3. Parameter Grouping on Node
+Visually group related parameters when multiple ports exist.
 
 **Status**: [ ] Not implemented - groups only used in external panels
 
@@ -312,6 +413,7 @@ Visually group related parameters.
 1. **Value outside Min/Max**: Clamped on edit
 2. **Missing enum option**: Shows raw value
 3. **Precision mismatch**: Display rounds, internal value preserved
+4. **Output name collision**: Blocked at edit time with validation error
 
 ---
 
@@ -943,10 +1045,15 @@ Proposed visual indication for errors:
 - [ ] Auto-configure ports for clamp/lerp (3 inputs)
 - [ ] Consider variadic inputs for add/mul/min/max
 
-### Phase 3: Input/Output Enhancements
+### Phase 3: Input/Output/Param Signal Selection
+
+- [x] Add `SignalGroup` to GraphNode, `SignalSuffix` to GraphPort
+- [x] Update `GraphSignalCatalog` with group accessors (`InputGroups`, `OutputGroups`, `ParamGroups`)
+- [x] Build group dropdown UI for Input/Output/Param nodes
+- [x] Implement signal suffix dropdown within selected group
+- [x] Add validation: block unknown input/output signals, block output names in Param
 - [ ] Add `InputDefaultValue` property
 - [ ] Add metadata fields (units, description)
-- [ ] Show default value on node
 
 ### Phase 4: Const/Func Polish
 - [ ] Named constants
@@ -993,3 +1100,10 @@ Example format:
 ### Tweaks to Integrate
 
 <!-- Add your tweaks below this line -->
+
+(None pending)
+
+### Integrated Tweaks
+
+- ~~[Input, Output]: Group dropdown replacing freeform title~~ → Integrated into Input §1, Output §1
+- ~~[Param]: Freeform group dropdown with output name prohibition~~ → Integrated into Param §1

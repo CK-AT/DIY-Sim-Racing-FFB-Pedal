@@ -9,7 +9,7 @@
       "Y": 40.0,
       "Ports": [
         {
-          "Name": "XPlane.IAS_kts",
+          "Name": "XPlane.Speed.IAS",
           "Kind": "Output"
         }
       ],
@@ -21,12 +21,12 @@
     {
       "Id": "vref",
       "Title": "Vref",
-      "Kind": "Input",
+      "Kind": "Param",
       "X": 40.0,
       "Y": 90.0,
       "Ports": [
         {
-          "Name": "XPlane.Vref_kts",
+          "Name": "Aircraft.Vref",
           "Kind": "Output"
         }
       ],
@@ -43,7 +43,7 @@
       "Y": 160.0,
       "Ports": [
         {
-          "Name": "XPlane.AeroTorque.PitchNm",
+          "Name": "XPlane.AeroTorque.Pitch",
           "Kind": "Output"
         }
       ],
@@ -335,19 +335,19 @@
     },
     {
       "FromNodeId": "ias",
-      "FromPort": "XPlane.IAS_kts",
+      "FromPort": "XPlane.Speed.IAS",
       "ToNodeId": "qhat",
       "ToPort": "a"
     },
     {
       "FromNodeId": "vref",
-      "FromPort": "XPlane.Vref_kts",
+      "FromPort": "Aircraft.Vref",
       "ToNodeId": "qhat",
       "ToPort": "b"
     },
     {
       "FromNodeId": "aero_trq",
-      "FromPort": "XPlane.AeroTorque.PitchNm",
+      "FromPort": "XPlane.AeroTorque.Pitch",
       "ToNodeId": "load",
       "ToPort": "a"
     },
@@ -401,6 +401,12 @@
     }
   ],
   "Params": [
+    {
+      "Name": "Aircraft.Vref",
+      "DefaultValue": 100.0,
+      "Min": 50.0,
+      "Max": 300.0
+    },
     {
       "Name": "FlightStickPitch.SpringGain",
       "DefaultValue": 1.0,

@@ -80,6 +80,11 @@ Status: living progress document for graph editor/runtime integration.
 - Double-click Include nodes to navigate to included graph.
 - Improved title bar spacing (8px gap between title and content).
 - Multi-tab support (active graph tab + manual tabs, parameter state preserved on tab switches).
+- Signal group dropdowns for Input/Output/Param nodes (replaces freeform Title; SignalGroup on node, SignalSuffix on port).
+- Schema v2 with data normalization: FromModel/ToModel normalize fields per Kind, ShouldSerialize for clean JSON output.
+- Hierarchical signal naming (e.g., `XPlane.Speed.IAS` instead of `XPlane.IAS_kts`).
+- Reference values moved from Input to Param nodes (Aircraft.Vref, Aircraft.Rotor.TorqueNom, Aircraft.Rotor.SpeedNom).
+- Live input provider stored at window level for correct propagation to new tabs (include navigation).
 
 ## In Progress
 

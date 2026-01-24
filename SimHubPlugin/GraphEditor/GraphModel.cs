@@ -42,12 +42,24 @@ namespace User.PluginSdkDemo.GraphEditor
         public string Func { get; set; } = "";
         public string IncludePath { get; set; } = "";
         public double ConstValue { get; set; }
+
+        /// <summary>
+        /// Signal group for Input/Output/Param nodes (e.g., "XPlane", "FlightStickPitch", "Aircraft").
+        /// </summary>
+        public string SignalGroup { get; set; } = "";
     }
 
     public sealed class GraphPort
     {
         public string Name { get; set; } = "";
         public GraphPortKind Kind { get; set; }
+
+        /// <summary>
+        /// Signal suffix for Input/Output ports (e.g., "IAS_kts", "SpringGain").
+        /// Combined with node's SignalGroup to form full signal name.
+        /// For Param nodes, this is freeform.
+        /// </summary>
+        public string SignalSuffix { get; set; } = "";
     }
 
     public sealed class GraphLink
