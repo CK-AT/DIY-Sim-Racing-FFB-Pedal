@@ -60,6 +60,16 @@ namespace User.PluginSdkDemo.GraphEditor
         private static readonly SolidColorBrush LinkHoverBrush = new SolidColorBrush(Color.FromRgb(160, 200, 255));
         private static readonly SolidColorBrush LinkHandleBrush = new SolidColorBrush(Color.FromRgb(80, 140, 220));
         private static readonly SolidColorBrush LinkHandleSelectedBrush = new SolidColorBrush(Color.FromRgb(240, 180, 70));
+
+        // Title bar colors for different node types
+        private static readonly SolidColorBrush TitleBarInput = new SolidColorBrush(Color.FromRgb(60, 120, 180));      // Blue
+        private static readonly SolidColorBrush TitleBarOutput = new SolidColorBrush(Color.FromRgb(200, 120, 40));     // Orange
+        private static readonly SolidColorBrush TitleBarParam = new SolidColorBrush(Color.FromRgb(140, 80, 180));      // Purple
+        private static readonly SolidColorBrush TitleBarConst = new SolidColorBrush(Color.FromRgb(100, 100, 100));     // Gray
+        private static readonly SolidColorBrush TitleBarOp = new SolidColorBrush(Color.FromRgb(80, 150, 80));          // Green
+        private static readonly SolidColorBrush TitleBarFunc = new SolidColorBrush(Color.FromRgb(60, 140, 160));       // Teal
+        private static readonly SolidColorBrush TitleBarInclude = new SolidColorBrush(Color.FromRgb(180, 80, 140));    // Magenta
+
         private static readonly FontFamily NodeFontFamily = new FontFamily("Segoe UI");
         private const double TitleFontSize = 11.0;
         private const double PortFontSize = 10.0;
@@ -286,6 +296,30 @@ namespace User.PluginSdkDemo.GraphEditor
                 Height = height
             };
 
+            // Add colored title bar background
+            var titleBar = new Rectangle
+            {
+                Width = width,
+                Height = 24,
+                Fill = GetTitleBarColor(node.Kind),
+                RadiusX = 6,
+                RadiusY = 6
+            };
+            Canvas.SetLeft(titleBar, 0);
+            Canvas.SetTop(titleBar, 0);
+            nodeCanvas.Children.Add(titleBar);
+
+            // Add clip to prevent title bar from showing outside rounded corners at bottom
+            var titleBarClip = new Rectangle
+            {
+                Width = width,
+                Height = 12,
+                Fill = GetTitleBarColor(node.Kind)
+            };
+            Canvas.SetLeft(titleBarClip, 0);
+            Canvas.SetTop(titleBarClip, 12);
+            nodeCanvas.Children.Add(titleBarClip);
+
             var title = new TextBlock
             {
                 Text = BuildNodeTitle(node),
@@ -328,7 +362,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 portEllipse.MouseRightButtonDown += Port_MouseRightButtonDown;
 
                 int portIndex = port.Kind == GraphPortKind.Input ? inputIndex : outputIndex;
-                double y = 26 + portIndex * PortRowSpacing;
+                double y = 34 + portIndex * PortRowSpacing;
                 double x = port.Kind == GraphPortKind.Input ? -5 : nodeCanvas.Width - 5;
                 Canvas.SetLeft(portEllipse, x);
                 Canvas.SetTop(portEllipse, y);
@@ -733,7 +767,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 if (port.Kind == kind && port.Name == portName)
                 {
                     double x = node.X + (kind == GraphPortKind.Input ? 0 : nodeVisual.Container.Width);
-                    double y = node.Y + 26 + index * PortRowSpacing + 5;
+                    double y = node.Y + 34 + index * PortRowSpacing + 5;
                     return new Point(x, y);
                 }
                 if (port.Kind == kind)
@@ -820,6 +854,14 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             if (sender is Border border && border.Tag is GraphNode node)
             {
+                // Handle double-click on Include nodes
+                if (e.ClickCount == 2 && node.Kind == GraphNodeKind.Include && !string.IsNullOrWhiteSpace(node.IncludePath))
+                {
+                    IncludeOpenRequested?.Invoke(node.IncludePath);
+                    e.Handled = true;
+                    return;
+                }
+
                 _dragNode = _nodeVisuals[node.Id];
                 bool shift = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
                 bool clickedSelected = _selectedNodes.Contains(_dragNode);
@@ -2495,6 +2537,21 @@ namespace User.PluginSdkDemo.GraphEditor
             return formatted.WidthIncludingTrailingWhitespace;
         }
 
+        private SolidColorBrush GetTitleBarColor(GraphNodeKind kind)
+        {
+            switch (kind)
+            {
+                case GraphNodeKind.Input: return TitleBarInput;
+                case GraphNodeKind.Output: return TitleBarOutput;
+                case GraphNodeKind.Param: return TitleBarParam;
+                case GraphNodeKind.Const: return TitleBarConst;
+                case GraphNodeKind.Op: return TitleBarOp;
+                case GraphNodeKind.Func: return TitleBarFunc;
+                case GraphNodeKind.Include: return TitleBarInclude;
+                default: return TitleBarConst;
+            }
+        }
+
         private double ComputeNodeWidth(GraphNode node)
         {
             if (node == null)
@@ -2549,7 +2606,7 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             int portCount = Math.Max(1, Math.Max(inputCount, outputCount));
-            return 34 + portCount * PortRowSpacing;
+            return 42 + portCount * PortRowSpacing;
         }
 
         private void UpdateNodeSize(NodeVisual visual)

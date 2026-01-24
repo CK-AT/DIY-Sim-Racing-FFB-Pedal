@@ -75,6 +75,9 @@ Status: living progress document for graph editor/runtime integration.
 - Template registry system filters templates by game ID.
 - Default graph templates (plane_default.json, heli_default.json) replicating legacy X-Plane FFB.
 - Template selection auto-copies to vehicle-specific path and saves to settings.
+- Colored title bars distinguish node types (Input=Blue, Output=Orange, Param=Purple, Const=Gray, Op=Green, Func=Teal, Include=Magenta).
+- Double-click Include nodes to navigate to included graph.
+- Improved title bar spacing (8px gap between title and content).
 
 ## In Progress
 
