@@ -600,6 +600,9 @@ namespace User.PluginSdkDemo.GraphEditor
 
             // Notify external listeners (e.g., plugin)
             ParamValueChanged?.Invoke(name, value);
+
+            // Mark graph as changed (dirty)
+            GraphChanged?.Invoke();
         }
 
         public void UpdateParamValue(string name, double value)
@@ -948,10 +951,42 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             if (_dragNode != null)
             {
+                // Check if any node actually moved
+                bool moved = false;
+                if (_dragNodes != null && _dragNodes.Count > 0)
+                {
+                    foreach (var node in _dragNodes)
+                    {
+                        if (_dragNodeStartPositions.TryGetValue(node, out var start))
+                        {
+                            if (Math.Abs(node.Node.X - start.X) > 0.1 || Math.Abs(node.Node.Y - start.Y) > 0.1)
+                            {
+                                moved = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Single node drag - check against drag start
+                    var current = new Point(_dragNode.Node.X, _dragNode.Node.Y);
+                    var expected = new Point(_dragStartPoint.X - _dragOffset.X, _dragStartPoint.Y - _dragOffset.Y);
+                    if (Math.Abs(current.X - SnapToGrid(expected.X)) > 0.1 || Math.Abs(current.Y - SnapToGrid(expected.Y)) > 0.1)
+                    {
+                        moved = true;
+                    }
+                }
+
                 _dragNode.Container.ReleaseMouseCapture();
                 _dragNode = null;
                 _dragNodes = null;
                 _dragNodeStartPositions.Clear();
+
+                if (moved)
+                {
+                    GraphChanged?.Invoke();
+                }
             }
         }
 
@@ -1165,6 +1200,7 @@ namespace User.PluginSdkDemo.GraphEditor
             SyncPreviewEntries();
             RefreshPreview();
             UpdateInspector();
+            GraphChanged?.Invoke();
         }
 
         private void UpdateInspector()
@@ -1583,6 +1619,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 ellipse.ReleaseMouseCapture();
                 _draggingHandle = null;
                 e.Handled = true;
+                GraphChanged?.Invoke();
             }
         }
 
@@ -1625,6 +1662,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 Canvas.SetLeft(node.Container, node.Node.X);
             }
             UpdateAllLinkGeometry();
+            GraphChanged?.Invoke();
         }
 
         private void AlignSelectedTop()
@@ -1641,6 +1679,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 Canvas.SetTop(node.Container, node.Node.Y);
             }
             UpdateAllLinkGeometry();
+            GraphChanged?.Invoke();
         }
 
         private void DistributeSelectedHorizontally()
@@ -1666,6 +1705,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 Canvas.SetLeft(ordered[i].Container, ordered[i].Node.X);
             }
             UpdateAllLinkGeometry();
+            GraphChanged?.Invoke();
         }
 
         private void DistributeSelectedVertically()
@@ -1691,6 +1731,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 Canvas.SetTop(ordered[i].Container, ordered[i].Node.Y);
             }
             UpdateAllLinkGeometry();
+            GraphChanged?.Invoke();
         }
 
         private void AdjustCurveTension(double delta)
@@ -2072,6 +2113,7 @@ namespace User.PluginSdkDemo.GraphEditor
 
             SyncPreviewEntries();
             RefreshPreview();
+            GraphChanged?.Invoke();
         }
 
         private void EditConst_TextChanged(object sender, TextChangedEventArgs e)
@@ -2085,6 +2127,7 @@ namespace User.PluginSdkDemo.GraphEditor
             {
                 _selectedNode.Node.ConstValue = value;
                 RefreshPreview();
+                GraphChanged?.Invoke();
             }
         }
 
@@ -2101,6 +2144,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 UpdateNodeTitleVisual(_selectedNode.Node);
                 UpdateInspector();
                 RefreshPreview();
+                GraphChanged?.Invoke();
             }
         }
 
@@ -2138,6 +2182,7 @@ namespace User.PluginSdkDemo.GraphEditor
 
             _selectedNode.Node.IncludePath = EditIncludePath.Text?.Trim() ?? "";
             ButtonOpenInclude.IsEnabled = !string.IsNullOrWhiteSpace(_selectedNode.Node.IncludePath);
+            GraphChanged?.Invoke();
         }
 
 

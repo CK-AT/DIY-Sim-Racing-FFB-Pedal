@@ -2,6 +2,27 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-24 (DESKTOP-6KO022D)
+
+Request: fix graph editor parameter state not persisting on tab switches.
+
+Summary:
+- Removed `SyncParamsFromPlugin()` call from `OnSelectedTabChanged` that was overwriting the graph's in-memory parameter values when switching tabs.
+- `SyncParamsFromPlugin` now only called when loading a new graph file (in `LoadGraphFromPath`).
+- Removed all debug logging added during investigation from GraphEditorWindow, GraphEditorControl, GraphEditorTabManager, and GraphEditorTab.
+Async/out-of-order note:
+- No async/out-of-order impact; the fix ensures graph editor in-memory state persists independently of plugin state during tab switches.
+Commit highlights:
+- Fix parameter state preservation on graph editor tab switches.
+- Remove debug logging from graph editor tab management.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorTabManager.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorTab.cs`
+Open items:
+- Multi-tab keyboard shortcuts (Ctrl+W close, Ctrl+S save).
+
 ## 2026-01-23 11:24:52 +01:00 (DESKTOP-6KO022D)
 Request: add param settings dialog and polish param node widgets.
 Summary:

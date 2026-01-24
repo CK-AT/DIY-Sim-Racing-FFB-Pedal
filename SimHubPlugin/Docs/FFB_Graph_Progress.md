@@ -3,6 +3,7 @@
 Status: living progress document for graph editor/runtime integration.
 
 ## Done
+
 - Graph editor surface (pan/zoom, add nodes, wiring).
 - Inspector with live preview and node editing.
 - Include support (ports, path picker, open include).
@@ -78,6 +79,7 @@ Status: living progress document for graph editor/runtime integration.
 - Colored title bars distinguish node types (Input=Blue, Output=Orange, Param=Purple, Const=Gray, Op=Green, Func=Teal, Include=Magenta).
 - Double-click Include nodes to navigate to included graph.
 - Improved title bar spacing (8px gap between title and content).
+- Multi-tab support (active graph tab + manual tabs, parameter state preserved on tab switches).
 
 ## In Progress
 

@@ -210,6 +210,8 @@
     <Compile Include="GraphEditor\GraphPreviewEvaluator.cs" />
     <Compile Include="GraphEditor\GraphRuntimeConverter.cs" />
     <Compile Include="GraphEditor\GraphSerializer.cs" />
+    <Compile Include="GraphEditor\GraphEditorTab.cs" />
+    <Compile Include="GraphEditor\GraphEditorTabManager.cs" />
     <Compile Include="GraphTest\GraphEvaluator.cs" />
     <Compile Include="GraphTest\GraphCompiledEvaluator.cs" />
     <Compile Include="GraphTest\GraphIncludeResolver.cs" />

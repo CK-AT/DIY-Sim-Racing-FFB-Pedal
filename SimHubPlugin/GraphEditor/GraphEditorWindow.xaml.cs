@@ -1,35 +1,76 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Windows;
+using System.Windows.Data;
 using Microsoft.Win32;
 
 namespace User.PluginSdkDemo.GraphEditor
 {
+    /// <summary>
+    /// Converts true to Collapsed, false to Visible.
+    /// </summary>
+    public sealed class InverseBooleanToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is bool b && b)
+            {
+                return Visibility.Collapsed;
+            }
+            return Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public partial class GraphEditorWindow : Window
     {
-        private GraphDefinition rootGraph;
-        private string rootGraphPath;
-        private string currentGraphPath;
-        private readonly Dictionary<string, GraphDefinition> includeCache = new Dictionary<string, GraphDefinition>();
+        private readonly GraphEditorTabManager tabManager;
         private bool suppressTreeSelection;
         private DiyFfbPlugin plugin;
 
         public GraphEditorWindow()
         {
             InitializeComponent();
-            GraphEditor.SetGraph(BuildDefaultGraph());
-            rootGraph = GraphEditor.GetGraph();
-            currentGraphPath = null;
-            GraphEditor.IncludeOpenRequested += OnIncludeOpenRequested;
-            GraphEditor.GraphChanged += OnGraphChanged;
-            GraphEditor.BaseDirectory = GetRootDirectory();
+
+            tabManager = new GraphEditorTabManager();
+            tabManager.SelectedTabChanged += OnSelectedTabChanged;
+            tabManager.TabAdded += OnTabAdded;
+            tabManager.TabRemoved += OnTabRemoved;
+
+            // Create the pinned active graph tab
+            tabManager.CreateActiveGraphTab();
+
+            // Bind TabControl to tabs collection
+            EditorTabs.ItemsSource = tabManager.Tabs;
+            EditorTabs.SelectedItem = tabManager.SelectedTab;
+
             RefreshHierarchy();
         }
 
+        /// <summary>
+        /// Gets the currently selected tab's editor control.
+        /// </summary>
+        private GraphEditorControl CurrentEditor => tabManager.SelectedTab?.EditorControl;
+
+        /// <summary>
+        /// Gets the currently selected tab.
+        /// </summary>
+        private GraphEditorTab CurrentTab => tabManager.SelectedTab;
+
         public void SetLiveInputProvider(Func<IDictionary<string, double>> provider)
         {
-            GraphEditor.LiveInputProvider = provider;
+            // Apply to all tabs
+            foreach (var tab in tabManager.Tabs)
+            {
+                tab.EditorControl.LiveInputProvider = provider;
+            }
         }
 
         public void SetPlugin(DiyFfbPlugin pluginInstance)
@@ -38,36 +79,142 @@ namespace User.PluginSdkDemo.GraphEditor
             if (plugin != null)
             {
                 plugin.GraphParamChanged -= OnPluginGraphParamChanged;
+                plugin.ActiveGraphChanged -= OnPluginActiveGraphChanged;
             }
 
             plugin = pluginInstance;
 
-            // Subscribe to new plugin parameter changes
+            // Subscribe to new plugin events
             if (plugin != null)
             {
                 plugin.GraphParamChanged += OnPluginGraphParamChanged;
+                plugin.ActiveGraphChanged += OnPluginActiveGraphChanged;
             }
 
-            // Wire up graph editor parameter changes to plugin
-            GraphEditor.ParamValueChanged = (paramName, value) =>
+            // Wire up parameter changes for all tabs
+            foreach (var tab in tabManager.Tabs)
             {
-                plugin?.SetGraphParamValue(paramName, value);
-            };
+                WireTabParamChanges(tab);
+            }
         }
 
-        private void OnPluginGraphParamChanged(object sender, GraphParamChangedEventArgs e)
+        private void OnPluginActiveGraphChanged(object sender, EventArgs e)
         {
-            // Update graph editor when plugin parameters change externally
+            // When the plugin's active graph changes (vehicle selection), update the editor
             Dispatcher.Invoke(() =>
             {
-                GraphEditor.UpdateParamValue(e.ParamName, e.Value);
+                string path = plugin?.GetActiveGraphPath();
+                if (string.IsNullOrWhiteSpace(path))
+                {
+                    return;
+                }
+
+                // Guard against re-entrant calls - skip if already showing this graph
+                string currentPath = tabManager.ActiveGraphTab?.FilePath;
+                if (!string.IsNullOrWhiteSpace(currentPath) &&
+                    string.Equals(currentPath, path, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                LoadGraphFromPath(path);
             });
         }
 
-        private void OnGraphChanged()
+        private void WireTabParamChanges(GraphEditorTab tab)
         {
-            // Notify plugin that graph content changed (for parameter UI refresh)
-            plugin?.OnGraphContentChanged();
+            // Unsubscribe first to avoid duplicate handlers
+            tab.EditorControl.IncludeOpenRequested -= OnIncludeOpenRequested;
+
+            tab.EditorControl.ParamValueChanged = (paramName, value) =>
+            {
+                // Only propagate from active graph tab to plugin
+                if (tab.IsActiveGraph)
+                {
+                    plugin?.SetGraphParamValue(paramName, value);
+                }
+            };
+
+            // GraphChanged uses a closure over 'tab', so we can't easily unsubscribe.
+            // Only subscribe if not already done (check via a tag or just accept one-time wiring).
+            // Since ParamValueChanged is assigned (not +=), we use it as a proxy for "already wired".
+            // Actually, we need a better approach - use a HashSet to track wired tabs.
+            if (!_wiredTabs.Contains(tab.Id))
+            {
+                _wiredTabs.Add(tab.Id);
+                tab.EditorControl.GraphChanged += () =>
+                {
+                    tab.IsDirty = true;
+                    // Note: We intentionally do NOT call plugin?.OnGraphContentChanged() here.
+                    // That fires ActiveGraphChanged which is meant for graph FILE changes,
+                    // not for every edit. Calling it here causes feedback loops with sliders.
+                    RefreshHierarchy();
+                };
+            }
+
+            tab.EditorControl.IncludeOpenRequested += OnIncludeOpenRequested;
+        }
+
+        private readonly HashSet<string> _wiredTabs = new HashSet<string>();
+
+        private void OnPluginGraphParamChanged(object sender, GraphParamChangedEventArgs e)
+        {
+            // Update active graph tab's editor when plugin parameters change externally
+            Dispatcher.Invoke(() =>
+            {
+                var activeTab = tabManager.ActiveGraphTab;
+                if (activeTab != null)
+                {
+                    activeTab.EditorControl.UpdateParamValue(e.ParamName, e.Value);
+                    activeTab.IsDirty = true;
+                }
+            });
+        }
+
+        private void OnSelectedTabChanged(object sender, EventArgs e)
+        {
+            EditorTabs.SelectedItem = tabManager.SelectedTab;
+            RefreshHierarchy();
+            // Note: We do NOT sync params from plugin on tab switch - the graph's in-memory
+            // state should persist. SyncParamsFromPlugin is only called when loading a new graph.
+        }
+
+        private void SyncParamsFromPlugin()
+        {
+            var activeTab = tabManager.ActiveGraphTab;
+            if (activeTab == null || plugin == null)
+            {
+                return;
+            }
+
+            var graph = activeTab.Graph;
+            if (graph?.Params == null)
+            {
+                return;
+            }
+
+            foreach (var paramName in graph.Params.Keys)
+            {
+                double pluginValue = plugin.GetGraphParamValue(paramName);
+                activeTab.EditorControl.UpdateParamValue(paramName, pluginValue);
+            }
+        }
+
+        private void OnTabAdded(object sender, GraphEditorTab tab)
+        {
+            WireTabParamChanges(tab);
+
+            // Apply live input provider if set
+            if (plugin != null)
+            {
+                tab.EditorControl.LiveInputProvider = CurrentEditor?.LiveInputProvider;
+            }
+        }
+
+        private void OnTabRemoved(object sender, GraphEditorTab tab)
+        {
+            // Clean up event handlers
+            tab.EditorControl.IncludeOpenRequested -= OnIncludeOpenRequested;
         }
 
         public void LoadGraphFromPath(string path)
@@ -77,24 +224,59 @@ namespace User.PluginSdkDemo.GraphEditor
                 return;
             }
 
-            // Convert to absolute path if needed
-            string absolutePath = path;
-            if (!Path.IsPathRooted(path))
-            {
-                absolutePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path);
-            }
-
-            if (!File.Exists(absolutePath))
-            {
-                return;
-            }
-
-            rootGraphPath = absolutePath;
-            GraphEditor.LoadGraphFromFile(absolutePath);
-            rootGraph = GraphEditor.GetGraph();
-            currentGraphPath = null;
-            GraphEditor.BaseDirectory = GetRootDirectory();
+            // Set the active graph
+            tabManager.SetActiveGraph(path);
+            EditorTabs.SelectedItem = tabManager.ActiveGraphTab;
             RefreshHierarchy();
+
+            // Sync params from plugin to ensure graph editor shows current runtime values
+            SyncParamsFromPlugin();
+        }
+
+        private void ButtonNew_Click(object sender, RoutedEventArgs e)
+        {
+            // Get available templates
+            string baseDir = CurrentTab?.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+            var templates = GraphTemplateRegistry.GetTemplates(null, baseDir);
+
+            if (templates.Any())
+            {
+                // Show template selector for new graphs
+                var templateDialog = new GraphTemplateSelectorDialog("Any", "(new graph)", templates)
+                {
+                    Owner = this
+                };
+
+                if (templateDialog.ShowDialog() == true)
+                {
+                    if (templateDialog.SelectedTemplate != null)
+                    {
+                        string templatePath = GraphTemplateRegistry.ResolveTemplatePath(
+                            templateDialog.SelectedTemplate.TemplatePath, baseDir);
+
+                        if (!string.IsNullOrWhiteSpace(templatePath))
+                        {
+                            var tab = tabManager.CreateNewTab();
+                            tab.LoadFromFile(templatePath);
+                            tab.FilePath = null; // Clear path so it's "untitled"
+                            tab.IsDirty = true;
+                            EditorTabs.SelectedItem = tab;
+                            RefreshHierarchy();
+                            return;
+                        }
+                    }
+
+                    // Skipped template selection, create empty graph
+                    tabManager.CreateNewTab();
+                    RefreshHierarchy();
+                }
+            }
+            else
+            {
+                // No templates available, create empty graph
+                tabManager.CreateNewTab();
+                RefreshHierarchy();
+            }
         }
 
         private void ButtonLoad_Click(object sender, RoutedEventArgs e)
@@ -107,77 +289,158 @@ namespace User.PluginSdkDemo.GraphEditor
 
             if (dialog.ShowDialog() == true)
             {
-                rootGraphPath = dialog.FileName;
-                GraphEditor.LoadGraphFromFile(dialog.FileName);
-                rootGraph = GraphEditor.GetGraph();
-                currentGraphPath = null;
-                GraphEditor.BaseDirectory = GetRootDirectory();
-                RefreshHierarchy();
+                var tab = tabManager.OpenGraph(dialog.FileName);
+                if (tab != null)
+                {
+                    EditorTabs.SelectedItem = tab;
+                    RefreshHierarchy();
+                }
             }
         }
 
         private void ButtonSave_Click(object sender, RoutedEventArgs e)
         {
+            if (CurrentTab == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(CurrentTab.FilePath))
+            {
+                // No path yet, do Save As
+                ButtonSaveAs_Click(sender, e);
+                return;
+            }
+
+            if (CurrentTab.Save())
+            {
+                // Success
+            }
+            else
+            {
+                MessageBox.Show(this, "Failed to save graph.", "Save Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ButtonSaveAs_Click(object sender, RoutedEventArgs e)
+        {
+            if (CurrentTab == null)
+            {
+                return;
+            }
+
             var dialog = new SaveFileDialog
             {
                 Filter = "Graph JSON (*.json)|*.json",
                 DefaultExt = "json",
-                FileName = "ffb_graph.json"
+                FileName = string.IsNullOrWhiteSpace(CurrentTab.FilePath)
+                    ? "ffb_graph.json"
+                    : Path.GetFileName(CurrentTab.FilePath)
             };
 
             if (dialog.ShowDialog() == true)
             {
-                if (string.IsNullOrWhiteSpace(rootGraphPath))
+                if (CurrentTab.SaveAs(dialog.FileName))
                 {
-                    rootGraphPath = dialog.FileName;
+                    RefreshHierarchy();
                 }
-                GraphEditor.SaveGraphToFile(dialog.FileName);
+                else
+                {
+                    MessageBox.Show(this, "Failed to save graph.", "Save Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
-        private void ButtonReset_Click(object sender, RoutedEventArgs e)
+        private void ButtonCloseTab_Click(object sender, RoutedEventArgs e)
         {
-            GraphEditor.SetGraph(BuildDefaultGraph());
-            rootGraph = GraphEditor.GetGraph();
-            rootGraphPath = null;
-            currentGraphPath = null;
-            includeCache.Clear();
-            GraphEditor.BaseDirectory = GetRootDirectory();
+            CloseCurrentTab();
+        }
+
+        private void TabCloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement element && element.Tag is GraphEditorTab tab)
+            {
+                CloseTab(tab);
+            }
+        }
+
+        private void CloseCurrentTab()
+        {
+            if (CurrentTab != null)
+            {
+                CloseTab(CurrentTab);
+            }
+        }
+
+        private void CloseTab(GraphEditorTab tab)
+        {
+            if (tab == null || tab.IsPinned)
+            {
+                return;
+            }
+
+            if (tab.IsDirty)
+            {
+                var result = MessageBox.Show(
+                    this,
+                    $"Save changes to {tab.DisplayName}?",
+                    "Unsaved Changes",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Question);
+
+                switch (result)
+                {
+                    case MessageBoxResult.Yes:
+                        if (string.IsNullOrWhiteSpace(tab.FilePath))
+                        {
+                            var dialog = new SaveFileDialog
+                            {
+                                Filter = "Graph JSON (*.json)|*.json",
+                                DefaultExt = "json",
+                                FileName = "ffb_graph.json"
+                            };
+
+                            if (dialog.ShowDialog() != true)
+                            {
+                                return; // Cancelled
+                            }
+
+                            if (!tab.SaveAs(dialog.FileName))
+                            {
+                                MessageBox.Show(this, "Failed to save graph.", "Save Error",
+                                    MessageBoxButton.OK, MessageBoxImage.Error);
+                                return;
+                            }
+                        }
+                        else if (!tab.Save())
+                        {
+                            MessageBox.Show(this, "Failed to save graph.", "Save Error",
+                                MessageBoxButton.OK, MessageBoxImage.Error);
+                            return;
+                        }
+                        break;
+
+                    case MessageBoxResult.Cancel:
+                        return; // Cancelled
+
+                    case MessageBoxResult.No:
+                        // Don't save, proceed to close
+                        break;
+                }
+            }
+
+            tabManager.CloseTab(tab);
             RefreshHierarchy();
         }
 
-        private static GraphDefinition BuildDefaultGraph()
+        private void EditorTabs_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            var graph = new GraphDefinition();
-            var input = new GraphNode
+            if (EditorTabs.SelectedItem is GraphEditorTab tab && tab != tabManager.SelectedTab)
             {
-                Title = "Input",
-                Kind = GraphNodeKind.Input,
-                X = 40,
-                Y = 40
-            };
-            input.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
-            graph.Nodes.Add(input);
-
-            var output = new GraphNode
-            {
-                Title = "Output",
-                Kind = GraphNodeKind.Output,
-                X = 320,
-                Y = 40
-            };
-            output.Ports.Add(new GraphPort { Name = "in", Kind = GraphPortKind.Input });
-            graph.Nodes.Add(output);
-
-            graph.Links.Add(new GraphLink
-            {
-                FromNodeId = input.Id,
-                FromPort = "out",
-                ToNodeId = output.Id,
-                ToPort = "in"
-            });
-
-            return graph;
+                tabManager.SelectedTab = tab;
+            }
         }
 
         private void OnIncludeOpenRequested(string path)
@@ -187,18 +450,21 @@ namespace User.PluginSdkDemo.GraphEditor
                 return;
             }
 
-            string resolved = ResolvePath(path);
-            var graph = LoadIncludeGraph(path);
-            if (graph == null)
+            // Resolve relative to current tab's base directory
+            string baseDir = CurrentTab?.BaseDirectory;
+            string resolved = GraphEditorTabManager.ResolvePath(path, baseDir);
+
+            // Try to open or switch to existing tab
+            var tab = tabManager.OpenGraph(resolved);
+            if (tab == null)
             {
                 MessageBox.Show(this, $"Include not found:\n{path}", "Include not found",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            GraphEditor.SetGraph(graph);
-            currentGraphPath = resolved;
-            RefreshHierarchy(selectPath: resolved);
+            EditorTabs.SelectedItem = tab;
+            RefreshHierarchy();
         }
 
         private void TreeHierarchy_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
@@ -210,20 +476,20 @@ namespace User.PluginSdkDemo.GraphEditor
 
             if (TreeHierarchy.SelectedItem is GraphHierarchyItem item)
             {
-                if (item.IsRoot)
+                if (item.IsRoot && CurrentTab != null)
                 {
-                    GraphEditor.SetGraph(rootGraph);
-                    currentGraphPath = null;
+                    // Stay on current tab at root level
                     return;
                 }
 
                 if (!string.IsNullOrWhiteSpace(item.Path))
                 {
-                    var graph = LoadIncludeGraph(item.Path);
-                    if (graph != null)
+                    // Open include in new tab or switch to existing
+                    string resolved = GraphEditorTabManager.ResolvePath(item.Path, CurrentTab?.BaseDirectory);
+                    var tab = tabManager.OpenGraph(resolved);
+                    if (tab != null)
                     {
-                        GraphEditor.SetGraph(graph);
-                        currentGraphPath = ResolvePath(item.Path);
+                        EditorTabs.SelectedItem = tab;
                     }
                 }
             }
@@ -231,7 +497,7 @@ namespace User.PluginSdkDemo.GraphEditor
 
         private void RefreshHierarchy()
         {
-            RefreshHierarchy(selectPath: currentGraphPath);
+            RefreshHierarchy(selectPath: null);
         }
 
         private void RefreshHierarchy(string selectPath)
@@ -240,15 +506,21 @@ namespace User.PluginSdkDemo.GraphEditor
             TreeHierarchy.Items.Clear();
             ListLibrary.Items.Clear();
 
+            if (CurrentTab == null)
+            {
+                suppressTreeSelection = false;
+                return;
+            }
+
             var rootItem = new GraphHierarchyItem
             {
-                Label = "Root Graph",
-                Path = rootGraphPath ?? "(unsaved)",
+                Label = CurrentTab.DisplayName,
+                Path = CurrentTab.FilePath ?? "(unsaved)",
                 IsRoot = true
             };
             TreeHierarchy.Items.Add(rootItem);
 
-            var includePaths = CollectIncludePaths(rootGraph);
+            var includePaths = CollectIncludePaths(CurrentTab.Graph);
             foreach (var path in includePaths)
             {
                 rootItem.Children.Add(new GraphHierarchyItem
@@ -277,64 +549,6 @@ namespace User.PluginSdkDemo.GraphEditor
                 ListLibrary.Items.Add(item);
             }
             suppressTreeSelection = false;
-        }
-
-        private GraphDefinition LoadIncludeGraph(string path)
-        {
-            string resolved = ResolvePath(path);
-            if (resolved == null)
-            {
-                return null;
-            }
-
-            if (includeCache.TryGetValue(resolved, out var cached))
-            {
-                return cached;
-            }
-
-            if (!File.Exists(resolved))
-            {
-                return null;
-            }
-
-            string json = File.ReadAllText(resolved);
-            var graph = GraphSerializer.Deserialize(json, out _);
-            includeCache[resolved] = graph;
-            return graph;
-        }
-
-        private string ResolvePath(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                return null;
-            }
-
-            if (Path.IsPathRooted(path))
-            {
-                return path;
-            }
-
-            if (!string.IsNullOrWhiteSpace(rootGraphPath))
-            {
-                string rootDir = Path.GetDirectoryName(rootGraphPath);
-                if (!string.IsNullOrWhiteSpace(rootDir))
-                {
-                    return Path.Combine(rootDir, path);
-                }
-            }
-
-            return path;
-        }
-
-        private string GetRootDirectory()
-        {
-            if (string.IsNullOrWhiteSpace(rootGraphPath))
-            {
-                return null;
-            }
-
-            return Path.GetDirectoryName(rootGraphPath);
         }
 
         private static HashSet<string> CollectIncludePaths(GraphDefinition graph)
@@ -370,12 +584,11 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             if (ListLibrary.SelectedItem is GraphLibraryItem item && !string.IsNullOrWhiteSpace(item.Path))
             {
-                var graph = LoadIncludeGraph(item.Path);
-                if (graph != null)
+                var tab = tabManager.OpenGraph(item.Path);
+                if (tab != null)
                 {
-                    GraphEditor.SetGraph(graph);
-                    currentGraphPath = ResolvePath(item.Path);
-                    RefreshHierarchy(selectPath: currentGraphPath);
+                    EditorTabs.SelectedItem = tab;
+                    RefreshHierarchy();
                 }
             }
         }
@@ -384,7 +597,7 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             var items = new List<GraphLibraryItem>();
 
-            foreach (var pair in includeCache)
+            foreach (var pair in tabManager.IncludeCache)
             {
                 items.Add(new GraphLibraryItem
                 {
@@ -393,7 +606,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 });
             }
 
-            string rootDir = GetRootDirectory();
+            string rootDir = CurrentTab?.BaseDirectory;
             if (!string.IsNullOrWhiteSpace(rootDir))
             {
                 string embeddedDir = Path.Combine(rootDir, "graphs", "_embedded");
