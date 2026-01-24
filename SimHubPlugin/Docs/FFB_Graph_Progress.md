@@ -54,13 +54,29 @@ Status: living progress document for graph editor/runtime integration.
 - Param nodes store UI metadata (widget/label/group/units/etc.) per port and expose it in the inspector.
 - Param UI editor dialog replaces inline fields (including default/min/max) for cleaner editing.
 - Param nodes render widget-based controls for direct tuning in the canvas.
+- Three-tier param resolution: include defaults → graph overrides → vehicle profile overrides.
+- Param values stored in `GraphDefinition.ParamValues` (graph-level) and `AircraftFfbProfile.GraphParamValues` (vehicle-level).
+- `GraphParamControlBuilder` utility for generating WPF controls from param metadata.
+- FlightStickConfigControl "X-Plane FFB" section replaced with "FFB Parameters" showing graph params.
+- System tab now displays "System Parameters" section for params with `group = "System"`.
+- Function params filtered by group (`FlightStickPitch`, `FlightStickRoll`, etc.) and shown in respective tabs.
+- Param changes update vehicle profile in-memory immediately; explicit save required for persistence.
+- ActiveGraphChanged event notifies UI to refresh when active graph changes.
+- Test infrastructure consolidated: GraphTest (runtime + editor tests), KinematicsTests (physics validation).
+- GraphTest runs 23 tests: 15 runtime (evaluator/validation/includes) + 8 editor (serialization/params).
+- Parameter resolution tests validate three-tier resolution logic (include default → graph override → vehicle override).
+- ParamValues serialization tests verify JSON roundtrip of graph-level parameter overrides.
+- KinematicsTests validates general kinematics solver (pin/bar validation, collinearity, coefficient calculations).
+- FlightPedalsConfigControl replaced X-Plane FFB section with FFB Parameters showing filtered graph params.
 
 ## In Progress
 - UX polish (orthogonal routing, mini-map).
 - Grid padding/centering strategy (grid currently background brush; padding intent documented).
-- (none)
+- Graph template selector dialog for first-seen vehicles.
 
 ## Open
-- Param UI schema controls in function UI.
+- Default graphs (plane_default.json, heli_default.json) replicating legacy X-Plane FFB.
+- Graph template registry with per-game templates.
 - Typed units and validation.
 - Graph persistence in profiles and migrations.
+- Future: Tooltips with mini-curves and live cursors on param nodes.

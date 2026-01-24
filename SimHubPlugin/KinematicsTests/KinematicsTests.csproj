@@ -6,8 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{E4F1E9A7-6B62-4C67-B1AF-7C3B0A2E662B}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>DiyFfbPlugin.Tests</RootNamespace>
-    <AssemblyName>DiyFfbPlugin.Tests</AssemblyName>
+    <RootNamespace>DiyFfb.KinematicsTests</RootNamespace>
+    <AssemblyName>KinematicsTests</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -39,6 +39,9 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="..\TestCommon\TestRunner.cs">
+      <Link>TestRunner.cs</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DiyFfbPlugin.csproj">

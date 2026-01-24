@@ -9,5 +9,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\GraphSignalCatalogData.cs" Link="GraphSignalCatalogData.cs" />
+    <Compile Include="..\TestCommon\TestRunner.cs" Link="TestRunner.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DiyFfbPlugin.csproj" />
   </ItemGroup>
 </Project>

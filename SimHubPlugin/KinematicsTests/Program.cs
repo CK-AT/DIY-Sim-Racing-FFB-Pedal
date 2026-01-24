@@ -1,56 +1,42 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using Google.Protobuf;
 using User.PluginSdkDemo;
+using SimHubPlugin.TestCommon;
 
-namespace DiyFfbPlugin.Tests
+namespace DiyFfb.KinematicsTests
 {
     internal static class Program
     {
         private static int Main()
         {
-            int failures = 0;
-            int total = 0;
-
-            RunTest("CenteredContactZero", TestCenteredContactZero, ref total, ref failures);
-            RunTest("MissingContactThrows", TestMissingContactThrows, ref total, ref failures);
-            RunTest("CollinearBarSolves", TestCollinearBarSolves, ref total, ref failures);
-            RunTest("NegativeTravelThrows", TestNegativeTravelThrows, ref total, ref failures);
-            RunTest("DuplicatePinIdThrows", TestDuplicatePinIdThrows, ref total, ref failures);
-            RunTest("ContactGroundedThrows", TestContactGroundedThrows, ref total, ref failures);
-            RunTest("RailGroundedThrows", TestRailGroundedThrows, ref total, ref failures);
-            RunTest("ContactRailSameThrows", TestContactRailSameThrows, ref total, ref failures);
-            RunTest("MeteringBarPinCountThrows", TestMeteringBarPinCountThrows, ref total, ref failures);
-            RunTest("MultipleMeteringBarsThrows", TestMultipleMeteringBarsThrows, ref total, ref failures);
-            RunTest("MissingMeteringThrows", TestMissingMeteringThrows, ref total, ref failures);
-            RunTest("NonCollinearBarSolves", TestNonCollinearBarSolves, ref total, ref failures);
-            RunTest("SharedCollinearBarThrows", TestSharedCollinearBarThrows, ref total, ref failures);
-            RunTest("UnknownPinInBarThrows", TestUnknownPinInBarThrows, ref total, ref failures);
-            RunTest("ZeroLengthBarThrows", TestZeroLengthBarThrows, ref total, ref failures);
-            RunTest("ExtraCollinearPinNoChange", TestExtraCollinearPinNoChange, ref total, ref failures);
-            RunTest("CoefficientsFinite", TestCoefficientsFinite, ref total, ref failures);
-            RunTest("LegacyDiyPedalMigration", TestLegacyDiyPedalMigration, ref total, ref failures);
-
-            Console.WriteLine($"Tests run: {total}, Failures: {failures}");
-            return failures == 0 ? 0 : 1;
-        }
-
-        private static void RunTest(string name, Action test, ref int total, ref int failures)
-        {
-            total++;
-            try
+            var results = new List<TestResult>
             {
-                test();
-                Console.WriteLine($"[PASS] {name}");
-            }
-            catch (Exception ex)
-            {
-                failures++;
-                Console.WriteLine($"[FAIL] {name}: {ex.Message}");
-                Console.WriteLine(ex);
-            }
+                TestRunner.RunTest("CenteredContactZero", TestCenteredContactZero),
+                TestRunner.RunTest("MissingContactThrows", TestMissingContactThrows),
+                TestRunner.RunTest("CollinearBarSolves", TestCollinearBarSolves),
+                TestRunner.RunTest("NegativeTravelThrows", TestNegativeTravelThrows),
+                TestRunner.RunTest("DuplicatePinIdThrows", TestDuplicatePinIdThrows),
+                TestRunner.RunTest("ContactGroundedThrows", TestContactGroundedThrows),
+                TestRunner.RunTest("RailGroundedThrows", TestRailGroundedThrows),
+                TestRunner.RunTest("ContactRailSameThrows", TestContactRailSameThrows),
+                TestRunner.RunTest("MeteringBarPinCountThrows", TestMeteringBarPinCountThrows),
+                TestRunner.RunTest("MultipleMeteringBarsThrows", TestMultipleMeteringBarsThrows),
+                TestRunner.RunTest("MissingMeteringThrows", TestMissingMeteringThrows),
+                TestRunner.RunTest("NonCollinearBarSolves", TestNonCollinearBarSolves),
+                TestRunner.RunTest("SharedCollinearBarThrows", TestSharedCollinearBarThrows),
+                TestRunner.RunTest("UnknownPinInBarThrows", TestUnknownPinInBarThrows),
+                TestRunner.RunTest("ZeroLengthBarThrows", TestZeroLengthBarThrows),
+                TestRunner.RunTest("ExtraCollinearPinNoChange", TestExtraCollinearPinNoChange),
+                TestRunner.RunTest("CoefficientsFinite", TestCoefficientsFinite),
+                TestRunner.RunTest("LegacyDiyPedalMigration", TestLegacyDiyPedalMigration)
+            };
+
+            TestRunner.PrintResults("Kinematics Tests", results);
+            return results.TrueForAll(r => r.Passed) ? 0 : 1;
         }
 
         private static void TestCenteredContactZero()

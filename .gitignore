@@ -46,3 +46,5 @@ SimHubPlugin/GraphTest/bin
 SimHubPlugin/GraphTest/obj
 SimHubPlugin/PluginTest/bin
 SimHubPlugin/PluginTest/obj
+SimHubPlugin/KinematicsTests/bin
+SimHubPlugin/KinematicsTests/obj
