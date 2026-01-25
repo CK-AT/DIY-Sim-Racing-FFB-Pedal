@@ -2675,6 +2675,34 @@ namespace User.PluginSdkDemo
         public event EventHandler<GraphParamChangedEventArgs> GraphParamChanged;
 
         /// <summary>
+        /// Gets the current value of a graph output signal.
+        /// </summary>
+        /// <param name="outputName">Full output signal name (e.g., "FlightPedals.SpringGain")</param>
+        /// <param name="defaultValue">Value to return if output is not available</param>
+        /// <returns>The current output value or defaultValue if not found</returns>
+        public double GetGraphOutputValue(string outputName, double defaultValue = 0.0)
+        {
+            if (lastGraphEvaluation?.Outputs?.TryGetValue(outputName, out var value) == true)
+            {
+                return value;
+            }
+            return defaultValue;
+        }
+
+        /// <summary>
+        /// Gets all current graph output values.
+        /// </summary>
+        /// <returns>Dictionary of output name to value, or empty dictionary if no evaluation</returns>
+        public IReadOnlyDictionary<string, double> GetAllGraphOutputs()
+        {
+            if (lastGraphEvaluation?.Outputs != null)
+            {
+                return lastGraphEvaluation.Outputs;
+            }
+            return new Dictionary<string, double>();
+        }
+
+        /// <summary>
         /// Called by graph editor when graph content changes (e.g., reload, edit).
         /// Fires ActiveGraphChanged event to refresh parameter UI in function tabs.
         /// </summary>

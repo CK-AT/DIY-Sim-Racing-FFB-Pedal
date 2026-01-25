@@ -113,6 +113,36 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+            <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,3,0,0" >
+                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="540">
+                    <Label Content="FFB Outputs" Width="150" Padding="0,5,0,10" VerticalContentAlignment="Center" FontFamily="Arial Black" HorizontalAlignment="Left" Margin="70,0,0,0"/>
+                    <StackPanel Width="540" Orientation="Vertical">
+                        <Grid Width="400" Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="70"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="70"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="20"/>
+                                <RowDefinition Height="20"/>
+                                <RowDefinition Height="20"/>
+                            </Grid.RowDefinitions>
+                            <Label Grid.Row="0" Grid.Column="0" Content="Spring:" Foreground="White" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
+                            <Label Grid.Row="0" Grid.Column="1" x:Name="Label_Output_Spring" Content="0.00" Foreground="#FF5BD65B" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
+                            <Label Grid.Row="0" Grid.Column="2" Content="Damper:" Foreground="White" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
+                            <Label Grid.Row="0" Grid.Column="3" x:Name="Label_Output_Damper" Content="0.00" Foreground="#FF5BD65B" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
+                            <Label Grid.Row="1" Grid.Column="0" Content="Friction:" Foreground="White" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
+                            <Label Grid.Row="1" Grid.Column="1" x:Name="Label_Output_Friction" Content="0.00" Foreground="#FF5BD65B" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
+                            <Label Grid.Row="1" Grid.Column="2" Content="Load:" Foreground="White" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
+                            <Label Grid.Row="1" Grid.Column="3" x:Name="Label_Output_Load" Content="0.00" Foreground="#FF5BD65B" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
+                            <Label Grid.Row="2" Grid.Column="0" Content="Trim Offset:" Foreground="White" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
+                            <Label Grid.Row="2" Grid.Column="1" x:Name="Label_Output_TrimOffset" Content="0.00" Foreground="#FF5BD65B" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </StackPanel>
     </Grid>
 </UserControl>

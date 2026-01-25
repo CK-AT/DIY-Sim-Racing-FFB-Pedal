@@ -13,6 +13,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using DiyFfb.GraphTest;
 using User.PluginSdkDemo;
 
 namespace User.PluginSdkDemo.GraphEditor
@@ -96,7 +97,17 @@ namespace User.PluginSdkDemo.GraphEditor
         public event Action<string> IncludeOpenRequested;
         public event Action GraphChanged;
         public event Action<bool> DirtyChanged;
-        public string BaseDirectory { get; set; }
+
+        private string _baseDirectory;
+        public string BaseDirectory
+        {
+            get => _baseDirectory;
+            set
+            {
+                _baseDirectory = value;
+                UpdatePreviewResolver();
+            }
+        }
 
         private bool _isDirty;
         public bool IsDirty
@@ -671,7 +682,9 @@ namespace User.PluginSdkDemo.GraphEditor
                         // Check ALL ports, not just the first one (param nodes can have multiple output ports)
                         foreach (var port in nodeVisual.Node.Ports)
                         {
-                            if (port.Name == name && port.Kind == GraphPortKind.Output)
+                            // Use full hierarchical signal name for matching (e.g., "XPlane.IAS_kts")
+                            string portSignalName = GetPortSignalName(nodeVisual.Node, port);
+                            if (portSignalName == name && port.Kind == GraphPortKind.Output)
                             {
                                 // Find the control in the node's inner canvas children
                                 foreach (var child in nodeVisual.InnerCanvas.Children)
@@ -1864,6 +1877,18 @@ namespace User.PluginSdkDemo.GraphEditor
                     lookup.Remove(entry.Name);
                     list.RemoveAt(i);
                 }
+            }
+        }
+
+        private void UpdatePreviewResolver()
+        {
+            if (!string.IsNullOrWhiteSpace(_baseDirectory) && Directory.Exists(_baseDirectory))
+            {
+                _previewEvaluator.SetResolver(new GraphIncludeResolver(_baseDirectory));
+            }
+            else
+            {
+                _previewEvaluator.SetResolver(null);
             }
         }
 

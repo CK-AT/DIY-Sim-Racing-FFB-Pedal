@@ -1,0 +1,365 @@
+# Conversation Log
+
+## 2026-01-25: Add FFB Outputs Panel to Function Tabs
+
+### Summary
+
+Added "FFB Outputs" panel below "FFB Parameters" on FlightPedalsConfigControl and FlightStickConfigControl to show live runtime graph output values.
+
+### Changes
+
+1. **DiyFfbPlugin.cs**: Added `GetGraphOutputValue()` and `GetAllGraphOutputs()` public methods to access runtime output values from `lastGraphEvaluation`
+
+2. **FlightPedalsConfigControl.xaml**: Added FFB Outputs panel showing Spring, Damper, Friction, Load, and Trim Offset values
+
+3. **FlightPedalsConfigControl.xaml.cs**: Added `UpdateFfbOutputs()` method called from timer to refresh output values using `FlightPedals.*` signal prefix
+
+4. **FlightStickConfigControl.xaml**: Added same FFB Outputs panel
+
+5. **FlightStickConfigControl.xaml.cs**: Added `UpdateFfbOutputs()` with function ID to prefix mapping (FlightStickPitch/Roll/Collective)
+
+### Output Signals Displayed
+
+- `{prefix}.SpringGain`
+- `{prefix}.DamperGain`
+- `{prefix}.Friction`
+- `{prefix}.LoadForce`
+- `{prefix}.TrimOffset`
+
+### Commit Highlights
+
+- Add FFB Outputs panel showing live runtime values
+- Add GetGraphOutputValue() public accessor to DiyFfbPlugin
+
+---
+
+## 2026-01-25: Fix Include Node Preview Always Showing Zero
+
+### Summary
+
+Fixed include nodes always showing zero as preview output in the graph editor.
+
+### Root Cause
+
+`GraphPreviewEvaluator` created `GraphCompiledEvaluator` without passing a resolver. Without a resolver, `EvalInclude()` cannot load referenced graphs from disk and returns early with no computed outputs.
+
+### Fix
+
+1. Added `SetResolver()` method to `GraphPreviewEvaluator` to accept an `IGraphResolver`
+2. Pass resolver to `GraphCompiledEvaluator` constructor
+3. Changed `BaseDirectory` in `GraphEditorControl` from auto-property to full property
+4. `BaseDirectory` setter now calls `UpdatePreviewResolver()` which creates a `GraphIncludeResolver` when a valid directory is set
+
+### Commit Highlights
+
+- Pass resolver to preview evaluator for include node support
+
+---
+
+## 2026-01-25: Fix Bi-directional Parameter Slider Sync
+
+### Summary
+
+Fixed broken bi-directional sync where moving a slider on the function tab changed the value in the graph editor but didn't update the slider on the parameter node.
+
+### Root Cause
+
+In `UpdateParamValue()`, line 674 compared `port.Name` (raw port name like "IAS_kts") against the parameter name from the plugin event (full hierarchical name like "XPlane.IAS_kts"). This mismatch caused the lookup to fail when hierarchical naming was used.
+
+### Fix
+
+Changed line 674 in `GraphEditorControl.xaml.cs` to use `GetPortSignalName(nodeVisual.Node, port)` instead of `port.Name`, ensuring the full hierarchical signal name is used for matching.
+
+### Commit Highlights
+
+- Fix UpdateParamValue to use hierarchical signal names for matching
+
+---
+
+## 2026-01-25: Code Review Bug Fixes and UX Improvements
+
+### Summary
+
+Code review identified several issues. Fixed high/medium priority bugs and added UX improvements.
+
+### Changes
+
+1. **High priority fix** (`GraphSerializer.cs`):
+   - Fixed `ShouldSerializeTitle()` bug: library graph Input/Output/Param nodes now preserve titles
+
+2. **Medium priority fixes** (`GraphEditorControl.xaml.cs`):
+   - Added 300ms debounce timer for `EditIncludePath_TextChanged()` to prevent file I/O on every keystroke
+   - Fixed `DuplicateNode()` to copy `SignalGroup` and port `SignalSuffix`
+
+3. **Low priority improvements** (`GraphEditorControl.xaml/.cs`):
+   - Added dirty indicator (orange bullet "•") next to "Inspector" header
+   - `IsDirty` property, `DirtyChanged` event, `ClearDirty()` method
+
+4. **Path normalization fix** (`GraphSerializer.cs`):
+   - `ExtractInterfaceFromPath()` now normalizes forward slashes to backslashes on Windows
+
+5. **BaseDirectory timing fix** (`GraphEditorTab.cs`):
+   - Set `EditorControl.BaseDirectory` BEFORE `Graph = loadedGraph`
+   - `SetGraph()` triggers `SyncIncludePorts()` which needs BaseDirectory for relative path resolution
+
+6. **AddPort/RemovePort selection fix** (`GraphEditorControl.xaml.cs`):
+   - Restore `_selectedNode` from `_nodeVisuals` after `RebuildSurface()`
+   - `OnPortNameChanged` now calls `RebuildSurface()` for reliable visual updates after signal selection
+
+7. **Include node port protection** (`GraphEditorControl.xaml.cs`, `GraphEditorControl.xaml`):
+   - `ButtonRemovePort_Click` returns early for Include nodes
+   - Added `AllowRemove` property to `PortEditEntry` class
+   - Added `BooleanToVisibilityConverter` to XAML resources
+   - Remove button visibility bound to `AllowRemove` (hidden for Include nodes)
+
+8. **Extended test coverage** (`GraphTestRunner.cs`):
+   - Added 4 new tests (32 total): Title serialization, runtime conversion, SignalGroup preservation, SignalSuffix preservation
+
+### Commit Highlights
+
+- Fix ShouldSerializeTitle() for library graph nodes
+- Add debounce to include path editing
+- Fix DuplicateNode() to preserve SignalGroup/SignalSuffix
+- Add dirty indicator to inspector
+- Normalize include path separators for Windows
+- Fix BaseDirectory timing for include path resolution on load
+- Fix port signal selection to update visuals via RebuildSurface
+- Prevent port removal on Include nodes
+
+---
+
+## 2026-01-25: Library Graph Support (Schema v4)
+
+### Summary
+
+Added support for library graphs - reusable subgraphs where Input/Output nodes use freeform port names instead of binding to the signal catalog. This enables creating generic processing blocks that can be included in multiple top-level graphs.
+
+### Changes
+
+1. **Data model** (`GraphModel.cs`):
+   - Added `IsLibraryGraph` property on `GraphDefinition`
+
+2. **Schema v4** (`GraphSerializer.cs`):
+   - Bumped `CurrentVersion` to 4
+   - Added `IsLibraryGraph` to DTO with conditional serialization
+   - Updated `FromModel`/`ToModel` to pass `isLibraryGraph` context
+   - Updated `ExtractInterface` to use freeform port Names for library graphs
+
+3. **Editor UI** (`GraphEditorControl.xaml.cs`):
+   - Added "Library Graph" checkbox in inspector
+   - Updated `SyncPortEntries` to skip signal dropdowns for library graph Input/Output
+   - Updated `BuildNodeTitle` to show Title instead of SignalGroup for library graphs
+   - Updated `GetPortDisplayLabel` to use Name for library graph ports
+   - Updated `OnPortNameChanged` to not set SignalSuffix for library graph ports
+
+4. **Tests** (`GraphTestRunner.cs`):
+   - `TestLibraryGraphInterfaceExtraction` - verifies freeform names in interface
+   - `TestLibraryGraphSerialization` - verifies IsLibraryGraph persists
+
+### Files Modified
+
+- `GraphModel.cs` - IsLibraryGraph property
+- `GraphSerializer.cs` - v4 version, library graph handling in DTOs
+- `GraphEditorControl.xaml` - Library Graph checkbox
+- `GraphEditorControl.xaml.cs` - Library graph UI logic
+- `GraphTestRunner.cs` - Two new library graph tests
+- `FFB_Graph_Progress.md` - Updated Done section
+
+### Commit Highlights
+
+- Add IsLibraryGraph flag for reusable library blocks
+- Bump schema to v4 with library graph serialization
+- Library graph Input/Output nodes use freeform port names
+
+---
+
+## 2026-01-24: Include Node Auto-Surface Ports (Schema v3)
+
+### Summary
+Implemented auto-surface ports for Include nodes: ports are now automatically populated from the included graph's Input/Output nodes. Schema bumped to v3 with Include node ports excluded from serialization (derived at load time).
+
+### Changes
+
+1. **Data model** (`GraphModel.cs`):
+   - Added `IncludedGraphInterface` class with `Inputs`, `Outputs`, `IsValid`, `Error`
+   - Added `CachedInterface` property on `GraphNode`
+
+2. **Interface extraction** (`GraphSerializer.cs`):
+   - Added `ExtractInterface(GraphDefinition)` - extracts inputs/outputs from graph
+   - Added `ExtractInterfaceFromPath(path, baseDir)` - loads graph and extracts interface
+   - Bumped `CurrentVersion` to 3
+   - Added `ShouldSerializePorts()` returning false for Include nodes
+
+3. **Port synchronization** (`GraphEditorControl.xaml.cs`):
+   - Added `SyncIncludePorts(GraphNode)` - clears and repopulates ports from interface
+   - Wired to `EditIncludePath_TextChanged`, `SetGraph()`, new Refresh button
+   - Removed manual `AddIncludePort`, `ButtonAddIncludeInput_Click`, `ButtonAddIncludeOutput_Click`
+
+4. **UI updates** (`GraphEditorControl.xaml`):
+   - Replaced editable port textboxes with read-only labels
+   - Added "Refresh" button next to "Open Include"
+   - Added `IncludeErrorText` for interface extraction errors
+   - Removed "Add Input" and "Add Output" buttons
+
+5. **Tests** (`GraphTestRunner.cs`):
+   - `TestExtractInterfaceFromGraph` - verifies interface extraction
+   - `TestV3IncludePortsNotSerialized` - verifies ports excluded from v3 JSON
+   - `TestV2IncludePortsMigration` - verifies v2 Include ports load correctly
+
+### Files Modified
+
+- `GraphModel.cs` - IncludedGraphInterface class, CachedInterface property
+- `GraphSerializer.cs` - v3 version, ExtractInterface methods, ShouldSerializePorts
+- `GraphEditorControl.xaml` - Read-only port display, Refresh button, error text
+- `GraphEditorControl.xaml.cs` - SyncIncludePorts, removed manual port handlers
+- `GraphTestRunner.cs` - Three new tests for v3 Include behavior
+
+### Commit Highlights
+
+- Add Include auto-surface ports from included graph interface
+- Bump schema to v3, exclude Include ports from serialization
+- Replace manual port editors with read-only display and Refresh button
+
+---
+
+## 2026-01-24: Schema V2 Conditional Serialization & Graph JSON Updates
+
+### Summary
+Added conditional serialization for schema v2 to exclude kind-specific fields when not relevant. Updated all graph JSON files to use new hierarchical signal naming convention.
+
+### Changes
+
+1. **Conditional serialization in GraphNodeDto**:
+   - `Op` only serialized for Op nodes
+   - `Func` only serialized for Func nodes
+   - `IncludePath` only serialized for Include/Func nodes
+   - `ConstValue` only serialized for Const nodes
+   - `SignalGroup` only serialized for Input/Output/Param nodes
+
+2. **Conditional serialization in GraphPortDto**:
+   - `SignalSuffix` only serialized when non-empty
+
+3. **Updated all graph JSON files**:
+   - `GraphTest/graphs/plane_basic.json`
+   - `GraphTest/graphs/multi_function.json`
+   - `GraphTest/graphs/heli_collective.json`
+   - `graphs/_embedded/heli_collective.json`
+   - `graphs/templates/plane_default.json`
+
+### Files Modified
+
+- `GraphSerializer.cs` - ShouldSerialize methods for conditional serialization
+- Graph JSON files - Updated signal names and moved reference values to params
+
+### Commit Highlights
+
+- Add ShouldSerialize methods for kind-specific fields in schema v2
+- Update all graph JSONs with hierarchical signal naming
+- Move Vref and rotor reference values from Input to Param nodes
+
+---
+
+## 2026-01-24: Update Signal Catalog Naming Convention
+
+### Summary
+Updated signal catalog to use hierarchical dot notation for input signals and moved reference values from inputs to parameters.
+
+### Changes
+
+1. **Input signals renamed**:
+   - `XPlane.IAS_kts` → `XPlane.Speed.IAS`
+   - `XPlane.Alpha_deg` → `XPlane.Angle.Alpha`
+   - `XPlane.Beta_deg` → `XPlane.Angle.Beta`
+   - `XPlane.PRate` → `XPlane.Rate.Roll`
+   - `XPlane.QRate` → `XPlane.Rate.Pitch`
+   - `XPlane.RRate` → `XPlane.Rate.Yaw`
+   - `XPlane.GNrml` → `XPlane.G_Nrml`
+   - `XPlane.AeroTorque.RollNm` → `XPlane.AeroTorque.Roll`
+   - `XPlane.AeroTorque.PitchNm` → `XPlane.AeroTorque.Pitch`
+   - `XPlane.AeroTorque.YawNm` → `XPlane.AeroTorque.Yaw`
+   - `XPlane.MainRotorTorqueNm` → `XPlane.MainRotor.Torque`
+   - `XPlane.MainRotorRpm` → `XPlane.MainRotor.Speed`
+
+2. **Moved from inputs to parameters** (per-aircraft tunable):
+   - `XPlane.Vref_kts` → `Aircraft.Vref` (parameter)
+   - `XPlane.NominalRpm` → `Aircraft.Rotor.SpeedNom` (parameter)
+   - `XPlane.MrTorqueRefNm` → `Aircraft.Rotor.TorqueNom` (parameter)
+
+3. **Updated plane_default.json template** with new signal names
+
+### Files Modified
+
+- `GraphSignalCatalogData.cs` - Renamed input signals
+- `GraphSignals.cs` - Updated BuildXPlaneInputs mapping
+- `graphs/templates/plane_default.json` - Updated signal names and added Aircraft.Vref param
+
+### Commit Highlights
+
+- Rename input signals to hierarchical dot notation (XPlane.Speed.IAS, etc.)
+- Move reference values from telemetry inputs to tunable parameters
+- Update plane_default.json template with new signal names
+
+---
+
+## 2026-01-24: Fix Param Signal Name Resolution
+
+### Summary
+Fixed side effects from schema v2 changes where param dictionary keys and preview signal names were using port suffixes instead of full signal names.
+
+### Changes
+
+1. **Added `GetPortSignalName` helper** - Builds full signal name from `node.SignalGroup` + `port.SignalSuffix`
+
+2. **Fixed `SyncPreviewEntries`** - Uses `GetPortSignalName` instead of `port.Name` for input/param preview entries
+
+3. **Fixed param dictionary keying**:
+   - `GetOrCreateParam` calls now use full signal names
+   - `BuildParamControl` passes full signal name for param lookups
+   - `RenameParam` uses full signal names when renaming params
+   - `GetParam` lookup after port rename uses full signal name
+
+### Files Modified
+
+- `GraphEditorControl.xaml.cs` - GetPortSignalName helper, SyncPreviewEntries fix, param name handling
+
+### Commit Highlights
+
+- Add GetPortSignalName helper for full signal name construction
+- Fix param dictionary to use full signal names (group.suffix)
+- Fix preview entries to use full signal names for runtime matching
+
+---
+
+## 2026-01-24: Graph Schema V2 with SignalGroup/SignalSuffix
+
+### Summary
+Added version 2 schema for graph JSON with SignalGroup on nodes and SignalSuffix on ports. Includes migration from v1.
+
+### Changes
+
+1. **Schema version 2** - New fields serialized:
+   - `GraphNodeDto.SignalGroup` for Input/Output/Param nodes
+   - `GraphPortDto.SignalSuffix` for signal suffix within group
+
+2. **V1 to V2 migration** in `GraphSerializer.Deserialize()`:
+   - Extracts group from legacy port names (e.g., "XPlane.IAS_kts" → group="XPlane", suffix="IAS_kts")
+   - Defaults to first available group if not detectable
+
+3. **UI fixes for Input/Output/Param nodes**:
+   - Hide Title field (SignalGroup replaces it)
+   - Show SignalGroup in node title bar
+   - Show SignalSuffix in port labels
+   - Rebuild node visual on group change
+
+### Files Modified
+
+- `GraphSerializer.cs` - V2 DTOs, migration logic
+- `GraphModel.cs` - SignalGroup on GraphNode, SignalSuffix on GraphPort
+- `GraphEditorControl.xaml` - PanelTitle wrapper
+- `GraphEditorControl.xaml.cs` - BuildNodeTitle, GetPortDisplayLabel, group change handling
+
+### Commit Highlights
+
+- Add graph schema v2 with SignalGroup/SignalSuffix
+- Migrate v1 graphs by extracting group from port names
+- Show SignalGroup as node title, SignalSuffix as port label

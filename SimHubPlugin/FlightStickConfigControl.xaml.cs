@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -675,9 +676,39 @@ namespace User.PluginSdkDemo
         private void UpdateXPlaneTelemetry()
         {
             // Legacy X-Plane diagnostic UI removed - diagnostics now handled by FFB Parameters
+            UpdateFfbOutputs();
         }
 
+        private void UpdateFfbOutputs()
+        {
+            if (plugin == null)
+            {
+                return;
+            }
 
+            string prefix;
+            switch (current_function_id)
+            {
+                case FunctionID.FlightStickPitch:
+                    prefix = "FlightStickPitch";
+                    break;
+                case FunctionID.FlightStickRoll:
+                    prefix = "FlightStickRoll";
+                    break;
+                case FunctionID.FlightStickCollective:
+                    prefix = "FlightStickCollective";
+                    break;
+                default:
+                    prefix = "FlightStickPitch";
+                    break;
+            }
+
+            Label_Output_Spring.Content = plugin.GetGraphOutputValue($"{prefix}.SpringGain").ToString("F2", CultureInfo.InvariantCulture);
+            Label_Output_Damper.Content = plugin.GetGraphOutputValue($"{prefix}.DamperGain").ToString("F2", CultureInfo.InvariantCulture);
+            Label_Output_Friction.Content = plugin.GetGraphOutputValue($"{prefix}.Friction").ToString("F2", CultureInfo.InvariantCulture);
+            Label_Output_Load.Content = plugin.GetGraphOutputValue($"{prefix}.LoadForce").ToString("F2", CultureInfo.InvariantCulture);
+            Label_Output_TrimOffset.Content = plugin.GetGraphOutputValue($"{prefix}.TrimOffset").ToString("F2", CultureInfo.InvariantCulture);
+        }
 
         // X-Plane gain visualization removed - replaced by FFB Parameters from graph
         private void UpdateGainGraph()

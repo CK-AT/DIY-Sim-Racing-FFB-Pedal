@@ -1,12 +1,17 @@
 using DiyFfb.GraphTest;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace User.PluginSdkDemo.GraphEditor
 {
     public sealed class GraphPreviewEvaluator
     {
+        private IGraphResolver _resolver;
+
+        public void SetResolver(IGraphResolver resolver)
+        {
+            _resolver = resolver;
+        }
+
         public GraphEvaluationResult Evaluate(GraphDefinition graph,
             IReadOnlyDictionary<string, double> inputs,
             IReadOnlyDictionary<string, double> parameters)
@@ -17,7 +22,7 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             var runtime = GraphRuntimeConverter.Convert(graph);
-            var evaluator = new GraphCompiledEvaluator(runtime);
+            var evaluator = new GraphCompiledEvaluator(runtime, _resolver);
             return evaluator.EvaluateWithTrace(inputs, parameters);
         }
     }

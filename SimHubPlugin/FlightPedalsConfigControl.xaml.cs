@@ -712,6 +712,23 @@ namespace User.PluginSdkDemo
 
             lastIasKts = iasKts;
             // X-Plane UI controls removed - telemetry still tracked for backend use
+
+            UpdateFfbOutputs();
+        }
+
+        private void UpdateFfbOutputs()
+        {
+            if (plugin == null)
+            {
+                return;
+            }
+
+            const string prefix = "FlightPedals";
+            Label_Output_Spring.Content = plugin.GetGraphOutputValue($"{prefix}.SpringGain").ToString("F2", CultureInfo.InvariantCulture);
+            Label_Output_Damper.Content = plugin.GetGraphOutputValue($"{prefix}.DamperGain").ToString("F2", CultureInfo.InvariantCulture);
+            Label_Output_Friction.Content = plugin.GetGraphOutputValue($"{prefix}.Friction").ToString("F2", CultureInfo.InvariantCulture);
+            Label_Output_Load.Content = plugin.GetGraphOutputValue($"{prefix}.LoadForce").ToString("F2", CultureInfo.InvariantCulture);
+            Label_Output_TrimOffset.Content = plugin.GetGraphOutputValue($"{prefix}.TrimOffset").ToString("F2", CultureInfo.InvariantCulture);
         }
 
         private void UpdateGainGraph()
