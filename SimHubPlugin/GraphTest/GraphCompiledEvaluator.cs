@@ -294,21 +294,77 @@ namespace DiyFfb.GraphTest
             }
 
             GraphCompiledEvaluator evaluator = _includeCache[key];
+
+            // Build mapping from short names (InputMap keys) to full names (subGraph Input node names)
+            // This handles the case where Include ports use SignalSuffix but runtime uses full names
+            var shortToFullName = BuildShortToFullNameMap(subGraph, node.Node.InputMap.Keys);
+
             var subInputs = new Dictionary<string, double>();
             foreach (var mapping in node.Node.InputMap)
             {
-                subInputs[mapping.Key] = ResolveById(mapping.Value);
+                // Try to find the full name for this short name, otherwise use the key as-is
+                string inputName = shortToFullName.TryGetValue(mapping.Key, out var fullName) ? fullName : mapping.Key;
+                subInputs[inputName] = ResolveById(mapping.Value);
             }
 
             var outputs = evaluator.Evaluate(subInputs, parameters);
+
+            // Similarly map output names
+            var shortToFullOutput = BuildShortToFullNameMap(subGraph, node.Node.OutputMap.Keys, NodeType.Output);
+
             foreach (var mapping in node.Node.OutputMap)
             {
-                if (outputs.TryGetValue(mapping.Key, out var value) &&
+                string outputName = shortToFullOutput.TryGetValue(mapping.Key, out var fullOutName) ? fullOutName : mapping.Key;
+                if (outputs.TryGetValue(outputName, out var value) &&
                     _extraIndexById.TryGetValue(mapping.Value, out var extraIndex))
                 {
                     _extraValues[extraIndex] = value;
                 }
             }
+        }
+
+        /// <summary>
+        /// Builds a mapping from short names (SignalSuffix) to full names (SignalGroup.SignalSuffix).
+        /// </summary>
+        private static Dictionary<string, string> BuildShortToFullNameMap(
+            GraphDefinition graph,
+            IEnumerable<string> shortNames,
+            NodeType targetType = NodeType.Input)
+        {
+            var result = new Dictionary<string, string>();
+            var shortNameSet = new HashSet<string>(shortNames);
+
+            foreach (var graphNode in graph.Nodes.Values)
+            {
+                if (graphNode.Type != targetType)
+                {
+                    continue;
+                }
+
+                string fullName = graphNode.Name;
+                if (string.IsNullOrEmpty(fullName))
+                {
+                    continue;
+                }
+
+                // Check if any short name matches the end of the full name
+                // e.g., "Speed.IAS" matches "XPlane.Speed.IAS"
+                foreach (var shortName in shortNameSet)
+                {
+                    if (fullName == shortName)
+                    {
+                        // Exact match (e.g., library graph)
+                        result[shortName] = fullName;
+                    }
+                    else if (fullName.EndsWith("." + shortName, StringComparison.Ordinal))
+                    {
+                        // Suffix match (e.g., "XPlane.Speed.IAS" ends with ".Speed.IAS")
+                        result[shortName] = fullName;
+                    }
+                }
+            }
+
+            return result;
         }
 
         private static Dictionary<string, string> BuildIncludeOutputMap(GraphDefinition graph)
@@ -353,6 +409,17 @@ namespace DiyFfb.GraphTest
                     if (!string.IsNullOrEmpty(node.Src))
                     {
                         Visit(node.Src);
+                    }
+                    // Include nodes have dependencies via InputMap values
+                    if (node.Type == NodeType.Include && node.InputMap != null)
+                    {
+                        foreach (var dep in node.InputMap.Values)
+                        {
+                            if (!string.IsNullOrEmpty(dep))
+                            {
+                                Visit(dep);
+                            }
+                        }
                     }
                     result.Add(node);
                 }

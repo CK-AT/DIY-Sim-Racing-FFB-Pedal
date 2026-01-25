@@ -105,6 +105,13 @@ Status: living progress document for graph editor/runtime integration.
 - OnPortNameChanged now calls RebuildSurface for reliable visual updates after signal selection.
 - Include node ports cannot be removed (they're auto-derived from included graph); remove buttons hidden via AllowRemove binding.
 - Extended test coverage to 32 tests: added Library graph Title serialization, Library graph runtime conversion, Node SignalGroup preservation, Port SignalSuffix preservation.
+- Fixed parameter changes not affecting runtime: `SetGraphParamValue()` now updates `activeVehicleGraph.ParamValues` (Tier 2) so changes persist across per-frame `BuildGraphParams()` rebuilds.
+- Fixed include graphs not evaluated at runtime: `GraphIncludeResolver.GetGraph()` tries runtime format first, then editor format via delegate. Plugin sets `EditorFormatConverter` delegate to avoid type conflicts between GraphTest local types and DiyFfbPlugin.dll types.
+- Fixed include input name mismatch: `ExtractInterface()` returns SignalSuffix (short names) for UI display; `GraphCompiledEvaluator.BuildShortToFullNameMap()` maps short names to full runtime names during evaluation.
+- Fixed Include node ports empty at runtime: Added `GraphSerializer.PopulateIncludePorts()` helper, called after Deserialize and before runtime conversion (v3 schema doesn't serialize Include ports).
+- Fixed editor-format detection: `GraphIncludeResolver.GetGraph()` now checks `hasValidNodes` (Input/Param/Output nodes must have non-empty Name) instead of just `Nodes.Count > 0`, ensuring EditorFormatConverter is called for partially-parsed editor JSON.
+- Extended test coverage to 33 tests: added editor-format include evaluation test with JSON round-trip type bridging.
+- Fixed include inputs receiving zero: `TopoSort` now visits `InputMap.Values` for Include nodes, ensuring input source nodes are evaluated before the Include node.
 
 ## In Progress
 

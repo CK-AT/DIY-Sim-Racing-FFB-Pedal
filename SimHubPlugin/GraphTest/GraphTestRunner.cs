@@ -56,6 +56,9 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Node serialization preserves SignalGroup", TestNodeSignalGroupPreservation));
             results.Add(TestRunner.RunTest("Port serialization preserves SignalSuffix", TestPortSignalSuffixPreservation));
 
+            // Editor format include tests
+            results.Add(TestRunner.RunTest("Editor format include evaluation", TestEditorFormatIncludeEvaluation));
+
             TestRunner.PrintResults("FFB Graph Tests", results);
         }
 
@@ -611,6 +614,7 @@ namespace DiyFfb.GraphTest
 
             var iface = GraphSerializer.ExtractInterface(graph);
 
+            // Short names (SignalSuffix) for UI display; runtime matching handled in evaluator
             return iface.IsValid &&
                    iface.Inputs.Count == 2 &&
                    iface.Inputs.Contains("Speed.IAS") &&
@@ -944,6 +948,202 @@ namespace DiyFfb.GraphTest
 
             return port1 != null && port1.SignalSuffix == "IAS_kts" &&
                    port2 != null && port2.SignalSuffix == "Alpha_deg";
+        }
+
+        private static bool TestEditorFormatIncludeEvaluation()
+        {
+            // Create a non-library included graph with SignalGroup/SignalSuffix
+            // IMPORTANT: For signal-bound ports, Name must equal SignalSuffix because
+            // after serialization round-trip, port.Name is set from SignalSuffix.
+            // Links must use these same names.
+            var includeGraph = new GraphEditor.GraphDefinition();
+
+            var includeInput = new GraphEditor.GraphNode
+            {
+                Id = "in",
+                Kind = GraphEditor.GraphNodeKind.Input,
+                SignalGroup = "XPlane"
+            };
+            includeInput.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "Speed.IAS",  // Must match SignalSuffix for signal-bound ports
+                Kind = GraphEditor.GraphPortKind.Output,
+                SignalSuffix = "Speed.IAS"
+            });
+            includeGraph.Nodes.Add(includeInput);
+
+            var includeOutput = new GraphEditor.GraphNode
+            {
+                Id = "out",
+                Kind = GraphEditor.GraphNodeKind.Output,
+                SignalGroup = "FlightStickPitch"
+            };
+            includeOutput.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "SpringGain",  // Must match SignalSuffix for signal-bound ports
+                Kind = GraphEditor.GraphPortKind.Input,
+                SignalSuffix = "SpringGain"
+            });
+            includeGraph.Nodes.Add(includeOutput);
+
+            // Link input to output (pass-through)
+            // Links must use the same names as ports (which equal SignalSuffix)
+            includeGraph.Links.Add(new GraphEditor.GraphLink
+            {
+                FromNodeId = "in",
+                FromPort = "Speed.IAS",  // Use SignalSuffix value
+                ToNodeId = "out",
+                ToPort = "SpringGain"    // Use SignalSuffix value
+            });
+
+            // Write to temp file
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ffb_graph_test_include");
+            System.IO.Directory.CreateDirectory(tempDir);
+            string includePath = System.IO.Path.Combine(tempDir, "include.json");
+            string includeJson = GraphEditor.GraphSerializer.Serialize(includeGraph);
+            System.IO.File.WriteAllText(includePath, includeJson);
+
+            try
+            {
+                // Create parent graph with Include node
+                var parentGraph = new GraphEditor.GraphDefinition();
+
+                var parentInput = new GraphEditor.GraphNode
+                {
+                    Id = "src",
+                    Kind = GraphEditor.GraphNodeKind.Input,
+                    SignalGroup = "XPlane"
+                };
+                parentInput.Ports.Add(new GraphEditor.GraphPort
+                {
+                    Name = "Speed.IAS",  // Must match SignalSuffix
+                    Kind = GraphEditor.GraphPortKind.Output,
+                    SignalSuffix = "Speed.IAS"
+                });
+                parentGraph.Nodes.Add(parentInput);
+
+                var includeNode = new GraphEditor.GraphNode
+                {
+                    Id = "inc",
+                    Kind = GraphEditor.GraphNodeKind.Include,
+                    IncludePath = "include.json"
+                };
+                parentGraph.Nodes.Add(includeNode);
+
+                // Populate include ports (simulating what the plugin does)
+                // ExtractInterface now returns short names (SignalSuffix) for UI display
+                GraphEditor.GraphSerializer.PopulateIncludePorts(parentGraph, tempDir);
+
+                var incNode = parentGraph.Nodes.First(n => n.Kind == GraphEditor.GraphNodeKind.Include);
+                if (incNode.Ports.Count == 0)
+                {
+                    return false;
+                }
+
+                // Include ports should have short names (SignalSuffix)
+                // e.g., "Speed.IAS" not "XPlane.Speed.IAS"
+                string includeInputPortName = incNode.Ports.FirstOrDefault(p => p.Kind == GraphEditor.GraphPortKind.Input)?.Name;
+                string includeOutputPortName = incNode.Ports.FirstOrDefault(p => p.Kind == GraphEditor.GraphPortKind.Output)?.Name;
+
+                if (string.IsNullOrEmpty(includeInputPortName) || string.IsNullOrEmpty(includeOutputPortName))
+                {
+                    return false;
+                }
+
+                // Add link from parent input to include input
+                // FromPort must match the parent Input's port.Name (which equals SignalSuffix)
+                parentGraph.Links.Add(new GraphEditor.GraphLink
+                {
+                    FromNodeId = "src",
+                    FromPort = "Speed.IAS",  // Match port.Name (= SignalSuffix)
+                    ToNodeId = "inc",
+                    ToPort = includeInputPortName  // Short name from ExtractInterface
+                });
+
+                // Add output node
+                var parentOutput = new GraphEditor.GraphNode
+                {
+                    Id = "result",
+                    Kind = GraphEditor.GraphNodeKind.Output,
+                    SignalGroup = "FlightStickPitch"
+                };
+                parentOutput.Ports.Add(new GraphEditor.GraphPort
+                {
+                    Name = "SpringGain",  // Must match SignalSuffix
+                    Kind = GraphEditor.GraphPortKind.Input,
+                    SignalSuffix = "SpringGain"
+                });
+                parentGraph.Nodes.Add(parentOutput);
+
+                // Link include output to parent output
+                // ToPort must match parent Output's port.Name (which equals SignalSuffix)
+                parentGraph.Links.Add(new GraphEditor.GraphLink
+                {
+                    FromNodeId = "inc",
+                    FromPort = includeOutputPortName,  // Short name from ExtractInterface
+                    ToNodeId = "result",
+                    ToPort = "SpringGain"  // Match port.Name (= SignalSuffix)
+                });
+
+                // Convert parent to runtime and bridge DLL type to local type
+                var parentRuntimeDll = GraphEditor.GraphRuntimeConverter.Convert(parentGraph);
+                string parentRuntimeJson = Newtonsoft.Json.JsonConvert.SerializeObject(parentRuntimeDll);
+                var parentRuntime = Newtonsoft.Json.JsonConvert.DeserializeObject<GraphDefinition>(parentRuntimeJson);
+
+                // Set up resolver with converter delegate
+                // Use JSON round-trip to convert from DLL types to local types
+                // (DLL GraphDefinition and local GraphDefinition are structurally identical)
+                var resolver = new GraphIncludeResolver(tempDir)
+                {
+                    EditorFormatConverter = json =>
+                    {
+                        var g = GraphEditor.GraphSerializer.Deserialize(json, out var validation);
+                        if (g == null)
+                        {
+                            return null;
+                        }
+
+                        // Convert editor graph to runtime format (returns DLL GraphDefinition type)
+                        var dllRuntime = GraphEditor.GraphRuntimeConverter.Convert(g);
+
+                        // Bridge DLL type to local type via Newtonsoft.Json round-trip
+                        // This works because both types have identical structure
+                        string runtimeJson = Newtonsoft.Json.JsonConvert.SerializeObject(dllRuntime);
+                        return Newtonsoft.Json.JsonConvert.DeserializeObject<GraphDefinition>(runtimeJson);
+                    }
+                };
+
+                // Create evaluator
+                var evaluator = new GraphCompiledEvaluator(parentRuntime, resolver);
+
+                // Evaluate with input value
+                // The parent input name is the full signal name
+                string parentInputName = "XPlane.Speed.IAS";
+                var inputs = new Dictionary<string, double> { [parentInputName] = 42.0 };
+                var outputs = evaluator.Evaluate(inputs, new Dictionary<string, double>());
+
+                // The output should have the value passed through
+                // The evaluator's BuildShortToFullNameMap should handle the name mapping
+                string parentOutputName = "FlightStickPitch.SpringGain";
+
+                if (!outputs.TryGetValue(parentOutputName, out var outputValue))
+                {
+                    return false;
+                }
+
+                if (Math.Abs(outputValue - 42.0) >= 0.0001)
+                {
+                    return false;
+                }
+
+                return true;
+            }
+            finally
+            {
+                // Cleanup
+                try { System.IO.File.Delete(includePath); } catch { }
+                try { System.IO.Directory.Delete(tempDir, true); } catch { }
+            }
         }
 
     }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace DiyFfb.GraphTest
 {
@@ -47,11 +48,49 @@ namespace DiyFfb.GraphTest
             }
 
             string json = File.ReadAllText(resolved);
-            var graph = _loader.LoadFromJson(json, out _);
-            _cache[resolved] = graph;
-            _library[resolved] = graph;
-            RegisterBlock(resolved, graph);
+            GraphDefinition graph = null;
+
+            // Try runtime format first
+            try
+            {
+                graph = _loader.LoadFromJson(json, out _);
+            }
+            catch
+            {
+                // Ignore - might be editor format
+            }
+
+            // Check if the loaded graph has valid nodes (not just non-empty count)
+            // Runtime format should have nodes with non-empty Name for Input/Param/Output types
+            bool hasValidNodes = graph != null && graph.Nodes.Count > 0 &&
+                graph.Nodes.Values.Any(n =>
+                    (n.Type != NodeType.Input && n.Type != NodeType.Param && n.Type != NodeType.Output) ||
+                    !string.IsNullOrEmpty(n.Name));
+
+            // If runtime format failed or has invalid nodes, try editor format conversion
+            if (!hasValidNodes)
+            {
+                graph = TryLoadEditorFormat(json, resolved);
+            }
+
+            if (graph != null)
+            {
+                _cache[resolved] = graph;
+                _library[resolved] = graph;
+                RegisterBlock(resolved, graph);
+            }
             return graph;
+        }
+
+        /// <summary>
+        /// Delegate for converting editor-format JSON to runtime format.
+        /// Set by the plugin to enable editor format support.
+        /// </summary>
+        public Func<string, GraphDefinition> EditorFormatConverter { get; set; }
+
+        private GraphDefinition TryLoadEditorFormat(string json, string resolvedPath)
+        {
+            return EditorFormatConverter?.Invoke(json);
         }
 
         public GraphDefinition ResolveInclude(GraphNode includeNode)

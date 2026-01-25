@@ -2135,9 +2135,16 @@ namespace User.PluginSdkDemo
 
                 if (activeVehicleGraph != null && activeGraphValidation != null && activeGraphValidation.IsValid)
                 {
-                    activeGraphRuntime = GraphRuntimeConverter.Convert(activeVehicleGraph);
                     string baseDir = Path.GetDirectoryName(resolvedPath) ?? AppDomain.CurrentDomain.BaseDirectory;
-                    activeGraphResolver = new DiyFfb.GraphTest.GraphIncludeResolver(baseDir);
+
+                    // Populate Include node ports from their included graphs (v3 schema doesn't serialize them)
+                    GraphSerializer.PopulateIncludePorts(activeVehicleGraph, baseDir);
+
+                    activeGraphRuntime = GraphRuntimeConverter.Convert(activeVehicleGraph);
+                    activeGraphResolver = new DiyFfb.GraphTest.GraphIncludeResolver(baseDir)
+                    {
+                        EditorFormatConverter = ConvertEditorFormatGraph
+                    };
                     activeGraphEvaluator = new DiyFfb.GraphTest.GraphCompiledEvaluator(activeGraphRuntime, activeGraphResolver);
 
                     // Notify UI that graph has changed
@@ -2150,6 +2157,26 @@ namespace User.PluginSdkDemo
                 activeGraphValidation = new GraphValidationResult();
                 activeGraphValidation.Errors.Add($"Graph load failed: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Converts editor-format JSON to runtime format for include resolution.
+        /// </summary>
+        private DiyFfb.GraphTest.GraphDefinition ConvertEditorFormatGraph(string json)
+        {
+            // Detect editor-format JSON (has "links" or "kind" fields)
+            if (!json.Contains("\"links\"") && !json.Contains("\"kind\"") && !json.Contains("\"Kind\""))
+            {
+                return null;
+            }
+
+            var editorGraph = GraphSerializer.Deserialize(json, out var validation);
+            if (editorGraph != null && validation != null && validation.IsValid)
+            {
+                return GraphRuntimeConverter.Convert(editorGraph);
+            }
+
+            return null;
         }
 
         private void EvaluateActiveGraph(GameData data)
@@ -2645,10 +2672,20 @@ namespace User.PluginSdkDemo
 
         public void SetGraphParamValue(string paramName, double value)
         {
-            // Update runtime param
+            // Update runtime param (immediate effect, but gets overwritten by BuildGraphParams)
             graphParams[paramName] = value;
 
-            // Save to current aircraft profile (temporary, in-memory)
+            // Update graph's ParamValues (Tier 2) so BuildGraphParams() picks it up
+            if (activeVehicleGraph != null)
+            {
+                if (activeVehicleGraph.ParamValues == null)
+                {
+                    activeVehicleGraph.ParamValues = new Dictionary<string, double>();
+                }
+                activeVehicleGraph.ParamValues[paramName] = value;
+            }
+
+            // Save to current aircraft profile (Tier 3, persists across sessions)
             var profile = GetCurrentAircraftProfile();
             if (profile != null)
             {

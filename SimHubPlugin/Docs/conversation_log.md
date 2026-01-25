@@ -1,5 +1,121 @@
 # Conversation Log
 
+## 2026-01-25: Fix Include Node Input Evaluation Order
+
+### Summary
+
+Fixed include node inputs receiving zero values due to incorrect topological sort.
+
+### Root Cause
+
+`TopoSort` visits `node.Args` and `node.Src` for dependencies, but Include nodes use `InputMap.Values` for their input dependencies. The Include node's input sources weren't being visited before the Include node was evaluated.
+
+### Fix
+
+Added InputMap.Values traversal to TopoSort for Include nodes, ensuring input source nodes are evaluated before the Include node.
+
+### Commit Highlights
+
+- Fix TopoSort to visit Include InputMap dependencies
+
+---
+
+## 2026-01-25: Fix Editor-Format Include Graph Detection
+
+### Summary
+
+Fixed include graphs not being properly detected as editor-format JSON, causing zero outputs at runtime.
+
+### Root Cause
+
+`GraphIncludeResolver.GetGraph()` checked `graph.Nodes.Count == 0` to trigger editor-format conversion. However, `GraphLoader.LoadFromJson()` partially parsed editor-format JSON, creating 2 nodes with wrong Type (default=Input) and empty Name. The count check passed, so EditorFormatConverter was never called.
+
+### Fix
+
+Changed detection to check for valid nodes: Input/Param/Output nodes must have non-empty Name to be considered valid runtime format. Added `BuildShortToFullNameMap()` in evaluator to handle signal name mapping between short names (SignalSuffix) and full names (SignalGroup.SignalSuffix).
+
+### Files Changed
+
+- `GraphIncludeResolver.cs`: Added `hasValidNodes` check using LINQ Any()
+- `GraphCompiledEvaluator.cs`: Added `BuildShortToFullNameMap()` for signal name mapping
+- `GraphTestRunner.cs`: Fixed test port Name/SignalSuffix consistency, added JSON round-trip type bridging
+
+### Commit Highlights
+
+- Fix editor-format detection with hasValidNodes check
+- Add signal name mapping for include evaluation
+
+---
+
+## 2026-01-25: Fix Include Input/Output Name Mismatch
+
+### Summary
+
+Fixed include graphs receiving zero inputs due to signal name mismatch.
+
+### Root Cause
+
+`ExtractInterface()` used `SignalSuffix` (e.g., "IAS") for non-library graph port names, but `GraphRuntimeConverter.BuildFullSignalName()` produces full names (e.g., "XPlane.Speed.IAS"). The mismatch caused `subInputs["IAS"]` to not match the child Input node's `Name = "XPlane.Speed.IAS"`.
+
+### Fix
+
+Modified `ExtractInterface()` to use `BuildFullSignalName()` for non-library graphs, ensuring interface names match the runtime Input node names exactly.
+
+### Commit Highlights
+
+- Fix include input name mismatch for non-library graphs
+
+---
+
+## 2026-01-25: Fix Include Graphs Not Evaluated at Runtime
+
+### Summary
+
+Fixed include graphs always outputting zero at runtime.
+
+### Root Cause
+
+`GraphIncludeResolver.GetGraph()` used `GraphLoader` which expects runtime-format JSON (with `Type`, `Args`, `Src`), but included graphs are saved by the editor in editor-format JSON (with `Kind`, `Ports`, `Links`). The format mismatch caused deserialization to fail silently.
+
+### Fix
+
+Modified `GraphIncludeResolver.GetGraph()` to detect the JSON format:
+
+- If editor format (contains "links" or "kind"): use `GraphSerializer.Deserialize()` + `GraphRuntimeConverter.Convert()`
+- If runtime format: use `GraphLoader.LoadFromJson()` as before
+
+### Commit Highlights
+
+- Detect and convert editor-format includes in resolver
+
+---
+
+## 2026-01-25: Fix Parameter Changes Not Affecting Runtime Evaluation
+
+### Summary
+
+Fixed bug where parameter changes in the graph editor only affected preview but not runtime evaluation.
+
+### Root Cause
+
+`BuildGraphParams()` is called every evaluation frame and rebuilds `graphParams` from scratch using a 3-tier system:
+
+- Tier 1: Include/graph defaults
+- Tier 2: `activeVehicleGraph.ParamValues`
+- Tier 3: Vehicle profile `GraphParamValues`
+
+`SetGraphParamValue()` updated Tier 3 (profile) but not Tier 2. When no vehicle profile existed (e.g., no aircraft loaded), the Tier 3 save silently failed, and the next frame's `BuildGraphParams()` overwrote the change with defaults.
+
+### Fix
+
+Modified `SetGraphParamValue()` to also update `activeVehicleGraph.ParamValues` (Tier 2), ensuring parameter changes persist across the per-frame `BuildGraphParams()` rebuild regardless of profile availability.
+
+### Commit Highlights
+
+- Fix param changes overwritten by per-frame BuildGraphParams
+
+---
+
 ## 2026-01-25: Add FFB Outputs Panel to Function Tabs
 
 ### Summary

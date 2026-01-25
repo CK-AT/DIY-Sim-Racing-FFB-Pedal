@@ -186,7 +186,8 @@ namespace User.PluginSdkDemo.GraphEditor
                     // Each output port on an Input node is an interface input
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
                     {
-                        // Library graphs use Name; top-level graphs use SignalSuffix
+                        // Use SignalSuffix for UI display (shorter names)
+                        // Runtime name matching is handled in the evaluator
                         string name = graph.IsLibraryGraph
                             ? port.Name
                             : (!string.IsNullOrEmpty(port.SignalSuffix) ? port.SignalSuffix : port.Name);
@@ -201,7 +202,8 @@ namespace User.PluginSdkDemo.GraphEditor
                     // Each input port on an Output node is an interface output
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
                     {
-                        // Library graphs use Name; top-level graphs use SignalSuffix
+                        // Use SignalSuffix for UI display (shorter names)
+                        // Runtime name matching is handled in the evaluator
                         string name = graph.IsLibraryGraph
                             ? port.Name
                             : (!string.IsNullOrEmpty(port.SignalSuffix) ? port.SignalSuffix : port.Name);
@@ -260,6 +262,63 @@ namespace User.PluginSdkDemo.GraphEditor
                 result.Error = $"Load failed: {ex.Message}";
                 return result;
             }
+        }
+
+        /// <summary>
+        /// Populates Include node ports from their included graphs.
+        /// Call this after Deserialize and before runtime conversion.
+        /// </summary>
+        public static void PopulateIncludePorts(GraphDefinition graph, string baseDirectory)
+        {
+            if (graph == null)
+            {
+                return;
+            }
+
+            foreach (var node in graph.Nodes)
+            {
+                if (node.Kind != GraphNodeKind.Include || string.IsNullOrWhiteSpace(node.IncludePath))
+                {
+                    continue;
+                }
+
+                // Skip if ports are already populated
+                if (node.Ports.Count > 0)
+                {
+                    continue;
+                }
+
+                var iface = ExtractInterfaceFromPath(node.IncludePath, baseDirectory);
+                if (!iface.IsValid)
+                {
+                    continue;
+                }
+
+                // Add input ports
+                foreach (var inputName in iface.Inputs)
+                {
+                    node.Ports.Add(new GraphPort { Name = inputName, Kind = GraphPortKind.Input });
+                }
+
+                // Add output ports
+                foreach (var outputName in iface.Outputs)
+                {
+                    node.Ports.Add(new GraphPort { Name = outputName, Kind = GraphPortKind.Output });
+                }
+            }
+        }
+
+        /// <summary>
+        /// Builds full signal name from group and suffix, with fallback to legacy port name.
+        /// Must match GraphRuntimeConverter.BuildFullSignalName for consistency.
+        /// </summary>
+        private static string BuildFullSignalName(string group, string suffix, string legacyName)
+        {
+            if (!string.IsNullOrEmpty(group) && !string.IsNullOrEmpty(suffix))
+            {
+                return group + "." + suffix;
+            }
+            return legacyName ?? "";
         }
     }
 
