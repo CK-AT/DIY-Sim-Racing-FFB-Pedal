@@ -120,6 +120,7 @@ Status: living progress document for graph editor/runtime integration.
 - Fixed context inputs not applied in preview: `RefreshPreview()` now normalizes `_filePath` with `Path.GetFullPath()` before cache lookup, matching how cache keys are stored.
 - Fixed tab label not showing context suffix: `UpdateTabContextLabel()` now normalizes `tab.FilePath` before cache lookup.
 - Fixed context parameters not matching sub-graph: `EvalInclude()` now builds `Parameters` from the sub-graph's Param nodes (keyed by sub-graph names), not by copying the parent's parameters dictionary.
+- Disable preview controls when context selected: Input/param lists and param node controls are disabled when previewing with parent context, since values come from the context.
 
 ## In Progress
 

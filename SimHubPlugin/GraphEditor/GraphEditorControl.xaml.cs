@@ -2179,8 +2179,38 @@ namespace User.PluginSdkDemo.GraphEditor
             if (ComboEvalContext.SelectedItem is ComboBoxItem item)
             {
                 _selectedContextId = item.Tag as string;
+                UpdateParamControlsEnabled();
                 RefreshPreview();
                 ContextChanged?.Invoke(this, _selectedContextId);
+            }
+        }
+
+        /// <summary>
+        /// Updates the enabled state of preview controls based on context selection.
+        /// When a non-standalone context is selected, input/param values come from the context
+        /// so the controls should be disabled.
+        /// </summary>
+        private void UpdateParamControlsEnabled()
+        {
+            bool enabled = _selectedContextId == null;
+
+            // Disable preview inputs and params lists
+            PreviewInputsList.IsEnabled = enabled;
+            PreviewParamsList.IsEnabled = enabled;
+
+            // Disable param controls on Param nodes in the canvas
+            foreach (var nodeVisual in _nodeVisuals.Values)
+            {
+                if (nodeVisual.Node.Kind != GraphNodeKind.Param)
+                    continue;
+
+                foreach (var child in nodeVisual.InnerCanvas.Children)
+                {
+                    if (child is FrameworkElement element && element.Tag is ParamControlTag)
+                    {
+                        element.IsEnabled = enabled;
+                    }
+                }
             }
         }
 
