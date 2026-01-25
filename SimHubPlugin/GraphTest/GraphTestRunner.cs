@@ -65,6 +65,9 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Node serialization preserves SignalGroup", TestNodeSignalGroupPreservation));
             results.Add(TestRunner.RunTest("Port serialization preserves SignalSuffix", TestPortSignalSuffixPreservation));
 
+            // Param conversion tests
+            results.Add(TestRunner.RunTest("Param ConstValue from graph.Params", TestParamConstValueFromGraphParams));
+
             // Editor format include tests
             results.Add(TestRunner.RunTest("Editor format include evaluation", TestEditorFormatIncludeEvaluation));
 
@@ -1599,6 +1602,76 @@ namespace DiyFfb.GraphTest
 
             return port1 != null && port1.SignalSuffix == "IAS_kts" &&
                    port2 != null && port2.SignalSuffix == "Alpha_deg";
+        }
+
+        private static bool TestParamConstValueFromGraphParams()
+        {
+            // Test that Param nodes get their ConstValue from graph.Params during conversion
+            // This ensures Param default values are available for Include sub-graphs in preview
+            var graph = new GraphEditor.GraphDefinition();
+
+            // Param node with SignalGroup/SignalSuffix
+            var paramNode = new GraphEditor.GraphNode
+            {
+                Id = "param",
+                Kind = GraphEditor.GraphNodeKind.Param,
+                SignalGroup = "FlightStickPitch"
+            };
+            paramNode.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "SpringGain",
+                Kind = GraphEditor.GraphPortKind.Output,
+                SignalSuffix = "SpringGain"
+            });
+            graph.Nodes.Add(paramNode);
+
+            // Set the default value in graph.Params (keyed by full signal name)
+            graph.Params["FlightStickPitch.SpringGain"] = new GraphEditor.GraphParam
+            {
+                Name = "FlightStickPitch.SpringGain",
+                DefaultValue = 0.75,
+                Min = 0.0,
+                Max = 1.0
+            };
+
+            // Output node to consume the param
+            var outputNode = new GraphEditor.GraphNode
+            {
+                Id = "out",
+                Kind = GraphEditor.GraphNodeKind.Output,
+                SignalGroup = "FlightStickPitch"
+            };
+            outputNode.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "SpringGain",
+                Kind = GraphEditor.GraphPortKind.Input,
+                SignalSuffix = "SpringGain"
+            });
+            graph.Nodes.Add(outputNode);
+
+            // Link param to output
+            graph.Links.Add(new GraphEditor.GraphLink
+            {
+                FromNodeId = "param",
+                FromPort = "SpringGain",
+                ToNodeId = "out",
+                ToPort = "SpringGain"
+            });
+
+            // Convert to runtime
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+
+            // Find the Param node in runtime and check ConstValue
+            var runtimeParam = runtime.Nodes.Values.FirstOrDefault(n =>
+                n.Type.ToString() == "Param" && n.Name == "FlightStickPitch.SpringGain");
+
+            if (runtimeParam == null)
+            {
+                return false;
+            }
+
+            // The ConstValue should be 0.75 (from graph.Params)
+            return Math.Abs(runtimeParam.ConstValue - 0.75) < 1e-6;
         }
 
         private static bool TestEditorFormatIncludeEvaluation()

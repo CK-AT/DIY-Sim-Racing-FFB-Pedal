@@ -127,11 +127,18 @@ namespace User.PluginSdkDemo.GraphEditor
                     {
                         // Build full signal name from SignalGroup + SignalSuffix
                         string signalName = BuildFullSignalName(node.SignalGroup, port.SignalSuffix, port.Name);
+                        // For Param nodes, get default value from graph-level Params dictionary
+                        double constValue = 0.0;
+                        if (node.Kind == GraphNodeKind.Param && graph.Params.TryGetValue(signalName, out var paramMeta))
+                        {
+                            constValue = paramMeta.DefaultValue;
+                        }
                         var inputNode = new DiyFfb.GraphTest.GraphNode
                         {
                             Id = BuildPortId(node.Id, port.Name),
                             Name = signalName,
-                            Type = node.Kind == GraphNodeKind.Input ? NodeType.Input : NodeType.Param
+                            Type = node.Kind == GraphNodeKind.Input ? NodeType.Input : NodeType.Param,
+                            ConstValue = constValue
                         };
                         runtime.Nodes[inputNode.Id] = inputNode;
                     }

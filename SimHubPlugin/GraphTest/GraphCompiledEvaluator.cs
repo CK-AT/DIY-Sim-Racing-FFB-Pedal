@@ -352,22 +352,25 @@ namespace DiyFfb.GraphTest
                 subInputs[inputName] = ResolveById(mapping.Value);
             }
 
+            // Build parameters from sub-graph's perspective (keyed by sub-graph's Param node names)
+            // Use sub-graph's Param node default (ConstValue) if not overridden by parent
+            var subParams = new Dictionary<string, double>();
+            foreach (var subNode in subGraph.Nodes.Values)
+            {
+                if (subNode.Type == NodeType.Param && !string.IsNullOrEmpty(subNode.Name))
+                {
+                    // Use parent's override if available, otherwise use sub-graph's default value
+                    double value = parameters != null && parameters.TryGetValue(subNode.Name, out var pVal)
+                        ? pVal
+                        : subNode.ConstValue;
+                    subParams[subNode.Name] = value;
+                }
+            }
+
             // Capture context for sub-graph preview
             if (_contextCache != null && !string.IsNullOrEmpty(key) && !key.StartsWith("inline:"))
             {
                 string resolvedPath = ResolveToAbsolutePath(node.Node.Path);
-
-                // Build parameters from sub-graph's perspective (keyed by sub-graph's Param node names)
-                var paramsCopy = new Dictionary<string, double>();
-                foreach (var subNode in subGraph.Nodes.Values)
-                {
-                    if (subNode.Type == NodeType.Param && !string.IsNullOrEmpty(subNode.Name))
-                    {
-                        // Use the value from parent's parameters if available, otherwise 0.0
-                        double value = parameters != null && parameters.TryGetValue(subNode.Name, out var pVal) ? pVal : 0.0;
-                        paramsCopy[subNode.Name] = value;
-                    }
-                }
 
                 _contextCache.Add(resolvedPath, new IncludeCallContext
                 {
@@ -375,11 +378,11 @@ namespace DiyFfb.GraphTest
                     IncludeNodeTitle = !string.IsNullOrEmpty(node.Node.Name) ? node.Node.Name : node.Node.Id,
                     IncludePath = resolvedPath,
                     Inputs = new Dictionary<string, double>(subInputs),
-                    Parameters = paramsCopy
+                    Parameters = new Dictionary<string, double>(subParams)
                 });
             }
 
-            var outputs = evaluator.Evaluate(subInputs, parameters);
+            var outputs = evaluator.Evaluate(subInputs, subParams);
 
             // Similarly map output names
             var shortToFullOutput = BuildShortToFullNameMap(subGraph, node.Node.OutputMap.Keys, NodeType.Output);
