@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
@@ -7,7 +9,7 @@ namespace User.PluginSdkDemo.GraphEditor
 {
     public static class GraphSerializer
     {
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 4;
 
         public static string Serialize(GraphDefinition graph)
         {
@@ -161,6 +163,104 @@ namespace User.PluginSdkDemo.GraphEditor
                 Converters = { new StringEnumConverter() }
             };
         }
+
+        /// <summary>
+        /// Extracts the interface from a GraphDefinition by examining its Input/Output nodes.
+        /// Input node output ports become interface inputs; Output node input ports become interface outputs.
+        /// For library graphs, uses freeform port Names. For top-level graphs, uses SignalSuffix.
+        /// </summary>
+        public static IncludedGraphInterface ExtractInterface(GraphDefinition graph)
+        {
+            var result = new IncludedGraphInterface();
+
+            if (graph == null)
+            {
+                result.Error = "Graph is null";
+                return result;
+            }
+
+            foreach (var node in graph.Nodes)
+            {
+                if (node.Kind == GraphNodeKind.Input)
+                {
+                    // Each output port on an Input node is an interface input
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
+                    {
+                        // Library graphs use Name; top-level graphs use SignalSuffix
+                        string name = graph.IsLibraryGraph
+                            ? port.Name
+                            : (!string.IsNullOrEmpty(port.SignalSuffix) ? port.SignalSuffix : port.Name);
+                        if (!string.IsNullOrWhiteSpace(name) && !result.Inputs.Contains(name))
+                        {
+                            result.Inputs.Add(name);
+                        }
+                    }
+                }
+                else if (node.Kind == GraphNodeKind.Output)
+                {
+                    // Each input port on an Output node is an interface output
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
+                    {
+                        // Library graphs use Name; top-level graphs use SignalSuffix
+                        string name = graph.IsLibraryGraph
+                            ? port.Name
+                            : (!string.IsNullOrEmpty(port.SignalSuffix) ? port.SignalSuffix : port.Name);
+                        if (!string.IsNullOrWhiteSpace(name) && !result.Outputs.Contains(name))
+                        {
+                            result.Outputs.Add(name);
+                        }
+                    }
+                }
+            }
+
+            result.IsValid = true;
+            return result;
+        }
+
+        /// <summary>
+        /// Loads a graph from a file path and extracts its interface.
+        /// </summary>
+        public static IncludedGraphInterface ExtractInterfaceFromPath(string path, string baseDirectory)
+        {
+            var result = new IncludedGraphInterface();
+
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                result.Error = "Path is empty";
+                return result;
+            }
+
+            // Normalize path separators (forward slashes to backslashes on Windows)
+            string resolved = path.Replace('/', Path.DirectorySeparatorChar);
+            if (!Path.IsPathRooted(resolved) && !string.IsNullOrWhiteSpace(baseDirectory))
+            {
+                resolved = Path.Combine(baseDirectory, resolved);
+            }
+
+            if (!File.Exists(resolved))
+            {
+                result.Error = $"File not found: {resolved}";
+                return result;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(resolved);
+                var graph = Deserialize(json, out var validation);
+                if (!validation.IsValid)
+                {
+                    result.Error = $"Invalid graph: {string.Join("; ", validation.Errors)}";
+                    return result;
+                }
+
+                return ExtractInterface(graph);
+            }
+            catch (Exception ex)
+            {
+                result.Error = $"Load failed: {ex.Message}";
+                return result;
+            }
+        }
     }
 
     public sealed class GraphValidationResult
@@ -214,20 +314,24 @@ namespace User.PluginSdkDemo.GraphEditor
     internal sealed class GraphDefinitionDto
     {
         public int Version { get; set; } = 1;
+        public bool IsLibraryGraph { get; set; }
         public List<GraphNodeDto> Nodes { get; set; } = new List<GraphNodeDto>();
         public List<GraphLinkDto> Links { get; set; } = new List<GraphLinkDto>();
         public List<GraphParamDto> Params { get; set; } = new List<GraphParamDto>();
         public Dictionary<string, double> ParamValues { get; set; }
 
+        public bool ShouldSerializeIsLibraryGraph() => IsLibraryGraph;
+
         public static GraphDefinitionDto FromModel(GraphDefinition graph)
         {
             var dto = new GraphDefinitionDto
             {
-                Version = graph.Version
+                Version = graph.Version,
+                IsLibraryGraph = graph.IsLibraryGraph
             };
             foreach (var node in graph.Nodes)
             {
-                dto.Nodes.Add(GraphNodeDto.FromModel(node));
+                dto.Nodes.Add(GraphNodeDto.FromModel(node, graph.IsLibraryGraph));
             }
             foreach (var link in graph.Links)
             {
@@ -248,13 +352,14 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             var graph = new GraphDefinition
             {
-                Version = Version
+                Version = Version,
+                IsLibraryGraph = IsLibraryGraph
             };
             if (Nodes != null)
             {
                 foreach (var node in Nodes)
                 {
-                    graph.Nodes.Add(node.ToModel());
+                    graph.Nodes.Add(node.ToModel(IsLibraryGraph));
                 }
             }
             if (Links != null)
@@ -296,17 +401,25 @@ namespace User.PluginSdkDemo.GraphEditor
         public double ConstValue { get; set; }
         public string SignalGroup { get; set; } = "";
 
+        // Track whether this node uses signal binding (for ShouldSerialize methods)
+        // Not serialized; set during FromModel based on graph context
+        [JsonIgnore]
+        internal bool UsesSignalBinding { get; set; }
+
         // Conditional serialization: only include kind-specific fields when relevant
+        // v4: Library graph Input/Output/Param nodes need Title serialized (freeform names)
         public bool ShouldSerializeTitle() =>
-            Kind != GraphNodeKind.Input && Kind != GraphNodeKind.Output && Kind != GraphNodeKind.Param;
+            (Kind != GraphNodeKind.Input && Kind != GraphNodeKind.Output && Kind != GraphNodeKind.Param) || !UsesSignalBinding;
         public bool ShouldSerializeOp() => Kind == GraphNodeKind.Op;
         public bool ShouldSerializeFunc() => Kind == GraphNodeKind.Func;
         public bool ShouldSerializeIncludePath() => Kind == GraphNodeKind.Include || Kind == GraphNodeKind.Func;
         public bool ShouldSerializeConstValue() => Kind == GraphNodeKind.Const;
-        public bool ShouldSerializeSignalGroup() =>
-            Kind == GraphNodeKind.Input || Kind == GraphNodeKind.Output || Kind == GraphNodeKind.Param;
+        // v4: SignalGroup only for signal-bound nodes (top-level graphs, not library graphs)
+        public bool ShouldSerializeSignalGroup() => UsesSignalBinding;
+        // v3: Include node ports are auto-derived from included graph, so don't serialize them
+        public bool ShouldSerializePorts() => Kind != GraphNodeKind.Include && Ports != null && Ports.Count > 0;
 
-        public static GraphNodeDto FromModel(GraphNode node)
+        public static GraphNodeDto FromModel(GraphNode node, bool isLibraryGraph)
         {
             var dto = new GraphNodeDto
             {
@@ -316,13 +429,24 @@ namespace User.PluginSdkDemo.GraphEditor
                 Y = node.Y
             };
 
-            // Only populate fields appropriate for this Kind (normalization)
-            bool isSignalNode = node.Kind == GraphNodeKind.Input ||
-                                node.Kind == GraphNodeKind.Output ||
-                                node.Kind == GraphNodeKind.Param;
-            if (isSignalNode)
+            // In library graphs, Input/Output nodes use freeform Names (not SignalGroup/SignalSuffix)
+            // In top-level graphs, Input/Output/Param nodes bind to signal catalog
+            bool isSignalNodeKind = node.Kind == GraphNodeKind.Input ||
+                                    node.Kind == GraphNodeKind.Output ||
+                                    node.Kind == GraphNodeKind.Param;
+            // Library graphs: Input/Output use freeform; Param still uses signal binding
+            bool usesSignalBinding = isSignalNodeKind &&
+                                     (!isLibraryGraph || node.Kind == GraphNodeKind.Param);
+            dto.UsesSignalBinding = usesSignalBinding;
+
+            if (usesSignalBinding)
             {
                 dto.SignalGroup = node.SignalGroup;
+            }
+            else if (isSignalNodeKind)
+            {
+                // Library graph Input/Output: use Title for node label (optional)
+                dto.Title = node.Title;
             }
             else
             {
@@ -340,14 +464,18 @@ namespace User.PluginSdkDemo.GraphEditor
                     dto.ConstValue = node.ConstValue;
             }
 
-            foreach (var port in node.Ports)
+            // v3: Skip ports for Include nodes (they're derived from the included graph)
+            if (node.Kind != GraphNodeKind.Include)
             {
-                dto.Ports.Add(GraphPortDto.FromModel(port, isSignalNode));
+                foreach (var port in node.Ports)
+                {
+                    dto.Ports.Add(GraphPortDto.FromModel(port, usesSignalBinding));
+                }
             }
             return dto;
         }
 
-        public GraphNode ToModel()
+        public GraphNode ToModel(bool isLibraryGraph)
         {
             var node = new GraphNode
             {
@@ -357,13 +485,21 @@ namespace User.PluginSdkDemo.GraphEditor
                 Y = Y
             };
 
-            // Only populate fields appropriate for this Kind (normalization)
-            bool isSignalNode = Kind == GraphNodeKind.Input ||
-                                Kind == GraphNodeKind.Output ||
-                                Kind == GraphNodeKind.Param;
-            if (isSignalNode)
+            // In library graphs, Input/Output nodes use freeform Names
+            bool isSignalNodeKind = Kind == GraphNodeKind.Input ||
+                                    Kind == GraphNodeKind.Output ||
+                                    Kind == GraphNodeKind.Param;
+            bool usesSignalBinding = isSignalNodeKind &&
+                                     (!isLibraryGraph || Kind == GraphNodeKind.Param);
+
+            if (usesSignalBinding)
             {
                 node.SignalGroup = SignalGroup ?? "";
+            }
+            else if (isSignalNodeKind)
+            {
+                // Library graph Input/Output: Title is optional label
+                node.Title = Title ?? "";
             }
             else
             {
@@ -385,7 +521,7 @@ namespace User.PluginSdkDemo.GraphEditor
             {
                 foreach (var port in Ports)
                 {
-                    node.Ports.Add(port.ToModel(isSignalNode));
+                    node.Ports.Add(port.ToModel(usesSignalBinding));
                 }
             }
             return node;

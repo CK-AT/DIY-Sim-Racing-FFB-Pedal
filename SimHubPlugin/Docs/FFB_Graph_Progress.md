@@ -85,6 +85,26 @@ Status: living progress document for graph editor/runtime integration.
 - Hierarchical signal naming (e.g., `XPlane.Speed.IAS` instead of `XPlane.IAS_kts`).
 - Reference values moved from Input to Param nodes (Aircraft.Vref, Aircraft.Rotor.TorqueNom, Aircraft.Rotor.SpeedNom).
 - Live input provider stored at window level for correct propagation to new tabs (include navigation).
+- Include node auto-surface ports: ports extracted from included graph's Input/Output nodes on path set.
+- Schema v3: Include node ports not serialized (derived from included graph at load time).
+- Include inspector shows read-only port lists with Refresh button; removed manual Add Input/Output buttons.
+- GraphSerializer.ExtractInterface() and ExtractInterfaceFromPath() for interface extraction.
+- Three new tests: ExtractInterface, v3 Include ports not serialized, v2 Include ports migration.
+- Schema v4: IsLibraryGraph flag for reusable library blocks.
+- Library graphs: Input/Output nodes use freeform port names (no signal catalog binding).
+- Library Graph checkbox in inspector toggles between library and top-level graph modes.
+- Interface extraction uses freeform Names for library graphs, SignalSuffix for top-level graphs.
+- Two new tests: Library graph interface extraction, library graph serialization.
+- Fixed ShouldSerializeTitle() bug: library graph Input/Output/Param nodes now preserve custom titles through serialization.
+- Debounce timer (300ms) for include path text changes prevents excessive file I/O while typing.
+- DuplicateNode() now correctly copies SignalGroup and port SignalSuffix.
+- Dirty indicator (orange bullet "•") in inspector header shows unsaved changes; ClearDirty() method for reset.
+- Path separator normalization for include paths (forward slashes → backslashes on Windows).
+- Fixed BaseDirectory timing: now set before Graph assignment so SyncIncludePorts resolves relative paths correctly.
+- Fixed AddPort/RemovePort: restore _selectedNode after RebuildSurface so signal selection updates visuals immediately.
+- OnPortNameChanged now calls RebuildSurface for reliable visual updates after signal selection.
+- Include node ports cannot be removed (they're auto-derived from included graph); remove buttons hidden via AllowRemove binding.
+- Extended test coverage to 32 tests: added Library graph Title serialization, Library graph runtime conversion, Node SignalGroup preservation, Port SignalSuffix preservation.
 
 ## In Progress
 

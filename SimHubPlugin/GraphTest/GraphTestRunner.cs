@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using User.PluginSdkDemo;
 using User.PluginSdkDemo.GraphEditor;
+using GraphEditor = User.PluginSdkDemo.GraphEditor;
 using SimHubPlugin.TestCommon;
 
 namespace DiyFfb.GraphTest
@@ -38,6 +40,21 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Param resolution: graph override", TestParamResolutionGraphOverride));
             results.Add(TestRunner.RunTest("Param resolution: vehicle override", TestParamResolutionVehicleOverride));
             results.Add(TestRunner.RunTest("Param resolution: three-tier cascade", TestParamResolutionThreeTierCascade));
+
+            // v3 Include node tests
+            results.Add(TestRunner.RunTest("ExtractInterface from graph", TestExtractInterfaceFromGraph));
+            results.Add(TestRunner.RunTest("v3 Include ports not serialized", TestV3IncludePortsNotSerialized));
+            results.Add(TestRunner.RunTest("v2 Include ports migration", TestV2IncludePortsMigration));
+
+            // v4 Library graph tests
+            results.Add(TestRunner.RunTest("Library graph interface extraction", TestLibraryGraphInterfaceExtraction));
+            results.Add(TestRunner.RunTest("Library graph serialization", TestLibraryGraphSerialization));
+            results.Add(TestRunner.RunTest("Library graph Title serialization", TestLibraryGraphTitleSerialization));
+            results.Add(TestRunner.RunTest("Library graph runtime conversion", TestLibraryGraphRuntimeConversion));
+
+            // Node duplication tests
+            results.Add(TestRunner.RunTest("Node serialization preserves SignalGroup", TestNodeSignalGroupPreservation));
+            results.Add(TestRunner.RunTest("Port serialization preserves SignalSuffix", TestPortSignalSuffixPreservation));
 
             TestRunner.PrintResults("FFB Graph Tests", results);
         }
@@ -562,6 +579,371 @@ namespace DiyFfb.GraphTest
             }
 
             return value;
+        }
+
+        // v3 Include node tests
+
+        private static bool TestExtractInterfaceFromGraph()
+        {
+            // Create a graph with Input/Output nodes to extract interface from
+            var graph = new GraphEditor.GraphDefinition();
+
+            // Add Input node with two output ports
+            var inputNode = new GraphEditor.GraphNode
+            {
+                Id = "in",
+                Kind = GraphNodeKind.Input,
+                SignalGroup = "XPlane"
+            };
+            inputNode.Ports.Add(new GraphPort { Name = "ias", Kind = GraphPortKind.Output, SignalSuffix = "Speed.IAS" });
+            inputNode.Ports.Add(new GraphPort { Name = "alpha", Kind = GraphPortKind.Output, SignalSuffix = "Angle.Alpha" });
+            graph.Nodes.Add(inputNode);
+
+            // Add Output node with one input port
+            var outputNode = new GraphEditor.GraphNode
+            {
+                Id = "out",
+                Kind = GraphNodeKind.Output,
+                SignalGroup = "FlightStickPitch"
+            };
+            outputNode.Ports.Add(new GraphPort { Name = "spring", Kind = GraphPortKind.Input, SignalSuffix = "SpringGain" });
+            graph.Nodes.Add(outputNode);
+
+            var iface = GraphSerializer.ExtractInterface(graph);
+
+            return iface.IsValid &&
+                   iface.Inputs.Count == 2 &&
+                   iface.Inputs.Contains("Speed.IAS") &&
+                   iface.Inputs.Contains("Angle.Alpha") &&
+                   iface.Outputs.Count == 1 &&
+                   iface.Outputs.Contains("SpringGain");
+        }
+
+        private static bool TestV3IncludePortsNotSerialized()
+        {
+            // Create graph with Include node that has ports
+            var graph = new GraphEditor.GraphDefinition();
+            var includeNode = new GraphEditor.GraphNode
+            {
+                Id = "inc",
+                Kind = GraphNodeKind.Include,
+                IncludePath = "subgraph.json"
+            };
+            includeNode.Ports.Add(new GraphPort { Name = "in1", Kind = GraphPortKind.Input });
+            includeNode.Ports.Add(new GraphPort { Name = "out1", Kind = GraphPortKind.Output });
+            graph.Nodes.Add(includeNode);
+
+            // Serialize
+            string json = GraphSerializer.Serialize(graph);
+
+            // Check that Include node doesn't have Ports in JSON
+            // (ports should be omitted for Include nodes in v3)
+            return !json.Contains("\"Ports\"");
+        }
+
+        private static bool TestV2IncludePortsMigration()
+        {
+            // Simulate v2 JSON with Include node that has stored ports
+            string v2Json = @"{
+                ""Version"": 2,
+                ""Nodes"": [{
+                    ""Id"": ""inc"",
+                    ""Kind"": ""Include"",
+                    ""IncludePath"": ""test.json"",
+                    ""X"": 100,
+                    ""Y"": 200,
+                    ""Ports"": [
+                        {""Name"": ""in1"", ""Kind"": ""Input""},
+                        {""Name"": ""out1"", ""Kind"": ""Output""}
+                    ]
+                }],
+                ""Links"": [],
+                ""Params"": []
+            }";
+
+            var graph = GraphSerializer.Deserialize(v2Json, out var validation);
+
+            // v2 Include nodes should still load their ports from JSON
+            var includeNode = graph.Nodes[0];
+
+            return validation.IsValid &&
+                   includeNode.Kind == GraphNodeKind.Include &&
+                   includeNode.Ports.Count == 2 &&
+                   includeNode.Ports[0].Name == "in1" &&
+                   includeNode.Ports[1].Name == "out1";
+        }
+
+        // v4 Library graph tests
+
+        private static bool TestLibraryGraphInterfaceExtraction()
+        {
+            // Create a library graph with freeform port names
+            var graph = new GraphEditor.GraphDefinition
+            {
+                IsLibraryGraph = true
+            };
+
+            // Add Input node with freeform port names (no SignalGroup/SignalSuffix)
+            var inputNode = new GraphEditor.GraphNode
+            {
+                Id = "in",
+                Kind = GraphNodeKind.Input,
+                Title = "Inputs"
+            };
+            inputNode.Ports.Add(new GraphPort { Name = "speed", Kind = GraphPortKind.Output });
+            inputNode.Ports.Add(new GraphPort { Name = "force", Kind = GraphPortKind.Output });
+            graph.Nodes.Add(inputNode);
+
+            // Add Output node with freeform port names
+            var outputNode = new GraphEditor.GraphNode
+            {
+                Id = "out",
+                Kind = GraphNodeKind.Output,
+                Title = "Outputs"
+            };
+            outputNode.Ports.Add(new GraphPort { Name = "result", Kind = GraphPortKind.Input });
+            graph.Nodes.Add(outputNode);
+
+            var iface = GraphSerializer.ExtractInterface(graph);
+
+            // For library graphs, interface should use port Names directly
+            return iface.IsValid &&
+                   iface.Inputs.Count == 2 &&
+                   iface.Inputs.Contains("speed") &&
+                   iface.Inputs.Contains("force") &&
+                   iface.Outputs.Count == 1 &&
+                   iface.Outputs.Contains("result");
+        }
+
+        private static bool TestLibraryGraphSerialization()
+        {
+            // Create library graph
+            var graph = new GraphEditor.GraphDefinition
+            {
+                IsLibraryGraph = true
+            };
+
+            // Add Input node (library graph: no SignalGroup, uses Name)
+            var inputNode = new GraphEditor.GraphNode
+            {
+                Id = "in",
+                Kind = GraphNodeKind.Input,
+                Title = "In"
+            };
+            inputNode.Ports.Add(new GraphPort { Name = "x", Kind = GraphPortKind.Output });
+            graph.Nodes.Add(inputNode);
+
+            // Serialize and check IsLibraryGraph is persisted
+            string json = GraphSerializer.Serialize(graph);
+            if (!json.Contains("\"IsLibraryGraph\": true"))
+            {
+                return false;
+            }
+
+            // Deserialize and verify
+            var loaded = GraphSerializer.Deserialize(json, out var validation);
+
+            return validation.IsValid &&
+                   loaded.IsLibraryGraph &&
+                   loaded.Nodes[0].Ports.Count == 1 &&
+                   loaded.Nodes[0].Ports[0].Name == "x";
+        }
+
+        private static bool TestLibraryGraphTitleSerialization()
+        {
+            // BUG TEST: Library graph Input/Output nodes should preserve their Title
+            // through serialization, but ShouldSerializeTitle() incorrectly excludes them.
+            var graph = new GraphEditor.GraphDefinition
+            {
+                IsLibraryGraph = true
+            };
+
+            // Add Input node with a custom Title
+            var inputNode = new GraphEditor.GraphNode
+            {
+                Id = "in",
+                Kind = GraphEditor.GraphNodeKind.Input,
+                Title = "My Custom Input"  // This should persist
+            };
+            inputNode.Ports.Add(new GraphEditor.GraphPort { Name = "x", Kind = GraphEditor.GraphPortKind.Output });
+            graph.Nodes.Add(inputNode);
+
+            // Add Output node with a custom Title
+            var outputNode = new GraphEditor.GraphNode
+            {
+                Id = "out",
+                Kind = GraphEditor.GraphNodeKind.Output,
+                Title = "My Custom Output"  // This should persist
+            };
+            outputNode.Ports.Add(new GraphEditor.GraphPort { Name = "result", Kind = GraphEditor.GraphPortKind.Input });
+            graph.Nodes.Add(outputNode);
+
+            // Serialize and deserialize
+            string json = GraphEditor.GraphSerializer.Serialize(graph);
+            var loaded = GraphEditor.GraphSerializer.Deserialize(json, out var validation);
+
+            if (!validation.IsValid)
+            {
+                return false;
+            }
+
+            // Find the loaded nodes
+            var loadedInput = loaded.Nodes.FirstOrDefault(n => n.Kind == GraphEditor.GraphNodeKind.Input);
+            var loadedOutput = loaded.Nodes.FirstOrDefault(n => n.Kind == GraphEditor.GraphNodeKind.Output);
+
+            // Titles should be preserved for library graph Input/Output nodes
+            return loadedInput != null &&
+                   loadedInput.Title == "My Custom Input" &&
+                   loadedOutput != null &&
+                   loadedOutput.Title == "My Custom Output";
+        }
+
+        private static bool TestLibraryGraphRuntimeConversion()
+        {
+            // Test that library graph nodes convert correctly to runtime with freeform names
+            var graph = new GraphEditor.GraphDefinition
+            {
+                IsLibraryGraph = true
+            };
+
+            // Input node with freeform port name (no SignalGroup)
+            var inputNode = new GraphEditor.GraphNode
+            {
+                Id = "in",
+                Kind = GraphEditor.GraphNodeKind.Input,
+                Title = "Inputs"
+            };
+            inputNode.Ports.Add(new GraphEditor.GraphPort { Name = "force", Kind = GraphEditor.GraphPortKind.Output });
+            graph.Nodes.Add(inputNode);
+
+            // Const node
+            var constNode = new GraphEditor.GraphNode
+            {
+                Id = "k",
+                Kind = GraphEditor.GraphNodeKind.Const,
+                ConstValue = 2.0
+            };
+            graph.Nodes.Add(constNode);
+
+            // Op node (multiply)
+            var opNode = new GraphEditor.GraphNode
+            {
+                Id = "mul",
+                Kind = GraphEditor.GraphNodeKind.Op,
+                Op = "mul"
+            };
+            opNode.Ports.Add(new GraphEditor.GraphPort { Name = "a", Kind = GraphEditor.GraphPortKind.Input });
+            opNode.Ports.Add(new GraphEditor.GraphPort { Name = "b", Kind = GraphEditor.GraphPortKind.Input });
+            opNode.Ports.Add(new GraphEditor.GraphPort { Name = "out", Kind = GraphEditor.GraphPortKind.Output });
+            graph.Nodes.Add(opNode);
+
+            // Output node with freeform port name
+            var outputNode = new GraphEditor.GraphNode
+            {
+                Id = "out",
+                Kind = GraphEditor.GraphNodeKind.Output,
+                Title = "Outputs"
+            };
+            outputNode.Ports.Add(new GraphEditor.GraphPort { Name = "scaled", Kind = GraphEditor.GraphPortKind.Input });
+            graph.Nodes.Add(outputNode);
+
+            // Links
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "in", FromPort = "force", ToNodeId = "mul", ToPort = "a" });
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "k", ToNodeId = "mul", ToPort = "b" });
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "mul", FromPort = "out", ToNodeId = "out", ToPort = "scaled" });
+
+            // Convert to runtime
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+
+            // The input should use freeform name "force" (not a signal-catalog name)
+            // Use string comparison to avoid enum type conflicts between local and imported types
+            bool hasForceInput = runtime.Nodes.Values.Any(n =>
+                n.Type.ToString() == "Input" && n.Name == "force");
+
+            // The output should use freeform name "scaled"
+            bool hasScaledOutput = runtime.Nodes.Values.Any(n =>
+                n.Type.ToString() == "Output" && n.Name == "scaled");
+
+            return hasForceInput && hasScaledOutput;
+        }
+
+        private static bool TestNodeSignalGroupPreservation()
+        {
+            // Test that SignalGroup is preserved through serialization roundtrip
+            var graph = new GraphEditor.GraphDefinition();
+
+            var inputNode = new GraphEditor.GraphNode
+            {
+                Id = "in",
+                Kind = GraphEditor.GraphNodeKind.Input,
+                SignalGroup = "XPlane"  // This must persist
+            };
+            inputNode.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "IAS_kts",
+                Kind = GraphEditor.GraphPortKind.Output,
+                SignalSuffix = "IAS_kts"
+            });
+            graph.Nodes.Add(inputNode);
+
+            // Serialize and deserialize
+            string json = GraphEditor.GraphSerializer.Serialize(graph);
+            var loaded = GraphEditor.GraphSerializer.Deserialize(json, out var validation);
+
+            if (!validation.IsValid)
+            {
+                return false;
+            }
+
+            var loadedNode = loaded.Nodes.FirstOrDefault(n => n.Kind == GraphEditor.GraphNodeKind.Input);
+            return loadedNode != null && loadedNode.SignalGroup == "XPlane";
+        }
+
+        private static bool TestPortSignalSuffixPreservation()
+        {
+            // Test that port SignalSuffix is preserved through serialization roundtrip
+            var graph = new GraphEditor.GraphDefinition();
+
+            var inputNode = new GraphEditor.GraphNode
+            {
+                Id = "in",
+                Kind = GraphEditor.GraphNodeKind.Input,
+                SignalGroup = "XPlane"
+            };
+            inputNode.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "IAS_kts",
+                Kind = GraphEditor.GraphPortKind.Output,
+                SignalSuffix = "IAS_kts"  // This must persist
+            });
+            inputNode.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "Alpha_deg",
+                Kind = GraphEditor.GraphPortKind.Output,
+                SignalSuffix = "Alpha_deg"
+            });
+            graph.Nodes.Add(inputNode);
+
+            // Serialize and deserialize
+            string json = GraphEditor.GraphSerializer.Serialize(graph);
+            var loaded = GraphEditor.GraphSerializer.Deserialize(json, out var validation);
+
+            if (!validation.IsValid)
+            {
+                return false;
+            }
+
+            var loadedNode = loaded.Nodes.FirstOrDefault(n => n.Kind == GraphEditor.GraphNodeKind.Input);
+            if (loadedNode == null || loadedNode.Ports.Count != 2)
+            {
+                return false;
+            }
+
+            var port1 = loadedNode.Ports.FirstOrDefault(p => p.Name == "IAS_kts");
+            var port2 = loadedNode.Ports.FirstOrDefault(p => p.Name == "Alpha_deg");
+
+            return port1 != null && port1.SignalSuffix == "IAS_kts" &&
+                   port2 != null && port2.SignalSuffix == "Alpha_deg";
         }
 
     }

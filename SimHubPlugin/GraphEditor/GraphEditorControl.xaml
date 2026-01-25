@@ -8,6 +8,7 @@
              KeyDown="GraphEditorControl_KeyDown"
              d:DesignHeight="400" d:DesignWidth="600">
     <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
         <DrawingBrush x:Key="GraphGridBrush" TileMode="Tile" Viewport="0,0,20,20" ViewportUnits="Absolute">
             <DrawingBrush.Drawing>
                 <DrawingGroup>
@@ -55,7 +56,22 @@
                       ShowsPreview="True" />
         <Border Grid.Column="2" Background="#2B2B2B" BorderBrush="#3D3D3D" BorderThickness="1,0,0,0">
             <StackPanel Margin="8">
-                <TextBlock Text="Inspector" Foreground="White" FontSize="12" FontWeight="SemiBold" />
+                <DockPanel Margin="0,0,0,6">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Inspector" Foreground="White" FontSize="12" FontWeight="SemiBold" />
+                        <TextBlock x:Name="DirtyIndicator" Text=" •" Foreground="#FFA500" FontSize="12" FontWeight="Bold"
+                                   Visibility="Collapsed" ToolTip="Graph has unsaved changes" />
+                    </StackPanel>
+                    <CheckBox x:Name="CheckLibraryGraph"
+                              DockPanel.Dock="Right"
+                              Content="Library Graph"
+                              Foreground="#CCCCCC"
+                              FontSize="10"
+                              VerticalAlignment="Center"
+                              ToolTip="Library graphs use freeform Input/Output port names instead of signal binding"
+                              Checked="CheckLibraryGraph_Changed"
+                              Unchecked="CheckLibraryGraph_Changed" />
+                </DockPanel>
                 <TextBlock Text="Selected Node" Foreground="#BBBBBB" Margin="0,8,0,2" FontSize="10" />
                 <TextBlock x:Name="TextNodeTitle" Foreground="White" FontSize="11" Text="(none)" />
                 <TextBlock x:Name="TextNodeKind" Foreground="#CCCCCC" FontSize="10" />
@@ -181,25 +197,29 @@
                                      Padding="3,2,3,2"
                                      TextChanged="EditIncludePath_TextChanged" />
                         </DockPanel>
-                        <Button x:Name="ButtonOpenInclude"
-                                Content="Open Include"
-                                Margin="0,0,0,6"
-                                Height="22"
-                                Click="ButtonOpenInclude_Click" />
-                        <TextBlock Text="Include Inputs" Foreground="#BBBBBB" FontSize="10" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <Button x:Name="ButtonOpenInclude"
+                                    Content="Open"
+                                    Width="70"
+                                    Height="22"
+                                    Margin="0,0,6,0"
+                                    Click="ButtonOpenInclude_Click" />
+                            <Button x:Name="ButtonRefreshIncludePorts"
+                                    Content="Refresh"
+                                    Width="70"
+                                    Height="22"
+                                    Click="ButtonRefreshIncludePorts_Click" />
+                        </StackPanel>
+                        <TextBlock x:Name="IncludeErrorText"
+                                   Foreground="#FF6666"
+                                   FontSize="10"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,6"
+                                   Visibility="Collapsed" />
+                        <TextBlock Text="Inputs (from included graph)" Foreground="#BBBBBB" FontSize="10" />
                         <StackPanel x:Name="PanelIncludeInputs" Margin="0,2,0,4" />
-                        <Button x:Name="ButtonAddIncludeInput"
-                                Content="Add Input"
-                                Margin="0,0,0,6"
-                                Height="22"
-                                Click="ButtonAddIncludeInput_Click" />
-                        <TextBlock Text="Include Outputs" Foreground="#BBBBBB" FontSize="10" />
+                        <TextBlock Text="Outputs (from included graph)" Foreground="#BBBBBB" FontSize="10" />
                         <StackPanel x:Name="PanelIncludeOutputs" Margin="0,2,0,4" />
-                        <Button x:Name="ButtonAddIncludeOutput"
-                                Content="Add Output"
-                                Margin="0,0,0,6"
-                                Height="22"
-                                Click="ButtonAddIncludeOutput_Click" />
                     </StackPanel>
                     <StackPanel x:Name="PanelPorts">
                         <TextBlock Text="Ports" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
@@ -326,6 +346,7 @@
                                                     Padding="0"
                                                     FontSize="14"
                                                     ToolTip="Remove port"
+                                                    Visibility="{Binding AllowRemove, Converter={StaticResource BoolToVisibility}}"
                                                     Click="ButtonRemovePort_Click" />
                                         </StackPanel>
                                     </DockPanel>

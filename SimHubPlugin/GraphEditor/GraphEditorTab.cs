@@ -154,8 +154,8 @@ namespace User.PluginSdkDemo.GraphEditor
                 string json = File.ReadAllText(path);
                 var loadedGraph = GraphSerializer.Deserialize(json, out _);
                 FilePath = path;
+                EditorControl.BaseDirectory = BaseDirectory;  // Must be set BEFORE Graph (SetGraph triggers SyncIncludePorts)
                 Graph = loadedGraph;
-                EditorControl.BaseDirectory = BaseDirectory;
                 IsDirty = false;
                 return true;
             }

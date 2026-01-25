@@ -28,6 +28,7 @@ namespace User.PluginSdkDemo.GraphEditor
         private readonly Dictionary<string, PreviewEntry> _previewInputLookup = new Dictionary<string, PreviewEntry>();
         private readonly Dictionary<string, PreviewEntry> _previewParamLookup = new Dictionary<string, PreviewEntry>();
         private readonly DispatcherTimer _liveInputsTimer;
+        private readonly DispatcherTimer _includePathDebounceTimer;
         private bool _liveInputsEnabled;
         private readonly GraphPreviewEvaluator _previewEvaluator = new GraphPreviewEvaluator();
         private readonly ObservableCollection<PortEditEntry> _portEntries = new ObservableCollection<PortEditEntry>();
@@ -94,7 +95,23 @@ namespace User.PluginSdkDemo.GraphEditor
 
         public event Action<string> IncludeOpenRequested;
         public event Action GraphChanged;
+        public event Action<bool> DirtyChanged;
         public string BaseDirectory { get; set; }
+
+        private bool _isDirty;
+        public bool IsDirty
+        {
+            get => _isDirty;
+            private set
+            {
+                if (_isDirty != value)
+                {
+                    _isDirty = value;
+                    DirtyIndicator.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+                    DirtyChanged?.Invoke(value);
+                }
+            }
+        }
         public Func<IDictionary<string, double>> LiveInputProvider { get; set; }
         public Action<string, double> ParamValueChanged { get; set; }
 
@@ -109,18 +126,31 @@ namespace User.PluginSdkDemo.GraphEditor
             EditFunc.ItemsSource = _funcChoices;
             _liveInputsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
             _liveInputsTimer.Tick += OnLiveInputsTick;
+            _includePathDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+            _includePathDebounceTimer.Tick += OnIncludePathDebounce;
             CanvasSurface.SizeChanged += (_, __) => UpdateCanvasExtent();
+            GraphChanged += () => IsDirty = true;
         }
 
         public void SetGraph(GraphDefinition graph)
         {
             _graph = graph ?? new GraphDefinition();
             _hasUserPanned = false;
+            IsDirty = false;
+
+            // Update the Library Graph checkbox to match the graph's flag
+            CheckLibraryGraph.IsChecked = _graph.IsLibraryGraph;
+
             foreach (var node in _graph.Nodes)
             {
                 if (node.Kind == GraphNodeKind.Func)
                 {
                     EnsureFuncPorts(node);
+                }
+                else if (node.Kind == GraphNodeKind.Include)
+                {
+                    // Sync Include node ports from included graph interface
+                    SyncIncludePorts(node);
                 }
             }
             RebuildSurface();
@@ -167,6 +197,15 @@ namespace User.PluginSdkDemo.GraphEditor
 
             string json = GraphSerializer.Serialize(_graph);
             File.WriteAllText(path, json);
+            IsDirty = false;
+        }
+
+        /// <summary>
+        /// Clears the dirty flag. Call after saving via external mechanism.
+        /// </summary>
+        public void ClearDirty()
+        {
+            IsDirty = false;
         }
 
         private void RebuildSurface()
@@ -1865,6 +1904,26 @@ namespace User.PluginSdkDemo.GraphEditor
             SetLiveInputsEnabled(false);
         }
 
+        private void CheckLibraryGraph_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_graph == null)
+            {
+                return;
+            }
+
+            bool isLibrary = CheckLibraryGraph.IsChecked == true;
+            if (_graph.IsLibraryGraph == isLibrary)
+            {
+                return;
+            }
+
+            _graph.IsLibraryGraph = isLibrary;
+
+            // Rebuild the surface and inspector to reflect the new mode
+            RebuildSurface();
+            UpdateInspector();
+        }
+
         private void SetLiveInputsEnabled(bool enabled)
         {
             _liveInputsEnabled = enabled;
@@ -1913,10 +1972,20 @@ namespace User.PluginSdkDemo.GraphEditor
         }
 
         /// <summary>
-        /// Gets the display label for a port. For Input/Output nodes, shows SignalSuffix if set.
+        /// Gets the display label for a port. For Input/Output nodes in top-level graphs, shows SignalSuffix.
+        /// For library graph Input/Output nodes, shows Name (freeform).
         /// </summary>
-        private static string GetPortDisplayLabel(GraphNode node, GraphPort port)
+        private string GetPortDisplayLabel(GraphNode node, GraphPort port)
         {
+            bool isLibraryGraph = _graph != null && _graph.IsLibraryGraph;
+
+            // In library graphs, Input/Output nodes use Name directly (freeform)
+            if (isLibraryGraph && (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output))
+            {
+                return port.Name;
+            }
+
+            // In top-level graphs, Input/Output nodes use SignalSuffix if set
             if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output) &&
                 !string.IsNullOrEmpty(port.SignalSuffix))
             {
@@ -1977,12 +2046,15 @@ namespace User.PluginSdkDemo.GraphEditor
                 : Visibility.Collapsed;
 
             // Signal group panel for Input/Output/Param nodes (replaces Title)
-            bool showSignalGroup = node.Kind == GraphNodeKind.Input ||
-                                   node.Kind == GraphNodeKind.Output ||
-                                   node.Kind == GraphNodeKind.Param;
-            PanelSignalGroup.Visibility = showSignalGroup ? Visibility.Visible : Visibility.Collapsed;
-            PanelTitle.Visibility = showSignalGroup ? Visibility.Collapsed : Visibility.Visible;
-            if (showSignalGroup)
+            // In library graphs, Input/Output use freeform naming (show Title), only Param uses SignalGroup
+            bool isSignalNodeKind = node.Kind == GraphNodeKind.Input ||
+                                    node.Kind == GraphNodeKind.Output ||
+                                    node.Kind == GraphNodeKind.Param;
+            bool usesSignalBinding = isSignalNodeKind &&
+                                     (_graph == null || !_graph.IsLibraryGraph || node.Kind == GraphNodeKind.Param);
+            PanelSignalGroup.Visibility = usesSignalBinding ? Visibility.Visible : Visibility.Collapsed;
+            PanelTitle.Visibility = usesSignalBinding ? Visibility.Collapsed : Visibility.Visible;
+            if (usesSignalBinding)
             {
                 PopulateSignalGroupDropdown(node);
             }
@@ -2093,8 +2165,17 @@ namespace User.PluginSdkDemo.GraphEditor
             var port = new GraphPort { Name = baseName, Kind = kind };
             port.Name = EnsureUniquePortName(node, port, port.Name);
             node.Ports.Add(port);
-            SyncPortEntries(node);
             RebuildSurface();
+            // Restore selection after rebuild (RebuildSurface clears visuals)
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+            SyncPortEntries(node);
+            GraphChanged?.Invoke();
         }
 
         private void ButtonRemovePort_Click(object sender, RoutedEventArgs e)
@@ -2110,10 +2191,26 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             var node = _selectedNode.Node;
+
+            // Include node ports are auto-derived from included graph - don't allow removal
+            if (node.Kind == GraphNodeKind.Include)
+            {
+                return;
+            }
+
             RemovePort(node, entry.Port);
-            SyncPortEntries(node);
             RebuildSurface();
+            // Restore selection after rebuild
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+            SyncPortEntries(node);
             RefreshPreview();
+            GraphChanged?.Invoke();
         }
 
         private void EnsureFuncPorts(GraphNode node)
@@ -2290,6 +2387,26 @@ namespace User.PluginSdkDemo.GraphEditor
 
             _selectedNode.Node.IncludePath = EditIncludePath.Text?.Trim() ?? "";
             ButtonOpenInclude.IsEnabled = !string.IsNullOrWhiteSpace(_selectedNode.Node.IncludePath);
+
+            // Debounce the file I/O for SyncIncludePorts - restart timer on each keystroke
+            _includePathDebounceTimer.Stop();
+            _includePathDebounceTimer.Start();
+        }
+
+        private void OnIncludePathDebounce(object sender, EventArgs e)
+        {
+            _includePathDebounceTimer.Stop();
+
+            if (_selectedNode == null)
+            {
+                return;
+            }
+
+            // Now do the file I/O to sync ports from the included graph
+            SyncIncludePorts(_selectedNode.Node);
+            RebuildSurface();
+            UpdateInspector();
+
             GraphChanged?.Invoke();
         }
 
@@ -2302,6 +2419,9 @@ namespace User.PluginSdkDemo.GraphEditor
                 return;
             }
 
+            // In library graphs, Input/Output nodes use freeform naming (no signal catalog)
+            bool isLibraryGraph = _graph != null && _graph.IsLibraryGraph;
+
             foreach (var port in node.Ports)
             {
                 bool useSignalOptions = false;
@@ -2311,21 +2431,23 @@ namespace User.PluginSdkDemo.GraphEditor
 
                 if (node.Kind == GraphNodeKind.Input && port.Kind == GraphPortKind.Output)
                 {
-                    useSignalOptions = true;
-                    // Get signal suffixes for the selected group
-                    signalOptions = GraphSignalCatalog.GetInputSignalsForGroup(node.SignalGroup);
-
-                    // Migrate: if SignalSuffix is empty but Name looks like a full signal, extract suffix
-                    MigratePortSignalSuffix(port, node.SignalGroup);
+                    // Library graphs use freeform port names; top-level graphs use signal catalog
+                    if (!isLibraryGraph)
+                    {
+                        useSignalOptions = true;
+                        signalOptions = GraphSignalCatalog.GetInputSignalsForGroup(node.SignalGroup);
+                        MigratePortSignalSuffix(port, node.SignalGroup);
+                    }
                 }
                 else if (node.Kind == GraphNodeKind.Output && port.Kind == GraphPortKind.Input)
                 {
-                    useSignalOptions = true;
-                    // Get signal suffixes for the selected group
-                    signalOptions = GraphSignalCatalog.GetOutputSignalsForGroup(node.SignalGroup);
-
-                    // Migrate: if SignalSuffix is empty but Name looks like a full signal, extract suffix
-                    MigratePortSignalSuffix(port, node.SignalGroup);
+                    // Library graphs use freeform port names; top-level graphs use signal catalog
+                    if (!isLibraryGraph)
+                    {
+                        useSignalOptions = true;
+                        signalOptions = GraphSignalCatalog.GetOutputSignalsForGroup(node.SignalGroup);
+                        MigratePortSignalSuffix(port, node.SignalGroup);
+                    }
                 }
                 else if (node.Kind == GraphNodeKind.Param && port.Kind == GraphPortKind.Output)
                 {
@@ -2340,7 +2462,9 @@ namespace User.PluginSdkDemo.GraphEditor
                     }
                 }
 
-                var entry = new PortEditEntry(port, useSignalOptions, signalOptions, showParamFields, param);
+                // Include node ports are auto-derived and cannot be removed
+                bool allowRemove = node.Kind != GraphNodeKind.Include;
+                var entry = new PortEditEntry(port, useSignalOptions, signalOptions, showParamFields, param, allowRemove);
                 entry.NameChanged += OnPortNameChanged;
                 entry.ParamChanged += OnPortParamChanged;
                 _portEntries.Add(entry);
@@ -2403,8 +2527,11 @@ namespace User.PluginSdkDemo.GraphEditor
                 RenamePort(node, oldName, unique);
                 entry.Port.Name = unique;
 
-                // For Input/Output nodes, also update SignalSuffix
-                if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output) && entry.UseSignalOptions)
+                // For signal-bound Input/Output nodes, also update SignalSuffix
+                // Library graph Input/Output nodes use freeform Name, not SignalSuffix
+                bool isLibraryGraph = _graph != null && _graph.IsLibraryGraph;
+                if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output) &&
+                    entry.UseSignalOptions && !isLibraryGraph)
                 {
                     entry.Port.SignalSuffix = unique;
                 }
@@ -2438,12 +2565,19 @@ namespace User.PluginSdkDemo.GraphEditor
                     : unique;
                 entry.RefreshParamReference(GetParam(paramLookupName));
 
-                // Update port visual directly instead of rebuilding entire surface
-                UpdatePortVisual(node.Id, oldName, unique);
-                UpdateNodeTitleVisual(node);
+                // Rebuild surface to update port visuals reliably
+                RebuildSurface();
+                if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+                {
+                    _selectedNode = visual;
+                    _selectedNodes.Clear();
+                    _selectedNodes.Add(visual);
+                }
+                UpdateSelectionVisuals();
 
                 SyncPreviewEntries();
                 RefreshPreview();
+                GraphChanged?.Invoke();
             }
         }
 
@@ -2721,9 +2855,13 @@ namespace User.PluginSdkDemo.GraphEditor
                 return "";
             }
 
-            // For Input/Output/Param nodes, show SignalGroup as the title
-            if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output || node.Kind == GraphNodeKind.Param)
-                && !string.IsNullOrWhiteSpace(node.SignalGroup))
+            // In library graphs, Input/Output nodes use Title (freeform), not SignalGroup
+            // Param nodes always use SignalGroup
+            bool isLibraryGraph = _graph != null && _graph.IsLibraryGraph;
+            bool usesSignalBinding = (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output || node.Kind == GraphNodeKind.Param)
+                                     && (!isLibraryGraph || node.Kind == GraphNodeKind.Param);
+
+            if (usesSignalBinding && !string.IsNullOrWhiteSpace(node.SignalGroup))
             {
                 return node.SignalGroup;
             }
@@ -3101,35 +3239,6 @@ namespace User.PluginSdkDemo.GraphEditor
             return path;
         }
 
-        private void ButtonAddIncludeInput_Click(object sender, RoutedEventArgs e)
-        {
-            if (_selectedNode == null || _selectedNode.Node.Kind != GraphNodeKind.Include)
-            {
-                return;
-            }
-
-            AddIncludePort(_selectedNode.Node, GraphPortKind.Input);
-        }
-
-        private void ButtonAddIncludeOutput_Click(object sender, RoutedEventArgs e)
-        {
-            if (_selectedNode == null || _selectedNode.Node.Kind != GraphNodeKind.Include)
-            {
-                return;
-            }
-
-            AddIncludePort(_selectedNode.Node, GraphPortKind.Output);
-        }
-
-        private void AddIncludePort(GraphNode node, GraphPortKind kind)
-        {
-            string baseName = kind == GraphPortKind.Input ? "in" : "out";
-            string name = EnsureUniquePortName(node, null, baseName);
-            var port = new GraphPort { Name = name, Kind = kind };
-            node.Ports.Add(port);
-            RebuildSurface();
-        }
-
         private void ButtonOpenInclude_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedNode == null || _selectedNode.Node.Kind != GraphNodeKind.Include)
@@ -3178,76 +3287,124 @@ namespace User.PluginSdkDemo.GraphEditor
             PanelIncludeInputs.Children.Clear();
             PanelIncludeOutputs.Children.Clear();
 
+            // Show error if interface extraction failed
+            var iface = node.CachedInterface;
+            if (iface != null && !iface.IsValid)
+            {
+                IncludeErrorText.Text = iface.Error;
+                IncludeErrorText.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                IncludeErrorText.Visibility = Visibility.Collapsed;
+            }
+
+            // Show read-only port names (auto-populated from included graph)
             foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
             {
-                PanelIncludeInputs.Children.Add(BuildIncludePortRow(node, port));
+                PanelIncludeInputs.Children.Add(BuildIncludePortLabel(port.Name));
             }
             foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
             {
-                PanelIncludeOutputs.Children.Add(BuildIncludePortRow(node, port));
+                PanelIncludeOutputs.Children.Add(BuildIncludePortLabel(port.Name));
+            }
+
+            // Show placeholder if no ports
+            if (!node.Ports.Any(p => p.Kind == GraphPortKind.Input))
+            {
+                PanelIncludeInputs.Children.Add(new TextBlock
+                {
+                    Text = "(none)",
+                    Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                    FontSize = 10,
+                    Margin = new Thickness(8, 1, 0, 1)
+                });
+            }
+            if (!node.Ports.Any(p => p.Kind == GraphPortKind.Output))
+            {
+                PanelIncludeOutputs.Children.Add(new TextBlock
+                {
+                    Text = "(none)",
+                    Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                    FontSize = 10,
+                    Margin = new Thickness(8, 1, 0, 1)
+                });
             }
         }
 
-        private UIElement BuildIncludePortRow(GraphNode node, GraphPort port)
+        private static UIElement BuildIncludePortLabel(string portName)
         {
-            var dock = new DockPanel { Margin = new Thickness(0, 2, 0, 2) };
-
-            var box = new TextBox
+            return new TextBlock
             {
-                Text = port.Name,
-                Width = 132,
-                Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                Text = portName,
                 Foreground = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(74, 74, 74)),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(2, 1, 2, 1)
+                FontSize = 10,
+                Margin = new Thickness(8, 1, 0, 1)
             };
-            box.TextChanged += (_, __) =>
+        }
+
+        /// <summary>
+        /// Synchronizes an Include node's ports with the interface of its included graph.
+        /// Preserves existing links where port names match.
+        /// </summary>
+        private void SyncIncludePorts(GraphNode node)
+        {
+            if (node == null || node.Kind != GraphNodeKind.Include || string.IsNullOrWhiteSpace(node.IncludePath))
             {
-                if (_isInspectorUpdating)
-                {
-                    return;
-                }
+                return;
+            }
 
-                string desired = box.Text?.Trim() ?? "";
-                if (string.IsNullOrWhiteSpace(desired))
-                {
-                    return;
-                }
+            // Extract interface from included graph
+            var iface = GraphSerializer.ExtractInterfaceFromPath(node.IncludePath, BaseDirectory);
+            node.CachedInterface = iface;
 
-                string unique = EnsureUniquePortName(node, port, desired);
-                if (!string.Equals(unique, desired, StringComparison.Ordinal))
-                {
-                    _isInspectorUpdating = true;
-                    box.Text = unique;
-                    _isInspectorUpdating = false;
-                }
-
-                RenamePort(node, port.Name, unique);
-                port.Name = unique;
-                RebuildSurface();
-            };
-            dock.Children.Add(box);
-
-            var button = new Button
+            if (!iface.IsValid)
             {
-                Content = "x",
-                Width = 22,
-                Height = 20,
-                Margin = new Thickness(4, 0, 0, 0)
-            };
-            button.Click += (_, __) =>
-            {
-                node.Ports.Remove(port);
-                _graph.Links.RemoveAll(link =>
-                    (link.FromNodeId == node.Id && link.FromPort == port.Name) ||
-                    (link.ToNodeId == node.Id && link.ToPort == port.Name));
-                RebuildSurface();
-            };
-            DockPanel.SetDock(button, Dock.Right);
-            dock.Children.Add(button);
+                // Show error but don't clear ports (user might fix path)
+                return;
+            }
 
-            return dock;
+            // Build sets of new port names
+            var newInputNames = new HashSet<string>(iface.Inputs);
+            var newOutputNames = new HashSet<string>(iface.Outputs);
+
+            // Clear ports
+            node.Ports.Clear();
+
+            // Add input ports from interface
+            foreach (var inputName in iface.Inputs)
+            {
+                node.Ports.Add(new GraphPort { Name = inputName, Kind = GraphPortKind.Input });
+            }
+
+            // Add output ports from interface
+            foreach (var outputName in iface.Outputs)
+            {
+                node.Ports.Add(new GraphPort { Name = outputName, Kind = GraphPortKind.Output });
+            }
+
+            // Remove links to/from ports that no longer exist
+            _graph.Links.RemoveAll(link =>
+            {
+                if (link.ToNodeId == node.Id && !newInputNames.Contains(link.ToPort))
+                    return true;
+                if (link.FromNodeId == node.Id && !newOutputNames.Contains(link.FromPort))
+                    return true;
+                return false;
+            });
+        }
+
+        private void ButtonRefreshIncludePorts_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null || _selectedNode.Node.Kind != GraphNodeKind.Include)
+            {
+                return;
+            }
+
+            SyncIncludePorts(_selectedNode.Node);
+            RebuildSurface();
+            UpdateInspector();
+            GraphChanged?.Invoke();
         }
 
         private void EnsureEdgePreview()
@@ -3404,11 +3561,12 @@ namespace User.PluginSdkDemo.GraphEditor
                 Op = node.Op,
                 Func = node.Func,
                 IncludePath = node.IncludePath,
-                ConstValue = node.ConstValue
+                ConstValue = node.ConstValue,
+                SignalGroup = node.SignalGroup
             };
             foreach (var port in node.Ports)
             {
-                copy.Ports.Add(new GraphPort { Name = port.Name, Kind = port.Kind });
+                copy.Ports.Add(new GraphPort { Name = port.Name, Kind = port.Kind, SignalSuffix = port.SignalSuffix });
             }
             _graph.Nodes.Add(copy);
             RebuildSurface();
@@ -3479,7 +3637,7 @@ namespace User.PluginSdkDemo.GraphEditor
             private bool _isSignalPopupOpen;
 
             public PortEditEntry(GraphPort port, bool useSignalOptions, IReadOnlyList<string> signalOptions,
-                bool showParamFields, GraphParam param)
+                bool showParamFields, GraphParam param, bool allowRemove)
             {
                 Port = port;
                 // For Input/Output nodes with signal options, use SignalSuffix for display
@@ -3491,6 +3649,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 SignalOptions = signalOptions ?? Array.Empty<string>();
                 SignalTree = BuildSignalTree(SignalOptions);
                 ShowParamFields = showParamFields;
+                AllowRemove = allowRemove;
                 _param = param;
                 _paramUi = EnsureParamUi();
                 SyncParamText();
@@ -3503,6 +3662,7 @@ namespace User.PluginSdkDemo.GraphEditor
             public IReadOnlyList<string> SignalOptions { get; }
             public ObservableCollection<SignalTreeNode> SignalTree { get; }
             public bool ShowParamFields { get; }
+            public bool AllowRemove { get; }
             public bool IsSignalPopupOpen
             {
                 get => _isSignalPopupOpen;

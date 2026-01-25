@@ -27,6 +27,12 @@ namespace User.PluginSdkDemo.GraphEditor
         public List<GraphLink> Links { get; } = new List<GraphLink>();
         public Dictionary<string, GraphParam> Params { get; } = new Dictionary<string, GraphParam>();
         public Dictionary<string, double> ParamValues { get; set; } = new Dictionary<string, double>();
+
+        /// <summary>
+        /// When true, this graph is a reusable library block. Input/Output nodes use freeform
+        /// port names instead of binding to the signal catalog. Included graphs should set this.
+        /// </summary>
+        public bool IsLibraryGraph { get; set; }
     }
 
     public sealed class GraphNode
@@ -47,6 +53,41 @@ namespace User.PluginSdkDemo.GraphEditor
         /// Signal group for Input/Output/Param nodes (e.g., "XPlane", "FlightStickPitch", "Aircraft").
         /// </summary>
         public string SignalGroup { get; set; } = "";
+
+        /// <summary>
+        /// Cached interface from the included graph. Not serialized.
+        /// Populated by SyncIncludePorts() when IncludePath changes.
+        /// </summary>
+        public IncludedGraphInterface CachedInterface { get; set; }
+    }
+
+    /// <summary>
+    /// Describes the interface (inputs/outputs) of an included graph.
+    /// Extracted from the included graph's Input/Output nodes.
+    /// </summary>
+    public sealed class IncludedGraphInterface
+    {
+        /// <summary>
+        /// Names of Input node ports in the included graph (expected inputs).
+        /// These become input ports on the Include node.
+        /// </summary>
+        public List<string> Inputs { get; } = new List<string>();
+
+        /// <summary>
+        /// Names of Output node ports in the included graph (provided outputs).
+        /// These become output ports on the Include node.
+        /// </summary>
+        public List<string> Outputs { get; } = new List<string>();
+
+        /// <summary>
+        /// True if the interface was successfully extracted.
+        /// </summary>
+        public bool IsValid { get; set; }
+
+        /// <summary>
+        /// Error message if IsValid is false.
+        /// </summary>
+        public string Error { get; set; } = "";
     }
 
     public sealed class GraphPort
