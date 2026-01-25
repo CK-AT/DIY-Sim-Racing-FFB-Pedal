@@ -54,6 +54,7 @@ namespace DiyFfb.GraphTest
     {
         public Dictionary<string, double> Outputs { get; } = new Dictionary<string, double>();
         public Dictionary<string, double> NodeValues { get; } = new Dictionary<string, double>();
+        public List<string> Warnings { get; } = new List<string>();
     }
 
     public interface IGraphResolver

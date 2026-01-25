@@ -121,6 +121,7 @@ Status: living progress document for graph editor/runtime integration.
 - Fixed tab label not showing context suffix: `UpdateTabContextLabel()` now normalizes `tab.FilePath` before cache lookup.
 - Fixed context parameters not matching sub-graph: `EvalInclude()` now builds `Parameters` from the sub-graph's Param nodes (keyed by sub-graph names), not by copying the parent's parameters dictionary.
 - Disable preview controls when context selected: Input/param lists and param node controls are disabled when previewing with parent context, since values come from the context.
+- Include evaluation diagnostics: `GraphEvaluationResult.Warnings` collects issues during Include node evaluation (resolution failures, output mapping mismatches). Preview status displays warnings to help diagnose Include output issues.
 
 ## In Progress
 

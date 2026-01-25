@@ -2002,7 +2002,14 @@ namespace User.PluginSdkDemo.GraphEditor
 
                 var result = _previewEvaluator.Evaluate(_graph, inputs, parameters);
                 UpdateNodeValues(result.NodeValues);
-                TextPreviewStatus.Text = "";
+                if (result.Warnings != null && result.Warnings.Count > 0)
+                {
+                    TextPreviewStatus.Text = string.Join("; ", result.Warnings);
+                }
+                else
+                {
+                    TextPreviewStatus.Text = "";
+                }
             }
             catch (Exception ex)
             {

@@ -97,6 +97,8 @@ namespace DiyFfb.GraphTest
                 Array.Clear(_extraValues, 0, _extraValues.Length);
             }
 
+            var warnings = new List<string>();
+
             foreach (var compiled in _order)
             {
                 switch (compiled.Node.Type)
@@ -117,7 +119,7 @@ namespace DiyFfb.GraphTest
                         _values[compiled.Index] = EvalFunc(compiled);
                         break;
                     case NodeType.Include:
-                        EvalInclude(compiled, inputs, parameters);
+                        EvalInclude(compiled, inputs, parameters, warnings);
                         break;
                     case NodeType.Output:
                         _values[compiled.Index] = Resolve(compiled.SrcIndex, compiled.SrcIsExtra);
@@ -138,6 +140,10 @@ namespace DiyFfb.GraphTest
             {
                 var node = _graph.Nodes.Values.First(n => _nodeIndexById[n.Id] == index);
                 result.Outputs[node.Name] = _values[index];
+            }
+            foreach (var w in warnings)
+            {
+                result.Warnings.Add(w);
             }
 
             return result;
@@ -289,7 +295,7 @@ namespace DiyFfb.GraphTest
         }
 
         private void EvalInclude(CompiledNode node, IReadOnlyDictionary<string, double> inputs,
-            IReadOnlyDictionary<string, double> parameters)
+            IReadOnlyDictionary<string, double> parameters, List<string> warnings = null)
         {
             GraphDefinition subGraph = node.Node.InlineGraph;
             string key = null;
@@ -304,6 +310,10 @@ namespace DiyFfb.GraphTest
                         // Pass context cache and base directory to sub-evaluator for nested includes
                         cached = new GraphCompiledEvaluator(subGraph, _resolver, _contextCache, _baseDirectory);
                         _includeCache[key] = cached;
+                    }
+                    else
+                    {
+                        warnings?.Add($"Include '{node.Node.Id}': failed to load '{node.Node.Path}'");
                     }
                 }
                 subGraph = cached?._graph ?? subGraph;
@@ -321,6 +331,10 @@ namespace DiyFfb.GraphTest
 
             if (subGraph == null)
             {
+                if (_resolver == null)
+                {
+                    warnings?.Add($"Include '{node.Node.Id}': no resolver configured");
+                }
                 return;
             }
 
@@ -373,11 +387,17 @@ namespace DiyFfb.GraphTest
             foreach (var mapping in node.Node.OutputMap)
             {
                 string outputName = shortToFullOutput.TryGetValue(mapping.Key, out var fullOutName) ? fullOutName : mapping.Key;
-                if (outputs.TryGetValue(outputName, out var value) &&
-                    _extraIndexById.TryGetValue(mapping.Value, out var extraIndex))
+                if (!outputs.TryGetValue(outputName, out var value))
                 {
-                    _extraValues[extraIndex] = value;
+                    warnings?.Add($"Include '{node.Node.Id}' output '{mapping.Key}': no match for '{outputName}' in sub-graph outputs [{string.Join(", ", outputs.Keys)}]");
+                    continue;
                 }
+                if (!_extraIndexById.TryGetValue(mapping.Value, out var extraIndex))
+                {
+                    warnings?.Add($"Include '{node.Node.Id}' output '{mapping.Key}': extra index not found for '{mapping.Value}'");
+                    continue;
+                }
+                _extraValues[extraIndex] = value;
             }
         }
 
