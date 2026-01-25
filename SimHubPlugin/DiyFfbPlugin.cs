@@ -2430,6 +2430,7 @@ namespace User.PluginSdkDemo
                     ui.RefreshXPlaneRotorSelection();
                     ui.RefreshXPlaneSystemSettings();
                     ui.UpdateActiveAircraftLabel(carName, carIdLabel);
+                    ui.RefreshFunctionSelection();
                 }));
             }
         }

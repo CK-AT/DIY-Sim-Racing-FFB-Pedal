@@ -868,6 +868,7 @@ namespace User.PluginSdkDemo
                     Plugin.ApplyAircraftFfbProfile(carId, profile);
                 }
                 RefreshXPlaneFfbSettings();
+                UpdateFunctionSelection();
             }
         }
 
@@ -1820,6 +1821,11 @@ namespace User.PluginSdkDemo
                 }
                 uc_function_config.SwitchFunction(functionEntry.Value);
             }
+        }
+
+        public void RefreshFunctionSelection()
+        {
+            UpdateFunctionSelection();
         }
 
         private void Function_Tab_seleciton_SelectionChanged(object sender, SelectionChangedEventArgs e)
