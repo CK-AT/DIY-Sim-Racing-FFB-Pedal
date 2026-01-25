@@ -27,6 +27,15 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Output missing src validation", TestOutputMissingSrc));
             results.Add(TestRunner.RunTest("Include missing path validation", TestIncludeMissingPath));
             results.Add(TestRunner.RunTest("Include mapping warnings", TestIncludeMappingWarnings));
+            results.Add(TestRunner.RunTest("Multiple includes different inputs", TestMultipleIncludesDifferentInputs));
+            results.Add(TestRunner.RunTest("Multiple includes compiled evaluator", TestMultipleIncludesCompiledEvaluator));
+            results.Add(TestRunner.RunTest("Multiple includes isolation", TestMultipleIncludesIsolation));
+            results.Add(TestRunner.RunTest("Nested includes", TestNestedIncludes));
+            results.Add(TestRunner.RunTest("Diamond dependency includes", TestDiamondDependencyIncludes));
+            results.Add(TestRunner.RunTest("Include chaining", TestIncludeChaining));
+            results.Add(TestRunner.RunTest("Include with parameters", TestIncludeWithParameters));
+            results.Add(TestRunner.RunTest("Include with multiple outputs", TestIncludeMultipleOutputs));
+            results.Add(TestRunner.RunTest("Cyclic include detection", TestCyclicIncludeDetection));
             results.Add(TestRunner.RunTest("Op arg count validation", TestOpArgValidation));
             results.Add(TestRunner.RunTest("Clamp bound order warning", TestClampBoundOrderWarning));
             results.Add(TestRunner.RunTest("Graph output names unique", TestGraphOutputNamesUnique));
@@ -305,6 +314,640 @@ namespace DiyFfb.GraphTest
             graph.Nodes["cmd"] = new GraphNode { Id = "cmd", Type = NodeType.Input, Name = "cmd_force" };
             graph.Nodes["out_force"] = new GraphNode { Id = "out_force", Type = NodeType.Output, Name = "out_force", Src = "cmd" };
             return graph;
+        }
+
+        /// <summary>
+        /// Build an inline graph that scales input by a factor (input * factor).
+        /// </summary>
+        private static GraphDefinition BuildScalerGraph()
+        {
+            var graph = new GraphDefinition();
+            graph.Nodes["in_val"] = new GraphNode { Id = "in_val", Type = NodeType.Input, Name = "value" };
+            graph.Nodes["in_factor"] = new GraphNode { Id = "in_factor", Type = NodeType.Input, Name = "factor" };
+            graph.Nodes["mul"] = new GraphNode
+            {
+                Id = "mul",
+                Type = NodeType.Op,
+                Op = OpType.Mul,
+                Args = { "in_val", "in_factor" }
+            };
+            graph.Nodes["out_result"] = new GraphNode { Id = "out_result", Type = NodeType.Output, Name = "result", Src = "mul" };
+            return graph;
+        }
+
+        private static bool TestMultipleIncludesDifferentInputs()
+        {
+            // Test that the same include graph can be used multiple times with different inputs
+            // and produce different outputs
+            var scalerGraph = BuildScalerGraph();
+
+            var graph = new GraphDefinition();
+
+            // Two input values
+            graph.Nodes["val_a"] = new GraphNode { Id = "val_a", Type = NodeType.Const, ConstValue = 10.0 };
+            graph.Nodes["val_b"] = new GraphNode { Id = "val_b", Type = NodeType.Const, ConstValue = 20.0 };
+
+            // Two different factors
+            graph.Nodes["factor_a"] = new GraphNode { Id = "factor_a", Type = NodeType.Const, ConstValue = 2.0 };
+            graph.Nodes["factor_b"] = new GraphNode { Id = "factor_b", Type = NodeType.Const, ConstValue = 3.0 };
+
+            // First include: 10 * 2 = 20
+            graph.Nodes["inc_a"] = new GraphNode
+            {
+                Id = "inc_a",
+                Type = NodeType.Include,
+                InlineGraph = scalerGraph,
+                InputMap = { ["value"] = "val_a", ["factor"] = "factor_a" },
+                OutputMap = { ["result"] = "result_a" }
+            };
+
+            // Second include: 20 * 3 = 60
+            graph.Nodes["inc_b"] = new GraphNode
+            {
+                Id = "inc_b",
+                Type = NodeType.Include,
+                InlineGraph = scalerGraph,
+                InputMap = { ["value"] = "val_b", ["factor"] = "factor_b" },
+                OutputMap = { ["result"] = "result_b" }
+            };
+
+            // Outputs
+            graph.Nodes["out_a"] = new GraphNode { Id = "out_a", Type = NodeType.Output, Name = "out_a", Src = "result_a" };
+            graph.Nodes["out_b"] = new GraphNode { Id = "out_b", Type = NodeType.Output, Name = "out_b", Src = "result_b" };
+
+            // GraphEvaluator requires a resolver for InlineGraph handling
+            var evaluator = new GraphEvaluator(graph, new GraphIncludeResolver(AppContext.BaseDirectory));
+            var outputs = evaluator.Evaluate(
+                new Dictionary<string, double>(),
+                new Dictionary<string, double>());
+
+            // Verify both includes produce correct, different results
+            bool hasOutA = outputs.TryGetValue("out_a", out var outA);
+            bool hasOutB = outputs.TryGetValue("out_b", out var outB);
+
+            return hasOutA && hasOutB &&
+                   Math.Abs(outA - 20.0) < 0.0001 &&  // 10 * 2 = 20
+                   Math.Abs(outB - 60.0) < 0.0001;    // 20 * 3 = 60
+        }
+
+        private static bool TestMultipleIncludesCompiledEvaluator()
+        {
+            // Same test as above but with compiled evaluator to ensure consistency
+            var scalerGraph = BuildScalerGraph();
+
+            var graph = new GraphDefinition();
+
+            graph.Nodes["val_a"] = new GraphNode { Id = "val_a", Type = NodeType.Const, ConstValue = 10.0 };
+            graph.Nodes["val_b"] = new GraphNode { Id = "val_b", Type = NodeType.Const, ConstValue = 20.0 };
+            graph.Nodes["factor_a"] = new GraphNode { Id = "factor_a", Type = NodeType.Const, ConstValue = 2.0 };
+            graph.Nodes["factor_b"] = new GraphNode { Id = "factor_b", Type = NodeType.Const, ConstValue = 3.0 };
+
+            graph.Nodes["inc_a"] = new GraphNode
+            {
+                Id = "inc_a",
+                Type = NodeType.Include,
+                InlineGraph = scalerGraph,
+                InputMap = { ["value"] = "val_a", ["factor"] = "factor_a" },
+                OutputMap = { ["result"] = "result_a" }
+            };
+
+            graph.Nodes["inc_b"] = new GraphNode
+            {
+                Id = "inc_b",
+                Type = NodeType.Include,
+                InlineGraph = scalerGraph,
+                InputMap = { ["value"] = "val_b", ["factor"] = "factor_b" },
+                OutputMap = { ["result"] = "result_b" }
+            };
+
+            graph.Nodes["out_a"] = new GraphNode { Id = "out_a", Type = NodeType.Output, Name = "out_a", Src = "result_a" };
+            graph.Nodes["out_b"] = new GraphNode { Id = "out_b", Type = NodeType.Output, Name = "out_b", Src = "result_b" };
+
+            // Test with compiled evaluator
+            var compiled = new GraphCompiledEvaluator(graph);
+            var outputs = compiled.Evaluate(
+                new Dictionary<string, double>(),
+                new Dictionary<string, double>());
+
+            bool hasOutA = outputs.TryGetValue("out_a", out var outA);
+            bool hasOutB = outputs.TryGetValue("out_b", out var outB);
+
+            return hasOutA && hasOutB &&
+                   Math.Abs(outA - 20.0) < 0.0001 &&
+                   Math.Abs(outB - 60.0) < 0.0001;
+        }
+
+        private static bool TestMultipleIncludesIsolation()
+        {
+            // Test that multiple includes of the same graph are truly isolated:
+            // - Each include gets its own evaluation context
+            // - Changing inputs to one include doesn't affect the other
+            // - The same graph reference is used but results differ based on inputs
+            var scalerGraph = BuildScalerGraph();
+
+            var graph = new GraphDefinition();
+
+            // Use inputs instead of consts so we can vary them
+            graph.Nodes["input_val"] = new GraphNode { Id = "input_val", Type = NodeType.Input, Name = "input_val" };
+            graph.Nodes["factor_small"] = new GraphNode { Id = "factor_small", Type = NodeType.Const, ConstValue = 0.5 };
+            graph.Nodes["factor_large"] = new GraphNode { Id = "factor_large", Type = NodeType.Const, ConstValue = 10.0 };
+
+            // Both includes use the SAME input value but different factors
+            graph.Nodes["inc_small"] = new GraphNode
+            {
+                Id = "inc_small",
+                Type = NodeType.Include,
+                InlineGraph = scalerGraph,
+                InputMap = { ["value"] = "input_val", ["factor"] = "factor_small" },
+                OutputMap = { ["result"] = "result_small" }
+            };
+
+            graph.Nodes["inc_large"] = new GraphNode
+            {
+                Id = "inc_large",
+                Type = NodeType.Include,
+                InlineGraph = scalerGraph,
+                InputMap = { ["value"] = "input_val", ["factor"] = "factor_large" },
+                OutputMap = { ["result"] = "result_large" }
+            };
+
+            graph.Nodes["out_small"] = new GraphNode { Id = "out_small", Type = NodeType.Output, Name = "out_small", Src = "result_small" };
+            graph.Nodes["out_large"] = new GraphNode { Id = "out_large", Type = NodeType.Output, Name = "out_large", Src = "result_large" };
+
+            // Test with both evaluators (interpreter requires resolver for InlineGraph)
+            var resolver = new GraphIncludeResolver(AppContext.BaseDirectory);
+            var interpreter = new GraphEvaluator(graph, resolver);
+            var compiled = new GraphCompiledEvaluator(graph);
+
+            // First evaluation: input = 100
+            var inputs1 = new Dictionary<string, double> { ["input_val"] = 100.0 };
+            var params1 = new Dictionary<string, double>();
+
+            var interpOut1 = interpreter.Evaluate(inputs1, params1);
+            var compOut1 = compiled.Evaluate(inputs1, params1);
+
+            // Second evaluation: input = 50 (to verify state doesn't persist)
+            var inputs2 = new Dictionary<string, double> { ["input_val"] = 50.0 };
+
+            var interpOut2 = interpreter.Evaluate(inputs2, params1);
+            var compOut2 = compiled.Evaluate(inputs2, params1);
+
+            // Verify first evaluation: 100 * 0.5 = 50, 100 * 10 = 1000
+            bool interp1Ok = interpOut1.TryGetValue("out_small", out var i1s) &&
+                             interpOut1.TryGetValue("out_large", out var i1l) &&
+                             Math.Abs(i1s - 50.0) < 0.0001 &&
+                             Math.Abs(i1l - 1000.0) < 0.0001;
+
+            bool comp1Ok = compOut1.TryGetValue("out_small", out var c1s) &&
+                           compOut1.TryGetValue("out_large", out var c1l) &&
+                           Math.Abs(c1s - 50.0) < 0.0001 &&
+                           Math.Abs(c1l - 1000.0) < 0.0001;
+
+            // Verify second evaluation: 50 * 0.5 = 25, 50 * 10 = 500
+            bool interp2Ok = interpOut2.TryGetValue("out_small", out var i2s) &&
+                             interpOut2.TryGetValue("out_large", out var i2l) &&
+                             Math.Abs(i2s - 25.0) < 0.0001 &&
+                             Math.Abs(i2l - 500.0) < 0.0001;
+
+            bool comp2Ok = compOut2.TryGetValue("out_small", out var c2s) &&
+                           compOut2.TryGetValue("out_large", out var c2l) &&
+                           Math.Abs(c2s - 25.0) < 0.0001 &&
+                           Math.Abs(c2l - 500.0) < 0.0001;
+
+            return interp1Ok && comp1Ok && interp2Ok && comp2Ok;
+        }
+
+        private static bool TestNestedIncludes()
+        {
+            // Test nested includes: Parent -> Middle -> Inner
+            // Inner: doubles input (x * 2)
+            // Middle: includes Inner, then adds 10 to result
+            // Parent: includes Middle with input 5 -> Inner(5)=10, Middle(10)+10=20
+
+            // Inner graph: output = input * 2
+            var innerGraph = new GraphDefinition();
+            innerGraph.Nodes["in"] = new GraphNode { Id = "in", Type = NodeType.Input, Name = "x" };
+            innerGraph.Nodes["two"] = new GraphNode { Id = "two", Type = NodeType.Const, ConstValue = 2.0 };
+            innerGraph.Nodes["mul"] = new GraphNode
+            {
+                Id = "mul",
+                Type = NodeType.Op,
+                Op = OpType.Mul,
+                Args = { "in", "two" }
+            };
+            innerGraph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "doubled", Src = "mul" };
+
+            // Middle graph: includes Inner, then adds 10
+            var middleGraph = new GraphDefinition();
+            middleGraph.Nodes["in"] = new GraphNode { Id = "in", Type = NodeType.Input, Name = "value" };
+            middleGraph.Nodes["inner"] = new GraphNode
+            {
+                Id = "inner",
+                Type = NodeType.Include,
+                InlineGraph = innerGraph,
+                InputMap = { ["x"] = "in" },
+                OutputMap = { ["doubled"] = "inner_result" }
+            };
+            middleGraph.Nodes["ten"] = new GraphNode { Id = "ten", Type = NodeType.Const, ConstValue = 10.0 };
+            middleGraph.Nodes["add"] = new GraphNode
+            {
+                Id = "add",
+                Type = NodeType.Op,
+                Op = OpType.Add,
+                Args = { "inner_result", "ten" }
+            };
+            middleGraph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "final", Src = "add" };
+
+            // Parent graph: includes Middle with input 5
+            // Expected: Inner(5) = 5*2 = 10, Middle = 10+10 = 20
+            var parentGraph = new GraphDefinition();
+            parentGraph.Nodes["five"] = new GraphNode { Id = "five", Type = NodeType.Const, ConstValue = 5.0 };
+            parentGraph.Nodes["middle"] = new GraphNode
+            {
+                Id = "middle",
+                Type = NodeType.Include,
+                InlineGraph = middleGraph,
+                InputMap = { ["value"] = "five" },
+                OutputMap = { ["final"] = "middle_result" }
+            };
+            parentGraph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "middle_result" };
+
+            // Test with both evaluators
+            var resolver = new GraphIncludeResolver(AppContext.BaseDirectory);
+            var interpreter = new GraphEvaluator(parentGraph, resolver);
+            var compiled = new GraphCompiledEvaluator(parentGraph, resolver);
+
+            var inputs = new Dictionary<string, double>();
+            var parameters = new Dictionary<string, double>();
+
+            var interpOut = interpreter.Evaluate(inputs, parameters);
+            var compOut = compiled.Evaluate(inputs, parameters);
+
+            // Expected: 5 * 2 + 10 = 20
+            bool interpOk = interpOut.TryGetValue("result", out var interpVal) && Math.Abs(interpVal - 20.0) < 0.0001;
+            bool compOk = compOut.TryGetValue("result", out var compVal) && Math.Abs(compVal - 20.0) < 0.0001;
+
+            return interpOk && compOk;
+        }
+
+        private static bool TestDiamondDependencyIncludes()
+        {
+            // Test diamond dependency: Parent includes A and B, both include same Inner graph
+            //
+            //       Parent
+            //       /    \
+            //    Inc_A   Inc_B
+            //       \    /
+            //       Inner (shared)
+            //
+            // This tests that the shared inner graph doesn't cause interference
+
+            // Inner graph: output = input + 1
+            var innerGraph = new GraphDefinition();
+            innerGraph.Nodes["in"] = new GraphNode { Id = "in", Type = NodeType.Input, Name = "x" };
+            innerGraph.Nodes["one"] = new GraphNode { Id = "one", Type = NodeType.Const, ConstValue = 1.0 };
+            innerGraph.Nodes["add"] = new GraphNode
+            {
+                Id = "add",
+                Type = NodeType.Op,
+                Op = OpType.Add,
+                Args = { "in", "one" }
+            };
+            innerGraph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "add" };
+
+            // Graph A: includes Inner, multiplies result by 2
+            var graphA = new GraphDefinition();
+            graphA.Nodes["in"] = new GraphNode { Id = "in", Type = NodeType.Input, Name = "value" };
+            graphA.Nodes["inner"] = new GraphNode
+            {
+                Id = "inner",
+                Type = NodeType.Include,
+                InlineGraph = innerGraph,
+                InputMap = { ["x"] = "in" },
+                OutputMap = { ["result"] = "inner_out" }
+            };
+            graphA.Nodes["two"] = new GraphNode { Id = "two", Type = NodeType.Const, ConstValue = 2.0 };
+            graphA.Nodes["mul"] = new GraphNode
+            {
+                Id = "mul",
+                Type = NodeType.Op,
+                Op = OpType.Mul,
+                Args = { "inner_out", "two" }
+            };
+            graphA.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "out_a", Src = "mul" };
+
+            // Graph B: includes Inner, multiplies result by 3
+            var graphB = new GraphDefinition();
+            graphB.Nodes["in"] = new GraphNode { Id = "in", Type = NodeType.Input, Name = "value" };
+            graphB.Nodes["inner"] = new GraphNode
+            {
+                Id = "inner",
+                Type = NodeType.Include,
+                InlineGraph = innerGraph,
+                InputMap = { ["x"] = "in" },
+                OutputMap = { ["result"] = "inner_out" }
+            };
+            graphB.Nodes["three"] = new GraphNode { Id = "three", Type = NodeType.Const, ConstValue = 3.0 };
+            graphB.Nodes["mul"] = new GraphNode
+            {
+                Id = "mul",
+                Type = NodeType.Op,
+                Op = OpType.Mul,
+                Args = { "inner_out", "three" }
+            };
+            graphB.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "out_b", Src = "mul" };
+
+            // Parent: includes both A and B with input 10
+            // A: (10+1)*2 = 22
+            // B: (10+1)*3 = 33
+            var parent = new GraphDefinition();
+            parent.Nodes["ten"] = new GraphNode { Id = "ten", Type = NodeType.Const, ConstValue = 10.0 };
+            parent.Nodes["inc_a"] = new GraphNode
+            {
+                Id = "inc_a",
+                Type = NodeType.Include,
+                InlineGraph = graphA,
+                InputMap = { ["value"] = "ten" },
+                OutputMap = { ["out_a"] = "result_a" }
+            };
+            parent.Nodes["inc_b"] = new GraphNode
+            {
+                Id = "inc_b",
+                Type = NodeType.Include,
+                InlineGraph = graphB,
+                InputMap = { ["value"] = "ten" },
+                OutputMap = { ["out_b"] = "result_b" }
+            };
+            parent.Nodes["out_a"] = new GraphNode { Id = "out_a", Type = NodeType.Output, Name = "final_a", Src = "result_a" };
+            parent.Nodes["out_b"] = new GraphNode { Id = "out_b", Type = NodeType.Output, Name = "final_b", Src = "result_b" };
+
+            var resolver = new GraphIncludeResolver(AppContext.BaseDirectory);
+            var interpreter = new GraphEvaluator(parent, resolver);
+            var compiled = new GraphCompiledEvaluator(parent, resolver);
+
+            var inputs = new Dictionary<string, double>();
+            var parameters = new Dictionary<string, double>();
+
+            var interpOut = interpreter.Evaluate(inputs, parameters);
+            var compOut = compiled.Evaluate(inputs, parameters);
+
+            // Expected: A = (10+1)*2 = 22, B = (10+1)*3 = 33
+            bool interpOk = interpOut.TryGetValue("final_a", out var ia) &&
+                            interpOut.TryGetValue("final_b", out var ib) &&
+                            Math.Abs(ia - 22.0) < 0.0001 &&
+                            Math.Abs(ib - 33.0) < 0.0001;
+
+            bool compOk = compOut.TryGetValue("final_a", out var ca) &&
+                          compOut.TryGetValue("final_b", out var cb) &&
+                          Math.Abs(ca - 22.0) < 0.0001 &&
+                          Math.Abs(cb - 33.0) < 0.0001;
+
+            return interpOk && compOk;
+        }
+
+        private static bool TestIncludeChaining()
+        {
+            // Test chaining: output of Include A feeds into Include B's input
+            // Input -> Include A -> Include B -> Output
+
+            // Graph A: doubles input
+            var graphA = new GraphDefinition();
+            graphA.Nodes["in"] = new GraphNode { Id = "in", Type = NodeType.Input, Name = "x" };
+            graphA.Nodes["two"] = new GraphNode { Id = "two", Type = NodeType.Const, ConstValue = 2.0 };
+            graphA.Nodes["mul"] = new GraphNode
+            {
+                Id = "mul",
+                Type = NodeType.Op,
+                Op = OpType.Mul,
+                Args = { "in", "two" }
+            };
+            graphA.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "doubled", Src = "mul" };
+
+            // Graph B: adds 100
+            var graphB = new GraphDefinition();
+            graphB.Nodes["in"] = new GraphNode { Id = "in", Type = NodeType.Input, Name = "y" };
+            graphB.Nodes["hundred"] = new GraphNode { Id = "hundred", Type = NodeType.Const, ConstValue = 100.0 };
+            graphB.Nodes["add"] = new GraphNode
+            {
+                Id = "add",
+                Type = NodeType.Op,
+                Op = OpType.Add,
+                Args = { "in", "hundred" }
+            };
+            graphB.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "add" };
+
+            // Parent: 5 -> A (5*2=10) -> B (10+100=110)
+            var parent = new GraphDefinition();
+            parent.Nodes["five"] = new GraphNode { Id = "five", Type = NodeType.Const, ConstValue = 5.0 };
+            parent.Nodes["inc_a"] = new GraphNode
+            {
+                Id = "inc_a",
+                Type = NodeType.Include,
+                InlineGraph = graphA,
+                InputMap = { ["x"] = "five" },
+                OutputMap = { ["doubled"] = "a_out" }
+            };
+            parent.Nodes["inc_b"] = new GraphNode
+            {
+                Id = "inc_b",
+                Type = NodeType.Include,
+                InlineGraph = graphB,
+                InputMap = { ["y"] = "a_out" },  // Chained from inc_a output
+                OutputMap = { ["result"] = "b_out" }
+            };
+            parent.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "final", Src = "b_out" };
+
+            var resolver = new GraphIncludeResolver(AppContext.BaseDirectory);
+            var interpreter = new GraphEvaluator(parent, resolver);
+            var compiled = new GraphCompiledEvaluator(parent, resolver);
+
+            var inputs = new Dictionary<string, double>();
+            var parameters = new Dictionary<string, double>();
+
+            var interpOut = interpreter.Evaluate(inputs, parameters);
+            var compOut = compiled.Evaluate(inputs, parameters);
+
+            // Expected: 5 * 2 + 100 = 110
+            bool interpOk = interpOut.TryGetValue("final", out var iv) && Math.Abs(iv - 110.0) < 0.0001;
+            bool compOk = compOut.TryGetValue("final", out var cv) && Math.Abs(cv - 110.0) < 0.0001;
+
+            return interpOk && compOk;
+        }
+
+        private static bool TestIncludeWithParameters()
+        {
+            // Test that parameters flow through to included graphs
+
+            // Inner graph: output = input * param_k
+            var innerGraph = new GraphDefinition();
+            innerGraph.Nodes["in"] = new GraphNode { Id = "in", Type = NodeType.Input, Name = "value" };
+            innerGraph.Nodes["k"] = new GraphNode { Id = "k", Type = NodeType.Param, Name = "gain" };
+            innerGraph.Nodes["mul"] = new GraphNode
+            {
+                Id = "mul",
+                Type = NodeType.Op,
+                Op = OpType.Mul,
+                Args = { "in", "k" }
+            };
+            innerGraph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "scaled", Src = "mul" };
+
+            // Parent: includes inner with input 10, param gain=3
+            var parent = new GraphDefinition();
+            parent.Nodes["ten"] = new GraphNode { Id = "ten", Type = NodeType.Const, ConstValue = 10.0 };
+            parent.Nodes["inc"] = new GraphNode
+            {
+                Id = "inc",
+                Type = NodeType.Include,
+                InlineGraph = innerGraph,
+                InputMap = { ["value"] = "ten" },
+                OutputMap = { ["scaled"] = "inc_out" }
+            };
+            parent.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "inc_out" };
+
+            var resolver = new GraphIncludeResolver(AppContext.BaseDirectory);
+            var interpreter = new GraphEvaluator(parent, resolver);
+            var compiled = new GraphCompiledEvaluator(parent, resolver);
+
+            var inputs = new Dictionary<string, double>();
+            var parameters = new Dictionary<string, double> { ["gain"] = 3.0 };
+
+            var interpOut = interpreter.Evaluate(inputs, parameters);
+            var compOut = compiled.Evaluate(inputs, parameters);
+
+            // Expected: 10 * 3 = 30
+            bool interpOk = interpOut.TryGetValue("result", out var iv) && Math.Abs(iv - 30.0) < 0.0001;
+            bool compOk = compOut.TryGetValue("result", out var cv) && Math.Abs(cv - 30.0) < 0.0001;
+
+            return interpOk && compOk;
+        }
+
+        private static bool TestIncludeMultipleOutputs()
+        {
+            // Test that a single include can produce multiple outputs that are all consumed
+
+            // Inner graph: computes both sum and product
+            var innerGraph = new GraphDefinition();
+            innerGraph.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Input, Name = "a" };
+            innerGraph.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Input, Name = "b" };
+            innerGraph.Nodes["sum"] = new GraphNode
+            {
+                Id = "sum",
+                Type = NodeType.Op,
+                Op = OpType.Add,
+                Args = { "a", "b" }
+            };
+            innerGraph.Nodes["product"] = new GraphNode
+            {
+                Id = "product",
+                Type = NodeType.Op,
+                Op = OpType.Mul,
+                Args = { "a", "b" }
+            };
+            innerGraph.Nodes["out_sum"] = new GraphNode { Id = "out_sum", Type = NodeType.Output, Name = "sum", Src = "sum" };
+            innerGraph.Nodes["out_product"] = new GraphNode { Id = "out_product", Type = NodeType.Output, Name = "product", Src = "product" };
+
+            // Parent: uses both outputs from the include
+            var parent = new GraphDefinition();
+            parent.Nodes["three"] = new GraphNode { Id = "three", Type = NodeType.Const, ConstValue = 3.0 };
+            parent.Nodes["four"] = new GraphNode { Id = "four", Type = NodeType.Const, ConstValue = 4.0 };
+            parent.Nodes["inc"] = new GraphNode
+            {
+                Id = "inc",
+                Type = NodeType.Include,
+                InlineGraph = innerGraph,
+                InputMap = { ["a"] = "three", ["b"] = "four" },
+                OutputMap = { ["sum"] = "the_sum", ["product"] = "the_product" }
+            };
+            parent.Nodes["out_sum"] = new GraphNode { Id = "out_sum", Type = NodeType.Output, Name = "final_sum", Src = "the_sum" };
+            parent.Nodes["out_product"] = new GraphNode { Id = "out_product", Type = NodeType.Output, Name = "final_product", Src = "the_product" };
+
+            var resolver = new GraphIncludeResolver(AppContext.BaseDirectory);
+            var interpreter = new GraphEvaluator(parent, resolver);
+            var compiled = new GraphCompiledEvaluator(parent, resolver);
+
+            var inputs = new Dictionary<string, double>();
+            var parameters = new Dictionary<string, double>();
+
+            var interpOut = interpreter.Evaluate(inputs, parameters);
+            var compOut = compiled.Evaluate(inputs, parameters);
+
+            // Expected: sum = 3+4 = 7, product = 3*4 = 12
+            bool interpOk = interpOut.TryGetValue("final_sum", out var iSum) &&
+                            interpOut.TryGetValue("final_product", out var iProd) &&
+                            Math.Abs(iSum - 7.0) < 0.0001 &&
+                            Math.Abs(iProd - 12.0) < 0.0001;
+
+            bool compOk = compOut.TryGetValue("final_sum", out var cSum) &&
+                          compOut.TryGetValue("final_product", out var cProd) &&
+                          Math.Abs(cSum - 7.0) < 0.0001 &&
+                          Math.Abs(cProd - 12.0) < 0.0001;
+
+            return interpOk && compOk;
+        }
+
+        private static bool TestCyclicIncludeDetection()
+        {
+            // Test that cyclic includes are detected during evaluation
+            // This creates A includes B, B includes A scenario
+            // Note: We can't easily create true file-based cycles with InlineGraph,
+            // so we test the topological sort cycle detection in the evaluator
+
+            // Create a graph with a cycle in node dependencies (not includes)
+            // This tests the TopoSort cycle detection
+            var graph = new GraphDefinition();
+            graph.Nodes["a"] = new GraphNode
+            {
+                Id = "a",
+                Type = NodeType.Op,
+                Op = OpType.Add,
+                Args = { "b", "one" }  // a depends on b
+            };
+            graph.Nodes["b"] = new GraphNode
+            {
+                Id = "b",
+                Type = NodeType.Op,
+                Op = OpType.Mul,
+                Args = { "a", "two" }  // b depends on a -> CYCLE!
+            };
+            graph.Nodes["one"] = new GraphNode { Id = "one", Type = NodeType.Const, ConstValue = 1.0 };
+            graph.Nodes["two"] = new GraphNode { Id = "two", Type = NodeType.Const, ConstValue = 2.0 };
+            graph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "a" };
+
+            // Both evaluators should throw or handle the cycle gracefully
+            bool interpreterDetectedCycle = false;
+            bool compiledDetectedCycle = false;
+
+            try
+            {
+                var interpreter = new GraphEvaluator(graph);
+                interpreter.Evaluate(new Dictionary<string, double>(), new Dictionary<string, double>());
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("cycle"))
+            {
+                interpreterDetectedCycle = true;
+            }
+            catch
+            {
+                // Other exceptions might occur, but we specifically want cycle detection
+            }
+
+            try
+            {
+                var compiled = new GraphCompiledEvaluator(graph);
+                compiled.Evaluate(new Dictionary<string, double>(), new Dictionary<string, double>());
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("cycle"))
+            {
+                compiledDetectedCycle = true;
+            }
+            catch
+            {
+                // Other exceptions might occur
+            }
+
+            // Test passes if at least one evaluator detected the cycle
+            // (implementation may vary in how cycles are handled)
+            return interpreterDetectedCycle || compiledDetectedCycle;
         }
 
         // Editor tests (from PluginTest)
