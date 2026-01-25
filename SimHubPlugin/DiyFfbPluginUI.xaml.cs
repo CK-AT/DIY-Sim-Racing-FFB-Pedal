@@ -187,8 +187,11 @@ namespace User.PluginSdkDemo
             if (plugin != null)
             {
                 plugin.ActiveGraphChanged += OnActiveGraphChanged_UI;
+                plugin.GraphParamChanged += OnGraphParamChanged_Vehicle;
             }
+            UpdateVehicleTabHeader();
             RefreshSystemGraphParams();
+            RefreshVehicleParams();
 
             if (Plugin.Settings.Pedal_ESPNow_auto_connect_flag
                 && !string.IsNullOrWhiteSpace(Plugin.Settings.ESPNow_port)
@@ -2941,7 +2944,37 @@ namespace User.PluginSdkDemo
 
         private void OnActiveGraphChanged_UI(object sender, EventArgs e)
         {
-            Dispatcher.Invoke(RefreshSystemGraphParams);
+            Dispatcher.Invoke(() =>
+            {
+                UpdateVehicleTabHeader();
+                RefreshSystemGraphParams();
+                RefreshVehicleParams();
+            });
+        }
+
+        private void UpdateVehicleTabHeader()
+        {
+            if (Plugin == null)
+                return;
+
+            var category = Plugin.GetActiveGraphCategory();
+
+            switch (category)
+            {
+                case GraphCategory.Helicopter:
+                    VehicleTabIcon.Source = (ImageSource)FindResource("HelicopterSymbol");
+                    VehicleTabLabel.Content = "AIRCRAFT";
+                    break;
+                case GraphCategory.Aircraft:
+                    VehicleTabIcon.Source = (ImageSource)FindResource("AirplaneSymbol");
+                    VehicleTabLabel.Content = "AIRCRAFT";
+                    break;
+                case GraphCategory.Vehicle:
+                default:
+                    VehicleTabIcon.Source = (ImageSource)FindResource("VehicleSymbol");
+                    VehicleTabLabel.Content = "VEHICLE";
+                    break;
+            }
         }
 
         private Dictionary<string, FrameworkElement> systemGraphParamControls = new Dictionary<string, FrameworkElement>();
@@ -3009,5 +3042,245 @@ namespace User.PluginSdkDemo
             }
             return label;
         }
+
+        #region Vehicle Parameters
+
+        private Dictionary<string, FrameworkElement> vehicleParamControls = new Dictionary<string, FrameworkElement>();
+        private Dictionary<string, Label> vehicleParamLabels = new Dictionary<string, Label>();
+        private bool isUpdatingVehicleParams = false;
+
+        private static readonly HashSet<string> FunctionGroupPrefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "FlightStick",
+            "FlightPedals",
+            "Automotive",
+            "Shifter"
+        };
+
+        private bool IsVehicleParam(GraphParam p)
+        {
+            var group = p.Ui?.Group;
+
+            // Null/empty -> goes to "<unknown>" panel
+            if (string.IsNullOrEmpty(group))
+                return true;
+
+            // Exclude System
+            if ("System".Equals(group, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            // Exclude function groups
+            foreach (var prefix in FunctionGroupPrefixes)
+            {
+                if (group.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private void RefreshVehicleParams()
+        {
+            VehicleParamsContainer.Children.Clear();
+            vehicleParamControls.Clear();
+            vehicleParamLabels.Clear();
+
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            var allParams = Plugin.GetActiveGraphParams();
+            if (allParams == null || allParams.Count == 0)
+            {
+                ShowVehicleEmptyState();
+                return;
+            }
+
+            // Filter to vehicle params only
+            var vehicleParams = allParams.Values
+                .Where(IsVehicleParam)
+                .ToList();
+
+            if (vehicleParams.Count == 0)
+            {
+                ShowVehicleEmptyState();
+                return;
+            }
+
+            // Group by Group property, "<unknown>" for null/empty
+            var grouped = vehicleParams
+                .GroupBy(p => string.IsNullOrEmpty(p.Ui?.Group) ? "<unknown>" : p.Ui.Group)
+                .OrderBy(g => g.Key == "<unknown>" ? "\uFFFF" : g.Key); // <unknown> sorts last
+
+            foreach (var group in grouped)
+            {
+                var expander = CreateVehicleGroupExpander(group.Key, group.ToList());
+                VehicleParamsContainer.Children.Add(expander);
+            }
+        }
+
+        private void ShowVehicleEmptyState()
+        {
+            var message = new TextBlock
+            {
+                Text = "No vehicle parameters defined.\n\nVehicle parameters can be added via graph Param nodes with custom Group values.",
+                Foreground = Brushes.Gray,
+                FontStyle = FontStyles.Italic,
+                Margin = new Thickness(10),
+                TextWrapping = TextWrapping.Wrap,
+                Width = 400
+            };
+            VehicleParamsContainer.Children.Add(message);
+        }
+
+        private Expander CreateVehicleGroupExpander(string groupName, List<GraphParam> parameters)
+        {
+            var expander = new Expander
+            {
+                Header = groupName,
+                IsExpanded = true,
+                Foreground = Brushes.White,
+                FontFamily = new FontFamily("Arial Black"),
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x7F, 0x4E, 0x4E, 0x4E)),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(10)
+            };
+
+            var panel = new StackPanel { Orientation = Orientation.Vertical };
+
+            foreach (var param in parameters.OrderBy(p => p.Ui?.Label ?? p.Name))
+            {
+                var paramPanel = CreateVehicleParamPanel(param);
+                panel.Children.Add(paramPanel);
+            }
+
+            border.Child = panel;
+            expander.Content = border;
+            return expander;
+        }
+
+        private StackPanel CreateVehicleParamPanel(GraphParam param)
+        {
+            var panel = new StackPanel
+            {
+                Width = 400,
+                Height = 40,
+                Orientation = Orientation.Vertical
+            };
+
+            // Get current value (GetGraphParamValue now does full three-tier resolution)
+            double currentValue = Plugin.GetGraphParamValue(param.Name);
+
+            var label = new Label
+            {
+                Foreground = Brushes.White,
+                FontSize = 10,
+                FontFamily = new FontFamily("Arial"),
+                Content = FormatVehicleParamLabel(param, currentValue),
+                Padding = new Thickness(0, 0, 0, 8)
+            };
+            var control = GraphParamControlBuilder.BuildControl(
+                param,
+                value =>
+                {
+                    if (!isUpdatingVehicleParams)
+                    {
+                        Plugin.SetGraphParamValue(param.Name, value);
+                        // Update label to show new value
+                        if (vehicleParamLabels.TryGetValue(param.Name, out var lbl))
+                        {
+                            lbl.Content = FormatVehicleParamLabel(param, value);
+                        }
+                    }
+                },
+                width: 400,
+                initialValue: currentValue
+            );
+
+            panel.Children.Add(label);
+            panel.Children.Add(control);
+
+            vehicleParamControls[param.Name] = control;
+            vehicleParamLabels[param.Name] = label;
+
+            return panel;
+        }
+
+        private void OnGraphParamChanged_Vehicle(object sender, GraphParamChangedEventArgs e)
+        {
+            if (isUpdatingVehicleParams)
+                return;
+
+            Dispatcher.Invoke(() =>
+            {
+                isUpdatingVehicleParams = true;
+                try
+                {
+                    if (vehicleParamControls.TryGetValue(e.ParamName, out var control))
+                    {
+                        if (control is Slider slider)
+                        {
+                            slider.Value = e.Value;
+                        }
+                        else if (control is TextBox textBox)
+                        {
+                            var allParams = Plugin?.GetActiveGraphParams();
+                            int precision = 3;
+                            if (allParams != null && allParams.TryGetValue(e.ParamName, out var param))
+                            {
+                                precision = param.Ui?.Precision ?? 3;
+                            }
+                            textBox.Text = e.Value.ToString($"F{precision}");
+                        }
+                        else if (control is CheckBox checkBox)
+                        {
+                            checkBox.IsChecked = e.Value > 0.5;
+                        }
+                    }
+
+                    // Update label with new value
+                    if (vehicleParamLabels.TryGetValue(e.ParamName, out var label))
+                    {
+                        var allParams = Plugin?.GetActiveGraphParams();
+                        if (allParams != null && allParams.TryGetValue(e.ParamName, out var param))
+                        {
+                            label.Content = FormatVehicleParamLabel(param, e.Value);
+                        }
+                    }
+                }
+                finally
+                {
+                    isUpdatingVehicleParams = false;
+                }
+            });
+        }
+
+        private string FormatVehicleParamLabel(GraphParam param, double currentValue)
+        {
+            string label = param.Ui?.Label ?? param.Name;
+
+            // Format value with appropriate precision
+            int precision = param.Ui?.Precision ?? 3;
+            string valueStr = currentValue.ToString($"F{precision}");
+
+            // Build label as: <name>: <value><unit>
+            if (!string.IsNullOrWhiteSpace(param.Ui?.Units))
+            {
+                return $"{label}: {valueStr}{param.Ui.Units}";
+            }
+            else
+            {
+                return $"{label}: {valueStr}";
+            }
+        }
+
+        #endregion
     }
 }

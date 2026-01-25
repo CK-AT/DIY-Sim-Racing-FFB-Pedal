@@ -53,6 +53,31 @@
                     </DrawingGroup>
                 </DrawingImage.Drawing>
             </DrawingImage>
+            <DrawingImage x:Key="VehicleSymbol">
+                <DrawingImage.Drawing>
+                    <DrawingGroup ClipGeometry="M0,0 V24 H24 V0 H0 Z">
+                        <DrawingGroup Opacity="1">
+                            <DrawingGroup Opacity="1">
+                                <GeometryDrawing Brush="White" Geometry="M5,11L6.5,6.5H17.5L19,11M17.5,16A1.5,1.5 0 0,1 16,14.5A1.5,1.5 0 0,1 17.5,13A1.5,1.5 0 0,1 19,14.5A1.5,1.5 0 0,1 17.5,16M6.5,16A1.5,1.5 0 0,1 5,14.5A1.5,1.5 0 0,1 6.5,13A1.5,1.5 0 0,1 8,14.5A1.5,1.5 0 0,1 6.5,16M18.92,6C18.72,5.42 18.16,5 17.5,5H6.5C5.84,5 5.28,5.42 5.08,6L3,12V20A1,1 0 0,0 4,21H5A1,1 0 0,0 6,20V19H18V20A1,1 0 0,0 19,21H20A1,1 0 0,0 21,20V12L18.92,6Z" />
+                            </DrawingGroup>
+                        </DrawingGroup>
+                    </DrawingGroup>
+                </DrawingImage.Drawing>
+            </DrawingImage>
+            <DrawingImage x:Key="AirplaneSymbol">
+                <DrawingImage.Drawing>
+                    <DrawingGroup ClipGeometry="M0,0 V24 H24 V0 H0 Z">
+                        <GeometryDrawing Brush="White" Geometry="M21,16V14L13,9V3.5A1.5,1.5 0 0,0 11.5,2A1.5,1.5 0 0,0 10,3.5V9L2,14V16L10,13.5V19L8,20.5V22L11.5,21L15,22V20.5L13,19V13.5L21,16Z" />
+                    </DrawingGroup>
+                </DrawingImage.Drawing>
+            </DrawingImage>
+            <DrawingImage x:Key="HelicopterSymbol">
+                <DrawingImage.Drawing>
+                    <DrawingGroup ClipGeometry="M0,0 V24 H24 V0 H0 Z">
+                        <GeometryDrawing Brush="White" Geometry="M3,4H21V6H3V4M11,6H13V8H17A2,2 0 0,1 19,10V14L21,16V18H19V16H5V18H3V16L5,14V10A2,2 0 0,1 7,8H11V6M7,10V14H17V10H7M5,19H9V21H5V19M15,19H19V21H15V19Z" />
+                    </DrawingGroup>
+                </DrawingImage.Drawing>
+            </DrawingImage>
             <SolidColorBrush x:Key="TestBrush" Color="White"/>
             <DropShadowEffect x:Key="mousedragging" Color="White" BlurRadius="15" Opacity="1" ShadowDepth="0"/>
             <DropShadowEffect x:Key="mouseoutdragging" Color="White" BlurRadius="15" Opacity="0" ShadowDepth="0"/>
@@ -351,7 +376,7 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
         <Grid RenderTransformOrigin="0,0">
-            <TabControl  x:Name="Function_Tab_seleciton"  SelectionChanged="Function_Tab_seleciton_SelectionChanged" Width="810" HorizontalContentAlignment="Left" HorizontalAlignment="Center" VerticalAlignment="Top" RenderTransformOrigin="0,0" Grid.RowSpan="2">
+            <TabControl  x:Name="Function_Tab_seleciton"  SelectionChanged="Function_Tab_seleciton_SelectionChanged" Width="820" HorizontalContentAlignment="Left" HorizontalAlignment="Center" VerticalAlignment="Top" RenderTransformOrigin="0,0" Grid.RowSpan="2">
                 <TabControl.Resources>
                     <Style TargetType="TabItem">
                         <Setter Property="Template">
@@ -644,6 +669,26 @@
 
                         </StackPanel>
 
+                    </Border>
+                </TabItem>
+                <TabItem x:Name="Tab_Vehicle" Height="40" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <TabItem.Header>
+                        <Border Height="40" Margin="0,0,0,0" Padding="10,0,10,0">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image x:Name="VehicleTabIcon" Width="24" Height="24" Source="{StaticResource VehicleSymbol}" Margin="5,5,5,5" />
+                                <Label x:Name="VehicleTabLabel" Content="VEHICLE"  FontFamily="Arial Black" FontSize="26" Height="40" Width="160" Padding="0,0,0,0" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"  />
+                            </StackPanel>
+                        </Border>
+                    </TabItem.Header>
+                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="800" CornerRadius="5,5,5,5" Margin="0,3,0,0">
+                        <StackPanel Width="780" Grid.RowSpan="3" HorizontalAlignment="Left" VerticalAlignment="Top" Grid.ColumnSpan="4">
+                            <Canvas Height="6" Width="725" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1">
+                                <Line X1="2" Y1="3" X2="763" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
+                            </Canvas>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Height="820" Margin="10,10,10,10">
+                                <StackPanel x:Name="VehicleParamsContainer" Orientation="Vertical" Width="540"/>
+                            </ScrollViewer>
+                        </StackPanel>
                     </Border>
                 </TabItem>
                 <TabItem x:Name="Tab_System" Height="40" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">

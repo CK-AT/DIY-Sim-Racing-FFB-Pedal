@@ -19,6 +19,16 @@ using Windows.UI.Notifications;
 using IPlugin = SimHub.Plugins.IPlugin;
 namespace User.PluginSdkDemo
 {
+    /// <summary>
+    /// Category of the active graph, used to customize the Vehicle/Aircraft tab.
+    /// </summary>
+    public enum GraphCategory
+    {
+        Vehicle,      // Default: car icon, "VEHICLE" label
+        Aircraft,     // Airplane icon, "AIRCRAFT" label (FlightStick*, FlightPedals*)
+        Helicopter    // Helicopter icon, "AIRCRAFT" label (FlightStickCollective)
+    }
+
     [PluginDescription("This Plugin handles DIY FFB axes and gateways, communicating via USB.")]
     [PluginAuthor("OpenSource")]
     [PluginName("DIY FFB plugin")]
@@ -2206,31 +2216,41 @@ namespace User.PluginSdkDemo
                 return;
             }
 
-            var profile = GetCurrentAircraftProfile();
-            var vehicleOverrides = profile?.GraphParamValues ?? new Dictionary<string, double>();
-
             // Collect all params from graph + includes (includes provide defaults)
             var allParams = CollectAllGraphParams(activeVehicleGraph, activeGraphResolver);
 
             foreach (var param in allParams)
             {
-                double value = param.DefaultValue; // Tier 1: include/graph default
-
-                // Tier 2: Graph paramValues override
-                if (activeVehicleGraph.ParamValues != null
-                    && activeVehicleGraph.ParamValues.TryGetValue(param.Name, out var graphOverride))
-                {
-                    value = graphOverride;
-                }
-
-                // Tier 3: Vehicle profile override
-                if (vehicleOverrides.TryGetValue(param.Name, out var vehicleOverride))
-                {
-                    value = vehicleOverride;
-                }
-
-                graphParams[param.Name] = value;
+                graphParams[param.Name] = ResolveParamValue(param.Name, param.DefaultValue);
             }
+        }
+
+        /// <summary>
+        /// Resolves a param value using three-tier resolution:
+        /// Tier 1: defaultValue (from param definition)
+        /// Tier 2: Graph-level override (ParamValues)
+        /// Tier 3: Vehicle profile override (GraphParamValues)
+        /// </summary>
+        private double ResolveParamValue(string paramName, double defaultValue)
+        {
+            double value = defaultValue;
+
+            // Tier 2: Graph-level override
+            if (activeVehicleGraph?.ParamValues != null
+                && activeVehicleGraph.ParamValues.TryGetValue(paramName, out var graphOverride))
+            {
+                value = graphOverride;
+            }
+
+            // Tier 3: Vehicle profile override
+            var profile = GetCurrentAircraftProfile();
+            if (profile?.GraphParamValues != null
+                && profile.GraphParamValues.TryGetValue(paramName, out var profileOverride))
+            {
+                value = profileOverride;
+            }
+
+            return value;
         }
 
         private List<GraphParam> CollectAllGraphParams(
@@ -2699,18 +2719,54 @@ namespace User.PluginSdkDemo
             return result;
         }
 
+        /// <summary>
+        /// Detects the category of the active graph based on Output node SignalGroups.
+        /// Priority: Collective (helicopter) > FlightStick/FlightPedals (aircraft) > Vehicle (default)
+        /// </summary>
+        public GraphCategory GetActiveGraphCategory()
+        {
+            if (activeVehicleGraph == null || activeVehicleGraph.Nodes == null)
+            {
+                return GraphCategory.Vehicle;
+            }
+
+            bool hasFlightOutput = false;
+
+            foreach (var node in activeVehicleGraph.Nodes)
+            {
+                if (node.Kind != GraphNodeKind.Output || string.IsNullOrEmpty(node.SignalGroup))
+                    continue;
+
+                // Collective gets priority -> helicopter icon
+                if (node.SignalGroup.StartsWith("FlightStickCollective", StringComparison.OrdinalIgnoreCase))
+                {
+                    return GraphCategory.Helicopter;
+                }
+
+                // Track if we have any flight-related outputs
+                if (node.SignalGroup.StartsWith("FlightStick", StringComparison.OrdinalIgnoreCase) ||
+                    node.SignalGroup.StartsWith("FlightPedals", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasFlightOutput = true;
+                }
+            }
+
+            return hasFlightOutput ? GraphCategory.Aircraft : GraphCategory.Vehicle;
+        }
+
         public double GetGraphParamValue(string paramName)
         {
             if (graphParams.TryGetValue(paramName, out var value))
             {
                 return value;
             }
-            // Fallback to default if not in runtime dict
-            if (activeVehicleGraph?.Params.TryGetValue(paramName, out var param) == true)
-            {
-                return param.DefaultValue;
-            }
-            return 0.0;
+
+            // Fallback: do three-tier resolution for params not yet in graphParams
+            // Use GetActiveGraphParams() to find the default (reuses CollectAllGraphParams)
+            var allParams = GetActiveGraphParams();
+            double defaultValue = allParams.TryGetValue(paramName, out var param) ? param.DefaultValue : 0.0;
+
+            return ResolveParamValue(paramName, defaultValue);
         }
 
         public void SetGraphParamValue(string paramName, double value)
