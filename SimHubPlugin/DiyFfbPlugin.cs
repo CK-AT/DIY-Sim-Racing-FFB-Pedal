@@ -844,6 +844,10 @@ namespace User.PluginSdkDemo
                 {
                     SaveCurrentAircraftProfile(activeCarId);
                 }
+
+                // Clear pending params regardless of save choice - if saved, they're now in the profile;
+                // if declined, they should be discarded to avoid re-prompting on next startup
+                ClearPendingGraphParams(activeCarId);
             }
 
             // Save settings
