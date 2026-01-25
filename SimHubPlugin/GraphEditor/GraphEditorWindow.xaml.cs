@@ -52,6 +52,9 @@ namespace User.PluginSdkDemo.GraphEditor
             EditorTabs.ItemsSource = tabManager.Tabs;
             EditorTabs.SelectedItem = tabManager.SelectedTab;
 
+            // Initialize Apply button state
+            ButtonApply.IsEnabled = CurrentTab?.IsActiveGraph == true;
+
             RefreshHierarchy();
         }
 
@@ -180,6 +183,7 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             EditorTabs.SelectedItem = tabManager.SelectedTab;
             RefreshHierarchy();
+            ButtonApply.IsEnabled = CurrentTab?.IsActiveGraph == true;
             // Note: We do NOT sync params from plugin on tab switch - the graph's in-memory
             // state should persist. SyncParamsFromPlugin is only called when loading a new graph.
         }
@@ -361,7 +365,11 @@ namespace User.PluginSdkDemo.GraphEditor
 
             if (CurrentTab.Save())
             {
-                // Success
+                // Auto-apply to runtime when saving the active graph
+                if (CurrentTab.IsActiveGraph)
+                {
+                    plugin?.ApplyGraphToRuntime(CurrentTab.Graph, CurrentTab.FilePath);
+                }
             }
             else
             {
@@ -391,6 +399,12 @@ namespace User.PluginSdkDemo.GraphEditor
                 if (CurrentTab.SaveAs(dialog.FileName))
                 {
                     RefreshHierarchy();
+
+                    // Auto-apply to runtime when saving the active graph
+                    if (CurrentTab.IsActiveGraph)
+                    {
+                        plugin?.ApplyGraphToRuntime(CurrentTab.Graph, CurrentTab.FilePath);
+                    }
                 }
                 else
                 {
@@ -398,6 +412,16 @@ namespace User.PluginSdkDemo.GraphEditor
                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+
+        private void ButtonApply_Click(object sender, RoutedEventArgs e)
+        {
+            if (CurrentTab == null || !CurrentTab.IsActiveGraph)
+            {
+                return;
+            }
+
+            plugin?.ApplyGraphToRuntime(CurrentTab.Graph, CurrentTab.FilePath);
         }
 
         private void ButtonCloseTab_Click(object sender, RoutedEventArgs e)
@@ -488,6 +512,9 @@ namespace User.PluginSdkDemo.GraphEditor
             {
                 tabManager.SelectedTab = tab;
             }
+
+            // Update Apply button state based on whether current tab is the active graph
+            ButtonApply.IsEnabled = CurrentTab?.IsActiveGraph == true;
         }
 
         private void OnIncludeOpenRequested(string path)

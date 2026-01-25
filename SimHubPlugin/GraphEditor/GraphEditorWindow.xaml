@@ -91,6 +91,9 @@
                 <Button x:Name="ButtonLoad" Content="Open" Width="60" Margin="0,0,8,0" Click="ButtonLoad_Click" />
                 <Button x:Name="ButtonSave" Content="Save" Width="60" Margin="0,0,8,0" Click="ButtonSave_Click" />
                 <Button x:Name="ButtonSaveAs" Content="Save As" Width="60" Margin="0,0,8,0" Click="ButtonSaveAs_Click" />
+                <Button x:Name="ButtonApply" Content="Apply" Width="60" Margin="0,0,8,0"
+                        Click="ButtonApply_Click" ToolTip="Apply changes to runtime evaluation"
+                        IsEnabled="False" />
                 <Rectangle Width="1" Fill="#3D3D3D" Margin="8,0" />
                 <Button x:Name="ButtonCloseTab" Content="Close Tab" Width="70" Click="ButtonCloseTab_Click" />
             </StackPanel>

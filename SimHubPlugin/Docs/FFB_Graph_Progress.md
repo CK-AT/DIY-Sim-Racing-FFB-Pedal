@@ -125,6 +125,7 @@ Status: living progress document for graph editor/runtime integration.
 - Disable preview controls when context selected: Input/param lists and param node controls are disabled when previewing with parent context, since values come from the context.
 - Include evaluation diagnostics: `GraphEvaluationResult.Warnings` collects issues during Include node evaluation (resolution failures, output mapping mismatches). Preview status displays warnings to help diagnose Include output issues.
 - Fixed Include sub-graph Param default values zero in preview: `GraphRuntimeConverter.Convert()` now copies `DefaultValue` from `graph.Params[signalName]` to the runtime Param node's `ConstValue`. Previously Param nodes converted with `ConstValue=0`, causing Include sub-graphs to use zero defaults instead of their configured values. Extended test coverage to 49 tests.
+- Apply button: Graph editor toolbar now has "Apply" button that pushes in-memory graph changes directly to runtime evaluation without requiring save. Button enabled only for active graph tab. `ApplyGraphToRuntime()` method converts editor graph to runtime format on demand. Auto-apply on save: saving the active graph also applies changes to runtime automatically.
 
 ## In Progress
 

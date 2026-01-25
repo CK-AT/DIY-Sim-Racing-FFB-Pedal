@@ -2971,6 +2971,29 @@ namespace User.PluginSdkDemo
             ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
         }
 
+        /// <summary>
+        /// Applies the given graph definition to runtime evaluation.
+        /// Called from graph editor Apply button to push in-memory changes.
+        /// </summary>
+        public void ApplyGraphToRuntime(GraphDefinition graph, string basePath)
+        {
+            if (graph == null)
+            {
+                return;
+            }
+
+            activeVehicleGraph = graph;
+            string baseDir = string.IsNullOrEmpty(basePath) ? "" : Path.GetDirectoryName(basePath);
+
+            activeGraphRuntime = GraphRuntimeConverter.Convert(graph);
+            activeGraphResolver = GraphRuntimeConverter.CreateResolver(baseDir);
+            activeIncludeContextCache = new DiyFfb.GraphTest.IncludeContextCache();
+            activeGraphEvaluator = new DiyFfb.GraphTest.GraphCompiledEvaluator(
+                activeGraphRuntime, activeGraphResolver, activeIncludeContextCache, baseDir);
+
+            ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         public void SetVehicleGraphPath(string gameId, string carId, string path)
         {
             if (Settings == null)
