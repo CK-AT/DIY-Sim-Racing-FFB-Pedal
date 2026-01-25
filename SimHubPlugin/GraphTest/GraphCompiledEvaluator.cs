@@ -342,14 +342,19 @@ namespace DiyFfb.GraphTest
             if (_contextCache != null && !string.IsNullOrEmpty(key) && !key.StartsWith("inline:"))
             {
                 string resolvedPath = ResolveToAbsolutePath(node.Node.Path);
+
+                // Build parameters from sub-graph's perspective (keyed by sub-graph's Param node names)
                 var paramsCopy = new Dictionary<string, double>();
-                if (parameters != null)
+                foreach (var subNode in subGraph.Nodes.Values)
                 {
-                    foreach (var kvp in parameters)
+                    if (subNode.Type == NodeType.Param && !string.IsNullOrEmpty(subNode.Name))
                     {
-                        paramsCopy[kvp.Key] = kvp.Value;
+                        // Use the value from parent's parameters if available, otherwise 0.0
+                        double value = parameters != null && parameters.TryGetValue(subNode.Name, out var pVal) ? pVal : 0.0;
+                        paramsCopy[subNode.Name] = value;
                     }
                 }
+
                 _contextCache.Add(resolvedPath, new IncludeCallContext
                 {
                     IncludeNodeId = node.Node.Id,

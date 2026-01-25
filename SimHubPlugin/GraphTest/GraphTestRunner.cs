@@ -1936,7 +1936,8 @@ namespace DiyFfb.GraphTest
                 var cache = new IncludeContextCache();
                 var evaluator = new GraphCompiledEvaluator(parent, resolver, cache, tempDir);
 
-                // First evaluation
+                // First evaluation (plugin clears cache before top-level evaluation)
+                cache.Clear();
                 evaluator.Evaluate(new Dictionary<string, double> { { "Speed", 10.0 } }, null);
                 var contexts1 = cache.GetContexts(subPath);
                 if (contexts1.Count != 1 || Math.Abs(contexts1[0].Inputs["X"] - 10.0) >= 0.0001)
@@ -1944,7 +1945,8 @@ namespace DiyFfb.GraphTest
                     return false;
                 }
 
-                // Second evaluation - cache should have new values, not accumulated
+                // Second evaluation (plugin clears cache before top-level evaluation)
+                cache.Clear();
                 evaluator.Evaluate(new Dictionary<string, double> { { "Speed", 20.0 } }, null);
                 var contexts2 = cache.GetContexts(subPath);
 
