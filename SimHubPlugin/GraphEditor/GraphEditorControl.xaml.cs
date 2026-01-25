@@ -1884,7 +1884,7 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             if (!string.IsNullOrWhiteSpace(_baseDirectory) && Directory.Exists(_baseDirectory))
             {
-                _previewEvaluator.SetResolver(new GraphIncludeResolver(_baseDirectory));
+                _previewEvaluator.SetResolver(GraphRuntimeConverter.CreateResolver(_baseDirectory));
             }
             else
             {

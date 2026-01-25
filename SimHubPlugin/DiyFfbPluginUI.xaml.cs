@@ -910,6 +910,14 @@ namespace User.PluginSdkDemo
             return result == MessageBoxResult.Yes;
         }
 
+        public bool ConfirmApplyPendingGraphParams(string carId)
+        {
+            string message = $"Unsaved FFB parameter changes from the previous session were found for:\n{carId}\n\n" +
+                             "Apply these changes or discard them?";
+            var result = MessageBox.Show(message, "FFB Parameters", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            return result == MessageBoxResult.Yes;
+        }
+
         private void btn_load_ffb_map_Click(object sender, RoutedEventArgs e)
         {
             if (Plugin == null)

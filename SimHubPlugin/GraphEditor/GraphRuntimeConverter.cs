@@ -1,4 +1,5 @@
 using DiyFfb.GraphTest;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -6,6 +7,44 @@ namespace User.PluginSdkDemo.GraphEditor
 {
     public static class GraphRuntimeConverter
     {
+        /// <summary>
+        /// Creates a GraphIncludeResolver configured with editor-format conversion support.
+        /// Use this factory to ensure consistent resolver configuration across preview and runtime.
+        /// </summary>
+        public static GraphIncludeResolver CreateResolver(string baseDirectory)
+        {
+            return new GraphIncludeResolver(baseDirectory)
+            {
+                EditorFormatConverter = ConvertEditorJson
+            };
+        }
+
+        /// <summary>
+        /// Converts editor-format JSON to runtime GraphDefinition.
+        /// Returns null if the JSON is not editor format or conversion fails.
+        /// </summary>
+        private static DiyFfb.GraphTest.GraphDefinition ConvertEditorJson(string json)
+        {
+            // Detect editor-format JSON (has "links" or "kind" fields)
+            if (string.IsNullOrEmpty(json))
+            {
+                return null;
+            }
+
+            if (!json.Contains("\"links\"") && !json.Contains("\"kind\"") && !json.Contains("\"Kind\""))
+            {
+                return null;
+            }
+
+            var editorGraph = GraphSerializer.Deserialize(json, out var validation);
+            if (editorGraph != null && validation != null && validation.IsValid)
+            {
+                return Convert(editorGraph);
+            }
+
+            return null;
+        }
+
         public static DiyFfb.GraphTest.GraphDefinition Convert(GraphDefinition graph)
         {
             var runtime = new DiyFfb.GraphTest.GraphDefinition { Version = graph.Version };

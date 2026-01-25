@@ -112,11 +112,14 @@ Status: living progress document for graph editor/runtime integration.
 - Fixed editor-format detection: `GraphIncludeResolver.GetGraph()` now checks `hasValidNodes` (Input/Param/Output nodes must have non-empty Name) instead of just `Nodes.Count > 0`, ensuring EditorFormatConverter is called for partially-parsed editor JSON.
 - Extended test coverage to 33 tests: added editor-format include evaluation test with JSON round-trip type bridging.
 - Fixed include inputs receiving zero: `TopoSort` now visits `InputMap.Values` for Include nodes, ensuring input source nodes are evaluated before the Include node.
+- Fixed preview/runtime divergence for include graphs: Unified resolver configuration via `GraphRuntimeConverter.CreateResolver()` factory method. Preview resolver was missing `EditorFormatConverter` delegate, causing include graphs to fail silently in preview while working at runtime.
+- Fixed pending graph params not saved when no aircraft profile exists: `SetGraphParamValue()` now always triggers `SavePendingGraphParams()`, which falls back to `activeVehicleGraph.ParamValues` (Tier 2) when no profile is available.
 
 ## In Progress
 
 - UX polish (orthogonal routing, mini-map).
 - Grid padding/centering strategy (grid currently background brush; padding intent documented).
+- Include Context Preview: Allow sub-graph previews to show live values from specific Include call sites. See `Docs/Include_Context_Preview_Plan.md`.
 
 ## Open
 

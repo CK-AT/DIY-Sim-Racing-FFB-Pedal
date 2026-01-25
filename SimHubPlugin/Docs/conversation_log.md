@@ -1,5 +1,64 @@
 # Conversation Log
 
+## 2026-01-25: Fix Pending Graph Params Not Saved Without Profile
+
+### Summary
+
+Fixed pending graph params not being saved when no aircraft profile exists yet for the current vehicle.
+
+### Root Cause
+
+In `SetGraphParamValue()`, `MarkProfileDirty()` (which triggers `SavePendingGraphParams()`) was only called if `GetCurrentAircraftProfile()` returned a non-null profile. For aircraft without a stored profile, changes were applied to `activeVehicleGraph.ParamValues` (Tier 2) but never persisted to the pending params file.
+
+Additionally, `SavePendingGraphParams()` only read params from the profile's `GraphParamValues`, returning early if the profile was null.
+
+### Fix
+
+1. `SetGraphParamValue()` now always calls `MarkProfileDirty()` regardless of profile existence
+2. `SavePendingGraphParams()` falls back to `activeVehicleGraph.ParamValues` (Tier 2) when no profile exists
+
+### Files Changed
+
+- `DiyFfbPlugin.cs`: Moved `MarkProfileDirty()` call outside profile check; added Tier 2 fallback in `SavePendingGraphParams()`
+
+### Commit Highlights
+
+- Fix pending params not saved without profile
+- SavePendingGraphParams uses Tier 2 fallback
+
+---
+
+## 2026-01-25: Fix Preview/Runtime Resolver Divergence + Plan Include Context Preview
+
+### Summary
+
+Fixed include graphs working at runtime but failing in preview due to resolver configuration divergence. Designed and documented Include Context Preview feature for future implementation.
+
+### Root Cause
+
+Preview resolver created via `new GraphIncludeResolver(baseDir)` was missing the `EditorFormatConverter` delegate. Runtime resolver set it explicitly. When preview tried to load editor-format include graphs, the converter delegate was null, causing silent failure.
+
+### Fix
+
+Added `GraphRuntimeConverter.CreateResolver(baseDirectory)` factory method that configures the resolver with editor format support. Both preview and runtime now use this single factory, eliminating configuration divergence.
+
+### Files Changed
+
+- `GraphRuntimeConverter.cs`: Added `CreateResolver()` factory and `ConvertEditorJson()` helper
+- `GraphEditorControl.xaml.cs`: Use factory in `UpdatePreviewResolver()`
+- `DiyFfbPlugin.cs`: Use factory, removed duplicate `ConvertEditorFormatGraph()` method
+
+### New Documentation
+
+- `Docs/Include_Context_Preview_Plan.md`: Detailed implementation plan for Include Context Preview feature (live debugging of sub-graphs with caller's inputs)
+
+### Commit Highlights
+
+- Unify resolver config via CreateResolver() factory
+- Add Include Context Preview plan
+
+---
+
 ## 2026-01-25: Fix Include Node Input Evaluation Order
 
 ### Summary
