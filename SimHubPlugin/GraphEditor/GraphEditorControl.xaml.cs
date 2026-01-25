@@ -86,7 +86,7 @@ namespace User.PluginSdkDemo.GraphEditor
         private const double ParamControlWidth = 120.0;
         private bool _isInspectorUpdating;
         private readonly string[] _opChoices = { "add", "sub", "mul", "div", "min", "max", "abs", "clamp", "lerp" };
-        private readonly string[] _funcChoices = { "qhat_eff", "torque_norm", "rpm_norm", "assist_loss" };
+        private readonly string[] _funcChoices = { "qhat_eff", "torque_norm", "rpm_norm", "assist_loss", "buffet" };
         private readonly string[] _paramWidgetChoices = { "slider", "knob", "checkbox", "enum", "text" };
         private double _curveTension = 0.5;
         private const double HandleSize = 10.0;
@@ -2521,6 +2521,8 @@ namespace User.PluginSdkDemo.GraphEditor
                     return new[] { "rpm", "rpm_ref" };
                 case "assist_loss":
                     return new[] { "rpm_norm" };
+                case "buffet":
+                    return new[] { "alpha", "start", "full", "gain", "qhat_eff" };
                 default:
                     return new[] { "a", "b" };
             }

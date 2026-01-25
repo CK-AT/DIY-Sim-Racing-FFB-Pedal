@@ -289,6 +289,18 @@ namespace DiyFfb.GraphTest
                     double rpmNorm = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
                     return Math.Min(1.0, Math.Max(0.0, 1.0 - rpmNorm));
                 }
+                case "buffet":
+                {
+                    double alpha = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    double start = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 10.0;
+                    double full = node.ArgIndices.Length > 2 ? Resolve(node.ArgIndices[2], node.ArgIsExtra[2]) : 18.0;
+                    double gain = node.ArgIndices.Length > 3 ? Resolve(node.ArgIndices[3], node.ArgIsExtra[3]) : 0.05;
+                    double qhatEff = node.ArgIndices.Length > 4 ? Resolve(node.ArgIndices[4], node.ArgIsExtra[4]) : 1.0;
+                    if (full <= start || gain <= 0.0) return 0.0;
+                    if (alpha <= start) return 0.0;
+                    double t = Math.Max(0.0, Math.Min(1.0, (alpha - start) / (full - start)));
+                    return t * gain * qhatEff;
+                }
             }
 
             return 0.0;

@@ -1,5 +1,37 @@
 # Conversation Log
 
+## 2026-01-25: Add Stall Buffeting to FFB Graph System
+
+### Summary
+
+Added a `buffet` Func node and `BuffetAmplitude` output to restore stall buffeting capability that was lost when moving to graph-based FFB.
+
+### Implementation
+
+- **New Func node**: `buffet` with inputs: `alpha`, `start`, `full`, `gain`, `qhat_eff`
+- **New outputs**: `BuffetAmplitude` for FlightStickPitch, FlightStickRoll, FlightPedals
+- **UI**: Added "Buffet:" display in FFB Outputs panels
+- Logic matches existing `XPlaneFfbMath.ComputeBuffet()` calculation
+
+### Files Changed
+
+- `GraphEditor/GraphEditorControl.xaml.cs`: Added buffet to _funcChoices and GetFuncInputNames()
+- `GraphTest/GraphEvaluator.cs`: Added buffet case in EvalFunc()
+- `GraphTest/GraphCompiledEvaluator.cs`: Added buffet case in EvalFunc()
+- `GraphSignalCatalogData.cs`: Added BuffetAmplitude outputs
+- `DiyFfbPlugin.cs`: Wired BuffetAmplitude through ApplyGraphOutputs()
+- `FlightPedalsConfigControl.xaml/.cs`: Added Buffet to FFB Outputs panel
+- `FlightStickConfigControl.xaml/.cs`: Added Buffet to FFB Outputs panel
+
+### Commit Highlights
+
+- Add buffet Func node (alpha, start, full, gain, qhat_eff inputs)
+- Add BuffetAmplitude output for flight contexts
+- Wire graph BuffetAmplitude to FlightFfbAction protocol
+- Add Buffet display in FFB Outputs UI panels
+
+---
+
 ## 2026-01-25: Fix Include Context Cache Cleared by Sub-Evaluators
 
 ### Summary

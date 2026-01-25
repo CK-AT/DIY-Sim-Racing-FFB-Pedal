@@ -107,6 +107,8 @@
                             <Label Grid.Row="1" Grid.Column="3" x:Name="Label_Output_Load" Content="0.00" Foreground="#FF5BD65B" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
                             <Label Grid.Row="2" Grid.Column="0" Content="Trim Offset:" Foreground="White" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
                             <Label Grid.Row="2" Grid.Column="1" x:Name="Label_Output_TrimOffset" Content="0.00" Foreground="#FF5BD65B" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
+                            <Label Grid.Row="2" Grid.Column="2" Content="Buffet:" Foreground="White" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
+                            <Label Grid.Row="2" Grid.Column="3" x:Name="Label_Output_Buffet" Content="0.00" Foreground="#FF5BD65B" FontSize="10" FontFamily="Arial" Padding="0" VerticalContentAlignment="Center"/>
                         </Grid>
                     </StackPanel>
                 </StackPanel>

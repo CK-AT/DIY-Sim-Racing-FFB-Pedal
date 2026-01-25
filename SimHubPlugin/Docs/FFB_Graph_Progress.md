@@ -58,6 +58,8 @@ Status: living progress document for graph editor/runtime integration.
 - Three-tier param resolution: include defaults → graph overrides → vehicle profile overrides.
 - Param values stored in `GraphDefinition.ParamValues` (graph-level) and `AircraftFfbProfile.GraphParamValues` (vehicle-level).
 - `GraphParamControlBuilder` utility for generating WPF controls from param metadata.
+- Buffet Func node (alpha, start, full, gain, qhat_eff) for stall buffeting calculation.
+- BuffetAmplitude output for FlightStickPitch/Roll/Pedals wired through ApplyGraphOutputs.
 - FlightStickConfigControl "X-Plane FFB" section replaced with "FFB Parameters" showing graph params.
 - System tab now displays "System Parameters" section for params with `group = "System"`.
 - Function params filtered by group (`FlightStickPitch`, `FlightStickRoll`, etc.) and shown in respective tabs.
