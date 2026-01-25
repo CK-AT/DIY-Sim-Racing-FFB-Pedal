@@ -125,6 +125,16 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                <StackPanel x:Name="PanelEvalContext" Orientation="Horizontal" Margin="0,8,0,4" Visibility="Collapsed">
+                    <TextBlock Text="Context:" Foreground="#BBBBBB" FontSize="10" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <ComboBox x:Name="ComboEvalContext"
+                              Width="200"
+                              Background="#1E1E1E"
+                              Foreground="White"
+                              BorderBrush="#4A4A4A"
+                              BorderThickness="1"
+                              SelectionChanged="ComboEvalContext_SelectionChanged" />
+                </StackPanel>
                 <StackPanel x:Name="PanelEditFields" Margin="0,10,0,0">
                     <TextBlock Text="Edit" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                     <StackPanel x:Name="PanelTitle">

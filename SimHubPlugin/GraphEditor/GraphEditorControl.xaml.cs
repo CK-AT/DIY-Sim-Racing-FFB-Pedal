@@ -97,8 +97,13 @@ namespace User.PluginSdkDemo.GraphEditor
         public event Action<string> IncludeOpenRequested;
         public event Action GraphChanged;
         public event Action<bool> DirtyChanged;
+        public event EventHandler<string> ContextChanged;  // string = contextId or null
 
         private string _baseDirectory;
+        private string _filePath;
+        private string _selectedContextId;
+        private HashSet<string> _lastContextIds = new HashSet<string>();
+        private Func<string, IReadOnlyList<IncludeCallContext>> _contextProvider;
         public string BaseDirectory
         {
             get => _baseDirectory;
@@ -106,6 +111,34 @@ namespace User.PluginSdkDemo.GraphEditor
             {
                 _baseDirectory = value;
                 UpdatePreviewResolver();
+            }
+        }
+
+        /// <summary>
+        /// Absolute file path for the graph being edited, or null if unsaved.
+        /// Used for include context lookup.
+        /// </summary>
+        public string FilePath
+        {
+            get => _filePath;
+            set
+            {
+                _filePath = value;
+                RefreshContextDropdown(force: true);
+            }
+        }
+
+        /// <summary>
+        /// Provider function to get include contexts for a given file path.
+        /// Set by the plugin to enable context-aware preview.
+        /// </summary>
+        public Func<string, IReadOnlyList<IncludeCallContext>> ContextProvider
+        {
+            get => _contextProvider;
+            set
+            {
+                _contextProvider = value;
+                RefreshContextDropdown(force: true);
             }
         }
 
@@ -1896,16 +1929,75 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             try
             {
-                var inputs = new Dictionary<string, double>();
-                foreach (var entry in _previewInputEntries)
-                {
-                    inputs[entry.Name] = entry.Value;
-                }
+                Dictionary<string, double> inputs;
+                Dictionary<string, double> parameters;
 
-                var parameters = new Dictionary<string, double>();
-                foreach (var entry in _previewParamEntries)
+                // Check if we should use context-provided inputs
+                if (_selectedContextId != null && _contextProvider != null)
                 {
-                    parameters[entry.Name] = entry.Value;
+                    // Normalize path for cache lookup (same as RefreshContextDropdown)
+                    string normalizedPath = _filePath;
+                    try
+                    {
+                        normalizedPath = System.IO.Path.GetFullPath(_filePath);
+                    }
+                    catch
+                    {
+                        // Keep original if normalization fails
+                    }
+
+                    var contexts = _contextProvider(normalizedPath);
+                    IncludeCallContext ctx = null;
+                    if (contexts != null)
+                    {
+                        foreach (var c in contexts)
+                        {
+                            if (c.IncludeNodeId == _selectedContextId)
+                            {
+                                ctx = c;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (ctx != null)
+                    {
+                        inputs = new Dictionary<string, double>();
+                        foreach (var kvp in ctx.Inputs)
+                        {
+                            inputs[kvp.Key] = kvp.Value;
+                        }
+                        parameters = new Dictionary<string, double>();
+                        if (ctx.Parameters != null)
+                        {
+                            foreach (var kvp in ctx.Parameters)
+                            {
+                                parameters[kvp.Key] = kvp.Value;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Context no longer available, fall back to standalone
+                        _selectedContextId = null;
+                        RefreshContextDropdown();
+                        return;
+                    }
+                }
+                else
+                {
+                    // Standalone mode - use manual entries
+                    inputs = new Dictionary<string, double>();
+                    foreach (var entry in _previewInputEntries)
+                    {
+                        inputs[entry.Name] = entry.Value;
+                    }
+
+                    parameters = new Dictionary<string, double>();
+                    foreach (var entry in _previewParamEntries)
+                    {
+                        parameters[entry.Name] = entry.Value;
+                    }
                 }
 
                 var result = _previewEvaluator.Evaluate(_graph, inputs, parameters);
@@ -1966,6 +2058,19 @@ namespace User.PluginSdkDemo.GraphEditor
         private void OnLiveInputsTick(object sender, EventArgs e)
         {
             ApplyLiveInputs();
+
+            // Refresh context dropdown during live mode, but skip if dropdown is open
+            // (active graph may have evaluated with new inputs, making contexts available)
+            if (_contextProvider != null && !string.IsNullOrEmpty(_filePath) && !ComboEvalContext.IsDropDownOpen)
+            {
+                RefreshContextDropdown();
+
+                // If a context is selected, also refresh preview with new context values
+                if (_selectedContextId != null)
+                {
+                    RefreshPreview();
+                }
+            }
         }
 
         private void ApplyLiveInputs()
@@ -1988,6 +2093,94 @@ namespace User.PluginSdkDemo.GraphEditor
                 {
                     entry.Value = value;
                 }
+            }
+        }
+
+        private void RefreshContextDropdown(bool force = false)
+        {
+            if (_contextProvider == null || string.IsNullOrEmpty(_filePath))
+            {
+                if (PanelEvalContext.Visibility != Visibility.Collapsed)
+                {
+                    ComboEvalContext.Items.Clear();
+                    ComboEvalContext.Items.Add(new ComboBoxItem { Content = "(standalone)", Tag = null });
+                    PanelEvalContext.Visibility = Visibility.Collapsed;
+                    _lastContextIds.Clear();
+                }
+                return;
+            }
+
+            // Normalize path for cache lookup (use GetFullPath for consistent format)
+            string normalizedPath = _filePath;
+            try
+            {
+                normalizedPath = System.IO.Path.GetFullPath(_filePath);
+            }
+            catch
+            {
+                // Keep original if normalization fails
+            }
+
+            var contexts = _contextProvider(normalizedPath);
+
+            if (contexts == null || contexts.Count == 0)
+            {
+                if (PanelEvalContext.Visibility != Visibility.Collapsed)
+                {
+                    ComboEvalContext.Items.Clear();
+                    ComboEvalContext.Items.Add(new ComboBoxItem { Content = "(standalone)", Tag = null });
+                    PanelEvalContext.Visibility = Visibility.Collapsed;
+                    _selectedContextId = null;
+                    _lastContextIds.Clear();
+                }
+                return;
+            }
+
+            // Check if contexts have changed (by comparing IDs)
+            var currentIds = new HashSet<string>(contexts.Select(c => c.IncludeNodeId));
+            if (!force && currentIds.SetEquals(_lastContextIds))
+            {
+                // Contexts haven't changed, skip rebuild
+                return;
+            }
+
+            // Contexts changed, rebuild dropdown
+            _lastContextIds = currentIds;
+
+            ComboEvalContext.Items.Clear();
+            ComboEvalContext.Items.Add(new ComboBoxItem { Content = "(standalone)", Tag = null });
+
+            foreach (var ctx in contexts)
+            {
+                ComboEvalContext.Items.Add(new ComboBoxItem
+                {
+                    Content = ctx.IncludeNodeTitle,
+                    Tag = ctx.IncludeNodeId
+                });
+            }
+
+            PanelEvalContext.Visibility = Visibility.Visible;
+
+            // Restore selection or default to standalone
+            ComboBoxItem selected = null;
+            foreach (ComboBoxItem item in ComboEvalContext.Items)
+            {
+                if ((string)item.Tag == _selectedContextId)
+                {
+                    selected = item;
+                    break;
+                }
+            }
+            ComboEvalContext.SelectedItem = selected ?? ComboEvalContext.Items[0];
+        }
+
+        private void ComboEvalContext_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ComboEvalContext.SelectedItem is ComboBoxItem item)
+            {
+                _selectedContextId = item.Tag as string;
+                RefreshPreview();
+                ContextChanged?.Invoke(this, _selectedContextId);
             }
         }
 

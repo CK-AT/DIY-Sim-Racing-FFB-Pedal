@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace DiyFfb.GraphTest
@@ -18,6 +19,8 @@ namespace DiyFfb.GraphTest
 
         private readonly GraphDefinition _graph;
         private readonly IGraphResolver _resolver;
+        private readonly IncludeContextCache _contextCache;
+        private readonly string _baseDirectory;
         private readonly List<CompiledNode> _order = new List<CompiledNode>();
         private readonly Dictionary<string, int> _nodeIndexById = new Dictionary<string, int>();
         private readonly Dictionary<string, int> _extraIndexById = new Dictionary<string, int>();
@@ -27,9 +30,16 @@ namespace DiyFfb.GraphTest
         private readonly double[] _extraValues;
 
         public GraphCompiledEvaluator(GraphDefinition graph, IGraphResolver resolver = null)
+            : this(graph, resolver, null, null)
+        {
+        }
+
+        public GraphCompiledEvaluator(GraphDefinition graph, IGraphResolver resolver, IncludeContextCache contextCache, string baseDirectory = null)
         {
             _graph = graph ?? throw new ArgumentNullException(nameof(graph));
             _resolver = resolver;
+            _contextCache = contextCache;
+            _baseDirectory = baseDirectory ?? "";
 
             foreach (var pair in _graph.Nodes)
             {
@@ -78,6 +88,9 @@ namespace DiyFfb.GraphTest
             IReadOnlyDictionary<string, double> inputs,
             IReadOnlyDictionary<string, double> parameters)
         {
+            // NOTE: Context cache clearing moved to plugin level (before top-level evaluation)
+            // to avoid sub-evaluators clearing parent context during Include evaluation.
+
             Array.Clear(_values, 0, _values.Length);
             if (_extraValues.Length > 0)
             {
@@ -192,6 +205,23 @@ namespace DiyFfb.GraphTest
             return Resolve(index, isExtra);
         }
 
+        private string ResolveToAbsolutePath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return path;
+            }
+            if (Path.IsPathRooted(path))
+            {
+                return Path.GetFullPath(path);
+            }
+            if (!string.IsNullOrEmpty(_baseDirectory))
+            {
+                return Path.GetFullPath(Path.Combine(_baseDirectory, path));
+            }
+            return path;
+        }
+
         private double EvalOp(CompiledNode node)
         {
             double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
@@ -271,7 +301,8 @@ namespace DiyFfb.GraphTest
                     subGraph = _resolver.GetGraph(node.Node.Path);
                     if (subGraph != null)
                     {
-                        cached = new GraphCompiledEvaluator(subGraph, _resolver);
+                        // Pass context cache and base directory to sub-evaluator for nested includes
+                        cached = new GraphCompiledEvaluator(subGraph, _resolver, _contextCache, _baseDirectory);
                         _includeCache[key] = cached;
                     }
                 }
@@ -282,7 +313,7 @@ namespace DiyFfb.GraphTest
                 key = "inline:" + node.Node.Id;
                 if (!_includeCache.TryGetValue(key, out var cached))
                 {
-                    cached = new GraphCompiledEvaluator(subGraph, _resolver);
+                    cached = new GraphCompiledEvaluator(subGraph, _resolver, _contextCache, _baseDirectory);
                     _includeCache[key] = cached;
                 }
                 subGraph = cached._graph;
@@ -305,6 +336,28 @@ namespace DiyFfb.GraphTest
                 // Try to find the full name for this short name, otherwise use the key as-is
                 string inputName = shortToFullName.TryGetValue(mapping.Key, out var fullName) ? fullName : mapping.Key;
                 subInputs[inputName] = ResolveById(mapping.Value);
+            }
+
+            // Capture context for sub-graph preview
+            if (_contextCache != null && !string.IsNullOrEmpty(key) && !key.StartsWith("inline:"))
+            {
+                string resolvedPath = ResolveToAbsolutePath(node.Node.Path);
+                var paramsCopy = new Dictionary<string, double>();
+                if (parameters != null)
+                {
+                    foreach (var kvp in parameters)
+                    {
+                        paramsCopy[kvp.Key] = kvp.Value;
+                    }
+                }
+                _contextCache.Add(resolvedPath, new IncludeCallContext
+                {
+                    IncludeNodeId = node.Node.Id,
+                    IncludeNodeTitle = !string.IsNullOrEmpty(node.Node.Name) ? node.Node.Name : node.Node.Id,
+                    IncludePath = resolvedPath,
+                    Inputs = new Dictionary<string, double>(subInputs),
+                    Parameters = paramsCopy
+                });
             }
 
             var outputs = evaluator.Evaluate(subInputs, parameters);

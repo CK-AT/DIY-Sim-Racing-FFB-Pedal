@@ -114,12 +114,16 @@ Status: living progress document for graph editor/runtime integration.
 - Fixed include inputs receiving zero: `TopoSort` now visits `InputMap.Values` for Include nodes, ensuring input source nodes are evaluated before the Include node.
 - Fixed preview/runtime divergence for include graphs: Unified resolver configuration via `GraphRuntimeConverter.CreateResolver()` factory method. Preview resolver was missing `EditorFormatConverter` delegate, causing include graphs to fail silently in preview while working at runtime.
 - Fixed pending graph params not saved when no aircraft profile exists: `SetGraphParamValue()` now always triggers `SavePendingGraphParams()`, which falls back to `activeVehicleGraph.ParamValues` (Tier 2) when no profile is available.
+- Include Context Preview: Sub-graphs can now preview with real parent context. `IncludeContextCache` captures inputs/params at each Include evaluation. Graph editor shows context dropdown when contexts are available (populated during active graph evaluation). Tab labels show context suffix (e.g., " (via MyInclude)"). Extended test coverage to 39 tests (4 cache tests + 2 evaluator cache tests).
+- Fixed context cache emptied by sub-evaluators: Moved `_contextCache.Clear()` from `EvaluateWithTrace()` to plugin level (before top-level evaluation). Sub-evaluators share the same cache instance and were clearing it during Include node evaluation, causing context lookups to find zero entries.
+- Fixed context dropdown closing when trying to select: `RefreshContextDropdown()` now tracks `_lastContextIds` and only rebuilds when contexts actually change, preventing rebuild during selection.
+- Fixed context inputs not applied in preview: `RefreshPreview()` now normalizes `_filePath` with `Path.GetFullPath()` before cache lookup, matching how cache keys are stored.
+- Fixed tab label not showing context suffix: `UpdateTabContextLabel()` now normalizes `tab.FilePath` before cache lookup.
 
 ## In Progress
 
 - UX polish (orthogonal routing, mini-map).
 - Grid padding/centering strategy (grid currently background brush; padding intent documented).
-- Include Context Preview: Allow sub-graph previews to show live values from specific Include call sites. See `Docs/Include_Context_Preview_Plan.md`.
 
 ## Open
 

@@ -1,5 +1,86 @@
 # Conversation Log
 
+## 2026-01-25: Fix Include Context Cache Cleared by Sub-Evaluators
+
+### Summary
+
+Fixed the context dropdown always showing "Found 0 contexts" even though contexts were being added to the cache. The cache was being cleared during Include node evaluation by sub-evaluators.
+
+### Root Cause
+
+`GraphCompiledEvaluator.EvaluateWithTrace()` called `_contextCache?.Clear()` at the start of each evaluation. When evaluating an Include node, the code:
+
+1. Added context to the shared cache
+2. Called `evaluator.Evaluate(subInputs, params)` on the sub-graph evaluator
+3. Sub-evaluator's `Evaluate()` → `EvaluateWithTrace()` → `Clear()` wiped the just-added context
+
+Since all evaluators share the same cache instance (by design, for nested includes), the sub-evaluator cleared what the parent just added.
+
+### Fix
+
+- Removed `_contextCache?.Clear()` from `EvaluateWithTrace()`
+- Added `activeIncludeContextCache?.Clear()` in `DiyFfbPlugin.EvaluateGraph()` before top-level evaluation
+- Added `_lastContextIds` tracking in `RefreshContextDropdown()` to only rebuild when contexts change
+- Normalized `_filePath` in `RefreshPreview()` to match cache key format
+
+### Files Changed
+
+- `GraphTest/GraphCompiledEvaluator.cs`: Removed cache clearing from EvaluateWithTrace
+- `GraphTest/IncludeContextCache.cs`: Removed debug logging
+- `GraphEditor/GraphEditorControl.xaml.cs`: Smart dropdown refresh, path normalization in RefreshPreview
+- `GraphEditor/GraphEditorWindow.xaml.cs`: Path normalization in UpdateTabContextLabel
+- `DiyFfbPlugin.cs`: Added cache clearing before top-level evaluation
+- `Docs/FFB_Graph_Progress.md`: Added fix entries
+
+### Commit Highlights
+
+- Fix context cache emptied by sub-evaluators during Include evaluation
+- Fix dropdown selection with smart refresh (only rebuild when contexts change)
+- Fix context inputs applied in preview (path normalization)
+- Fix tab label context suffix (path normalization)
+
+---
+
+## 2026-01-25: Implement Include Context Preview
+
+### Summary
+
+Implemented Include Context Preview feature: sub-graphs can now preview with real parent context inputs. When viewing an included graph, a dropdown shows available Include call sites from the active graph evaluation, allowing preview to use actual parent-provided inputs instead of manual test values.
+
+### Implementation
+
+1. **Data Classes**: `IncludeCallContext` captures inputs/params passed to an Include node; `IncludeContextCache` stores contexts keyed by resolved path (case-insensitive).
+
+2. **Evaluator Integration**: `GraphCompiledEvaluator` accepts optional cache and populates it during `EvalInclude()`. Cache cleared at start of each evaluation cycle.
+
+3. **Plugin Wiring**: `DiyFfbPlugin` creates cache, passes to evaluator, exposes via `ActiveIncludeContextCache` property.
+
+4. **Editor UI**: Context dropdown in inspector (hidden when no contexts available). When a context is selected, preview uses its inputs/params instead of manual entries.
+
+5. **Tab Labels**: `ContextSuffix` property on `GraphEditorTab` shows " (via IncludeTitle)" when previewing with context.
+
+### Files Changed
+
+- `GraphTest/IncludeCallContext.cs`: New data class
+- `GraphTest/IncludeContextCache.cs`: New cache class
+- `GraphTest/GraphCompiledEvaluator.cs`: Added cache parameter and population logic
+- `GraphTest/GraphTestRunner.cs`: Added 6 tests (4 cache + 2 evaluator)
+- `DiyFfbPlugin.cs`: Create/wire cache, expose property
+- `DiyFfbPlugin.csproj`: Added new files
+- `GraphEditor/GraphEditorControl.xaml`: Context dropdown UI
+- `GraphEditor/GraphEditorControl.xaml.cs`: Context selection logic, RefreshPreview updates
+- `GraphEditor/GraphEditorTab.cs`: ContextSuffix property
+- `GraphEditor/GraphEditorWindow.xaml.cs`: Wire context provider, update tab labels
+- `Docs/FFB_Graph_Progress.md`: Updated progress
+
+### Commit Highlights
+
+- Add Include Context Preview for sub-graph previews
+- Context dropdown shows available Include call sites
+- Tab labels reflect active context
+
+---
+
 ## 2026-01-25: Fix Pending Graph Params Not Saved Without Profile
 
 ### Summary

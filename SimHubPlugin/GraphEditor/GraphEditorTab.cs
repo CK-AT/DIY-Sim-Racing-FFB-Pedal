@@ -14,6 +14,7 @@ namespace User.PluginSdkDemo.GraphEditor
         private bool isDirty;
         private bool isPinned;
         private bool isActiveGraph;
+        private string contextSuffix;
 
         public GraphEditorTab()
         {
@@ -63,6 +64,12 @@ namespace User.PluginSdkDemo.GraphEditor
                 if (isActiveGraph)
                 {
                     return $"Active: {name}";
+                }
+
+                // Append context suffix if previewing with parent context
+                if (!string.IsNullOrEmpty(contextSuffix))
+                {
+                    return name + contextSuffix;
                 }
 
                 return name;
@@ -119,6 +126,24 @@ namespace User.PluginSdkDemo.GraphEditor
         }
 
         /// <summary>
+        /// Optional suffix shown after the filename when previewing with parent context.
+        /// E.g., " (via MyInclude)"
+        /// </summary>
+        public string ContextSuffix
+        {
+            get => contextSuffix;
+            set
+            {
+                if (contextSuffix != value)
+                {
+                    contextSuffix = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(DisplayName));
+                }
+            }
+        }
+
+        /// <summary>
         /// The graph definition for this tab. Getter returns the live graph from the EditorControl.
         /// </summary>
         public GraphDefinition Graph
@@ -155,6 +180,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 var loadedGraph = GraphSerializer.Deserialize(json, out _);
                 FilePath = path;
                 EditorControl.BaseDirectory = BaseDirectory;  // Must be set BEFORE Graph (SetGraph triggers SyncIncludePorts)
+                EditorControl.FilePath = path;  // Set file path for context lookup
                 Graph = loadedGraph;
                 IsDirty = false;
                 return true;
@@ -193,6 +219,8 @@ namespace User.PluginSdkDemo.GraphEditor
                 string json = GraphSerializer.Serialize(Graph);
                 File.WriteAllText(path, json);
                 FilePath = path;
+                EditorControl.FilePath = path;  // Update file path for context lookup
+                EditorControl.BaseDirectory = BaseDirectory;  // Update base directory too
                 IsDirty = false;
                 return true;
             }

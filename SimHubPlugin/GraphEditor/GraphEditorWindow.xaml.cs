@@ -97,6 +97,9 @@ namespace User.PluginSdkDemo.GraphEditor
             foreach (var tab in tabManager.Tabs)
             {
                 WireTabParamChanges(tab);
+
+                // Set/update context provider (plugin reference may have changed)
+                tab.EditorControl.ContextProvider = path => plugin?.ActiveIncludeContextCache?.GetContexts(path);
             }
         }
 
@@ -211,12 +214,54 @@ namespace User.PluginSdkDemo.GraphEditor
             {
                 tab.EditorControl.LiveInputProvider = liveInputProvider;
             }
+
+            // Set context provider for include context preview
+            tab.EditorControl.ContextProvider = path => plugin?.ActiveIncludeContextCache?.GetContexts(path);
+
+            // Subscribe to context changes to update tab label
+            tab.EditorControl.ContextChanged += (s, contextId) => UpdateTabContextLabel(tab, contextId);
         }
 
         private void OnTabRemoved(object sender, GraphEditorTab tab)
         {
             // Clean up event handlers
             tab.EditorControl.IncludeOpenRequested -= OnIncludeOpenRequested;
+        }
+
+        private void UpdateTabContextLabel(GraphEditorTab tab, string contextId)
+        {
+            if (contextId != null && plugin?.ActiveIncludeContextCache != null)
+            {
+                // Normalize path for cache lookup (cache uses absolute paths)
+                string normalizedPath = tab.FilePath;
+                try
+                {
+                    if (!string.IsNullOrEmpty(tab.FilePath))
+                        normalizedPath = System.IO.Path.GetFullPath(tab.FilePath);
+                }
+                catch { }
+
+                var contexts = plugin.ActiveIncludeContextCache.GetContexts(normalizedPath);
+                DiyFfb.GraphTest.IncludeCallContext ctx = null;
+                if (contexts != null)
+                {
+                    foreach (var c in contexts)
+                    {
+                        if (c.IncludeNodeId == contextId)
+                        {
+                            ctx = c;
+                            break;
+                        }
+                    }
+                }
+
+                if (ctx != null)
+                {
+                    tab.ContextSuffix = $" (via {ctx.IncludeNodeTitle})";
+                    return;
+                }
+            }
+            tab.ContextSuffix = null;
         }
 
         public void LoadGraphFromPath(string path)

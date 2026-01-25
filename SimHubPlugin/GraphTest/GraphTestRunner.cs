@@ -68,6 +68,14 @@ namespace DiyFfb.GraphTest
             // Editor format include tests
             results.Add(TestRunner.RunTest("Editor format include evaluation", TestEditorFormatIncludeEvaluation));
 
+            // Include context cache tests
+            results.Add(TestRunner.RunTest("IncludeContextCache add and retrieve", TestIncludeContextCacheAddAndRetrieve));
+            results.Add(TestRunner.RunTest("IncludeContextCache case insensitive path", TestIncludeContextCachePathCaseInsensitive));
+            results.Add(TestRunner.RunTest("IncludeContextCache multiple includes same path", TestIncludeContextCacheMultipleIncludesSamePath));
+            results.Add(TestRunner.RunTest("IncludeContextCache clear", TestIncludeContextCacheClear));
+            results.Add(TestRunner.RunTest("Evaluator populates include context cache", TestEvaluatorPopulatesIncludeContextCache));
+            results.Add(TestRunner.RunTest("Evaluator clears cache each evaluation", TestEvaluatorClearsCacheEachEvaluation));
+
             TestRunner.PrintResults("FFB Graph Tests", results);
         }
 
@@ -1785,6 +1793,167 @@ namespace DiyFfb.GraphTest
             {
                 // Cleanup
                 try { System.IO.File.Delete(includePath); } catch { }
+                try { System.IO.Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+
+        // Include context cache tests
+
+        private static bool TestIncludeContextCacheAddAndRetrieve()
+        {
+            var cache = new IncludeContextCache();
+            var ctx = new IncludeCallContext
+            {
+                IncludeNodeId = "inc1",
+                IncludeNodeTitle = "MyInclude",
+                IncludePath = "C:/graphs/sub.json",
+                Inputs = new Dictionary<string, double> { { "A", 1.0 } },
+                Parameters = new Dictionary<string, double>()
+            };
+
+            cache.Add("C:/graphs/sub.json", ctx);
+
+            var retrieved = cache.GetContexts("C:/graphs/sub.json");
+            return retrieved.Count == 1 &&
+                   retrieved[0].IncludeNodeId == "inc1" &&
+                   retrieved[0].Inputs["A"] == 1.0;
+        }
+
+        private static bool TestIncludeContextCachePathCaseInsensitive()
+        {
+            var cache = new IncludeContextCache();
+            cache.Add("C:/Graphs/Sub.json", new IncludeCallContext { IncludeNodeId = "inc1" });
+
+            var retrieved = cache.GetContexts("c:/graphs/sub.json");
+            return retrieved.Count == 1;
+        }
+
+        private static bool TestIncludeContextCacheMultipleIncludesSamePath()
+        {
+            var cache = new IncludeContextCache();
+            cache.Add("sub.json", new IncludeCallContext { IncludeNodeId = "inc1", IncludeNodeTitle = "First" });
+            cache.Add("sub.json", new IncludeCallContext { IncludeNodeId = "inc2", IncludeNodeTitle = "Second" });
+
+            var retrieved = cache.GetContexts("sub.json");
+            return retrieved.Count == 2 &&
+                   retrieved.Any(c => c.IncludeNodeTitle == "First") &&
+                   retrieved.Any(c => c.IncludeNodeTitle == "Second");
+        }
+
+        private static bool TestIncludeContextCacheClear()
+        {
+            var cache = new IncludeContextCache();
+            cache.Add("sub.json", new IncludeCallContext { IncludeNodeId = "inc1" });
+            cache.Clear();
+
+            var retrieved = cache.GetContexts("sub.json");
+            return retrieved.Count == 0;
+        }
+
+        private static bool TestEvaluatorPopulatesIncludeContextCache()
+        {
+            // Create a temp directory for the test
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ffb_context_test_" + Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(tempDir);
+
+            try
+            {
+                // Create sub-graph file
+                var subGraph = new GraphDefinition();
+                subGraph.Nodes["x"] = new GraphNode { Id = "x", Type = NodeType.Input, Name = "X" };
+                subGraph.Nodes["y"] = new GraphNode { Id = "y", Type = NodeType.Output, Name = "Y", Src = "x" };
+
+                string subPath = System.IO.Path.Combine(tempDir, "sub.json");
+                string subJson = new GraphSaver().SaveToJson(subGraph);
+                System.IO.File.WriteAllText(subPath, subJson);
+
+                // Create parent graph with Include node
+                var parent = new GraphDefinition();
+                parent.Nodes["in1"] = new GraphNode { Id = "in1", Type = NodeType.Input, Name = "Speed" };
+                parent.Nodes["inc1"] = new GraphNode
+                {
+                    Id = "inc1",
+                    Type = NodeType.Include,
+                    Name = "SubGraph",
+                    Path = "sub.json",
+                    InputMap = new Dictionary<string, string> { { "X", "in1" } },
+                    OutputMap = new Dictionary<string, string> { { "Y", "inc1_Y" } }
+                };
+                parent.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "Result", Src = "inc1_Y" };
+
+                var resolver = new GraphIncludeResolver(tempDir);
+                var cache = new IncludeContextCache();
+                var evaluator = new GraphCompiledEvaluator(parent, resolver, cache, tempDir);
+
+                var inputs = new Dictionary<string, double> { { "Speed", 42.0 } };
+                evaluator.Evaluate(inputs, null);
+
+                var contexts = cache.GetContexts(subPath);
+                return contexts.Count == 1 &&
+                       contexts[0].IncludeNodeId == "inc1" &&
+                       contexts[0].IncludeNodeTitle == "SubGraph" &&
+                       contexts[0].Inputs.ContainsKey("X") &&
+                       Math.Abs(contexts[0].Inputs["X"] - 42.0) < 0.0001;
+            }
+            finally
+            {
+                try { System.IO.Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+
+        private static bool TestEvaluatorClearsCacheEachEvaluation()
+        {
+            // Create a temp directory for the test
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ffb_context_test_" + Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(tempDir);
+
+            try
+            {
+                // Create sub-graph file
+                var subGraph = new GraphDefinition();
+                subGraph.Nodes["x"] = new GraphNode { Id = "x", Type = NodeType.Input, Name = "X" };
+                subGraph.Nodes["y"] = new GraphNode { Id = "y", Type = NodeType.Output, Name = "Y", Src = "x" };
+
+                string subPath = System.IO.Path.Combine(tempDir, "sub.json");
+                string subJson = new GraphSaver().SaveToJson(subGraph);
+                System.IO.File.WriteAllText(subPath, subJson);
+
+                // Create parent graph with Include node
+                var parent = new GraphDefinition();
+                parent.Nodes["in1"] = new GraphNode { Id = "in1", Type = NodeType.Input, Name = "Speed" };
+                parent.Nodes["inc1"] = new GraphNode
+                {
+                    Id = "inc1",
+                    Type = NodeType.Include,
+                    Name = "SubGraph",
+                    Path = "sub.json",
+                    InputMap = new Dictionary<string, string> { { "X", "in1" } },
+                    OutputMap = new Dictionary<string, string> { { "Y", "inc1_Y" } }
+                };
+                parent.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "Result", Src = "inc1_Y" };
+
+                var resolver = new GraphIncludeResolver(tempDir);
+                var cache = new IncludeContextCache();
+                var evaluator = new GraphCompiledEvaluator(parent, resolver, cache, tempDir);
+
+                // First evaluation
+                evaluator.Evaluate(new Dictionary<string, double> { { "Speed", 10.0 } }, null);
+                var contexts1 = cache.GetContexts(subPath);
+                if (contexts1.Count != 1 || Math.Abs(contexts1[0].Inputs["X"] - 10.0) >= 0.0001)
+                {
+                    return false;
+                }
+
+                // Second evaluation - cache should have new values, not accumulated
+                evaluator.Evaluate(new Dictionary<string, double> { { "Speed", 20.0 } }, null);
+                var contexts2 = cache.GetContexts(subPath);
+
+                // Should still be 1 context (not 2), with updated value
+                return contexts2.Count == 1 &&
+                       Math.Abs(contexts2[0].Inputs["X"] - 20.0) < 0.0001;
+            }
+            finally
+            {
                 try { System.IO.Directory.Delete(tempDir, true); } catch { }
             }
         }

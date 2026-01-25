@@ -122,6 +122,7 @@ namespace User.PluginSdkDemo
         private DiyFfb.GraphTest.GraphDefinition activeGraphRuntime;
         private DiyFfb.GraphTest.GraphCompiledEvaluator activeGraphEvaluator;
         private DiyFfb.GraphTest.GraphIncludeResolver activeGraphResolver;
+        private DiyFfb.GraphTest.IncludeContextCache activeIncludeContextCache;
         private readonly Dictionary<string, double> graphInputs = new Dictionary<string, double>();
         private readonly Dictionary<string, double> graphParams = new Dictionary<string, double>();
         private DiyFfb.GraphTest.GraphEvaluationResult lastGraphEvaluation;
@@ -2108,6 +2109,7 @@ namespace User.PluginSdkDemo
             activeGraphRuntime = null;
             activeGraphEvaluator = null;
             activeGraphResolver = null;
+            activeIncludeContextCache = null;
             lastGraphEvaluation = null;
 
             if (string.IsNullOrWhiteSpace(activeGraphPath))
@@ -2146,7 +2148,9 @@ namespace User.PluginSdkDemo
 
                     activeGraphRuntime = GraphRuntimeConverter.Convert(activeVehicleGraph);
                     activeGraphResolver = GraphRuntimeConverter.CreateResolver(baseDir);
-                    activeGraphEvaluator = new DiyFfb.GraphTest.GraphCompiledEvaluator(activeGraphRuntime, activeGraphResolver);
+                    activeIncludeContextCache = new DiyFfb.GraphTest.IncludeContextCache();
+                    activeGraphEvaluator = new DiyFfb.GraphTest.GraphCompiledEvaluator(
+                        activeGraphRuntime, activeGraphResolver, activeIncludeContextCache, baseDir);
 
                     // Notify UI that graph has changed
                     ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
@@ -2171,6 +2175,8 @@ namespace User.PluginSdkDemo
             {
                 BuildGraphInputs(data);
                 BuildGraphParams();
+                // Clear context cache before top-level evaluation so include contexts are fresh
+                activeIncludeContextCache?.Clear();
                 lastGraphEvaluation = activeGraphEvaluator.EvaluateWithTrace(graphInputs, graphParams);
             }
             catch
@@ -2669,6 +2675,12 @@ namespace User.PluginSdkDemo
             System.Diagnostics.Debug.WriteLine($"[DiyFfbPlugin] Returning resolved path: '{resolved}'");
             return resolved;
         }
+
+        /// <summary>
+        /// Gets the include context cache for the active graph.
+        /// Used by the graph editor to show sub-graph previews with parent context.
+        /// </summary>
+        public DiyFfb.GraphTest.IncludeContextCache ActiveIncludeContextCache => activeIncludeContextCache;
 
         public IReadOnlyDictionary<string, GraphParam> GetActiveGraphParams()
         {
