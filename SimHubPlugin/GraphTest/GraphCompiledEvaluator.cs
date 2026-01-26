@@ -88,6 +88,12 @@ namespace DiyFfb.GraphTest
             IReadOnlyDictionary<string, double> inputs,
             IReadOnlyDictionary<string, double> parameters)
         {
+            if (GraphDebugLogger.Enabled)
+            {
+                GraphDebugLogger.LogSection($"EvaluateWithTrace START (baseDir={_baseDirectory})");
+                GraphDebugLogger.Log($"  _extraIndexById.Count={_extraIndexById.Count}, _extraValues.Length={_extraValues.Length}");
+            }
+
             // NOTE: Context cache clearing moved to plugin level (before top-level evaluation)
             // to avoid sub-evaluators clearing parent context during Include evaluation.
 
@@ -135,6 +141,14 @@ namespace DiyFfb.GraphTest
             foreach (var pair in _extraIndexById)
             {
                 result.NodeValues[pair.Key] = _extraValues[pair.Value];
+                if (GraphDebugLogger.Enabled)
+                {
+                    GraphDebugLogger.Log($"  result.NodeValues[{pair.Key}] = _extraValues[{pair.Value}] = {_extraValues[pair.Value]:F4}");
+                }
+            }
+            if (GraphDebugLogger.Enabled)
+            {
+                GraphDebugLogger.Log($"  Total NodeValues count: {result.NodeValues.Count}");
             }
             foreach (var index in _outputNodeIndices)
             {
@@ -309,6 +323,12 @@ namespace DiyFfb.GraphTest
         private void EvalInclude(CompiledNode node, IReadOnlyDictionary<string, double> inputs,
             IReadOnlyDictionary<string, double> parameters, List<string> warnings = null)
         {
+            if (GraphDebugLogger.Enabled)
+            {
+                GraphDebugLogger.LogSection($"EvalInclude: {node.Node.Id} (path={node.Node.Path})");
+                GraphDebugLogger.LogMap("OutputMap", node.Node.OutputMap);
+            }
+
             GraphDefinition subGraph = node.Node.InlineGraph;
             string key = null;
             if (subGraph == null && !string.IsNullOrWhiteSpace(node.Node.Path) && _resolver != null)
@@ -370,16 +390,26 @@ namespace DiyFfb.GraphTest
 
             // Build parameters from sub-graph's perspective (keyed by sub-graph's Param node names)
             // Use sub-graph's Param node default (ConstValue) if not overridden by parent
+            if (GraphDebugLogger.Enabled)
+            {
+                GraphDebugLogger.Log($"  Building subParams from parent parameters ({parameters?.Count ?? 0} entries):");
+                GraphDebugLogger.LogDict("parent parameters", parameters);
+            }
+
             var subParams = new Dictionary<string, double>();
             foreach (var subNode in subGraph.Nodes.Values)
             {
                 if (subNode.Type == NodeType.Param && !string.IsNullOrEmpty(subNode.Name))
                 {
                     // Use parent's override if available, otherwise use sub-graph's default value
-                    double value = parameters != null && parameters.TryGetValue(subNode.Name, out var pVal)
-                        ? pVal
-                        : subNode.ConstValue;
+                    double pVal = 0;
+                    bool foundInParent = parameters != null && parameters.TryGetValue(subNode.Name, out pVal);
+                    double value = foundInParent ? pVal : subNode.ConstValue;
                     subParams[subNode.Name] = value;
+                    if (GraphDebugLogger.Enabled)
+                    {
+                        GraphDebugLogger.Log($"    Param '{subNode.Name}': {(foundInParent ? "from parent" : "default")} = {value} (default={subNode.ConstValue})");
+                    }
                 }
             }
 
@@ -400,8 +430,22 @@ namespace DiyFfb.GraphTest
 
             var outputs = evaluator.Evaluate(subInputs, subParams);
 
+            if (GraphDebugLogger.Enabled)
+            {
+                GraphDebugLogger.Log($"  Sub-graph evaluation complete");
+                GraphDebugLogger.LogDict("subInputs", subInputs);
+                GraphDebugLogger.LogDict("subParams", subParams);
+                GraphDebugLogger.LogDict("outputs (from sub-graph)", outputs);
+            }
+
             // Similarly map output names
             var shortToFullOutput = BuildShortToFullNameMap(subGraph, node.Node.OutputMap.Keys, NodeType.Output);
+
+            if (GraphDebugLogger.Enabled)
+            {
+                GraphDebugLogger.LogMap("shortToFullOutput", shortToFullOutput);
+                GraphDebugLogger.Log($"  _extraIndexById count: {_extraIndexById.Count}");
+            }
 
             foreach (var mapping in node.Node.OutputMap)
             {
@@ -413,8 +457,16 @@ namespace DiyFfb.GraphTest
                 }
                 if (!_extraIndexById.TryGetValue(mapping.Value, out var extraIndex))
                 {
+                    if (GraphDebugLogger.Enabled)
+                    {
+                        GraphDebugLogger.Log($"  WARNING: extra index not found for '{mapping.Value}'");
+                    }
                     warnings?.Add($"Include '{node.Node.Id}' output '{mapping.Key}': extra index not found for '{mapping.Value}'");
                     continue;
+                }
+                if (GraphDebugLogger.Enabled)
+                {
+                    GraphDebugLogger.Log($"  Storing: _extraValues[{extraIndex}] = {value:F4} (key={mapping.Value}, outputName={outputName})");
                 }
                 _extraValues[extraIndex] = value;
             }

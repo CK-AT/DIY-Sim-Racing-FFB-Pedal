@@ -196,13 +196,9 @@ namespace User.PluginSdkDemo.GraphEditor
                 return;
             }
 
-            var graph = activeTab.Graph;
-            if (graph?.Params == null)
-            {
-                return;
-            }
-
-            foreach (var paramName in graph.Params.Keys)
+            // Get all collected param names (includes params from Include nodes)
+            var paramNames = activeTab.EditorControl.GetCollectedParamNames();
+            foreach (var paramName in paramNames)
             {
                 double pluginValue = plugin.GetGraphParamValue(paramName);
                 activeTab.EditorControl.UpdateParamValue(paramName, pluginValue);

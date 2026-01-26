@@ -159,6 +159,21 @@ namespace User.PluginSdkDemo.GraphEditor
         public Func<IDictionary<string, double>> LiveInputProvider { get; set; }
         public Action<string, double> ParamValueChanged { get; set; }
 
+        /// <summary>
+        /// Enable debug logging to trace include evaluation flow.
+        /// Log file: %LocalAppData%\DiyFfb\graph_debug.log
+        /// </summary>
+        public bool DebugLoggingEnabled
+        {
+            get => _previewEvaluator.DebugLoggingEnabled;
+            set => _previewEvaluator.DebugLoggingEnabled = value;
+        }
+
+        /// <summary>
+        /// Gets the path to the debug log file when debug logging is enabled.
+        /// </summary>
+        public string DebugLogPath => _previewEvaluator.DebugLogPath;
+
         public GraphEditorControl()
         {
             InitializeComponent();
@@ -203,6 +218,15 @@ namespace User.PluginSdkDemo.GraphEditor
         public GraphDefinition GetGraph()
         {
             return _graph;
+        }
+
+        /// <summary>
+        /// Returns the names of all collected parameters (local and from includes).
+        /// Used to sync preview values with runtime plugin values.
+        /// </summary>
+        public IEnumerable<string> GetCollectedParamNames()
+        {
+            return _previewParamLookup.Keys;
         }
 
         public void UpdateNodeValues(Dictionary<string, double> values)
@@ -1887,6 +1911,27 @@ namespace User.PluginSdkDemo.GraphEditor
                     }
                 }
             }
+
+            // Also add entries for parameters defined in graph.Params but without Param nodes
+            if (_graph.Params != null)
+            {
+                foreach (var kvp in _graph.Params)
+                {
+                    string name = kvp.Key;
+                    if (!paramNames.Contains(name))
+                    {
+                        paramNames.Add(name);
+                        if (!_previewParamLookup.ContainsKey(name))
+                        {
+                            AddPreviewEntry(_previewParamEntries, _previewParamLookup, name, kvp.Value.DefaultValue);
+                        }
+                    }
+                }
+            }
+
+            // Collect params from included sub-graphs (recursive)
+            CollectIncludeParams(_graph, _baseDirectory, paramNames);
+
             RemoveMissingEntries(_previewParamEntries, _previewParamLookup, paramNames);
         }
 
@@ -1913,15 +1958,93 @@ namespace User.PluginSdkDemo.GraphEditor
             }
         }
 
+        /// <summary>
+        /// Recursively collects parameters from included sub-graphs.
+        /// </summary>
+        private void CollectIncludeParams(GraphDefinition graph, string baseDir, HashSet<string> paramNames)
+        {
+            if (graph?.Nodes == null || string.IsNullOrEmpty(baseDir))
+            {
+                return;
+            }
+
+            foreach (var node in graph.Nodes.Where(n => n.Kind == GraphNodeKind.Include))
+            {
+                if (string.IsNullOrWhiteSpace(node.IncludePath))
+                {
+                    continue;
+                }
+
+                // Resolve the include path relative to the current graph's directory
+                string includePath = node.IncludePath;
+                string resolvedPath;
+                try
+                {
+                    resolvedPath = System.IO.Path.IsPathRooted(includePath)
+                        ? includePath
+                        : System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, includePath));
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (!File.Exists(resolvedPath))
+                {
+                    continue;
+                }
+
+                // Load the included graph
+                GraphDefinition includedGraph;
+                try
+                {
+                    string json = File.ReadAllText(resolvedPath);
+                    includedGraph = GraphSerializer.Deserialize(json, out _);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (includedGraph == null)
+                {
+                    continue;
+                }
+
+                // Add params from this include (defaults, can be overridden by parent)
+                if (includedGraph.Params != null)
+                {
+                    foreach (var kvp in includedGraph.Params)
+                    {
+                        string name = kvp.Key;
+                        if (!paramNames.Contains(name))
+                        {
+                            paramNames.Add(name);
+                            if (!_previewParamLookup.ContainsKey(name))
+                            {
+                                AddPreviewEntry(_previewParamEntries, _previewParamLookup, name, kvp.Value.DefaultValue);
+                            }
+                        }
+                    }
+                }
+
+                // Recurse into nested includes
+                string includeDir = System.IO.Path.GetDirectoryName(resolvedPath);
+                CollectIncludeParams(includedGraph, includeDir, paramNames);
+            }
+        }
+
         private void UpdatePreviewResolver()
         {
             if (!string.IsNullOrWhiteSpace(_baseDirectory) && Directory.Exists(_baseDirectory))
             {
                 _previewEvaluator.SetResolver(GraphRuntimeConverter.CreateResolver(_baseDirectory));
+                _previewEvaluator.SetBaseDirectory(_baseDirectory);
             }
             else
             {
                 _previewEvaluator.SetResolver(null);
+                _previewEvaluator.SetBaseDirectory(null);
             }
         }
 
@@ -2046,6 +2169,33 @@ namespace User.PluginSdkDemo.GraphEditor
             // Rebuild the surface and inspector to reflect the new mode
             RebuildSurface();
             UpdateInspector();
+        }
+
+        private void CheckDebugLogging_Changed(object sender, RoutedEventArgs e)
+        {
+            bool enabled = CheckDebugLogging.IsChecked == true;
+            _previewEvaluator.DebugLoggingEnabled = enabled;
+
+            // Update the log path display
+            if (enabled && !string.IsNullOrEmpty(_previewEvaluator.DebugLogPath))
+            {
+                TextDebugLogPath.Text = System.IO.Path.GetFileName(_previewEvaluator.DebugLogPath);
+                TextDebugLogPath.ToolTip = _previewEvaluator.DebugLogPath + "\nClick to open log file location";
+            }
+            else
+            {
+                TextDebugLogPath.Text = "";
+            }
+        }
+
+        private void TextDebugLogPath_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            string logPath = _previewEvaluator.DebugLogPath;
+            if (!string.IsNullOrEmpty(logPath) && File.Exists(logPath))
+            {
+                // Open Explorer and select the file
+                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{logPath}\"");
+            }
         }
 
         private void SetLiveInputsEnabled(bool enabled)

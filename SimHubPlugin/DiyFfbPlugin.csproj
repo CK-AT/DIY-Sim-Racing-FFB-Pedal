@@ -219,6 +219,7 @@
     <Compile Include="GraphTest\GraphSaver.cs" />
     <Compile Include="GraphTest\IncludeCallContext.cs" />
     <Compile Include="GraphTest\IncludeContextCache.cs" />
+    <Compile Include="GraphTest\GraphDebugLogger.cs" />
     <Compile Include="GraphSignalCatalogData.cs" />
     <Compile Include="GraphSignals.cs" />
     <Compile Include="GraphParamControlBuilder.cs" />
