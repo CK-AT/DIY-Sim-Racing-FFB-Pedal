@@ -1,5 +1,9 @@
 # Include Context Preview - Implementation Plan
 
+**Status**: COMPLETED (2026-01-25)
+
+See [FFB_Graph_Progress.md](FFB_Graph_Progress.md) for implementation details.
+
 ## Overview
 
 Enable sub-graph previews to show live evaluation results in the context of a specific Include node from the active parent graph. When editing a sub-graph that's included by the active graph, users can select which Include node's inputs to use for preview.

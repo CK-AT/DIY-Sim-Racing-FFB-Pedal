@@ -1,6 +1,6 @@
 # Graph Editor Tab System Design
 
-Status: Design document for multi-tab support in the graph editor.
+**Status**: COMPLETED (core implementation done, minor polish items remain)
 
 ## Overview
 

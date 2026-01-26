@@ -1,5 +1,7 @@
 # FFB Graph Grid + Centering Intent
 
+**Status**: DEFERRED (grid as background brush works; auto-centering caused pan/zoom regressions)
+
 Purpose: capture the intended grid, padding, and initial view behavior so we can implement it in isolation.
 
 ## Goals

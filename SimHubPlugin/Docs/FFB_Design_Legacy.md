@@ -1,6 +1,12 @@
-# FFB Design Summary (Future)
+# FFB Design Summary (Legacy Reference)
 
-This document captures the agreed future-state FFB terms per aircraft type and per function. It is intended for editing before implementation; keep it self-contained.
+> **SUPERSEDED**: This document describes the original hardcoded FFB formula design.
+> The FFB Graph System now implements these formulas as configurable graphs.
+> See [FFB_Graph_Design.md](FFB_Graph_Design.md) for the current architecture.
+>
+> Keeping this document as a reference for the physics rationale and formula derivations.
+
+This document captures the agreed FFB terms per aircraft type and per function.
 
 ## Shared Concepts
 
