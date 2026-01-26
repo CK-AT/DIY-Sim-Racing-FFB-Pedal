@@ -28,7 +28,8 @@ namespace User.PluginSdkDemo
             "FlightStickPitch",
             "FlightStickRoll",
             "FlightPedals",
-            "FlightStickCollective"
+            "FlightStickCollective",
+            "Cyclic"  // Shared by helicopter cyclic pitch and roll
         };
 
         public static readonly IReadOnlyList<string> InputNames = new[]

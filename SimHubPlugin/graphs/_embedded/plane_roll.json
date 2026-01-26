@@ -62,7 +62,7 @@
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "AeroTorque.PitchMax"
+          "SignalSuffix": "AeroTorque.RollMax"
         }
       ],
       "SignalGroup": "Aircraft"
@@ -104,7 +104,7 @@
           "SignalSuffix": "SpringGain"
         }
       ],
-      "SignalGroup": "FlightStickPitch"
+      "SignalGroup": "FlightStickRoll"
     },
     {
       "Id": "param_k_damper",
@@ -117,7 +117,7 @@
           "SignalSuffix": "DamperGain"
         }
       ],
-      "SignalGroup": "FlightStickPitch"
+      "SignalGroup": "FlightStickRoll"
     },
     {
       "Id": "param_k_friction_base",
@@ -130,7 +130,7 @@
           "SignalSuffix": "FrictionBase"
         }
       ],
-      "SignalGroup": "FlightStickPitch"
+      "SignalGroup": "FlightStickRoll"
     },
     {
       "Id": "param_k_friction",
@@ -143,7 +143,7 @@
           "SignalSuffix": "FrictionGain"
         }
       ],
-      "SignalGroup": "FlightStickPitch"
+      "SignalGroup": "FlightStickRoll"
     },
     {
       "Id": "param_k_load",
@@ -156,7 +156,7 @@
           "SignalSuffix": "LoadGain"
         }
       ],
-      "SignalGroup": "FlightStickPitch"
+      "SignalGroup": "FlightStickRoll"
     },
     {
       "Id": "param_k_buffet",
@@ -169,7 +169,7 @@
           "SignalSuffix": "BuffetGain"
         }
       ],
-      "SignalGroup": "FlightStickPitch"
+      "SignalGroup": "FlightStickRoll"
     },
     {
       "Id": "qhat",
@@ -494,7 +494,7 @@
     },
     {
       "FromNodeId": "param_aero_max",
-      "FromPort": "AeroTorque.PitchMax",
+      "FromPort": "AeroTorque.RollMax",
       "ToNodeId": "load_norm",
       "ToPort": "b"
     },
@@ -589,13 +589,13 @@
       }
     },
     {
-      "Name": "Aircraft.AeroTorque.PitchMax",
-      "DefaultValue": 2000.0,
+      "Name": "Aircraft.AeroTorque.RollMax",
+      "DefaultValue": 1000.0,
       "Min": 100.0,
-      "Max": 20000.0,
+      "Max": 10000.0,
       "Ui": {
         "Widget": "slider",
-        "Label": "Max Pitch Torque",
+        "Label": "Max Roll Torque",
         "Group": "Aircraft",
         "Units": "Nm",
         "Step": 10.0,
@@ -637,14 +637,14 @@
       }
     },
     {
-      "Name": "FlightStickPitch.SpringGain",
+      "Name": "FlightStickRoll.SpringGain",
       "DefaultValue": 1.0,
       "Min": 0.0,
       "Max": 5.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Spring Gain",
-        "Group": "FlightStickPitch",
+        "Group": "FlightStickRoll",
         "Units": "N/mm @ Vref",
         "Step": 0.01,
         "Precision": 2,
@@ -653,14 +653,14 @@
       }
     },
     {
-      "Name": "FlightStickPitch.DamperGain",
+      "Name": "FlightStickRoll.DamperGain",
       "DefaultValue": 1.0,
       "Min": 0.0,
       "Max": 5.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Damper Gain",
-        "Group": "FlightStickPitch",
+        "Group": "FlightStickRoll",
         "Units": "N*s/mm @ Vref",
         "Step": 0.01,
         "Precision": 2,
@@ -669,14 +669,14 @@
       }
     },
     {
-      "Name": "FlightStickPitch.FrictionBase",
+      "Name": "FlightStickRoll.FrictionBase",
       "DefaultValue": 0.1,
       "Min": 0.0,
       "Max": 2.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Friction Base",
-        "Group": "FlightStickPitch",
+        "Group": "FlightStickRoll",
         "Units": "N",
         "Step": 0.01,
         "Precision": 2,
@@ -685,14 +685,14 @@
       }
     },
     {
-      "Name": "FlightStickPitch.FrictionGain",
+      "Name": "FlightStickRoll.FrictionGain",
       "DefaultValue": 0.3,
       "Min": 0.0,
       "Max": 5.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Friction Gain",
-        "Group": "FlightStickPitch",
+        "Group": "FlightStickRoll",
         "Units": "N @ Vref",
         "Step": 0.01,
         "Precision": 2,
@@ -701,14 +701,14 @@
       }
     },
     {
-      "Name": "FlightStickPitch.LoadGain",
+      "Name": "FlightStickRoll.LoadGain",
       "DefaultValue": 0.5,
       "Min": 0.0,
       "Max": 5.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Load Gain",
-        "Group": "FlightStickPitch",
+        "Group": "FlightStickRoll",
         "Units": "N @ torque_ref",
         "Step": 0.01,
         "Precision": 2,
@@ -717,14 +717,14 @@
       }
     },
     {
-      "Name": "FlightStickPitch.BuffetGain",
+      "Name": "FlightStickRoll.BuffetGain",
       "DefaultValue": 0.5,
       "Min": 0.0,
       "Max": 5.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Buffet Gain",
-        "Group": "FlightStickPitch",
+        "Group": "FlightStickRoll",
         "Units": "N @ Vref",
         "Step": 0.01,
         "Precision": 2,

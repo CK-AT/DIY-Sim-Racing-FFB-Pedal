@@ -31,6 +31,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Multiple includes compiled evaluator", TestMultipleIncludesCompiledEvaluator));
             results.Add(TestRunner.RunTest("Multiple includes isolation", TestMultipleIncludesIsolation));
             results.Add(TestRunner.RunTest("Nested includes", TestNestedIncludes));
+            results.Add(TestRunner.RunTest("Nested includes via resolver", TestNestedIncludesViaResolver));
             results.Add(TestRunner.RunTest("Diamond dependency includes", TestDiamondDependencyIncludes));
             results.Add(TestRunner.RunTest("Include chaining", TestIncludeChaining));
             results.Add(TestRunner.RunTest("Include with parameters", TestIncludeWithParameters));
@@ -599,6 +600,157 @@ namespace DiyFfb.GraphTest
             bool compOk = compOut.TryGetValue("result", out var compVal) && Math.Abs(compVal - 20.0) < 0.0001;
 
             return interpOk && compOk;
+        }
+
+        private static bool TestNestedIncludesViaResolver()
+        {
+            // Test nested includes loaded via EditorFormatConverter through the resolver.
+            // This tests that editor-format sub-graphs with nested includes work correctly.
+            //
+            // Directory structure:
+            //   tempDir/
+            //     parent.json       (includes "sub/middle.json")
+            //     sub/
+            //       middle.json     (includes "inner/inner.json")
+            //       inner/
+            //         inner.json    (output = input * 3)
+            //
+            // Calculation: parent passes 7 -> middle -> inner -> 7 * 3 = 21
+
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ffb_nested_include_test_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            string subDir = System.IO.Path.Combine(tempDir, "sub");
+            string innerDir = System.IO.Path.Combine(subDir, "inner");
+
+            try
+            {
+                System.IO.Directory.CreateDirectory(innerDir);
+
+                // Inner graph: output = input * 3
+                var innerGraph = new GraphEditor.GraphDefinition { IsLibraryGraph = true };
+                var innerIn = new GraphEditor.GraphNode { Id = "in", Kind = GraphEditor.GraphNodeKind.Input };
+                innerIn.Ports.Add(new GraphEditor.GraphPort { Name = "x", Kind = GraphEditor.GraphPortKind.Output });
+                innerGraph.Nodes.Add(innerIn);
+
+                var innerConst = new GraphEditor.GraphNode { Id = "three", Kind = GraphEditor.GraphNodeKind.Const, ConstValue = 3.0 };
+                innerGraph.Nodes.Add(innerConst);
+
+                var innerMul = new GraphEditor.GraphNode { Id = "mul", Kind = GraphEditor.GraphNodeKind.Op, Op = "mul" };
+                innerMul.Ports.Add(new GraphEditor.GraphPort { Name = "a", Kind = GraphEditor.GraphPortKind.Input });
+                innerMul.Ports.Add(new GraphEditor.GraphPort { Name = "b", Kind = GraphEditor.GraphPortKind.Input });
+                innerMul.Ports.Add(new GraphEditor.GraphPort { Name = "result", Kind = GraphEditor.GraphPortKind.Output });
+                innerGraph.Nodes.Add(innerMul);
+
+                var innerOut = new GraphEditor.GraphNode { Id = "out", Kind = GraphEditor.GraphNodeKind.Output };
+                innerOut.Ports.Add(new GraphEditor.GraphPort { Name = "result", Kind = GraphEditor.GraphPortKind.Input });
+                innerGraph.Nodes.Add(innerOut);
+
+                innerGraph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "in", FromPort = "x", ToNodeId = "mul", ToPort = "a" });
+                innerGraph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "three", FromPort = "value", ToNodeId = "mul", ToPort = "b" });
+                innerGraph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "mul", FromPort = "result", ToNodeId = "out", ToPort = "result" });
+
+                string innerPath = System.IO.Path.Combine(innerDir, "inner.json");
+                System.IO.File.WriteAllText(innerPath, GraphEditor.GraphSerializer.Serialize(innerGraph));
+
+                // Middle graph: includes inner/inner.json (relative to middle.json location)
+                var middleGraph = new GraphEditor.GraphDefinition { IsLibraryGraph = true };
+                var middleIn = new GraphEditor.GraphNode { Id = "in", Kind = GraphEditor.GraphNodeKind.Input };
+                middleIn.Ports.Add(new GraphEditor.GraphPort { Name = "val", Kind = GraphEditor.GraphPortKind.Output });
+                middleGraph.Nodes.Add(middleIn);
+
+                var middleInclude = new GraphEditor.GraphNode
+                {
+                    Id = "inc",
+                    Kind = GraphEditor.GraphNodeKind.Include,
+                    IncludePath = "inner/inner.json"  // Relative to middle.json's directory (sub/)
+                };
+                middleGraph.Nodes.Add(middleInclude);
+
+                var middleOut = new GraphEditor.GraphNode { Id = "out", Kind = GraphEditor.GraphNodeKind.Output };
+                middleOut.Ports.Add(new GraphEditor.GraphPort { Name = "output", Kind = GraphEditor.GraphPortKind.Input });
+                middleGraph.Nodes.Add(middleOut);
+
+                // Populate include ports before serialization (simulates editor behavior)
+                GraphEditor.GraphSerializer.PopulateIncludePorts(middleGraph, subDir);
+
+                // Add links after ports are populated
+                middleGraph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "in", FromPort = "val", ToNodeId = "inc", ToPort = "x" });
+                middleGraph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "inc", FromPort = "result", ToNodeId = "out", ToPort = "output" });
+
+                string middlePath = System.IO.Path.Combine(subDir, "middle.json");
+                System.IO.File.WriteAllText(middlePath, GraphEditor.GraphSerializer.Serialize(middleGraph));
+
+                // Parent graph: includes sub/middle.json
+                var parentGraph = new GraphEditor.GraphDefinition();
+                var parentConst = new GraphEditor.GraphNode { Id = "seven", Kind = GraphEditor.GraphNodeKind.Const, ConstValue = 7.0 };
+                parentGraph.Nodes.Add(parentConst);
+
+                var parentInclude = new GraphEditor.GraphNode
+                {
+                    Id = "mid",
+                    Kind = GraphEditor.GraphNodeKind.Include,
+                    IncludePath = "sub/middle.json"  // Relative to parent.json's directory (tempDir/)
+                };
+                parentGraph.Nodes.Add(parentInclude);
+
+                var parentOut = new GraphEditor.GraphNode { Id = "out", Kind = GraphEditor.GraphNodeKind.Output };
+                parentOut.Ports.Add(new GraphEditor.GraphPort { Name = "final", Kind = GraphEditor.GraphPortKind.Input });
+                parentGraph.Nodes.Add(parentOut);
+
+                // Populate include ports
+                GraphEditor.GraphSerializer.PopulateIncludePorts(parentGraph, tempDir);
+
+                // Add links after ports are populated
+                parentGraph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "seven", FromPort = "value", ToNodeId = "mid", ToPort = "val" });
+                parentGraph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "mid", FromPort = "output", ToNodeId = "out", ToPort = "final" });
+
+                // Convert parent to runtime
+                var parentRuntimeDll = GraphEditor.GraphRuntimeConverter.Convert(parentGraph);
+                string parentRuntimeJson = Newtonsoft.Json.JsonConvert.SerializeObject(parentRuntimeDll);
+                var parentRuntime = Newtonsoft.Json.JsonConvert.DeserializeObject<GraphDefinition>(parentRuntimeJson);
+
+                // Create resolver with EditorFormatConverter that handles nested includes
+                var resolver = new GraphIncludeResolver(tempDir)
+                {
+                    EditorFormatConverter = (json, resolvedPath) =>
+                    {
+                        var g = GraphEditor.GraphSerializer.Deserialize(json, out var validation);
+                        if (g == null)
+                        {
+                            return null;
+                        }
+
+                        // Populate nested Include ports using the file's directory
+                        // This is critical for nested includes to resolve relative paths correctly
+                        string fileDir = System.IO.Path.GetDirectoryName(resolvedPath) ?? tempDir;
+                        GraphEditor.GraphSerializer.PopulateIncludePorts(g, fileDir);
+
+                        // Convert editor graph to runtime format
+                        var dllRuntime = GraphEditor.GraphRuntimeConverter.Convert(g);
+                        string runtimeJson = Newtonsoft.Json.JsonConvert.SerializeObject(dllRuntime);
+                        return Newtonsoft.Json.JsonConvert.DeserializeObject<GraphDefinition>(runtimeJson);
+                    }
+                };
+
+                // Evaluate
+                var evaluator = new GraphCompiledEvaluator(parentRuntime, resolver, null, tempDir);
+                var outputs = evaluator.Evaluate(new Dictionary<string, double>(), new Dictionary<string, double>());
+
+                // Expected: 7 * 3 = 21
+                if (!outputs.TryGetValue("final", out var result))
+                {
+                    return false;
+                }
+
+                return Math.Abs(result - 21.0) < 0.0001;
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                try { System.IO.Directory.Delete(tempDir, true); } catch { }
+            }
         }
 
         private static bool TestDiamondDependencyIncludes()
@@ -1819,7 +1971,7 @@ namespace DiyFfb.GraphTest
                 // (DLL GraphDefinition and local GraphDefinition are structurally identical)
                 var resolver = new GraphIncludeResolver(tempDir)
                 {
-                    EditorFormatConverter = json =>
+                    EditorFormatConverter = (json, resolvedPath) =>
                     {
                         var g = GraphEditor.GraphSerializer.Deserialize(json, out var validation);
                         if (g == null)

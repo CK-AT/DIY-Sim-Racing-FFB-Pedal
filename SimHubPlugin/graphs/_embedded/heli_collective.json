@@ -1,24 +1,38 @@
 {
-  "Version": 2,
+  "Version": 4,
+  "IsLibraryGraph": true,
   "Nodes": [
     {
-      "Id": "trq_mr",
+      "Id": "in_torque",
+      "Title": "Torque",
       "Kind": "Input",
       "X": 40.0,
       "Y": 40.0,
       "Ports": [
         {
-          "Kind": "Output",
-          "SignalSuffix": "MainRotor.Torque"
+          "Name": "torque",
+          "Kind": "Output"
         }
-      ],
-      "SignalGroup": "XPlane"
+      ]
     },
     {
-      "Id": "trq_ref",
+      "Id": "in_rpm",
+      "Title": "RPM",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 100.0,
+      "Ports": [
+        {
+          "Name": "rpm",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_torque_ref",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 110.0,
+      "Y": 170.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -28,23 +42,10 @@
       "SignalGroup": "Aircraft"
     },
     {
-      "Id": "rpm",
-      "Kind": "Input",
-      "X": 40.0,
-      "Y": 180.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "MainRotor.Speed"
-        }
-      ],
-      "SignalGroup": "XPlane"
-    },
-    {
-      "Id": "rpm_ref",
+      "Id": "param_rpm_ref",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 250.0,
+      "Y": 230.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -54,36 +55,23 @@
       "SignalGroup": "Aircraft"
     },
     {
-      "Id": "k_load",
+      "Id": "param_rpm_blend",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 320.0,
+      "Y": 290.0,
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "LoadGain"
+          "SignalSuffix": "RpmBlend"
         }
       ],
-      "SignalGroup": "FlightStickCollective"
+      "SignalGroup": "Aircraft"
     },
     {
-      "Id": "k_friction",
+      "Id": "param_k_damper",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 390.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "FrictionGain"
-        }
-      ],
-      "SignalGroup": "FlightStickCollective"
-    },
-    {
-      "Id": "k_damper",
-      "Kind": "Param",
-      "X": 40.0,
-      "Y": 460.0,
+      "Y": 360.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -93,89 +81,72 @@
       "SignalGroup": "FlightStickCollective"
     },
     {
-      "Id": "k_lowrpm",
+      "Id": "param_k_friction_base",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 530.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "LowRpmFriction"
+          "SignalSuffix": "FrictionBase"
         }
       ],
       "SignalGroup": "FlightStickCollective"
     },
     {
-      "Id": "trq_norm",
-      "Title": "Trq Norm",
-      "Kind": "Func",
-      "X": 400.0,
-      "Y": 50.0,
+      "Id": "param_k_friction_torque",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 480.0,
       "Ports": [
         {
-          "Name": "trq",
-          "Kind": "Input"
-        },
-        {
-          "Name": "trq_ref",
-          "Kind": "Input"
-        },
-        {
-          "Name": "out",
-          "Kind": "Output"
+          "Kind": "Output",
+          "SignalSuffix": "FrictionTorque"
         }
       ],
-      "Func": "torque_norm",
-      "IncludePath": ""
+      "SignalGroup": "FlightStickCollective"
     },
     {
-      "Id": "rpm_norm",
-      "Title": "RPM Norm",
-      "Kind": "Func",
-      "X": 400.0,
-      "Y": 180.0,
+      "Id": "param_k_friction_lowrpm",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 540.0,
       "Ports": [
         {
-          "Name": "rpm",
-          "Kind": "Input"
-        },
-        {
-          "Name": "rpm_ref",
-          "Kind": "Input"
-        },
-        {
-          "Name": "out",
-          "Kind": "Output"
+          "Kind": "Output",
+          "SignalSuffix": "FrictionLowRpm"
         }
       ],
-      "Func": "rpm_norm",
-      "IncludePath": ""
+      "SignalGroup": "FlightStickCollective"
     },
     {
-      "Id": "assist_loss",
-      "Title": "Assist Loss",
-      "Kind": "Func",
-      "X": 470.0,
-      "Y": 490.0,
+      "Id": "param_k_load",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 600.0,
       "Ports": [
         {
-          "Name": "rpm_norm",
-          "Kind": "Input"
-        },
-        {
-          "Name": "out",
-          "Kind": "Output"
+          "Kind": "Output",
+          "SignalSuffix": "LoadGain"
         }
       ],
-      "Func": "assist_loss",
-      "IncludePath": ""
+      "SignalGroup": "FlightStickCollective"
     },
     {
-      "Id": "load",
-      "Title": "Load",
+      "Id": "scale_include",
+      "Title": "Heli Scale",
+      "Kind": "Include",
+      "X": 280.0,
+      "Y": 100.0,
+      "Ports": [],
+      "IncludePath": "common/heli_scale.json"
+    },
+    {
+      "Id": "damper",
+      "Title": "Damper",
       "Kind": "Op",
-      "X": 710.0,
-      "Y": 150.0,
+      "X": 500.0,
+      "Y": 100.0,
       "Ports": [
         {
           "Name": "a",
@@ -193,11 +164,11 @@
       "Op": "mul"
     },
     {
-      "Id": "fric_base",
-      "Title": "Fric Base",
+      "Id": "fric_torque",
+      "Title": "Fric Torque",
       "Kind": "Op",
-      "X": 630.0,
-      "Y": 250.0,
+      "X": 500.0,
+      "Y": 200.0,
       "Ports": [
         {
           "Name": "a",
@@ -215,11 +186,11 @@
       "Op": "mul"
     },
     {
-      "Id": "fric_low",
-      "Title": "Fric Low",
+      "Id": "fric_lowrpm",
+      "Title": "Fric LowRPM",
       "Kind": "Op",
-      "X": 630.0,
-      "Y": 530.0,
+      "X": 500.0,
+      "Y": 280.0,
       "Ports": [
         {
           "Name": "a",
@@ -237,11 +208,11 @@
       "Op": "mul"
     },
     {
-      "Id": "friction",
-      "Title": "Friction",
+      "Id": "fric_sum1",
+      "Title": "Fric Sum 1",
       "Kind": "Op",
-      "X": 770.0,
-      "Y": 270.0,
+      "X": 660.0,
+      "Y": 200.0,
       "Ports": [
         {
           "Name": "a",
@@ -259,11 +230,33 @@
       "Op": "add"
     },
     {
-      "Id": "damper",
-      "Title": "Damper",
+      "Id": "friction",
+      "Title": "Friction",
       "Kind": "Op",
-      "X": 630.0,
-      "Y": 380.0,
+      "X": 820.0,
+      "Y": 230.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "load",
+      "Title": "Load",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 360.0,
       "Ports": [
         {
           "Name": "a",
@@ -282,134 +275,164 @@
     },
     {
       "Id": "out_damper",
+      "Title": "Damper Out",
       "Kind": "Output",
       "X": 950.0,
-      "Y": 280.0,
+      "Y": 100.0,
       "Ports": [
         {
-          "Kind": "Input",
-          "SignalSuffix": "LoadForce"
-        },
-        {
-          "Kind": "Input",
-          "SignalSuffix": "Friction"
-        },
-        {
-          "Kind": "Input",
-          "SignalSuffix": "DamperGain"
+          "Name": "damper",
+          "Kind": "Input"
         }
-      ],
-      "SignalGroup": "FlightStickCollective"
+      ]
+    },
+    {
+      "Id": "out_friction",
+      "Title": "Friction Out",
+      "Kind": "Output",
+      "X": 950.0,
+      "Y": 230.0,
+      "Ports": [
+        {
+          "Name": "friction",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "out_load",
+      "Title": "Load Out",
+      "Kind": "Output",
+      "X": 950.0,
+      "Y": 360.0,
+      "Ports": [
+        {
+          "Name": "load",
+          "Kind": "Input"
+        }
+      ]
     }
   ],
   "Links": [
     {
-      "FromNodeId": "trq_mr",
-      "FromPort": "MainRotor.Torque",
-      "ToNodeId": "trq_norm",
-      "ToPort": "trq"
+      "FromNodeId": "in_torque",
+      "FromPort": "torque",
+      "ToNodeId": "scale_include",
+      "ToPort": "in_torque"
     },
     {
-      "FromNodeId": "trq_ref",
+      "FromNodeId": "param_torque_ref",
       "FromPort": "Rotor.TorqueNom",
-      "ToNodeId": "trq_norm",
-      "ToPort": "trq_ref"
+      "ToNodeId": "scale_include",
+      "ToPort": "in_torque_ref"
     },
     {
-      "FromNodeId": "rpm",
-      "FromPort": "MainRotor.Speed",
-      "ToNodeId": "rpm_norm",
-      "ToPort": "rpm"
+      "FromNodeId": "in_rpm",
+      "FromPort": "rpm",
+      "ToNodeId": "scale_include",
+      "ToPort": "in_rpm"
     },
     {
-      "FromNodeId": "rpm_ref",
+      "FromNodeId": "param_rpm_ref",
       "FromPort": "Rotor.SpeedNom",
-      "ToNodeId": "rpm_norm",
-      "ToPort": "rpm_ref"
+      "ToNodeId": "scale_include",
+      "ToPort": "in_rpm_ref"
     },
     {
-      "FromNodeId": "rpm_norm",
-      "FromPort": "out",
-      "ToNodeId": "assist_loss",
-      "ToPort": "rpm_norm"
+      "FromNodeId": "param_rpm_blend",
+      "FromPort": "RpmBlend",
+      "ToNodeId": "scale_include",
+      "ToPort": "in_rpm_blend"
     },
     {
-      "FromNodeId": "k_load",
-      "FromPort": "LoadGain",
-      "ToNodeId": "load",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "trq_norm",
-      "FromPort": "out",
-      "ToNodeId": "load",
+      "FromNodeId": "scale_include",
+      "FromPort": "out_damp_scale",
+      "ToNodeId": "damper",
       "ToPort": "a"
     },
     {
-      "FromNodeId": "k_friction",
-      "FromPort": "FrictionGain",
-      "ToNodeId": "fric_base",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "trq_norm",
-      "FromPort": "out",
-      "ToNodeId": "fric_base",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "k_lowrpm",
-      "FromPort": "LowRpmFriction",
-      "ToNodeId": "fric_low",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "assist_loss",
-      "FromPort": "out",
-      "ToNodeId": "fric_low",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "fric_base",
-      "FromPort": "out",
-      "ToNodeId": "friction",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "fric_low",
-      "FromPort": "out",
-      "ToNodeId": "friction",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "k_damper",
+      "FromNodeId": "param_k_damper",
       "FromPort": "DamperGain",
       "ToNodeId": "damper",
       "ToPort": "b"
     },
     {
-      "FromNodeId": "trq_norm",
-      "FromPort": "out",
-      "ToNodeId": "damper",
+      "FromNodeId": "scale_include",
+      "FromPort": "out_torque_norm",
+      "ToNodeId": "fric_torque",
       "ToPort": "a"
     },
     {
-      "FromNodeId": "load",
-      "FromPort": "out",
-      "ToNodeId": "out_damper",
-      "ToPort": "LoadForce"
+      "FromNodeId": "param_k_friction_torque",
+      "FromPort": "FrictionTorque",
+      "ToNodeId": "fric_torque",
+      "ToPort": "b"
     },
     {
-      "FromNodeId": "friction",
+      "FromNodeId": "scale_include",
+      "FromPort": "out_assist_loss",
+      "ToNodeId": "fric_lowrpm",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_k_friction_lowrpm",
+      "FromPort": "FrictionLowRpm",
+      "ToNodeId": "fric_lowrpm",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "fric_torque",
       "FromPort": "out",
-      "ToNodeId": "out_damper",
-      "ToPort": "Friction"
+      "ToNodeId": "fric_sum1",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "fric_lowrpm",
+      "FromPort": "out",
+      "ToNodeId": "fric_sum1",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_k_friction_base",
+      "FromPort": "FrictionBase",
+      "ToNodeId": "friction",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "fric_sum1",
+      "FromPort": "out",
+      "ToNodeId": "friction",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "out_torque_norm",
+      "ToNodeId": "load",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_k_load",
+      "FromPort": "LoadGain",
+      "ToNodeId": "load",
+      "ToPort": "b"
     },
     {
       "FromNodeId": "damper",
       "FromPort": "out",
       "ToNodeId": "out_damper",
-      "ToPort": "DamperGain"
+      "ToPort": "damper"
+    },
+    {
+      "FromNodeId": "friction",
+      "FromPort": "out",
+      "ToNodeId": "out_friction",
+      "ToPort": "friction"
+    },
+    {
+      "FromNodeId": "load",
+      "FromPort": "out",
+      "ToNodeId": "out_load",
+      "ToPort": "load"
     }
   ],
   "Params": [
@@ -446,31 +469,15 @@
       }
     },
     {
-      "Name": "FlightStickCollective.LoadGain",
-      "DefaultValue": 0.8,
-      "Min": 0.0,
-      "Max": 5.0,
-      "Ui": {
-        "Widget": "slider",
-        "Label": "Load Gain",
-        "Group": "FlightStickCollective",
-        "Units": "multiplier",
-        "Step": 0.01,
-        "Precision": 2,
-        "LogScale": false,
-        "Options": []
-      }
-    },
-    {
-      "Name": "FlightStickCollective.FrictionGain",
+      "Name": "Aircraft.RpmBlend",
       "DefaultValue": 0.5,
       "Min": 0.0,
-      "Max": 5.0,
+      "Max": 1.0,
       "Ui": {
         "Widget": "slider",
-        "Label": "Friction Gain",
-        "Group": "FlightStickCollective",
-        "Units": "multiplier",
+        "Label": "RPM Blend Factor",
+        "Group": "Aircraft",
+        "Units": "ratio",
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
@@ -486,6 +493,54 @@
         "Widget": "slider",
         "Label": "Damper Gain",
         "Group": "FlightStickCollective",
+        "Units": "N*s/mm @ trq_ref",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickCollective.FrictionBase",
+      "DefaultValue": 0.1,
+      "Min": 0.0,
+      "Max": 2.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Friction Base",
+        "Group": "FlightStickCollective",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickCollective.FrictionTorque",
+      "DefaultValue": 0.3,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Friction (Torque)",
+        "Group": "FlightStickCollective",
+        "Units": "N @ trq_ref",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickCollective.FrictionLowRpm",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Friction (Low RPM)",
+        "Group": "FlightStickCollective",
         "Units": "multiplier",
         "Step": 0.01,
         "Precision": 2,
@@ -494,15 +549,15 @@
       }
     },
     {
-      "Name": "FlightStickCollective.LowRpmFriction",
-      "DefaultValue": 0.5,
+      "Name": "FlightStickCollective.LoadGain",
+      "DefaultValue": 0.8,
       "Min": 0.0,
       "Max": 5.0,
       "Ui": {
         "Widget": "slider",
-        "Label": "Max Assist Loss Friction",
+        "Label": "Load Gain",
         "Group": "FlightStickCollective",
-        "Units": "N@full assist loss",
+        "Units": "N @ trq_ref",
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,

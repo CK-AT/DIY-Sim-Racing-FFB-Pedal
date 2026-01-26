@@ -3,27 +3,27 @@
   "IsLibraryGraph": true,
   "Nodes": [
     {
-      "Id": "in_ias",
-      "Title": "IAS",
+      "Id": "in_torque",
+      "Title": "Torque",
       "Kind": "Input",
       "X": 40.0,
       "Y": 40.0,
       "Ports": [
         {
-          "Name": "ias",
+          "Name": "torque",
           "Kind": "Output"
         }
       ]
     },
     {
-      "Id": "in_alpha",
-      "Title": "Alpha",
+      "Id": "in_rpm",
+      "Title": "RPM",
       "Kind": "Input",
       "X": 40.0,
       "Y": 100.0,
       "Ports": [
         {
-          "Name": "alpha",
+          "Name": "rpm",
           "Kind": "Output"
         }
       ]
@@ -42,14 +42,40 @@
       ]
     },
     {
-      "Id": "param_vref",
+      "Id": "param_torque_ref",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 240.0,
+      "Y": 230.0,
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "Vref"
+          "SignalSuffix": "Rotor.TorqueNom"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_rpm_ref",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 290.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Rotor.SpeedNom"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_rpm_blend",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 350.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RpmBlend"
         }
       ],
       "SignalGroup": "Aircraft"
@@ -58,7 +84,7 @@
       "Id": "param_aero_max",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 300.0,
+      "Y": 410.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -68,137 +94,98 @@
       "SignalGroup": "Aircraft"
     },
     {
-      "Id": "param_alpha_start",
-      "Kind": "Param",
-      "X": 40.0,
-      "Y": 360.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "Buffet.AlphaStart"
-        }
-      ],
-      "SignalGroup": "Aircraft"
-    },
-    {
-      "Id": "param_alpha_full",
-      "Kind": "Param",
-      "X": 40.0,
-      "Y": 420.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "Buffet.AlphaFull"
-        }
-      ],
-      "SignalGroup": "Aircraft"
-    },
-    {
       "Id": "param_k_spring",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 500.0,
+      "Y": 480.0,
       "Ports": [
         {
           "Kind": "Output",
           "SignalSuffix": "SpringGain"
         }
       ],
-      "SignalGroup": "FlightStickPitch"
+      "SignalGroup": "Cyclic"
     },
     {
       "Id": "param_k_damper",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 560.0,
+      "Y": 540.0,
       "Ports": [
         {
           "Kind": "Output",
           "SignalSuffix": "DamperGain"
         }
       ],
-      "SignalGroup": "FlightStickPitch"
+      "SignalGroup": "Cyclic"
     },
     {
       "Id": "param_k_friction_base",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 620.0,
+      "Y": 600.0,
       "Ports": [
         {
           "Kind": "Output",
           "SignalSuffix": "FrictionBase"
         }
       ],
-      "SignalGroup": "FlightStickPitch"
+      "SignalGroup": "Cyclic"
     },
     {
-      "Id": "param_k_friction",
+      "Id": "param_k_friction_torque",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 680.0,
+      "Y": 660.0,
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "FrictionGain"
+          "SignalSuffix": "FrictionTorque"
         }
       ],
-      "SignalGroup": "FlightStickPitch"
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_k_friction_lowrpm",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 720.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FrictionLowRpm"
+        }
+      ],
+      "SignalGroup": "Cyclic"
     },
     {
       "Id": "param_k_load",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 740.0,
+      "Y": 780.0,
       "Ports": [
         {
           "Kind": "Output",
           "SignalSuffix": "LoadGain"
         }
       ],
-      "SignalGroup": "FlightStickPitch"
+      "SignalGroup": "Cyclic"
     },
     {
-      "Id": "param_k_buffet",
-      "Kind": "Param",
-      "X": 40.0,
-      "Y": 800.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "BuffetGain"
-        }
-      ],
-      "SignalGroup": "FlightStickPitch"
-    },
-    {
-      "Id": "qhat",
-      "Title": "Qhat",
-      "Kind": "Func",
+      "Id": "scale_include",
+      "Title": "Heli Scale",
+      "Kind": "Include",
       "X": 280.0,
-      "Y": 60.0,
-      "Ports": [
-        {
-          "Name": "ias_kts",
-          "Kind": "Input"
-        },
-        {
-          "Name": "vref_kts",
-          "Kind": "Input"
-        },
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "Func": "qhat_eff"
+      "Y": 100.0,
+      "Ports": [],
+      "IncludePath": "common/heli_scale.json"
     },
     {
-      "Id": "spring",
-      "Title": "Spring",
+      "Id": "damper",
+      "Title": "Damper",
       "Kind": "Op",
-      "X": 480.0,
-      "Y": 120.0,
+      "X": 500.0,
+      "Y": 100.0,
       "Ports": [
         {
           "Name": "a",
@@ -216,10 +203,10 @@
       "Op": "mul"
     },
     {
-      "Id": "damper",
-      "Title": "Damper",
+      "Id": "fric_torque",
+      "Title": "Fric Torque",
       "Kind": "Op",
-      "X": 480.0,
+      "X": 500.0,
       "Y": 200.0,
       "Ports": [
         {
@@ -238,10 +225,10 @@
       "Op": "mul"
     },
     {
-      "Id": "fric_scaled",
-      "Title": "Fric Scaled",
+      "Id": "fric_lowrpm",
+      "Title": "Fric LowRPM",
       "Kind": "Op",
-      "X": 480.0,
+      "X": 500.0,
       "Y": 280.0,
       "Ports": [
         {
@@ -260,11 +247,33 @@
       "Op": "mul"
     },
     {
+      "Id": "fric_sum1",
+      "Title": "Fric Sum 1",
+      "Kind": "Op",
+      "X": 660.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
       "Id": "friction",
       "Title": "Friction",
       "Kind": "Op",
-      "X": 640.0,
-      "Y": 280.0,
+      "X": 820.0,
+      "Y": 230.0,
       "Ports": [
         {
           "Name": "a",
@@ -285,7 +294,7 @@
       "Id": "load_norm",
       "Title": "Load Norm",
       "Kind": "Op",
-      "X": 480.0,
+      "X": 500.0,
       "Y": 360.0,
       "Ports": [
         {
@@ -307,7 +316,7 @@
       "Id": "load",
       "Title": "Load",
       "Kind": "Op",
-      "X": 640.0,
+      "X": 660.0,
       "Y": 360.0,
       "Ports": [
         {
@@ -326,45 +335,11 @@
       "Op": "mul"
     },
     {
-      "Id": "buffet",
-      "Title": "Buffet",
-      "Kind": "Func",
-      "X": 480.0,
-      "Y": 440.0,
-      "Ports": [
-        {
-          "Name": "alpha",
-          "Kind": "Input"
-        },
-        {
-          "Name": "start",
-          "Kind": "Input"
-        },
-        {
-          "Name": "full",
-          "Kind": "Input"
-        },
-        {
-          "Name": "gain",
-          "Kind": "Input"
-        },
-        {
-          "Name": "qhat_eff",
-          "Kind": "Input"
-        },
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "Func": "buffet"
-    },
-    {
       "Id": "out_spring",
       "Title": "Spring Out",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 120.0,
+      "X": 950.0,
+      "Y": 40.0,
       "Ports": [
         {
           "Name": "spring",
@@ -376,8 +351,8 @@
       "Id": "out_damper",
       "Title": "Damper Out",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 200.0,
+      "X": 950.0,
+      "Y": 100.0,
       "Ports": [
         {
           "Name": "damper",
@@ -389,8 +364,8 @@
       "Id": "out_friction",
       "Title": "Friction Out",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 280.0,
+      "X": 950.0,
+      "Y": 230.0,
       "Ports": [
         {
           "Name": "friction",
@@ -402,7 +377,7 @@
       "Id": "out_load",
       "Title": "Load Out",
       "Kind": "Output",
-      "X": 800.0,
+      "X": 950.0,
       "Y": 360.0,
       "Ports": [
         {
@@ -410,49 +385,48 @@
           "Kind": "Input"
         }
       ]
-    },
-    {
-      "Id": "out_buffet",
-      "Title": "Buffet Out",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 440.0,
-      "Ports": [
-        {
-          "Name": "buffet",
-          "Kind": "Input"
-        }
-      ]
     }
   ],
   "Links": [
     {
-      "FromNodeId": "in_ias",
-      "FromPort": "ias",
-      "ToNodeId": "qhat",
-      "ToPort": "ias_kts"
+      "FromNodeId": "in_torque",
+      "FromPort": "torque",
+      "ToNodeId": "scale_include",
+      "ToPort": "in_torque"
     },
     {
-      "FromNodeId": "param_vref",
-      "FromPort": "Vref",
-      "ToNodeId": "qhat",
-      "ToPort": "vref_kts"
+      "FromNodeId": "param_torque_ref",
+      "FromPort": "Rotor.TorqueNom",
+      "ToNodeId": "scale_include",
+      "ToPort": "in_torque_ref"
     },
     {
-      "FromNodeId": "qhat",
-      "FromPort": "out",
-      "ToNodeId": "spring",
-      "ToPort": "a"
+      "FromNodeId": "in_rpm",
+      "FromPort": "rpm",
+      "ToNodeId": "scale_include",
+      "ToPort": "in_rpm"
+    },
+    {
+      "FromNodeId": "param_rpm_ref",
+      "FromPort": "Rotor.SpeedNom",
+      "ToNodeId": "scale_include",
+      "ToPort": "in_rpm_ref"
+    },
+    {
+      "FromNodeId": "param_rpm_blend",
+      "FromPort": "RpmBlend",
+      "ToNodeId": "scale_include",
+      "ToPort": "in_rpm_blend"
     },
     {
       "FromNodeId": "param_k_spring",
       "FromPort": "SpringGain",
-      "ToNodeId": "spring",
-      "ToPort": "b"
+      "ToNodeId": "out_spring",
+      "ToPort": "spring"
     },
     {
-      "FromNodeId": "qhat",
-      "FromPort": "out",
+      "FromNodeId": "scale_include",
+      "FromPort": "out_damp_scale",
       "ToNodeId": "damper",
       "ToPort": "a"
     },
@@ -463,15 +437,39 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "qhat",
-      "FromPort": "out",
-      "ToNodeId": "fric_scaled",
+      "FromNodeId": "scale_include",
+      "FromPort": "out_torque_norm",
+      "ToNodeId": "fric_torque",
       "ToPort": "a"
     },
     {
-      "FromNodeId": "param_k_friction",
-      "FromPort": "FrictionGain",
-      "ToNodeId": "fric_scaled",
+      "FromNodeId": "param_k_friction_torque",
+      "FromPort": "FrictionTorque",
+      "ToNodeId": "fric_torque",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "out_assist_loss",
+      "ToNodeId": "fric_lowrpm",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_k_friction_lowrpm",
+      "FromPort": "FrictionLowRpm",
+      "ToNodeId": "fric_lowrpm",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "fric_torque",
+      "FromPort": "out",
+      "ToNodeId": "fric_sum1",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "fric_lowrpm",
+      "FromPort": "out",
+      "ToNodeId": "fric_sum1",
       "ToPort": "b"
     },
     {
@@ -481,7 +479,7 @@
       "ToPort": "a"
     },
     {
-      "FromNodeId": "fric_scaled",
+      "FromNodeId": "fric_sum1",
       "FromPort": "out",
       "ToNodeId": "friction",
       "ToPort": "b"
@@ -511,42 +509,6 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "in_alpha",
-      "FromPort": "alpha",
-      "ToNodeId": "buffet",
-      "ToPort": "alpha"
-    },
-    {
-      "FromNodeId": "param_alpha_start",
-      "FromPort": "Buffet.AlphaStart",
-      "ToNodeId": "buffet",
-      "ToPort": "start"
-    },
-    {
-      "FromNodeId": "param_alpha_full",
-      "FromPort": "Buffet.AlphaFull",
-      "ToNodeId": "buffet",
-      "ToPort": "full"
-    },
-    {
-      "FromNodeId": "param_k_buffet",
-      "FromPort": "BuffetGain",
-      "ToNodeId": "buffet",
-      "ToPort": "gain"
-    },
-    {
-      "FromNodeId": "qhat",
-      "FromPort": "out",
-      "ToNodeId": "buffet",
-      "ToPort": "qhat_eff"
-    },
-    {
-      "FromNodeId": "spring",
-      "FromPort": "out",
-      "ToNodeId": "out_spring",
-      "ToPort": "spring"
-    },
-    {
       "FromNodeId": "damper",
       "FromPort": "out",
       "ToNodeId": "out_damper",
@@ -563,25 +525,35 @@
       "FromPort": "out",
       "ToNodeId": "out_load",
       "ToPort": "load"
-    },
-    {
-      "FromNodeId": "buffet",
-      "FromPort": "out",
-      "ToNodeId": "out_buffet",
-      "ToPort": "buffet"
     }
   ],
   "Params": [
     {
-      "Name": "Aircraft.Vref",
-      "DefaultValue": 100.0,
-      "Min": 50.0,
-      "Max": 300.0,
+      "Name": "Aircraft.Rotor.TorqueNom",
+      "DefaultValue": 1000.0,
+      "Min": 100.0,
+      "Max": 10000.0,
       "Ui": {
         "Widget": "slider",
-        "Label": "Reference Speed",
+        "Label": "Nominal Rotor Torque",
         "Group": "Aircraft",
-        "Units": "kts",
+        "Units": "Nm",
+        "Step": 10.0,
+        "Precision": 0,
+        "LogScale": true,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.Rotor.SpeedNom",
+      "DefaultValue": 400.0,
+      "Min": 100.0,
+      "Max": 1000.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Nominal Rotor Speed",
+        "Group": "Aircraft",
+        "Units": "RPM",
         "Step": 1.0,
         "Precision": 0,
         "LogScale": false,
@@ -589,10 +561,26 @@
       }
     },
     {
+      "Name": "Aircraft.RpmBlend",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RPM Blend Factor",
+        "Group": "Aircraft",
+        "Units": "ratio",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
       "Name": "Aircraft.AeroTorque.PitchMax",
-      "DefaultValue": 2000.0,
+      "DefaultValue": 1000.0,
       "Min": 100.0,
-      "Max": 20000.0,
+      "Max": 10000.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Max Pitch Torque",
@@ -605,47 +593,15 @@
       }
     },
     {
-      "Name": "Aircraft.Buffet.AlphaStart",
-      "DefaultValue": 12.0,
-      "Min": 0.0,
-      "Max": 30.0,
-      "Ui": {
-        "Widget": "slider",
-        "Label": "Buffet Start Alpha",
-        "Group": "Aircraft",
-        "Units": "deg",
-        "Step": 0.5,
-        "Precision": 1,
-        "LogScale": false,
-        "Options": []
-      }
-    },
-    {
-      "Name": "Aircraft.Buffet.AlphaFull",
-      "DefaultValue": 18.0,
-      "Min": 0.0,
-      "Max": 45.0,
-      "Ui": {
-        "Widget": "slider",
-        "Label": "Buffet Full Alpha",
-        "Group": "Aircraft",
-        "Units": "deg",
-        "Step": 0.5,
-        "Precision": 1,
-        "LogScale": false,
-        "Options": []
-      }
-    },
-    {
-      "Name": "FlightStickPitch.SpringGain",
+      "Name": "Cyclic.SpringGain",
       "DefaultValue": 1.0,
       "Min": 0.0,
       "Max": 5.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Spring Gain",
-        "Group": "FlightStickPitch",
-        "Units": "N/mm @ Vref",
+        "Group": "Cyclic",
+        "Units": "N/mm",
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
@@ -653,15 +609,15 @@
       }
     },
     {
-      "Name": "FlightStickPitch.DamperGain",
-      "DefaultValue": 1.0,
+      "Name": "Cyclic.DamperGain",
+      "DefaultValue": 0.5,
       "Min": 0.0,
       "Max": 5.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Damper Gain",
-        "Group": "FlightStickPitch",
-        "Units": "N*s/mm @ Vref",
+        "Group": "Cyclic",
+        "Units": "N*s/mm @ trq_ref",
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
@@ -669,14 +625,14 @@
       }
     },
     {
-      "Name": "FlightStickPitch.FrictionBase",
+      "Name": "Cyclic.FrictionBase",
       "DefaultValue": 0.1,
       "Min": 0.0,
       "Max": 2.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Friction Base",
-        "Group": "FlightStickPitch",
+        "Group": "Cyclic",
         "Units": "N",
         "Step": 0.01,
         "Precision": 2,
@@ -685,15 +641,15 @@
       }
     },
     {
-      "Name": "FlightStickPitch.FrictionGain",
+      "Name": "Cyclic.FrictionTorque",
       "DefaultValue": 0.3,
       "Min": 0.0,
       "Max": 5.0,
       "Ui": {
         "Widget": "slider",
-        "Label": "Friction Gain",
-        "Group": "FlightStickPitch",
-        "Units": "N @ Vref",
+        "Label": "Friction (Torque)",
+        "Group": "Cyclic",
+        "Units": "N @ trq_ref",
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
@@ -701,31 +657,31 @@
       }
     },
     {
-      "Name": "FlightStickPitch.LoadGain",
+      "Name": "Cyclic.FrictionLowRpm",
       "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Friction (Low RPM)",
+        "Group": "Cyclic",
+        "Units": "multiplier",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.LoadGain",
+      "DefaultValue": 0.2,
       "Min": 0.0,
       "Max": 5.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Load Gain",
-        "Group": "FlightStickPitch",
-        "Units": "N @ torque_ref",
-        "Step": 0.01,
-        "Precision": 2,
-        "LogScale": false,
-        "Options": []
-      }
-    },
-    {
-      "Name": "FlightStickPitch.BuffetGain",
-      "DefaultValue": 0.5,
-      "Min": 0.0,
-      "Max": 5.0,
-      "Ui": {
-        "Widget": "slider",
-        "Label": "Buffet Gain",
-        "Group": "FlightStickPitch",
-        "Units": "N @ Vref",
+        "Group": "Cyclic",
+        "Units": "N @ aero_trq_ref",
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
