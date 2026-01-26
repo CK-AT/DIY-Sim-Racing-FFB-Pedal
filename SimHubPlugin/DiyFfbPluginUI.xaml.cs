@@ -2645,45 +2645,29 @@ namespace User.PluginSdkDemo
 
         private void OnOpenGraphEditorClicked(object sender, RoutedEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("[UI] OnOpenGraphEditorClicked called");
-
             if (graphEditorWindow == null)
             {
-                System.Diagnostics.Debug.WriteLine("[UI] Creating new GraphEditorWindow");
                 graphEditorWindow = new GraphEditorWindow();
                 graphEditorWindow.SetPlugin(Plugin);
                 graphEditorWindow.SetLiveInputProvider(() => Plugin != null ? Plugin.GetLiveGraphInputs() : null);
                 string activeGraphPath = Plugin?.GetActiveGraphPath();
-                System.Diagnostics.Debug.WriteLine($"[UI] Got activeGraphPath: '{activeGraphPath}'");
                 if (!string.IsNullOrWhiteSpace(activeGraphPath))
                 {
-                    System.Diagnostics.Debug.WriteLine("[UI] Calling LoadGraphFromPath");
                     graphEditorWindow.LoadGraphFromPath(activeGraphPath);
                     lastGraphEditorPath = activeGraphPath;
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine("[UI] activeGraphPath is empty, NOT calling LoadGraphFromPath");
                 }
                 graphEditorWindow.Closed += (_, __) => graphEditorWindow = null;
                 graphEditorWindow.Show();
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine("[UI] GraphEditorWindow already exists, activating");
                 graphEditorWindow.SetPlugin(Plugin);
                 graphEditorWindow.SetLiveInputProvider(() => Plugin != null ? Plugin.GetLiveGraphInputs() : null);
                 string activeGraphPath = Plugin?.GetActiveGraphPath();
-                System.Diagnostics.Debug.WriteLine($"[UI] Got activeGraphPath: '{activeGraphPath}'");
                 if (!string.IsNullOrWhiteSpace(activeGraphPath))
                 {
-                    System.Diagnostics.Debug.WriteLine("[UI] Calling LoadGraphFromPath");
                     graphEditorWindow.LoadGraphFromPath(activeGraphPath);
                     lastGraphEditorPath = activeGraphPath;
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine("[UI] activeGraphPath is empty, NOT calling LoadGraphFromPath");
                 }
                 graphEditorWindow.Activate();
             }

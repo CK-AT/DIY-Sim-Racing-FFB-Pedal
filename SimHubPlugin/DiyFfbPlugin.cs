@@ -2687,18 +2687,11 @@ namespace User.PluginSdkDemo
 
         public string GetActiveGraphPath()
         {
-            System.Diagnostics.Debug.WriteLine($"[DiyFfbPlugin] GetActiveGraphPath called, activeGraphPath='{activeGraphPath ?? "(null)"}'");
-
             if (string.IsNullOrWhiteSpace(activeGraphPath))
-            {
-                System.Diagnostics.Debug.WriteLine("[DiyFfbPlugin] activeGraphPath is empty, returning ''");
                 return "";
-            }
 
             // Return resolved absolute path to avoid path resolution inconsistencies
-            string resolved = ResolveGraphFilePath(activeGraphPath);
-            System.Diagnostics.Debug.WriteLine($"[DiyFfbPlugin] Returning resolved path: '{resolved}'");
-            return resolved;
+            return ResolveGraphFilePath(activeGraphPath);
         }
 
         /// <summary>
