@@ -1,5 +1,157 @@
 # Conversation Log
 
+## 2026-01-26: Fix Nested Includes via Resolver Test
+
+### Summary
+
+Fixed the failing `Nested includes via resolver` test. The issue was that nested includes resolved paths relative to the root directory instead of the containing sub-graph's directory.
+
+### Root Cause
+
+When evaluating nested includes:
+1. The evaluator passed relative paths to `_resolver.GetGraph(path)`
+2. The resolver always resolved paths relative to its initial `_baseDirectory`
+3. For nested includes, paths should resolve relative to the sub-graph's directory
+
+Example: `parent.json` includes `sub/middle.json`, which includes `inner/inner.json`
+- Expected: `inner/inner.json` resolves to `sub/inner/inner.json`
+- Actual: `inner/inner.json` resolved to `inner/inner.json` (wrong directory)
+
+### Fix
+
+Modified `GraphCompiledEvaluator.EvalInclude`:
+1. Resolve the include path using `ResolveToAbsolutePath()` BEFORE calling `GetGraph()`
+2. Pass the resolved absolute path to the resolver
+3. Use the resolved path as the cache key
+4. Pass the sub-graph's directory to the sub-evaluator for further nested resolution
+
+Also added `PopulateIncludePorts` call in `GraphRuntimeConverter.ConvertEditorJson` to populate nested include ports when loading editor-format sub-graphs.
+
+### Files Changed
+
+- `GraphTest/GraphCompiledEvaluator.cs`: Pre-resolve paths before calling resolver
+- `GraphEditor/GraphRuntimeConverter.cs`: Call `PopulateIncludePorts` using `resolvedFilePath`
+
+### Test Results
+
+- **GraphTest**: 50/50 passed ✅
+- **KinematicsTests**: 18/18 passed ✅
+
+---
+
+## 2026-01-26: Fix EditorFormatConverter Delegate Signature Mismatch
+
+### Summary
+
+Fixed GraphTest build failure caused by inconsistent revert of `EditorFormatConverter` delegate signature. Tests now pass 49/50 (was: build failure with 1160 errors).
+
+### Root Cause
+
+An earlier fix changed `EditorFormatConverter` from `Func<string, GraphDefinition>` to `Func<string, string, GraphDefinition>` to support nested include path resolution. A subsequent revert was **incomplete**:
+
+| File | Before Fix | After Fix |
+| ---- | ---------- | --------- |
+| `GraphIncludeResolver.cs:89` | `Func<string, GraphDefinition>` | `Func<string, string, GraphDefinition>` ✅ |
+| `GraphIncludeResolver.cs:93` | `Invoke(json)` | `Invoke(json, resolvedPath)` ✅ |
+| `GraphRuntimeConverter.cs:26` | `ConvertEditorJson(string json)` | `ConvertEditorJson(string json, string resolvedFilePath)` ✅ |
+| `GraphTestRunner.cs:714,1974` | `(json, resolvedPath) => ...` | unchanged (already 2-arg) |
+
+The revert restored `GraphRuntimeConverter.cs` to 1-arg but left `GraphTestRunner.cs` using 2-arg lambdas, causing CS1593 build error.
+
+### Fix
+
+Updated delegate signature to 2-arg across all files for consistency.
+
+### Files Changed
+
+- `GraphTest/GraphIncludeResolver.cs`: Changed delegate to `Func<string, string, GraphDefinition>`, updated `TryLoadEditorFormat` to pass both args
+- `GraphEditor/GraphRuntimeConverter.cs`: Added `resolvedFilePath` parameter to `ConvertEditorJson`
+
+### Test Results
+
+- **KinematicsTests**: 18/18 passed ✅
+- **GraphTest**: 49/50 passed (1 failure: `Nested includes via resolver`)
+
+### Remaining Work: Fix "Nested includes via resolver" Test
+
+The test fails because `ConvertEditorJson` doesn't yet USE the `resolvedFilePath` parameter. The signature is correct, but the nested path resolution logic was removed in the revert.
+
+**See dedicated plan:** [Nested_Include_Fix_Plan.md](Nested_Include_Fix_Plan.md)
+
+### Commit Highlights
+
+- Fix EditorFormatConverter delegate signature mismatch (Func<string,string,GraphDefinition>)
+- GraphTest now builds and passes 49/50 tests
+
+---
+
+## 2026-01-26: Revert Changes Breaking Runtime Evaluation
+
+### Summary
+
+Reverted changes that caused runtime graph evaluation to produce absurd values (damper=2349 instead of ~1.5). Multiple changes were contributing to the issue.
+
+### Root Cause
+
+Two problematic changes:
+1. `GraphRuntimeConverter.ConvertEditorJson` called `PopulateIncludePorts` on sub-graphs
+2. `GraphCompiledEvaluator.EvalInclude` used `ResolveToAbsolutePath` to resolve paths, causing double-resolution
+
+### Fix
+
+1. Renamed `ConvertEditorJsonWithIncludes` to `ConvertEditorJson` and removed `PopulateIncludePorts` call
+2. Reverted `GraphCompiledEvaluator.cs` to HEAD (removed debug logging and path resolution changes)
+3. Removed all debug logging from `GraphRuntimeConverter.cs`
+
+### Files Changed
+
+- `GraphEditor/GraphRuntimeConverter.cs`: Removed PopulateIncludePorts call and debug logging
+- `GraphTest/GraphCompiledEvaluator.cs`: Reverted to HEAD
+
+### Commit Highlights
+
+- Revert PopulateIncludePorts in ConvertEditorJson
+- Revert EvalInclude path resolution changes
+- Remove debug logging from evaluator and converter
+
+---
+
+## 2026-01-26: Fix Nested Include Path Resolution in Sub-Graphs
+
+### Summary
+
+Fixed nested Include nodes in sub-graphs not evaluating correctly. When a parent graph included a sub-graph that itself contained Include nodes, the nested includes failed to resolve because paths were resolved relative to the parent's directory instead of the sub-graph's own directory.
+
+### Root Cause
+
+When sub-graphs were loaded via `EditorFormatConverter`:
+
+1. `ConvertEditorJsonWithIncludes` called `PopulateIncludePorts(editorGraph, baseDirectory)`
+2. `baseDirectory` was the **parent graph's** directory (e.g., `graphs/templates/`)
+3. Nested includes in sub-graphs (e.g., `scale_include` with path `common/heli_scale.json` in `heli_cyclic_pitch.json`) resolved to wrong location
+4. Expected: `graphs/_embedded/common/heli_scale.json`
+5. Actual: `graphs/templates/common/heli_scale.json` (file not found)
+
+### Fix
+
+1. Changed `EditorFormatConverter` delegate signature from `Func<string, GraphDefinition>` to `Func<string, string, GraphDefinition>` to pass the resolved file path
+2. `TryLoadEditorFormat` now passes `resolvedPath` to the converter
+3. `ConvertEditorJsonWithIncludes` uses `Path.GetDirectoryName(resolvedFilePath)` for `PopulateIncludePorts` instead of the original base directory
+
+### Files Changed
+
+- `GraphTest/GraphIncludeResolver.cs`: Changed delegate signature to include resolved path
+- `GraphEditor/GraphRuntimeConverter.cs`: Updated converter to use file's directory for path resolution
+- `GraphTest/GraphTestRunner.cs`: Updated test to use new delegate signature
+
+### Commit Highlights
+
+- Fix nested Include paths resolved relative to wrong directory
+- Pass resolved file path to EditorFormatConverter delegate
+- Use sub-graph's directory for PopulateIncludePorts
+
+---
+
 ## 2026-01-25: Add Stall Buffeting to FFB Graph System
 
 ### Summary

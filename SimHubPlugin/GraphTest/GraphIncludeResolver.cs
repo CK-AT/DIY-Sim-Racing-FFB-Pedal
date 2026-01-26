@@ -85,12 +85,13 @@ namespace DiyFfb.GraphTest
         /// <summary>
         /// Delegate for converting editor-format JSON to runtime format.
         /// Set by the plugin to enable editor format support.
+        /// Parameters: (json, resolvedFilePath) to allow path-relative include resolution.
         /// </summary>
-        public Func<string, GraphDefinition> EditorFormatConverter { get; set; }
+        public Func<string, string, GraphDefinition> EditorFormatConverter { get; set; }
 
         private GraphDefinition TryLoadEditorFormat(string json, string resolvedPath)
         {
-            return EditorFormatConverter?.Invoke(json);
+            return EditorFormatConverter?.Invoke(json, resolvedPath);
         }
 
         public GraphDefinition ResolveInclude(GraphNode includeNode)

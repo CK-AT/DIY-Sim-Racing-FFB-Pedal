@@ -313,14 +313,18 @@ namespace DiyFfb.GraphTest
             string key = null;
             if (subGraph == null && !string.IsNullOrWhiteSpace(node.Node.Path) && _resolver != null)
             {
-                key = node.Node.Path;
+                // Resolve path relative to current graph's directory for nested include support.
+                // This ensures inner/inner.json in sub/middle.json resolves to sub/inner/inner.json.
+                string resolvedSubGraphPath = ResolveToAbsolutePath(node.Node.Path);
+                key = resolvedSubGraphPath;  // Use absolute path as cache key
                 if (!_includeCache.TryGetValue(key, out var cached))
                 {
-                    subGraph = _resolver.GetGraph(node.Node.Path);
+                    subGraph = _resolver.GetGraph(resolvedSubGraphPath);  // Pass absolute path to resolver
                     if (subGraph != null)
                     {
-                        // Pass context cache and base directory to sub-evaluator for nested includes
-                        cached = new GraphCompiledEvaluator(subGraph, _resolver, _contextCache, _baseDirectory);
+                        // Pass the sub-graph's directory as base for nested include resolution.
+                        string subGraphDir = Path.GetDirectoryName(resolvedSubGraphPath) ?? _baseDirectory;
+                        cached = new GraphCompiledEvaluator(subGraph, _resolver, _contextCache, subGraphDir);
                         _includeCache[key] = cached;
                     }
                     else

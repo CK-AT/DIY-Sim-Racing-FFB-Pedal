@@ -23,7 +23,9 @@ namespace User.PluginSdkDemo.GraphEditor
         /// Converts editor-format JSON to runtime GraphDefinition.
         /// Returns null if the JSON is not editor format or conversion fails.
         /// </summary>
-        private static DiyFfb.GraphTest.GraphDefinition ConvertEditorJson(string json)
+        /// <param name="json">The JSON content to convert.</param>
+        /// <param name="resolvedFilePath">The resolved file path, used for relative include resolution.</param>
+        private static DiyFfb.GraphTest.GraphDefinition ConvertEditorJson(string json, string resolvedFilePath)
         {
             // Detect editor-format JSON (has "links" or "kind" fields)
             if (string.IsNullOrEmpty(json))
@@ -39,6 +41,16 @@ namespace User.PluginSdkDemo.GraphEditor
             var editorGraph = GraphSerializer.Deserialize(json, out var validation);
             if (editorGraph != null && validation != null && validation.IsValid)
             {
+                // Populate nested Include ports using the sub-graph's directory.
+                // This is critical for nested includes to resolve relative paths correctly.
+                if (!string.IsNullOrEmpty(resolvedFilePath))
+                {
+                    string fileDir = System.IO.Path.GetDirectoryName(resolvedFilePath);
+                    if (!string.IsNullOrEmpty(fileDir))
+                    {
+                        GraphSerializer.PopulateIncludePorts(editorGraph, fileDir);
+                    }
+                }
                 return Convert(editorGraph);
             }
 
