@@ -89,6 +89,7 @@
                               FontSize="10"
                               VerticalAlignment="Center"
                               Margin="6,0,0,0"
+                              IsChecked="True"
                               Checked="CheckLiveInputs_Checked"
                               Unchecked="CheckLiveInputs_Unchecked" />
                 </DockPanel>

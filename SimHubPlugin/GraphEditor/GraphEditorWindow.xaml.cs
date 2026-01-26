@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -35,6 +36,8 @@ namespace User.PluginSdkDemo.GraphEditor
         private bool suppressTreeSelection;
         private DiyFfbPlugin plugin;
         private Func<IDictionary<string, double>> liveInputProvider;
+        private readonly System.Windows.Threading.DispatcherTimer _globalLiveTimer;
+        private bool _globalLiveInputsEnabled = true;  // Enabled by default
 
         public GraphEditorWindow()
         {
@@ -54,6 +57,17 @@ namespace User.PluginSdkDemo.GraphEditor
 
             // Initialize Apply button state
             ButtonApply.IsEnabled = CurrentTab?.IsActiveGraph == true;
+
+            // Initialize global live inputs timer (enabled by default)
+            _globalLiveTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(200)
+            };
+            _globalLiveTimer.Tick += OnGlobalLiveTimerTick;
+            _globalLiveTimer.Start();
+
+            // Handle window closing to stop the timer
+            Closing += OnWindowClosing;
 
             RefreshHierarchy();
         }
@@ -205,6 +219,47 @@ namespace User.PluginSdkDemo.GraphEditor
             }
         }
 
+        private void OnWindowClosing(object sender, CancelEventArgs e)
+        {
+            // Stop the global live inputs timer to prevent evaluation after close
+            _globalLiveTimer.Stop();
+        }
+
+        private void OnGlobalLiveTimerTick(object sender, EventArgs e)
+        {
+            if (!_globalLiveInputsEnabled)
+            {
+                return;
+            }
+
+            // Tick live inputs for all tabs
+            foreach (var tab in tabManager.Tabs)
+            {
+                tab.EditorControl.TickLiveInputs();
+            }
+        }
+
+        private void OnTabLiveInputsStateChanged(object sender, bool enabled)
+        {
+            // One tab's checkbox was toggled - sync the global state to all tabs
+            _globalLiveInputsEnabled = enabled;
+
+            if (_globalLiveInputsEnabled)
+            {
+                _globalLiveTimer.Start();
+            }
+            else
+            {
+                _globalLiveTimer.Stop();
+            }
+
+            // Sync state to all tabs (without raising events to avoid loops)
+            foreach (var tab in tabManager.Tabs)
+            {
+                tab.EditorControl.SetLiveInputsState(enabled, raiseEvent: false);
+            }
+        }
+
         private void OnTabAdded(object sender, GraphEditorTab tab)
         {
             WireTabParamChanges(tab);
@@ -220,12 +275,17 @@ namespace User.PluginSdkDemo.GraphEditor
 
             // Subscribe to context changes to update tab label
             tab.EditorControl.ContextChanged += (s, contextId) => UpdateTabContextLabel(tab, contextId);
+
+            // Subscribe to live inputs state change and sync initial state
+            tab.EditorControl.LiveInputsStateChanged += OnTabLiveInputsStateChanged;
+            tab.EditorControl.SetLiveInputsState(_globalLiveInputsEnabled, raiseEvent: false);
         }
 
         private void OnTabRemoved(object sender, GraphEditorTab tab)
         {
             // Clean up event handlers
             tab.EditorControl.IncludeOpenRequested -= OnIncludeOpenRequested;
+            tab.EditorControl.LiveInputsStateChanged -= OnTabLiveInputsStateChanged;
         }
 
         private void UpdateTabContextLabel(GraphEditorTab tab, string contextId)

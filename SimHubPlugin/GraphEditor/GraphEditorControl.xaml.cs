@@ -28,9 +28,8 @@ namespace User.PluginSdkDemo.GraphEditor
         private readonly ObservableCollection<PreviewEntry> _previewParamEntries = new ObservableCollection<PreviewEntry>();
         private readonly Dictionary<string, PreviewEntry> _previewInputLookup = new Dictionary<string, PreviewEntry>();
         private readonly Dictionary<string, PreviewEntry> _previewParamLookup = new Dictionary<string, PreviewEntry>();
-        private readonly DispatcherTimer _liveInputsTimer;
         private readonly DispatcherTimer _includePathDebounceTimer;
-        private bool _liveInputsEnabled;
+        private bool _liveInputsEnabled = true;  // Enabled by default (global setting synced from Window)
         private readonly GraphPreviewEvaluator _previewEvaluator = new GraphPreviewEvaluator();
         private readonly ObservableCollection<PortEditEntry> _portEntries = new ObservableCollection<PortEditEntry>();
         private bool _isPanning;
@@ -98,6 +97,7 @@ namespace User.PluginSdkDemo.GraphEditor
         public event Action GraphChanged;
         public event Action<bool> DirtyChanged;
         public event EventHandler<string> ContextChanged;  // string = contextId or null
+        public event EventHandler<bool> LiveInputsStateChanged;  // Raised when user toggles the live inputs checkbox
 
         private string _baseDirectory;
         private string _filePath;
@@ -184,8 +184,6 @@ namespace User.PluginSdkDemo.GraphEditor
             PortsList.ItemsSource = _portEntries;
             EditOp.ItemsSource = _opChoices;
             EditFunc.ItemsSource = _funcChoices;
-            _liveInputsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
-            _liveInputsTimer.Tick += OnLiveInputsTick;
             _includePathDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
             _includePathDebounceTimer.Tick += OnIncludePathDebounce;
             CanvasSurface.SizeChanged += (_, __) => UpdateCanvasExtent();
@@ -2158,12 +2156,12 @@ namespace User.PluginSdkDemo.GraphEditor
 
         private void CheckLiveInputs_Checked(object sender, RoutedEventArgs e)
         {
-            SetLiveInputsEnabled(true);
+            SetLiveInputsState(true, raiseEvent: true);
         }
 
         private void CheckLiveInputs_Unchecked(object sender, RoutedEventArgs e)
         {
-            SetLiveInputsEnabled(false);
+            SetLiveInputsState(false, raiseEvent: true);
         }
 
         private void CheckLibraryGraph_Changed(object sender, RoutedEventArgs e)
@@ -2213,22 +2211,37 @@ namespace User.PluginSdkDemo.GraphEditor
             }
         }
 
-        private void SetLiveInputsEnabled(bool enabled)
+        /// <summary>
+        /// Sets the live inputs state. Called by the window to sync global state across all tabs.
+        /// </summary>
+        /// <param name="enabled">Whether live inputs are enabled</param>
+        /// <param name="raiseEvent">If true, raises LiveInputsStateChanged (used when user toggles checkbox)</param>
+        public void SetLiveInputsState(bool enabled, bool raiseEvent)
         {
             _liveInputsEnabled = enabled;
+            CheckLiveInputs.IsChecked = enabled;
+
+            if (raiseEvent)
+            {
+                LiveInputsStateChanged?.Invoke(this, enabled);
+            }
+
             if (_liveInputsEnabled)
             {
-                _liveInputsTimer.Start();
                 ApplyLiveInputs();
-            }
-            else
-            {
-                _liveInputsTimer.Stop();
             }
         }
 
-        private void OnLiveInputsTick(object sender, EventArgs e)
+        /// <summary>
+        /// Called by the window's global timer to tick live inputs for this tab.
+        /// </summary>
+        public void TickLiveInputs()
         {
+            if (!_liveInputsEnabled)
+            {
+                return;
+            }
+
             ApplyLiveInputs();
 
             // Refresh context dropdown during live mode, but skip if dropdown is open
