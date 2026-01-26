@@ -94,7 +94,7 @@ namespace User.PluginSdkDemo.GraphEditor
         private Point _handleDragOffset;
         private bool _updatingParamValue;
 
-        public event Action<string> IncludeOpenRequested;
+        public event Action<string, string> IncludeOpenRequested;  // (path, includeNodeId)
         public event Action GraphChanged;
         public event Action<bool> DirtyChanged;
         public event EventHandler<string> ContextChanged;  // string = contextId or null
@@ -102,6 +102,7 @@ namespace User.PluginSdkDemo.GraphEditor
         private string _baseDirectory;
         private string _filePath;
         private string _selectedContextId;
+        private bool _contextIsUserSelected;  // True if user explicitly selected a context (sticky)
         private HashSet<string> _lastContextIds = new HashSet<string>();
         private Func<string, IReadOnlyList<IncludeCallContext>> _contextProvider;
         public string BaseDirectory
@@ -196,6 +197,10 @@ namespace User.PluginSdkDemo.GraphEditor
             _graph = graph ?? new GraphDefinition();
             _hasUserPanned = false;
             IsDirty = false;
+
+            // Reset context selection when loading a new graph
+            _contextIsUserSelected = false;
+            _selectedContextId = null;
 
             // Update the Library Graph checkbox to match the graph's flag
             CheckLibraryGraph.IsChecked = _graph.IsLibraryGraph;
@@ -971,7 +976,9 @@ namespace User.PluginSdkDemo.GraphEditor
                 // Handle double-click on Include nodes
                 if (e.ClickCount == 2 && node.Kind == GraphNodeKind.Include && !string.IsNullOrWhiteSpace(node.IncludePath))
                 {
-                    IncludeOpenRequested?.Invoke(node.IncludePath);
+                    // Pass node.Id so the new tab can auto-select this context when live mode is active
+                    string contextId = _liveInputsEnabled ? node.Id : null;
+                    IncludeOpenRequested?.Invoke(node.IncludePath, contextId);
                     e.Handled = true;
                     return;
                 }
@@ -2101,7 +2108,15 @@ namespace User.PluginSdkDemo.GraphEditor
                     }
                     else
                     {
-                        // Context no longer available, fall back to standalone
+                        // Context not found in cache - could be temporary dropout
+                        if (_contextIsUserSelected)
+                        {
+                            // Don't fall back to standalone immediately; wait for cache to repopulate
+                            // Skip this refresh cycle
+                            return;
+                        }
+
+                        // Not user-selected, safe to fall back
                         _selectedContextId = null;
                         RefreshContextDropdown();
                         return;
@@ -2257,12 +2272,17 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             if (_contextProvider == null || string.IsNullOrEmpty(_filePath))
             {
-                if (PanelEvalContext.Visibility != Visibility.Collapsed)
+                // Only clear selection if not user-selected (sticky behavior)
+                if (!_contextIsUserSelected)
                 {
-                    ComboEvalContext.Items.Clear();
-                    ComboEvalContext.Items.Add(new ComboBoxItem { Content = "(standalone)", Tag = null });
-                    PanelEvalContext.Visibility = Visibility.Collapsed;
-                    _lastContextIds.Clear();
+                    if (PanelEvalContext.Visibility != Visibility.Collapsed)
+                    {
+                        ComboEvalContext.Items.Clear();
+                        ComboEvalContext.Items.Add(new ComboBoxItem { Content = "(standalone)", Tag = null });
+                        PanelEvalContext.Visibility = Visibility.Collapsed;
+                        _selectedContextId = null;
+                        _lastContextIds.Clear();
+                    }
                 }
                 return;
             }
@@ -2282,14 +2302,20 @@ namespace User.PluginSdkDemo.GraphEditor
 
             if (contexts == null || contexts.Count == 0)
             {
-                if (PanelEvalContext.Visibility != Visibility.Collapsed)
+                // Cache is temporarily empty - DON'T reset if user had selected a context
+                // The cache will be repopulated on next evaluation cycle
+                if (!_contextIsUserSelected || _selectedContextId == null)
                 {
-                    ComboEvalContext.Items.Clear();
-                    ComboEvalContext.Items.Add(new ComboBoxItem { Content = "(standalone)", Tag = null });
-                    PanelEvalContext.Visibility = Visibility.Collapsed;
-                    _selectedContextId = null;
-                    _lastContextIds.Clear();
+                    if (PanelEvalContext.Visibility != Visibility.Collapsed)
+                    {
+                        ComboEvalContext.Items.Clear();
+                        ComboEvalContext.Items.Add(new ComboBoxItem { Content = "(standalone)", Tag = null });
+                        PanelEvalContext.Visibility = Visibility.Collapsed;
+                        _selectedContextId = null;
+                        _lastContextIds.Clear();
+                    }
                 }
+                // If user had a context selected, preserve _selectedContextId for when cache repopulates
                 return;
             }
 
@@ -2336,10 +2362,24 @@ namespace User.PluginSdkDemo.GraphEditor
             if (ComboEvalContext.SelectedItem is ComboBoxItem item)
             {
                 _selectedContextId = item.Tag as string;
+                _contextIsUserSelected = (_selectedContextId != null);  // Track that user made a choice
                 UpdateParamControlsEnabled();
                 RefreshPreview();
                 ContextChanged?.Invoke(this, _selectedContextId);
             }
+        }
+
+        /// <summary>
+        /// Programmatically selects a context by Include node ID.
+        /// Called when navigating to an include graph via double-click while live mode is active.
+        /// </summary>
+        public void SetSelectedContext(string contextId)
+        {
+            _selectedContextId = contextId;
+            _contextIsUserSelected = (contextId != null);
+            RefreshContextDropdown(force: true);
+            RefreshPreview();
+            ContextChanged?.Invoke(this, _selectedContextId);
         }
 
         /// <summary>
@@ -3656,7 +3696,8 @@ namespace User.PluginSdkDemo.GraphEditor
             string path = _selectedNode.Node.IncludePath;
             if (!string.IsNullOrWhiteSpace(path))
             {
-                IncludeOpenRequested?.Invoke(path);
+                // From inspector button, don't auto-select context (pass null)
+                IncludeOpenRequested?.Invoke(path, null);
             }
         }
 
@@ -3940,7 +3981,8 @@ namespace User.PluginSdkDemo.GraphEditor
                     {
                         if (!string.IsNullOrWhiteSpace(node.IncludePath))
                         {
-                            IncludeOpenRequested?.Invoke(node.IncludePath);
+                            // From context menu, don't auto-select context (pass null)
+                            IncludeOpenRequested?.Invoke(node.IncludePath, null);
                         }
                     });
                     item.IsEnabled = !string.IsNullOrWhiteSpace(node.IncludePath);

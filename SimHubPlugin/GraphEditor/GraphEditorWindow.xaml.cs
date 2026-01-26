@@ -513,7 +513,7 @@ namespace User.PluginSdkDemo.GraphEditor
             ButtonApply.IsEnabled = CurrentTab?.IsActiveGraph == true;
         }
 
-        private void OnIncludeOpenRequested(string path)
+        private void OnIncludeOpenRequested(string path, string contextId)
         {
             if (string.IsNullOrWhiteSpace(path))
             {
@@ -535,6 +535,12 @@ namespace User.PluginSdkDemo.GraphEditor
 
             EditorTabs.SelectedItem = tab;
             RefreshHierarchy();
+
+            // Auto-select context if provided (from double-click with live mode active)
+            if (!string.IsNullOrEmpty(contextId))
+            {
+                tab.EditorControl.SetSelectedContext(contextId);
+            }
         }
 
         private void TreeHierarchy_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
