@@ -1086,10 +1086,10 @@ namespace User.PluginSdkDemo.GraphEditor
                 }
                 else
                 {
-                    // Single node drag - check against drag start
-                    var current = new Point(_dragNode.Node.X, _dragNode.Node.Y);
-                    var expected = new Point(_dragStartPoint.X - _dragOffset.X, _dragStartPoint.Y - _dragOffset.Y);
-                    if (Math.Abs(current.X - SnapToGrid(expected.X)) > 0.1 || Math.Abs(current.Y - SnapToGrid(expected.Y)) > 0.1)
+                    // Single node drag - check against drag start (compare snapped positions)
+                    var currentSnapped = new Point(SnapToGrid(_dragNode.Node.X), SnapToGrid(_dragNode.Node.Y));
+                    var expectedSnapped = new Point(SnapToGrid(_dragStartPoint.X - _dragOffset.X), SnapToGrid(_dragStartPoint.Y - _dragOffset.Y));
+                    if (Math.Abs(currentSnapped.X - expectedSnapped.X) > 0.1 || Math.Abs(currentSnapped.Y - expectedSnapped.Y) > 0.1)
                     {
                         moved = true;
                     }
@@ -2922,7 +2922,7 @@ namespace User.PluginSdkDemo.GraphEditor
 
             EditSignalGroup.ItemsSource = groups;
 
-            // Select current group or default to first
+            // Select current group or default to first (display only, don't modify node)
             string currentGroup = node.SignalGroup;
             if (!string.IsNullOrEmpty(currentGroup) && groups.Contains(currentGroup))
             {
@@ -2931,7 +2931,7 @@ namespace User.PluginSdkDemo.GraphEditor
             else if (groups.Count > 0)
             {
                 EditSignalGroup.SelectedIndex = 0;
-                node.SignalGroup = groups[0];
+                // Don't set node.SignalGroup here - that would mark the graph dirty on selection
             }
         }
 
@@ -2943,6 +2943,11 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             string selectedGroup = EditSignalGroup.SelectedItem as string ?? "";
+            // Ignore if selection was cleared (happens when ItemsSource is reassigned)
+            if (string.IsNullOrEmpty(selectedGroup))
+            {
+                return;
+            }
             if (_selectedNode.Node.SignalGroup == selectedGroup)
             {
                 return;
@@ -3238,6 +3243,12 @@ namespace User.PluginSdkDemo.GraphEditor
 
         private void SyncPortEntries(GraphNode node)
         {
+            // Unsubscribe from old entries to prevent stale handlers firing
+            foreach (var oldEntry in _portEntries)
+            {
+                oldEntry.NameChanged -= OnPortNameChanged;
+                oldEntry.ParamChanged -= OnPortParamChanged;
+            }
             _portEntries.Clear();
             if (node == null)
             {
