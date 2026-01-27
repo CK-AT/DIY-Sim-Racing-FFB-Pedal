@@ -2,6 +2,30 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-27 15:56:40 +01:00 (CODex)
+Request: apply answers to undo/redo plan open questions.
+Summary:
+- Captured decisions: no extra selection restore, re-derive include ports, debounce text edits.
+Key files:
+- `SimHubPlugin/Docs/plans/10_Graph_Editor_Undo_Redo_Plan.md`
+Open items:
+- None.
+Commit highlights:
+- Record undo/redo plan decisions
+
+## 2026-01-27 15:51:55 +01:00 (CODex)
+Request: create undo/redo implementation plan for graph editor.
+Summary:
+- Added undo/redo plan document with data model, snapshot strategy, and build/test commands.
+- Added undo/redo item to graph progress Open list.
+Key files:
+- `SimHubPlugin/Docs/plans/10_Graph_Editor_Undo_Redo_Plan.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- None.
+Commit highlights:
+- Add undo/redo plan for graph editor
+
 ## 2026-01-27 15:41:10 +01:00 (CODex)
 Request: fix Input/Output signal dropdowns and update docs, prepare commit.
 Summary:

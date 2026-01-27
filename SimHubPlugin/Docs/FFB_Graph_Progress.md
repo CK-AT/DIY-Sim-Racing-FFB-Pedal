@@ -140,4 +140,5 @@ Status: living progress document for graph editor/runtime integration.
 
 - Typed units and validation.
 - Graph persistence in profiles and migrations.
+- Undo/redo support in graph editor (see `Docs/plans/10_Graph_Editor_Undo_Redo_Plan.md`).
 - Future: Tooltips with mini-curves and live cursors on param nodes.
