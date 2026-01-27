@@ -1,4 +1,4 @@
-﻿using GameReaderCommon;
+using GameReaderCommon;
 using NCalc;
 using ProtbufTest;
 
@@ -2715,6 +2715,141 @@ namespace User.PluginSdkDemo
                 result[param.Name] = param;
             }
             return result;
+        }
+
+        public IReadOnlyList<string> GetActiveGraphParamOrder()
+        {
+            if (activeVehicleGraph == null)
+            {
+                return Array.Empty<string>();
+            }
+
+            string baseDir = GetActiveGraphBaseDirectory();
+            var ordered = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            AppendOrderedGraphParams(activeVehicleGraph, baseDir, ordered, seen, visited);
+
+            return ordered;
+        }
+
+        private void AppendOrderedGraphParams(GraphDefinition graph, string baseDir, List<string> ordered,
+            HashSet<string> seen, HashSet<string> visited)
+        {
+            if (graph?.Nodes == null || graph.Nodes.Count == 0)
+            {
+                return;
+            }
+
+            var orderedNodes = graph.Nodes
+                .OrderBy(n => n.Y)
+                .ThenBy(n => n.X)
+                .ThenBy(n => n.Id, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var node in orderedNodes)
+            {
+                if (node.Kind == GraphNodeKind.Param)
+                {
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
+                    {
+                        string name = BuildParamName(node, port);
+                        if (string.IsNullOrWhiteSpace(name) || seen.Contains(name))
+                        {
+                            continue;
+                        }
+
+                        seen.Add(name);
+                        ordered.Add(name);
+                    }
+                }
+                else if (node.Kind == GraphNodeKind.Include)
+                {
+                    string resolvedPath = ResolveIncludePath(baseDir, node.IncludePath);
+                    if (string.IsNullOrEmpty(resolvedPath) || !File.Exists(resolvedPath))
+                    {
+                        continue;
+                    }
+
+                    if (!visited.Add(resolvedPath))
+                    {
+                        continue;
+                    }
+
+                    var includedGraph = TryLoadEditorGraph(resolvedPath);
+                    if (includedGraph == null)
+                    {
+                        continue;
+                    }
+
+                    string includeDir = Path.GetDirectoryName(resolvedPath) ?? baseDir;
+                    AppendOrderedGraphParams(includedGraph, includeDir, ordered, seen, visited);
+                }
+            }
+        }
+
+        private string GetActiveGraphBaseDirectory()
+        {
+            if (string.IsNullOrWhiteSpace(activeGraphPath))
+            {
+                return AppDomain.CurrentDomain.BaseDirectory;
+            }
+
+            string resolvedPath = ResolveGraphFilePath(activeGraphPath);
+            string baseDir = Path.GetDirectoryName(resolvedPath);
+            if (string.IsNullOrWhiteSpace(baseDir))
+            {
+                return AppDomain.CurrentDomain.BaseDirectory;
+            }
+            return baseDir;
+        }
+
+        private static string ResolveIncludePath(string baseDir, string includePath)
+        {
+            if (string.IsNullOrWhiteSpace(includePath))
+            {
+                return null;
+            }
+
+            if (Path.IsPathRooted(includePath))
+            {
+                return Path.GetFullPath(includePath);
+            }
+
+            if (!string.IsNullOrWhiteSpace(baseDir))
+            {
+                return Path.GetFullPath(Path.Combine(baseDir, includePath));
+            }
+
+            return includePath;
+        }
+
+        private static GraphDefinition TryLoadEditorGraph(string resolvedPath)
+        {
+            try
+            {
+                string json = File.ReadAllText(resolvedPath);
+                var graph = GraphSerializer.Deserialize(json, out var validation);
+                if (graph != null && validation != null && validation.IsValid)
+                {
+                    return graph;
+                }
+            }
+            catch
+            {
+                return null;
+            }
+
+            return null;
+        }
+
+        private static string BuildParamName(GraphNode node, GraphPort port)
+        {
+            if (!string.IsNullOrEmpty(node.SignalGroup) && !string.IsNullOrEmpty(port.SignalSuffix))
+            {
+                return node.SignalGroup + "." + port.SignalSuffix;
+            }
+            return port.Name ?? "";
         }
 
         /// <summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using User.PluginSdkDemo;
 using User.PluginSdkDemo.GraphEditor;
 using GraphEditor = User.PluginSdkDemo.GraphEditor;
@@ -50,6 +51,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Param resolution: graph override", TestParamResolutionGraphOverride));
             results.Add(TestRunner.RunTest("Param resolution: vehicle override", TestParamResolutionVehicleOverride));
             results.Add(TestRunner.RunTest("Param resolution: three-tier cascade", TestParamResolutionThreeTierCascade));
+            results.Add(TestRunner.RunTest("Param order: graph layout with includes", TestParamOrderWithIncludes));
 
             // v3 Include node tests
             results.Add(TestRunner.RunTest("ExtractInterface from graph", TestExtractInterfaceFromGraph));
@@ -2047,8 +2049,106 @@ namespace DiyFfb.GraphTest
                     return false;
                 }
 
-                return true;
+            return true;
+        }
+
+        private static bool TestParamOrderWithIncludes()
+        {
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ffb_param_order_test_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            try
+            {
+                System.IO.Directory.CreateDirectory(tempDir);
+
+                // Nested include graph
+                var nestedGraph = new GraphEditor.GraphDefinition();
+                nestedGraph.Nodes.Add(CreateParamNode("param_e", 0, 5, "Vehicle", "E"));
+                string nestedPath = System.IO.Path.Combine(tempDir, "nested.json");
+                System.IO.File.WriteAllText(nestedPath, GraphEditor.GraphSerializer.Serialize(nestedGraph));
+
+                // Include graph with params D (y=5), C (y=10), and an include (y=50)
+                var includeGraph = new GraphEditor.GraphDefinition();
+                includeGraph.Nodes.Add(CreateParamNode("param_d", 0, 5, "Vehicle", "D"));
+                includeGraph.Nodes.Add(CreateParamNode("param_c", 0, 10, "Vehicle", "C"));
+                includeGraph.Nodes.Add(new GraphEditor.GraphNode
+                {
+                    Id = "inc_nested",
+                    Kind = GraphEditor.GraphNodeKind.Include,
+                    IncludePath = "nested.json",
+                    X = 0,
+                    Y = 50
+                });
+                string includePath = System.IO.Path.Combine(tempDir, "include.json");
+                System.IO.File.WriteAllText(includePath, GraphEditor.GraphSerializer.Serialize(includeGraph));
+
+                // Parent graph: Param A (y=0), Include (y=100), Param B (y=200)
+                var parentGraph = new GraphEditor.GraphDefinition();
+                parentGraph.Nodes.Add(CreateParamNode("param_a", 0, 0, "Vehicle", "A"));
+                parentGraph.Nodes.Add(new GraphEditor.GraphNode
+                {
+                    Id = "inc_child",
+                    Kind = GraphEditor.GraphNodeKind.Include,
+                    IncludePath = "include.json",
+                    X = 0,
+                    Y = 100
+                });
+                parentGraph.Nodes.Add(CreateParamNode("param_b", 0, 200, "Vehicle", "B"));
+
+                var plugin = new DiyFfbPlugin();
+                SetPrivateField(plugin, "activeVehicleGraph", parentGraph);
+                SetPrivateField(plugin, "activeGraphPath", System.IO.Path.Combine(tempDir, "parent.json"));
+
+                var order = plugin.GetActiveGraphParamOrder();
+                var expected = new List<string>
+                {
+                    "Vehicle.A",
+                    "Vehicle.D",
+                    "Vehicle.C",
+                    "Vehicle.E",
+                    "Vehicle.B"
+                };
+
+                return order.SequenceEqual(expected, StringComparer.OrdinalIgnoreCase);
             }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                try { System.IO.Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+
+        private static GraphEditor.GraphNode CreateParamNode(string id, double x, double y, string group, string suffix)
+        {
+            var node = new GraphEditor.GraphNode
+            {
+                Id = id,
+                Kind = GraphEditor.GraphNodeKind.Param,
+                X = x,
+                Y = y,
+                SignalGroup = group
+            };
+
+            node.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "value",
+                Kind = GraphEditor.GraphPortKind.Output,
+                SignalSuffix = suffix
+            });
+
+            return node;
+        }
+
+        private static void SetPrivateField(object instance, string fieldName, object value)
+        {
+            var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field == null)
+            {
+                throw new InvalidOperationException($"Field '{fieldName}' not found.");
+            }
+            field.SetValue(instance, value);
+        }
             finally
             {
                 // Cleanup

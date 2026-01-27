@@ -552,12 +552,13 @@ namespace User.PluginSdkDemo
 
                 // Filter by function group
                 string groupFilter = GetGraphParamGroupFilter();
+                var orderedNames = plugin.GetActiveGraphParamOrder();
                 var filteredParams = allParams.Values
                     .Where(p => MatchesGroup(p.Ui?.Group, groupFilter))
-                    .OrderBy(p => p.Ui?.Label ?? p.Name)
                     .ToList();
+                var orderedParams = OrderParamsByGraph(orderedNames, filteredParams);
 
-                foreach (var param in filteredParams)
+                foreach (var param in orderedParams)
                 {
                     double currentValue = plugin.GetGraphParamValue(param.Name);
 
@@ -617,6 +618,34 @@ namespace User.PluginSdkDemo
             {
                 SimHub.Logging.Current.Error($"[FlightStick] RefreshGraphParams failed: {ex.Message}", ex);
             }
+        }
+
+        private static List<GraphParam> OrderParamsByGraph(IReadOnlyList<string> orderedNames, IEnumerable<GraphParam> parameters)
+        {
+            var map = new Dictionary<string, GraphParam>(StringComparer.OrdinalIgnoreCase);
+            foreach (var param in parameters)
+            {
+                if (!string.IsNullOrWhiteSpace(param?.Name))
+                {
+                    map[param.Name] = param;
+                }
+            }
+
+            var ordered = new List<GraphParam>();
+            if (orderedNames != null)
+            {
+                foreach (var name in orderedNames)
+                {
+                    if (map.TryGetValue(name, out var param))
+                    {
+                        ordered.Add(param);
+                        map.Remove(name);
+                    }
+                }
+            }
+
+            ordered.AddRange(map.Values.OrderBy(p => p.Ui?.Label ?? p.Name));
+            return ordered;
         }
 
         private string FormatParamLabel(GraphParam param, double currentValue)

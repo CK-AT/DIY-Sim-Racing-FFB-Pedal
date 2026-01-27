@@ -2,6 +2,108 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-27 17:53:04 +01:00 (CODex)
+Request: order function tab parameters by graph layout.
+Summary:
+- Updated FlightStick/FlightPedals parameter panels to follow graph layout order.
+- Documented function tab ordering in FFB graph design and progress docs.
+Key files:
+- `SimHubPlugin/FlightStickConfigControl.xaml.cs`
+- `SimHubPlugin/FlightPedalsConfigControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- None.
+Commit highlights:
+- Add layout-ordered param list with recursive include ordering
+- Use graph order for Vehicle/System/function param UI and surface function params on Vehicle
+- Add GraphTest coverage for param ordering with includes
+
+## 2026-01-27 17:50:07 +01:00 (CODex)
+Request: update plan to order function tab params by graph layout.
+Summary:
+- Added function-tab ordering requirement to the param layout restructure plan.
+Key files:
+- `SimHubPlugin/Docs/plans/11_Param_Control_Layout_Restructure_Plan.md`
+Open items:
+- None.
+Commit highlights:
+- None (planning only).
+
+## 2026-01-27 17:45:04 +01:00 (CODex)
+Request: add a test for graph layout param ordering with includes.
+Summary:
+- Added GraphTest coverage for ordered param layout with nested includes and layout-based ordering.
+- Documented the new behavior in graph progress.
+Key files:
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- None.
+Commit highlights:
+- Add GraphTest for param ordering with include recursion
+
+## 2026-01-27 17:41:22 +01:00 (CODex)
+Request: implement parameter control layout restructuring (no commit yet).
+Summary:
+- Added ordered param traversal that respects graph layout and include node ordering for UI usage.
+- Updated Vehicle and System tabs to use graph appearance ordering and to include function-group params on Vehicle.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+Open items:
+- Consider tests or manual UI verification for include-ordering behavior.
+Commit highlights:
+- Add layout-ordered param list with recursive include ordering
+- Use graph order for Vehicle/System param UI and surface function params
+
+## 2026-01-27 17:35:58 +01:00 (CODex)
+Request: add runtime resolver note to param ordering plan.
+Summary:
+- Documented using the runtime include resolver for include path ordering.
+Key files:
+- `SimHubPlugin/Docs/plans/11_Param_Control_Layout_Restructure_Plan.md`
+Open items:
+- None.
+Commit highlights:
+- None (planning only).
+
+## 2026-01-27 17:33:38 +01:00 (CODex)
+Request: update param layout plan (function params follow appearance order; include params ordered by include node position + recursive layout).
+Summary:
+- Updated plan to order include parameters relative to the include node and apply recursive layout ordering.
+Key files:
+- `SimHubPlugin/Docs/plans/11_Param_Control_Layout_Restructure_Plan.md`
+Open items:
+- None.
+Commit highlights:
+- None (planning only).
+
+## 2026-01-27 17:24:16 +01:00 (CODex)
+Request: create a plan doc for parameter control layout restructuring.
+Summary:
+- Reverted in-progress code edits and captured the Vehicle tab parameter layout plan.
+Key files:
+- `SimHubPlugin/Docs/plans/11_Param_Control_Layout_Restructure_Plan.md`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+Open items:
+- None.
+Commit highlights:
+- None (planning only).
+
+## 2026-01-27 17:03:10 +01:00 (CODex)
+Request: plan parameter control layout restructuring (surface function params on Vehicle tab; keep graph top-to-bottom order).
+Summary:
+- Reviewed Vehicle/System param UI flows and graph param collection to plan ordering changes based on graph node layout.
+- Identified current filtering/order behavior to adjust for function params and group ordering.
+Key files:
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+Open items:
+- Confirm how group ordering should be derived (alpha vs first-occurrence top-to-bottom).
+Commit highlights:
+- None (planning only).
+
 ## 2026-01-27 16:26:03 +01:00 (CODex)
 Request: run GraphTest after undo/redo changes.
 Summary:

@@ -143,6 +143,7 @@ Parameters are exposed in function configuration panels based on their `group` a
 - **Function Params**: Group = `"FlightStickPitch"`, `"FlightStickRoll"`, `"FlightPedals"`, etc.
   - Shown in respective function config tabs under "FFB Parameters" section
   - Controls dynamically generated from param UI metadata
+  - Ordered by graph layout (includes ordered at the Include node position)
   - Replace legacy X-Plane FFB sliders with graph-driven params
 
 - **System Params**: Group = `"System"`

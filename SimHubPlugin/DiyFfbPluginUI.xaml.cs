@@ -2980,11 +2980,13 @@ namespace User.PluginSdkDemo
             }
 
             // Filter by System group
+            var orderedNames = Plugin.GetActiveGraphParamOrder();
             var filteredParams = allParams.Values
                 .Where(p => "System".Equals(p.Ui?.Group, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(p => p.Ui?.Label ?? p.Name);
+                .ToList();
+            var orderedParams = OrderParamsByGraph(orderedNames, filteredParams);
 
-            foreach (var param in filteredParams)
+            foreach (var param in orderedParams)
             {
                 var panel = new StackPanel
                 {
@@ -3033,14 +3035,6 @@ namespace User.PluginSdkDemo
         private Dictionary<string, Label> vehicleParamLabels = new Dictionary<string, Label>();
         private bool isUpdatingVehicleParams = false;
 
-        private static readonly HashSet<string> FunctionGroupPrefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "FlightStick",
-            "FlightPedals",
-            "Automotive",
-            "Shifter"
-        };
-
         private bool IsVehicleParam(GraphParam p)
         {
             var group = p.Ui?.Group;
@@ -3052,13 +3046,6 @@ namespace User.PluginSdkDemo
             // Exclude System
             if ("System".Equals(group, StringComparison.OrdinalIgnoreCase))
                 return false;
-
-            // Exclude function groups
-            foreach (var prefix in FunctionGroupPrefixes)
-            {
-                if (group.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                    return false;
-            }
 
             return true;
         }
@@ -3092,6 +3079,8 @@ namespace User.PluginSdkDemo
                 return;
             }
 
+            var orderedNames = Plugin.GetActiveGraphParamOrder();
+
             // Group by Group property, "<unknown>" for null/empty
             var grouped = vehicleParams
                 .GroupBy(p => string.IsNullOrEmpty(p.Ui?.Group) ? "<unknown>" : p.Ui.Group)
@@ -3099,7 +3088,8 @@ namespace User.PluginSdkDemo
 
             foreach (var group in grouped)
             {
-                var expander = CreateVehicleGroupExpander(group.Key, group.ToList());
+                var orderedParams = OrderParamsByGraph(orderedNames, group);
+                var expander = CreateVehicleGroupExpander(group.Key, orderedParams);
                 VehicleParamsContainer.Children.Add(expander);
             }
         }
@@ -3139,7 +3129,7 @@ namespace User.PluginSdkDemo
 
             var panel = new StackPanel { Orientation = Orientation.Vertical };
 
-            foreach (var param in parameters.OrderBy(p => p.Ui?.Label ?? p.Name))
+            foreach (var param in parameters)
             {
                 var paramPanel = CreateVehicleParamPanel(param);
                 panel.Children.Add(paramPanel);
@@ -3148,6 +3138,34 @@ namespace User.PluginSdkDemo
             border.Child = panel;
             expander.Content = border;
             return expander;
+        }
+
+        private static List<GraphParam> OrderParamsByGraph(IReadOnlyList<string> orderedNames, IEnumerable<GraphParam> parameters)
+        {
+            var map = new Dictionary<string, GraphParam>(StringComparer.OrdinalIgnoreCase);
+            foreach (var param in parameters)
+            {
+                if (!string.IsNullOrWhiteSpace(param?.Name))
+                {
+                    map[param.Name] = param;
+                }
+            }
+
+            var ordered = new List<GraphParam>();
+            if (orderedNames != null)
+            {
+                foreach (var name in orderedNames)
+                {
+                    if (map.TryGetValue(name, out var param))
+                    {
+                        ordered.Add(param);
+                        map.Remove(name);
+                    }
+                }
+            }
+
+            ordered.AddRange(map.Values.OrderBy(p => p.Ui?.Label ?? p.Name));
+            return ordered;
         }
 
         private StackPanel CreateVehicleParamPanel(GraphParam param)

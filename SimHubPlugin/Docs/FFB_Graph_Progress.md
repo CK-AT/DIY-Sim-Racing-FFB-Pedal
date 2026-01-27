@@ -131,6 +131,7 @@ Status: living progress document for graph editor/runtime integration.
 - Fixed Include preview not showing live values: Four fixes applied - (1) `PopulateIncludePorts` before conversion in preview, (2) pass baseDirectory to evaluator, (3) `CollectIncludeParams()` recursively collects params from included sub-graphs, (4) `SyncParamsFromPlugin()` now syncs all collected params (not just local Params). Added `GraphDebugLogger` with UI checkbox in inspector panel (zero overhead when disabled). See `Docs/plans/04_Include_Preview_Debug_Plan.md`.
 - Signal dropdowns populate immediately for Input/Output nodes even when SignalGroup is still empty (uses default group for options without mutating node state).
 - Undo/redo support in graph editor (per-tab undo stacks, toolbar buttons, Ctrl+Z/Ctrl+Y).
+- Vehicle/System/function parameter UI now follows graph layout order (includes ordered by include-node position); Vehicle tab surfaces function params.
 
 ## In Progress
 

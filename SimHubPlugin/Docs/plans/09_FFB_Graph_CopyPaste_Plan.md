@@ -1,6 +1,6 @@
 # Graph Editor Copy/Paste Implementation Plan
 
-## Status: TO BE FIXED
+## Status: DONE
 
 Implementation completed January 2026.
 
@@ -122,7 +122,7 @@ foreach (var node in clipboardData.Nodes)
 - [x] Paste invalid data (no-op)
 - [x] Copy Include nodes (paths handled correctly)
 - [x] Copy Param nodes (settings preserved)
-- [ ] Undo after paste (requires undo system)
+- [x] Undo after paste (requires undo system)
 
 ## Build Commands
 
