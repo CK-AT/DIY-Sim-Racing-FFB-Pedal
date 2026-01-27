@@ -2,6 +2,77 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-27 15:11:20 +01:00 (CODex)
+Request: verify Include context auto-selection status and update progress doc.
+Summary:
+- Confirmed auto-select is implemented (double-click Include with live mode passes context id to new tab).
+- Moved auto-select item from Open to Done in graph progress doc.
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- None.
+Commit highlights:
+- Mark Include context auto-select as done in progress doc
+
+## 2026-01-27 15:09:32 +01:00 (CODex)
+Request: check if `SimHubPlugin/Docs/FFB_Graph_Progress.md` is up to date.
+Summary:
+- Verified the plan reference points to `Docs/plans/04_Include_Preview_Debug_Plan.md` after doc moves.
+- No additional progress updates needed for recent changes.
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- None.
+Commit highlights:
+- None (no changes).
+
+## 2026-01-27 15:08:09 +01:00 (CODex)
+Request: move plan docs into `SimHubPlugin/Docs/plans` with indexed filenames.
+Summary:
+- Created `SimHubPlugin/Docs/plans` and moved plan/design-plan docs with two-digit creation-order prefixes.
+- Updated references in conversation log and graph progress doc to new plan paths.
+Key files:
+- `SimHubPlugin/Docs/plans/01_Vehicle_Tab_Plan.md`
+- `SimHubPlugin/Docs/plans/02_FFB_Graph_Template_Rework_Plan.md`
+- `SimHubPlugin/Docs/plans/03_Nested_Include_Fix_Plan.md`
+- `SimHubPlugin/Docs/plans/04_Include_Preview_Debug_Plan.md`
+- `SimHubPlugin/Docs/plans/05_Include_Context_Preview_Plan.md`
+- `SimHubPlugin/Docs/plans/06_FFB_Graph_Editor_Tabs.md`
+- `SimHubPlugin/Docs/plans/07_FFB_Graph_Grid_Centering.md`
+- `SimHubPlugin/Docs/plans/08_Include_Context_Auto_Select_Plan.md`
+- `SimHubPlugin/Docs/plans/09_FFB_Graph_CopyPaste_Plan.md`
+- `CONVERSATION_LOG.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- None.
+Commit highlights:
+- Move plan docs into `SimHubPlugin/Docs/plans` with indexed filenames
+- Update references to plan docs in log/progress docs
+
+## 2026-01-27 14:57:33 +01:00 (CODex)
+Request: update AGENTS.md rules (exclude auto-regenerated protocol build rule).
+Summary:
+- Added graph serialization/conversion rule and doc-update rule for graph behavior changes.
+- Fixed unit-test rule typo/casing.
+Key files:
+- `AGENTS.md`
+Open items:
+- None.
+Commit highlights:
+- Clarify graph serialization/conversion test requirements
+- Require design/progress doc updates for graph behavior changes
+
+## 2026-01-27 14:55:42 +01:00 (CODex)
+Request: review AGENTS.md.
+Summary:
+- Read AGENTS.md and identified potential additions/clarifications; no code changes.
+Key files:
+- `AGENTS.md`
+Open items:
+- Confirm whether to add suggested AGENTS.md rules (see assistant response).
+Commit highlights:
+- None (no code changes).
+
 ## 2026-01-26: Fix Nested Includes via Resolver Test
 
 ### Summary
@@ -78,7 +149,7 @@ Updated delegate signature to 2-arg across all files for consistency.
 
 The test fails because `ConvertEditorJson` doesn't yet USE the `resolvedFilePath` parameter. The signature is correct, but the nested path resolution logic was removed in the revert.
 
-**See dedicated plan:** [Nested_Include_Fix_Plan.md](Nested_Include_Fix_Plan.md)
+**See dedicated plan:** `SimHubPlugin/Docs/plans/03_Nested_Include_Fix_Plan.md`
 
 ### Commit Highlights
 
@@ -317,7 +388,7 @@ Added `GraphRuntimeConverter.CreateResolver(baseDirectory)` factory method that 
 
 ### New Documentation
 
-- `Docs/Include_Context_Preview_Plan.md`: Detailed implementation plan for Include Context Preview feature (live debugging of sub-graphs with caller's inputs)
+- `SimHubPlugin/Docs/plans/05_Include_Context_Preview_Plan.md`: Detailed implementation plan for Include Context Preview feature (live debugging of sub-graphs with caller's inputs)
 
 ### Commit Highlights
 
@@ -1171,7 +1242,7 @@ Commit highlights:
 - Add grid/centering intent doc for future implementation.
 Key files:
 - `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
-- `SimHubPlugin/Docs/FFB_Graph_Grid_Centering.md`
+- `SimHubPlugin/Docs/plans/07_FFB_Graph_Grid_Centering.md`
 Open items:
 - Revisit grid padding/centering once pan/zoom behavior is locked.
 
@@ -4769,4 +4840,3 @@ Axis IDs:
 Notes:
 - No tests run.
 - Unrelated modified/untracked files existed (DLL/PDB and various `DIY-FFB.srctrl*`/`ESP32/*` files), intentionally ignored.
-
