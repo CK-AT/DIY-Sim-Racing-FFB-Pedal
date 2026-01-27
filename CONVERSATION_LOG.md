@@ -2,6 +2,166 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-27 20:29:00 +01:00 (CODex)
+Request: keep the preview window following the selected tab without reopening a new instance.
+Summary:
+- Centralized preview window ownership in GraphEditorWindow and reattached it on tab switches.
+- Added attach/detach helpers on GraphEditorControl to bind the shared preview window.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Added a modeless Preview Inputs window and toolbar toggle, removing preview lists from the inspector.
+- Preview window uses scrollable input/param lists to avoid empty gaps when resized.
+- Single preview window instance now follows the active editor tab.
+
+## 2026-01-27 20:14:00 +01:00 (CODex)
+Request: fix preview window scaling gap between inputs and params.
+Summary:
+- Changed the preview window layout so inputs auto-size and params take remaining space.
+- Added scroll viewers so resizing reveals more parameters without large blank gaps.
+Key files:
+- `SimHubPlugin/GraphEditor/PreviewWindow.xaml`
+Open items:
+- None.
+Commit highlights:
+- Preview window lists now use scroll viewers with auto/remaining space layout to avoid empty gaps.
+
+## 2026-01-27 20:18:00 +01:00 (CODex)
+Request: prevent preview window from closing on tab changes.
+Summary:
+- Removed the Unloaded handler that was closing the preview window when switching tabs.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Preview window now stays open when switching editor tabs.
+
+## 2026-01-27 20:22:00 +01:00 (CODex)
+Request: make preview window follow the selected tab.
+Summary:
+- Added preview window state accessors on the editor control.
+- Switched tabs now re-open the preview window for the newly selected editor when it was previously open.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Preview window follows the active editor tab when switching tabs.
+
+## 2026-01-27 20:05:00 +01:00 (CODex)
+Request: start implementing the inspector panel restructure (phase 1 preview window).
+Summary:
+- Moved preview inputs/params UI into a new modeless PreviewWindow and removed it from the inspector panel.
+- Added a toolbar toggle to open/close the preview window and synchronized live-inputs state/status updates.
+- Documented the preview window move in graph design/progress docs.
+Key files:
+- `SimHubPlugin/GraphEditor/PreviewWindow.xaml`
+- `SimHubPlugin/GraphEditor/PreviewWindow.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
+- `SimHubPlugin/DiyFfbPlugin.csproj`
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Per-node inspector templates and remaining inspector cleanup are still pending.
+Commit highlights:
+- Preview inputs/params now live in a modeless window with a toolbar toggle and shared live-inputs state.
+
+## 2026-01-27 19:20:27 +01:00 (CODex)
+Request: finalize inspector plan decisions (templates, preview window, op labels, warnings).
+Summary:
+- Captured decisions for DataTemplateSelector, preview window placement/behavior, include warning noise, param editing scope, and op input labels/arity.
+Key files:
+- `SimHubPlugin/Docs/plans/12_Inspector_Panel_Restructure_Plan.md`
+Open items:
+- None.
+Commit highlights:
+- None (planning only).
+
+## 2026-01-27 19:08:02 +01:00 (CODex)
+Request: expand inspector plan into an implementation hand-off.
+Summary:
+- Converted inspector plan into a phased implementation plan with ordering and developer notes.
+Key files:
+- `SimHubPlugin/Docs/plans/12_Inspector_Panel_Restructure_Plan.md`
+Open items:
+- None.
+Commit highlights:
+- None (planning only).
+
+## 2026-01-27 19:05:31 +01:00 (CODex)
+Request: lock func node ports to function definition in inspector plan.
+Summary:
+- Updated inspector plan to fix func node ports (no add/remove).
+Key files:
+- `SimHubPlugin/Docs/plans/12_Inspector_Panel_Restructure_Plan.md`
+Open items:
+- None.
+Commit highlights:
+- None (planning only).
+
+## 2026-01-27 19:04:08 +01:00 (CODex)
+Request: note future op-node per-input negation in inspector plan.
+Summary:
+- Added future improvement note for per-input negation toggle on Add/Mul ops.
+Key files:
+- `SimHubPlugin/Docs/plans/12_Inspector_Panel_Restructure_Plan.md`
+Open items:
+- None.
+Commit highlights:
+- None (planning only).
+
+## 2026-01-27 19:00:09 +01:00 (CODex)
+Request: note op node input naming rules in inspector plan.
+Summary:
+- Updated inspector plan to use op-specific input naming and fixed single output for op nodes.
+Key files:
+- `SimHubPlugin/Docs/plans/12_Inspector_Panel_Restructure_Plan.md`
+Open items:
+- None.
+Commit highlights:
+- None (planning only).
+
+## 2026-01-27 18:55:47 +01:00 (CODex)
+Request: update inspector plan to configure param UI metadata inline (no dialog).
+Summary:
+- Noted inline param UI metadata editing in the inspector plan.
+Key files:
+- `SimHubPlugin/Docs/plans/12_Inspector_Panel_Restructure_Plan.md`
+Open items:
+- None.
+Commit highlights:
+- None (planning only).
+
+## 2026-01-27 18:51:16 +01:00 (CODex)
+Request: add recommended must-have fields per node type for inspector plan.
+Summary:
+- Filled the inspector plan with suggested per-node must-have fields and optional advanced fields.
+Key files:
+- `SimHubPlugin/Docs/plans/12_Inspector_Panel_Restructure_Plan.md`
+Open items:
+- None.
+Commit highlights:
+- None (planning only).
+
+## 2026-01-27 18:46:46 +01:00 (CODex)
+Request: create inspector panel restructure planning doc (modeless preview window, per-node inspector).
+Summary:
+- Added plan doc template for inspector restructuring and preview window split.
+Key files:
+- `SimHubPlugin/Docs/plans/12_Inspector_Panel_Restructure_Plan.md`
+Open items:
+- Fill must-have fields per node type.
+Commit highlights:
+- None (planning only).
+
 ## 2026-01-27 17:53:04 +01:00 (CODex)
 Request: order function tab parameters by graph layout.
 Summary:

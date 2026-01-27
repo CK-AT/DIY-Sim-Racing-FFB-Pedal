@@ -50,7 +50,7 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 - Zoom-to-fit with F or context menu.
 
 ### Inspector
-- Displays selected node info and live preview values.
+- Displays selected node info; preview inputs/params and warnings live in a modeless preview window (toolbar: "Preview Inputs").
 - Edits:
   - Title, const value, op/func selection, include path.
   - Param default/min/max.

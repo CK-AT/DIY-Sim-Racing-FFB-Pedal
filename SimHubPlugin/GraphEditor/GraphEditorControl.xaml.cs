@@ -31,6 +31,8 @@ namespace User.PluginSdkDemo.GraphEditor
         private readonly DispatcherTimer _includePathDebounceTimer;
         private readonly DispatcherTimer _undoDebounceTimer;
         private bool _liveInputsEnabled = true;  // Enabled by default (global setting synced from Window)
+        private PreviewWindow _previewWindow;
+        private string _previewStatusText = "";
         private readonly GraphPreviewEvaluator _previewEvaluator = new GraphPreviewEvaluator();
         private readonly ObservableCollection<PortEditEntry> _portEntries = new ObservableCollection<PortEditEntry>();
         private bool _isPanning;
@@ -184,8 +186,6 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             InitializeComponent();
             _graph = new GraphDefinition();
-            PreviewInputsList.ItemsSource = _previewInputEntries;
-            PreviewParamsList.ItemsSource = _previewParamEntries;
             PortsList.ItemsSource = _portEntries;
             EditOp.ItemsSource = _opChoices;
             EditFunc.ItemsSource = _funcChoices;
@@ -2708,28 +2708,18 @@ namespace User.PluginSdkDemo.GraphEditor
                 UpdateNodeValues(result.NodeValues);
                 if (result.Warnings != null && result.Warnings.Count > 0)
                 {
-                    TextPreviewStatus.Text = string.Join("; ", result.Warnings);
+                    SetPreviewStatusText(string.Join("; ", result.Warnings));
                 }
                 else
                 {
-                    TextPreviewStatus.Text = "";
+                    SetPreviewStatusText("");
                 }
             }
             catch (Exception ex)
             {
                 UpdateNodeValues(null);
-                TextPreviewStatus.Text = $"Preview error: {ex.Message}";
+                SetPreviewStatusText($"Preview error: {ex.Message}");
             }
-        }
-
-        private void CheckLiveInputs_Checked(object sender, RoutedEventArgs e)
-        {
-            SetLiveInputsState(true, raiseEvent: true);
-        }
-
-        private void CheckLiveInputs_Unchecked(object sender, RoutedEventArgs e)
-        {
-            SetLiveInputsState(false, raiseEvent: true);
         }
 
         private void CheckLibraryGraph_Changed(object sender, RoutedEventArgs e)
@@ -2787,7 +2777,7 @@ namespace User.PluginSdkDemo.GraphEditor
         public void SetLiveInputsState(bool enabled, bool raiseEvent)
         {
             _liveInputsEnabled = enabled;
-            CheckLiveInputs.IsChecked = enabled;
+            UpdatePreviewWindowLiveInputs(enabled);
 
             if (raiseEvent)
             {
@@ -2799,6 +2789,67 @@ namespace User.PluginSdkDemo.GraphEditor
                 ApplyLiveInputs();
             }
         }
+
+        public void AttachPreviewWindow(PreviewWindow window)
+        {
+            if (ReferenceEquals(_previewWindow, window))
+            {
+                return;
+            }
+
+            DetachPreviewWindow();
+            _previewWindow = window;
+            if (_previewWindow == null)
+            {
+                return;
+            }
+
+            _previewWindow.SetSources(_previewInputEntries, _previewParamEntries);
+            _previewWindow.SetLiveInputsState(_liveInputsEnabled);
+            _previewWindow.SetInputsEnabled(_selectedContextId == null);
+            _previewWindow.SetStatusText(_previewStatusText);
+            _previewWindow.LiveInputsToggled += OnPreviewWindowLiveInputsToggled;
+            _previewWindow.Closed += OnPreviewWindowClosed;
+        }
+
+        public void DetachPreviewWindow()
+        {
+            if (_previewWindow == null)
+            {
+                return;
+            }
+
+            _previewWindow.LiveInputsToggled -= OnPreviewWindowLiveInputsToggled;
+            _previewWindow.Closed -= OnPreviewWindowClosed;
+            _previewWindow = null;
+        }
+
+        private void OnPreviewWindowLiveInputsToggled(object sender, bool enabled)
+        {
+            SetLiveInputsState(enabled, raiseEvent: true);
+        }
+
+        private void OnPreviewWindowClosed(object sender, EventArgs e)
+        {
+            DetachPreviewWindow();
+        }
+
+        private void UpdatePreviewWindowLiveInputs(bool enabled)
+        {
+            _previewWindow?.SetLiveInputsState(enabled);
+        }
+
+        private void UpdatePreviewWindowInputsEnabled(bool enabled)
+        {
+            _previewWindow?.SetInputsEnabled(enabled);
+        }
+
+        private void SetPreviewStatusText(string text)
+        {
+            _previewStatusText = text ?? "";
+            _previewWindow?.SetStatusText(_previewStatusText);
+        }
+
 
         /// <summary>
         /// Called by the window's global timer to tick live inputs for this tab.
@@ -2973,8 +3024,7 @@ namespace User.PluginSdkDemo.GraphEditor
             bool enabled = _selectedContextId == null;
 
             // Disable preview inputs and params lists
-            PreviewInputsList.IsEnabled = enabled;
-            PreviewParamsList.IsEnabled = enabled;
+            UpdatePreviewWindowInputsEnabled(enabled);
 
             // Disable param controls on Param nodes in the canvas
             foreach (var nodeVisual in _nodeVisuals.Values)

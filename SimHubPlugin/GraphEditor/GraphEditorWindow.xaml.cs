@@ -39,6 +39,8 @@ namespace User.PluginSdkDemo.GraphEditor
         private Func<IDictionary<string, double>> liveInputProvider;
         private readonly System.Windows.Threading.DispatcherTimer _globalLiveTimer;
         private bool _globalLiveInputsEnabled = true;  // Enabled by default
+        private GraphEditorControl _lastEditor;
+        private PreviewWindow _previewWindow;
 
         public GraphEditorWindow()
         {
@@ -55,6 +57,7 @@ namespace User.PluginSdkDemo.GraphEditor
             // Bind TabControl to tabs collection
             EditorTabs.ItemsSource = tabManager.Tabs;
             EditorTabs.SelectedItem = tabManager.SelectedTab;
+            _lastEditor = CurrentEditor;
 
             // Initialize Apply button state
             ButtonApply.IsEnabled = CurrentTab?.IsActiveGraph == true;
@@ -197,12 +200,21 @@ namespace User.PluginSdkDemo.GraphEditor
 
         private void OnSelectedTabChanged(object sender, EventArgs e)
         {
+            var previousEditor = _lastEditor;
+            var currentEditor = CurrentEditor;
             EditorTabs.SelectedItem = tabManager.SelectedTab;
             RefreshHierarchy();
             ButtonApply.IsEnabled = CurrentTab?.IsActiveGraph == true;
             UpdateUndoRedoButtons();
             // Note: We do NOT sync params from plugin on tab switch - the graph's in-memory
             // state should persist. SyncParamsFromPlugin is only called when loading a new graph.
+            if (_previewWindow != null && _previewWindow.IsVisible && previousEditor != currentEditor)
+            {
+                previousEditor?.DetachPreviewWindow();
+                currentEditor?.AttachPreviewWindow(_previewWindow);
+            }
+
+            _lastEditor = currentEditor;
         }
 
         private void UpdateUndoState(GraphEditorTab tab)
@@ -245,6 +257,11 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             // Stop the global live inputs timer to prevent evaluation after close
             _globalLiveTimer.Stop();
+
+            if (_previewWindow != null)
+            {
+                _previewWindow.Close();
+            }
         }
 
         private void OnGlobalLiveTimerTick(object sender, EventArgs e)
@@ -515,6 +532,44 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             plugin?.ApplyGraphToRuntime(CurrentTab.Graph, CurrentTab.FilePath);
+        }
+
+        private void ButtonPreviewInputs_Click(object sender, RoutedEventArgs e)
+        {
+            if (_previewWindow != null && _previewWindow.IsVisible)
+            {
+                _previewWindow.Close();
+                return;
+            }
+
+            EnsurePreviewWindow();
+            CurrentEditor?.AttachPreviewWindow(_previewWindow);
+            _previewWindow.Show();
+            _previewWindow.Activate();
+        }
+
+        private void EnsurePreviewWindow()
+        {
+            if (_previewWindow != null)
+            {
+                return;
+            }
+
+            _previewWindow = new PreviewWindow
+            {
+                Owner = this
+            };
+            _previewWindow.Closed += OnPreviewWindowClosed;
+        }
+
+        private void OnPreviewWindowClosed(object sender, EventArgs e)
+        {
+            if (_previewWindow != null)
+            {
+                _previewWindow.Closed -= OnPreviewWindowClosed;
+            }
+            CurrentEditor?.DetachPreviewWindow();
+            _previewWindow = null;
         }
 
         private void ButtonUndo_Click(object sender, RoutedEventArgs e)
