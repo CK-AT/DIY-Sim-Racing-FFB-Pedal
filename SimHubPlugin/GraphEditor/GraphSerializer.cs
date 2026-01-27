@@ -774,4 +774,100 @@ namespace User.PluginSdkDemo.GraphEditor
             };
         }
     }
+
+    /// <summary>
+    /// Serialization support for clipboard operations.
+    /// </summary>
+    public static class GraphClipboardSerializer
+    {
+        /// <summary>
+        /// Serializes clipboard data to JSON string.
+        /// </summary>
+        public static string Serialize(GraphClipboardData data)
+        {
+            if (data == null)
+                return "{}";
+
+            var dto = new GraphClipboardDto
+            {
+                CenterX = data.CenterX,
+                CenterY = data.CenterY
+            };
+
+            foreach (var node in data.Nodes)
+            {
+                dto.Nodes.Add(GraphNodeDto.FromModel(node, false));
+            }
+
+            foreach (var link in data.Links)
+            {
+                dto.Links.Add(GraphLinkDto.FromModel(link));
+            }
+
+            foreach (var kvp in data.Params)
+            {
+                dto.Params.Add(GraphParamDto.FromModel(kvp.Value));
+            }
+
+            return JsonConvert.SerializeObject(dto, Formatting.Indented,
+                new JsonSerializerSettings { Converters = { new StringEnumConverter() } });
+        }
+
+        /// <summary>
+        /// Deserializes clipboard data from JSON string.
+        /// </summary>
+        public static GraphClipboardData Deserialize(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return null;
+
+            var dto = JsonConvert.DeserializeObject<GraphClipboardDto>(json,
+                new JsonSerializerSettings { Converters = { new StringEnumConverter() } });
+
+            if (dto == null)
+                return null;
+
+            var result = new GraphClipboardData
+            {
+                CenterX = dto.CenterX,
+                CenterY = dto.CenterY
+            };
+
+            if (dto.Nodes != null)
+            {
+                foreach (var nodeDto in dto.Nodes)
+                {
+                    result.Nodes.Add(nodeDto.ToModel(false));
+                }
+            }
+
+            if (dto.Links != null)
+            {
+                foreach (var linkDto in dto.Links)
+                {
+                    result.Links.Add(linkDto.ToModel());
+                }
+            }
+
+            if (dto.Params != null)
+            {
+                foreach (var paramDto in dto.Params)
+                {
+                    var param = paramDto.ToModel();
+                    result.Params[param.Name] = param;
+                }
+            }
+
+            return result;
+        }
+    }
+
+    internal sealed class GraphClipboardDto
+    {
+        public List<GraphNodeDto> Nodes { get; set; } = new List<GraphNodeDto>();
+        public List<GraphLinkDto> Links { get; set; } = new List<GraphLinkDto>();
+        public List<GraphParamDto> Params { get; set; } = new List<GraphParamDto>();
+        public double CenterX { get; set; }
+        public double CenterY { get; set; }
+    }
 }

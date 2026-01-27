@@ -205,6 +205,7 @@
     <Compile Include="GraphEditor\GraphEditorWindow.xaml.cs">
       <DependentUpon>GraphEditorWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="GraphEditor\GraphClipboard.cs" />
     <Compile Include="GraphEditor\GraphModel.cs" />
     <Compile Include="GraphEditor\GraphTemplateRegistry.cs" />
     <Compile Include="GraphEditor\GraphPreviewEvaluator.cs" />
