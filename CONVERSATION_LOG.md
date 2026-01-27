@@ -2,6 +2,30 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-27 15:41:10 +01:00 (CODex)
+Request: fix Input/Output signal dropdowns and update docs, prepare commit.
+Summary:
+- Defaulted signal dropdown options to the first group when a node's SignalGroup is empty.
+- Documented the dropdown fix in graph progress.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Await user confirmation from running UI test.
+Commit highlights:
+- Populate Input/Output signal dropdowns without requiring a group change
+
+## 2026-01-27 15:22:28 +01:00 (CODex)
+Request: fix Input/Output signal dropdowns not populating until group changes.
+Summary:
+- Use effective signal group fallback for Input/Output port dropdown options without mutating node state.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Populate Input/Output signal dropdowns using default group when node group is empty
+
 ## 2026-01-27 15:11:20 +01:00 (CODex)
 Request: verify Include context auto-selection status and update progress doc.
 Summary:

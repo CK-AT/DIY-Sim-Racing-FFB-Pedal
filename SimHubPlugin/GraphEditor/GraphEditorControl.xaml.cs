@@ -2935,6 +2935,26 @@ namespace User.PluginSdkDemo.GraphEditor
             }
         }
 
+        private static string GetEffectiveSignalGroup(GraphNode node)
+        {
+            if (node == null || !string.IsNullOrWhiteSpace(node.SignalGroup))
+            {
+                return node?.SignalGroup ?? "";
+            }
+
+            switch (node.Kind)
+            {
+                case GraphNodeKind.Input:
+                    return GraphSignalCatalog.InputGroups.Count > 0 ? GraphSignalCatalog.InputGroups[0] : "";
+                case GraphNodeKind.Output:
+                    return GraphSignalCatalog.OutputGroups.Count > 0 ? GraphSignalCatalog.OutputGroups[0] : "";
+                case GraphNodeKind.Param:
+                    return GraphSignalCatalog.ParamGroups.Count > 0 ? GraphSignalCatalog.ParamGroups[0] : "";
+                default:
+                    return "";
+            }
+        }
+
         private void EditSignalGroup_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_isInspectorUpdating || _selectedNode == null)
@@ -3258,6 +3278,7 @@ namespace User.PluginSdkDemo.GraphEditor
             // In library graphs, Input/Output nodes use freeform naming (no signal catalog)
             bool isLibraryGraph = _graph != null && _graph.IsLibraryGraph;
 
+            string effectiveSignalGroup = GetEffectiveSignalGroup(node);
             foreach (var port in node.Ports)
             {
                 bool useSignalOptions = false;
@@ -3271,8 +3292,8 @@ namespace User.PluginSdkDemo.GraphEditor
                     if (!isLibraryGraph)
                     {
                         useSignalOptions = true;
-                        signalOptions = GraphSignalCatalog.GetInputSignalsForGroup(node.SignalGroup);
-                        MigratePortSignalSuffix(port, node.SignalGroup);
+                        signalOptions = GraphSignalCatalog.GetInputSignalsForGroup(effectiveSignalGroup);
+                        MigratePortSignalSuffix(port, effectiveSignalGroup);
                     }
                 }
                 else if (node.Kind == GraphNodeKind.Output && port.Kind == GraphPortKind.Input)
@@ -3281,8 +3302,8 @@ namespace User.PluginSdkDemo.GraphEditor
                     if (!isLibraryGraph)
                     {
                         useSignalOptions = true;
-                        signalOptions = GraphSignalCatalog.GetOutputSignalsForGroup(node.SignalGroup);
-                        MigratePortSignalSuffix(port, node.SignalGroup);
+                        signalOptions = GraphSignalCatalog.GetOutputSignalsForGroup(effectiveSignalGroup);
+                        MigratePortSignalSuffix(port, effectiveSignalGroup);
                     }
                 }
                 else if (node.Kind == GraphNodeKind.Param && port.Kind == GraphPortKind.Output)
