@@ -29,6 +29,7 @@ namespace User.PluginSdkDemo.GraphEditor
         private readonly Dictionary<string, PreviewEntry> _previewInputLookup = new Dictionary<string, PreviewEntry>();
         private readonly Dictionary<string, PreviewEntry> _previewParamLookup = new Dictionary<string, PreviewEntry>();
         private readonly DispatcherTimer _includePathDebounceTimer;
+        private readonly DispatcherTimer _undoDebounceTimer;
         private bool _liveInputsEnabled = true;  // Enabled by default (global setting synced from Window)
         private readonly GraphPreviewEvaluator _previewEvaluator = new GraphPreviewEvaluator();
         private readonly ObservableCollection<PortEditEntry> _portEntries = new ObservableCollection<PortEditEntry>();
@@ -92,6 +93,10 @@ namespace User.PluginSdkDemo.GraphEditor
         private LinkVisual _draggingHandle;
         private Point _handleDragOffset;
         private bool _updatingParamValue;
+        private GraphUndoStack _undoStack;
+        private bool _pendingUndoDebounce;
+        private bool _suppressUndoCapture;
+        private bool _isRestoringUndo;
 
         public event Action<string, string> IncludeOpenRequested;  // (path, includeNodeId)
         public event Action GraphChanged;
@@ -186,8 +191,10 @@ namespace User.PluginSdkDemo.GraphEditor
             EditFunc.ItemsSource = _funcChoices;
             _includePathDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
             _includePathDebounceTimer.Tick += OnIncludePathDebounce;
+            _undoDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+            _undoDebounceTimer.Tick += OnUndoDebounce;
             CanvasSurface.SizeChanged += (_, __) => UpdateCanvasExtent();
-            GraphChanged += () => IsDirty = true;
+            GraphChanged += OnGraphChanged;
             UpdatePreviewResolver();  // Ensure resolver exists even for unsaved graphs
         }
 
@@ -196,6 +203,8 @@ namespace User.PluginSdkDemo.GraphEditor
             _graph = graph ?? new GraphDefinition();
             _hasUserPanned = false;
             IsDirty = false;
+            _pendingUndoDebounce = false;
+            _undoDebounceTimer.Stop();
 
             // Reset context selection when loading a new graph
             _contextIsUserSelected = false;
@@ -222,6 +231,70 @@ namespace User.PluginSdkDemo.GraphEditor
         public GraphDefinition GetGraph()
         {
             return _graph;
+        }
+
+        public bool CanUndo => _undoStack?.CanUndo == true;
+        public bool CanRedo => _undoStack?.CanRedo == true;
+
+        public void SetUndoStack(GraphUndoStack undoStack)
+        {
+            _undoStack = undoStack;
+        }
+
+        public void InitializeUndoStack()
+        {
+            if (_undoStack == null)
+            {
+                return;
+            }
+
+            _undoStack.Reset(CreateUndoSnapshot());
+            SetDirtyState(false);
+        }
+
+        public void MarkUndoClean()
+        {
+            _undoStack?.MarkClean();
+            SetDirtyState(_undoStack?.IsDirty == true);
+        }
+
+        public bool Undo()
+        {
+            if (_undoStack == null)
+            {
+                return false;
+            }
+
+            var snapshot = _undoStack.Undo();
+            if (snapshot == null)
+            {
+                return false;
+            }
+
+            RestoreUndoSnapshot(snapshot);
+            return true;
+        }
+
+        public bool Redo()
+        {
+            if (_undoStack == null)
+            {
+                return false;
+            }
+
+            var snapshot = _undoStack.Redo();
+            if (snapshot == null)
+            {
+                return false;
+            }
+
+            RestoreUndoSnapshot(snapshot);
+            return true;
+        }
+
+        public void SetDirtyState(bool dirty)
+        {
+            IsDirty = dirty;
         }
 
         /// <summary>
@@ -258,6 +331,133 @@ namespace User.PluginSdkDemo.GraphEditor
             string json = File.ReadAllText(path);
             var graph = GraphSerializer.Deserialize(json, out _);
             SetGraph(graph);
+        }
+
+        private GraphUndoSnapshot CreateUndoSnapshot()
+        {
+            return new GraphUndoSnapshot
+            {
+                GraphJson = GraphSerializer.Serialize(_graph),
+                View = GetViewState(),
+                SelectedNodeId = _selectedNode?.Node?.Id
+            };
+        }
+
+        private GraphEditorViewState GetViewState()
+        {
+            return new GraphEditorViewState
+            {
+                ScaleX = SurfaceScale.ScaleX,
+                ScaleY = SurfaceScale.ScaleY,
+                TranslateX = SurfaceTranslate.X,
+                TranslateY = SurfaceTranslate.Y
+            };
+        }
+
+        private void ApplyViewState(GraphEditorViewState view)
+        {
+            if (view == null)
+            {
+                return;
+            }
+
+            SurfaceScale.ScaleX = view.ScaleX;
+            SurfaceScale.ScaleY = view.ScaleY;
+            SurfaceTranslate.X = view.TranslateX;
+            SurfaceTranslate.Y = view.TranslateY;
+        }
+
+        private void RestoreUndoSnapshot(GraphUndoSnapshot snapshot)
+        {
+            if (snapshot == null)
+            {
+                return;
+            }
+
+            _isRestoringUndo = true;
+            _suppressUndoCapture = true;
+            _isInspectorUpdating = true;
+            _undoDebounceTimer.Stop();
+            try
+            {
+                var graph = GraphSerializer.Deserialize(snapshot.GraphJson, out _);
+                SetGraph(graph);
+                ApplyViewState(snapshot.View);
+                RestoreSelection(snapshot.SelectedNodeId);
+                UpdateSelectionVisuals();
+                UpdateInspector();
+                RefreshPreview();
+            }
+            finally
+            {
+                _isInspectorUpdating = false;
+                _suppressUndoCapture = false;
+                _isRestoringUndo = false;
+            }
+        }
+
+        private void RestoreSelection(string nodeId)
+        {
+            _selectedLinks.Clear();
+            _selectedNodes.Clear();
+            _selectedNode = null;
+
+            if (!string.IsNullOrWhiteSpace(nodeId) && _nodeVisuals.TryGetValue(nodeId, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Add(visual);
+            }
+        }
+
+        private void OnGraphChanged()
+        {
+            if (_suppressUndoCapture || _undoStack == null)
+            {
+                return;
+            }
+
+            if (_pendingUndoDebounce)
+            {
+                _pendingUndoDebounce = false;
+                ScheduleUndoSnapshot();
+                return;
+            }
+
+            PushUndoSnapshot();
+        }
+
+        private void ScheduleUndoSnapshot()
+        {
+            if (_undoStack == null)
+            {
+                return;
+            }
+
+            _undoDebounceTimer.Stop();
+            _undoDebounceTimer.Start();
+        }
+
+        private void OnUndoDebounce(object sender, EventArgs e)
+        {
+            _undoDebounceTimer.Stop();
+            PushUndoSnapshot();
+        }
+
+        private void PushUndoSnapshot()
+        {
+            if (_undoStack == null || _isRestoringUndo)
+            {
+                return;
+            }
+
+            var snapshot = CreateUndoSnapshot();
+            var current = _undoStack.Current;
+            if (current != null && string.Equals(current.GraphJson, snapshot.GraphJson, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _undoStack.Push(snapshot);
         }
 
         public void SaveGraphToFile(string path)
@@ -1132,6 +1332,7 @@ namespace User.PluginSdkDemo.GraphEditor
                     _edgeDragFromSource = false;
                     HideEdgePreview();
                     RebuildSurface();
+                    GraphChanged?.Invoke();
                     return;
                 }
                 if (_edgeDragFromSource &&
@@ -1144,6 +1345,7 @@ namespace User.PluginSdkDemo.GraphEditor
                     _edgeDragFromSource = false;
                     HideEdgePreview();
                     RebuildSurface();
+                    GraphChanged?.Invoke();
                     return;
                 }
             }
@@ -1170,6 +1372,7 @@ namespace User.PluginSdkDemo.GraphEditor
                     };
                     _graph.Links.Add(newLink);
                     RebuildSurface();
+                    GraphChanged?.Invoke();
                 }
             }
 
@@ -3168,6 +3371,7 @@ namespace User.PluginSdkDemo.GraphEditor
 
             SyncPreviewEntries();
             RefreshPreview();
+            _pendingUndoDebounce = true;
             GraphChanged?.Invoke();
         }
 
@@ -3182,6 +3386,7 @@ namespace User.PluginSdkDemo.GraphEditor
             {
                 _selectedNode.Node.ConstValue = value;
                 RefreshPreview();
+                _pendingUndoDebounce = true;
                 GraphChanged?.Invoke();
             }
         }
@@ -3434,6 +3639,7 @@ namespace User.PluginSdkDemo.GraphEditor
 
                 SyncPreviewEntries();
                 RefreshPreview();
+                _pendingUndoDebounce = true;
                 GraphChanged?.Invoke();
             }
         }
@@ -3499,6 +3705,8 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
         }
 
         private void EditParamUi_Click(object sender, RoutedEventArgs e)
@@ -3533,6 +3741,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 }
                 SyncPreviewEntries();
                 RefreshPreview();
+                GraphChanged?.Invoke();
             }
         }
 

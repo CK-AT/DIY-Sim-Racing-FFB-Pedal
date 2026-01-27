@@ -20,6 +20,8 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             Id = Guid.NewGuid().ToString("N");
             EditorControl = new GraphEditorControl();
+            UndoStack = new GraphUndoStack();
+            EditorControl.SetUndoStack(UndoStack);
             Graph = new GraphDefinition();
         }
 
@@ -32,6 +34,7 @@ namespace User.PluginSdkDemo.GraphEditor
         /// The editor control instance for this tab.
         /// </summary>
         public GraphEditorControl EditorControl { get; }
+        public GraphUndoStack UndoStack { get; }
 
         /// <summary>
         /// Absolute file path for this graph, or null if unsaved.
@@ -153,6 +156,7 @@ namespace User.PluginSdkDemo.GraphEditor
             {
                 var graphToSet = value ?? new GraphDefinition();
                 EditorControl.SetGraph(graphToSet);
+                EditorControl.InitializeUndoStack();
                 OnPropertyChanged();
             }
         }

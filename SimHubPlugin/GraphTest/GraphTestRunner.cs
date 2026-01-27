@@ -79,6 +79,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("IncludeContextCache clear", TestIncludeContextCacheClear));
             results.Add(TestRunner.RunTest("Evaluator populates include context cache", TestEvaluatorPopulatesIncludeContextCache));
             results.Add(TestRunner.RunTest("Evaluator clears cache each evaluation", TestEvaluatorClearsCacheEachEvaluation));
+            results.Add(TestRunner.RunTest("Graph undo stack basic", TestGraphUndoStackBasic));
 
             TestRunner.PrintResults("FFB Graph Tests", results);
         }
@@ -105,6 +106,40 @@ namespace DiyFfb.GraphTest
             return result.NodeValues.ContainsKey("qhat") &&
                    result.NodeValues.ContainsKey("spring") &&
                    result.Outputs.ContainsKey("spring");
+        }
+
+        private static bool TestGraphUndoStackBasic()
+        {
+            var stack = new GraphUndoStack();
+            var snap1 = new GraphUndoSnapshot { GraphJson = "a" };
+            var snap2 = new GraphUndoSnapshot { GraphJson = "b" };
+
+            stack.Reset(snap1);
+            if (stack.Count != 1 || stack.CanUndo || stack.CanRedo || stack.IsDirty)
+            {
+                return false;
+            }
+
+            stack.Push(snap2);
+            if (!stack.CanUndo || stack.CanRedo || !stack.IsDirty)
+            {
+                return false;
+            }
+
+            var undo = stack.Undo();
+            if (undo != snap1 || stack.IsDirty)
+            {
+                return false;
+            }
+
+            var redo = stack.Redo();
+            if (redo != snap2 || !stack.IsDirty)
+            {
+                return false;
+            }
+
+            stack.MarkClean();
+            return !stack.IsDirty;
         }
 
         private static bool TestCompiledEvaluatorMatches()

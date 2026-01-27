@@ -213,6 +213,7 @@
     <Compile Include="GraphEditor\GraphSerializer.cs" />
     <Compile Include="GraphEditor\GraphEditorTab.cs" />
     <Compile Include="GraphEditor\GraphEditorTabManager.cs" />
+    <Compile Include="GraphEditor\GraphUndoStack.cs" />
     <Compile Include="GraphTest\GraphEvaluator.cs" />
     <Compile Include="GraphTest\GraphCompiledEvaluator.cs" />
     <Compile Include="GraphTest\GraphIncludeResolver.cs" />

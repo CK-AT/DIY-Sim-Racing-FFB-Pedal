@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Input;
 using Microsoft.Win32;
 
 namespace User.PluginSdkDemo.GraphEditor
@@ -70,6 +71,7 @@ namespace User.PluginSdkDemo.GraphEditor
             Closing += OnWindowClosing;
 
             RefreshHierarchy();
+            UpdateUndoRedoButtons();
         }
 
         /// <summary>
@@ -166,7 +168,6 @@ namespace User.PluginSdkDemo.GraphEditor
                 _wiredTabs.Add(tab.Id);
                 tab.EditorControl.GraphChanged += () =>
                 {
-                    tab.IsDirty = true;
                     // Note: We intentionally do NOT call plugin?.OnGraphContentChanged() here.
                     // That fires ActiveGraphChanged which is meant for graph FILE changes,
                     // not for every edit. Calling it here causes feedback loops with sliders.
@@ -178,6 +179,7 @@ namespace User.PluginSdkDemo.GraphEditor
         }
 
         private readonly HashSet<string> _wiredTabs = new HashSet<string>();
+        private readonly HashSet<string> _wiredUndoTabs = new HashSet<string>();
 
         private void OnPluginGraphParamChanged(object sender, GraphParamChangedEventArgs e)
         {
@@ -198,8 +200,28 @@ namespace User.PluginSdkDemo.GraphEditor
             EditorTabs.SelectedItem = tabManager.SelectedTab;
             RefreshHierarchy();
             ButtonApply.IsEnabled = CurrentTab?.IsActiveGraph == true;
+            UpdateUndoRedoButtons();
             // Note: We do NOT sync params from plugin on tab switch - the graph's in-memory
             // state should persist. SyncParamsFromPlugin is only called when loading a new graph.
+        }
+
+        private void UpdateUndoState(GraphEditorTab tab)
+        {
+            if (tab == null)
+            {
+                return;
+            }
+
+            bool dirty = tab.UndoStack?.IsDirty == true;
+            tab.IsDirty = dirty;
+            tab.EditorControl.SetDirtyState(dirty);
+            UpdateUndoRedoButtons();
+        }
+
+        private void UpdateUndoRedoButtons()
+        {
+            ButtonUndo.IsEnabled = CurrentTab?.EditorControl.CanUndo == true;
+            ButtonRedo.IsEnabled = CurrentTab?.EditorControl.CanRedo == true;
         }
 
         private void SyncParamsFromPlugin()
@@ -279,6 +301,14 @@ namespace User.PluginSdkDemo.GraphEditor
             // Subscribe to live inputs state change and sync initial state
             tab.EditorControl.LiveInputsStateChanged += OnTabLiveInputsStateChanged;
             tab.EditorControl.SetLiveInputsState(_globalLiveInputsEnabled, raiseEvent: false);
+
+            if (!_wiredUndoTabs.Contains(tab.Id))
+            {
+                _wiredUndoTabs.Add(tab.Id);
+                tab.UndoStack.Changed += (_, __) => UpdateUndoState(tab);
+            }
+
+            UpdateUndoState(tab);
         }
 
         private void OnTabRemoved(object sender, GraphEditorTab tab)
@@ -286,6 +316,7 @@ namespace User.PluginSdkDemo.GraphEditor
             // Clean up event handlers
             tab.EditorControl.IncludeOpenRequested -= OnIncludeOpenRequested;
             tab.EditorControl.LiveInputsStateChanged -= OnTabLiveInputsStateChanged;
+            UpdateUndoRedoButtons();
         }
 
         private void UpdateTabContextLabel(GraphEditorTab tab, string contextId)
@@ -426,6 +457,9 @@ namespace User.PluginSdkDemo.GraphEditor
                 {
                     plugin?.ApplyGraphToRuntime(CurrentTab.Graph, CurrentTab.FilePath);
                 }
+
+                CurrentTab.EditorControl.MarkUndoClean();
+                UpdateUndoState(CurrentTab);
             }
             else
             {
@@ -461,6 +495,9 @@ namespace User.PluginSdkDemo.GraphEditor
                     {
                         plugin?.ApplyGraphToRuntime(CurrentTab.Graph, CurrentTab.FilePath);
                     }
+
+                    CurrentTab.EditorControl.MarkUndoClean();
+                    UpdateUndoState(CurrentTab);
                 }
                 else
                 {
@@ -478,6 +515,22 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             plugin?.ApplyGraphToRuntime(CurrentTab.Graph, CurrentTab.FilePath);
+        }
+
+        private void ButtonUndo_Click(object sender, RoutedEventArgs e)
+        {
+            if (CurrentTab?.EditorControl.Undo() == true)
+            {
+                UpdateUndoState(CurrentTab);
+            }
+        }
+
+        private void ButtonRedo_Click(object sender, RoutedEventArgs e)
+        {
+            if (CurrentTab?.EditorControl.Redo() == true)
+            {
+                UpdateUndoState(CurrentTab);
+            }
         }
 
         private void ButtonCloseTab_Click(object sender, RoutedEventArgs e)
@@ -571,6 +624,44 @@ namespace User.PluginSdkDemo.GraphEditor
 
             // Update Apply button state based on whether current tab is the active graph
             ButtonApply.IsEnabled = CurrentTab?.IsActiveGraph == true;
+            UpdateUndoRedoButtons();
+        }
+
+        private void GraphEditorWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control)
+            {
+                return;
+            }
+
+            if (e.Key == Key.Z && (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
+            {
+                if (CurrentTab?.EditorControl.Redo() == true)
+                {
+                    UpdateUndoState(CurrentTab);
+                }
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Z)
+            {
+                if (CurrentTab?.EditorControl.Undo() == true)
+                {
+                    UpdateUndoState(CurrentTab);
+                }
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Y)
+            {
+                if (CurrentTab?.EditorControl.Redo() == true)
+                {
+                    UpdateUndoState(CurrentTab);
+                }
+                e.Handled = true;
+            }
         }
 
         private void OnIncludeOpenRequested(string path, string contextId)

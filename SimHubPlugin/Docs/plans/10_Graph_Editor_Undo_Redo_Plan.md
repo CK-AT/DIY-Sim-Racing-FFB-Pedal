@@ -1,6 +1,6 @@
 # Graph Editor Undo/Redo Plan
 
-**Status**: PLANNED
+**Status**: COMPLETED
 
 ## Goals
 - Add undo/redo for graph editing actions across nodes, ports, links, and inspector edits.

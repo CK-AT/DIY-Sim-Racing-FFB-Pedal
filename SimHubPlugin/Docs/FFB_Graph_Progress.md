@@ -130,6 +130,7 @@ Status: living progress document for graph editor/runtime integration.
 - FFB Graph Template Rework: Implemented multi-axis Include composition for plane and helicopter templates. Created `heli_scale.json` building block (torque_norm, rpm_norm, assist_loss, damp_scale). Updated `plane_pitch.json` with V2 format, buffet, FrictionBase, load normalization; created `plane_roll.json` and `plane_yaw.json`. Created helicopter axis graphs (`heli_cyclic_pitch.json`, `heli_cyclic_roll.json`, `heli_pedals.json`) using Include nodes for heli_scale. Updated `plane_default.json` (3 Include nodes) and `heli_default.json` (4 Include nodes) as composition templates. Added "Cyclic" to ParamGroups in `GraphSignalCatalogData.cs` for shared helicopter cyclic parameters.
 - Fixed Include preview not showing live values: Four fixes applied - (1) `PopulateIncludePorts` before conversion in preview, (2) pass baseDirectory to evaluator, (3) `CollectIncludeParams()` recursively collects params from included sub-graphs, (4) `SyncParamsFromPlugin()` now syncs all collected params (not just local Params). Added `GraphDebugLogger` with UI checkbox in inspector panel (zero overhead when disabled). See `Docs/plans/04_Include_Preview_Debug_Plan.md`.
 - Signal dropdowns populate immediately for Input/Output nodes even when SignalGroup is still empty (uses default group for options without mutating node state).
+- Undo/redo support in graph editor (per-tab undo stacks, toolbar buttons, Ctrl+Z/Ctrl+Y).
 
 ## In Progress
 
@@ -140,5 +141,4 @@ Status: living progress document for graph editor/runtime integration.
 
 - Typed units and validation.
 - Graph persistence in profiles and migrations.
-- Undo/redo support in graph editor (see `Docs/plans/10_Graph_Editor_Undo_Redo_Plan.md`).
 - Future: Tooltips with mini-curves and live cursors on param nodes.

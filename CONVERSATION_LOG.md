@@ -2,6 +2,52 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-27 16:26:03 +01:00 (CODex)
+Request: run GraphTest after undo/redo changes.
+Summary:
+- Built GraphTest with MSBuild (same warnings about System.Buffers and x86 reference conflicts).
+- GraphTest: 51/51 passed.
+Key files:
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+Open items:
+- None.
+Commit highlights:
+- None (test run only).
+
+## 2026-01-27 16:19:43 +01:00 (CODex)
+Request: run tests for undo/redo work.
+Summary:
+- Built KinematicsTests via MSBuild (warnings about System.Buffers and architecture mismatch persisted).
+- KinematicsTests: 18/18 passed.
+Key files:
+- `SimHubPlugin/KinematicsTests/Program.cs`
+Open items:
+- None.
+Commit highlights:
+- None (test run only).
+
+## 2026-01-27 16:13:44 +01:00 (CODex)
+Request: implement undo/redo for graph editor.
+Summary:
+- Added per-tab undo stack with snapshot/restore, debounce for text edits, and dirty tracking via baseline index.
+- Wired toolbar buttons and Ctrl+Z/Ctrl+Y shortcuts, plus stack-aware dirty indicators.
+- Added basic undo stack test and updated graph progress/plan docs.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphUndoStack.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorTab.cs`
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+- `SimHubPlugin/Docs/plans/10_Graph_Editor_Undo_Redo_Plan.md`
+Open items:
+- None.
+Commit highlights:
+- Add per-tab undo/redo stacks with debounced snapshots
+- Wire toolbar + keyboard shortcuts for undo/redo
+- Update tests and progress docs for undo/redo
+
 ## 2026-01-27 15:56:40 +01:00 (CODex)
 Request: apply answers to undo/redo plan open questions.
 Summary:
