@@ -216,6 +216,11 @@ namespace User.PluginSdkDemo.GraphEditor
 
             try
             {
+                // Adjust Include paths when saving to a new location
+                string oldBase = BaseDirectory;
+                string newBase = Path.GetDirectoryName(path);
+                AdjustIncludePaths(oldBase, newBase);
+
                 string json = GraphSerializer.Serialize(Graph);
                 File.WriteAllText(path, json);
                 FilePath = path;
@@ -228,6 +233,95 @@ namespace User.PluginSdkDemo.GraphEditor
             {
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Adjusts all Include node paths when saving to a new location.
+        /// Makes paths absolute (using old base), then relative to new base.
+        /// </summary>
+        private void AdjustIncludePaths(string oldBase, string newBase)
+        {
+            if (Graph?.Nodes == null)
+            {
+                return;
+            }
+
+            foreach (var node in Graph.Nodes)
+            {
+                if (node.Kind != GraphNodeKind.Include || string.IsNullOrWhiteSpace(node.IncludePath))
+                {
+                    continue;
+                }
+
+                // Step 1: Make absolute (if relative and old base exists)
+                string absolutePath = node.IncludePath;
+                if (!Path.IsPathRooted(absolutePath) && !string.IsNullOrWhiteSpace(oldBase))
+                {
+                    try
+                    {
+                        absolutePath = Path.GetFullPath(Path.Combine(oldBase, absolutePath));
+                    }
+                    catch
+                    {
+                        // Keep original if resolution fails
+                    }
+                }
+
+                // Step 2: Make relative to new base
+                if (!string.IsNullOrWhiteSpace(newBase))
+                {
+                    node.IncludePath = MakeRelativePath(newBase, absolutePath);
+                }
+                else
+                {
+                    // No new base - keep absolute
+                    node.IncludePath = absolutePath;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Creates a relative path from a base directory to a target path.
+        /// </summary>
+        private static string MakeRelativePath(string baseDir, string fullPath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(baseDir) || string.IsNullOrWhiteSpace(fullPath))
+                {
+                    return fullPath;
+                }
+
+                var baseUri = new Uri(AppendDirectorySeparator(Path.GetFullPath(baseDir)));
+                var fullUri = new Uri(Path.GetFullPath(fullPath));
+                if (baseUri.Scheme != fullUri.Scheme)
+                {
+                    return fullPath;
+                }
+
+                string relative = Uri.UnescapeDataString(baseUri.MakeRelativeUri(fullUri).ToString());
+                return relative.Replace('/', Path.DirectorySeparatorChar);
+            }
+            catch
+            {
+                return fullPath;
+            }
+        }
+
+        private static string AppendDirectorySeparator(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return path;
+            }
+
+            char lastChar = path[path.Length - 1];
+            if (lastChar == Path.DirectorySeparatorChar || lastChar == Path.AltDirectorySeparatorChar)
+            {
+                return path;
+            }
+
+            return path + Path.DirectorySeparatorChar;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

@@ -188,6 +188,7 @@ namespace User.PluginSdkDemo.GraphEditor
             _includePathDebounceTimer.Tick += OnIncludePathDebounce;
             CanvasSurface.SizeChanged += (_, __) => UpdateCanvasExtent();
             GraphChanged += () => IsDirty = true;
+            UpdatePreviewResolver();  // Ensure resolver exists even for unsaved graphs
         }
 
         public void SetGraph(GraphDefinition graph)
@@ -1235,6 +1236,31 @@ namespace User.PluginSdkDemo.GraphEditor
         private ContextMenu BuildContextMenu(Point position)
         {
             var menu = new ContextMenu();
+
+            // Edit operations
+            var copyItem = BuildMenuItem("Copy", CopySelectedToClipboard);
+            copyItem.InputGestureText = "Ctrl+C";
+            copyItem.IsEnabled = _selectedNodes.Count > 0;
+            menu.Items.Add(copyItem);
+
+            var pasteItem = BuildMenuItem("Paste", () => PasteFromClipboard(position));
+            pasteItem.InputGestureText = "Ctrl+V";
+            pasteItem.IsEnabled = Clipboard.ContainsData(GraphClipboardData.ClipboardFormat) || Clipboard.ContainsText();
+            menu.Items.Add(pasteItem);
+
+            var cutItem = BuildMenuItem("Cut", CutSelectedToClipboard);
+            cutItem.InputGestureText = "Ctrl+X";
+            cutItem.IsEnabled = _selectedNodes.Count > 0;
+            menu.Items.Add(cutItem);
+
+            var deleteItem = BuildMenuItem("Delete", () => { DeleteSelectedLinks(); DeleteSelectedNodes(); });
+            deleteItem.InputGestureText = "Del";
+            deleteItem.IsEnabled = _selectedNodes.Count > 0 || _selectedLinks.Count > 0;
+            menu.Items.Add(deleteItem);
+
+            menu.Items.Add(new Separator());
+
+            // Add nodes
             menu.Items.Add(BuildMenuItem("Add Input", () => AddNode(GraphNodeKind.Input, position)));
             menu.Items.Add(BuildMenuItem("Add Param", () => AddNode(GraphNodeKind.Param, position)));
             menu.Items.Add(BuildMenuItem("Add Const", () => AddNode(GraphNodeKind.Const, position)));
@@ -1376,6 +1402,26 @@ namespace User.PluginSdkDemo.GraphEditor
                 AlignSelectedTop();
                 e.Handled = true;
             }
+            else if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                CopySelectedToClipboard();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                // Paste at mouse position if over canvas
+                var mousePos = Mouse.GetPosition(CanvasSurface);
+                bool inCanvas = mousePos.X >= 0 && mousePos.Y >= 0
+                             && mousePos.X <= CanvasSurface.ActualWidth
+                             && mousePos.Y <= CanvasSurface.ActualHeight;
+                PasteFromClipboard(inCanvas ? (Point?)mousePos : null);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.X && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                CutSelectedToClipboard();
+                e.Handled = true;
+            }
         }
 
         private void DeleteSelectedNodes()
@@ -1407,6 +1453,323 @@ namespace User.PluginSdkDemo.GraphEditor
             _selectedLinks.Clear();
             RebuildSurface();
         }
+
+        #region Clipboard Operations
+
+        private void CopySelectedToClipboard()
+        {
+            if (_selectedNodes.Count == 0)
+                return;
+
+            var selectedIds = new HashSet<string>(_selectedNodes.Select(nv => nv.Node.Id));
+
+            // Clone selected nodes (keep original IDs; remap on paste)
+            var copiedNodes = _selectedNodes.Select(nv => CloneNode(nv.Node)).ToList();
+
+            // For Include nodes, convert relative paths to absolute for cross-graph paste
+            foreach (var node in copiedNodes)
+            {
+                if (node.Kind == GraphNodeKind.Include && !string.IsNullOrWhiteSpace(node.IncludePath))
+                {
+                    node.IncludePath = ResolveToAbsolutePath(node.IncludePath);
+                }
+            }
+
+            // Only copy links where both endpoints are in selection
+            var copiedLinks = _graph.Links
+                .Where(link => selectedIds.Contains(link.FromNodeId) && selectedIds.Contains(link.ToNodeId))
+                .Select(CloneLink)
+                .ToList();
+
+            // Copy params for Param nodes
+            var copiedParams = new Dictionary<string, GraphParam>();
+            foreach (var nv in _selectedNodes)
+            {
+                if (nv.Node.Kind == GraphNodeKind.Param)
+                {
+                    foreach (var port in nv.Node.Ports.Where(p => p.Kind == GraphPortKind.Output))
+                    {
+                        string paramName = GetPortSignalName(nv.Node, port);
+                        if (_graph.Params.TryGetValue(paramName, out var param) && !copiedParams.ContainsKey(paramName))
+                        {
+                            copiedParams[paramName] = CloneParam(param);
+                        }
+                    }
+                }
+            }
+
+            // Calculate selection center for paste positioning
+            var bounds = GetSelectionBounds();
+            var clipboardData = new GraphClipboardData
+            {
+                Nodes = copiedNodes,
+                Links = copiedLinks,
+                Params = copiedParams,
+                CenterX = bounds.X + bounds.Width / 2,
+                CenterY = bounds.Y + bounds.Height / 2
+            };
+
+            // Serialize and set to Windows clipboard
+            var json = GraphClipboardSerializer.Serialize(clipboardData);
+            var dataObject = new DataObject();
+            dataObject.SetData(GraphClipboardData.ClipboardFormat, json);
+            dataObject.SetData(DataFormats.Text, json);
+            Clipboard.SetDataObject(dataObject, true);
+        }
+
+        private string ResolveToAbsolutePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return path;
+
+            // Already absolute
+            if (System.IO.Path.IsPathRooted(path))
+                return path;
+
+            // Resolve relative to base directory
+            if (!string.IsNullOrWhiteSpace(_baseDirectory))
+            {
+                try
+                {
+                    return System.IO.Path.GetFullPath(System.IO.Path.Combine(_baseDirectory, path));
+                }
+                catch
+                {
+                    return path;
+                }
+            }
+
+            return path;
+        }
+
+        private void PasteFromClipboard(Point? targetPosition = null)
+        {
+            // Check for our clipboard format
+            string json = null;
+            if (Clipboard.ContainsData(GraphClipboardData.ClipboardFormat))
+            {
+                json = Clipboard.GetData(GraphClipboardData.ClipboardFormat) as string;
+            }
+            else if (Clipboard.ContainsText())
+            {
+                // Try to parse text as graph clipboard data
+                json = Clipboard.GetText();
+            }
+
+            if (string.IsNullOrEmpty(json))
+                return;
+
+            GraphClipboardData clipboardData;
+            try
+            {
+                clipboardData = GraphClipboardSerializer.Deserialize(json);
+            }
+            catch
+            {
+                return; // Invalid clipboard data
+            }
+
+            if (clipboardData == null || clipboardData.Nodes.Count == 0)
+                return;
+
+            // Generate new IDs and build remapping
+            var idRemap = new Dictionary<string, string>();
+            foreach (var node in clipboardData.Nodes)
+            {
+                var oldId = node.Id;
+                var newId = Guid.NewGuid().ToString("N");
+                idRemap[oldId] = newId;
+                node.Id = newId;
+            }
+
+            // Remap link node references
+            foreach (var link in clipboardData.Links)
+            {
+                if (idRemap.TryGetValue(link.FromNodeId, out var newFromId))
+                    link.FromNodeId = newFromId;
+                if (idRemap.TryGetValue(link.ToNodeId, out var newToId))
+                    link.ToNodeId = newToId;
+            }
+
+            // For Include nodes, convert absolute paths back to relative and clear stale cache
+            foreach (var node in clipboardData.Nodes)
+            {
+                if (node.Kind == GraphNodeKind.Include && !string.IsNullOrWhiteSpace(node.IncludePath))
+                {
+                    node.IncludePath = MakeRelativePath(_baseDirectory, node.IncludePath);
+                    // Clear cached interface - it was from the source graph context and is now stale
+                    node.CachedInterface = null;
+                }
+            }
+
+            // Calculate position offset
+            double offsetX, offsetY;
+            if (targetPosition.HasValue)
+            {
+                offsetX = targetPosition.Value.X - clipboardData.CenterX;
+                offsetY = targetPosition.Value.Y - clipboardData.CenterY;
+            }
+            else
+            {
+                // Default: offset by fixed amount
+                offsetX = 50;
+                offsetY = 50;
+            }
+
+            // Apply offset to all nodes
+            foreach (var node in clipboardData.Nodes)
+            {
+                node.X += offsetX;
+                node.Y += offsetY;
+            }
+
+            // Add nodes and links to graph
+            foreach (var node in clipboardData.Nodes)
+                _graph.Nodes.Add(node);
+
+            foreach (var link in clipboardData.Links)
+                _graph.Links.Add(link);
+
+            // Sync ports for Include nodes (must be done after adding to graph)
+            foreach (var node in clipboardData.Nodes)
+            {
+                if (node.Kind == GraphNodeKind.Include)
+                {
+                    SyncIncludePorts(node);
+                }
+            }
+
+            // Merge params (don't overwrite existing params with same name)
+            if (clipboardData.Params != null)
+            {
+                foreach (var kvp in clipboardData.Params)
+                {
+                    if (!_graph.Params.ContainsKey(kvp.Key))
+                    {
+                        _graph.Params[kvp.Key] = kvp.Value;
+                    }
+                }
+            }
+
+            // Rebuild visuals
+            RebuildSurface();
+
+            // Select newly pasted nodes
+            _selectedNodes.Clear();
+            _selectedLinks.Clear();
+            foreach (var node in clipboardData.Nodes)
+            {
+                if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+                    _selectedNodes.Add(visual);
+            }
+            _selectedNode = _selectedNodes.Count == 1 ? _selectedNodes.First() : null;
+            UpdateSelectionVisuals();
+        }
+
+        private void CutSelectedToClipboard()
+        {
+            CopySelectedToClipboard();
+            DeleteSelectedLinks();
+            DeleteSelectedNodes();
+        }
+
+        private Rect GetSelectionBounds()
+        {
+            if (_selectedNodes.Count == 0)
+                return Rect.Empty;
+
+            double minX = double.MaxValue, minY = double.MaxValue;
+            double maxX = double.MinValue, maxY = double.MinValue;
+
+            foreach (var nv in _selectedNodes)
+            {
+                minX = Math.Min(minX, nv.Node.X);
+                minY = Math.Min(minY, nv.Node.Y);
+                maxX = Math.Max(maxX, nv.Node.X + nv.Container.ActualWidth);
+                maxY = Math.Max(maxY, nv.Node.Y + nv.Container.ActualHeight);
+            }
+
+            return new Rect(minX, minY, maxX - minX, maxY - minY);
+        }
+
+        private static GraphNode CloneNode(GraphNode source)
+        {
+            var clone = new GraphNode
+            {
+                Id = source.Id,
+                Title = source.Title,
+                Kind = source.Kind,
+                X = source.X,
+                Y = source.Y,
+                Op = source.Op,
+                Func = source.Func,
+                IncludePath = source.IncludePath,
+                ConstValue = source.ConstValue,
+                SignalGroup = source.SignalGroup,
+                CachedInterface = source.CachedInterface
+            };
+
+            foreach (var port in source.Ports)
+            {
+                clone.Ports.Add(new GraphPort
+                {
+                    Name = port.Name,
+                    Kind = port.Kind,
+                    SignalSuffix = port.SignalSuffix
+                });
+            }
+
+            return clone;
+        }
+
+        private static GraphLink CloneLink(GraphLink source)
+        {
+            return new GraphLink
+            {
+                FromNodeId = source.FromNodeId,
+                FromPort = source.FromPort,
+                ToNodeId = source.ToNodeId,
+                ToPort = source.ToPort
+            };
+        }
+
+        private static GraphParam CloneParam(GraphParam source)
+        {
+            var clone = new GraphParam
+            {
+                Name = source.Name,
+                DefaultValue = source.DefaultValue,
+                Min = source.Min,
+                Max = source.Max
+            };
+
+            if (source.Ui != null)
+            {
+                clone.Ui = new GraphParamUi
+                {
+                    Widget = source.Ui.Widget,
+                    Label = source.Ui.Label,
+                    Group = source.Ui.Group,
+                    Units = source.Ui.Units,
+                    Step = source.Ui.Step,
+                    Precision = source.Ui.Precision,
+                    LogScale = source.Ui.LogScale
+                };
+
+                foreach (var option in source.Ui.Options)
+                {
+                    clone.Ui.Options.Add(new GraphParamOption
+                    {
+                        Value = option.Value,
+                        Label = option.Label
+                    });
+                }
+            }
+
+            return clone;
+        }
+
+        #endregion
 
         private void EnsureSelectionRectangle()
         {
@@ -2048,7 +2411,9 @@ namespace User.PluginSdkDemo.GraphEditor
             }
             else
             {
-                _previewEvaluator.SetResolver(null);
+                // Always create a resolver - it can still resolve absolute Include paths
+                // even without a valid base directory (e.g., for unsaved graphs with pasted Includes)
+                _previewEvaluator.SetResolver(GraphRuntimeConverter.CreateResolver(""));
                 _previewEvaluator.SetBaseDirectory(null);
             }
         }
