@@ -24,6 +24,8 @@ Status: living progress document for graph editor/runtime integration.
 - Op nodes now label their output port with the operation formula.
 - Op nodes support variadic inputs for add/mul/min/max (Add Input in inspector, normalized port naming, validation + runtime support, output label expands to match input count).
 - Op add/mul input ports support per-input negate toggles with output labels reflecting negated inputs.
+- Op inspector hides the derived output port (inputs only).
+- Negated Op inputs show an inline "neg" badge and "-" prefix on node labels.
 - Edge rewiring supports dragging to a new source (via context menu).
 - Input ports now enforce a single incoming edge.
 - Node sizing now uses measured label widths for tighter layouts.
@@ -76,6 +78,7 @@ Status: living progress document for graph editor/runtime integration.
 - KinematicsTests validates general kinematics solver (pin/bar validation, collinearity, coefficient calculations).
 - FlightPedalsConfigControl replaced X-Plane FFB section with FFB Parameters showing filtered graph params.
 - Port name editing without focus loss (UpdateSourceTrigger=LostFocus).
+- Port name edits commit on Enter to avoid losing inspector changes.
 - Port remove button functionality in inspector.
 - Multi-port param sync for shared parameters across functions.
 - Graph template selector dialog prompts on first vehicle encounter.

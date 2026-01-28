@@ -17,6 +17,15 @@
             <DockPanel Margin="0,2,0,2">
                 <TextBlock Text="{Binding KindLabel}" Foreground="#CCCCCC" FontSize="10" Width="54" />
                 <StackPanel Orientation="Horizontal">
+                    <Border Background="#3A3A3A"
+                            BorderBrush="#4A4A4A"
+                            BorderThickness="1"
+                            CornerRadius="2"
+                            Padding="3,0,3,0"
+                            Margin="0,0,6,0"
+                            Visibility="{Binding IsNegated, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="neg" Foreground="#FF6666" FontSize="9" />
+                    </Border>
                     <TextBox
                              Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
                              IsReadOnly="{Binding IsNameReadOnly}"

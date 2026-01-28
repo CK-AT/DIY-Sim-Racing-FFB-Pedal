@@ -53,6 +53,7 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 ### Inspector
 - Displays selected node info; preview inputs/params and warnings live in a modeless preview window (toolbar: "Preview Inputs").
 - Uses per-node templates (Input/Output/Param/Const/Op/Func/Include) instead of a generic inspector.
+- Inspector text inputs commit edits on Enter to avoid lost changes on selection switches.
 - Param nodes use an IDE-style property grid for the selected port with Range/UI sections (collapsible).
 - Include ports are read-only lists derived from the included graph interface (refreshable).
 - Param nodes also define their tuning controls (slider/knob/checkbox) to enable direct tuning.

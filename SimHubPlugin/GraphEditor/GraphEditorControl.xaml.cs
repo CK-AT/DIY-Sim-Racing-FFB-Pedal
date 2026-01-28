@@ -3138,20 +3138,25 @@ namespace User.PluginSdkDemo.GraphEditor
         private string GetPortDisplayLabel(GraphNode node, GraphPort port)
         {
             bool isLibraryGraph = _graph != null && _graph.IsLibraryGraph;
+            bool isNegatedOpInput = node != null &&
+                node.Kind == GraphNodeKind.Op &&
+                port?.Kind == GraphPortKind.Input &&
+                port.Negate &&
+                IsNegateSupportedOp(node.Op);
 
             // In library graphs, Input/Output nodes use Name directly (freeform)
             if (isLibraryGraph && (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output))
             {
-                return port.Name;
+                return isNegatedOpInput ? "-" + port.Name : port.Name;
             }
 
             // In top-level graphs, Input/Output nodes use SignalSuffix if set
             if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output) &&
                 !string.IsNullOrEmpty(port.SignalSuffix))
             {
-                return port.SignalSuffix;
+                return isNegatedOpInput ? "-" + port.SignalSuffix : port.SignalSuffix;
             }
-            return port.Name;
+            return isNegatedOpInput ? "-" + port.Name : port.Name;
         }
 
         /// <summary>
@@ -4017,6 +4022,10 @@ namespace User.PluginSdkDemo.GraphEditor
             var opInputPorts = isOpNode ? node.Ports.Where(p => p.Kind == GraphPortKind.Input).ToList() : null;
             foreach (var port in node.Ports)
             {
+                if (isOpNode && port.Kind == GraphPortKind.Output)
+                {
+                    continue;
+                }
                 bool useSignalOptions = false;
                 IReadOnlyList<string> signalOptions = null;
                 bool showParamFields = false;
@@ -4689,7 +4698,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 var label = child as TextBlock;
                 if (label?.Tag is PortVisual labelPort)
                 {
-                    double labelWidth = MeasureTextWidth(labelPort.PortName, PortFontSize);
+                    double labelWidth = MeasureTextWidth(label.Text ?? labelPort.PortName, PortFontSize);
                     double x;
                     if (labelPort.Kind == GraphPortKind.Input)
                     {

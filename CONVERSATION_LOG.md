@@ -2,6 +2,55 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-28 21:12:03 +01:00 (CODex)
+Request: update design/progress docs for recent inspector and negate UX tweaks.
+Summary:
+- Documented Op inspector input-only list, negate badge/prefix behavior, and Enter-to-commit inspector edits.
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+- `SimHubPlugin/Docs/Graph_Node_Types_Design.md`
+Open items:
+- None.
+Commit highlights:
+- Docs now reflect Op inspector input-only list and negate visual affordances.
+- Inspector text inputs document Enter-to-commit behavior.
+
+## 2026-01-28 21:08:21 +01:00 (CODex)
+Request: hide Op node output port from the inspector ports list.
+Summary:
+- Op inspector now lists input ports only, omitting the derived output port.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Op port list now shows inputs only.
+
+## 2026-01-28 21:04:33 +01:00 (CODex)
+Request: add negate visual affordances in the inspector and node labels.
+Summary:
+- Added a "neg" badge in the port inspector rows when a negate toggle is active.
+- Prefixed negated Op input labels with a leading "-" in node visuals and sized labels using the rendered text.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Negated op inputs now show an inline badge and a "-" prefix on node labels.
+
+## 2026-01-28 21:00:44 +01:00 (CODex)
+Request: add AGENTS rule to commit inspector text edits on Enter.
+Summary:
+- Added an always-on rule to ensure inspector text inputs commit on Enter to avoid lost edits.
+Key files:
+- `AGENTS.md`
+Open items:
+- None.
+Commit highlights:
+- AGENTS rule for Enter-to-commit in inspector text inputs.
+
 ## 2026-01-28 20:46:43 +01:00 (CODex)
 Request: restore the Title field for Include node inspector.
 Summary:

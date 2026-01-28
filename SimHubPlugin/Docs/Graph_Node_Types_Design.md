@@ -546,7 +546,8 @@ else if (kind == GraphNodeKind.Op)
 **Inspector Panel** ([GraphEditorControl.xaml.cs:1942, 1952](SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs#L1942)):
 - Title field
 - EditOp ComboBox (operation selector)
-- Port list (read-only names; Add Input for variadic ops)
+- Port list (inputs only; read-only names; Add Input for variadic ops)
+- Negate toggles on add/mul inputs with a "neg" badge; negated ports show a "-" prefix in node labels
 
 **Port Configuration**:
 - Ports are **fixed** for sub/div/abs/neg/clamp/lerp and **variadic** for add/mul/min/max.
