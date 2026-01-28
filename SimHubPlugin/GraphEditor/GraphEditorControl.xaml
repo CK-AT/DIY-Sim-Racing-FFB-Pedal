@@ -256,13 +256,12 @@
                 <TextBlock Text="Ports" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                     <Button x:Name="ButtonAddOutputPortTemplate"
-                            Content="+ Out"
-                            Width="50"
+                            Content="Add Port"
                             Background="#1E1E1E"
                             Foreground="White"
                             BorderBrush="#4A4A4A"
                             BorderThickness="1"
-                            Padding="2,1,2,1"
+                            Padding="2,2,2,2"
                             Click="ButtonAddOutputPort_Click" />
                 </StackPanel>
                 <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=PortEntries}"
@@ -320,13 +319,12 @@
                 <TextBlock Text="Ports" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                     <Button x:Name="ButtonAddInputPortTemplate"
-                            Content="+ In"
-                            Width="50"
+                            Content="Add Port"
                             Background="#1E1E1E"
                             Foreground="White"
                             BorderBrush="#4A4A4A"
                             BorderThickness="1"
-                            Padding="2,1,2,1"
+                            Padding="2,2,2,2"
                             Click="ButtonAddInputPort_Click" />
                 </StackPanel>
                 <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=PortEntries}"
@@ -349,13 +347,12 @@
                 <TextBlock Text="Ports" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                     <Button x:Name="ButtonAddParamPortTemplate"
-                            Content="+ Out"
-                            Width="50"
+                            Content="Add Port"
                             Background="#1E1E1E"
                             Foreground="White"
                             BorderBrush="#4A4A4A"
                             BorderThickness="1"
-                            Padding="2,1,2,1"
+                            Padding="2,2,2,2"
                             Click="ButtonAddOutputPort_Click" />
                 </StackPanel>
                 <ListBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=PortEntries}"
@@ -664,22 +661,16 @@
                               Checked="CheckLibraryGraph_Changed"
                               Unchecked="CheckLibraryGraph_Changed" />
                 </DockPanel>
-                <TextBlock Text="Selected Node" Foreground="#BBBBBB" Margin="0,8,0,2" FontSize="10" />
-                <TextBlock x:Name="TextNodeTitle" Foreground="White" FontSize="11" Text="(none)" />
-                <TextBlock x:Name="TextNodeKind" Foreground="#CCCCCC" FontSize="10" />
-                <TextBlock Text="Live Value" Foreground="#BBBBBB" Margin="0,10,0,2" FontSize="10" />
-                <TextBlock x:Name="TextNodeValue" Foreground="White" FontSize="11" Text="n/a" />
-                <TextBlock Text="Info" Foreground="#BBBBBB" Margin="0,10,0,2" FontSize="10" />
-                <TextBlock x:Name="TextNodeInfo" Foreground="#CCCCCC" FontSize="10" TextWrapping="Wrap" />
-                <ContentControl x:Name="InspectorContent"
-                                Margin="0,10,0,0"
-                                ContentTemplateSelector="{StaticResource InspectorTemplateSelector}" />
-                <TextBlock x:Name="TextNoSelection"
-                           Foreground="#777777"
-                           FontSize="10"
-                           Margin="0,10,0,0"
-                           Text="Select a node to edit its properties."
-                           Visibility="Collapsed" />
+                <StackPanel x:Name="PanelEvalContext" Orientation="Horizontal" Margin="0,0,0,8" Visibility="Collapsed">
+                    <TextBlock Text="Context:" Foreground="#BBBBBB" FontSize="10" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <ComboBox x:Name="ComboEvalContext"
+                              Width="200"
+                              Background="#1E1E1E"
+                              Foreground="White"
+                              BorderBrush="#4A4A4A"
+                              BorderThickness="1"
+                              SelectionChanged="ComboEvalContext_SelectionChanged" />
+                </StackPanel>
                 <DockPanel Margin="0,10,0,2">
                     <CheckBox x:Name="CheckDebugLogging"
                               Content="Debug Logging"
@@ -699,16 +690,17 @@
                                MouseLeftButtonDown="TextDebugLogPath_Click"
                                ToolTip="Click to open log file location" />
                 </DockPanel>
-                <StackPanel x:Name="PanelEvalContext" Orientation="Horizontal" Margin="0,8,0,4" Visibility="Collapsed">
-                    <TextBlock Text="Context:" Foreground="#BBBBBB" FontSize="10" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <ComboBox x:Name="ComboEvalContext"
-                              Width="200"
-                              Background="#1E1E1E"
-                              Foreground="White"
-                              BorderBrush="#4A4A4A"
-                              BorderThickness="1"
-                              SelectionChanged="ComboEvalContext_SelectionChanged" />
-                </StackPanel>
+                <TextBlock Text="Selected Node" Foreground="#BBBBBB" Margin="0,8,0,2" FontSize="10" />
+                <TextBlock x:Name="TextNodeTitle" Foreground="White" FontSize="11" Text="(none)" />
+                <ContentControl x:Name="InspectorContent"
+                                Margin="0,10,0,0"
+                                ContentTemplateSelector="{StaticResource InspectorTemplateSelector}" />
+                <TextBlock x:Name="TextNoSelection"
+                           Foreground="#777777"
+                           FontSize="10"
+                           Margin="0,10,0,0"
+                           Text="Select a node to edit its properties."
+                           Visibility="Collapsed" />
             </StackPanel>
         </Border>
     </Grid>

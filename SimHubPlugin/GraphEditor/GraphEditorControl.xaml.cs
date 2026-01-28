@@ -1600,9 +1600,6 @@ namespace User.PluginSdkDemo.GraphEditor
             if (_selectedNode == null)
             {
                 TextNodeTitle.Text = _selectedNodes.Count > 1 ? "(multiple)" : "(none)";
-                TextNodeKind.Text = _selectedNodes.Count > 1 ? "Multiple" : "";
-                TextNodeValue.Text = "n/a";
-                TextNodeInfo.Text = "";
                 InspectorContent.Content = null;
                 InspectorContent.Visibility = Visibility.Collapsed;
                 TextNoSelection.Visibility = _selectedNodes.Count > 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -1610,19 +1607,8 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             var node = _selectedNode.Node;
-            TextNodeTitle.Text = string.IsNullOrWhiteSpace(node.Title) ? node.Id : node.Title;
-            TextNodeKind.Text = node.Kind.ToString();
+            TextNodeTitle.Text = BuildSelectedNodeLabel(node);
 
-            if (_nodeValues.TryGetValue(node.Id, out var value))
-            {
-                TextNodeValue.Text = value.ToString("F4");
-            }
-            else
-            {
-                TextNodeValue.Text = "n/a";
-            }
-
-            TextNodeInfo.Text = BuildNodeInfo(node);
             InspectorContent.Content = node;
             InspectorContent.Visibility = UsesTemplateInspector(node) ? Visibility.Visible : Visibility.Collapsed;
             TextNoSelection.Visibility = Visibility.Collapsed;
@@ -2967,7 +2953,11 @@ namespace User.PluginSdkDemo.GraphEditor
                 // Only clear selection if not user-selected (sticky behavior)
                 if (!_contextIsUserSelected)
                 {
-                    if (PanelEvalContext.Visibility != Visibility.Collapsed)
+                    if (_graph != null && _graph.IsLibraryGraph)
+                    {
+                        EnsureStandaloneContextVisible();
+                    }
+                    else if (PanelEvalContext.Visibility != Visibility.Collapsed)
                     {
                         ComboEvalContext.Items.Clear();
                         ComboEvalContext.Items.Add(new ComboBoxItem { Content = "(standalone)", Tag = null });
@@ -2998,7 +2988,11 @@ namespace User.PluginSdkDemo.GraphEditor
                 // The cache will be repopulated on next evaluation cycle
                 if (!_contextIsUserSelected || _selectedContextId == null)
                 {
-                    if (PanelEvalContext.Visibility != Visibility.Collapsed)
+                    if (_graph != null && _graph.IsLibraryGraph)
+                    {
+                        EnsureStandaloneContextVisible();
+                    }
+                    else if (PanelEvalContext.Visibility != Visibility.Collapsed)
                     {
                         ComboEvalContext.Items.Clear();
                         ComboEvalContext.Items.Add(new ComboBoxItem { Content = "(standalone)", Tag = null });
@@ -3047,6 +3041,16 @@ namespace User.PluginSdkDemo.GraphEditor
                 }
             }
             ComboEvalContext.SelectedItem = selected ?? ComboEvalContext.Items[0];
+        }
+
+        private void EnsureStandaloneContextVisible()
+        {
+            ComboEvalContext.Items.Clear();
+            ComboEvalContext.Items.Add(new ComboBoxItem { Content = "(standalone)", Tag = null });
+            PanelEvalContext.Visibility = Visibility.Visible;
+            _selectedContextId = null;
+            _lastContextIds.Clear();
+            ComboEvalContext.SelectedItem = ComboEvalContext.Items[0];
         }
 
         private void ComboEvalContext_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -3143,26 +3147,80 @@ namespace User.PluginSdkDemo.GraphEditor
             return port.Name ?? "";
         }
 
-        private string BuildNodeInfo(GraphNode node)
+        private string BuildSelectedNodeLabel(GraphNode node)
         {
-            if (node.Kind == GraphNodeKind.Const)
+            if (node == null)
             {
-                return $"Const: {node.ConstValue}";
-            }
-            if (node.Kind == GraphNodeKind.Op)
-            {
-                return $"Op: {node.Op}";
-            }
-            if (node.Kind == GraphNodeKind.Func)
-            {
-                return $"Func: {node.Func}";
-            }
-            if (node.Kind == GraphNodeKind.Include)
-            {
-                return $"Include: {node.IncludePath}";
+                return "(none)";
             }
 
-            return "";
+            string label;
+            switch (node.Kind)
+            {
+                case GraphNodeKind.Const:
+                    label = $"Const (value={node.ConstValue:F3})";
+                    break;
+                case GraphNodeKind.Op:
+                    label = $"Op ({node.Op ?? "mul"})";
+                    break;
+                case GraphNodeKind.Func:
+                    label = $"Func ({node.Func ?? "?"})";
+                    break;
+                case GraphNodeKind.Input:
+                    label = BuildSignalNodeHeader("Input", node);
+                    break;
+                case GraphNodeKind.Output:
+                    label = BuildSignalNodeHeader("Output", node);
+                    break;
+                case GraphNodeKind.Param:
+                    label = BuildSignalNodeHeader("Param", node);
+                    break;
+                case GraphNodeKind.Include:
+                    label = BuildIncludeHeader(node);
+                    break;
+                default:
+                    label = node.Kind.ToString();
+                    break;
+            }
+
+            if (!string.IsNullOrWhiteSpace(node.Title))
+            {
+                string title = node.Title.Trim();
+                if (!string.IsNullOrWhiteSpace(title))
+                {
+                    label = $"{label} ({title})";
+                }
+            }
+
+            return label;
+        }
+
+        private string BuildSignalNodeHeader(string kindLabel, GraphNode node)
+        {
+            string group = string.IsNullOrWhiteSpace(node.SignalGroup) ? GetEffectiveSignalGroup(node) : node.SignalGroup;
+            int portCount = node.Ports?.Count ?? 0;
+            if (!string.IsNullOrWhiteSpace(group))
+            {
+                return $"{kindLabel} (Group: {group}, Ports: {portCount})";
+            }
+
+            return $"{kindLabel} (Ports: {portCount})";
+        }
+
+        private static string BuildIncludeHeader(GraphNode node)
+        {
+            if (node == null || string.IsNullOrWhiteSpace(node.IncludePath))
+            {
+                return "Include";
+            }
+
+            string fileName = System.IO.Path.GetFileName(node.IncludePath);
+            if (!string.IsNullOrWhiteSpace(fileName))
+            {
+                return $"Include ({fileName})";
+            }
+
+            return $"Include ({node.IncludePath})";
         }
 
         private static bool UsesTemplateInspector(GraphNode node)

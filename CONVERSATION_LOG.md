@@ -2,6 +2,24 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-28 08:48:33 +01:00 (CODex)
+Request: commit inspector header refinements and context dropdown move.
+Summary:
+- Streamlined the Selected Node header and removed obsolete live/info fields.
+- Ensured library graphs keep a standalone context option with no live data.
+- Relocated the context selector to sit directly above the Selected Node header.
+- Standardized add-port buttons to the “Add Port” label.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Selected Node header now shows a contextual label (and optional title), without live/info fields.
+- Library graphs always expose a standalone context fallback.
+- Context dropdown now appears above Selected Node.
+- Port add buttons now show “Add Port” across node types.
+
 ## 2026-01-27 22:58:00 +01:00 (CODex)
 Request: add Ctrl+S and Ctrl+O shortcuts in the graph editor.
 Summary:
@@ -25,6 +43,77 @@ Open items:
 - Ctrl+W close shortcut still pending.
 Commit highlights:
 - Docs updated for Ctrl+S/Ctrl+O graph editor shortcuts.
+
+## 2026-01-27 23:12:00 +01:00 (CODex)
+Request: rename add-port buttons to a generic label.
+Summary:
+- Updated Input/Output/Param add-port buttons to show “Add Port” instead of “+ In/+ Out”.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+Open items:
+- None.
+Commit highlights:
+- Port add buttons now show “Add Port” across node types.
+
+## 2026-01-27 23:20:00 +01:00 (CODex)
+Request: improve selected-node header to avoid showing irrelevant titles.
+Summary:
+- Selected node header now shows a context label by node type, only using title for library Input/Output when non-empty.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Selected node header shows contextual info instead of always showing Title.
+- Fixed include header path lookup to avoid Path namespace ambiguity.
+- Op node titles now surface in the selected-node header when provided.
+- Func node titles now surface in the selected-node header when provided.
+
+## 2026-01-27 23:34:00 +01:00 (CODex)
+Request: remove obsolete live value/info fields from inspector.
+Summary:
+- Removed live value and info fields from the inspector panel and cleaned code-behind references.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Inspector header now shows only selection context + template content.
+
+## 2026-01-27 23:41:00 +01:00 (CODex)
+Request: ensure standalone context exists for library graphs without live data.
+Summary:
+- Keep the context dropdown visible with a standalone entry for library graphs when no contexts are available.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Library graphs always have a standalone context fallback.
+
+## 2026-01-27 23:47:00 +01:00 (CODex)
+Request: remove redundant node type label under Selected Node.
+Summary:
+- Dropped the extra node type line since the selected-node header now includes context.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Selected-node header no longer has a separate node type line.
+
+## 2026-01-27 23:52:00 +01:00 (CODex)
+Request: show node titles alongside display labels in Selected Node header.
+Summary:
+- Appended node titles in parentheses after the contextual display label when present.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Selected-node header now shows contextual label plus title in parentheses.
 
 ## 2026-01-27 22:40:00 +01:00 (CODex)
 Request: update docs and prep commit after inspector/property grid changes.
