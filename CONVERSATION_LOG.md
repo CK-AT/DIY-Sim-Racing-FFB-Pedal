@@ -2,6 +2,37 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-28 16:26:05 +01:00 (CODex)
+Request: fix missing clamp/lerp input ports after op output formula changes.
+Summary:
+- Restored op-specific input naming so clamp/lerp keep min/max/t ports and abs/neg stay unary.
+- Op port normalization now uses per-op input definitions during refresh.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Op output ports show formula labels like "a+b" and "a*b".
+- Clamp/lerp input ports are back and named correctly.
+- Op port normalization respects per-op input arity.
+
+## 2026-01-28 16:11:10 +01:00 (CODex)
+Request: label Op node output ports with the operation formula (a+b, a*b, etc.).
+Summary:
+- Op nodes now rename their output port to the formula label based on the selected operation.
+- Op output labels normalize on graph load and when changing the Op selector.
+- Updated graph design docs to describe formula output labels.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+- `SimHubPlugin/Docs/Graph_Node_Types_Design.md`
+Open items:
+- None.
+Commit highlights:
+- Op output ports show formula labels like "a+b" and "a*b".
+- Op port labels normalize on load and on Op selection changes.
+
 ## 2026-01-28 15:44:23 +01:00 (CODex)
 Request: add a single-input neg op (a -> -a).
 Summary:

@@ -268,6 +268,10 @@ namespace User.PluginSdkDemo.GraphEditor
                 {
                     EnsureFuncPorts(node);
                 }
+                else if (node.Kind == GraphNodeKind.Op)
+                {
+                    EnsureOpPorts(node, node.Op);
+                }
                 else if (node.Kind == GraphNodeKind.Include)
                 {
                     // Sync Include node ports from included graph interface
@@ -1562,7 +1566,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 node.Op = "mul";
                 node.Ports.Add(new GraphPort { Name = "a", Kind = GraphPortKind.Input });
                 node.Ports.Add(new GraphPort { Name = "b", Kind = GraphPortKind.Input });
-                node.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
+                node.Ports.Add(new GraphPort { Name = GetOpOutputName(node.Op), Kind = GraphPortKind.Output });
             }
             else if (kind == GraphNodeKind.Func)
             {
@@ -3486,124 +3490,61 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             bool changed = false;
+            string outputName = GetOpOutputName(op);
             bool isNeg = string.Equals(op, "neg", StringComparison.OrdinalIgnoreCase);
+            string[] desiredInputs = GetOpInputNames(op);
             var inputPorts = node.Ports.Where(p => p.Kind == GraphPortKind.Input).ToList();
             var outputPorts = node.Ports.Where(p => p.Kind == GraphPortKind.Output).ToList();
 
-            if (isNeg)
+            GraphPort outPort = outputPorts.FirstOrDefault(p => p.Name == outputName);
+            if (outPort == null)
             {
-                GraphPort aPort = inputPorts.FirstOrDefault(p => p.Name == "a");
-                if (aPort == null)
+                if (outputPorts.Count > 0)
                 {
-                    if (inputPorts.Count > 0)
-                    {
-                        aPort = inputPorts[0];
-                        RenamePort(node, aPort.Name, "a");
-                        aPort.Name = "a";
-                        changed = true;
-                    }
-                    else
-                    {
-                        aPort = new GraphPort { Name = "a", Kind = GraphPortKind.Input };
-                        node.Ports.Add(aPort);
-                        changed = true;
-                    }
-                }
-
-                foreach (var port in inputPorts.Where(p => !ReferenceEquals(p, aPort)).ToList())
-                {
-                    RemovePort(node, port);
+                    outPort = outputPorts[0];
+                    RenamePort(node, outPort.Name, outputName);
+                    outPort.Name = outputName;
                     changed = true;
                 }
-
-                GraphPort outPort = outputPorts.FirstOrDefault(p => p.Name == "-a");
-                if (outPort == null)
+                else
                 {
-                    if (outputPorts.Count > 0)
-                    {
-                        outPort = outputPorts[0];
-                        RenamePort(node, outPort.Name, "-a");
-                        outPort.Name = "-a";
-                        changed = true;
-                    }
-                    else
-                    {
-                        node.Ports.Add(new GraphPort { Name = "-a", Kind = GraphPortKind.Output });
-                        changed = true;
-                    }
-                }
-
-                foreach (var port in outputPorts.Where(p => !ReferenceEquals(p, outPort)).ToList())
-                {
-                    RemovePort(node, port);
+                    node.Ports.Add(new GraphPort { Name = outputName, Kind = GraphPortKind.Output });
                     changed = true;
                 }
             }
-            else
+
+            foreach (var port in outputPorts.Where(p => !ReferenceEquals(p, outPort)).ToList())
             {
-                GraphPort outPort = outputPorts.FirstOrDefault(p => p.Name == "out");
-                if (outPort == null)
+                RemovePort(node, port);
+                changed = true;
+            }
+
+            if (isNeg && desiredInputs.Length == 1 && desiredInputs[0] != "a")
+            {
+                desiredInputs = new[] { "a" };
+            }
+
+            for (int idx = inputPorts.Count - 1; idx >= desiredInputs.Length; idx--)
+            {
+                RemovePort(node, inputPorts[idx]);
+                inputPorts.RemoveAt(idx);
+                changed = true;
+            }
+
+            for (int idx = 0; idx < desiredInputs.Length; idx++)
+            {
+                if (idx < inputPorts.Count)
                 {
-                    if (outputPorts.Count > 0)
+                    if (!string.Equals(inputPorts[idx].Name, desiredInputs[idx], StringComparison.Ordinal))
                     {
-                        outPort = outputPorts[0];
-                        RenamePort(node, outPort.Name, "out");
-                        outPort.Name = "out";
-                        changed = true;
-                    }
-                    else
-                    {
-                        node.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
+                        RenamePort(node, inputPorts[idx].Name, desiredInputs[idx]);
+                        inputPorts[idx].Name = desiredInputs[idx];
                         changed = true;
                     }
                 }
-
-                foreach (var port in outputPorts.Where(p => !ReferenceEquals(p, outPort)).ToList())
+                else
                 {
-                    RemovePort(node, port);
-                    changed = true;
-                }
-
-                GraphPort aPort = inputPorts.FirstOrDefault(p => p.Name == "a");
-                GraphPort bPort = inputPorts.FirstOrDefault(p => p.Name == "b");
-
-                if (aPort == null)
-                {
-                    if (inputPorts.Count > 0)
-                    {
-                        aPort = inputPorts[0];
-                        RenamePort(node, aPort.Name, "a");
-                        aPort.Name = "a";
-                        changed = true;
-                    }
-                    else
-                    {
-                        aPort = new GraphPort { Name = "a", Kind = GraphPortKind.Input };
-                        node.Ports.Add(aPort);
-                        changed = true;
-                    }
-                }
-
-                if (bPort == null)
-                {
-                    var candidate = inputPorts.FirstOrDefault(p => !ReferenceEquals(p, aPort));
-                    if (candidate != null)
-                    {
-                        RenamePort(node, candidate.Name, "b");
-                        candidate.Name = "b";
-                        bPort = candidate;
-                        changed = true;
-                    }
-                    else
-                    {
-                        node.Ports.Add(new GraphPort { Name = "b", Kind = GraphPortKind.Input });
-                        changed = true;
-                    }
-                }
-
-                foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input && p.Name != "a" && p.Name != "b").ToList())
-                {
-                    RemovePort(node, port);
+                    node.Ports.Add(new GraphPort { Name = desiredInputs[idx], Kind = GraphPortKind.Input });
                     changed = true;
                 }
             }
@@ -3625,6 +3566,40 @@ namespace User.PluginSdkDemo.GraphEditor
                     return new[] { "rpm_norm" };
                 case "buffet":
                     return new[] { "alpha", "start", "full", "gain", "qhat_eff" };
+                default:
+                    return new[] { "a", "b" };
+            }
+        }
+
+        private static string GetOpOutputName(string op)
+        {
+            switch ((op ?? "").Trim().ToLowerInvariant())
+            {
+                case "add": return "a+b";
+                case "sub": return "a-b";
+                case "mul": return "a*b";
+                case "div": return "a/b";
+                case "min": return "min(a,b)";
+                case "max": return "max(a,b)";
+                case "abs": return "abs(a)";
+                case "neg": return "-a";
+                case "clamp": return "clamp(a,min,max)";
+                case "lerp": return "lerp(a,b,t)";
+                default: return "out";
+            }
+        }
+
+        private static string[] GetOpInputNames(string op)
+        {
+            switch ((op ?? "").Trim().ToLowerInvariant())
+            {
+                case "abs":
+                case "neg":
+                    return new[] { "a" };
+                case "clamp":
+                    return new[] { "a", "min", "max" };
+                case "lerp":
+                    return new[] { "a", "b", "t" };
                 default:
                     return new[] { "a", "b" };
             }

@@ -550,7 +550,7 @@ else if (kind == GraphNodeKind.Op)
 **Port Configuration**:
 - Ports are **fixed** based on operation type
 - Cannot add/remove ports manually
-- Port names: "a", "b" (and "min", "max", "t" for clamp/lerp); neg uses output "-a"
+- Port names: "a", "b" (and "min", "max", "t" for clamp/lerp); output port uses the formula label (e.g., "a+b", "a*b", "-a").
 
 **Runtime Conversion** ([GraphRuntimeConverter.cs:26-36](SimHubPlugin/GraphEditor/GraphRuntimeConverter.cs#L26-L36)):
 - Op string mapped to OpType enum
