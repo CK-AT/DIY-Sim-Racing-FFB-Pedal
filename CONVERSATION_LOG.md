@@ -2,6 +2,101 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-27 22:40:00 +01:00 (CODex)
+Request: update docs and prep commit after inspector/property grid changes.
+Summary:
+- Updated graph design/progress docs and the inspector plan status to reflect template-only inspector and property grid layout.
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+- `SimHubPlugin/Docs/plans/12_Inspector_Panel_Restructure_Plan.md`
+Open items:
+- Consider restoring hierarchical signal picker when time allows.
+Commit highlights:
+- Template-only inspector for all node types with property-grid style Param editor.
+- Include inspector uses read-only interface lists and template-bound status.
+- Param default edits preserve manual preview overrides.
+
+## 2026-01-27 22:25:00 +01:00 (CODex)
+Request: fix compile errors after removing legacy inspector controls.
+Summary:
+- Removed remaining code-behind references to legacy inspector fields and panel helpers.
+- Updated include browse handler to work with template text box, and removed legacy include UI usage.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- Verify IDE property grid layout feels right for Param nodes.
+Commit highlights:
+- Legacy inspector references fully removed to restore clean build.
+- Param default edits now update preview parameter values immediately.
+- Param default edits now preserve manual preview overrides.
+
+## 2026-01-27 22:02:00 +01:00 (CODex)
+Request: remove legacy inspector panel and keep a no-selection placeholder.
+Summary:
+- Removed the legacy inspector edit panel and replaced it with a simple no-selection message.
+- Inspector now relies solely on per-node templates for all node types.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Consider table-based param layout for per-port defaults/UI metadata.
+Commit highlights:
+- Legacy inspector panel removed; templates are now the only inspector UI.
+- Param inspector now uses a two-column property grid with Range/UI expanders.
+
+## 2026-01-27 21:28:00 +01:00 (CODex)
+Request: complete remaining inspector templates (Param/Include) and inline metadata.
+Summary:
+- Added Param template with inline defaults and UI metadata editing on the selected port.
+- Added Include template with path/actions and read-only port lists backed by collections.
+- Exposed template bindings and converters for selected port and include status.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Consider replacing the flat signal combo with the hierarchical picker when time allows.
+Commit highlights:
+- Param/Include inspector templates now handle inline editing and status lists.
+
+## 2026-01-27 21:02:00 +01:00 (CODex)
+Request: continue per-node inspector templates for Input/Output.
+Summary:
+- Added Input/Output inspector templates with signal group and port controls.
+- Centralized port row template and added signal group options converter for templates.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Param/Include templates still pending; inline Param UI metadata still uses the dialog.
+Commit highlights:
+- Input/Output inspector templates now use the shared port editor list.
+- Port edit entry types are now public to satisfy template binding access.
+- Signal picker popup now anchors to its button to avoid phantom dropdown placement.
+- Switched signal selection to a standard combo box to avoid duplicate popup lists.
+
+## 2026-01-27 20:40:00 +01:00 (CODex)
+Request: begin per-node inspector templates (Const/Op) after preview window changes.
+Summary:
+- Added DataTemplateSelector and const/op templates in the inspector panel.
+- Wired new template controls to update node values and refresh preview.
+- Recorded partial template rollout in graph progress doc.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- Extend templates to remaining node types and remove remaining generic inspector fields.
+Commit highlights:
+- Const/Op inspector now uses templates with dedicated controls.
+- Added a Func node template selector entry with a dedicated function picker.
+- Added title fields for Const/Op/Func template inspectors.
+- Template title fields now allow empty values (clears node title).
+
 ## 2026-01-27 20:29:00 +01:00 (CODex)
 Request: keep the preview window following the selected tab without reopening a new instance.
 Summary:

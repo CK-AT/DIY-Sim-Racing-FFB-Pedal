@@ -9,6 +9,7 @@ using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -106,6 +107,54 @@ namespace User.PluginSdkDemo.GraphEditor
         public event EventHandler<string> ContextChanged;  // string = contextId or null
         public event EventHandler<bool> LiveInputsStateChanged;  // Raised when user toggles the live inputs checkbox
 
+        public IReadOnlyList<string> OpChoices => _opChoices;
+        public IReadOnlyList<string> FuncChoices => _funcChoices;
+        public IReadOnlyList<string> ParamWidgetChoices => _paramWidgetChoices;
+        public ObservableCollection<PortEditEntry> PortEntries => _portEntries;
+
+        public ObservableCollection<string> IncludeInputNames { get; } = new ObservableCollection<string>();
+        public ObservableCollection<string> IncludeOutputNames { get; } = new ObservableCollection<string>();
+
+        public static readonly DependencyProperty IncludeErrorMessageProperty =
+            DependencyProperty.Register(nameof(IncludeErrorMessage), typeof(string), typeof(GraphEditorControl),
+                new PropertyMetadata(""));
+
+        public string IncludeErrorMessage
+        {
+            get => (string)GetValue(IncludeErrorMessageProperty);
+            private set => SetValue(IncludeErrorMessageProperty, value ?? "");
+        }
+
+        public static readonly DependencyProperty IncludeErrorVisibleProperty =
+            DependencyProperty.Register(nameof(IncludeErrorVisible), typeof(bool), typeof(GraphEditorControl),
+                new PropertyMetadata(false));
+
+        public bool IncludeErrorVisible
+        {
+            get => (bool)GetValue(IncludeErrorVisibleProperty);
+            private set => SetValue(IncludeErrorVisibleProperty, value);
+        }
+
+        public static readonly DependencyProperty IsLibraryGraphProperty =
+            DependencyProperty.Register(nameof(IsLibraryGraph), typeof(bool), typeof(GraphEditorControl),
+                new PropertyMetadata(false));
+
+        public bool IsLibraryGraph
+        {
+            get => (bool)GetValue(IsLibraryGraphProperty);
+            private set => SetValue(IsLibraryGraphProperty, value);
+        }
+
+        public static readonly DependencyProperty SelectedPortEntryProperty =
+            DependencyProperty.Register(nameof(SelectedPortEntry), typeof(PortEditEntry), typeof(GraphEditorControl),
+                new PropertyMetadata(null));
+
+        public PortEditEntry SelectedPortEntry
+        {
+            get => (PortEditEntry)GetValue(SelectedPortEntryProperty);
+            set => SetValue(SelectedPortEntryProperty, value);
+        }
+
         private string _baseDirectory;
         private string _filePath;
         private string _selectedContextId;
@@ -186,9 +235,6 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             InitializeComponent();
             _graph = new GraphDefinition();
-            PortsList.ItemsSource = _portEntries;
-            EditOp.ItemsSource = _opChoices;
-            EditFunc.ItemsSource = _funcChoices;
             _includePathDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
             _includePathDebounceTimer.Tick += OnIncludePathDebounce;
             _undoDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
@@ -212,6 +258,7 @@ namespace User.PluginSdkDemo.GraphEditor
 
             // Update the Library Graph checkbox to match the graph's flag
             CheckLibraryGraph.IsChecked = _graph.IsLibraryGraph;
+            IsLibraryGraph = _graph.IsLibraryGraph;
 
             foreach (var node in _graph.Nodes)
             {
@@ -1556,7 +1603,9 @@ namespace User.PluginSdkDemo.GraphEditor
                 TextNodeKind.Text = _selectedNodes.Count > 1 ? "Multiple" : "";
                 TextNodeValue.Text = "n/a";
                 TextNodeInfo.Text = "";
-                PanelEditFields.Visibility = _selectedNodes.Count > 0 ? Visibility.Collapsed : Visibility.Visible;
+                InspectorContent.Content = null;
+                InspectorContent.Visibility = Visibility.Collapsed;
+                TextNoSelection.Visibility = _selectedNodes.Count > 0 ? Visibility.Collapsed : Visibility.Visible;
                 return;
             }
 
@@ -1574,7 +1623,17 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             TextNodeInfo.Text = BuildNodeInfo(node);
-            UpdateInspectorEditFields(node);
+            InspectorContent.Content = node;
+            InspectorContent.Visibility = UsesTemplateInspector(node) ? Visibility.Visible : Visibility.Collapsed;
+            TextNoSelection.Visibility = Visibility.Collapsed;
+            if (UsesTemplateInspector(node) && (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output || node.Kind == GraphNodeKind.Param))
+            {
+                SyncPortEntries(node);
+            }
+            if (UsesTemplateInspector(node) && node.Kind == GraphNodeKind.Include)
+            {
+                RebuildIncludePortEditors(node);
+            }
         }
 
         private void GraphEditorControl_KeyDown(object sender, KeyEventArgs e)
@@ -2736,6 +2795,7 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             _graph.IsLibraryGraph = isLibrary;
+            IsLibraryGraph = isLibrary;
 
             // Rebuild the surface and inspector to reflect the new mode
             RebuildSurface();
@@ -3105,85 +3165,58 @@ namespace User.PluginSdkDemo.GraphEditor
             return "";
         }
 
-        private void UpdateInspectorEditFields(GraphNode node)
+        private static bool UsesTemplateInspector(GraphNode node)
         {
-            _isInspectorUpdating = true;
-            PanelEditFields.Visibility = Visibility.Visible;
-            EditTitle.Text = GetNodeName(node);
-
-            PanelConst.Visibility = node.Kind == GraphNodeKind.Const ? Visibility.Visible : Visibility.Collapsed;
-            PanelOp.Visibility = node.Kind == GraphNodeKind.Op ? Visibility.Visible : Visibility.Collapsed;
-            PanelFunc.Visibility = node.Kind == GraphNodeKind.Func ? Visibility.Visible : Visibility.Collapsed;
-            PanelInclude.Visibility = node.Kind == GraphNodeKind.Include ? Visibility.Visible : Visibility.Collapsed;
-            PanelPorts.Visibility = Visibility.Visible;
-            ButtonAddInputPort.Visibility = node.Kind == GraphNodeKind.Output ? Visibility.Visible : Visibility.Collapsed;
-            ButtonAddOutputPort.Visibility = (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Param)
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-
-            // Signal group panel for Input/Output/Param nodes (replaces Title)
-            // In library graphs, Input/Output use freeform naming (show Title), only Param uses SignalGroup
-            bool isSignalNodeKind = node.Kind == GraphNodeKind.Input ||
-                                    node.Kind == GraphNodeKind.Output ||
-                                    node.Kind == GraphNodeKind.Param;
-            bool usesSignalBinding = isSignalNodeKind &&
-                                     (_graph == null || !_graph.IsLibraryGraph || node.Kind == GraphNodeKind.Param);
-            PanelSignalGroup.Visibility = usesSignalBinding ? Visibility.Visible : Visibility.Collapsed;
-            PanelTitle.Visibility = usesSignalBinding ? Visibility.Collapsed : Visibility.Visible;
-            if (usesSignalBinding)
+            if (node == null)
             {
-                PopulateSignalGroupDropdown(node);
+                return false;
             }
 
-            EditConst.Text = node.ConstValue.ToString("F3", CultureInfo.InvariantCulture);
-            EditOp.SelectedItem = string.IsNullOrWhiteSpace(node.Op) ? "mul" : node.Op.ToLowerInvariant();
-            EditFunc.SelectedItem = string.IsNullOrWhiteSpace(node.Func) ? _funcChoices[0] : node.Func;
-            EditIncludePath.Text = node.IncludePath ?? "";
-            ButtonOpenInclude.IsEnabled = node.Kind == GraphNodeKind.Include &&
-                                          !string.IsNullOrWhiteSpace(node.IncludePath);
-
-            SyncPortEntries(node);
-            if (node.Kind == GraphNodeKind.Include)
-            {
-                RebuildIncludePortEditors(node);
-            }
-
-            _isInspectorUpdating = false;
+            return node.Kind == GraphNodeKind.Const
+                   || node.Kind == GraphNodeKind.Op
+                   || node.Kind == GraphNodeKind.Func
+                   || node.Kind == GraphNodeKind.Input
+                   || node.Kind == GraphNodeKind.Output
+                   || node.Kind == GraphNodeKind.Param
+                   || node.Kind == GraphNodeKind.Include;
         }
 
-        private void PopulateSignalGroupDropdown(GraphNode node)
+
+        private static IReadOnlyList<string> GetSignalGroups(GraphNode node)
         {
-            IReadOnlyList<string> groups;
             switch (node.Kind)
             {
                 case GraphNodeKind.Input:
-                    groups = GraphSignalCatalog.InputGroups;
-                    EditSignalGroup.IsEditable = false;
-                    break;
+                    return GraphSignalCatalog.InputGroups;
                 case GraphNodeKind.Output:
-                    groups = GraphSignalCatalog.OutputGroups;
-                    EditSignalGroup.IsEditable = false;
-                    break;
+                    return GraphSignalCatalog.OutputGroups;
                 case GraphNodeKind.Param:
-                    groups = GraphSignalCatalog.ParamGroups;
-                    EditSignalGroup.IsEditable = false;
-                    break;
+                    return GraphSignalCatalog.ParamGroups;
                 default:
-                    groups = Array.Empty<string>();
-                    break;
+                    return Array.Empty<string>();
+            }
+        }
+
+        private void PopulateSignalGroupDropdown(ComboBox comboBox, GraphNode node)
+        {
+            if (comboBox == null || node == null)
+            {
+                return;
             }
 
-            EditSignalGroup.ItemsSource = groups;
+            var groups = GetSignalGroups(node);
+            comboBox.IsEditable = false;
+            comboBox.ItemsSource = groups;
 
             // Select current group or default to first (display only, don't modify node)
             string currentGroup = node.SignalGroup;
             if (!string.IsNullOrEmpty(currentGroup) && groups.Contains(currentGroup))
             {
-                EditSignalGroup.SelectedItem = currentGroup;
+                comboBox.SelectedItem = currentGroup;
             }
             else if (groups.Count > 0)
             {
-                EditSignalGroup.SelectedIndex = 0;
+                comboBox.SelectedIndex = 0;
                 // Don't set node.SignalGroup here - that would mark the graph dirty on selection
             }
         }
@@ -3208,25 +3241,47 @@ namespace User.PluginSdkDemo.GraphEditor
             }
         }
 
-        private void EditSignalGroup_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void InspectorSignalGroup_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is ComboBox comboBox && comboBox.DataContext is GraphNode node)
+            {
+                _isInspectorUpdating = true;
+                PopulateSignalGroupDropdown(comboBox, node);
+                _isInspectorUpdating = false;
+            }
+        }
+
+        private void InspectorSignalGroup_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_isInspectorUpdating || _selectedNode == null)
             {
                 return;
             }
 
-            string selectedGroup = EditSignalGroup.SelectedItem as string ?? "";
+            if (sender is ComboBox comboBox && comboBox.DataContext is GraphNode node)
+            {
+                string selectedGroup = comboBox.SelectedItem as string ?? "";
+                ApplySignalGroupSelection(node, selectedGroup);
+            }
+        }
+
+        private void ApplySignalGroupSelection(GraphNode node, string selectedGroup)
+        {
+            if (node == null)
+            {
+                return;
+            }
+
             // Ignore if selection was cleared (happens when ItemsSource is reassigned)
             if (string.IsNullOrEmpty(selectedGroup))
             {
                 return;
             }
-            if (_selectedNode.Node.SignalGroup == selectedGroup)
+            if (node.SignalGroup == selectedGroup)
             {
                 return;
             }
 
-            var node = _selectedNode.Node;
             node.SignalGroup = selectedGroup;
 
             // Rebuild node visual to show new group and port labels
@@ -3400,74 +3455,78 @@ namespace User.PluginSdkDemo.GraphEditor
             node.Ports.Remove(port);
         }
 
-        private void EditTitle_TextChanged(object sender, TextChangedEventArgs e)
+        private void InspectorTitle_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (_isInspectorUpdating || _selectedNode == null)
             {
                 return;
             }
 
-            string desired = EditTitle.Text?.Trim() ?? "";
-            if (string.IsNullOrWhiteSpace(desired))
+            if (sender is TextBox textBox &&
+                textBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
             {
-                return;
-            }
-
-            var node = _selectedNode.Node;
-            string oldName = GetNodeName(node);
-
-            node.Title = desired;
-            UpdateNodeTitleVisual(node);
-
-            SyncPreviewEntries();
-            RefreshPreview();
-            _pendingUndoDebounce = true;
-            GraphChanged?.Invoke();
-        }
-
-        private void EditConst_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (_isInspectorUpdating || _selectedNode == null)
-            {
-                return;
-            }
-
-            if (TryParseDouble(EditConst.Text, out var value))
-            {
-                _selectedNode.Node.ConstValue = value;
+                string desired = textBox.Text?.Trim() ?? "";
+                node.Title = string.IsNullOrWhiteSpace(desired) ? null : desired;
+                UpdateNodeTitleVisual(node);
+                SyncPreviewEntries();
                 RefreshPreview();
                 _pendingUndoDebounce = true;
                 GraphChanged?.Invoke();
             }
         }
 
-        private void EditOp_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void InspectorConst_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (_isInspectorUpdating || _selectedNode == null)
             {
                 return;
             }
 
-            if (EditOp.SelectedItem is string op)
+            if (sender is TextBox textBox &&
+                textBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node) &&
+                TryParseDouble(textBox.Text, out var value))
             {
-                _selectedNode.Node.Op = op;
-                UpdateNodeTitleVisual(_selectedNode.Node);
+                node.ConstValue = value;
+                RefreshPreview();
+                _pendingUndoDebounce = true;
+                GraphChanged?.Invoke();
+            }
+        }
+
+        private void InspectorOp_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null)
+            {
+                return;
+            }
+
+            if (sender is ComboBox comboBox &&
+                comboBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node) &&
+                comboBox.SelectedItem is string op)
+            {
+                node.Op = op;
+                UpdateNodeTitleVisual(node);
                 UpdateInspector();
                 RefreshPreview();
                 GraphChanged?.Invoke();
             }
         }
 
-        private void EditFunc_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void InspectorFunc_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_isInspectorUpdating || _selectedNode == null)
             {
                 return;
             }
 
-            if (EditFunc.SelectedItem is string func)
+            if (sender is ComboBox comboBox &&
+                comboBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node) &&
+                comboBox.SelectedItem is string func)
             {
-                var node = _selectedNode.Node;
                 node.Func = func;
                 EnsureFuncPorts(node);
                 RebuildSurface();
@@ -3490,8 +3549,10 @@ namespace User.PluginSdkDemo.GraphEditor
                 return;
             }
 
-            _selectedNode.Node.IncludePath = EditIncludePath.Text?.Trim() ?? "";
-            ButtonOpenInclude.IsEnabled = !string.IsNullOrWhiteSpace(_selectedNode.Node.IncludePath);
+            if (sender is TextBox textBox)
+            {
+                _selectedNode.Node.IncludePath = textBox.Text?.Trim() ?? "";
+            }
 
             // Debounce the file I/O for SyncIncludePorts - restart timer on each keystroke
             _includePathDebounceTimer.Stop();
@@ -3525,6 +3586,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 oldEntry.ParamChanged -= OnPortParamChanged;
             }
             _portEntries.Clear();
+            SelectedPortEntry = null;
             if (node == null)
             {
                 return;
@@ -3576,10 +3638,16 @@ namespace User.PluginSdkDemo.GraphEditor
 
                 // Include node ports are auto-derived and cannot be removed
                 bool allowRemove = node.Kind != GraphNodeKind.Include;
-                var entry = new PortEditEntry(port, useSignalOptions, signalOptions, showParamFields, param, allowRemove);
+                bool hideParamUiButton = node.Kind == GraphNodeKind.Param;
+                var entry = new PortEditEntry(port, useSignalOptions, signalOptions, showParamFields, param, allowRemove, hideParamUiButton);
                 entry.NameChanged += OnPortNameChanged;
                 entry.ParamChanged += OnPortParamChanged;
                 _portEntries.Add(entry);
+            }
+
+            if (node.Kind == GraphNodeKind.Param && _portEntries.Count > 0)
+            {
+                SelectedPortEntry = _portEntries[0];
             }
         }
 
@@ -3754,6 +3822,20 @@ namespace User.PluginSdkDemo.GraphEditor
                 return;
             }
 
+            if (sender is PortEditEntry entry && _selectedNode != null)
+            {
+                string paramName = GetPortSignalName(_selectedNode.Node, entry.Port);
+                if (_previewParamLookup.TryGetValue(paramName, out var previewEntry) && entry.Param != null)
+                {
+                    double nextValue = entry.Param.DefaultValue;
+                    // Only overwrite preview value if it was still at the previous default.
+                    if (Math.Abs(previewEntry.Value - entry.LastParamDefaultValue) < 1e-9)
+                    {
+                        previewEntry.Value = nextValue;
+                    }
+                }
+            }
+
             RefreshPreview();
             _pendingUndoDebounce = true;
             GraphChanged?.Invoke();
@@ -3792,15 +3874,6 @@ namespace User.PluginSdkDemo.GraphEditor
                 SyncPreviewEntries();
                 RefreshPreview();
                 GraphChanged?.Invoke();
-            }
-        }
-
-        private void SignalPickerButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button button && button.DataContext is PortEditEntry entry)
-            {
-                entry.IsSignalPopupOpen = !entry.IsSignalPopupOpen;
-                e.Handled = true;
             }
         }
 
@@ -3942,9 +4015,7 @@ namespace User.PluginSdkDemo.GraphEditor
 
             if (!string.Equals(candidate, desired, StringComparison.Ordinal))
             {
-                _isInspectorUpdating = true;
-                EditTitle.Text = candidate;
-                _isInspectorUpdating = false;
+                node.Title = candidate;
             }
 
             return candidate;
@@ -4395,69 +4466,55 @@ namespace User.PluginSdkDemo.GraphEditor
                 {
                     path = MakeRelativePath(BaseDirectory, dialog.FileName);
                 }
-                EditIncludePath.Text = path;
+                if (sender is Button button && button.Tag is TextBox textBox)
+                {
+                    textBox.Text = path;
+                }
+                else if (_selectedNode != null)
+                {
+                    _selectedNode.Node.IncludePath = path;
+                    UpdateInspector();
+                }
             }
         }
 
         private void RebuildIncludePortEditors(GraphNode node)
         {
-            PanelIncludeInputs.Children.Clear();
-            PanelIncludeOutputs.Children.Clear();
+            IncludeInputNames.Clear();
+            IncludeOutputNames.Clear();
 
             // Show error if interface extraction failed
             var iface = node.CachedInterface;
             if (iface != null && !iface.IsValid)
             {
-                IncludeErrorText.Text = iface.Error;
-                IncludeErrorText.Visibility = Visibility.Visible;
+                IncludeErrorMessage = iface.Error;
+                IncludeErrorVisible = true;
             }
             else
             {
-                IncludeErrorText.Visibility = Visibility.Collapsed;
+                IncludeErrorMessage = "";
+                IncludeErrorVisible = false;
             }
 
-            // Show read-only port names (auto-populated from included graph)
             foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
             {
-                PanelIncludeInputs.Children.Add(BuildIncludePortLabel(port.Name));
+                IncludeInputNames.Add(port.Name);
             }
             foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
             {
-                PanelIncludeOutputs.Children.Add(BuildIncludePortLabel(port.Name));
+                IncludeOutputNames.Add(port.Name);
             }
 
-            // Show placeholder if no ports
-            if (!node.Ports.Any(p => p.Kind == GraphPortKind.Input))
+            if (IncludeInputNames.Count == 0)
             {
-                PanelIncludeInputs.Children.Add(new TextBlock
-                {
-                    Text = "(none)",
-                    Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-                    FontSize = 10,
-                    Margin = new Thickness(8, 1, 0, 1)
-                });
+                IncludeInputNames.Add("(none)");
             }
-            if (!node.Ports.Any(p => p.Kind == GraphPortKind.Output))
+            if (IncludeOutputNames.Count == 0)
             {
-                PanelIncludeOutputs.Children.Add(new TextBlock
-                {
-                    Text = "(none)",
-                    Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-                    FontSize = 10,
-                    Margin = new Thickness(8, 1, 0, 1)
-                });
+                IncludeOutputNames.Add("(none)");
             }
-        }
 
-        private static UIElement BuildIncludePortLabel(string portName)
-        {
-            return new TextBlock
-            {
-                Text = portName,
-                Foreground = Brushes.White,
-                FontSize = 10,
-                Margin = new Thickness(8, 1, 0, 1)
-            };
+            // Legacy panel removed; collections drive the template.
         }
 
         /// <summary>
@@ -4744,18 +4801,27 @@ namespace User.PluginSdkDemo.GraphEditor
         }
 
 
-        private sealed class PortEditEntry : INotifyPropertyChanged
+        public sealed class PortEditEntry : INotifyPropertyChanged
         {
             private string _name;
             private string _paramDefault;
             private string _paramMin;
             private string _paramMax;
+            private double _lastParamDefaultValue;
+            private string _uiWidget;
+            private string _uiLabel;
+            private string _uiGroup;
+            private string _uiUnits;
+            private string _uiStep;
+            private string _uiPrecision;
+            private bool _uiLogScale;
+            private string _uiOptionsText;
             private GraphParam _param;
             private GraphParamUi _paramUi;
             private bool _isSignalPopupOpen;
 
             public PortEditEntry(GraphPort port, bool useSignalOptions, IReadOnlyList<string> signalOptions,
-                bool showParamFields, GraphParam param, bool allowRemove)
+                bool showParamFields, GraphParam param, bool allowRemove, bool hideParamUiButton)
             {
                 Port = port;
                 // For Input/Output nodes with signal options, use SignalSuffix for display
@@ -4767,10 +4833,12 @@ namespace User.PluginSdkDemo.GraphEditor
                 SignalOptions = signalOptions ?? Array.Empty<string>();
                 SignalTree = BuildSignalTree(SignalOptions);
                 ShowParamFields = showParamFields;
+                HideParamUiButton = hideParamUiButton;
                 AllowRemove = allowRemove;
                 _param = param;
                 _paramUi = EnsureParamUi();
                 SyncParamText();
+                SyncParamUiText();
             }
 
             public GraphPort Port { get; }
@@ -4780,6 +4848,7 @@ namespace User.PluginSdkDemo.GraphEditor
             public IReadOnlyList<string> SignalOptions { get; }
             public ObservableCollection<SignalTreeNode> SignalTree { get; }
             public bool ShowParamFields { get; }
+            public bool HideParamUiButton { get; }
             public bool AllowRemove { get; }
             public bool IsSignalPopupOpen
             {
@@ -4822,12 +4891,15 @@ namespace User.PluginSdkDemo.GraphEditor
                     _paramDefault = value;
                     if (TryParse(value, out var parsed) && _param != null)
                     {
+                        _lastParamDefaultValue = _param.DefaultValue;
                         _param.DefaultValue = parsed;
                         ParamChanged?.Invoke(this, EventArgs.Empty);
                     }
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ParamDefault)));
                 }
             }
+
+            public double LastParamDefaultValue => _lastParamDefaultValue;
 
             public string ParamMin
             {
@@ -4867,14 +4939,179 @@ namespace User.PluginSdkDemo.GraphEditor
                 }
             }
 
+            public string UiWidget
+            {
+                get => _uiWidget;
+                set
+                {
+                    if (_uiWidget == value)
+                    {
+                        return;
+                    }
+                    _uiWidget = value;
+                    if (_paramUi != null)
+                    {
+                        _paramUi.Widget = value ?? "";
+                        ParamChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiWidget)));
+                }
+            }
+
+            public string UiLabel
+            {
+                get => _uiLabel;
+                set
+                {
+                    if (_uiLabel == value)
+                    {
+                        return;
+                    }
+                    _uiLabel = value;
+                    if (_paramUi != null)
+                    {
+                        _paramUi.Label = value ?? "";
+                        ParamChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiLabel)));
+                }
+            }
+
+            public string UiGroup
+            {
+                get => _uiGroup;
+                set
+                {
+                    if (_uiGroup == value)
+                    {
+                        return;
+                    }
+                    _uiGroup = value;
+                    if (_paramUi != null)
+                    {
+                        _paramUi.Group = value ?? "";
+                        ParamChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiGroup)));
+                }
+            }
+
+            public string UiUnits
+            {
+                get => _uiUnits;
+                set
+                {
+                    if (_uiUnits == value)
+                    {
+                        return;
+                    }
+                    _uiUnits = value;
+                    if (_paramUi != null)
+                    {
+                        _paramUi.Units = value ?? "";
+                        ParamChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiUnits)));
+                }
+            }
+
+            public string UiStep
+            {
+                get => _uiStep;
+                set
+                {
+                    if (_uiStep == value)
+                    {
+                        return;
+                    }
+                    _uiStep = value;
+                    if (_paramUi != null)
+                    {
+                        _paramUi.Step = ParseNullableDouble(value);
+                        ParamChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiStep)));
+                }
+            }
+
+            public string UiPrecision
+            {
+                get => _uiPrecision;
+                set
+                {
+                    if (_uiPrecision == value)
+                    {
+                        return;
+                    }
+                    _uiPrecision = value;
+                    if (_paramUi != null)
+                    {
+                        _paramUi.Precision = ParseNullableInt(value);
+                        ParamChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiPrecision)));
+                }
+            }
+
+            public bool UiLogScale
+            {
+                get => _uiLogScale;
+                set
+                {
+                    if (_uiLogScale == value)
+                    {
+                        return;
+                    }
+                    _uiLogScale = value;
+                    if (_paramUi != null)
+                    {
+                        _paramUi.LogScale = value;
+                        ParamChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiLogScale)));
+                }
+            }
+
+            public string UiOptionsText
+            {
+                get => _uiOptionsText;
+                set
+                {
+                    if (_uiOptionsText == value)
+                    {
+                        return;
+                    }
+                    _uiOptionsText = value ?? "";
+                    if (_paramUi != null)
+                    {
+                        _paramUi.Options.Clear();
+                        foreach (var option in ParseOptionsText(_uiOptionsText))
+                        {
+                            _paramUi.Options.Add(option);
+                        }
+                        ParamChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiOptionsText)));
+                }
+            }
+
             public void RefreshParamReference(GraphParam param)
             {
                 _param = param;
                 _paramUi = EnsureParamUi();
                 SyncParamText();
+                SyncParamUiText();
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ParamDefault)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ParamMin)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ParamMax)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiWidget)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiLabel)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiGroup)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiUnits)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiStep)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiPrecision)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiLogScale)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiOptionsText)));
             }
 
             private void SyncParamText()
@@ -4884,12 +5121,39 @@ namespace User.PluginSdkDemo.GraphEditor
                     _paramDefault = "";
                     _paramMin = "";
                     _paramMax = "";
+                    _lastParamDefaultValue = 0.0;
                     return;
                 }
 
                 _paramDefault = _param.DefaultValue.ToString("F3", CultureInfo.InvariantCulture);
                 _paramMin = _param.Min.ToString("F3", CultureInfo.InvariantCulture);
                 _paramMax = _param.Max.ToString("F3", CultureInfo.InvariantCulture);
+                _lastParamDefaultValue = _param.DefaultValue;
+            }
+
+            private void SyncParamUiText()
+            {
+                if (_paramUi == null)
+                {
+                    _uiWidget = "";
+                    _uiLabel = "";
+                    _uiGroup = "";
+                    _uiUnits = "";
+                    _uiStep = "";
+                    _uiPrecision = "";
+                    _uiLogScale = false;
+                    _uiOptionsText = "";
+                    return;
+                }
+
+                _uiWidget = _paramUi.Widget ?? "";
+                _uiLabel = _paramUi.Label ?? "";
+                _uiGroup = _paramUi.Group ?? "";
+                _uiUnits = _paramUi.Units ?? "";
+                _uiStep = _paramUi.Step?.ToString("G", CultureInfo.InvariantCulture) ?? "";
+                _uiPrecision = _paramUi.Precision?.ToString(CultureInfo.InvariantCulture) ?? "";
+                _uiLogScale = _paramUi.LogScale;
+                _uiOptionsText = FormatOptionsText(_paramUi.Options);
             }
 
             public event PropertyChangedEventHandler PropertyChanged;
@@ -4986,9 +5250,61 @@ namespace User.PluginSdkDemo.GraphEditor
 
                 return new ObservableCollection<SignalTreeNode>(roots);
             }
+
+            private static IEnumerable<GraphParamOption> ParseOptionsText(string text)
+            {
+                var lines = (text ?? "").Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var line in lines)
+                {
+                    var trimmed = line.Trim();
+                    if (string.IsNullOrWhiteSpace(trimmed))
+                    {
+                        continue;
+                    }
+
+                    string value = trimmed;
+                    string label = trimmed;
+                    int idx = trimmed.IndexOf('=');
+                    if (idx >= 0)
+                    {
+                        value = trimmed.Substring(0, idx).Trim();
+                        label = trimmed.Substring(idx + 1).Trim();
+                    }
+
+                    yield return new GraphParamOption
+                    {
+                        Value = value,
+                        Label = label
+                    };
+                }
+            }
+
+            private static string FormatOptionsText(List<GraphParamOption> options)
+            {
+                if (options == null || options.Count == 0)
+                {
+                    return "";
+                }
+
+                var lines = new List<string>();
+                foreach (var option in options)
+                {
+                    if (string.IsNullOrWhiteSpace(option?.Value) && string.IsNullOrWhiteSpace(option?.Label))
+                    {
+                        continue;
+                    }
+                    string value = option?.Value ?? "";
+                    string label = option?.Label ?? "";
+                    lines.Add(string.IsNullOrWhiteSpace(label) || value == label
+                        ? value
+                        : $"{value}={label}");
+                }
+
+                return string.Join(Environment.NewLine, lines);
+            }
         }
 
-        private sealed class SignalTreeNode
+        public sealed class SignalTreeNode
         {
             public SignalTreeNode(string name, string fullName)
             {
@@ -5032,6 +5348,82 @@ namespace User.PluginSdkDemo.GraphEditor
             public string NodeId;
             public string PortName;
             public GraphPortKind Kind;
+        }
+    }
+
+    public sealed class InspectorTemplateSelector : DataTemplateSelector
+    {
+        public DataTemplate ConstTemplate { get; set; }
+        public DataTemplate OpTemplate { get; set; }
+        public DataTemplate FuncTemplate { get; set; }
+        public DataTemplate InputTemplate { get; set; }
+        public DataTemplate OutputTemplate { get; set; }
+        public DataTemplate ParamTemplate { get; set; }
+        public DataTemplate IncludeTemplate { get; set; }
+
+        public override DataTemplate SelectTemplate(object item, DependencyObject container)
+        {
+            if (item is GraphNode node)
+            {
+                switch (node.Kind)
+                {
+                    case GraphNodeKind.Const:
+                        return ConstTemplate;
+                    case GraphNodeKind.Op:
+                        return OpTemplate;
+                    case GraphNodeKind.Func:
+                        return FuncTemplate;
+                    case GraphNodeKind.Input:
+                        return InputTemplate;
+                    case GraphNodeKind.Output:
+                        return OutputTemplate;
+                    case GraphNodeKind.Param:
+                        return ParamTemplate;
+                    case GraphNodeKind.Include:
+                        return IncludeTemplate;
+                }
+            }
+
+            return base.SelectTemplate(item, container);
+        }
+    }
+
+    public sealed class SignalGroupOptionsConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is GraphNodeKind kind)
+            {
+                switch (kind)
+                {
+                    case GraphNodeKind.Input:
+                        return GraphSignalCatalog.InputGroups;
+                    case GraphNodeKind.Output:
+                        return GraphSignalCatalog.OutputGroups;
+                    case GraphNodeKind.Param:
+                        return GraphSignalCatalog.ParamGroups;
+                }
+            }
+
+            return Array.Empty<string>();
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public sealed class NullToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return value == null ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
         }
     }
 }

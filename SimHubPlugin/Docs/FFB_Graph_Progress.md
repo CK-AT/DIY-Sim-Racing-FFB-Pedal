@@ -138,6 +138,8 @@ Status: living progress document for graph editor/runtime integration.
 
 - UX polish (orthogonal routing, mini-map).
 - Grid padding/centering strategy (grid currently background brush; padding intent documented).
+- Per-node inspector templates (Const/Op/Func/Input/Output/Param/Include complete; legacy panel removed).
+- Param inspector uses a two-column property grid with Range/UI expanders for the selected port.
 
 ## Open
 
