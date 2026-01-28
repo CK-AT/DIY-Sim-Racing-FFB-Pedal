@@ -260,7 +260,7 @@ private void OnIncludeOpenRequested(string includePath)
 - [x] Implement close button with dirty prompt
 - [x] Track dirty state on graph changes
 - [x] Update Save/Load to work with current tab
-- [ ] Add keyboard shortcuts (Ctrl+W close, Ctrl+S save)
+- [ ] Add keyboard shortcuts (Ctrl+W close)
 
 ### Phase 5: Polish
 - [x] Tab header styling and colors

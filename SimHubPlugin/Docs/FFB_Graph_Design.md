@@ -48,6 +48,7 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 - Multi-select with Shift, box-select with Shift+drag.
 - Delete nodes/edges with Delete.
 - Zoom-to-fit with F or context menu.
+- Save/Open: Ctrl+S to save, Ctrl+O to open.
 
 ### Inspector
 - Displays selected node info; preview inputs/params and warnings live in a modeless preview window (toolbar: "Preview Inputs").

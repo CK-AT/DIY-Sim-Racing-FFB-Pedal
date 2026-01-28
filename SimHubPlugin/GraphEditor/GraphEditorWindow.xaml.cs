@@ -716,6 +716,20 @@ namespace User.PluginSdkDemo.GraphEditor
                     UpdateUndoState(CurrentTab);
                 }
                 e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.S)
+            {
+                ButtonSave_Click(sender, e);
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.O)
+            {
+                ButtonLoad_Click(sender, e);
+                e.Handled = true;
             }
         }
 

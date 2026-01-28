@@ -2,6 +2,30 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-27 22:58:00 +01:00 (CODex)
+Request: add Ctrl+S and Ctrl+O shortcuts in the graph editor.
+Summary:
+- Added keyboard shortcuts to save (Ctrl+S) and open (Ctrl+O) alongside undo/redo.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Graph editor supports Ctrl+S and Ctrl+O.
+
+## 2026-01-27 23:04:00 +01:00 (CODex)
+Request: update docs and prepare commit for save/open shortcuts.
+Summary:
+- Documented Ctrl+S/Ctrl+O in design/progress docs and updated the tabs plan checklist.
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+- `SimHubPlugin/Docs/plans/06_FFB_Graph_Editor_Tabs.md`
+Open items:
+- Ctrl+W close shortcut still pending.
+Commit highlights:
+- Docs updated for Ctrl+S/Ctrl+O graph editor shortcuts.
+
 ## 2026-01-27 22:40:00 +01:00 (CODex)
 Request: update docs and prep commit after inspector/property grid changes.
 Summary:
