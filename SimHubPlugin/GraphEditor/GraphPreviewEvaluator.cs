@@ -1,6 +1,7 @@
 using DiyFfb.GraphTest;
 using System.Collections.Generic;
 using System.IO;
+using RuntimeGraphDefinition = DiyFfb.GraphTest.GraphDefinition;
 
 namespace User.PluginSdkDemo.GraphEditor
 {
@@ -8,6 +9,12 @@ namespace User.PluginSdkDemo.GraphEditor
     {
         private IGraphResolver _resolver;
         private string _baseDirectory;
+        private GraphDefinition _cachedGraph;
+        private RuntimeGraphDefinition _cachedRuntime;
+        private GraphCompiledEvaluator _cachedEvaluator;
+        private IGraphResolver _cachedResolver;
+        private string _cachedBaseDirectory;
+        private bool _cacheDirty = true;
 
         /// <summary>
         /// Enable or disable debug logging for preview evaluation.
@@ -31,11 +38,23 @@ namespace User.PluginSdkDemo.GraphEditor
         public void SetResolver(IGraphResolver resolver)
         {
             _resolver = resolver;
+            InvalidateCache();
         }
 
         public void SetBaseDirectory(string baseDirectory)
         {
             _baseDirectory = baseDirectory;
+            InvalidateCache();
+        }
+
+        public void InvalidateCache()
+        {
+            _cacheDirty = true;
+            _cachedGraph = null;
+            _cachedRuntime = null;
+            _cachedEvaluator = null;
+            _cachedResolver = null;
+            _cachedBaseDirectory = null;
         }
 
         public GraphEvaluationResult Evaluate(GraphDefinition graph,
@@ -56,22 +75,33 @@ namespace User.PluginSdkDemo.GraphEditor
                 GraphDebugLogger.LogDict("parameters", parameters);
             }
 
-            // Populate Include ports so OutputMap is built correctly (matches runtime path)
-            if (!string.IsNullOrEmpty(_baseDirectory))
+            bool cacheValid = !_cacheDirty
+                              && ReferenceEquals(graph, _cachedGraph)
+                              && ReferenceEquals(_resolver, _cachedResolver)
+                              && string.Equals(_baseDirectory ?? "", _cachedBaseDirectory ?? "", System.StringComparison.Ordinal);
+
+            if (!cacheValid)
             {
-                GraphSerializer.PopulateIncludePorts(graph, _baseDirectory);
+                // Populate Include ports so OutputMap is built correctly (matches runtime path)
+                if (!string.IsNullOrEmpty(_baseDirectory))
+                {
+                    GraphSerializer.PopulateIncludePorts(graph, _baseDirectory);
+                }
+
+                _cachedRuntime = GraphRuntimeConverter.Convert(graph);
+                _cachedEvaluator = new GraphCompiledEvaluator(_cachedRuntime, _resolver, null, _baseDirectory);
+                _cachedGraph = graph;
+                _cachedResolver = _resolver;
+                _cachedBaseDirectory = _baseDirectory;
+                _cacheDirty = false;
+
+                if (GraphDebugLogger.Enabled)
+                {
+                    GraphDebugLogger.Log($"  Converted to runtime format: {_cachedRuntime.Nodes.Count} nodes");
+                }
             }
 
-            var runtime = GraphRuntimeConverter.Convert(graph);
-
-            if (GraphDebugLogger.Enabled)
-            {
-                GraphDebugLogger.Log($"  Converted to runtime format: {runtime.Nodes.Count} nodes");
-            }
-
-            // Pass the base directory so nested includes can resolve relative paths
-            var evaluator = new GraphCompiledEvaluator(runtime, _resolver, null, _baseDirectory);
-            var result = evaluator.EvaluateWithTrace(inputs, parameters);
+            var result = _cachedEvaluator.EvaluateWithTrace(inputs, parameters);
 
             if (GraphDebugLogger.Enabled)
             {

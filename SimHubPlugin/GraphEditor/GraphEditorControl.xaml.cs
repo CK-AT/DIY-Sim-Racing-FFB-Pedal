@@ -31,6 +31,7 @@ namespace User.PluginSdkDemo.GraphEditor
         private readonly Dictionary<string, PreviewEntry> _previewParamLookup = new Dictionary<string, PreviewEntry>();
         private readonly DispatcherTimer _includePathDebounceTimer;
         private readonly DispatcherTimer _undoDebounceTimer;
+        private readonly DispatcherTimer _previewRefreshTimer;
         private bool _liveInputsEnabled = true;  // Enabled by default (global setting synced from Window)
         private PreviewWindow _previewWindow;
         private string _previewStatusText = "";
@@ -87,6 +88,7 @@ namespace User.PluginSdkDemo.GraphEditor
         private const double GridSize = 10.0;
         private const double ParamControlHeight = 18.0;
         private const double ParamControlWidth = 120.0;
+        private const int PreviewRefreshThrottleMs = 500;
         private bool _isInspectorUpdating;
         private readonly string[] _opChoices = { "add", "sub", "mul", "div", "min", "max", "abs", "neg", "clamp", "lerp" };
         private readonly string[] _funcChoices = { "qhat_eff", "torque_norm", "rpm_norm", "assist_loss", "buffet" };
@@ -100,6 +102,8 @@ namespace User.PluginSdkDemo.GraphEditor
         private bool _pendingUndoDebounce;
         private bool _suppressUndoCapture;
         private bool _isRestoringUndo;
+        private bool _suppressPreviewRefresh;
+        private bool _previewRefreshPending;
 
         public event Action<string, string> IncludeOpenRequested;  // (path, includeNodeId)
         public event Action GraphChanged;
@@ -240,6 +244,8 @@ namespace User.PluginSdkDemo.GraphEditor
             _includePathDebounceTimer.Tick += OnIncludePathDebounce;
             _undoDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
             _undoDebounceTimer.Tick += OnUndoDebounce;
+            _previewRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PreviewRefreshThrottleMs) };
+            _previewRefreshTimer.Tick += OnPreviewRefreshTimer;
             CanvasSurface.SizeChanged += (_, __) => UpdateCanvasExtent();
             GraphChanged += OnGraphChanged;
             UpdatePreviewResolver();  // Ensure resolver exists even for unsaved graphs
@@ -248,6 +254,7 @@ namespace User.PluginSdkDemo.GraphEditor
         public void SetGraph(GraphDefinition graph)
         {
             _graph = graph ?? new GraphDefinition();
+            _previewEvaluator.InvalidateCache();
             _hasUserPanned = false;
             IsDirty = false;
             _pendingUndoDebounce = false;
@@ -464,6 +471,8 @@ namespace User.PluginSdkDemo.GraphEditor
 
         private void OnGraphChanged()
         {
+            _previewEvaluator.InvalidateCache();
+
             if (_suppressUndoCapture || _undoStack == null)
             {
                 return;
@@ -2567,7 +2576,7 @@ namespace User.PluginSdkDemo.GraphEditor
             Dictionary<string, PreviewEntry> lookup, string name, double value)
         {
             var entry = new PreviewEntry(name, value);
-            entry.ValueChanged += (_, __) => RefreshPreview();
+            entry.ValueChanged += (_, __) => RequestPreviewRefresh();
             list.Add(entry);
             lookup[name] = entry;
         }
@@ -2930,7 +2939,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 // If a context is selected, also refresh preview with new context values
                 if (_selectedContextId != null)
                 {
-                    RefreshPreview();
+                    RequestPreviewRefresh();
                 }
             }
         }
@@ -2949,13 +2958,49 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             SyncPreviewEntries();
+            bool hadChanges = false;
+            _suppressPreviewRefresh = true;
             foreach (var entry in _previewInputEntries)
             {
                 if (liveInputs.TryGetValue(entry.Name, out var value))
                 {
-                    entry.Value = value;
+                    if (Math.Abs(entry.Value - value) >= 1e-9)
+                    {
+                        entry.Value = value;
+                        hadChanges = true;
+                    }
                 }
             }
+            _suppressPreviewRefresh = false;
+            if (hadChanges && _previewRefreshPending)
+            {
+                RequestPreviewRefresh();
+            }
+        }
+
+        private void RequestPreviewRefresh()
+        {
+            if (_suppressPreviewRefresh)
+            {
+                _previewRefreshPending = true;
+                return;
+            }
+
+            _previewRefreshPending = true;
+            _previewRefreshTimer.Stop();
+            _previewRefreshTimer.Start();
+        }
+
+        private void OnPreviewRefreshTimer(object sender, EventArgs e)
+        {
+            _previewRefreshTimer.Stop();
+            if (!_previewRefreshPending)
+            {
+                return;
+            }
+
+            _previewRefreshPending = false;
+            RefreshPreview();
         }
 
         private void RefreshContextDropdown(bool force = false)

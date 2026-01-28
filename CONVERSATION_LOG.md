@@ -2,6 +2,103 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-28 21:49:46 +01:00 (CODex)
+Request: prepare and commit evaluator optimizations and preview caching/throttling changes.
+Summary:
+- Optimized compiled evaluator by caching output names and include I/O mappings, plus added perf smoke coverage.
+- Added preview evaluator caching and throttled preview refresh to reduce redundant evaluations.
+- Added review report and updated design/progress docs to reflect preview behavior; added AGENTS runtime perf rule.
+Key files:
+- `SimHubPlugin/GraphTest/GraphCompiledEvaluator.cs`
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+- `SimHubPlugin/GraphEditor/GraphPreviewEvaluator.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/Review_SimHubPlugin_DupPerf.md`
+- `AGENTS.md`
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- None.
+Commit highlights:
+- Cached compiled evaluator output names and include I/O mapping; added include perf smoke test.
+- Cached preview runtime/evaluator and throttled preview refreshes.
+- Documented review findings and preview behavior updates.
+
+## 2026-01-28 21:43:25 +01:00 (CODex)
+Request: run tests.
+Summary:
+- Built and ran GraphTest and KinematicsTests executables.
+Key files:
+- `SimHubPlugin/GraphTest/GraphTest.csproj`
+- `SimHubPlugin/KinematicsTests/KinematicsTests.csproj`
+Open items:
+- None.
+Commit highlights:
+- N/A (tests only).
+
+## 2026-01-28 21:41:24 +01:00 (CODex)
+Request: implement compiled evaluator output/include mapping caches and add a perf smoke test; fix preview type mismatch errors.
+Summary:
+- Cached output name lookup and include I/O mappings in the compiled evaluator to remove per-eval scans.
+- Added a compiled include mapping performance smoke test in GraphTestRunner.
+- Fixed preview evaluator cache types to avoid GraphDefinition type mismatches.
+Key files:
+- `SimHubPlugin/GraphTest/GraphCompiledEvaluator.cs`
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+- `SimHubPlugin/GraphEditor/GraphPreviewEvaluator.cs`
+Open items:
+- None.
+Commit highlights:
+- Cached compiled evaluator output names and include I/O mapping.
+- Added perf smoke test for include-heavy compiled evaluation.
+- Resolved GraphDefinition type mismatch in preview evaluator cache.
+
+## 2026-01-28 21:32:50 +01:00 (CODex)
+Request: implement preview evaluator caching, skip refresh when live inputs do not change, and throttle preview updates.
+Summary:
+- Cached preview runtime/evaluator per graph with invalidation on graph/resolver/base directory changes.
+- Added throttled preview refresh scheduling and batched live input updates to avoid redundant evaluations.
+- Documented preview throttling/caching behavior in graph design/progress docs.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphPreviewEvaluator.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+Open items:
+- None.
+Commit highlights:
+- Cached preview runtime/evaluator and invalidated on graph changes.
+- Throttled preview refresh (500ms) and batched live input updates.
+- Documented preview throttling/caching behavior.
+
+## 2026-01-28 21:22:33 +01:00 (CODex)
+Request: add an AGENTS.md rule from the review suggestion and create a review report document.
+Summary:
+- Added a runtime performance guardrail to AGENTS.md.
+- Wrote a duplication/performance review report for the SimHub plugin graph evaluator paths.
+Key files:
+- `AGENTS.md`
+- `SimHubPlugin/Docs/Review_SimHubPlugin_DupPerf.md`
+Open items:
+- None.
+Commit highlights:
+- Added a rule to avoid per-evaluation runtime scans/allocations.
+- Documented evaluator duplication and perf hotspots in a review report.
+
+## 2026-01-28 21:16:06 +01:00 (CODex)
+Request: in-depth review of the SimHub plugin focusing on duplicated code and runtime evaluator performance.
+Summary:
+- Reviewed graph evaluator/runtime code paths and noted duplication hotspots and perf-sensitive loops.
+Key files:
+- `SimHubPlugin/GraphTest/GraphCompiledEvaluator.cs`
+- `SimHubPlugin/GraphTest/GraphEvaluator.cs`
+- `SimHubPlugin/GraphEditor/GraphRuntimeConverter.cs`
+- `SimHubPlugin/GraphEditor/GraphPreviewEvaluator.cs`
+Open items:
+- None.
+Commit highlights:
+- N/A (review only).
+
 ## 2026-01-28 21:12:03 +01:00 (CODex)
 Request: update design/progress docs for recent inspector and negate UX tweaks.
 Summary:

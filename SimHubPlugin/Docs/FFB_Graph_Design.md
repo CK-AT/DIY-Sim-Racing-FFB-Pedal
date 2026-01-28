@@ -52,6 +52,8 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 
 ### Inspector
 - Displays selected node info; preview inputs/params and warnings live in a modeless preview window (toolbar: "Preview Inputs").
+- Preview evaluation is throttled (500ms) and skips refresh when live inputs are unchanged.
+- Preview runtime/evaluator are cached per graph until the graph or resolver context changes.
 - Uses per-node templates (Input/Output/Param/Const/Op/Func/Include) instead of a generic inspector.
 - Inspector text inputs commit edits on Enter to avoid lost changes on selection switches.
 - Param nodes use an IDE-style property grid for the selected port with Range/UI sections (collapsible).

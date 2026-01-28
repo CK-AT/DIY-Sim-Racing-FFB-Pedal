@@ -16,6 +16,11 @@ namespace DiyFfb.GraphTest
             public bool[] ArgNegate = Array.Empty<bool>();
             public int SrcIndex = -1;
             public bool SrcIsExtra;
+            public string[] IncludeInputNames = Array.Empty<string>();
+            public int[] IncludeInputIndices = Array.Empty<int>();
+            public bool[] IncludeInputIsExtra = Array.Empty<bool>();
+            public string[] IncludeOutputNames = Array.Empty<string>();
+            public int[] IncludeOutputIndices = Array.Empty<int>();
         }
 
         private readonly GraphDefinition _graph;
@@ -26,7 +31,9 @@ namespace DiyFfb.GraphTest
         private readonly Dictionary<string, int> _nodeIndexById = new Dictionary<string, int>();
         private readonly Dictionary<string, int> _extraIndexById = new Dictionary<string, int>();
         private readonly Dictionary<string, GraphCompiledEvaluator> _includeCache = new Dictionary<string, GraphCompiledEvaluator>();
-        private readonly int[] _outputNodeIndices;
+        private readonly Dictionary<string, IncludeNameMap> _includeNameMapCache = new Dictionary<string, IncludeNameMap>();
+        private readonly int[] _outputIndices;
+        private readonly string[] _outputNames;
         private readonly double[] _values;
         private readonly double[] _extraValues;
 
@@ -69,13 +76,25 @@ namespace DiyFfb.GraphTest
                 };
                 BuildArgs(compiled);
                 BuildSrc(compiled);
+                BuildIncludeBindings(compiled);
                 _order.Add(compiled);
             }
 
-            _outputNodeIndices = _order
-                .Where(n => n.Node.Type == NodeType.Output)
-                .Select(n => n.Index)
-                .ToArray();
+            var outputIndices = new List<int>();
+            var outputNames = new List<string>();
+            foreach (var node in _order)
+            {
+                if (node.Node.Type != NodeType.Output)
+                {
+                    continue;
+                }
+
+                outputIndices.Add(node.Index);
+                outputNames.Add(node.Node.Name ?? "");
+            }
+
+            _outputIndices = outputIndices.ToArray();
+            _outputNames = outputNames.ToArray();
         }
 
         public IReadOnlyDictionary<string, double> Evaluate(
@@ -151,10 +170,9 @@ namespace DiyFfb.GraphTest
             {
                 GraphDebugLogger.Log($"  Total NodeValues count: {result.NodeValues.Count}");
             }
-            foreach (var index in _outputNodeIndices)
+            for (int i = 0; i < _outputIndices.Length; i++)
             {
-                var node = _graph.Nodes.Values.First(n => _nodeIndexById[n.Id] == index);
-                result.Outputs[node.Name] = _values[index];
+                result.Outputs[_outputNames[i]] = _values[_outputIndices[i]];
             }
             foreach (var w in warnings)
             {
@@ -195,6 +213,55 @@ namespace DiyFfb.GraphTest
             BuildArgRef(node.Node.Src, out node.SrcIndex, out node.SrcIsExtra);
         }
 
+        private void BuildIncludeBindings(CompiledNode node)
+        {
+            if (node.Node.Type != NodeType.Include)
+            {
+                return;
+            }
+
+            if (node.Node.InputMap != null && node.Node.InputMap.Count > 0)
+            {
+                int count = node.Node.InputMap.Count;
+                var names = new string[count];
+                var indices = new int[count];
+                var extras = new bool[count];
+                int i = 0;
+                foreach (var mapping in node.Node.InputMap)
+                {
+                    names[i] = mapping.Key ?? "";
+                    BuildArgRef(mapping.Value, out indices[i], out extras[i]);
+                    i++;
+                }
+                node.IncludeInputNames = names;
+                node.IncludeInputIndices = indices;
+                node.IncludeInputIsExtra = extras;
+            }
+
+            if (node.Node.OutputMap != null && node.Node.OutputMap.Count > 0)
+            {
+                int count = node.Node.OutputMap.Count;
+                var names = new string[count];
+                var indices = new int[count];
+                int i = 0;
+                foreach (var mapping in node.Node.OutputMap)
+                {
+                    names[i] = mapping.Key ?? "";
+                    if (string.IsNullOrWhiteSpace(mapping.Value) || !_extraIndexById.TryGetValue(mapping.Value, out var index))
+                    {
+                        indices[i] = -1;
+                    }
+                    else
+                    {
+                        indices[i] = index;
+                    }
+                    i++;
+                }
+                node.IncludeOutputNames = names;
+                node.IncludeOutputIndices = indices;
+            }
+        }
+
         private void BuildArgRef(string id, out int index, out bool isExtra)
         {
             index = -1;
@@ -221,12 +288,6 @@ namespace DiyFfb.GraphTest
                 return 0.0;
             }
             return isExtra ? _extraValues[index] : _values[index];
-        }
-
-        private double ResolveById(string id)
-        {
-            BuildArgRef(id, out var index, out var isExtra);
-            return Resolve(index, isExtra);
         }
 
         private string ResolveToAbsolutePath(string path)
@@ -447,16 +508,17 @@ namespace DiyFfb.GraphTest
 
             GraphCompiledEvaluator evaluator = _includeCache[key];
 
-            // Build mapping from short names (InputMap keys) to full names (subGraph Input node names)
-            // This handles the case where Include ports use SignalSuffix but runtime uses full names
-            var shortToFullName = BuildShortToFullNameMap(subGraph, node.Node.InputMap.Keys);
+            var includeNameMap = GetIncludeNameMap(key, subGraph, node);
+            var shortToFullName = includeNameMap?.Inputs;
+            var shortToFullOutput = includeNameMap?.Outputs;
 
             var subInputs = new Dictionary<string, double>();
-            foreach (var mapping in node.Node.InputMap)
+            for (int i = 0; i < node.IncludeInputNames.Length; i++)
             {
                 // Try to find the full name for this short name, otherwise use the key as-is
-                string inputName = shortToFullName.TryGetValue(mapping.Key, out var fullName) ? fullName : mapping.Key;
-                subInputs[inputName] = ResolveById(mapping.Value);
+                string shortName = node.IncludeInputNames[i];
+                string inputName = shortToFullName != null && shortToFullName.TryGetValue(shortName, out var fullName) ? fullName : shortName;
+                subInputs[inputName] = Resolve(node.IncludeInputIndices[i], node.IncludeInputIsExtra[i]);
             }
 
             // Build parameters from sub-graph's perspective (keyed by sub-graph's Param node names)
@@ -510,37 +572,58 @@ namespace DiyFfb.GraphTest
             }
 
             // Similarly map output names
-            var shortToFullOutput = BuildShortToFullNameMap(subGraph, node.Node.OutputMap.Keys, NodeType.Output);
-
             if (GraphDebugLogger.Enabled)
             {
                 GraphDebugLogger.LogMap("shortToFullOutput", shortToFullOutput);
                 GraphDebugLogger.Log($"  _extraIndexById count: {_extraIndexById.Count}");
             }
 
-            foreach (var mapping in node.Node.OutputMap)
+            for (int i = 0; i < node.IncludeOutputNames.Length; i++)
             {
-                string outputName = shortToFullOutput.TryGetValue(mapping.Key, out var fullOutName) ? fullOutName : mapping.Key;
+                string shortName = node.IncludeOutputNames[i];
+                string outputName = shortToFullOutput != null && shortToFullOutput.TryGetValue(shortName, out var fullOutName) ? fullOutName : shortName;
                 if (!outputs.TryGetValue(outputName, out var value))
                 {
-                    warnings?.Add($"Include '{node.Node.Id}' output '{mapping.Key}': no match for '{outputName}' in sub-graph outputs [{string.Join(", ", outputs.Keys)}]");
+                    warnings?.Add($"Include '{node.Node.Id}' output '{shortName}': no match for '{outputName}' in sub-graph outputs [{string.Join(", ", outputs.Keys)}]");
                     continue;
                 }
-                if (!_extraIndexById.TryGetValue(mapping.Value, out var extraIndex))
+                int extraIndex = node.IncludeOutputIndices[i];
+                if (extraIndex < 0)
                 {
                     if (GraphDebugLogger.Enabled)
                     {
-                        GraphDebugLogger.Log($"  WARNING: extra index not found for '{mapping.Value}'");
+                        GraphDebugLogger.Log($"  WARNING: extra index not found for '{shortName}'");
                     }
-                    warnings?.Add($"Include '{node.Node.Id}' output '{mapping.Key}': extra index not found for '{mapping.Value}'");
+                    warnings?.Add($"Include '{node.Node.Id}' output '{shortName}': extra index not found");
                     continue;
                 }
                 if (GraphDebugLogger.Enabled)
                 {
-                    GraphDebugLogger.Log($"  Storing: _extraValues[{extraIndex}] = {value:F4} (key={mapping.Value}, outputName={outputName})");
+                    GraphDebugLogger.Log($"  Storing: _extraValues[{extraIndex}] = {value:F4} (key={shortName}, outputName={outputName})");
                 }
                 _extraValues[extraIndex] = value;
             }
+        }
+
+        private IncludeNameMap GetIncludeNameMap(string key, GraphDefinition subGraph, CompiledNode node)
+        {
+            if (string.IsNullOrEmpty(key) || subGraph == null)
+            {
+                return null;
+            }
+
+            if (_includeNameMapCache.TryGetValue(key, out var cached))
+            {
+                return cached;
+            }
+
+            var map = new IncludeNameMap
+            {
+                Inputs = BuildShortToFullNameMap(subGraph, node.IncludeInputNames, NodeType.Input),
+                Outputs = BuildShortToFullNameMap(subGraph, node.IncludeOutputNames, NodeType.Output)
+            };
+            _includeNameMapCache[key] = map;
+            return map;
         }
 
         /// <summary>
@@ -585,6 +668,12 @@ namespace DiyFfb.GraphTest
             }
 
             return result;
+        }
+
+        private sealed class IncludeNameMap
+        {
+            public Dictionary<string, string> Inputs;
+            public Dictionary<string, string> Outputs;
         }
 
         private static Dictionary<string, string> BuildIncludeOutputMap(GraphDefinition graph)

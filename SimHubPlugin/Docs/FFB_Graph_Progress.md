@@ -54,6 +54,7 @@ Status: living progress document for graph editor/runtime integration.
 - Runtime mapping uses per-port IDs for input/param/output nodes.
 - Sample graphs bind to real input/output signal names.
 - Live inputs toggle feeds preview from latest telemetry snapshots.
+- Preview refresh throttles (500ms) and skips evaluation when live inputs are unchanged; preview runtime/evaluator cached per graph.
 - Right mouse button pans; left drag selects.
 - Multi-select node drag moves all selected nodes.
 - Func ports match function signatures (e.g. assist_loss uses a single input).

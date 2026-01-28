@@ -7,6 +7,7 @@
 - Prefer separation of concerns where feasible.
 - Prefer a single source of truth.
 - Avoid duplicated code.
+- Avoid per-evaluation allocations/linear scans in graph runtime; precompute output and include mappings where feasible.
 - Suggest useful additions to AGENTS.md 
 - Call out when a change relies on async/out-of-order data arrival and how it is handled.
 - FFB tuning parameter references shall be normalized to make tuning across models more intuitive.

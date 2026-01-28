@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using User.PluginSdkDemo;
@@ -44,6 +45,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Neg op evaluation", TestNegOpEvaluation));
             results.Add(TestRunner.RunTest("Clamp bound order warning", TestClampBoundOrderWarning));
             results.Add(TestRunner.RunTest("Graph output names unique", TestGraphOutputNamesUnique));
+            results.Add(TestRunner.RunTest("Compiled evaluator include mapping perf smoke", TestCompiledIncludeMappingPerf));
 
             // Editor tests (JSON serialization, param schema, parameter resolution)
             results.Add(TestRunner.RunTest("GraphEditor JSON roundtrip", TestGraphEditorJsonRoundtrip));
@@ -438,6 +440,87 @@ namespace DiyFfb.GraphTest
             }
 
             return outputs.Contains("FlightStickPitch.SpringGain");
+        }
+
+        private static bool TestCompiledIncludeMappingPerf()
+        {
+            const int inputCount = 24;
+            const int iterations = 2000;
+            const int maxMilliseconds = 5000;
+
+            var inline = new GraphDefinition();
+            for (int i = 0; i < inputCount; i++)
+            {
+                string inId = $"in_{i}";
+                inline.Nodes[inId] = new GraphNode { Id = inId, Type = NodeType.Input, Name = $"Input{i}" };
+                string outId = $"out_{i}";
+                inline.Nodes[outId] = new GraphNode { Id = outId, Type = NodeType.Output, Name = $"Output{i}", Src = inId };
+            }
+
+            var parent = new GraphDefinition();
+            for (int i = 0; i < inputCount; i++)
+            {
+                string inId = $"p_in_{i}";
+                parent.Nodes[inId] = new GraphNode { Id = inId, Type = NodeType.Input, Name = $"Input{i}" };
+            }
+
+            var include = new GraphNode
+            {
+                Id = "inc",
+                Type = NodeType.Include,
+                InlineGraph = inline
+            };
+
+            for (int i = 0; i < inputCount; i++)
+            {
+                include.InputMap[$"Input{i}"] = $"p_in_{i}";
+                include.OutputMap[$"Output{i}"] = $"inc_out_{i}";
+            }
+
+            parent.Nodes["inc"] = include;
+
+            for (int i = 0; i < inputCount; i++)
+            {
+                parent.Nodes[$"p_out_{i}"] = new GraphNode
+                {
+                    Id = $"p_out_{i}",
+                    Type = NodeType.Output,
+                    Name = $"Result{i}",
+                    Src = $"inc_out_{i}"
+                };
+            }
+
+            var evaluator = new GraphCompiledEvaluator(parent);
+            var inputs = new Dictionary<string, double>();
+            for (int i = 0; i < inputCount; i++)
+            {
+                inputs[$"Input{i}"] = i + 1;
+            }
+
+            evaluator.Evaluate(inputs, null);
+
+            var sw = Stopwatch.StartNew();
+            for (int i = 0; i < iterations; i++)
+            {
+                evaluator.Evaluate(inputs, null);
+            }
+            sw.Stop();
+
+            if (sw.ElapsedMilliseconds > maxMilliseconds)
+            {
+                return false;
+            }
+
+            var outputs = evaluator.Evaluate(inputs, null);
+            for (int i = 0; i < inputCount; i++)
+            {
+                if (!outputs.TryGetValue($"Result{i}", out var value) || Math.Abs(value - (i + 1)) > 1e-6)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static GraphDefinition BuildBaseGraph()
