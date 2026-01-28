@@ -2,6 +2,42 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-28 20:46:43 +01:00 (CODex)
+Request: restore the Title field for Include node inspector.
+Summary:
+- Added the Title TextBox to the Include inspector template so Include nodes can be renamed again.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+Open items:
+- None.
+Commit highlights:
+- Include inspector shows Title field again.
+
+## 2026-01-28 20:36:50 +01:00 (CODex)
+Request: fix node title edits leaving the colored header bar width stale.
+Summary:
+- Stored title bar rectangles on NodeVisual and resized them in UpdateNodeSize.
+- Header bar now tracks node width immediately after title edits.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Title bar widths update with node size changes after title edits.
+
+## 2026-01-28 20:34:24 +01:00 (CODex)
+Request: make port name edits commit on Enter without losing edits when changing selection.
+Summary:
+- Added Enter key handlers for port name text boxes and signal picker combo boxes to commit bindings immediately.
+- This ensures node visuals update on Enter without requiring focus changes.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Port name edits commit on Enter for both freeform and signal picker inputs.
+
 ## 2026-01-28 19:00:12 +01:00 (CODex)
 Request: implement op input negate flags plan.
 Summary:

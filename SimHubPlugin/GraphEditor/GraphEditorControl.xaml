@@ -25,7 +25,8 @@
                              BorderBrush="#4A4A4A"
                              BorderThickness="1"
                              Padding="2,1,2,1"
-                             ContextMenu="{x:Null}">
+                             ContextMenu="{x:Null}"
+                             KeyDown="PortName_KeyDown">
                         <TextBox.Style>
                             <Style TargetType="TextBox">
                                 <Setter Property="Visibility" Value="Visible" />
@@ -58,7 +59,8 @@
                                   Padding="2,0,2,0"
                                   StaysOpenOnEdit="True"
                                   ItemsSource="{Binding SignalOptions}"
-                                  Text="{Binding Name, UpdateSourceTrigger=LostFocus}">
+                                  Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
+                                  KeyDown="PortName_KeyDown">
                             <ComboBox.Template>
                                 <ControlTemplate TargetType="ComboBox">
                                     <Grid>
@@ -73,6 +75,7 @@
                                                  BorderThickness="0"
                                                  Padding="2,1,2,1"
                                                  ContextMenu="{x:Null}"
+                                                 KeyDown="PortName_KeyDown"
                                                  Text="{TemplateBinding Text}" />
                                         <ToggleButton Grid.Column="1"
                                                       IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
@@ -559,6 +562,15 @@
         </DataTemplate>
         <DataTemplate x:Key="InspectorIncludeTemplate">
             <StackPanel>
+                <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
+                <TextBox Margin="0,2,0,6"
+                         Background="#1E1E1E"
+                         Foreground="White"
+                         BorderBrush="#4A4A4A"
+                         BorderThickness="1"
+                         Padding="3,2,3,2"
+                         Text="{Binding Title, Mode=OneWay}"
+                         TextChanged="InspectorTitle_TextChanged" />
                 <TextBlock Text="Include Path" Foreground="#BBBBBB" FontSize="10" />
                 <DockPanel Margin="0,2,0,6">
                     <Button Content="..."

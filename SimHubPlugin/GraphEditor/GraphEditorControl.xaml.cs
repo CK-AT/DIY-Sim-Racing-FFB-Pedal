@@ -811,6 +811,8 @@ namespace User.PluginSdkDemo.GraphEditor
                 Node = node,
                 TitleBlock = title,
                 InnerCanvas = nodeCanvas,
+                TitleBar = titleBar,
+                TitleBarClip = titleBarClip,
                 OutputValues = outputValueLabels
             };
         }
@@ -4191,6 +4193,29 @@ namespace User.PluginSdkDemo.GraphEditor
             }
         }
 
+        private void PortName_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter)
+            {
+                return;
+            }
+
+            if (sender is TextBox textBox)
+            {
+                var binding = BindingOperations.GetBindingExpression(textBox, TextBox.TextProperty);
+                binding?.UpdateSource();
+                e.Handled = true;
+                return;
+            }
+
+            if (sender is ComboBox comboBox)
+            {
+                var binding = BindingOperations.GetBindingExpression(comboBox, ComboBox.TextProperty);
+                binding?.UpdateSource();
+                e.Handled = true;
+            }
+        }
+
         private void OnPortNegateChanged(object sender, EventArgs e)
         {
             if (_isInspectorUpdating || _selectedNode == null)
@@ -4644,6 +4669,14 @@ namespace User.PluginSdkDemo.GraphEditor
             visual.InnerCanvas.Height = height;
             visual.Container.Width = width;
             visual.Container.Height = height;
+            if (visual.TitleBar != null)
+            {
+                visual.TitleBar.Width = width;
+            }
+            if (visual.TitleBarClip != null)
+            {
+                visual.TitleBarClip.Width = width;
+            }
 
             foreach (var child in visual.InnerCanvas.Children)
             {
@@ -5255,6 +5288,8 @@ namespace User.PluginSdkDemo.GraphEditor
             public GraphNode Node;
             public TextBlock TitleBlock;
             public Canvas InnerCanvas;
+            public Rectangle TitleBar;
+            public Rectangle TitleBarClip;
             public List<PortValueVisual> OutputValues = new List<PortValueVisual>();
         }
 
