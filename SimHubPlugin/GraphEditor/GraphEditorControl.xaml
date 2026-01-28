@@ -138,7 +138,6 @@
         </DataTemplate>
         <DataTemplate x:Key="InspectorConstTemplate">
             <StackPanel>
-                <TextBlock Text="Edit" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
                 <TextBox Margin="0,2,0,6"
                          Background="#1E1E1E"
@@ -161,7 +160,6 @@
         </DataTemplate>
         <DataTemplate x:Key="InspectorOpTemplate">
             <StackPanel>
-                <TextBlock Text="Edit" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
                 <TextBox Margin="0,2,0,6"
                          Background="#1E1E1E"
@@ -184,7 +182,6 @@
         </DataTemplate>
         <DataTemplate x:Key="InspectorFuncTemplate">
             <StackPanel>
-                <TextBlock Text="Edit" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
                 <TextBox Margin="0,2,0,6"
                          Background="#1E1E1E"
@@ -207,7 +204,6 @@
         </DataTemplate>
         <DataTemplate x:Key="InspectorInputTemplate">
             <StackPanel>
-                <TextBlock Text="Edit" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <StackPanel>
                     <StackPanel.Style>
                         <Style TargetType="StackPanel">
@@ -270,7 +266,6 @@
         </DataTemplate>
         <DataTemplate x:Key="InspectorOutputTemplate">
             <StackPanel>
-                <TextBlock Text="Edit" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <StackPanel>
                     <StackPanel.Style>
                         <Style TargetType="StackPanel">
@@ -333,7 +328,6 @@
         </DataTemplate>
         <DataTemplate x:Key="InspectorParamTemplate">
             <StackPanel>
-                <TextBlock Text="Edit" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <TextBlock Text="Signal Group" Foreground="#BBBBBB" FontSize="10" />
                 <ComboBox Margin="0,2,0,6"
                           Background="#1E1E1E"
@@ -537,7 +531,6 @@
         </DataTemplate>
         <DataTemplate x:Key="InspectorIncludeTemplate">
             <StackPanel>
-                <TextBlock Text="Edit" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <TextBlock Text="Include Path" Foreground="#BBBBBB" FontSize="10" />
                 <DockPanel Margin="0,2,0,6">
                     <Button Content="..."
@@ -692,15 +685,19 @@
                 </DockPanel>
                 <TextBlock Text="Selected Node" Foreground="#BBBBBB" Margin="0,8,0,2" FontSize="10" />
                 <TextBlock x:Name="TextNodeTitle" Foreground="White" FontSize="11" Text="(none)" />
-                <ContentControl x:Name="InspectorContent"
-                                Margin="0,10,0,0"
-                                ContentTemplateSelector="{StaticResource InspectorTemplateSelector}" />
-                <TextBlock x:Name="TextNoSelection"
-                           Foreground="#777777"
-                           FontSize="10"
-                           Margin="0,10,0,0"
-                           Text="Select a node to edit its properties."
-                           Visibility="Collapsed" />
+                <Expander Header="Edit" IsExpanded="True" Margin="0,8,0,0">
+                    <StackPanel Margin="0,4,0,0">
+                        <ContentControl x:Name="InspectorContent"
+                                        Margin="0,2,0,0"
+                                        ContentTemplateSelector="{StaticResource InspectorTemplateSelector}" />
+                        <TextBlock x:Name="TextNoSelection"
+                                   Foreground="#777777"
+                                   FontSize="10"
+                                   Margin="0,2,0,0"
+                                   Text="Select a node to edit its properties."
+                                   Visibility="Collapsed" />
+                    </StackPanel>
+                </Expander>
             </StackPanel>
         </Border>
     </Grid>

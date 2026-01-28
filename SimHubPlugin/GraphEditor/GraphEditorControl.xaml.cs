@@ -160,6 +160,7 @@ namespace User.PluginSdkDemo.GraphEditor
         private string _selectedContextId;
         private bool _contextIsUserSelected;  // True if user explicitly selected a context (sticky)
         private HashSet<string> _lastContextIds = new HashSet<string>();
+        private bool _hadLiveContext;
         private Func<string, IReadOnlyList<IncludeCallContext>> _contextProvider;
         public string BaseDirectory
         {
@@ -255,6 +256,7 @@ namespace User.PluginSdkDemo.GraphEditor
             // Reset context selection when loading a new graph
             _contextIsUserSelected = false;
             _selectedContextId = null;
+            _hadLiveContext = false;
 
             // Update the Library Graph checkbox to match the graph's flag
             CheckLibraryGraph.IsChecked = _graph.IsLibraryGraph;
@@ -365,8 +367,8 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             UpdateOutputValueLabels();
-            UpdateInspector();
         }
+
 
         public void LoadGraphFromFile(string path)
         {
@@ -2986,24 +2988,32 @@ namespace User.PluginSdkDemo.GraphEditor
             {
                 // Cache is temporarily empty - DON'T reset if user had selected a context
                 // The cache will be repopulated on next evaluation cycle
-                if (!_contextIsUserSelected || _selectedContextId == null)
+                ComboEvalContext.Items.Clear();
+                ComboEvalContext.Items.Add(new ComboBoxItem { Content = "(standalone)", Tag = null });
+                if (_hadLiveContext && !string.IsNullOrEmpty(_selectedContextId))
                 {
-                    if (_graph != null && _graph.IsLibraryGraph)
+                    ComboEvalContext.Items.Add(new ComboBoxItem
                     {
-                        EnsureStandaloneContextVisible();
-                    }
-                    else if (PanelEvalContext.Visibility != Visibility.Collapsed)
-                    {
-                        ComboEvalContext.Items.Clear();
-                        ComboEvalContext.Items.Add(new ComboBoxItem { Content = "(standalone)", Tag = null });
-                        PanelEvalContext.Visibility = Visibility.Collapsed;
-                        _selectedContextId = null;
-                        _lastContextIds.Clear();
-                    }
+                        Content = "(last context)",
+                        Tag = _selectedContextId
+                    });
                 }
-                // If user had a context selected, preserve _selectedContextId for when cache repopulates
+                PanelEvalContext.Visibility = Visibility.Visible;
+                if (_hadLiveContext && _contextIsUserSelected && _selectedContextId != null)
+                {
+                    ComboEvalContext.SelectedItem = ComboEvalContext.Items[1];
+                }
+                else
+                {
+                    _selectedContextId = null;
+                    _contextIsUserSelected = false;
+                    ComboEvalContext.SelectedItem = ComboEvalContext.Items[0];
+                }
+                _lastContextIds.Clear();
                 return;
             }
+
+            _hadLiveContext = true;
 
             // Check if contexts have changed (by comparing IDs)
             var currentIds = new HashSet<string>(contexts.Select(c => c.IncludeNodeId));

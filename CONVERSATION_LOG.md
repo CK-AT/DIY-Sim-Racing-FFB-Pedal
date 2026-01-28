@@ -2,6 +2,92 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-28 10:04:38 +01:00 (CODex)
+Request: avoid defaulting to last context when no live data has ever been available.
+Summary:
+- Tracked whether any live contexts were ever loaded and only offer/select the last context when that is true.
+- Reset live-context tracking on graph load to keep standalone as the default for graphs with no live data.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Standalone is selected by default when no live context has been seen.
+- Last context is only offered after real live data appears.
+- Some inspector layout tweaks.
+
+## 2026-01-28 10:00:52 +01:00 (CODex)
+Request: switch to standalone explicitly when there is no last context.
+Summary:
+- Force standalone selection and clear sticky context flags when the live cache is empty and no last context exists.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Standalone selection is enforced when no last context is available.
+
+## 2026-01-28 09:58:19 +01:00 (CODex)
+Request: allow switching back to standalone when live contexts are unavailable.
+Summary:
+- Keep the eval context dropdown visible with a standalone option even when the live cache is empty.
+- Preserve a selectable "last context" entry so users can toggle back and forth without live data.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Standalone is always selectable even when live context data is missing.
+- Last context remains selectable while cache repopulates.
+
+## 2026-01-28 09:49:18 +01:00 (CODex)
+Request: remove the port name editing focus guards now that inspector refreshes are gone.
+Summary:
+- Removed port name focus tracking handlers from the inspector templates and control code.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Cleaned up port-name focus tracking logic made unnecessary by removing inspector refresh during live preview.
+
+## 2026-01-28 09:47:51 +01:00 (CODex)
+Request: stop refreshing the inspector during live preview ticks.
+Summary:
+- Removed inspector refresh from live preview node-value updates.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Live preview now updates canvas output values without reloading the inspector.
+
+## 2026-01-28 09:42:21 +01:00 (CODex)
+Request: fix port renaming difficulty when live preview is enabled.
+Summary:
+- Deferred inspector refresh while a port name editor has keyboard focus to avoid live preview overwrites.
+- Added focus tracking for port name inputs in the inspector.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+Open items:
+- None.
+Commit highlights:
+- Live preview no longer disrupts port name edits in the inspector.
+- Port name editors now explicitly gate inspector refresh.
+
+## 2026-01-28 09:24:05 +01:00 (CODex)
+Request: wrap the inspector edit panel in a collapsible section.
+Summary:
+- Wrapped the Selected Node edit panel in an expander so the inspector can be collapsed.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+Open items:
+- None.
+Commit highlights:
+- Inspector edit panel is now collapsible via a Selected Node expander.
+
 ## 2026-01-28 08:48:33 +01:00 (CODex)
 Request: commit inspector header refinements and context dropdown move.
 Summary:
