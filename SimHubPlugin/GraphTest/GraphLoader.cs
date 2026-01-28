@@ -171,6 +171,7 @@ namespace DiyFfb.GraphTest
             { OpType.Min, 2 },
             { OpType.Max, 2 },
             { OpType.Abs, 1 },
+            { OpType.Neg, 1 },
             { OpType.Clamp, 3 },
             { OpType.Lerp, 3 }
         };

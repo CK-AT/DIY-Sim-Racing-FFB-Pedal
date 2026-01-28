@@ -24,6 +24,7 @@ namespace DiyFfb.GraphTest
         Min,
         Max,
         Abs,
+        Neg,
         Clamp,
         Lerp
     }
@@ -150,6 +151,7 @@ namespace DiyFfb.GraphTest
                 case OpType.Min: return Math.Min(a, b);
                 case OpType.Max: return Math.Max(a, b);
                 case OpType.Abs: return Math.Abs(a);
+                case OpType.Neg: return -a;
                 case OpType.Clamp:
                 {
                     double min = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;

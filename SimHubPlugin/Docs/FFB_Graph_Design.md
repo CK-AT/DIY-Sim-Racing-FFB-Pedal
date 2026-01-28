@@ -23,7 +23,7 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
   - Input: pulls a named input value.
   - Param: pulls a tunable parameter.
   - Const: constant numeric value.
-  - Op: arithmetic operations (add/sub/mul/div/min/max/abs/clamp/lerp).
+  - Op: arithmetic operations (add/sub/mul/div/min/max/abs/neg/clamp/lerp).
   - Func: known functions (qhat_eff, torque_norm, rpm_norm, assist_loss).
   - Include: references another graph by path or embedded content.
   - Output: exposes a named output.

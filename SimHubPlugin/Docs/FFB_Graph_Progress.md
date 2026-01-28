@@ -20,6 +20,7 @@ Status: living progress document for graph editor/runtime integration.
 - Port handles appear on selected nodes and during edge drag for quick rewiring.
 - Edge preview reinitializes after graph rebuilds.
 - Op/Func nodes default their operation label and refresh titles on changes.
+- Added neg op (unary) with a -> -a ports.
 - Edge rewiring supports dragging to a new source (via context menu).
 - Input ports now enforce a single incoming edge.
 - Node sizing now uses measured label widths for tighter layouts.

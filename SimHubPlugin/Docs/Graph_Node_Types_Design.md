@@ -538,6 +538,7 @@ else if (kind == GraphNodeKind.Op)
 | min | a, b | min(a, b) | |
 | max | a, b | max(a, b) | |
 | abs | a | \|a\| | Single input |
+| neg | a | -a | Single input |
 | clamp | a, min, max | clamp(a, min, max) | Three inputs |
 | lerp | a, b, t | a + (b-a) × t | Three inputs |
 
@@ -549,7 +550,7 @@ else if (kind == GraphNodeKind.Op)
 **Port Configuration**:
 - Ports are **fixed** based on operation type
 - Cannot add/remove ports manually
-- Port names: "a", "b" (and "min", "max", "t" for clamp/lerp)
+- Port names: "a", "b" (and "min", "max", "t" for clamp/lerp); neg uses output "-a"
 
 **Runtime Conversion** ([GraphRuntimeConverter.cs:26-36](SimHubPlugin/GraphEditor/GraphRuntimeConverter.cs#L26-L36)):
 - Op string mapped to OpType enum
@@ -1107,3 +1108,4 @@ Example format:
 
 - ~~[Input, Output]: Group dropdown replacing freeform title~~ → Integrated into Input §1, Output §1
 - ~~[Param]: Freeform group dropdown with output name prohibition~~ → Integrated into Param §1
+

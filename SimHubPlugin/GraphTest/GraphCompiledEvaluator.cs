@@ -256,6 +256,7 @@ namespace DiyFfb.GraphTest
                 case OpType.Min: return Math.Min(a, b);
                 case OpType.Max: return Math.Max(a, b);
                 case OpType.Abs: return Math.Abs(a);
+                case OpType.Neg: return -a;
                 case OpType.Clamp:
                 {
                     double min = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;

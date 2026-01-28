@@ -2,6 +2,29 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-28 15:44:23 +01:00 (CODex)
+Request: add a single-input neg op (a -> -a).
+Summary:
+- Added OpType.Neg support across evaluator, compiled evaluator, loader validation, and runtime conversion.
+- Op nodes now swap to a single input/output when selecting neg and restore default ports when leaving neg.
+- Added a neg op test and documented the new operation in graph design docs.
+Key files:
+- `SimHubPlugin/GraphTest/GraphEvaluator.cs`
+- `SimHubPlugin/GraphTest/GraphCompiledEvaluator.cs`
+- `SimHubPlugin/GraphTest/GraphLoader.cs`
+- `SimHubPlugin/GraphEditor/GraphRuntimeConverter.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+- `SimHubPlugin/Docs/Graph_Node_Types_Design.md`
+Open items:
+- None.
+Commit highlights:
+- Added neg op (a -> -a) with unary port layout in the editor.
+- Runtime and compiled evaluators now support OpType.Neg with validation coverage.
+- Graph design docs updated to list the new operation.
+
 ## 2026-01-28 10:04:38 +01:00 (CODex)
 Request: avoid defaulting to last context when no live data has ever been available.
 Summary:

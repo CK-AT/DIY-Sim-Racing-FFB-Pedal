@@ -88,7 +88,7 @@ namespace User.PluginSdkDemo.GraphEditor
         private const double ParamControlHeight = 18.0;
         private const double ParamControlWidth = 120.0;
         private bool _isInspectorUpdating;
-        private readonly string[] _opChoices = { "add", "sub", "mul", "div", "min", "max", "abs", "clamp", "lerp" };
+        private readonly string[] _opChoices = { "add", "sub", "mul", "div", "min", "max", "abs", "neg", "clamp", "lerp" };
         private readonly string[] _funcChoices = { "qhat_eff", "torque_norm", "rpm_norm", "assist_loss", "buffet" };
         private readonly string[] _paramWidgetChoices = { "slider", "knob", "checkbox", "enum", "text" };
         private double _curveTension = 0.5;
@@ -3478,6 +3478,139 @@ namespace User.PluginSdkDemo.GraphEditor
             }
         }
 
+        private bool EnsureOpPorts(GraphNode node, string op)
+        {
+            if (node == null || node.Kind != GraphNodeKind.Op)
+            {
+                return false;
+            }
+
+            bool changed = false;
+            bool isNeg = string.Equals(op, "neg", StringComparison.OrdinalIgnoreCase);
+            var inputPorts = node.Ports.Where(p => p.Kind == GraphPortKind.Input).ToList();
+            var outputPorts = node.Ports.Where(p => p.Kind == GraphPortKind.Output).ToList();
+
+            if (isNeg)
+            {
+                GraphPort aPort = inputPorts.FirstOrDefault(p => p.Name == "a");
+                if (aPort == null)
+                {
+                    if (inputPorts.Count > 0)
+                    {
+                        aPort = inputPorts[0];
+                        RenamePort(node, aPort.Name, "a");
+                        aPort.Name = "a";
+                        changed = true;
+                    }
+                    else
+                    {
+                        aPort = new GraphPort { Name = "a", Kind = GraphPortKind.Input };
+                        node.Ports.Add(aPort);
+                        changed = true;
+                    }
+                }
+
+                foreach (var port in inputPorts.Where(p => !ReferenceEquals(p, aPort)).ToList())
+                {
+                    RemovePort(node, port);
+                    changed = true;
+                }
+
+                GraphPort outPort = outputPorts.FirstOrDefault(p => p.Name == "-a");
+                if (outPort == null)
+                {
+                    if (outputPorts.Count > 0)
+                    {
+                        outPort = outputPorts[0];
+                        RenamePort(node, outPort.Name, "-a");
+                        outPort.Name = "-a";
+                        changed = true;
+                    }
+                    else
+                    {
+                        node.Ports.Add(new GraphPort { Name = "-a", Kind = GraphPortKind.Output });
+                        changed = true;
+                    }
+                }
+
+                foreach (var port in outputPorts.Where(p => !ReferenceEquals(p, outPort)).ToList())
+                {
+                    RemovePort(node, port);
+                    changed = true;
+                }
+            }
+            else
+            {
+                GraphPort outPort = outputPorts.FirstOrDefault(p => p.Name == "out");
+                if (outPort == null)
+                {
+                    if (outputPorts.Count > 0)
+                    {
+                        outPort = outputPorts[0];
+                        RenamePort(node, outPort.Name, "out");
+                        outPort.Name = "out";
+                        changed = true;
+                    }
+                    else
+                    {
+                        node.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
+                        changed = true;
+                    }
+                }
+
+                foreach (var port in outputPorts.Where(p => !ReferenceEquals(p, outPort)).ToList())
+                {
+                    RemovePort(node, port);
+                    changed = true;
+                }
+
+                GraphPort aPort = inputPorts.FirstOrDefault(p => p.Name == "a");
+                GraphPort bPort = inputPorts.FirstOrDefault(p => p.Name == "b");
+
+                if (aPort == null)
+                {
+                    if (inputPorts.Count > 0)
+                    {
+                        aPort = inputPorts[0];
+                        RenamePort(node, aPort.Name, "a");
+                        aPort.Name = "a";
+                        changed = true;
+                    }
+                    else
+                    {
+                        aPort = new GraphPort { Name = "a", Kind = GraphPortKind.Input };
+                        node.Ports.Add(aPort);
+                        changed = true;
+                    }
+                }
+
+                if (bPort == null)
+                {
+                    var candidate = inputPorts.FirstOrDefault(p => !ReferenceEquals(p, aPort));
+                    if (candidate != null)
+                    {
+                        RenamePort(node, candidate.Name, "b");
+                        candidate.Name = "b";
+                        bPort = candidate;
+                        changed = true;
+                    }
+                    else
+                    {
+                        node.Ports.Add(new GraphPort { Name = "b", Kind = GraphPortKind.Input });
+                        changed = true;
+                    }
+                }
+
+                foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input && p.Name != "a" && p.Name != "b").ToList())
+                {
+                    RemovePort(node, port);
+                    changed = true;
+                }
+            }
+
+            return changed;
+        }
+
         private static string[] GetFuncInputNames(string func)
         {
             switch (func)
@@ -3576,7 +3709,19 @@ namespace User.PluginSdkDemo.GraphEditor
                 comboBox.SelectedItem is string op)
             {
                 node.Op = op;
+                bool portsChanged = EnsureOpPorts(node, op);
                 UpdateNodeTitleVisual(node);
+                if (portsChanged)
+                {
+                    RebuildSurface();
+                    if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+                    {
+                        _selectedNode = visual;
+                        _selectedNodes.Clear();
+                        _selectedNodes.Add(visual);
+                    }
+                    UpdateSelectionVisuals();
+                }
                 UpdateInspector();
                 RefreshPreview();
                 GraphChanged?.Invoke();

@@ -39,6 +39,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Include with multiple outputs", TestIncludeMultipleOutputs));
             results.Add(TestRunner.RunTest("Cyclic include detection", TestCyclicIncludeDetection));
             results.Add(TestRunner.RunTest("Op arg count validation", TestOpArgValidation));
+            results.Add(TestRunner.RunTest("Neg op evaluation", TestNegOpEvaluation));
             results.Add(TestRunner.RunTest("Clamp bound order warning", TestClampBoundOrderWarning));
             results.Add(TestRunner.RunTest("Graph output names unique", TestGraphOutputNamesUnique));
 
@@ -299,6 +300,25 @@ namespace DiyFfb.GraphTest
             graph.Nodes["out_bad"] = new GraphNode { Id = "out_bad", Type = NodeType.Output, Name = "bad", Src = "bad_op" };
             var validation = GraphValidator.Validate(graph);
             return !validation.IsValid;
+        }
+
+        private static bool TestNegOpEvaluation()
+        {
+            var graph = new GraphDefinition { Version = 1 };
+            graph.Nodes["in"] = new GraphNode { Id = "in", Type = NodeType.Input, Name = "in" };
+            graph.Nodes["neg"] = new GraphNode { Id = "neg", Type = NodeType.Op, Op = OpType.Neg, Args = { "in" } };
+            graph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "out", Src = "neg" };
+
+            var inputs = new Dictionary<string, double> { ["in"] = 3.5 };
+            var outputs = new GraphEvaluator(graph).Evaluate(inputs, null);
+            if (!outputs.TryGetValue("out", out var value) || Math.Abs(value + 3.5) > 1e-6)
+            {
+                return false;
+            }
+
+            var compiled = new GraphCompiledEvaluator(graph).Evaluate(inputs, null);
+            return compiled.TryGetValue("out", out var compiledValue) &&
+                   Math.Abs(compiledValue + 3.5) < 1e-6;
         }
 
         private static bool TestClampBoundOrderWarning()

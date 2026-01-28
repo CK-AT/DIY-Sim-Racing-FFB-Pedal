@@ -193,6 +193,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 case "min": return OpType.Min;
                 case "max": return OpType.Max;
                 case "abs": return OpType.Abs;
+                case "neg": return OpType.Neg;
                 case "clamp": return OpType.Clamp;
                 case "lerp": return OpType.Lerp;
                 default: return OpType.Add;
