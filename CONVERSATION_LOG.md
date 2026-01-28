@@ -2,6 +2,17 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-28 16:41:42 +01:00 (CODex)
+Request: run GraphTest suite.
+Summary:
+- Fixed GraphTestRunner cleanup blocks to restore buildable test code before running the suite.
+Key files:
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+Open items:
+- None.
+Commit highlights:
+- GraphTestRunner cleanup blocks are scoped correctly again.
+
 ## 2026-01-28 16:26:05 +01:00 (CODex)
 Request: fix missing clamp/lerp input ports after op output formula changes.
 Summary:

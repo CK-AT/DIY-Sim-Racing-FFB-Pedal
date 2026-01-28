@@ -2069,7 +2069,16 @@ namespace DiyFfb.GraphTest
                     return false;
                 }
 
-            return true;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                try { System.IO.Directory.Delete(tempDir, true); } catch { }
+            }
         }
 
         private static bool TestParamOrderWithIncludes()
@@ -2168,13 +2177,6 @@ namespace DiyFfb.GraphTest
                 throw new InvalidOperationException($"Field '{fieldName}' not found.");
             }
             field.SetValue(instance, value);
-        }
-            finally
-            {
-                // Cleanup
-                try { System.IO.File.Delete(includePath); } catch { }
-                try { System.IO.Directory.Delete(tempDir, true); } catch { }
-            }
         }
 
         // Include context cache tests
