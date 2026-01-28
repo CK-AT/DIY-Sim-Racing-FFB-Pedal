@@ -40,12 +40,14 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Cyclic include detection", TestCyclicIncludeDetection));
             results.Add(TestRunner.RunTest("Op arg count validation", TestOpArgValidation));
             results.Add(TestRunner.RunTest("Variadic op evaluation", TestVariadicOpEvaluation));
+            results.Add(TestRunner.RunTest("Op input negate evaluation", TestOpInputNegateEvaluation));
             results.Add(TestRunner.RunTest("Neg op evaluation", TestNegOpEvaluation));
             results.Add(TestRunner.RunTest("Clamp bound order warning", TestClampBoundOrderWarning));
             results.Add(TestRunner.RunTest("Graph output names unique", TestGraphOutputNamesUnique));
 
             // Editor tests (JSON serialization, param schema, parameter resolution)
             results.Add(TestRunner.RunTest("GraphEditor JSON roundtrip", TestGraphEditorJsonRoundtrip));
+            results.Add(TestRunner.RunTest("Op input negate JSON roundtrip", TestOpInputNegateJsonRoundtrip));
             results.Add(TestRunner.RunTest("Graph param UI schema roundtrip", TestGraphParamUiRoundtrip));
             results.Add(TestRunner.RunTest("Graph preview evaluation", TestGraphPreviewEvaluation));
             results.Add(TestRunner.RunTest("ParamValues serialization roundtrip", TestParamValuesSerializationRoundtrip));
@@ -69,6 +71,8 @@ namespace DiyFfb.GraphTest
             // Node duplication tests
             results.Add(TestRunner.RunTest("Node serialization preserves SignalGroup", TestNodeSignalGroupPreservation));
             results.Add(TestRunner.RunTest("Port serialization preserves SignalSuffix", TestPortSignalSuffixPreservation));
+            results.Add(TestRunner.RunTest("Op input negate conversion", TestOpInputNegateConversion));
+            results.Add(TestRunner.RunTest("Op input negate validation", TestOpInputNegateValidation));
 
             // Param conversion tests
             results.Add(TestRunner.RunTest("Param ConstValue from graph.Params", TestParamConstValueFromGraphParams));
@@ -341,6 +345,48 @@ namespace DiyFfb.GraphTest
                    Math.Abs(compiledSum - 9.0) < 1e-6 &&
                    compiledOutputs.TryGetValue("product", out var compiledProduct) &&
                    Math.Abs(compiledProduct - 24.0) < 1e-6;
+        }
+
+        private static bool TestOpInputNegateEvaluation()
+        {
+            var graph = new GraphDefinition { Version = 1 };
+            graph.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 5.0 };
+            graph.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 2.0 };
+            graph.Nodes["c"] = new GraphNode { Id = "c", Type = NodeType.Const, ConstValue = 1.0 };
+            graph.Nodes["sum"] = new GraphNode
+            {
+                Id = "sum",
+                Type = NodeType.Op,
+                Op = OpType.Add,
+                Args = { "a", "b", "c" },
+                ArgNegate = { false, true, true }
+            };
+            graph.Nodes["product"] = new GraphNode
+            {
+                Id = "product",
+                Type = NodeType.Op,
+                Op = OpType.Mul,
+                Args = { "a", "b", "c" },
+                ArgNegate = { false, true, false }
+            };
+            graph.Nodes["out_sum"] = new GraphNode { Id = "out_sum", Type = NodeType.Output, Name = "sum", Src = "sum" };
+            graph.Nodes["out_product"] = new GraphNode { Id = "out_product", Type = NodeType.Output, Name = "product", Src = "product" };
+
+            var outputs = new GraphEvaluator(graph).Evaluate(null, null);
+            if (!outputs.TryGetValue("sum", out var sum) || Math.Abs(sum - 2.0) > 1e-6)
+            {
+                return false;
+            }
+            if (!outputs.TryGetValue("product", out var product) || Math.Abs(product + 10.0) > 1e-6)
+            {
+                return false;
+            }
+
+            var compiledOutputs = new GraphCompiledEvaluator(graph).Evaluate(null, null);
+            return compiledOutputs.TryGetValue("sum", out var compiledSum) &&
+                   Math.Abs(compiledSum - 2.0) < 1e-6 &&
+                   compiledOutputs.TryGetValue("product", out var compiledProduct) &&
+                   Math.Abs(compiledProduct + 10.0) < 1e-6;
         }
 
         private static bool TestNegOpEvaluation()
@@ -1240,6 +1286,32 @@ namespace DiyFfb.GraphTest
             return validation.IsValid && loaded.Nodes.Count == 1 && loaded.Params.ContainsKey("k_q");
         }
 
+        private static bool TestOpInputNegateJsonRoundtrip()
+        {
+            var graph = new GraphEditor.GraphDefinition();
+            var op = new GraphEditor.GraphNode
+            {
+                Id = "op",
+                Kind = GraphEditor.GraphNodeKind.Op,
+                Op = "add"
+            };
+            op.Ports.Add(new GraphEditor.GraphPort { Name = "a", Kind = GraphEditor.GraphPortKind.Input });
+            op.Ports.Add(new GraphEditor.GraphPort { Name = "b", Kind = GraphEditor.GraphPortKind.Input, Negate = true });
+            op.Ports.Add(new GraphEditor.GraphPort { Name = "a+b", Kind = GraphEditor.GraphPortKind.Output });
+            graph.Nodes.Add(op);
+
+            string json = GraphSerializer.Serialize(graph);
+            var loaded = GraphSerializer.Deserialize(json, out var validation);
+            if (!validation.IsValid || loaded.Nodes.Count != 1)
+            {
+                return false;
+            }
+
+            var loadedOp = loaded.Nodes.FirstOrDefault();
+            var negatedPort = loadedOp?.Ports.FirstOrDefault(p => p.Kind == GraphEditor.GraphPortKind.Input && p.Name == "b");
+            return negatedPort != null && negatedPort.Negate;
+        }
+
         private static bool TestGraphPreviewEvaluation()
         {
             var graph = new GraphEditor.GraphDefinition();
@@ -1852,6 +1924,56 @@ namespace DiyFfb.GraphTest
 
             return port1 != null && port1.SignalSuffix == "IAS_kts" &&
                    port2 != null && port2.SignalSuffix == "Alpha_deg";
+        }
+
+        private static bool TestOpInputNegateConversion()
+        {
+            var graph = new GraphEditor.GraphDefinition();
+            var a = new GraphEditor.GraphNode { Id = "a", Kind = GraphEditor.GraphNodeKind.Const, ConstValue = 1.0 };
+            a.Ports.Add(new GraphEditor.GraphPort { Name = "out", Kind = GraphEditor.GraphPortKind.Output });
+            var b = new GraphEditor.GraphNode { Id = "b", Kind = GraphEditor.GraphNodeKind.Const, ConstValue = 2.0 };
+            b.Ports.Add(new GraphEditor.GraphPort { Name = "out", Kind = GraphEditor.GraphPortKind.Output });
+
+            var op = new GraphEditor.GraphNode { Id = "op", Kind = GraphEditor.GraphNodeKind.Op, Op = "add" };
+            op.Ports.Add(new GraphEditor.GraphPort { Name = "a", Kind = GraphEditor.GraphPortKind.Input });
+            op.Ports.Add(new GraphEditor.GraphPort { Name = "b", Kind = GraphEditor.GraphPortKind.Input, Negate = true });
+            op.Ports.Add(new GraphEditor.GraphPort { Name = "a+b", Kind = GraphEditor.GraphPortKind.Output });
+
+            graph.Nodes.Add(a);
+            graph.Nodes.Add(b);
+            graph.Nodes.Add(op);
+
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "a", FromPort = "out", ToNodeId = "op", ToPort = "a" });
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "b", FromPort = "out", ToNodeId = "op", ToPort = "b" });
+
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+            if (!runtime.Nodes.TryGetValue("op", out var runtimeOp))
+            {
+                return false;
+            }
+
+            return runtimeOp.ArgNegate.Count == 2 &&
+                   runtimeOp.ArgNegate[0] == false &&
+                   runtimeOp.ArgNegate[1] == true;
+        }
+
+        private static bool TestOpInputNegateValidation()
+        {
+            var graph = new GraphDefinition { Version = 1 };
+            graph.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 1.0 };
+            graph.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 2.0 };
+            graph.Nodes["sub"] = new GraphNode
+            {
+                Id = "sub",
+                Type = NodeType.Op,
+                Op = OpType.Sub,
+                Args = { "a", "b" },
+                ArgNegate = { true, false }
+            };
+            graph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "out", Src = "sub" };
+
+            var validation = GraphValidator.Validate(graph);
+            return !validation.IsValid;
         }
 
         private static bool TestParamConstValueFromGraphParams()

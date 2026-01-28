@@ -13,6 +13,7 @@
 - Avoid committing build artifacts (e.g., `SimHubPlugin/bin`, `OTA/*.bin`, `OTA/*.ffbota`) unless explicitly requested.
 - Update `SimHubPlugin/Docs/FFB_Design_Current.md` whenever the FFB design changes.
 - When changing graph serialization or conversion logic, update editor/runtime converters together and add/adjust GraphTest coverage for include/load/save.
+- When adding per-port metadata, update GraphPortDto serialization and clipboard serializer, and add GraphTest roundtrip coverage.
 - When extending CAN payloads, document frame sizing and update both pack/unpack and cache handling.
 - Maintain a short "Commit highlights" list in the latest conversation log entry and confirm it before committing.
 - Add unit tests for new features whenever feasible.

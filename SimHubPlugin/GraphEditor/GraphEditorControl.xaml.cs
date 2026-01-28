@@ -1972,7 +1972,8 @@ namespace User.PluginSdkDemo.GraphEditor
                 {
                     Name = port.Name,
                     Kind = port.Kind,
-                    SignalSuffix = port.SignalSuffix
+                    SignalSuffix = port.SignalSuffix,
+                    Negate = port.Negate
                 });
             }
 
@@ -3541,8 +3542,20 @@ namespace User.PluginSdkDemo.GraphEditor
             var inputPorts = node.Ports.Where(p => p.Kind == GraphPortKind.Input).ToList();
             var outputPorts = node.Ports.Where(p => p.Kind == GraphPortKind.Output).ToList();
 
+            if (!IsNegateSupportedOp(op))
+            {
+                foreach (var port in inputPorts)
+                {
+                    if (port.Negate)
+                    {
+                        port.Negate = false;
+                        changed = true;
+                    }
+                }
+            }
+
             string outputName = isVariadic
-                ? GetOpOutputName(op, inputPorts.Select(p => p.Name))
+                ? GetOpOutputName(op, inputPorts)
                 : GetOpOutputName(op);
             GraphPort outPort = outputPorts.FirstOrDefault(p => p.Name == outputName);
             if (outPort == null)
@@ -3617,7 +3630,7 @@ namespace User.PluginSdkDemo.GraphEditor
 
             if (isVariadic)
             {
-                string desiredOutputName = GetOpOutputName(op, node.Ports.Where(p => p.Kind == GraphPortKind.Input).Select(p => p.Name));
+                string desiredOutputName = GetOpOutputName(op, node.Ports.Where(p => p.Kind == GraphPortKind.Input));
                 if (!string.Equals(outPort.Name, desiredOutputName, StringComparison.Ordinal))
                 {
                     RenamePort(node, outPort.Name, desiredOutputName);
@@ -3656,6 +3669,18 @@ namespace User.PluginSdkDemo.GraphEditor
                 case "mul":
                 case "min":
                 case "max":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool IsNegateSupportedOp(string op)
+        {
+            switch (NormalizeOp(op))
+            {
+                case "add":
+                case "mul":
                     return true;
                 default:
                     return false;
@@ -3709,10 +3734,11 @@ namespace User.PluginSdkDemo.GraphEditor
             }
         }
 
-        private static string GetOpOutputName(string op, IEnumerable<string> inputs)
+        private static string GetOpOutputName(string op, IEnumerable<GraphPort> inputs)
         {
             string opKey = NormalizeOp(op);
-            var inputList = inputs?.Where(name => !string.IsNullOrWhiteSpace(name)).ToList() ?? new List<string>();
+            var inputList = inputs?.Where(port => port != null && !string.IsNullOrWhiteSpace(port.Name)).ToList()
+                ?? new List<GraphPort>();
             if (inputList.Count == 0)
             {
                 return GetOpOutputName(op);
@@ -3720,17 +3746,45 @@ namespace User.PluginSdkDemo.GraphEditor
 
             if (opKey == "add")
             {
-                return inputList.Count == 1 ? inputList[0] : string.Join("+", inputList);
+                var parts = new List<string>(inputList.Count);
+                for (int i = 0; i < inputList.Count; i++)
+                {
+                    string name = inputList[i].Name;
+                    bool negate = inputList[i].Negate;
+                    if (i == 0)
+                    {
+                        parts.Add(negate ? "-" + name : name);
+                    }
+                    else
+                    {
+                        parts.Add((negate ? "-" : "+") + name);
+                    }
+                }
+                return string.Join("", parts);
             }
 
             if (opKey == "mul")
             {
-                return inputList.Count == 1 ? inputList[0] : string.Join("*", inputList);
+                var parts = new List<string>(inputList.Count);
+                for (int i = 0; i < inputList.Count; i++)
+                {
+                    string name = inputList[i].Name;
+                    bool negate = inputList[i].Negate;
+                    if (i == 0)
+                    {
+                        parts.Add(negate ? "-" + name : name);
+                    }
+                    else
+                    {
+                        parts.Add((negate ? "*-" : "*") + name);
+                    }
+                }
+                return string.Join("", parts);
             }
 
             if (opKey == "min" || opKey == "max")
             {
-                string args = string.Join(",", inputList);
+                string args = string.Join(",", inputList.Select(port => port.Name));
                 return $"{opKey}({args})";
             }
 
@@ -3942,6 +3996,7 @@ namespace User.PluginSdkDemo.GraphEditor
             {
                 oldEntry.NameChanged -= OnPortNameChanged;
                 oldEntry.ParamChanged -= OnPortParamChanged;
+                oldEntry.NegateChanged -= OnPortNegateChanged;
             }
             _portEntries.Clear();
             SelectedPortEntry = null;
@@ -4010,9 +4065,12 @@ namespace User.PluginSdkDemo.GraphEditor
                 }
                 bool hideParamUiButton = node.Kind == GraphNodeKind.Param;
                 bool nameReadOnly = node.Kind == GraphNodeKind.Op;
-                var entry = new PortEditEntry(port, useSignalOptions, signalOptions, showParamFields, param, allowRemove, hideParamUiButton, nameReadOnly);
+                bool showNegate = isOpNode && port.Kind == GraphPortKind.Input && IsNegateSupportedOp(node.Op);
+                var entry = new PortEditEntry(port, useSignalOptions, signalOptions, showParamFields, param, allowRemove,
+                    hideParamUiButton, nameReadOnly, showNegate);
                 entry.NameChanged += OnPortNameChanged;
                 entry.ParamChanged += OnPortParamChanged;
+                entry.NegateChanged += OnPortNegateChanged;
                 _portEntries.Add(entry);
             }
 
@@ -4125,6 +4183,41 @@ namespace User.PluginSdkDemo.GraphEditor
                     _selectedNodes.Add(visual);
                 }
                 UpdateSelectionVisuals();
+
+                SyncPreviewEntries();
+                RefreshPreview();
+                _pendingUndoDebounce = true;
+                GraphChanged?.Invoke();
+            }
+        }
+
+        private void OnPortNegateChanged(object sender, EventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null)
+            {
+                return;
+            }
+
+            if (sender is PortEditEntry entry)
+            {
+                var node = _selectedNode.Node;
+                if (node.Kind != GraphNodeKind.Op || entry.Port.Kind != GraphPortKind.Input)
+                {
+                    return;
+                }
+
+                bool portsChanged = EnsureOpPorts(node, node.Op);
+                if (portsChanged)
+                {
+                    RebuildSurface();
+                    if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+                    {
+                        _selectedNode = visual;
+                        _selectedNodes.Clear();
+                        _selectedNodes.Add(visual);
+                    }
+                    UpdateSelectionVisuals();
+                }
 
                 SyncPreviewEntries();
                 RefreshPreview();
@@ -5112,7 +5205,13 @@ namespace User.PluginSdkDemo.GraphEditor
             };
             foreach (var port in node.Ports)
             {
-                copy.Ports.Add(new GraphPort { Name = port.Name, Kind = port.Kind, SignalSuffix = port.SignalSuffix });
+                copy.Ports.Add(new GraphPort
+                {
+                    Name = port.Name,
+                    Kind = port.Kind,
+                    SignalSuffix = port.SignalSuffix,
+                    Negate = port.Negate
+                });
             }
             _graph.Nodes.Add(copy);
             RebuildSurface();
@@ -5190,9 +5289,10 @@ namespace User.PluginSdkDemo.GraphEditor
             private GraphParam _param;
             private GraphParamUi _paramUi;
             private bool _isSignalPopupOpen;
+            private bool _isNegated;
 
             public PortEditEntry(GraphPort port, bool useSignalOptions, IReadOnlyList<string> signalOptions,
-                bool showParamFields, GraphParam param, bool allowRemove, bool hideParamUiButton, bool nameReadOnly)
+                bool showParamFields, GraphParam param, bool allowRemove, bool hideParamUiButton, bool nameReadOnly, bool showNegate)
             {
                 Port = port;
                 // For Input/Output nodes with signal options, use SignalSuffix for display
@@ -5200,6 +5300,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 _name = useSignalOptions && !string.IsNullOrEmpty(port.SignalSuffix)
                     ? port.SignalSuffix
                     : port.Name;
+                _isNegated = port.Negate;
                 UseSignalOptions = useSignalOptions;
                 SignalOptions = signalOptions ?? Array.Empty<string>();
                 SignalTree = BuildSignalTree(SignalOptions);
@@ -5207,6 +5308,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 HideParamUiButton = hideParamUiButton;
                 AllowRemove = allowRemove;
                 IsNameReadOnly = nameReadOnly;
+                ShowNegate = showNegate;
                 _param = param;
                 _paramUi = EnsureParamUi();
                 SyncParamText();
@@ -5223,6 +5325,7 @@ namespace User.PluginSdkDemo.GraphEditor
             public bool HideParamUiButton { get; }
             public bool AllowRemove { get; }
             public bool IsNameReadOnly { get; }
+            public bool ShowNegate { get; }
             public bool IsSignalPopupOpen
             {
                 get => _isSignalPopupOpen;
@@ -5234,6 +5337,25 @@ namespace User.PluginSdkDemo.GraphEditor
                     }
                     _isSignalPopupOpen = value;
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSignalPopupOpen)));
+                }
+            }
+
+            public bool IsNegated
+            {
+                get => _isNegated;
+                set
+                {
+                    if (_isNegated == value)
+                    {
+                        return;
+                    }
+                    _isNegated = value;
+                    if (Port != null)
+                    {
+                        Port.Negate = value;
+                    }
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsNegated)));
+                    NegateChanged?.Invoke(this, EventArgs.Empty);
                 }
             }
 
@@ -5532,6 +5654,7 @@ namespace User.PluginSdkDemo.GraphEditor
             public event PropertyChangedEventHandler PropertyChanged;
             public event EventHandler NameChanged;
             public event EventHandler ParamChanged;
+            public event EventHandler NegateChanged;
 
             private static bool TryParse(string text, out double value)
             {

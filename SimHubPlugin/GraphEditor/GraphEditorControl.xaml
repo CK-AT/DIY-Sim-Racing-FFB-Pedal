@@ -122,6 +122,18 @@
                             </Style>
                         </Button.Style>
                     </Button>
+                    <ToggleButton Content="-"
+                                  Margin="6,0,0,0"
+                                  Width="22"
+                                  Height="22"
+                                  Background="#1E1E1E"
+                                  Foreground="#CCCCCC"
+                                  BorderBrush="#4A4A4A"
+                                  BorderThickness="1"
+                                  Padding="0"
+                                  ToolTip="Negate input"
+                                  IsChecked="{Binding IsNegated, Mode=TwoWay}"
+                                  Visibility="{Binding ShowNegate, Converter={StaticResource BoolToVisibility}}" />
                     <Button Content="×"
                             Margin="6,0,0,0"
                             Width="22"

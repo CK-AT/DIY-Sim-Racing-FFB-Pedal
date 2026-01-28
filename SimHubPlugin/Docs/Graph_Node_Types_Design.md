@@ -120,6 +120,7 @@ public sealed class GraphPort
 {
     // ... existing ...
     public string SignalSuffix { get; set; }  // e.g., "Speed.IAS"
+    public bool Negate { get; set; }          // Per-input negate flag for Op add/mul
 }
 ```
 
@@ -551,13 +552,15 @@ else if (kind == GraphNodeKind.Op)
 - Ports are **fixed** for sub/div/abs/neg/clamp/lerp and **variadic** for add/mul/min/max.
 - Variadic ops can add/remove input ports from the inspector; names auto-normalize to a, b, c, ...
 - Port names: "a", "b" (and "min", "max", "t" for clamp/lerp); output port uses the formula label (e.g., "a+b", "a*b", "-a"). Variadic ops expand the formula to match the current inputs (e.g., "a+b+c", "min(a,b,c)").
+- Add/mul input ports can be negated per port; the inspector shows a negate toggle and the output label reflects negation (e.g., "a+b-c", "a*b*-c").
 
 **Runtime Conversion** ([GraphRuntimeConverter.cs:26-36](SimHubPlugin/GraphEditor/GraphRuntimeConverter.cs#L26-L36)):
 - Op string mapped to OpType enum
 - Input ports converted to Args list (ordered)
+- Per-input negate flags captured for add/mul inputs (aligned with Args)
 
 **Evaluation** ([GraphEvaluator.cs:104-166](SimHubPlugin/GraphTest/GraphEvaluator.cs#L104-L166)):
-Variadic ops (add/mul/min/max) fold across all connected inputs. Missing inputs default to 0.0, so single-input add passes through while single-input mul/min/max compare against 0.0.
+Variadic ops (add/mul/min/max) fold across all connected inputs. Missing inputs default to 0.0, so single-input add passes through while single-input mul/min/max compare against 0.0. Add/mul apply per-input negate flags before folding.
 ```csharp
 private double EvalOp(GraphNode node)
 {
@@ -1045,7 +1048,8 @@ Proposed visual indication for errors:
 
 ### Phase 2: Op Node Improvements
 - [ ] Auto-configure ports for clamp/lerp (3 inputs)
-- [ ] Consider variadic inputs for add/mul/min/max
+- [x] Variadic inputs for add/mul/min/max
+- [x] Per-input negate toggles for add/mul
 
 ### Phase 3: Input/Output/Param Signal Selection
 

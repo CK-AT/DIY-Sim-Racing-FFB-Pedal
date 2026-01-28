@@ -2,6 +2,57 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-28 19:00:12 +01:00 (CODex)
+Request: implement op input negate flags plan.
+Summary:
+- Added per-input Negate flags for Op add/mul in editor model/serialization, runtime conversion, and evaluators (including compiled).
+- Inspector now shows negate toggles for add/mul inputs and output labels reflect negation; negates clear when op changes away.
+- Added GraphTest coverage for negate evaluation, editor JSON roundtrip, conversion, and validation; updated graph docs including a new FFB_Design_Current summary.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphModel.cs`
+- `SimHubPlugin/GraphEditor/GraphSerializer.cs`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/GraphEditor/GraphRuntimeConverter.cs`
+- `SimHubPlugin/GraphTest/GraphEvaluator.cs`
+- `SimHubPlugin/GraphTest/GraphCompiledEvaluator.cs`
+- `SimHubPlugin/GraphTest/GraphLoader.cs`
+- `SimHubPlugin/GraphTest/GraphSaver.cs`
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+- `SimHubPlugin/Docs/Graph_Node_Types_Design.md`
+- `SimHubPlugin/Docs/FFB_Design_Current.md`
+Open items:
+- Tests not run.
+Commit highlights:
+- Per-input negate flags for Op add/mul across editor/runtime/UI with output label updates.
+- Validation + tests for negate evaluation, conversion, and serialization.
+- Docs updated to describe negate behavior and current FFB graph summary.
+
+## 2026-01-28 18:46:39 +01:00 (CODex)
+Request: add AGENTS.md suggestion about per-port metadata updates.
+Summary:
+- Added an always-on rule to update GraphPortDto + clipboard serialization and add GraphTest roundtrip coverage when introducing per-port metadata.
+Key files:
+- `AGENTS.md`
+Open items:
+- None.
+Commit highlights:
+- AGENTS rule added for per-port metadata serialization + test coverage.
+
+## 2026-01-28 18:43:41 +01:00 (CODex)
+Request: create a planning document for per-input negate flags on Op nodes.
+Summary:
+- Added a plan covering model/serialization/runtime/UI/test updates for add/mul negate flags.
+- Documented output label updates, validation rules, and test coverage.
+Key files:
+- `SimHubPlugin/Docs/plans/13_Op_Input_Negate_Flags_Plan.md`
+Open items:
+- None.
+Commit highlights:
+- Planning doc for per-input negate flags on Op nodes (add/mul) ready for implementation handoff.
+
 ## 2026-01-28 17:34:26 +01:00 (CODex)
 Request: update op output port labels to reflect input count.
 Summary:

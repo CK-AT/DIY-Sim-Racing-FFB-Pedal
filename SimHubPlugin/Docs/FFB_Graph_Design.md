@@ -23,7 +23,7 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
   - Input: pulls a named input value.
   - Param: pulls a tunable parameter.
   - Const: constant numeric value.
-  - Op: arithmetic operations (add/sub/mul/div/min/max/abs/neg/clamp/lerp) with output ports labeled by formula; add/mul/min/max accept variable input counts and expand the output label to match (e.g., "a+b+c").
+  - Op: arithmetic operations (add/sub/mul/div/min/max/abs/neg/clamp/lerp) with output ports labeled by formula; add/mul/min/max accept variable input counts and expand the output label to match (e.g., "a+b+c"). Add/mul inputs can be negated per-port and the output label reflects negation (e.g., "a+b-c", "a*b*-c").
   - Func: known functions (qhat_eff, torque_norm, rpm_norm, assist_loss).
   - Include: references another graph by path or embedded content.
   - Output: exposes a named output.

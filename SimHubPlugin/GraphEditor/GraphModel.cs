@@ -101,6 +101,11 @@ namespace User.PluginSdkDemo.GraphEditor
         /// For Param nodes, this is freeform.
         /// </summary>
         public string SignalSuffix { get; set; } = "";
+
+        /// <summary>
+        /// Per-input negation flag for Op nodes (only meaningful on Op input ports).
+        /// </summary>
+        public bool Negate { get; set; }
     }
 
     public sealed class GraphLink

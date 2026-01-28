@@ -38,6 +38,7 @@ namespace DiyFfb.GraphTest
         public OpType Op;
         public string Func = "";
         public List<string> Args = new List<string>();
+        public List<bool> ArgNegate = new List<bool>();
         public string Src = "";
         public string Path = "";
         public Dictionary<string, string> InputMap = new Dictionary<string, string>();
@@ -144,11 +145,11 @@ namespace DiyFfb.GraphTest
                 case OpType.Add:
                 {
                     if (node.Args.Count == 0) return 0.0;
-                    if (node.Args.Count == 1) return Resolve(node.Args[0]);
+                    if (node.Args.Count == 1) return ResolveArg(node, 0);
                     double sum = 0.0;
-                    foreach (var arg in node.Args)
+                    for (int i = 0; i < node.Args.Count; i++)
                     {
-                        sum += Resolve(arg);
+                        sum += ResolveArg(node, i);
                     }
                     return sum;
                 }
@@ -162,10 +163,10 @@ namespace DiyFfb.GraphTest
                 {
                     if (node.Args.Count == 0) return 0.0;
                     if (node.Args.Count == 1) return 0.0;
-                    double product = Resolve(node.Args[0]);
+                    double product = ResolveArg(node, 0);
                     for (int i = 1; i < node.Args.Count; i++)
                     {
-                        product *= Resolve(node.Args[i]);
+                        product *= ResolveArg(node, i);
                     }
                     return product;
                 }
@@ -399,6 +400,21 @@ namespace DiyFfb.GraphTest
             }
 
             return result;
+        }
+
+        private double ResolveArg(GraphNode node, int index)
+        {
+            if (node == null || index < 0 || index >= node.Args.Count)
+            {
+                return 0.0;
+            }
+
+            double value = Resolve(node.Args[index]);
+            if (index < node.ArgNegate.Count && node.ArgNegate[index])
+            {
+                value = -value;
+            }
+            return value;
         }
     }
 }

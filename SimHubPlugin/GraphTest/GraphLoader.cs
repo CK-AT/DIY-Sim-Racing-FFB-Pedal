@@ -60,6 +60,10 @@ namespace DiyFfb.GraphTest
                     {
                         graphNode.Args.AddRange(node.Args);
                     }
+                    if (node.ArgNegate != null)
+                    {
+                        graphNode.ArgNegate.AddRange(node.ArgNegate);
+                    }
                     if (node.Inline != null)
                     {
                         graphNode.InlineGraph = BuildDefinitionFromDto(node.Inline);
@@ -117,6 +121,10 @@ namespace DiyFfb.GraphTest
                     if (node.Args != null)
                     {
                         graphNode.Args.AddRange(node.Args);
+                    }
+                    if (node.ArgNegate != null)
+                    {
+                        graphNode.ArgNegate.AddRange(node.ArgNegate);
                     }
                     if (node.Inputs != null)
                     {
@@ -335,6 +343,18 @@ namespace DiyFfb.GraphTest
                             result.Warnings.Add($"Op node '{node.Id}' clamp bounds are inverted (min > max).");
                         }
                     }
+
+                    if (node.ArgNegate.Count > 0)
+                    {
+                        if (node.ArgNegate.Count != node.Args.Count)
+                        {
+                            result.Errors.Add($"Op node '{node.Id}' negate list count ({node.ArgNegate.Count}) does not match args count ({node.Args.Count}).");
+                        }
+                        if (node.Op != OpType.Add && node.Op != OpType.Mul)
+                        {
+                            result.Errors.Add($"Op node '{node.Id}' uses negate flags with unsupported op '{node.Op}'.");
+                        }
+                    }
                 }
             }
 
@@ -388,6 +408,7 @@ namespace DiyFfb.GraphTest
         public OpType Op { get; set; }
         public string Func { get; set; } = string.Empty;
         public List<string> Args { get; set; } = new List<string>();
+        public List<bool> ArgNegate { get; set; } = new List<bool>();
         public string Src { get; set; } = string.Empty;
         public string Path { get; set; } = string.Empty;
         public Dictionary<string, string> Inputs { get; set; } = new Dictionary<string, string>();

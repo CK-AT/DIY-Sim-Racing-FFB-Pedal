@@ -13,6 +13,7 @@ namespace DiyFfb.GraphTest
             public int Index;
             public int[] ArgIndices = Array.Empty<int>();
             public bool[] ArgIsExtra = Array.Empty<bool>();
+            public bool[] ArgNegate = Array.Empty<bool>();
             public int SrcIndex = -1;
             public bool SrcIsExtra;
         }
@@ -172,12 +173,15 @@ namespace DiyFfb.GraphTest
 
             var indices = new int[node.Node.Args.Count];
             var extras = new bool[node.Node.Args.Count];
+            var negates = new bool[node.Node.Args.Count];
             for (int i = 0; i < node.Node.Args.Count; i++)
             {
                 BuildArgRef(node.Node.Args[i], out indices[i], out extras[i]);
+                negates[i] = i < node.Node.ArgNegate.Count && node.Node.ArgNegate[i];
             }
             node.ArgIndices = indices;
             node.ArgIsExtra = extras;
+            node.ArgNegate = negates;
         }
 
         private void BuildSrc(CompiledNode node)
@@ -249,11 +253,11 @@ namespace DiyFfb.GraphTest
                 case OpType.Add:
                 {
                     if (node.ArgIndices.Length == 0) return 0.0;
-                    if (node.ArgIndices.Length == 1) return Resolve(node.ArgIndices[0], node.ArgIsExtra[0]);
+                    if (node.ArgIndices.Length == 1) return ResolveArg(node, 0);
                     double sum = 0.0;
                     for (int i = 0; i < node.ArgIndices.Length; i++)
                     {
-                        sum += Resolve(node.ArgIndices[i], node.ArgIsExtra[i]);
+                        sum += ResolveArg(node, i);
                     }
                     return sum;
                 }
@@ -267,10 +271,10 @@ namespace DiyFfb.GraphTest
                 {
                     if (node.ArgIndices.Length == 0) return 0.0;
                     if (node.ArgIndices.Length == 1) return 0.0;
-                    double product = Resolve(node.ArgIndices[0], node.ArgIsExtra[0]);
+                    double product = ResolveArg(node, 0);
                     for (int i = 1; i < node.ArgIndices.Length; i++)
                     {
-                        product *= Resolve(node.ArgIndices[i], node.ArgIsExtra[i]);
+                        product *= ResolveArg(node, i);
                     }
                     return product;
                 }
@@ -654,6 +658,16 @@ namespace DiyFfb.GraphTest
             }
 
             return result;
+        }
+
+        private double ResolveArg(CompiledNode node, int index)
+        {
+            double value = Resolve(node.ArgIndices[index], node.ArgIsExtra[index]);
+            if (index < node.ArgNegate.Length && node.ArgNegate[index])
+            {
+                value = -value;
+            }
+            return value;
         }
     }
 }

@@ -592,14 +592,16 @@ namespace User.PluginSdkDemo.GraphEditor
         public string Name { get; set; } = "";
         public GraphPortKind Kind { get; set; }
         public string SignalSuffix { get; set; } = "";
+        public bool Negate { get; set; }
 
         // Conditional serialization: Name for non-signal ports, SignalSuffix for signal ports
         public bool ShouldSerializeName() => string.IsNullOrEmpty(SignalSuffix);
         public bool ShouldSerializeSignalSuffix() => !string.IsNullOrEmpty(SignalSuffix);
+        public bool ShouldSerializeNegate() => Negate;
 
         public static GraphPortDto FromModel(GraphPort port, bool isSignalNode)
         {
-            var dto = new GraphPortDto { Kind = port.Kind };
+            var dto = new GraphPortDto { Kind = port.Kind, Negate = port.Negate };
             if (isSignalNode)
             {
                 // Signal ports use SignalSuffix; Name is derived
@@ -631,6 +633,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 // Non-signal ports: Name is canonical
                 port.Name = Name ?? "";
             }
+            port.Negate = Negate;
             return port;
         }
     }

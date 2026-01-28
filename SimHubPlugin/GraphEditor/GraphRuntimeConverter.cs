@@ -82,6 +82,7 @@ namespace User.PluginSdkDemo.GraphEditor
                         if (TryGetInputSource(nodes, graph.Links, node.Id, port.Name, out var source))
                         {
                             runtimeNode.Args.Add(source);
+                            runtimeNode.ArgNegate.Add(IsNegateSupportedOp(node.Op) && port.Negate);
                         }
                     }
                 }
@@ -197,6 +198,20 @@ namespace User.PluginSdkDemo.GraphEditor
                 case "clamp": return OpType.Clamp;
                 case "lerp": return OpType.Lerp;
                 default: return OpType.Add;
+            }
+        }
+
+        private static bool IsNegateSupportedOp(string op)
+        {
+            switch ((op ?? "").Trim().ToLowerInvariant())
+            {
+                case "add":
+                case "+":
+                case "mul":
+                case "*":
+                    return true;
+                default:
+                    return false;
             }
         }
 
