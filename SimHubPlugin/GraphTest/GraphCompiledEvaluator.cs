@@ -244,27 +244,93 @@ namespace DiyFfb.GraphTest
 
         private double EvalOp(CompiledNode node)
         {
-            double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
-            double b = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
-
             switch (node.Node.Op)
             {
-                case OpType.Add: return a + b;
-                case OpType.Sub: return a - b;
-                case OpType.Mul: return a * b;
-                case OpType.Div: return Math.Abs(b) < 1e-9 ? 0.0 : a / b;
-                case OpType.Min: return Math.Min(a, b);
-                case OpType.Max: return Math.Max(a, b);
-                case OpType.Abs: return Math.Abs(a);
-                case OpType.Neg: return -a;
+                case OpType.Add:
+                {
+                    if (node.ArgIndices.Length == 0) return 0.0;
+                    if (node.ArgIndices.Length == 1) return Resolve(node.ArgIndices[0], node.ArgIsExtra[0]);
+                    double sum = 0.0;
+                    for (int i = 0; i < node.ArgIndices.Length; i++)
+                    {
+                        sum += Resolve(node.ArgIndices[i], node.ArgIsExtra[i]);
+                    }
+                    return sum;
+                }
+                case OpType.Sub:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    double b = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
+                    return a - b;
+                }
+                case OpType.Mul:
+                {
+                    if (node.ArgIndices.Length == 0) return 0.0;
+                    if (node.ArgIndices.Length == 1) return 0.0;
+                    double product = Resolve(node.ArgIndices[0], node.ArgIsExtra[0]);
+                    for (int i = 1; i < node.ArgIndices.Length; i++)
+                    {
+                        product *= Resolve(node.ArgIndices[i], node.ArgIsExtra[i]);
+                    }
+                    return product;
+                }
+                case OpType.Div:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    double b = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
+                    return Math.Abs(b) < 1e-9 ? 0.0 : a / b;
+                }
+                case OpType.Min:
+                {
+                    if (node.ArgIndices.Length == 0) return 0.0;
+                    if (node.ArgIndices.Length == 1)
+                    {
+                        double a = Resolve(node.ArgIndices[0], node.ArgIsExtra[0]);
+                        return Math.Min(a, 0.0);
+                    }
+                    double value = Resolve(node.ArgIndices[0], node.ArgIsExtra[0]);
+                    for (int i = 1; i < node.ArgIndices.Length; i++)
+                    {
+                        value = Math.Min(value, Resolve(node.ArgIndices[i], node.ArgIsExtra[i]));
+                    }
+                    return value;
+                }
+                case OpType.Max:
+                {
+                    if (node.ArgIndices.Length == 0) return 0.0;
+                    if (node.ArgIndices.Length == 1)
+                    {
+                        double a = Resolve(node.ArgIndices[0], node.ArgIsExtra[0]);
+                        return Math.Max(a, 0.0);
+                    }
+                    double value = Resolve(node.ArgIndices[0], node.ArgIsExtra[0]);
+                    for (int i = 1; i < node.ArgIndices.Length; i++)
+                    {
+                        value = Math.Max(value, Resolve(node.ArgIndices[i], node.ArgIsExtra[i]));
+                    }
+                    return value;
+                }
+                case OpType.Abs:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    return Math.Abs(a);
+                }
+                case OpType.Neg:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    return -a;
+                }
                 case OpType.Clamp:
                 {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
                     double min = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
                     double max = node.ArgIndices.Length > 2 ? Resolve(node.ArgIndices[2], node.ArgIsExtra[2]) : 1.0;
                     return Math.Min(max, Math.Max(min, a));
                 }
                 case OpType.Lerp:
                 {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    double b = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
                     double t = node.ArgIndices.Length > 2 ? Resolve(node.ArgIndices[2], node.ArgIsExtra[2]) : 0.0;
                     return a + (b - a) * t;
                 }

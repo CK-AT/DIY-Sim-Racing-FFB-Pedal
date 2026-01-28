@@ -176,6 +176,14 @@ namespace DiyFfb.GraphTest
             { OpType.Lerp, 3 }
         };
 
+        private static readonly HashSet<OpType> VariadicOps = new HashSet<OpType>
+        {
+            OpType.Add,
+            OpType.Mul,
+            OpType.Min,
+            OpType.Max
+        };
+
         public static GraphValidationResult Validate(GraphDefinition graph)
         {
             var result = new GraphValidationResult();
@@ -305,6 +313,13 @@ namespace DiyFfb.GraphTest
                     if (!OpArgCounts.TryGetValue(node.Op, out var expected))
                     {
                         result.Errors.Add($"Op node '{node.Id}' uses unsupported op '{node.Op}'.");
+                    }
+                    else if (VariadicOps.Contains(node.Op))
+                    {
+                        if (node.Args.Count < expected)
+                        {
+                            result.Errors.Add($"Op node '{node.Id}' expects at least {expected} args but has {node.Args.Count}.");
+                        }
                     }
                     else if (node.Args.Count != expected)
                     {

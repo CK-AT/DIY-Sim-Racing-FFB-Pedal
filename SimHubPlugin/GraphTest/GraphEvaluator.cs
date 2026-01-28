@@ -139,27 +139,93 @@ namespace DiyFfb.GraphTest
 
         private double EvalOp(GraphNode node)
         {
-            double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
-            double b = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
-
             switch (node.Op)
             {
-                case OpType.Add: return a + b;
-                case OpType.Sub: return a - b;
-                case OpType.Mul: return a * b;
-                case OpType.Div: return Math.Abs(b) < 1e-9 ? 0.0 : a / b;
-                case OpType.Min: return Math.Min(a, b);
-                case OpType.Max: return Math.Max(a, b);
-                case OpType.Abs: return Math.Abs(a);
-                case OpType.Neg: return -a;
+                case OpType.Add:
+                {
+                    if (node.Args.Count == 0) return 0.0;
+                    if (node.Args.Count == 1) return Resolve(node.Args[0]);
+                    double sum = 0.0;
+                    foreach (var arg in node.Args)
+                    {
+                        sum += Resolve(arg);
+                    }
+                    return sum;
+                }
+                case OpType.Sub:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    double b = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
+                    return a - b;
+                }
+                case OpType.Mul:
+                {
+                    if (node.Args.Count == 0) return 0.0;
+                    if (node.Args.Count == 1) return 0.0;
+                    double product = Resolve(node.Args[0]);
+                    for (int i = 1; i < node.Args.Count; i++)
+                    {
+                        product *= Resolve(node.Args[i]);
+                    }
+                    return product;
+                }
+                case OpType.Div:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    double b = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
+                    return Math.Abs(b) < 1e-9 ? 0.0 : a / b;
+                }
+                case OpType.Min:
+                {
+                    if (node.Args.Count == 0) return 0.0;
+                    if (node.Args.Count == 1)
+                    {
+                        double a = Resolve(node.Args[0]);
+                        return Math.Min(a, 0.0);
+                    }
+                    double value = Resolve(node.Args[0]);
+                    for (int i = 1; i < node.Args.Count; i++)
+                    {
+                        value = Math.Min(value, Resolve(node.Args[i]));
+                    }
+                    return value;
+                }
+                case OpType.Max:
+                {
+                    if (node.Args.Count == 0) return 0.0;
+                    if (node.Args.Count == 1)
+                    {
+                        double a = Resolve(node.Args[0]);
+                        return Math.Max(a, 0.0);
+                    }
+                    double value = Resolve(node.Args[0]);
+                    for (int i = 1; i < node.Args.Count; i++)
+                    {
+                        value = Math.Max(value, Resolve(node.Args[i]));
+                    }
+                    return value;
+                }
+                case OpType.Abs:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    return Math.Abs(a);
+                }
+                case OpType.Neg:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    return -a;
+                }
                 case OpType.Clamp:
                 {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
                     double min = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
                     double max = node.Args.Count > 2 ? Resolve(node.Args[2]) : 1.0;
                     return Math.Min(max, Math.Max(min, a));
                 }
                 case OpType.Lerp:
                 {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    double b = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
                     double t = node.Args.Count > 2 ? Resolve(node.Args[2]) : 0.0;
                     return a + (b - a) * t;
                 }

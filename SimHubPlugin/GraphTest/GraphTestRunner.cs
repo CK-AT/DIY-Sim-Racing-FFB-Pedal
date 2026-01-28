@@ -39,6 +39,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Include with multiple outputs", TestIncludeMultipleOutputs));
             results.Add(TestRunner.RunTest("Cyclic include detection", TestCyclicIncludeDetection));
             results.Add(TestRunner.RunTest("Op arg count validation", TestOpArgValidation));
+            results.Add(TestRunner.RunTest("Variadic op evaluation", TestVariadicOpEvaluation));
             results.Add(TestRunner.RunTest("Neg op evaluation", TestNegOpEvaluation));
             results.Add(TestRunner.RunTest("Clamp bound order warning", TestClampBoundOrderWarning));
             results.Add(TestRunner.RunTest("Graph output names unique", TestGraphOutputNamesUnique));
@@ -300,6 +301,46 @@ namespace DiyFfb.GraphTest
             graph.Nodes["out_bad"] = new GraphNode { Id = "out_bad", Type = NodeType.Output, Name = "bad", Src = "bad_op" };
             var validation = GraphValidator.Validate(graph);
             return !validation.IsValid;
+        }
+
+        private static bool TestVariadicOpEvaluation()
+        {
+            var graph = new GraphDefinition { Version = 1 };
+            graph.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 2.0 };
+            graph.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 3.0 };
+            graph.Nodes["c"] = new GraphNode { Id = "c", Type = NodeType.Const, ConstValue = 4.0 };
+            graph.Nodes["sum"] = new GraphNode
+            {
+                Id = "sum",
+                Type = NodeType.Op,
+                Op = OpType.Add,
+                Args = { "a", "b", "c" }
+            };
+            graph.Nodes["product"] = new GraphNode
+            {
+                Id = "product",
+                Type = NodeType.Op,
+                Op = OpType.Mul,
+                Args = { "a", "b", "c" }
+            };
+            graph.Nodes["out_sum"] = new GraphNode { Id = "out_sum", Type = NodeType.Output, Name = "sum", Src = "sum" };
+            graph.Nodes["out_product"] = new GraphNode { Id = "out_product", Type = NodeType.Output, Name = "product", Src = "product" };
+
+            var outputs = new GraphEvaluator(graph).Evaluate(null, null);
+            if (!outputs.TryGetValue("sum", out var sum) || Math.Abs(sum - 9.0) > 1e-6)
+            {
+                return false;
+            }
+            if (!outputs.TryGetValue("product", out var product) || Math.Abs(product - 24.0) > 1e-6)
+            {
+                return false;
+            }
+
+            var compiledOutputs = new GraphCompiledEvaluator(graph).Evaluate(null, null);
+            return compiledOutputs.TryGetValue("sum", out var compiledSum) &&
+                   Math.Abs(compiledSum - 9.0) < 1e-6 &&
+                   compiledOutputs.TryGetValue("product", out var compiledProduct) &&
+                   Math.Abs(compiledProduct - 24.0) < 1e-6;
         }
 
         private static bool TestNegOpEvaluation()

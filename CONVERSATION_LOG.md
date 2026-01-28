@@ -2,6 +2,57 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-28 17:34:26 +01:00 (CODex)
+Request: update op output port labels to reflect input count.
+Summary:
+- Variadic op output labels now expand based on current input ports (e.g., a+b+c, min(a,b,c)).
+- Updated graph docs to note dynamic output labels for variadic ops.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+- `SimHubPlugin/Docs/Graph_Node_Types_Design.md`
+Open items:
+- None.
+Commit highlights:
+- Variadic op output labels match active input count.
+
+## 2026-01-28 17:09:54 +01:00 (CODex)
+Request: run the tests.
+Summary:
+- Built GraphTest (net48) and ran the test runner.
+- All 54 GraphTest cases passed.
+- Build emitted existing MSB3277/CS warnings from SimHub references and project files.
+Key files:
+- `SimHubPlugin/GraphTest/GraphTest.csproj`
+Open items:
+- None.
+Commit highlights:
+- GraphTest runner completed with 54/54 passing.
+
+## 2026-01-28 17:01:41 +01:00 (CODex)
+Request: tackle op nodes with a variable number of inputs.
+Summary:
+- Added variadic op inputs for add/mul/min/max with inspector add/remove and normalized port naming.
+- Updated runtime evaluators + validation for variadic ops and added coverage.
+- Refreshed graph design/progress documentation for variadic op support.
+Key files:
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml`
+- `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`
+- `SimHubPlugin/GraphTest/GraphEvaluator.cs`
+- `SimHubPlugin/GraphTest/GraphCompiledEvaluator.cs`
+- `SimHubPlugin/GraphTest/GraphLoader.cs`
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+- `SimHubPlugin/Docs/FFB_Graph_Design.md`
+- `SimHubPlugin/Docs/FFB_Graph_Progress.md`
+- `SimHubPlugin/Docs/Graph_Node_Types_Design.md`
+Open items:
+- None.
+Commit highlights:
+- Variadic op inputs supported in editor with add/remove and normalized labels.
+- Runtime + compiled evaluators fold variadic add/mul/min/max with validation updates.
+- Docs/tests updated to reflect variadic op behavior.
+
 ## 2026-01-28 16:41:42 +01:00 (CODex)
 Request: run GraphTest suite.
 Summary:

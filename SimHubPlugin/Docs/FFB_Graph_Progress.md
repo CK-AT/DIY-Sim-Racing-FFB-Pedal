@@ -22,6 +22,7 @@ Status: living progress document for graph editor/runtime integration.
 - Op/Func nodes default their operation label and refresh titles on changes.
 - Added neg op (unary) with a -> -a ports.
 - Op nodes now label their output port with the operation formula.
+- Op nodes support variadic inputs for add/mul/min/max (Add Input in inspector, normalized port naming, validation + runtime support, output label expands to match input count).
 - Edge rewiring supports dragging to a new source (via context menu).
 - Input ports now enforce a single incoming edge.
 - Node sizing now uses measured label widths for tighter layouts.

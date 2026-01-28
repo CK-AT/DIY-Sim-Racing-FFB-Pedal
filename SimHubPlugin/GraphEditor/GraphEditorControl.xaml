@@ -12,12 +12,14 @@
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
         <local:SignalGroupOptionsConverter x:Key="SignalGroupOptionsConverter" />
         <local:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+        <local:OpVariadicVisibilityConverter x:Key="OpVariadicVisibilityConverter" />
         <DataTemplate x:Key="PortEntryTemplate">
             <DockPanel Margin="0,2,0,2">
                 <TextBlock Text="{Binding KindLabel}" Foreground="#CCCCCC" FontSize="10" Width="54" />
                 <StackPanel Orientation="Horizontal">
                     <TextBox
                              Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
+                             IsReadOnly="{Binding IsNameReadOnly}"
                              Background="#1E1E1E"
                              Foreground="White"
                              BorderBrush="#4A4A4A"
@@ -178,6 +180,20 @@
                           ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=OpChoices}"
                           SelectedItem="{Binding Op, Mode=OneWay}"
                           SelectionChanged="InspectorOp_SelectionChanged" />
+                <TextBlock Text="Ports" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <Button x:Name="ButtonAddOpInputTemplate"
+                            Content="Add Input"
+                            Background="#1E1E1E"
+                            Foreground="White"
+                            BorderBrush="#4A4A4A"
+                            BorderThickness="1"
+                            Padding="2,2,2,2"
+                            Visibility="{Binding Op, Converter={StaticResource OpVariadicVisibilityConverter}}"
+                            Click="ButtonAddOpInput_Click" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=PortEntries}"
+                              ItemTemplate="{StaticResource PortEntryTemplate}" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate x:Key="InspectorFuncTemplate">

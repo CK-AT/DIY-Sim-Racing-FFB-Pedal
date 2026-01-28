@@ -1618,7 +1618,10 @@ namespace User.PluginSdkDemo.GraphEditor
             InspectorContent.Content = node;
             InspectorContent.Visibility = UsesTemplateInspector(node) ? Visibility.Visible : Visibility.Collapsed;
             TextNoSelection.Visibility = Visibility.Collapsed;
-            if (UsesTemplateInspector(node) && (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output || node.Kind == GraphNodeKind.Param))
+            if (UsesTemplateInspector(node) && (node.Kind == GraphNodeKind.Input ||
+                                                node.Kind == GraphNodeKind.Output ||
+                                                node.Kind == GraphNodeKind.Param ||
+                                                node.Kind == GraphNodeKind.Op))
             {
                 SyncPortEntries(node);
             }
@@ -3382,6 +3385,39 @@ namespace User.PluginSdkDemo.GraphEditor
             AddPort(GraphPortKind.Output, "out");
         }
 
+        private void ButtonAddOpInput_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null)
+            {
+                return;
+            }
+
+            var node = _selectedNode.Node;
+            if (node.Kind != GraphNodeKind.Op || !IsVariadicOp(node.Op))
+            {
+                return;
+            }
+
+            int inputCount = node.Ports.Count(p => p.Kind == GraphPortKind.Input);
+            string name = GetVariadicOpInputName(inputCount);
+            var port = new GraphPort { Name = name, Kind = GraphPortKind.Input };
+            port.Name = EnsureUniquePortName(node, port, port.Name);
+            node.Ports.Add(port);
+
+            EnsureOpPorts(node, node.Op);
+            RebuildSurface();
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+            SyncPortEntries(node);
+            RefreshPreview();
+            GraphChanged?.Invoke();
+        }
+
         private void AddPort(GraphPortKind kind, string baseName)
         {
             if (_selectedNode == null)
@@ -3426,7 +3462,16 @@ namespace User.PluginSdkDemo.GraphEditor
                 return;
             }
 
+            if (node.Kind == GraphNodeKind.Op && !CanRemoveOpPort(node, entry.Port))
+            {
+                return;
+            }
+
             RemovePort(node, entry.Port);
+            if (node.Kind == GraphNodeKind.Op)
+            {
+                EnsureOpPorts(node, node.Op);
+            }
             RebuildSurface();
             // Restore selection after rebuild
             if (_nodeVisuals.TryGetValue(node.Id, out var visual))
@@ -3490,12 +3535,15 @@ namespace User.PluginSdkDemo.GraphEditor
             }
 
             bool changed = false;
-            string outputName = GetOpOutputName(op);
-            bool isNeg = string.Equals(op, "neg", StringComparison.OrdinalIgnoreCase);
             string[] desiredInputs = GetOpInputNames(op);
+            bool isVariadic = IsVariadicOp(op);
+            int minInputs = GetOpMinInputCount(op);
             var inputPorts = node.Ports.Where(p => p.Kind == GraphPortKind.Input).ToList();
             var outputPorts = node.Ports.Where(p => p.Kind == GraphPortKind.Output).ToList();
 
+            string outputName = isVariadic
+                ? GetOpOutputName(op, inputPorts.Select(p => p.Name))
+                : GetOpOutputName(op);
             GraphPort outPort = outputPorts.FirstOrDefault(p => p.Name == outputName);
             if (outPort == null)
             {
@@ -3519,32 +3567,61 @@ namespace User.PluginSdkDemo.GraphEditor
                 changed = true;
             }
 
-            if (isNeg && desiredInputs.Length == 1 && desiredInputs[0] != "a")
+            if (!isVariadic)
             {
-                desiredInputs = new[] { "a" };
-            }
-
-            for (int idx = inputPorts.Count - 1; idx >= desiredInputs.Length; idx--)
-            {
-                RemovePort(node, inputPorts[idx]);
-                inputPorts.RemoveAt(idx);
-                changed = true;
-            }
-
-            for (int idx = 0; idx < desiredInputs.Length; idx++)
-            {
-                if (idx < inputPorts.Count)
+                for (int idx = inputPorts.Count - 1; idx >= desiredInputs.Length; idx--)
                 {
-                    if (!string.Equals(inputPorts[idx].Name, desiredInputs[idx], StringComparison.Ordinal))
+                    RemovePort(node, inputPorts[idx]);
+                    inputPorts.RemoveAt(idx);
+                    changed = true;
+                }
+
+                for (int idx = 0; idx < desiredInputs.Length; idx++)
+                {
+                    if (idx < inputPorts.Count)
                     {
-                        RenamePort(node, inputPorts[idx].Name, desiredInputs[idx]);
-                        inputPorts[idx].Name = desiredInputs[idx];
+                        if (!string.Equals(inputPorts[idx].Name, desiredInputs[idx], StringComparison.Ordinal))
+                        {
+                            RenamePort(node, inputPorts[idx].Name, desiredInputs[idx]);
+                            inputPorts[idx].Name = desiredInputs[idx];
+                            changed = true;
+                        }
+                    }
+                    else
+                    {
+                        node.Ports.Add(new GraphPort { Name = desiredInputs[idx], Kind = GraphPortKind.Input });
                         changed = true;
                     }
                 }
-                else
+            }
+            else
+            {
+                for (int idx = inputPorts.Count; idx < minInputs; idx++)
                 {
-                    node.Ports.Add(new GraphPort { Name = desiredInputs[idx], Kind = GraphPortKind.Input });
+                    node.Ports.Add(new GraphPort { Name = GetVariadicOpInputName(idx), Kind = GraphPortKind.Input });
+                    changed = true;
+                }
+
+                inputPorts = node.Ports.Where(p => p.Kind == GraphPortKind.Input).ToList();
+                for (int idx = 0; idx < inputPorts.Count; idx++)
+                {
+                    string desiredName = GetVariadicOpInputName(idx);
+                    if (!string.Equals(inputPorts[idx].Name, desiredName, StringComparison.Ordinal))
+                    {
+                        RenamePort(node, inputPorts[idx].Name, desiredName);
+                        inputPorts[idx].Name = desiredName;
+                        changed = true;
+                    }
+                }
+            }
+
+            if (isVariadic)
+            {
+                string desiredOutputName = GetOpOutputName(op, node.Ports.Where(p => p.Kind == GraphPortKind.Input).Select(p => p.Name));
+                if (!string.Equals(outPort.Name, desiredOutputName, StringComparison.Ordinal))
+                {
+                    RenamePort(node, outPort.Name, desiredOutputName);
+                    outPort.Name = desiredOutputName;
                     changed = true;
                 }
             }
@@ -3571,9 +3648,52 @@ namespace User.PluginSdkDemo.GraphEditor
             }
         }
 
+        internal static bool IsVariadicOp(string op)
+        {
+            switch (NormalizeOp(op))
+            {
+                case "add":
+                case "mul":
+                case "min":
+                case "max":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static int GetOpMinInputCount(string op)
+        {
+            switch (NormalizeOp(op))
+            {
+                case "abs":
+                case "neg":
+                    return 1;
+                case "clamp":
+                case "lerp":
+                    return 3;
+                default:
+                    return 2;
+            }
+        }
+
+        private static string GetVariadicOpInputName(int index)
+        {
+            if (index < 26)
+            {
+                return ((char)('a' + index)).ToString();
+            }
+            return $"a{index + 1}";
+        }
+
+        private static string NormalizeOp(string op)
+        {
+            return (op ?? "").Trim().ToLowerInvariant();
+        }
+
         private static string GetOpOutputName(string op)
         {
-            switch ((op ?? "").Trim().ToLowerInvariant())
+            switch (NormalizeOp(op))
             {
                 case "add": return "a+b";
                 case "sub": return "a-b";
@@ -3589,9 +3709,37 @@ namespace User.PluginSdkDemo.GraphEditor
             }
         }
 
+        private static string GetOpOutputName(string op, IEnumerable<string> inputs)
+        {
+            string opKey = NormalizeOp(op);
+            var inputList = inputs?.Where(name => !string.IsNullOrWhiteSpace(name)).ToList() ?? new List<string>();
+            if (inputList.Count == 0)
+            {
+                return GetOpOutputName(op);
+            }
+
+            if (opKey == "add")
+            {
+                return inputList.Count == 1 ? inputList[0] : string.Join("+", inputList);
+            }
+
+            if (opKey == "mul")
+            {
+                return inputList.Count == 1 ? inputList[0] : string.Join("*", inputList);
+            }
+
+            if (opKey == "min" || opKey == "max")
+            {
+                string args = string.Join(",", inputList);
+                return $"{opKey}({args})";
+            }
+
+            return GetOpOutputName(op);
+        }
+
         private static string[] GetOpInputNames(string op)
         {
-            switch ((op ?? "").Trim().ToLowerInvariant())
+            switch (NormalizeOp(op))
             {
                 case "abs":
                 case "neg":
@@ -3603,6 +3751,28 @@ namespace User.PluginSdkDemo.GraphEditor
                 default:
                     return new[] { "a", "b" };
             }
+        }
+
+        private static bool CanRemoveOpPort(GraphNode node, GraphPort port)
+        {
+            if (node == null || node.Kind != GraphNodeKind.Op || port == null)
+            {
+                return false;
+            }
+
+            if (!IsVariadicOp(node.Op))
+            {
+                return false;
+            }
+
+            if (port.Kind != GraphPortKind.Input)
+            {
+                return false;
+            }
+
+            int minInputs = GetOpMinInputCount(node.Op);
+            int inputIndex = node.Ports.Where(p => p.Kind == GraphPortKind.Input).ToList().IndexOf(port);
+            return inputIndex >= minInputs;
         }
 
         private void EnsurePort(GraphNode node, GraphPortKind kind, string name)
@@ -3784,6 +3954,10 @@ namespace User.PluginSdkDemo.GraphEditor
             bool isLibraryGraph = _graph != null && _graph.IsLibraryGraph;
 
             string effectiveSignalGroup = GetEffectiveSignalGroup(node);
+            bool isOpNode = node.Kind == GraphNodeKind.Op;
+            bool opVariadic = isOpNode && IsVariadicOp(node.Op);
+            int opMinInputs = isOpNode ? GetOpMinInputCount(node.Op) : 0;
+            var opInputPorts = isOpNode ? node.Ports.Where(p => p.Kind == GraphPortKind.Input).ToList() : null;
             foreach (var port in node.Ports)
             {
                 bool useSignalOptions = false;
@@ -3824,10 +3998,19 @@ namespace User.PluginSdkDemo.GraphEditor
                     }
                 }
 
-                // Include node ports are auto-derived and cannot be removed
                 bool allowRemove = node.Kind != GraphNodeKind.Include;
+                if (isOpNode)
+                {
+                    allowRemove = false;
+                    if (opVariadic && port.Kind == GraphPortKind.Input)
+                    {
+                        int index = opInputPorts.IndexOf(port);
+                        allowRemove = index >= opMinInputs;
+                    }
+                }
                 bool hideParamUiButton = node.Kind == GraphNodeKind.Param;
-                var entry = new PortEditEntry(port, useSignalOptions, signalOptions, showParamFields, param, allowRemove, hideParamUiButton);
+                bool nameReadOnly = node.Kind == GraphNodeKind.Op;
+                var entry = new PortEditEntry(port, useSignalOptions, signalOptions, showParamFields, param, allowRemove, hideParamUiButton, nameReadOnly);
                 entry.NameChanged += OnPortNameChanged;
                 entry.ParamChanged += OnPortParamChanged;
                 _portEntries.Add(entry);
@@ -5009,7 +5192,7 @@ namespace User.PluginSdkDemo.GraphEditor
             private bool _isSignalPopupOpen;
 
             public PortEditEntry(GraphPort port, bool useSignalOptions, IReadOnlyList<string> signalOptions,
-                bool showParamFields, GraphParam param, bool allowRemove, bool hideParamUiButton)
+                bool showParamFields, GraphParam param, bool allowRemove, bool hideParamUiButton, bool nameReadOnly)
             {
                 Port = port;
                 // For Input/Output nodes with signal options, use SignalSuffix for display
@@ -5023,6 +5206,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 ShowParamFields = showParamFields;
                 HideParamUiButton = hideParamUiButton;
                 AllowRemove = allowRemove;
+                IsNameReadOnly = nameReadOnly;
                 _param = param;
                 _paramUi = EnsureParamUi();
                 SyncParamText();
@@ -5038,6 +5222,7 @@ namespace User.PluginSdkDemo.GraphEditor
             public bool ShowParamFields { get; }
             public bool HideParamUiButton { get; }
             public bool AllowRemove { get; }
+            public bool IsNameReadOnly { get; }
             public bool IsSignalPopupOpen
             {
                 get => _isSignalPopupOpen;
@@ -5607,6 +5792,23 @@ namespace User.PluginSdkDemo.GraphEditor
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             return value == null ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public sealed class OpVariadicVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is string op && GraphEditorControl.IsVariadicOp(op))
+            {
+                return Visibility.Visible;
+            }
+            return Visibility.Collapsed;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

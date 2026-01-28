@@ -14,7 +14,7 @@ This document covers all node types in the graph editor, their current implement
 | Output | Graph output signal | 1 in | Yes (inputs) | No |
 | Param | Configurable parameter | 1 out | Yes (outputs) | Yes (widget) |
 | Const | Fixed constant value | 1 out | No | Yes (value) |
-| Op | Math operation | 2 in, 1 out | No (fixed) | Yes (op selector) |
+| Op | Math operation | 2+ in (variadic add/mul/min/max), 1 out | Yes (variadic ops) | Yes (op selector) |
 | Func | Built-in function | varies, 1 out | No (auto) | Yes (func selector) |
 | Include | Subgraph reference | 1 in, 1 out | Yes (both) | Yes (path + ports) |
 
@@ -531,12 +531,12 @@ else if (kind == GraphNodeKind.Op)
 
 | Op | Inputs | Formula | Notes |
 |----|--------|---------|-------|
-| add | a, b | a + b | |
+| add | a, b, ... | a + b + ... | Variadic |
 | sub | a, b | a - b | |
-| mul | a, b | a × b | Default |
+| mul | a, b, ... | a × b × ... | Variadic |
 | div | a, b | a / b | Safe: returns 0 if b < 1e-9 |
-| min | a, b | min(a, b) | |
-| max | a, b | max(a, b) | |
+| min | a, b, ... | min(a, b, ...) | Variadic |
+| max | a, b, ... | max(a, b, ...) | Variadic |
 | abs | a | \|a\| | Single input |
 | neg | a | -a | Single input |
 | clamp | a, min, max | clamp(a, min, max) | Three inputs |
@@ -545,18 +545,19 @@ else if (kind == GraphNodeKind.Op)
 **Inspector Panel** ([GraphEditorControl.xaml.cs:1942, 1952](SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs#L1942)):
 - Title field
 - EditOp ComboBox (operation selector)
-- Port list (read-only, fixed based on operation)
+- Port list (read-only names; Add Input for variadic ops)
 
 **Port Configuration**:
-- Ports are **fixed** based on operation type
-- Cannot add/remove ports manually
-- Port names: "a", "b" (and "min", "max", "t" for clamp/lerp); output port uses the formula label (e.g., "a+b", "a*b", "-a").
+- Ports are **fixed** for sub/div/abs/neg/clamp/lerp and **variadic** for add/mul/min/max.
+- Variadic ops can add/remove input ports from the inspector; names auto-normalize to a, b, c, ...
+- Port names: "a", "b" (and "min", "max", "t" for clamp/lerp); output port uses the formula label (e.g., "a+b", "a*b", "-a"). Variadic ops expand the formula to match the current inputs (e.g., "a+b+c", "min(a,b,c)").
 
 **Runtime Conversion** ([GraphRuntimeConverter.cs:26-36](SimHubPlugin/GraphEditor/GraphRuntimeConverter.cs#L26-L36)):
 - Op string mapped to OpType enum
 - Input ports converted to Args list (ordered)
 
 **Evaluation** ([GraphEvaluator.cs:104-166](SimHubPlugin/GraphTest/GraphEvaluator.cs#L104-L166)):
+Variadic ops (add/mul/min/max) fold across all connected inputs. Missing inputs default to 0.0, so single-input add passes through while single-input mul/min/max compare against 0.0.
 ```csharp
 private double EvalOp(GraphNode node)
 {
@@ -581,7 +582,7 @@ private double EvalOp(GraphNode node)
 #### 1. Dynamic Ports for Clamp/Lerp
 Currently clamp/lerp use the default 2-input port setup. Should auto-configure to 3 inputs.
 
-**Status**: [ ] Not implemented - ports don't auto-adjust for operation
+**Status**: [x] Implemented
 
 #### 2. Variadic Inputs
 Allow add, mul, min, max to accept N inputs.
@@ -597,7 +598,7 @@ Allow add, mul, min, max to accept N inputs.
 └─────────────────┘
 ```
 
-**Status**: [ ] Not implemented
+**Status**: [x] Implemented
 
 #### 3. Operation Preview
 Show intermediate values on ports during preview.
@@ -1108,4 +1109,7 @@ Example format:
 
 - ~~[Input, Output]: Group dropdown replacing freeform title~~ → Integrated into Input §1, Output §1
 - ~~[Param]: Freeform group dropdown with output name prohibition~~ → Integrated into Param §1
+
+
+
 
