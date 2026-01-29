@@ -53,6 +53,9 @@ namespace User.PluginSdkDemo
             inputs["XPlane.Speed.IAS"] = packet.IasKts;
             inputs["XPlane.Angle.Alpha"] = packet.AlphaDeg;
             inputs["XPlane.Angle.Beta"] = packet.BetaDeg;
+            inputs["XPlane.Trim.Elevator"] = packet.ElevTrimNorm;
+            inputs["XPlane.Trim.Aileron"] = packet.AilTrimNorm;
+            inputs["XPlane.Trim.Rudder"] = packet.RudTrimNorm;
             inputs["XPlane.Rate.Roll"] = packet.PRate;   // p = roll rate
             inputs["XPlane.Rate.Pitch"] = packet.QRate;  // q = pitch rate
             inputs["XPlane.Rate.Yaw"] = packet.RRate;    // r = yaw rate

@@ -12,6 +12,9 @@ These map to X-Plane telemetry and system values.
 - `XPlane.Speed.IAS` (kts) 
 - `XPlane.Angle.Alpha` (deg)
 - `XPlane.Angle.Beta` (deg)
+- `XPlane.Trim.Elevator` (normalized -1..1)
+- `XPlane.Trim.Aileron` (normalized -1..1)
+- `XPlane.Trim.Rudder` (normalized -1..1)
 - `XPlane.Rate.Roll` (deg/s) (=p_rate)
 - `XPlane.Rate.Pitch` (deg/s) (=q_rate)
 - `XPlane.Rate.Yaw` (deg/s) (=r_rate)
@@ -29,6 +32,7 @@ These can be defined freely, but must be part of a defined set of groups (top le
 - `Aircraft`
 - `System`
 - `Vehicle`
+- `Cyclic`
 
 Example Parameter Names:
 - `Aircraft.Vref` (kts)
@@ -45,16 +49,19 @@ These are the graph-level outputs we plan to map to FFB function terms.
 - `FlightStickPitch.Friction`
 - `FlightStickPitch.LoadForce`
 - `FlightStickPitch.TrimOffset`
+- `FlightStickPitch.BuffetAmplitude`
 - `FlightStickRoll.SpringGain`
 - `FlightStickRoll.DamperGain`
 - `FlightStickRoll.Friction`
 - `FlightStickRoll.LoadForce`
 - `FlightStickRoll.TrimOffset`
+- `FlightStickRoll.BuffetAmplitude`
 - `FlightPedals.SpringGain`
 - `FlightPedals.DamperGain`
 - `FlightPedals.Friction`
 - `FlightPedals.LoadForce`
 - `FlightPedals.TrimOffset`
+- `FlightPedals.BuffetAmplitude`
 - `FlightStickCollective.SpringGain`
 - `FlightStickCollective.DamperGain`
 - `FlightStickCollective.Friction`

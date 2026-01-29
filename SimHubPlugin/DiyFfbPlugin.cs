@@ -206,9 +206,9 @@ namespace User.PluginSdkDemo
             public float ElevDefDeg;
             public float AilDefDeg;
             public float RudDefDeg;
-            public float ElevTrimDeg;
-            public float AilTrimDeg;
-            public float RudTrimDeg;
+            public float ElevTrimNorm;
+            public float AilTrimNorm;
+            public float RudTrimNorm;
             public float GNrml;
             public float[] TorqueNm = new float[XPlaneMaxRotors];
             public float[] OmegaRad = new float[XPlaneMaxRotors];
@@ -1050,9 +1050,9 @@ namespace User.PluginSdkDemo
                 ElevDefDeg = ReadSingle(data, ref offset),
                 AilDefDeg = ReadSingle(data, ref offset),
                 RudDefDeg = ReadSingle(data, ref offset),
-                ElevTrimDeg = ReadSingle(data, ref offset),
-                AilTrimDeg = ReadSingle(data, ref offset),
-                RudTrimDeg = ReadSingle(data, ref offset),
+                ElevTrimNorm = ReadSingle(data, ref offset),
+                AilTrimNorm = ReadSingle(data, ref offset),
+                RudTrimNorm = ReadSingle(data, ref offset),
                 GNrml = ReadSingle(data, ref offset),
                 ReceivedUtc = DateTime.UtcNow
             };
@@ -1258,7 +1258,7 @@ namespace User.PluginSdkDemo
                 float pitchTorqueRef = UpdateXPlaneTorqueRef(FunctionID.FlightStickPitch, pitchTorqueAbs, packet.ReceivedUtc);
                 float pitchLoadForce = pitchTorqueRef > 0.0f ? -pitchParams.AeroMomentGain * (packet.MAero / pitchTorqueRef) : 0.0f;
                 pitchLoadForce = ClampLoad(pitchLoadForce, pitchParams.LoadForceClamp);
-                pitchTrimOnly = packet.ElevTrimDeg * pitchParams.TrimMmPerDeg;
+                pitchTrimOnly = packet.ElevTrimNorm * pitchParams.TrimMmPerDeg;
                 float pitchVane = pitchParams.WeathervaneGain * pitchScale * packet.AlphaDeg;
                 pitchTrim = pitchTrimOnly - pitchVane;
                 float pitchFriction = isHeli
@@ -1266,7 +1266,7 @@ namespace User.PluginSdkDemo
                     : (pitchParams.FrictionQ * pitchScale);
                 pitchFriction = Math.Max(0.0f, pitchFriction);
                 ApplyGraphOutputs(FunctionID.FlightStickPitch, ref pitchSpring, ref pitchDamper, ref pitchFriction, ref pitchTrim, ref pitchLoadForce, ref pitchBuffet);
-                UpdateXPlaneDiagnostics(FunctionID.FlightStickPitch, packet, pitchScale, pitchSpring, pitchDamper, pitchBuffet, packet.ElevTrimDeg, pitchTrim, pitchVane, pitchLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, pitchTorqueRef);
+                UpdateXPlaneDiagnostics(FunctionID.FlightStickPitch, packet, pitchScale, pitchSpring, pitchDamper, pitchBuffet, packet.ElevTrimNorm, pitchTrim, pitchVane, pitchLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, pitchTorqueRef);
                 if (IsXPlaneFfbEnabled(FunctionID.FlightStickPitch))
                 {
                     SendFlightFfb(FunctionID.FlightStickPitch, pitchSpring, pitchDamper, pitchFriction, pitchTrim, pitchBuffet, pitchLoadForce);
@@ -1284,14 +1284,14 @@ namespace User.PluginSdkDemo
                 float rollTorqueRef = UpdateXPlaneTorqueRef(FunctionID.FlightStickRoll, rollTorqueAbs, packet.ReceivedUtc);
                 float rollLoadForce = rollTorqueRef > 0.0f ? -rollParams.AeroMomentGain * (packet.LAero / rollTorqueRef) : 0.0f;
                 rollLoadForce = ClampLoad(rollLoadForce, rollParams.LoadForceClamp);
-                rollTrimOnly = packet.AilTrimDeg * rollParams.TrimMmPerDeg;
+                rollTrimOnly = packet.AilTrimNorm * rollParams.TrimMmPerDeg;
                 rollTrim = rollTrimOnly;
                 float rollFriction = isHeli
                     ? (rollParams.FrictionTorque * torqueNormMrAbs) + (rollParams.FrictionLowRpm * assistLoss)
                     : (rollParams.FrictionQ * rollScale);
                 rollFriction = Math.Max(0.0f, rollFriction);
                 ApplyGraphOutputs(FunctionID.FlightStickRoll, ref rollSpring, ref rollDamper, ref rollFriction, ref rollTrim, ref rollLoadForce, ref rollBuffet);
-                UpdateXPlaneDiagnostics(FunctionID.FlightStickRoll, packet, rollScale, rollSpring, rollDamper, rollBuffet, packet.AilTrimDeg, rollTrim, 0.0f, rollLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, rollTorqueRef);
+                UpdateXPlaneDiagnostics(FunctionID.FlightStickRoll, packet, rollScale, rollSpring, rollDamper, rollBuffet, packet.AilTrimNorm, rollTrim, 0.0f, rollLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, rollTorqueRef);
                 if (IsXPlaneFfbEnabled(FunctionID.FlightStickRoll))
                 {
                     SendFlightFfb(FunctionID.FlightStickRoll, rollSpring, rollDamper, rollFriction, rollTrim, rollBuffet, rollLoadForce);
@@ -1309,7 +1309,7 @@ namespace User.PluginSdkDemo
                 float pedalsTorqueRef = UpdateXPlaneTorqueRef(FunctionID.FlightPedals, pedalsTorqueAbs, packet.ReceivedUtc);
                 float pedalsLoadForce = pedalsTorqueRef > 0.0f ? -pedalsParams.AeroMomentGain * (packet.NAero / pedalsTorqueRef) : 0.0f;
                 pedalsLoadForce = ClampLoad(pedalsLoadForce, pedalsParams.LoadForceClamp);
-                pedalsTrimOnly = packet.RudTrimDeg * pedalsParams.TrimMmPerDeg;
+                pedalsTrimOnly = packet.RudTrimNorm * pedalsParams.TrimMmPerDeg;
                 float pedalsVane = pedalsParams.WeathervaneGain * pedalsScale * packet.BetaDeg;
                 pedalsTrim = pedalsTrimOnly - pedalsVane;
                 float pedalsFriction = isHeli
@@ -1317,7 +1317,7 @@ namespace User.PluginSdkDemo
                     : (pedalsParams.FrictionQ * pedalsScale);
                 pedalsFriction = Math.Max(0.0f, pedalsFriction);
                 ApplyGraphOutputs(FunctionID.FlightPedals, ref pedalsSpring, ref pedalsDamper, ref pedalsFriction, ref pedalsTrim, ref pedalsLoadForce, ref pedalsBuffet);
-                UpdateXPlaneDiagnostics(FunctionID.FlightPedals, packet, pedalsScale, pedalsSpring, pedalsDamper, pedalsBuffet, packet.RudTrimDeg, pedalsTrim, pedalsVane, pedalsLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, pedalsTorqueRef);
+                UpdateXPlaneDiagnostics(FunctionID.FlightPedals, packet, pedalsScale, pedalsSpring, pedalsDamper, pedalsBuffet, packet.RudTrimNorm, pedalsTrim, pedalsVane, pedalsLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, pedalsTorqueRef);
                 if (IsXPlaneFfbEnabled(FunctionID.FlightPedals))
                 {
                     SendFlightFfb(FunctionID.FlightPedals, pedalsSpring, pedalsDamper, pedalsFriction, pedalsTrim, pedalsBuffet, pedalsLoadForce);
@@ -1589,9 +1589,9 @@ namespace User.PluginSdkDemo
                 iasKts = latestXPlanePacket.IasKts;
                 alphaDeg = latestXPlanePacket.AlphaDeg;
                 betaDeg = latestXPlanePacket.BetaDeg;
-                elevTrim = latestXPlanePacket.ElevTrimDeg;
-                ailTrim = latestXPlanePacket.AilTrimDeg;
-                rudTrim = latestXPlanePacket.RudTrimDeg;
+                elevTrim = latestXPlanePacket.ElevTrimNorm;
+                ailTrim = latestXPlanePacket.AilTrimNorm;
+                rudTrim = latestXPlanePacket.RudTrimNorm;
                 return true;
             }
         }

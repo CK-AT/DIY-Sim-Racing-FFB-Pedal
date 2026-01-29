@@ -2,6 +2,44 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-29 11:16:28 +01:00 (CODex)
+Request: fix X-Plane packet trim field naming.
+Summary:
+- Renamed XPlaneUdpPacket trim fields to use normalized naming and updated references.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/GraphSignals.cs`
+Open items:
+- None.
+Commit highlights:
+- Renamed Elev/Ail/Rud trim packet fields to `*TrimNorm`.
+
+## 2026-01-29 11:14:44 +01:00 (CODex)
+Request: correct trim input units in signal catalog.
+Summary:
+- Updated trim signal units to normalized -1..1.
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Signal_Catalog.md`
+Open items:
+- None.
+Commit highlights:
+- Clarified X-Plane trim inputs are normalized, not degrees.
+
+## 2026-01-29 11:11:36 +01:00 (CODex)
+Request: fix signal catalog doc mismatches and add X-Plane trim inputs.
+Summary:
+- Aligned signal catalog docs with output/param groups and buffet outputs.
+- Added X-Plane trim inputs to catalog and runtime graph input mapping.
+Key files:
+- `SimHubPlugin/Docs/FFB_Graph_Signal_Catalog.md`
+- `SimHubPlugin/GraphSignalCatalogData.cs`
+- `SimHubPlugin/GraphSignals.cs`
+Open items:
+- None.
+Commit highlights:
+- Documented missing buffet outputs and Cyclic param group.
+- Added X-Plane trim input signals (elevator/aileron/rudder) to catalog and inputs.
+
 ## 2026-01-29 10:21:11 +01:00 (CODex)
 Request: commit Op Input Negate Flags plan document.
 Summary:
