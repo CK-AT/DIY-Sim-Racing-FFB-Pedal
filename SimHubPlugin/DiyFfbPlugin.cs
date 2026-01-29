@@ -798,10 +798,6 @@ namespace User.PluginSdkDemo
                 {
                     SaveCurrentAircraftProfile(activeCarId);
                 }
-
-                // Clear pending params regardless of save choice - if saved, they're now in the profile;
-                // if declined, they should be discarded to avoid re-prompting on next startup
-                ClearPendingGraphParams(activeCarId);
             }
 
             // Save settings
@@ -1896,48 +1892,6 @@ namespace User.PluginSdkDemo
                 hasPendingFfbProfile = false;
             }
 
-            // Check for pending graph param changes from previous session
-            SimHub.Logging.Current.Info($"[Graph] Checking pending graph params for {carId}: HasPending={HasPendingGraphParams(carId)}, ui={ui != null}");
-            if (HasPendingGraphParams(carId))
-            {
-                bool applyPendingParams = false;
-                if (ui != null)
-                {
-                    SimHub.Logging.Current.Info("[Graph] Showing pending graph params dialog");
-                    applyPendingParams = (bool)ui.Dispatcher.Invoke(new Func<bool>(() =>
-                        ui.ConfirmApplyPendingGraphParams(carId)));
-                    SimHub.Logging.Current.Info($"[Graph] User chose: {(applyPendingParams ? "Apply" : "Discard")}");
-                }
-                else
-                {
-                    SimHub.Logging.Current.Warn("[Graph] Cannot show pending graph params dialog - UI not available");
-                }
-
-                if (applyPendingParams)
-                {
-                    // Merge pending params into the stored profile
-                    if (Settings.AircraftFfbProfiles == null)
-                    {
-                        Settings.AircraftFfbProfiles = new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
-                    }
-                    if (!Settings.AircraftFfbProfiles.TryGetValue(carId, out var profile))
-                    {
-                        profile = new DiyFfbPluginSettings.AircraftFfbProfile();
-                        Settings.AircraftFfbProfiles[carId] = profile;
-                    }
-                    if (profile.GraphParamValues == null)
-                    {
-                        profile.GraphParamValues = new Dictionary<string, double>();
-                    }
-                    foreach (var kvp in pendingGraphParams[carId])
-                    {
-                        profile.GraphParamValues[kvp.Key] = kvp.Value;
-                    }
-                }
-
-                ClearPendingGraphParams(carId);
-            }
-
             ApplyAircraftProfile(carId);
             activeCarId = carId;
             activeCarName = data.NewData?.CarModel;
@@ -2397,127 +2351,10 @@ namespace User.PluginSdkDemo
         }
 
         private bool hasDirtyGraphParams = false;
-        private Dictionary<string, Dictionary<string, double>> pendingGraphParams;
-        private string PendingGraphParamsPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "graphs", "pending_graph_params.json");
 
         private void MarkProfileDirty()
         {
             hasDirtyGraphParams = true;
-            SavePendingGraphParams();
-        }
-
-        private void SavePendingGraphParams()
-        {
-            if (string.IsNullOrWhiteSpace(activeCarId))
-            {
-                SimHub.Logging.Current.Warn("[Graph] SavePendingGraphParams: No active car ID");
-                return;
-            }
-
-            try
-            {
-                if (pendingGraphParams == null)
-                {
-                    pendingGraphParams = new Dictionary<string, Dictionary<string, double>>();
-                }
-
-                // Try profile first (Tier 3), fall back to activeVehicleGraph.ParamValues (Tier 2)
-                Dictionary<string, double> paramsToSave = null;
-                var profile = GetCurrentAircraftProfile();
-                if (profile?.GraphParamValues != null && profile.GraphParamValues.Count > 0)
-                {
-                    paramsToSave = profile.GraphParamValues;
-                    SimHub.Logging.Current.Info($"[Graph] Using {paramsToSave.Count} params from profile for {activeCarId}");
-                }
-                else if (activeVehicleGraph?.ParamValues != null && activeVehicleGraph.ParamValues.Count > 0)
-                {
-                    paramsToSave = activeVehicleGraph.ParamValues;
-                    SimHub.Logging.Current.Info($"[Graph] Using {paramsToSave.Count} params from activeVehicleGraph for {activeCarId}");
-                }
-
-                if (paramsToSave == null || paramsToSave.Count == 0)
-                {
-                    SimHub.Logging.Current.Warn($"[Graph] SavePendingGraphParams: No params to save for {activeCarId}");
-                    return;
-                }
-
-                pendingGraphParams[activeCarId] = new Dictionary<string, double>(paramsToSave);
-
-                string dir = Path.GetDirectoryName(PendingGraphParamsPath);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                {
-                    Directory.CreateDirectory(dir);
-                }
-
-                string json = Newtonsoft.Json.JsonConvert.SerializeObject(pendingGraphParams, Newtonsoft.Json.Formatting.Indented);
-                File.WriteAllText(PendingGraphParamsPath, json);
-                SimHub.Logging.Current.Info($"[Graph] Saved pending graph params to {PendingGraphParamsPath}");
-            }
-            catch (Exception ex)
-            {
-                SimHub.Logging.Current.Error($"[Graph] Failed to save pending graph params: {ex.Message}");
-            }
-        }
-
-        private void LoadPendingGraphParams()
-        {
-            try
-            {
-                SimHub.Logging.Current.Info($"[Graph] Checking for pending graph params at: {PendingGraphParamsPath}");
-                if (File.Exists(PendingGraphParamsPath))
-                {
-                    string json = File.ReadAllText(PendingGraphParamsPath);
-                    pendingGraphParams = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, double>>>(json);
-                    SimHub.Logging.Current.Info($"[Graph] Loaded pending graph params for {pendingGraphParams?.Count ?? 0} aircraft");
-                }
-                else
-                {
-                    SimHub.Logging.Current.Info("[Graph] No pending graph params file found");
-                }
-            }
-            catch (Exception ex)
-            {
-                SimHub.Logging.Current.Error($"[Graph] Failed to load pending graph params: {ex.Message}");
-                pendingGraphParams = null;
-            }
-        }
-
-        private void ClearPendingGraphParams(string carId)
-        {
-            if (pendingGraphParams == null || string.IsNullOrWhiteSpace(carId))
-            {
-                return;
-            }
-
-            if (pendingGraphParams.Remove(carId))
-            {
-                try
-                {
-                    if (pendingGraphParams.Count == 0)
-                    {
-                        if (File.Exists(PendingGraphParamsPath))
-                        {
-                            File.Delete(PendingGraphParamsPath);
-                        }
-                    }
-                    else
-                    {
-                        string json = Newtonsoft.Json.JsonConvert.SerializeObject(pendingGraphParams, Newtonsoft.Json.Formatting.Indented);
-                        File.WriteAllText(PendingGraphParamsPath, json);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    SimHub.Logging.Current.Error($"[Graph] Failed to clear pending graph params: {ex.Message}");
-                }
-            }
-        }
-
-        private bool HasPendingGraphParams(string carId)
-        {
-            return pendingGraphParams != null &&
-                   !string.IsNullOrWhiteSpace(carId) &&
-                   pendingGraphParams.ContainsKey(carId);
         }
 
         public event EventHandler ActiveGraphChanged;
@@ -2766,8 +2603,6 @@ namespace User.PluginSdkDemo
             // Load settings
             Settings = this.ReadCommonSettings<DiyFfbPluginSettings>("GeneralSettings", () => new DiyFfbPluginSettings());
 
-            // Load any pending graph param changes from previous session
-            LoadPendingGraphParams();
             Simhub_version = (String)pluginManager.GetPropertyValue("DataCorePlugin.SimHubVersion");
             // Declare a property available in the property list, this gets evaluated "on demand" (when shown or used in formulas)
             //this.AttachDelegate("CurrentDateTime", () => DateTime.Now);
