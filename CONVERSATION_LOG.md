@@ -2,6 +2,17 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-29 10:21:11 +01:00 (CODex)
+Request: commit Op Input Negate Flags plan document.
+Summary:
+- Staged the plan document for commit.
+Key files:
+- `SimHubPlugin/Docs/plans/13_Op_Input_Negate_Flags_Plan.md`
+Open items:
+- Confirm commit highlights before committing.
+Commit highlights:
+- Add Op Input Negate Flags plan document.
+
 ## 2026-01-29 08:48:09 +01:00 (CODex)
 Request: add perf harness usage detail to review doc.
 Summary:
