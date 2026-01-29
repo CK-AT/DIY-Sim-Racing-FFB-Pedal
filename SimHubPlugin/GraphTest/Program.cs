@@ -8,6 +8,10 @@ namespace DiyFfb.GraphTest
         public static void Main()
         {
             GraphTestRunner.Run();
+            if (string.Equals(Environment.GetEnvironmentVariable("FFB_PERF_ONLY"), "1", StringComparison.Ordinal))
+            {
+                return;
+            }
 
             var graph = BuildSampleGraph();
             var resolver = new GraphIncludeResolver(AppContext.BaseDirectory);

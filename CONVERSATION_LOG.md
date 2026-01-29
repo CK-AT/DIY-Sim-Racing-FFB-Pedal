@@ -2,6 +2,66 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-29 08:48:09 +01:00 (CODex)
+Request: add perf harness usage detail to review doc.
+Summary:
+- Documented the `FFB_PERF_ONLY=1` run command for the perf harness.
+Key files:
+- `SimHubPlugin/Docs/Review_SimHubPlugin_DupPerf.md`
+Open items:
+- None.
+Commit highlights:
+- Added perf harness invocation details in the mitigation section.
+- Gated GraphTest console output in perf-only mode and recorded perf-only harness behavior.
+
+## 2026-01-29 08:46:04 +01:00 (CODex)
+Request: update review doc with mitigations and checkbox status.
+Summary:
+- Added checkboxes to findings/duplication items and marked resolved items.
+- Added mitigations section with perf improvement note.
+Key files:
+- `SimHubPlugin/Docs/Review_SimHubPlugin_DupPerf.md`
+Open items:
+- None.
+Commit highlights:
+- Documented mitigations and marked completed fixes in the review report.
+
+## 2026-01-29 08:37:48 +01:00 (CODex)
+Request: silence extra GraphTest output during perf-only runs.
+Summary:
+- Short-circuited GraphTest console output when `FFB_PERF_ONLY=1` is set.
+Key files:
+- `SimHubPlugin/GraphTest/Program.cs`
+Open items:
+- None.
+Commit highlights:
+- Skipped sample graph/JSON output in perf-only harness mode.
+
+## 2026-01-29 00:25:56 +01:00 (CODex)
+Request: add shared perf harness and run before/after comparison (#1).
+Summary:
+- Added a perf-only harness to GraphTestRunner to run 5,000 compiled-evaluator iterations.
+- Built GraphTest (without project references) and ran the perf harness in current; captured perf output.
+- Compared against previous-commit harness run (worktree).
+Key files:
+- `SimHubPlugin/GraphTest/GraphTestRunner.cs`
+Open items:
+- Confirm whether to keep the perf harness in main or gate it behind a flag only.
+Commit highlights:
+- Added perf harness gated by `FFB_PERF_ONLY=1` to isolate compiled evaluator timing.
+
+## 2026-01-28 22:00:00 +01:00 (CODex)
+Request: before/after optimization comparison.
+Summary:
+- Built and ran GraphTest in a worktree at the previous commit for timing comparison.
+- Collected end-to-end GraphTest timings (not apples-to-apples due to new perf test in current).
+Key files:
+- `SimHubPlugin/GraphTest/GraphTest.csproj`
+Open items:
+- Provide a more isolated perf comparison (e.g., shared perf harness) if needed.
+Commit highlights:
+- N/A (comparison only).
+
 ## 2026-01-28 21:49:46 +01:00 (CODex)
 Request: prepare and commit evaluator optimizations and preview caching/throttling changes.
 Summary:
