@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>XPlane_FFB</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; color: #1b1b1b; margin: 24px; line-height: 1.5; }
+    h1, h2 { margin-top: 24px; }
+    ul { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1 id="x-plane-ffb-graph-based">X-Plane FFB (Graph-Based)</h1>
+  <p>This document describes the graph-driven force-feedback (FFB) pipeline used for X-Plane in the DIY FFB pedal/stick system.</p>
+  <p>Quick navigation:</p>
+  <ul>
+    <li>Architecture and data flow</li>
+    <li>Inputs and outputs</li>
+    <li>Graph workflow and tuning</li>
+    <li>Profiles and persistence</li>
+    <li>Troubleshooting</li>
+    <li>Migration notes</li>
+  </ul>
+  <p><img src="images/xplane_ffb_architecture.svg" alt="X-Plane FFB architecture" /></p>
+
+  <h2 id="architecture">Architecture and Data Flow</h2>
+  <ol>
+    <li>X-Plane native plugin (DiyFfb Data Provider) streams the required telemetry over UDP.</li>
+    <li>SimHub builds graph inputs from the latest UDP packet, evaluates the active FFB graph, and sends compact FFB frames to the ESP32.</li>
+    <li>ESP32 applies the FFB outputs per function and reverts to safe defaults if updates stop arriving.</li>
+  </ol>
+  <p>Note: The diagram illustrates the data flow. The legacy hardcoded math has been replaced by the graph runtime.</p>
+
+  <h2 id="inputs">Inputs (UDP -&gt; Graph)</h2>
+  <p>The graph input set is defined in <code>FFB_Graph_Signal_Catalog.md</code>. Common inputs include IAS, alpha/beta, trim, body rates, aero torque, rotor torque/speed, and on-ground status.</p>
+
+  <h2 id="outputs">Outputs (Graph -&gt; ESP32)</h2>
+  <p>Graph outputs are mapped directly to flight FFB frames:</p>
+  <ul>
+    <li><code>FlightStickPitch.*</code></li>
+    <li><code>FlightStickRoll.*</code></li>
+    <li><code>FlightPedals.*</code></li>
+    <li><code>FlightStickCollective.*</code></li>
+  </ul>
+  <p>Each group supplies SpringGain, DamperGain, Friction, LoadForce, TrimOffset, and BuffetAmplitude (collective excludes buffet).</p>
+
+  <h2 id="workflow">Graph Workflow and Tuning</h2>
+  <ol>
+    <li>Select a graph in the <strong>FFB Graph</strong> tab (vehicle graph or game fallback).</li>
+    <li>The <strong>Vehicle/Aircraft</strong> tab lists all non-System graph parameters grouped by the Param node Group (function groups included).</li>
+    <li>System parameters live in the FFB Graph tab (Group = <code>System</code>), and per-function parameters live in the function tabs (Group starts with the function name, e.g., <code>FlightStickPitch</code>).</li>
+    <li>Validate live outputs in the <strong>FFB Outputs</strong> panel.</li>
+  </ol>
+
+  <h2 id="profiles">Profiles and Persistence</h2>
+  <ul>
+    <li>Per-aircraft profiles store graph parameter values.</li>
+    <li>Save/load profiles from the FFB Graph tab.</li>
+    <li>Graph parameter changes are tracked and prompted on aircraft changes.</li>
+  </ul>
+
+  <h2 id="troubleshooting">Troubleshooting</h2>
+  <p><strong>No FFB movement:</strong></p>
+  <ul>
+    <li>Ensure the ESP32/gateway connection is active.</li>
+    <li>Confirm the active graph status is valid in the FFB Graph tab.</li>
+    <li>Check that the X-Plane UDP data provider is running.</li>
+    <li>Verify the UDP toggle and port in the X-Plane system tab (or <code>XPlaneUdpEnabled</code>/<code>XPlaneUdpPort</code> in the settings JSON).</li>
+  </ul>
+  <p><strong>Outputs remain at zero:</strong></p>
+  <ul>
+    <li>Confirm telemetry is fresh (X-Plane running and UDP streaming).</li>
+    <li>Ensure graph outputs are connected to output nodes.</li>
+  </ul>
+
+  <h2 id="migration">Migration Notes (Legacy Removal)</h2>
+  <ul>
+    <li>The legacy X-Plane FFB math and tuning sliders were removed on 2026-01-29.</li>
+    <li>Legacy tuning fields in saved configs are ignored; adjust tuning in the graph instead.</li>
+    <li>Rotor selection defaults to auto; advanced users can set <code>XPlaneRotorIndex</code> in settings if needed.</li>
+  </ul>
+</body>
+</html>

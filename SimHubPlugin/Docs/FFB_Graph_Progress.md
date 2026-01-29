@@ -38,14 +38,15 @@ Status: living progress document for graph editor/runtime integration.
 - Input/param/output nodes can add multiple ports via inspector buttons.
 - Vehicle-level graph selection model defined (per `(GameId, CarId)` with game fallback).
 - Plugin resolves active vehicle graph path and loads/validates on vehicle changes.
-- X-Plane system tab exposes vehicle/game graph path pickers with active graph status.
+- FFB Graph tab exposes vehicle/game graph path pickers with active graph status.
 - Added sample test graphs (plane, heli collective, multi-function) for validation.
 - Converted sample graphs to editor JSON schema for proper display.
 - Graph editor auto-loads the active vehicle graph when opened.
 - Graph editor refreshes the active graph when the selection changes.
 - Runtime graph evaluation is wired (inputs/params + cached evaluator) with output mapping.
 - Output port labels show live preview values in the editor.
-- Runtime mapping now applies graph outputs to spring/damper/friction/load/trim per function.
+- Runtime mapping now applies graph outputs to spring/damper/friction/trim/buffet/load per function.
+- Legacy X-Plane FFB runtime and tuning settings removed; graph outputs are now the sole flight FFB source.
 - Reverted initial centering/zoom changes after pan/zoom regressions.
 - Restored grid to canvas background and removed auto-centering while stabilizing pan/zoom.
 - Signal catalog document with hierarchical keys.
@@ -66,7 +67,7 @@ Status: living progress document for graph editor/runtime integration.
 - Param values stored in `GraphDefinition.ParamValues` (graph-level) and `AircraftFfbProfile.GraphParamValues` (vehicle-level).
 - `GraphParamControlBuilder` utility for generating WPF controls from param metadata.
 - Buffet Func node (alpha, start, full, gain, qhat_eff) for stall buffeting calculation.
-- BuffetAmplitude output for FlightStickPitch/Roll/Pedals wired through ApplyGraphOutputs.
+- BuffetAmplitude output for FlightStickPitch/Roll/Pedals wired through runtime output mapping.
 - FlightStickConfigControl "X-Plane FFB" section replaced with "FFB Parameters" showing graph params.
 - System tab now displays "System Parameters" section for params with `group = "System"`.
 - Function params filtered by group (`FlightStickPitch`, `FlightStickRoll`, etc.) and shown in respective tabs.

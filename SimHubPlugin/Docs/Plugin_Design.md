@@ -480,4 +480,4 @@ The FFB evaluation runs every frame (120Hz+), so performance is critical:
 
 - [FFB_Graph_Design.md](FFB_Graph_Design.md) - Detailed FFB graph system design
 - [FFB_Graph_Progress.md](FFB_Graph_Progress.md) - Implementation progress tracking
-- [XPlane_FFB.html](XPlane_FFB.html) - Legacy X-Plane FFB documentation
+- [XPlane_FFB.html](XPlane_FFB.html) - X-Plane FFB graph workflow

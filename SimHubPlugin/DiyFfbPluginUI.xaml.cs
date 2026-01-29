@@ -68,6 +68,7 @@ namespace User.PluginSdkDemo
         public SolidColorBrush MouseUpColor { get { return defaultcolor; } }
 
         private bool persistConfigModifier;
+        private bool updatingXPlaneUdp;
 
         private bool PersistConfig => persistConfigModifier;
 
@@ -405,96 +406,33 @@ namespace User.PluginSdkDemo
                 }
             }
 
+            UpdateActiveAircraftLabel(null, null);
+            RefreshGraphSelectionUI();
+            RefreshXPlaneUdpSettings();
+        }
+
+        public void RefreshGraphSelection()
+        {
+            RefreshGraphSelectionUI();
+        }
+
+        private void RefreshXPlaneUdpSettings()
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            updatingXPlaneUdp = true;
             if (CheckBox_XPlaneUdpEnabled != null)
             {
                 CheckBox_XPlaneUdpEnabled.IsChecked = Plugin.Settings.XPlaneUdpEnabled;
             }
-
             if (TextBox_XPlanePort != null)
             {
                 TextBox_XPlanePort.Text = Plugin.Settings.XPlaneUdpPort.ToString();
             }
-            InitializeXPlaneRotorSelector();
-            InitializeXPlaneSystemSelector();
-
-            UpdateActiveAircraftLabel(null, null);
-        }
-
-        private bool updatingXPlaneRotor;
-        private bool updatingXPlaneSystem;
-
-        private void InitializeXPlaneRotorSelector()
-        {
-            if (ComboBox_XPlaneRotor == null)
-            {
-                return;
-            }
-            ComboBox_XPlaneRotor.Items.Clear();
-            ComboBox_XPlaneRotor.Items.Add("Auto");
-            for (int idx = 1; idx <= 4; idx++)
-            {
-                ComboBox_XPlaneRotor.Items.Add($"Rotor {idx}");
-            }
-            RefreshXPlaneRotorSelection();
-        }
-
-        private void InitializeXPlaneSystemSelector()
-        {
-            if (ComboBox_XPlaneAircraftType == null)
-            {
-                return;
-            }
-            ComboBox_XPlaneAircraftType.Items.Clear();
-            ComboBox_XPlaneAircraftType.Items.Add("Plane");
-            ComboBox_XPlaneAircraftType.Items.Add("Heli");
-            RefreshXPlaneSystemSettings();
-        }
-
-        public void RefreshXPlaneRotorSelection()
-        {
-            if (ComboBox_XPlaneRotor == null || Plugin?.Settings == null)
-            {
-                return;
-            }
-            updatingXPlaneRotor = true;
-            int rotorIndex = Plugin.Settings.XPlaneRotorIndex;
-            ComboBox_XPlaneRotor.SelectedIndex = rotorIndex < 0 ? 0 : rotorIndex + 1;
-            updatingXPlaneRotor = false;
-        }
-
-        public void RefreshXPlaneSystemSettings()
-        {
-            if (Plugin?.Settings == null)
-            {
-                return;
-            }
-
-            updatingXPlaneSystem = true;
-            if (ComboBox_XPlaneAircraftType != null)
-            {
-                ComboBox_XPlaneAircraftType.SelectedIndex = Plugin.Settings.XPlaneAircraftIsHelicopter ? 1 : 0;
-            }
-            if (Toggle_xplane_torque_capture != null)
-            {
-                Toggle_xplane_torque_capture.IsChecked = Plugin.Settings.XPlaneTorqueCaptureEnabled;
-            }
-            if (TextBox_XPlaneVref != null)
-            {
-                TextBox_XPlaneVref.Text = Plugin.Settings.XPlaneVrefKtsSystem.ToString("F0");
-                TextBox_XPlaneVref.IsEnabled = !Plugin.Settings.XPlaneAircraftIsHelicopter;
-            }
-            if (TextBox_XPlaneNominalRpm != null)
-            {
-                TextBox_XPlaneNominalRpm.Text = Plugin.Settings.XPlaneNominalRpmSystem.ToString("F0");
-                TextBox_XPlaneNominalRpm.IsEnabled = Plugin.Settings.XPlaneAircraftIsHelicopter;
-            }
-            if (TextBox_XPlaneMrTorqueRef != null)
-            {
-                TextBox_XPlaneMrTorqueRef.Text = Plugin.Settings.XPlaneMainRotorTorqueRefNmSystem.ToString("F0");
-                TextBox_XPlaneMrTorqueRef.IsEnabled = Plugin.Settings.XPlaneAircraftIsHelicopter;
-            }
-            RefreshGraphSelectionUI();
-            updatingXPlaneSystem = false;
+            updatingXPlaneUdp = false;
         }
 
         private void RefreshGraphSelectionUI()
@@ -605,90 +543,6 @@ namespace User.PluginSdkDemo
             RefreshGraphSelectionUI();
         }
 
-        private void ComboBox_XPlaneRotor_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (updatingXPlaneRotor || Plugin?.Settings == null || ComboBox_XPlaneRotor == null)
-            {
-                return;
-            }
-            int selected = ComboBox_XPlaneRotor.SelectedIndex;
-            Plugin.Settings.XPlaneRotorIndex = selected <= 0 ? -1 : selected - 1;
-        }
-
-        private void ComboBox_XPlaneAircraftType_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (updatingXPlaneSystem || Plugin?.Settings == null || ComboBox_XPlaneAircraftType == null)
-            {
-                return;
-            }
-
-            Plugin.Settings.XPlaneAircraftIsHelicopter = ComboBox_XPlaneAircraftType.SelectedIndex == 1;
-            RefreshXPlaneSystemSettings();
-            RefreshXPlaneFfbSettings();
-        }
-
-        private void Toggle_xplane_torque_capture_Checked(object sender, RoutedEventArgs e)
-        {
-            SetTorqueCaptureEnabled(true);
-        }
-
-        private void Toggle_xplane_torque_capture_Unchecked(object sender, RoutedEventArgs e)
-        {
-            SetTorqueCaptureEnabled(false);
-        }
-
-        private void SetTorqueCaptureEnabled(bool enabled)
-        {
-            if (updatingXPlaneSystem || Plugin?.Settings == null)
-            {
-                return;
-            }
-
-            Plugin.Settings.XPlaneTorqueCaptureEnabled = enabled;
-        }
-
-        private void TextBox_XPlaneVref_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (updatingXPlaneSystem || Plugin?.Settings == null || TextBox_XPlaneVref == null)
-            {
-                return;
-            }
-
-            if (float.TryParse(TextBox_XPlaneVref.Text, out float value))
-            {
-                Plugin.Settings.XPlaneVrefKtsSystem = Math.Max(1.0f, value);
-                RefreshXPlaneFfbSettings();
-            }
-        }
-
-        private void TextBox_XPlaneNominalRpm_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (updatingXPlaneSystem || Plugin?.Settings == null || TextBox_XPlaneNominalRpm == null)
-            {
-                return;
-            }
-
-            if (float.TryParse(TextBox_XPlaneNominalRpm.Text, out float value))
-            {
-                Plugin.Settings.XPlaneNominalRpmSystem = Math.Max(1.0f, value);
-                RefreshXPlaneFfbSettings();
-            }
-        }
-
-        private void TextBox_XPlaneMrTorqueRef_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (updatingXPlaneSystem || Plugin?.Settings == null || TextBox_XPlaneMrTorqueRef == null)
-            {
-                return;
-            }
-
-            if (float.TryParse(TextBox_XPlaneMrTorqueRef.Text, out float value))
-            {
-                Plugin.Settings.XPlaneMainRotorTorqueRefNmSystem = Math.Max(0.0f, value);
-                RefreshXPlaneFfbSettings();
-            }
-        }
-
         private void UpdateSerialPortList_click(object sender, RoutedEventArgs e)
         {
             UpdateSerialPortList();
@@ -771,37 +625,6 @@ namespace User.PluginSdkDemo
             }
         }
 
-        private void CheckBox_XPlaneUdpEnabled_Checked(object sender, RoutedEventArgs e)
-        {
-            UpdateXPlaneUdpSettings(true);
-        }
-
-        private void CheckBox_XPlaneUdpEnabled_Unchecked(object sender, RoutedEventArgs e)
-        {
-            UpdateXPlaneUdpSettings(false);
-        }
-
-        private void TextBox_XPlanePort_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            UpdateXPlaneUdpSettings(CheckBox_XPlaneUdpEnabled?.IsChecked == true);
-        }
-
-        private void UpdateXPlaneUdpSettings(bool enabled)
-        {
-            if (Plugin == null)
-            {
-                return;
-            }
-
-            int port = Plugin.Settings.XPlaneUdpPort;
-            if (TextBox_XPlanePort != null && int.TryParse(TextBox_XPlanePort.Text, out int parsedPort))
-            {
-                port = parsedPort;
-            }
-
-            Plugin.ApplyXPlaneUdpSettings(enabled, port);
-        }
-
         private void btn_save_aircraft_ffb_Click(object sender, RoutedEventArgs e)
         {
             if (Plugin == null)
@@ -870,7 +693,6 @@ namespace User.PluginSdkDemo
                 {
                     Plugin.ApplyAircraftFfbProfile(carId, profile);
                 }
-                RefreshXPlaneFfbSettings();
                 UpdateFunctionSelection();
             }
         }
@@ -946,8 +768,39 @@ namespace User.PluginSdkDemo
                 }
 
                 Plugin.ReplaceAircraftFfbProfiles(profiles);
-                RefreshXPlaneFfbSettings();
+                RefreshFunctionSelection();
             }
+        }
+
+        private void CheckBox_XPlaneUdpEnabled_Checked(object sender, RoutedEventArgs e)
+        {
+            UpdateXPlaneUdpSettings(true);
+        }
+
+        private void CheckBox_XPlaneUdpEnabled_Unchecked(object sender, RoutedEventArgs e)
+        {
+            UpdateXPlaneUdpSettings(false);
+        }
+
+        private void TextBox_XPlanePort_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            UpdateXPlaneUdpSettings(CheckBox_XPlaneUdpEnabled?.IsChecked == true);
+        }
+
+        private void UpdateXPlaneUdpSettings(bool enabled)
+        {
+            if (Plugin == null || updatingXPlaneUdp)
+            {
+                return;
+            }
+
+            int port = Plugin.Settings.XPlaneUdpPort;
+            if (TextBox_XPlanePort != null && int.TryParse(TextBox_XPlanePort.Text, out int parsedPort))
+            {
+                port = parsedPort;
+            }
+
+            Plugin.ApplyXPlaneUdpSettings(enabled, port);
         }
 
         private void textbox_SSID_TextChanged(object sender, TextChangedEventArgs e)
@@ -2106,11 +1959,6 @@ namespace User.PluginSdkDemo
             uc_function_config.OnAxisStateUpdate(axisState);
             uc_axis_config.OnAxisStateUpdate(axisState);
             UpdateVjoy(axisState);
-        }
-
-        public void RefreshXPlaneFfbSettings()
-        {
-            uc_function_config.RefreshXPlaneFfbSettings();
         }
 
         public void RequestStaticBalanceCalibration(AxisID axisId)

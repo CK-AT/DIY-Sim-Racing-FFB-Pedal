@@ -4,7 +4,8 @@
 > The FFB Graph System now implements these formulas as configurable graphs.
 > See [FFB_Graph_Design.md](FFB_Graph_Design.md) for the current architecture.
 >
-> Keeping this document as a reference for the physics rationale and formula derivations.
+> Legacy runtime code was removed on 2026-01-29. This document remains as a historical reference
+> for the physics rationale and formula derivations only.
 
 This document captures the agreed FFB terms per aircraft type and per function.
 

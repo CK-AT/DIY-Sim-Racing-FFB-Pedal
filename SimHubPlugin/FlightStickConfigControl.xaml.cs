@@ -38,6 +38,7 @@ namespace User.PluginSdkDemo
         private Dictionary<string, FrameworkElement> graphParamControls = new Dictionary<string, FrameworkElement>();
         private Dictionary<string, Label> graphParamLabels = new Dictionary<string, Label>();
         private bool isUpdatingGraphParams = false;
+        private bool isUpdatingOutputToggle = false;
 
         public FlightStickConfigControl()
         {
@@ -385,7 +386,6 @@ namespace User.PluginSdkDemo
             Slider_friction.Value = function_config.Friction;
             Slider_centering_spring_const.Value = GetCenteringSpringConst();
             Slider_damping.Value = GetDamping();
-            UpdateXPlaneSettingsUi();
 
             Rangeslider_travel_range.LowerValue = GetPosMin();
             function_config.Base.OutputMin = GetPosMin();
@@ -395,6 +395,7 @@ namespace User.PluginSdkDemo
             UpdateTravelMarkers();
             is_updating = false;
             RefreshGraphParams();
+            UpdateDisableOutputsToggle();
         }
 
         private void OnAxisIDChanged(object sender, AxisSelector.AxisIDChangedEventArgs e)
@@ -472,63 +473,6 @@ namespace User.PluginSdkDemo
         {
             label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", e.NewValue);
             function_config.SimulatedMass = (float)e.NewValue;
-        }
-
-        private DiyFfbPluginSettings.FunctionSettings GetFunctionSettings()
-        {
-            if (plugin?.Settings?.function_settings == null)
-            {
-                return null;
-            }
-
-            int index = (int)current_function_id - 1;
-            if (index < 0 || index >= plugin.Settings.function_settings.Length)
-            {
-                return null;
-            }
-
-            return plugin.Settings.function_settings[index];
-        }
-
-        private void UpdateXPlaneSettingsUi()
-        {
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            Toggle_ffb_enabled.IsChecked = settings.XPlaneFfbEnabled;
-        }
-
-
-
-
-        private void Toggle_ffb_enabled_Checked(object sender, RoutedEventArgs e)
-        {
-            SetFfbEnabled(true);
-        }
-
-        private void Toggle_ffb_enabled_Unchecked(object sender, RoutedEventArgs e)
-        {
-            SetFfbEnabled(false);
-        }
-
-        private void SetFfbEnabled(bool enabled)
-        {
-            if (is_updating)
-            {
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneFfbEnabled = enabled;
-            GraphParamsPanel.IsEnabled = enabled;
         }
 
         private void RefreshGraphParams()
@@ -695,11 +639,44 @@ namespace User.PluginSdkDemo
         private void UpdateTrimCenter()
         {
             float trimMm = 0.0f;
-            hasTrimCenter = plugin != null && plugin.TryGetXPlaneTrimOffset(current_function_id, out trimMm);
+            hasTrimCenter = plugin != null && plugin.TryGetGraphTrimOffset(current_function_id, out trimMm);
             if (hasTrimCenter)
             {
                 latestTrimCenter = trimMm;
             }
+        }
+
+        private void UpdateDisableOutputsToggle()
+        {
+            if (Toggle_disable_outputs == null)
+            {
+                return;
+            }
+
+            bool disabled = plugin != null && plugin.IsFunctionOutputDisabled(current_function_id);
+            isUpdatingOutputToggle = true;
+            Toggle_disable_outputs.IsChecked = disabled;
+            isUpdatingOutputToggle = false;
+        }
+
+        private void Toggle_disable_outputs_Checked(object sender, RoutedEventArgs e)
+        {
+            SetOutputsDisabled(true);
+        }
+
+        private void Toggle_disable_outputs_Unchecked(object sender, RoutedEventArgs e)
+        {
+            SetOutputsDisabled(false);
+        }
+
+        private void SetOutputsDisabled(bool disabled)
+        {
+            if (isUpdatingOutputToggle || is_updating)
+            {
+                return;
+            }
+
+            plugin?.SetFunctionOutputDisabled(current_function_id, disabled);
         }
 
         private void UpdateXPlaneTelemetry()
@@ -738,31 +715,6 @@ namespace User.PluginSdkDemo
             Label_Output_Load.Content = plugin.GetGraphOutputValue($"{prefix}.LoadForce").ToString("F2", CultureInfo.InvariantCulture);
             Label_Output_TrimOffset.Content = plugin.GetGraphOutputValue($"{prefix}.TrimOffset").ToString("F2", CultureInfo.InvariantCulture);
             Label_Output_Buffet.Content = plugin.GetGraphOutputValue($"{prefix}.BuffetAmplitude").ToString("F2", CultureInfo.InvariantCulture);
-        }
-
-        // X-Plane gain visualization removed - replaced by FFB Parameters from graph
-        private void UpdateGainGraph()
-        {
-            // Legacy method - no longer used
-        }
-
-        private void UpdateGainCursor()
-        {
-            // Legacy method - no longer used
-        }
-
-        public void RefreshXPlaneFfbSettings()
-        {
-            if (is_updating)
-            {
-                return;
-            }
-
-            is_updating = true;
-            UpdateXPlaneSettingsUi();
-            UpdateTrimCenter();
-            UpdateTravelMarkers();
-            is_updating = false;
         }
 
         private void UpdateTravelMarkers()

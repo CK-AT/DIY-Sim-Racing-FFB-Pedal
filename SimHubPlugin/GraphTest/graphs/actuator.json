@@ -1,12 +1,110 @@
 {
-  "version": 1,
-  "nodes": [
-    { "id": "cmd_force", "type": "Input", "name": "cmd_force" },
-    { "id": "pressure", "type": "Input", "name": "pressure" },
-    { "id": "k_force", "type": "Param", "name": "actuator_gain" },
-    { "id": "scaled", "type": "Op", "op": "Mul", "args": ["cmd_force", "k_force"] },
-    { "id": "clamp_max", "type": "Param", "name": "actuator_max" },
-    { "id": "out_force", "type": "Op", "op": "Clamp", "args": ["scaled", "pressure", "clamp_max"] },
-    { "id": "out_force_out", "type": "Output", "name": "out_force", "src": "out_force" }
+  "Version": 1,
+  "Nodes": [
+    {
+      "Id": "cmd_force",
+      "Type": "Input",
+      "Name": "cmd_force",
+      "ConstValue": 0.0,
+      "Op": "Add",
+      "Func": "",
+      "Args": [],
+      "Src": "",
+      "Path": "",
+      "Inputs": {},
+      "Outputs": {},
+      "Inline": null
+    },
+    {
+      "Id": "pressure",
+      "Type": "Input",
+      "Name": "pressure",
+      "ConstValue": 0.0,
+      "Op": "Add",
+      "Func": "",
+      "Args": [],
+      "Src": "",
+      "Path": "",
+      "Inputs": {},
+      "Outputs": {},
+      "Inline": null
+    },
+    {
+      "Id": "k_force",
+      "Type": "Param",
+      "Name": "actuator_gain",
+      "ConstValue": 0.0,
+      "Op": "Add",
+      "Func": "",
+      "Args": [],
+      "Src": "",
+      "Path": "",
+      "Inputs": {},
+      "Outputs": {},
+      "Inline": null
+    },
+    {
+      "Id": "scaled",
+      "Type": "Op",
+      "Name": "",
+      "ConstValue": 0.0,
+      "Op": "Mul",
+      "Func": "",
+      "Args": [
+        "cmd_force",
+        "k_force"
+      ],
+      "Src": "",
+      "Path": "",
+      "Inputs": {},
+      "Outputs": {},
+      "Inline": null
+    },
+    {
+      "Id": "clamp_max",
+      "Type": "Param",
+      "Name": "actuator_max",
+      "ConstValue": 0.0,
+      "Op": "Add",
+      "Func": "",
+      "Args": [],
+      "Src": "",
+      "Path": "",
+      "Inputs": {},
+      "Outputs": {},
+      "Inline": null
+    },
+    {
+      "Id": "out_force",
+      "Type": "Op",
+      "Name": "",
+      "ConstValue": 0.0,
+      "Op": "Clamp",
+      "Func": "",
+      "Args": [
+        "scaled",
+        "pressure",
+        "clamp_max"
+      ],
+      "Src": "",
+      "Path": "",
+      "Inputs": {},
+      "Outputs": {},
+      "Inline": null
+    },
+    {
+      "Id": "out_force_out",
+      "Type": "Output",
+      "Name": "out_force",
+      "ConstValue": 0.0,
+      "Op": "Add",
+      "Func": "",
+      "Args": [],
+      "Src": "out_force",
+      "Path": "",
+      "Inputs": {},
+      "Outputs": {},
+      "Inline": null
+    }
   ]
 }

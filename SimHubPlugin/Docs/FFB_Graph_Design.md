@@ -133,8 +133,9 @@ Vehicle profile (in plugin settings):
 ```
 
 ## Integration Boundaries
-- Editor does not write into live FFB pipeline yet.
-- Runtime uses graph output values to feed spring/damper/friction/load.
+- Editor applies changes into the live FFB pipeline when the user clicks Apply (runtime evaluator is updated in-place).
+- Runtime uses graph output values to feed spring/damper/friction/trim/buffet/load.
+- Legacy X-Plane math paths are removed; graph outputs are the single source of flight FFB.
 - Config persistence is separate from graph file storage.
 - Graph params are surfaced in the function UI for tuning.
 - A single top-level graph is resolved per vehicle `(GameId, CarId)` with a per-game fallback graph.
@@ -149,8 +150,8 @@ Parameters are exposed in function configuration panels based on their `group` a
   - Replace legacy X-Plane FFB sliders with graph-driven params
 
 - **System Params**: Group = `"System"`
-  - Shown in System tab under "System Parameters" section
-  - Global settings like Vref, nominal RPM, torque references
+  - Shown in FFB Graph tab under "System Parameters" section
+  - Global graph constants (e.g., Vref, rotor references) when present in the active graph
 
 **UI Generation**:
 - `GraphParamControlBuilder` creates WPF controls based on param metadata

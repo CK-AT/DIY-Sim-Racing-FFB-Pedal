@@ -228,8 +228,6 @@
     <Compile Include="GraphSignalCatalogData.cs" />
     <Compile Include="GraphSignals.cs" />
     <Compile Include="GraphParamControlBuilder.cs" />
-    <Compile Include="XPlaneFfbMath.cs" />
-    <Compile Include="XPlaneFfbGraph.cs" />
     <Compile Include="AxisSelector.xaml.cs">
       <DependentUpon>AxisSelector.xaml</DependentUpon>
     </Compile>

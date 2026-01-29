@@ -35,19 +35,11 @@ namespace User.PluginSdkDemo
         private double latestTrimCenter;
         private bool hasTrimCenter;
         private DispatcherTimer xplaneTimer;
-        private float lastIasKts;
         private bool hasAxisRange;
-        private bool autoTuneLoadGain;
-        private DateTime autoTuneLastUpdateUtc = DateTime.MinValue;
-        private const double AutoTuneUpdateMs = 250.0;
-        private const double AutoTuneRatioLow = 0.25;
-        private const double AutoTuneRatioHigh = 0.55;
-        private const double AutoTuneGainStep = 0.0005;
-        private const double AutoTuneMinForce = 0.05;
-        private const double AutoTuneMinVrefRatio = 0.7;
         private Dictionary<string, FrameworkElement> graphParamControls = new Dictionary<string, FrameworkElement>();
         private Dictionary<string, Label> graphParamLabels = new Dictionary<string, Label>();
         private bool isUpdatingGraphParams = false;
+        private bool isUpdatingOutputToggle = false;
 
         public FlightPedalsConfigControl()
         {
@@ -181,6 +173,7 @@ namespace User.PluginSdkDemo
             UpdateTravelMarkers();
             is_updating = false;
             RefreshGraphParams();
+            UpdateDisableOutputsToggle();
 
         }
 
@@ -330,389 +323,52 @@ namespace User.PluginSdkDemo
             function_config.Friction = (float)e.NewValue;
         }
 
-        private DiyFfbPluginSettings.FunctionSettings GetFunctionSettings()
-        {
-            if (plugin?.Settings?.function_settings == null)
-            {
-                return null;
-            }
-
-            int index = (int)current_function_id - 1;
-            if (index < 0 || index >= plugin.Settings.function_settings.Length)
-            {
-                return null;
-            }
-
-            return plugin.Settings.function_settings[index];
-        }
-
-        private void UpdateXPlaneSettingsUi()
-        {
-            // X-Plane UI controls removed - method kept for compatibility
-            return;
-        }
-
-        private void UpdateXPlaneVisibility()
-        {
-            // X-Plane UI controls removed - method kept for compatibility
-            return;
-        }
-
-        private void UpdateXPlaneLabels()
-        {
-            // X-Plane UI controls removed - method kept for compatibility
-            return;
-        }
-
-        private void OnXPlaneKqChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneFfbKq = (float)e.NewValue;
-            UpdateXPlaneLabels();
-            UpdateGainGraph();
-        }
-
-        private void Toggle_xplane_ffb_enabled_Checked(object sender, RoutedEventArgs e)
-        {
-            SetXPlaneFfbEnabled(true);
-        }
-
-        private void Toggle_xplane_ffb_enabled_Unchecked(object sender, RoutedEventArgs e)
-        {
-            SetXPlaneFfbEnabled(false);
-        }
-
-        private void SetXPlaneFfbEnabled(bool enabled)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneFfbEnabled = enabled;
-            UpdateXPlaneLabels();
-        }
-
-        private void OnXPlaneKrateChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneFfbKrate = (float)e.NewValue;
-            UpdateXPlaneLabels();
-            UpdateGainGraph();
-        }
-
-        private void OnXPlaneKcenterChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneFfbKcenter = (float)e.NewValue;
-            UpdateXPlaneLabels();
-        }
-
-        private void OnXPlaneFrictionQChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneFrictionQ = (float)e.NewValue;
-            UpdateXPlaneLabels();
-        }
-
-        private void OnXPlaneFrictionTorqueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneFrictionTorque = (float)e.NewValue;
-            UpdateXPlaneLabels();
-        }
-
-        private void OnXPlaneFrictionLowRpmChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneFrictionLowRpm = (float)e.NewValue;
-            UpdateXPlaneLabels();
-        }
-
-        private void OnXPlaneRpmBlendChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneRpmBlend = (float)e.NewValue;
-            UpdateXPlaneLabels();
-        }
-
-        private void OnXPlaneLoadForceClampChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneLoadForceClamp = (float)e.NewValue;
-            UpdateXPlaneLabels();
-        }
-
-        private void OnXPlaneTrimScaleChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneTrimMmPerDeg = (float)e.NewValue;
-            UpdateXPlaneLabels();
-        }
-
-        private void OnXPlaneBuffetStartChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneBuffetStartDeg = (float)e.NewValue;
-            UpdateXPlaneLabels();
-        }
-
-        private void OnXPlaneBuffetFullChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneBuffetFullDeg = (float)e.NewValue;
-            UpdateXPlaneLabels();
-        }
-
-        private void OnXPlaneBuffetGainChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneBuffetGain = (float)e.NewValue;
-            UpdateXPlaneLabels();
-            UpdateGainGraph();
-        }
-
-        private void OnXPlaneWeathervaneGainChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneWeathervaneGain = (float)e.NewValue;
-            UpdateXPlaneLabels();
-            UpdateGainGraph();
-        }
-
-        private void OnXPlaneAeroMomentGainChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (is_updating)
-            {
-                UpdateXPlaneLabels();
-                return;
-            }
-
-            var settings = GetFunctionSettings();
-            if (settings == null)
-            {
-                return;
-            }
-
-            settings.XPlaneAeroMomentGain = (float)e.NewValue;
-            UpdateXPlaneLabels();
-        }
-
-        private void OnXPlaneTorqueRefChanged(object sender, TextChangedEventArgs e)
-        {
-            // X-Plane UI controls removed - method kept for compatibility
-            return;
-        }
-
-        private void Toggle_xplane_auto_tune_Checked(object sender, RoutedEventArgs e)
-        {
-            autoTuneLoadGain = true;
-            var settings = GetFunctionSettings();
-            if (settings != null)
-            {
-                settings.XPlaneReferenceFlightMode = true;
-            }
-        }
-
-        private void Toggle_xplane_auto_tune_Unchecked(object sender, RoutedEventArgs e)
-        {
-            autoTuneLoadGain = false;
-            var settings = GetFunctionSettings();
-            if (settings != null)
-            {
-                settings.XPlaneReferenceFlightMode = false;
-            }
-        }
-
-        private void OnXPlaneVrefChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            // X-Plane UI controls removed - method kept for compatibility
-            return;
-        }
-
         private void UpdateTrimCenter()
         {
             float trimMm = 0.0f;
-            hasTrimCenter = plugin != null && plugin.TryGetXPlaneTrimOffset(current_function_id, out trimMm);
+            hasTrimCenter = plugin != null && plugin.TryGetGraphTrimOffset(current_function_id, out trimMm);
             if (hasTrimCenter)
             {
                 latestTrimCenter = trimMm;
             }
         }
 
+        private void UpdateDisableOutputsToggle()
+        {
+            if (Toggle_disable_outputs == null)
+            {
+                return;
+            }
+
+            bool disabled = plugin != null && plugin.IsFunctionOutputDisabled(current_function_id);
+            isUpdatingOutputToggle = true;
+            Toggle_disable_outputs.IsChecked = disabled;
+            isUpdatingOutputToggle = false;
+        }
+
+        private void Toggle_disable_outputs_Checked(object sender, RoutedEventArgs e)
+        {
+            SetOutputsDisabled(true);
+        }
+
+        private void Toggle_disable_outputs_Unchecked(object sender, RoutedEventArgs e)
+        {
+            SetOutputsDisabled(false);
+        }
+
+        private void SetOutputsDisabled(bool disabled)
+        {
+            if (isUpdatingOutputToggle || is_updating)
+            {
+                return;
+            }
+
+            plugin?.SetFunctionOutputDisabled(current_function_id, disabled);
+        }
+
         private void UpdateXPlaneTelemetry()
         {
-            // X-Plane telemetry UI removed from this tab - keep method for compatibility
-            if (plugin == null)
-            {
-                return;
-            }
-
-            float iasKts;
-            float alphaDeg;
-            float betaDeg;
-            float elevTrim;
-            float ailTrim;
-            float rudTrim;
-            if (!plugin.TryGetXPlaneTelemetry(out iasKts, out alphaDeg, out betaDeg, out elevTrim, out ailTrim, out rudTrim))
-            {
-                lastIasKts = 0.0f;
-                return;
-            }
-
-            lastIasKts = iasKts;
-            // X-Plane UI controls removed - telemetry still tracked for backend use
-
+            // Graph output refresh (no telemetry UI in this tab)
             UpdateFfbOutputs();
         }
 
@@ -730,50 +386,6 @@ namespace User.PluginSdkDemo
             Label_Output_Load.Content = plugin.GetGraphOutputValue($"{prefix}.LoadForce").ToString("F2", CultureInfo.InvariantCulture);
             Label_Output_TrimOffset.Content = plugin.GetGraphOutputValue($"{prefix}.TrimOffset").ToString("F2", CultureInfo.InvariantCulture);
             Label_Output_Buffet.Content = plugin.GetGraphOutputValue($"{prefix}.BuffetAmplitude").ToString("F2", CultureInfo.InvariantCulture);
-        }
-
-        private void UpdateGainGraph()
-        {
-            // X-Plane UI controls removed - method kept for compatibility
-            return;
-        }
-
-        private void UpdateGainCursor()
-        {
-            // X-Plane UI controls removed - method kept for compatibility
-            return;
-        }
-
-        private void UpdateAutoTuneLoadGain(DiyFfbPlugin.XPlaneFfbDiagnostics diagnostics)
-        {
-            // X-Plane UI controls removed - method kept for compatibility
-            return;
-        }
-
-        private string FormatTorqueRefNm()
-        {
-            var settings = GetFunctionSettings();
-            if (settings == null || settings.XPlaneTorqueRefNm <= 0.0f)
-            {
-                return "--";
-            }
-            return settings.XPlaneTorqueRefNm.ToString("F0");
-        }
-
-        private string FormatMainRotorTorqueRefNm()
-        {
-            if (plugin?.Settings == null || plugin.Settings.XPlaneMainRotorTorqueRefNmSystem <= 0.0f)
-            {
-                return "--";
-            }
-
-            return plugin.Settings.XPlaneMainRotorTorqueRefNmSystem.ToString("F0");
-        }
-
-        public void RefreshXPlaneFfbSettings()
-        {
-            // X-Plane UI controls removed - method kept for compatibility
-            return;
         }
 
         private void UpdateTravelMarkers()
@@ -829,16 +441,6 @@ namespace User.PluginSdkDemo
             double max = Math.Max(config.PosNearLim, config.PosFarLim);
             Rangeslider_travel_range.Minimum = min;
             Rangeslider_travel_range.Maximum = max;
-        }
-
-        private void Toggle_ffb_enabled_Checked(object sender, RoutedEventArgs e)
-        {
-            // FFB toggle - currently no action needed
-        }
-
-        private void Toggle_ffb_enabled_Unchecked(object sender, RoutedEventArgs e)
-        {
-            // FFB toggle - currently no action needed
         }
 
         private void OnActiveGraphChanged(object sender, EventArgs e)

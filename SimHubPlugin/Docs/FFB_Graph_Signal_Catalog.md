@@ -43,7 +43,7 @@ Example Parameter Names:
 - `Aircraft.AeroTorque.YawNom` (Nm)
 
 ## Output signals
-These are the graph-level outputs we plan to map to FFB function terms.
+These graph-level outputs are mapped to FFB function terms at runtime.
 - `FlightStickPitch.SpringGain`
 - `FlightStickPitch.DamperGain`
 - `FlightStickPitch.Friction`
@@ -76,4 +76,4 @@ These are the graph-level outputs we plan to map to FFB function terms.
 ## Conventions
 - Use dot-notation with clear namespaces, e.g. `XPlane.*`, `FlightStickPitch.*`.
 - Inputs are telemetry or system values.
-- Outputs are per-function terms (no direct hardware routing yet).
+- Outputs are per-function terms routed directly to the ESP32 FFB frames.

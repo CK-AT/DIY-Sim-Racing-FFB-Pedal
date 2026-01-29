@@ -113,15 +113,6 @@ namespace User.PluginSdkDemo
         private int xplaneDropouts;
         private DateTime xplaneLastReceivedUtc = DateTime.MinValue;
         private DateTime xplaneLastSendUtc = DateTime.MinValue;
-        private float xplaneTrimPitchMm;
-        private float xplaneTrimRollMm;
-        private float xplaneTrimRudderMm;
-        private float xplaneTrimCollectiveMm;
-        private DateTime xplaneTrimUtc = DateTime.MinValue;
-        private XPlaneFfbDiagnostics xplanePitchDiagnostics;
-        private XPlaneFfbDiagnostics xplaneRollDiagnostics;
-        private XPlaneFfbDiagnostics xplaneCollectiveDiagnostics;
-        private XPlaneFfbDiagnostics xplanePedalsDiagnostics;
         private string activeCarId;
         private string activeCarName;
         private string activeGameId;
@@ -139,59 +130,11 @@ namespace User.PluginSdkDemo
         private static Func<GameData, string> gameIdGetter;
         private DiyFfbPluginSettings.AircraftFfbProfile pendingFfbProfile;
         private bool hasPendingFfbProfile;
+        private readonly HashSet<FunctionID> disabledOutputFunctions = new HashSet<FunctionID>();
+        private readonly object outputDisableLock = new object();
         private readonly Queue<RotorRpmSample>[] rotorRpmHistory = new Queue<RotorRpmSample>[XPlaneMaxRotors];
         private int lastAutoRotorIndex = 0;
         private bool hasAutoRotorIndex = false;
-
-        private struct XPlaneFfbParams
-        {
-            public float Kq;
-            public float Krate;
-            public float Kcenter;
-            public float TrimMmPerDeg;
-            public float BuffetStartDeg;
-            public float BuffetFullDeg;
-            public float BuffetGain;
-            public float WeathervaneGain;
-            public float AeroMomentGain;
-            public float TorqueRefNm;
-            public float FrictionQ;
-            public float FrictionTorque;
-            public float FrictionLowRpm;
-            public float RpmBlend;
-            public float LoadTorqueGain;
-            public bool ReferenceFlightMode;
-            public float LoadForceClamp;
-        }
-
-        public struct XPlaneFfbDiagnostics
-        {
-            public DateTime Utc;
-            public float IasKts;
-            public float TasMps;
-            public float QHat;
-            public float QScale;
-            public float AlphaDeg;
-            public float BetaDeg;
-            public float GNrml;
-            public bool OnGround;
-            public float SpringGain;
-            public float DamperGain;
-            public float Buffet;
-            public float TrimDeg;
-            public float TrimMm;
-            public float VaneMm;
-            public int RotorIndex;
-            public float TorqueNm;
-            public float OmegaRad;
-            public float OmegaRpm;
-            public float PropRatio;
-            public float NominalRpm;
-            public float OmegaScale;
-            public float GScale;
-            public float LoadForce;
-            public float TorqueRefNm;
-        }
 
         internal sealed class XPlaneUdpPacket
         {
@@ -801,7 +744,7 @@ namespace User.PluginSdkDemo
             }
 
 
-            ProcessXPlaneFfb();
+            ProcessGraphFfb();
 
             this.AttachDelegate("CurrentProfile", () => current_profile);
             pluginManager.SetPropertyValue("SelectedPedal", this.GetType(), current_pedal);
@@ -1180,9 +1123,9 @@ namespace User.PluginSdkDemo
             return value;
         }
 
-        private void ProcessXPlaneFfb()
+        private void ProcessGraphFfb()
         {
-            if (Settings == null || !Settings.XPlaneUdpEnabled || ESPsync_serialPort == null || !ESPsync_serialPort.IsOpen)
+            if (ESPsync_serialPort == null || !ESPsync_serialPort.IsOpen)
             {
                 return;
             }
@@ -1197,7 +1140,7 @@ namespace User.PluginSdkDemo
                 packet = latestXPlanePacket;
             }
 
-            if ((DateTime.UtcNow - packet.ReceivedUtc).TotalMilliseconds > 500)
+            if (!IsTelemetryFresh(packet.ReceivedUtc))
             {
                 return;
             }
@@ -1208,152 +1151,15 @@ namespace User.PluginSdkDemo
             }
             xplaneLastSendUtc = DateTime.UtcNow;
 
-            float iasMps = packet.IasKts * 0.514444f;
-            float qHat = iasMps * iasMps;
-            float pitchTrim = 0.0f;
-            float rollTrim = 0.0f;
-            float pedalsTrim = 0.0f;
-            float collectiveTrim = 0.0f;
-            float pitchTrimOnly = 0.0f;
-            float rollTrimOnly = 0.0f;
-            float pedalsTrimOnly = 0.0f;
-            float collectiveTrimOnly = 0.0f;
-            bool isHeli = IsXPlaneHelicopter();
-            int rotorIndex = -1;
-            float torqueNm = 0.0f;
-            float torqueRef = 0.0f;
-            float torqueNormMr = 0.0f;
-            float torqueNormMrAbs = 0.0f;
-            float rpmNorm = 0.0f;
-            float assistLoss = 0.0f;
-            float nominalRpm = 0.0f;
-            float omegaRad = 0.0f;
-            float omegaRpm = 0.0f;
-            float propRatio = 0.0f;
-
-            if (isHeli)
+            if (lastGraphEvaluation?.Outputs == null)
             {
-                rotorIndex = ResolveXPlaneRotorIndex(packet);
-                torqueNm = packet.TorqueNm[rotorIndex];
-                omegaRad = packet.OmegaRad[rotorIndex];
-                propRatio = packet.PropRatio[rotorIndex];
-                nominalRpm = Math.Max(GetXPlaneNominalRpm(), 1.0f);
-                omegaRpm = ToRpm(omegaRad);
-                rpmNorm = Clamp(omegaRpm / nominalRpm, 0.0f, 1.1f);
-                torqueRef = UpdateXPlaneMainRotorTorqueRef(Math.Abs(torqueNm), packet.ReceivedUtc);
-                torqueNormMr = torqueRef > 0.0f ? torqueNm / torqueRef : 0.0f;
-                torqueNormMr = Clamp(torqueNormMr, -1.1f, 1.1f);
-                torqueNormMrAbs = Math.Abs(torqueNormMr);
-                assistLoss = Clamp01(1.0f - Clamp(rpmNorm, 0.0f, 1.0f));
+                return;
             }
 
-            {
-                XPlaneFfbParams pitchParams = GetXPlaneFfbParams(FunctionID.FlightStickPitch);
-                float pitchScale = XPlaneFfbMath.ComputeQScaleFromQHat(qHat, GetXPlaneVrefKts());
-                float pitchSpring = isHeli ? pitchParams.Kcenter : pitchParams.Kq * pitchScale;
-                float pitchDampScale = isHeli ? Lerp(torqueNormMrAbs, torqueNormMrAbs + assistLoss, pitchParams.RpmBlend) : pitchScale;
-                float pitchDamper = pitchParams.Krate * pitchDampScale;
-                float pitchBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, pitchParams.BuffetStartDeg, pitchParams.BuffetFullDeg, pitchParams.BuffetGain, pitchScale);
-                float pitchTorqueAbs = Math.Abs(packet.MAero);
-                float pitchTorqueRef = UpdateXPlaneTorqueRef(FunctionID.FlightStickPitch, pitchTorqueAbs, packet.ReceivedUtc);
-                float pitchLoadForce = pitchTorqueRef > 0.0f ? -pitchParams.AeroMomentGain * (packet.MAero / pitchTorqueRef) : 0.0f;
-                pitchLoadForce = ClampLoad(pitchLoadForce, pitchParams.LoadForceClamp);
-                pitchTrimOnly = packet.ElevTrimNorm * pitchParams.TrimMmPerDeg;
-                float pitchVane = pitchParams.WeathervaneGain * pitchScale * packet.AlphaDeg;
-                pitchTrim = pitchTrimOnly - pitchVane;
-                float pitchFriction = isHeli
-                    ? (pitchParams.FrictionTorque * torqueNormMrAbs) + (pitchParams.FrictionLowRpm * assistLoss)
-                    : (pitchParams.FrictionQ * pitchScale);
-                pitchFriction = Math.Max(0.0f, pitchFriction);
-                ApplyGraphOutputs(FunctionID.FlightStickPitch, ref pitchSpring, ref pitchDamper, ref pitchFriction, ref pitchTrim, ref pitchLoadForce, ref pitchBuffet);
-                UpdateXPlaneDiagnostics(FunctionID.FlightStickPitch, packet, pitchScale, pitchSpring, pitchDamper, pitchBuffet, packet.ElevTrimNorm, pitchTrim, pitchVane, pitchLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, pitchTorqueRef);
-                if (IsXPlaneFfbEnabled(FunctionID.FlightStickPitch))
-                {
-                    SendFlightFfb(FunctionID.FlightStickPitch, pitchSpring, pitchDamper, pitchFriction, pitchTrim, pitchBuffet, pitchLoadForce);
-                }
-            }
-
-            {
-                XPlaneFfbParams rollParams = GetXPlaneFfbParams(FunctionID.FlightStickRoll);
-                float rollScale = XPlaneFfbMath.ComputeQScaleFromQHat(qHat, GetXPlaneVrefKts());
-                float rollSpring = isHeli ? rollParams.Kcenter : rollParams.Kq * rollScale;
-                float rollDampScale = isHeli ? Lerp(torqueNormMrAbs, torqueNormMrAbs + assistLoss, rollParams.RpmBlend) : rollScale;
-                float rollDamper = rollParams.Krate * rollDampScale;
-                float rollBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, rollParams.BuffetStartDeg, rollParams.BuffetFullDeg, rollParams.BuffetGain, rollScale);
-                float rollTorqueAbs = Math.Abs(packet.LAero);
-                float rollTorqueRef = UpdateXPlaneTorqueRef(FunctionID.FlightStickRoll, rollTorqueAbs, packet.ReceivedUtc);
-                float rollLoadForce = rollTorqueRef > 0.0f ? -rollParams.AeroMomentGain * (packet.LAero / rollTorqueRef) : 0.0f;
-                rollLoadForce = ClampLoad(rollLoadForce, rollParams.LoadForceClamp);
-                rollTrimOnly = packet.AilTrimNorm * rollParams.TrimMmPerDeg;
-                rollTrim = rollTrimOnly;
-                float rollFriction = isHeli
-                    ? (rollParams.FrictionTorque * torqueNormMrAbs) + (rollParams.FrictionLowRpm * assistLoss)
-                    : (rollParams.FrictionQ * rollScale);
-                rollFriction = Math.Max(0.0f, rollFriction);
-                ApplyGraphOutputs(FunctionID.FlightStickRoll, ref rollSpring, ref rollDamper, ref rollFriction, ref rollTrim, ref rollLoadForce, ref rollBuffet);
-                UpdateXPlaneDiagnostics(FunctionID.FlightStickRoll, packet, rollScale, rollSpring, rollDamper, rollBuffet, packet.AilTrimNorm, rollTrim, 0.0f, rollLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, rollTorqueRef);
-                if (IsXPlaneFfbEnabled(FunctionID.FlightStickRoll))
-                {
-                    SendFlightFfb(FunctionID.FlightStickRoll, rollSpring, rollDamper, rollFriction, rollTrim, rollBuffet, rollLoadForce);
-                }
-            }
-
-            {
-                XPlaneFfbParams pedalsParams = GetXPlaneFfbParams(FunctionID.FlightPedals);
-                float pedalsScale = XPlaneFfbMath.ComputeQScaleFromQHat(qHat, GetXPlaneVrefKts());
-                float pedalsSpring = isHeli ? pedalsParams.Kcenter : pedalsParams.Kq * pedalsScale;
-                float pedalsDampScale = isHeli ? Lerp(torqueNormMrAbs, torqueNormMrAbs + assistLoss, pedalsParams.RpmBlend) : pedalsScale;
-                float pedalsDamper = pedalsParams.Krate * pedalsDampScale;
-                float pedalsBuffet = XPlaneFfbMath.ComputeBuffet(packet.AlphaDeg, pedalsParams.BuffetStartDeg, pedalsParams.BuffetFullDeg, pedalsParams.BuffetGain, pedalsScale);
-                float pedalsTorqueAbs = Math.Abs(packet.NAero);
-                float pedalsTorqueRef = UpdateXPlaneTorqueRef(FunctionID.FlightPedals, pedalsTorqueAbs, packet.ReceivedUtc);
-                float pedalsLoadForce = pedalsTorqueRef > 0.0f ? -pedalsParams.AeroMomentGain * (packet.NAero / pedalsTorqueRef) : 0.0f;
-                pedalsLoadForce = ClampLoad(pedalsLoadForce, pedalsParams.LoadForceClamp);
-                pedalsTrimOnly = packet.RudTrimNorm * pedalsParams.TrimMmPerDeg;
-                float pedalsVane = pedalsParams.WeathervaneGain * pedalsScale * packet.BetaDeg;
-                pedalsTrim = pedalsTrimOnly - pedalsVane;
-                float pedalsFriction = isHeli
-                    ? (pedalsParams.FrictionTorque * torqueNormMrAbs) + (pedalsParams.FrictionLowRpm * assistLoss)
-                    : (pedalsParams.FrictionQ * pedalsScale);
-                pedalsFriction = Math.Max(0.0f, pedalsFriction);
-                ApplyGraphOutputs(FunctionID.FlightPedals, ref pedalsSpring, ref pedalsDamper, ref pedalsFriction, ref pedalsTrim, ref pedalsLoadForce, ref pedalsBuffet);
-                UpdateXPlaneDiagnostics(FunctionID.FlightPedals, packet, pedalsScale, pedalsSpring, pedalsDamper, pedalsBuffet, packet.RudTrimNorm, pedalsTrim, pedalsVane, pedalsLoadForce, -1, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, pedalsTorqueRef);
-                if (IsXPlaneFfbEnabled(FunctionID.FlightPedals))
-                {
-                    SendFlightFfb(FunctionID.FlightPedals, pedalsSpring, pedalsDamper, pedalsFriction, pedalsTrim, pedalsBuffet, pedalsLoadForce);
-                }
-            }
-
-            if (isHeli)
-            {
-                XPlaneFfbParams collectiveParams = GetXPlaneFfbParams(FunctionID.FlightStickCollective);
-                float collectiveSpring = 0.0f;
-                float omegaScale = nominalRpm > 0.0f ? omegaRpm / nominalRpm : 0.0f;
-                float collectiveDampScale = Lerp(torqueNormMrAbs, torqueNormMrAbs + assistLoss, collectiveParams.RpmBlend);
-                float collectiveDamper = collectiveParams.Krate * collectiveDampScale;
-                float collectiveLoadForce = torqueRef > 0.0f ? -collectiveParams.LoadTorqueGain * torqueNormMr : 0.0f;
-                collectiveLoadForce = ClampLoad(collectiveLoadForce, collectiveParams.LoadForceClamp);
-                collectiveTrimOnly = (propRatio - 0.5f) * collectiveParams.TrimMmPerDeg;
-                collectiveTrim = collectiveTrimOnly;
-                float collectiveFriction = (collectiveParams.FrictionTorque * torqueNormMrAbs) + (collectiveParams.FrictionLowRpm * assistLoss);
-                collectiveFriction = Math.Max(0.0f, collectiveFriction);
-                float collectiveBuffet = 0.0f;
-                ApplyGraphOutputs(FunctionID.FlightStickCollective, ref collectiveSpring, ref collectiveDamper, ref collectiveFriction, ref collectiveTrim, ref collectiveLoadForce, ref collectiveBuffet);
-                UpdateXPlaneDiagnostics(FunctionID.FlightStickCollective, packet, omegaScale, collectiveSpring, collectiveDamper, 0.0f, 0.0f, collectiveTrim, 0.0f, collectiveLoadForce, rotorIndex, torqueNm, omegaRad, propRatio, nominalRpm, omegaScale, Math.Max(0.0f, packet.GNrml), torqueRef);
-                if (IsXPlaneFfbEnabled(FunctionID.FlightStickCollective))
-                {
-                    SendFlightFfb(FunctionID.FlightStickCollective, collectiveSpring, collectiveDamper, collectiveFriction, collectiveTrim, 0.0f, collectiveLoadForce);
-                }
-            }
-
-            lock (xplaneLock)
-            {
-                xplaneTrimPitchMm = pitchTrimOnly;
-                xplaneTrimRollMm = rollTrimOnly;
-                xplaneTrimRudderMm = pedalsTrimOnly;
-                xplaneTrimCollectiveMm = collectiveTrimOnly;
-                xplaneTrimUtc = packet.ReceivedUtc;
-            }
+            SendGraphFfbForFunction(FunctionID.FlightStickPitch);
+            SendGraphFfbForFunction(FunctionID.FlightStickRoll);
+            SendGraphFfbForFunction(FunctionID.FlightPedals);
+            SendGraphFfbForFunction(FunctionID.FlightStickCollective);
         }
 
         private int ResolveXPlaneRotorIndex(XPlaneUdpPacket packet)
@@ -1452,6 +1258,95 @@ namespace User.PluginSdkDemo
             ESPsync_serialPort.WriteMessage(msg);
         }
 
+        private void SendGraphFfbForFunction(FunctionID functionId)
+        {
+            if (IsFunctionOutputDisabled(functionId))
+            {
+                return;
+            }
+
+            if (!TryGetGraphFlightOutputs(functionId, out float spring, out float damper, out float friction, out float trim, out float buffet, out float load))
+            {
+                return;
+            }
+
+            SendFlightFfb(functionId, spring, damper, friction, trim, buffet, load);
+        }
+
+        private bool TryGetGraphFlightOutputs(FunctionID functionId, out float spring, out float damper, out float friction,
+            out float trimOffset, out float buffetAmp, out float loadForce)
+        {
+            spring = 0.0f;
+            damper = 0.0f;
+            friction = 0.0f;
+            trimOffset = 0.0f;
+            buffetAmp = 0.0f;
+            loadForce = 0.0f;
+
+            string prefix = GetGraphFunctionPrefix(functionId);
+            if (string.IsNullOrWhiteSpace(prefix))
+            {
+                return false;
+            }
+
+            bool hasOutput = false;
+            if (TryGetGraphOutput($"{prefix}.SpringGain", out float value))
+            {
+                spring = value;
+                hasOutput = true;
+            }
+            if (TryGetGraphOutput($"{prefix}.DamperGain", out value))
+            {
+                damper = value;
+                hasOutput = true;
+            }
+            if (TryGetGraphOutput($"{prefix}.Friction", out value))
+            {
+                friction = value;
+                hasOutput = true;
+            }
+            if (TryGetGraphOutput($"{prefix}.TrimOffset", out value))
+            {
+                trimOffset = value;
+                hasOutput = true;
+            }
+            if (TryGetGraphOutput($"{prefix}.LoadForce", out value))
+            {
+                loadForce = value;
+                hasOutput = true;
+            }
+            if (TryGetGraphOutput($"{prefix}.BuffetAmplitude", out value))
+            {
+                buffetAmp = value;
+                hasOutput = true;
+            }
+
+            return hasOutput;
+        }
+
+        public void SetFunctionOutputDisabled(FunctionID functionId, bool disabled)
+        {
+            lock (outputDisableLock)
+            {
+                if (disabled)
+                {
+                    disabledOutputFunctions.Add(functionId);
+                }
+                else
+                {
+                    disabledOutputFunctions.Remove(functionId);
+                }
+            }
+        }
+
+        public bool IsFunctionOutputDisabled(FunctionID functionId)
+        {
+            lock (outputDisableLock)
+            {
+                return disabledOutputFunctions.Contains(functionId);
+            }
+        }
+
         private static string GetGraphFunctionPrefix(FunctionID functionId)
         {
             switch (functionId)
@@ -1486,40 +1381,16 @@ namespace User.PluginSdkDemo
             return false;
         }
 
-        private void ApplyGraphOutputs(FunctionID functionId, ref float kSpring, ref float kDamper, ref float kFriction,
-            ref float trimOffset, ref float loadForce, ref float buffetAmp)
+        public bool TryGetGraphTrimOffset(FunctionID functionId, out float trimMm)
         {
+            trimMm = 0.0f;
             string prefix = GetGraphFunctionPrefix(functionId);
             if (string.IsNullOrWhiteSpace(prefix))
             {
-                return;
+                return false;
             }
 
-            float value;
-            if (TryGetGraphOutput($"{prefix}.SpringGain", out value))
-            {
-                kSpring = value;
-            }
-            if (TryGetGraphOutput($"{prefix}.DamperGain", out value))
-            {
-                kDamper = value;
-            }
-            if (TryGetGraphOutput($"{prefix}.Friction", out value))
-            {
-                kFriction = value;
-            }
-            if (TryGetGraphOutput($"{prefix}.TrimOffset", out value))
-            {
-                trimOffset = value;
-            }
-            if (TryGetGraphOutput($"{prefix}.LoadForce", out value))
-            {
-                loadForce = value;
-            }
-            if (TryGetGraphOutput($"{prefix}.BuffetAmplitude", out value))
-            {
-                buffetAmp = value;
-            }
+            return TryGetGraphOutput($"{prefix}.TrimOffset", out trimMm);
         }
 
         public void ApplyXPlaneUdpSettings(bool enabled, int port)
@@ -1533,194 +1404,6 @@ namespace User.PluginSdkDemo
             Settings.XPlaneUdpPort = port;
             StopXPlaneUdpReceiver();
             StartXPlaneUdpReceiver();
-        }
-
-        public bool TryGetXPlaneTrimOffset(FunctionID functionId, out float trimMm)
-        {
-            trimMm = 0.0f;
-            lock (xplaneLock)
-            {
-                if ((DateTime.UtcNow - xplaneTrimUtc).TotalMilliseconds > XPlaneTelemetryFreshnessMs)
-                {
-                    return false;
-                }
-
-                switch (functionId)
-                {
-                    case FunctionID.FlightStickPitch:
-                        trimMm = xplaneTrimPitchMm;
-                        return true;
-                    case FunctionID.FlightStickRoll:
-                        trimMm = xplaneTrimRollMm;
-                        return true;
-                    case FunctionID.FlightStickCollective:
-                        trimMm = xplaneTrimCollectiveMm;
-                        return true;
-                    case FunctionID.FlightPedals:
-                        trimMm = xplaneTrimRudderMm;
-                        return true;
-                    default:
-                        return false;
-                }
-            }
-        }
-
-        public bool TryGetXPlaneTelemetry(out float iasKts, out float alphaDeg, out float betaDeg,
-                                          out float elevTrim, out float ailTrim, out float rudTrim)
-        {
-            iasKts = 0.0f;
-            alphaDeg = 0.0f;
-            betaDeg = 0.0f;
-            elevTrim = 0.0f;
-            ailTrim = 0.0f;
-            rudTrim = 0.0f;
-
-            lock (xplaneLock)
-            {
-                if (latestXPlanePacket == null)
-                {
-                    return false;
-                }
-                if ((DateTime.UtcNow - latestXPlanePacket.ReceivedUtc).TotalMilliseconds > XPlaneTelemetryFreshnessMs)
-                {
-                    return false;
-                }
-
-                iasKts = latestXPlanePacket.IasKts;
-                alphaDeg = latestXPlanePacket.AlphaDeg;
-                betaDeg = latestXPlanePacket.BetaDeg;
-                elevTrim = latestXPlanePacket.ElevTrimNorm;
-                ailTrim = latestXPlanePacket.AilTrimNorm;
-                rudTrim = latestXPlanePacket.RudTrimNorm;
-                return true;
-            }
-        }
-
-        public bool TryGetXPlaneFfbDiagnostics(FunctionID functionId, out XPlaneFfbDiagnostics diagnostics)
-        {
-            diagnostics = new XPlaneFfbDiagnostics();
-            lock (xplaneLock)
-            {
-                if (latestXPlanePacket == null)
-                {
-                    return false;
-                }
-                if ((DateTime.UtcNow - latestXPlanePacket.ReceivedUtc).TotalMilliseconds > XPlaneTelemetryFreshnessMs)
-                {
-                    return false;
-                }
-
-                switch (functionId)
-                {
-                    case FunctionID.FlightStickPitch:
-                        diagnostics = xplanePitchDiagnostics;
-                        return true;
-                    case FunctionID.FlightStickRoll:
-                        diagnostics = xplaneRollDiagnostics;
-                        return true;
-                    case FunctionID.FlightStickCollective:
-                        diagnostics = xplaneCollectiveDiagnostics;
-                        return true;
-                    case FunctionID.FlightPedals:
-                        diagnostics = xplanePedalsDiagnostics;
-                        return true;
-                    default:
-                        return false;
-                }
-            }
-        }
-
-        private void UpdateXPlaneDiagnostics(FunctionID functionId, XPlaneUdpPacket packet, float qScale, float springGain,
-            float damperGain, float buffet, float trimDeg, float trimMm, float vaneMm, float loadForce, int rotorIndex,
-            float torqueNm, float omegaRad, float propRatio, float nominalRpm, float omegaScale, float gScale,
-            float torqueRefNm)
-        {
-            var diagnostics = new XPlaneFfbDiagnostics
-            {
-                Utc = packet.ReceivedUtc,
-                IasKts = packet.IasKts,
-                TasMps = packet.TasMps,
-                QHat = (packet.IasKts * 0.514444f) * (packet.IasKts * 0.514444f),
-                QScale = qScale,
-                AlphaDeg = packet.AlphaDeg,
-                BetaDeg = packet.BetaDeg,
-                GNrml = packet.GNrml,
-                OnGround = packet.OnGround,
-                SpringGain = springGain,
-                DamperGain = damperGain,
-                Buffet = buffet,
-                TrimDeg = trimDeg,
-                TrimMm = trimMm,
-                VaneMm = vaneMm,
-                RotorIndex = rotorIndex,
-                TorqueNm = torqueNm,
-                OmegaRad = omegaRad,
-                OmegaRpm = omegaRad * 60.0f / (float)(2.0 * Math.PI),
-                PropRatio = propRatio,
-                NominalRpm = nominalRpm,
-                OmegaScale = omegaScale,
-                GScale = gScale,
-                LoadForce = loadForce,
-                TorqueRefNm = torqueRefNm
-            };
-
-            lock (xplaneLock)
-            {
-                switch (functionId)
-                {
-                    case FunctionID.FlightStickPitch:
-                        xplanePitchDiagnostics = diagnostics;
-                        break;
-                    case FunctionID.FlightStickRoll:
-                        xplaneRollDiagnostics = diagnostics;
-                        break;
-                    case FunctionID.FlightStickCollective:
-                        xplaneCollectiveDiagnostics = diagnostics;
-                        break;
-                    case FunctionID.FlightPedals:
-                        xplanePedalsDiagnostics = diagnostics;
-                        break;
-                }
-            }
-        }
-
-        private float UpdateXPlaneTorqueRef(FunctionID functionId, float torqueAbs, DateTime receivedUtc)
-        {
-            var settings = GetFunctionSettings(functionId);
-            if (settings == null)
-            {
-                return torqueAbs;
-            }
-
-            float refNm = settings.XPlaneTorqueRefNm;
-            if (Settings != null && Settings.XPlaneTorqueCaptureEnabled &&
-                settings.XPlaneReferenceFlightMode && IsTelemetryFresh(receivedUtc) && torqueAbs > refNm)
-            {
-                refNm = torqueAbs;
-                settings.XPlaneTorqueRefNm = refNm;
-            }
-
-            return refNm > 0.0f ? refNm : torqueAbs;
-        }
-
-        private float UpdateXPlaneMainRotorTorqueRef(float torqueAbs, DateTime receivedUtc)
-        {
-            if (Settings == null)
-            {
-                return torqueAbs;
-            }
-
-            float refNm = Settings.XPlaneMainRotorTorqueRefNmSystem;
-            var collectiveSettings = GetFunctionSettings(FunctionID.FlightStickCollective);
-            bool allowUpdate = Settings.XPlaneTorqueCaptureEnabled &&
-                collectiveSettings != null && collectiveSettings.XPlaneReferenceFlightMode;
-            if (allowUpdate && IsTelemetryFresh(receivedUtc) && torqueAbs > refNm)
-            {
-                refNm = torqueAbs;
-                Settings.XPlaneMainRotorTorqueRefNmSystem = refNm;
-            }
-
-            return refNm > 0.0f ? refNm : torqueAbs;
         }
 
         private DiyFfbPluginSettings.FunctionSettings GetFunctionSettings(FunctionID functionId)
@@ -1737,197 +1420,6 @@ namespace User.PluginSdkDemo
             }
 
             return Settings.function_settings[index];
-        }
-
-        private XPlaneFfbParams GetXPlaneFfbParams(FunctionID functionId)
-        {
-            var settings = GetFunctionSettings(functionId);
-            return new XPlaneFfbParams
-            {
-                Kq = settings?.XPlaneFfbKq ?? DiyFfbPluginSettings.DefaultXPlaneFfbKq,
-                Krate = settings?.XPlaneFfbKrate ?? DiyFfbPluginSettings.DefaultXPlaneFfbKrate,
-                Kcenter = settings?.XPlaneFfbKcenter ?? DiyFfbPluginSettings.DefaultXPlaneFfbKcenter,
-                TrimMmPerDeg = settings?.XPlaneTrimMmPerDeg ?? DiyFfbPluginSettings.DefaultXPlaneTrimMmPerDeg,
-                BuffetStartDeg = settings?.XPlaneBuffetStartDeg ?? DiyFfbPluginSettings.DefaultXPlaneBuffetStartDeg,
-                BuffetFullDeg = settings?.XPlaneBuffetFullDeg ?? DiyFfbPluginSettings.DefaultXPlaneBuffetFullDeg,
-                BuffetGain = settings?.XPlaneBuffetGain ?? DiyFfbPluginSettings.DefaultXPlaneBuffetGain,
-                WeathervaneGain = settings?.XPlaneWeathervaneGain ?? 0.0f,
-                AeroMomentGain = settings?.XPlaneAeroMomentGain ?? DiyFfbPluginSettings.DefaultXPlaneAeroMomentGain,
-                TorqueRefNm = settings?.XPlaneTorqueRefNm ?? DiyFfbPluginSettings.DefaultXPlaneTorqueRefNm,
-                FrictionQ = settings?.XPlaneFrictionQ ?? DiyFfbPluginSettings.DefaultXPlaneFrictionQ,
-                FrictionTorque = settings?.XPlaneFrictionTorque ?? DiyFfbPluginSettings.DefaultXPlaneFrictionTorque,
-                FrictionLowRpm = settings?.XPlaneFrictionLowRpm ?? DiyFfbPluginSettings.DefaultXPlaneFrictionLowRpm,
-                RpmBlend = settings?.XPlaneRpmBlend ?? DiyFfbPluginSettings.DefaultXPlaneRpmBlend,
-                LoadTorqueGain = settings?.XPlaneLoadTorqueGain ?? DiyFfbPluginSettings.DefaultXPlaneLoadTorqueGain,
-                ReferenceFlightMode = settings?.XPlaneReferenceFlightMode ?? false,
-                LoadForceClamp = settings?.XPlaneLoadForceClamp ?? DiyFfbPluginSettings.DefaultXPlaneLoadForceClamp
-            };
-        }
-
-        public float GetXPlaneVrefKts()
-        {
-            return Settings?.XPlaneVrefKtsSystem ?? DiyFfbPluginSettings.DefaultXPlaneVrefKts;
-        }
-
-        public float GetXPlaneNominalRpm()
-        {
-            return Settings?.XPlaneNominalRpmSystem ?? DiyFfbPluginSettings.DefaultXPlaneNominalRpm;
-        }
-
-        public bool IsXPlaneHelicopter()
-        {
-            return Settings?.XPlaneAircraftIsHelicopter ?? false;
-        }
-
-        private bool IsXPlaneFfbEnabled(FunctionID functionId)
-        {
-            var settings = GetFunctionSettings(functionId);
-            return settings == null || settings.XPlaneFfbEnabled;
-        }
-
-        private void ApplyXPlaneFunctionDefaultsFromLegacy()
-        {
-            if (Settings?.function_settings == null)
-            {
-                return;
-            }
-
-            bool legacyCustom =
-                !NearlyEqual(Settings.XPlaneFfbKq, DiyFfbPluginSettings.DefaultXPlaneFfbKq) ||
-                !NearlyEqual(Settings.XPlaneFfbKrate, DiyFfbPluginSettings.DefaultXPlaneFfbKrate) ||
-                !NearlyEqual(Settings.XPlaneTrimMmPerDeg, DiyFfbPluginSettings.DefaultXPlaneTrimMmPerDeg) ||
-                !NearlyEqual(Settings.XPlaneBuffetStartDeg, DiyFfbPluginSettings.DefaultXPlaneBuffetStartDeg) ||
-                !NearlyEqual(Settings.XPlaneBuffetFullDeg, DiyFfbPluginSettings.DefaultXPlaneBuffetFullDeg) ||
-                !NearlyEqual(Settings.XPlaneBuffetGain, DiyFfbPluginSettings.DefaultXPlaneBuffetGain);
-
-            if (!legacyCustom)
-            {
-                return;
-            }
-
-            foreach (var functionSettings in Settings.function_settings)
-            {
-                if (functionSettings == null || !IsXPlaneFfbDefault(functionSettings))
-                {
-                    continue;
-                }
-
-                functionSettings.XPlaneFfbKq = Settings.XPlaneFfbKq;
-                functionSettings.XPlaneFfbKrate = Settings.XPlaneFfbKrate;
-                functionSettings.XPlaneTrimMmPerDeg = Settings.XPlaneTrimMmPerDeg;
-                functionSettings.XPlaneBuffetStartDeg = Settings.XPlaneBuffetStartDeg;
-                functionSettings.XPlaneBuffetFullDeg = Settings.XPlaneBuffetFullDeg;
-                functionSettings.XPlaneBuffetGain = Settings.XPlaneBuffetGain;
-                functionSettings.XPlaneUsingVrefScaling = true;
-            }
-
-            ApplyXPlaneVrefMigration(Settings.function_settings);
-        }
-
-        private void ApplyXPlaneSystemRefMigration()
-        {
-            if (Settings?.function_settings == null)
-            {
-                return;
-            }
-
-            float sum = 0.0f;
-            int count = 0;
-            bool hasOverride = false;
-            foreach (var settings in Settings.function_settings)
-            {
-                if (settings == null || !settings.XPlaneFfbEnabled)
-                {
-                    continue;
-                }
-                if (settings.XPlaneVrefKts <= 0.0f)
-                {
-                    continue;
-                }
-                sum += settings.XPlaneVrefKts;
-                count++;
-                if (!NearlyEqual(settings.XPlaneVrefKts, Settings.XPlaneVrefKtsSystem))
-                {
-                    hasOverride = true;
-                }
-            }
-
-            if (count > 0 && (Settings.XPlaneVrefKtsSystem <= 0.0f ||
-                              (NearlyEqual(Settings.XPlaneVrefKtsSystem, DiyFfbPluginSettings.DefaultXPlaneVrefKts) && hasOverride)))
-            {
-                Settings.XPlaneVrefKtsSystem = sum / count;
-            }
-
-            var collective = GetFunctionSettings(FunctionID.FlightStickCollective);
-            if (collective != null && collective.XPlaneVrefKts > 0.0f &&
-                (Settings.XPlaneNominalRpmSystem <= 0.0f || NearlyEqual(Settings.XPlaneNominalRpmSystem, DiyFfbPluginSettings.DefaultXPlaneNominalRpm)))
-            {
-                Settings.XPlaneNominalRpmSystem = collective.XPlaneVrefKts;
-            }
-
-            foreach (var settings in Settings.function_settings)
-            {
-                if (settings != null)
-                {
-                    settings.XPlaneVrefKts = 0.0f;
-                }
-            }
-        }
-
-        private void ApplyXPlaneVrefMigration(DiyFfbPluginSettings.FunctionSettings[] functionSettings)
-        {
-            if (functionSettings == null)
-            {
-                return;
-            }
-
-            float vrefMps = DiyFfbPluginSettings.DefaultXPlaneVrefKts * 0.514444f;
-            float qHatVref = vrefMps * vrefMps;
-            foreach (var settings in functionSettings)
-            {
-                if (settings == null || settings.XPlaneUsingVrefScaling)
-                {
-                    continue;
-                }
-
-                bool legacyScale = settings.XPlaneFfbKq < 0.05f &&
-                                   settings.XPlaneFfbKrate < 0.05f &&
-                                   settings.XPlaneBuffetGain <= 0.2f &&
-                                   settings.XPlaneWeathervaneGain <= 0.2f;
-                if (!legacyScale)
-                {
-                    settings.XPlaneUsingVrefScaling = true;
-                    continue;
-                }
-
-                settings.XPlaneFfbKq *= qHatVref;
-                settings.XPlaneFfbKrate *= qHatVref;
-                settings.XPlaneBuffetGain *= qHatVref;
-                settings.XPlaneWeathervaneGain *= qHatVref;
-                if (settings.XPlaneVrefKts <= 0.0f)
-                {
-                    settings.XPlaneVrefKts = DiyFfbPluginSettings.DefaultXPlaneVrefKts;
-                }
-                settings.XPlaneUsingVrefScaling = true;
-            }
-        }
-
-        private static bool IsXPlaneFfbDefault(DiyFfbPluginSettings.FunctionSettings functionSettings)
-        {
-            return NearlyEqual(functionSettings.XPlaneFfbKq, DiyFfbPluginSettings.DefaultXPlaneFfbKq) &&
-                   NearlyEqual(functionSettings.XPlaneFfbKrate, DiyFfbPluginSettings.DefaultXPlaneFfbKrate) &&
-                   NearlyEqual(functionSettings.XPlaneFfbKcenter, DiyFfbPluginSettings.DefaultXPlaneFfbKcenter) &&
-                   NearlyEqual(functionSettings.XPlaneTrimMmPerDeg, DiyFfbPluginSettings.DefaultXPlaneTrimMmPerDeg) &&
-                   NearlyEqual(functionSettings.XPlaneBuffetStartDeg, DiyFfbPluginSettings.DefaultXPlaneBuffetStartDeg) &&
-                   NearlyEqual(functionSettings.XPlaneBuffetFullDeg, DiyFfbPluginSettings.DefaultXPlaneBuffetFullDeg) &&
-                   NearlyEqual(functionSettings.XPlaneBuffetGain, DiyFfbPluginSettings.DefaultXPlaneBuffetGain) &&
-                   NearlyEqual(functionSettings.XPlaneAeroMomentGain, DiyFfbPluginSettings.DefaultXPlaneAeroMomentGain) &&
-                   NearlyEqual(functionSettings.XPlaneFrictionQ, DiyFfbPluginSettings.DefaultXPlaneFrictionQ) &&
-                   NearlyEqual(functionSettings.XPlaneFrictionTorque, DiyFfbPluginSettings.DefaultXPlaneFrictionTorque) &&
-                   NearlyEqual(functionSettings.XPlaneFrictionLowRpm, DiyFfbPluginSettings.DefaultXPlaneFrictionLowRpm) &&
-                   NearlyEqual(functionSettings.XPlaneRpmBlend, DiyFfbPluginSettings.DefaultXPlaneRpmBlend) &&
-                   NearlyEqual(functionSettings.XPlaneLoadTorqueGain, DiyFfbPluginSettings.DefaultXPlaneLoadTorqueGain) &&
-                   NearlyEqual(functionSettings.XPlaneLoadForceClamp, DiyFfbPluginSettings.DefaultXPlaneLoadForceClamp);
         }
 
         private static bool NearlyEqual(float a, float b)
@@ -2196,7 +1688,7 @@ namespace User.PluginSdkDemo
             }
             catch
             {
-                // Ignore evaluation errors for now; graph output mapping is not wired yet.
+                // Ignore evaluation errors to keep runtime stable; outputs remain from the last successful evaluation.
             }
         }
 
@@ -2457,9 +1949,7 @@ namespace User.PluginSdkDemo
                 string carIdLabel = activeCarId;
                 ui.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    ui.RefreshXPlaneFfbSettings();
-                    ui.RefreshXPlaneRotorSelection();
-                    ui.RefreshXPlaneSystemSettings();
+                    ui.RefreshGraphSelection();
                     ui.UpdateActiveAircraftLabel(carName, carIdLabel);
                     ui.RefreshFunctionSelection();
                 }));
@@ -2501,10 +1991,6 @@ namespace User.PluginSdkDemo
                 profile.FlightStickCollective.ApplyTo(GetFunctionSettings(FunctionID.FlightStickCollective));
                 profile.FlightPedals.ApplyTo(GetFunctionSettings(FunctionID.FlightPedals));
                 Settings.XPlaneRotorIndex = profile.XPlaneRotorIndex;
-                Settings.XPlaneAircraftIsHelicopter = profile.XPlaneAircraftIsHelicopter;
-                Settings.XPlaneVrefKtsSystem = profile.XPlaneVrefKts;
-                Settings.XPlaneNominalRpmSystem = profile.XPlaneNominalRpm;
-                Settings.XPlaneMainRotorTorqueRefNmSystem = profile.XPlaneMainRotorTorqueRefNm;
             }
             else
             {
@@ -2520,10 +2006,6 @@ namespace User.PluginSdkDemo
             profile.FlightStickCollective.CopyFrom(GetFunctionSettings(FunctionID.FlightStickCollective));
             profile.FlightPedals.CopyFrom(GetFunctionSettings(FunctionID.FlightPedals));
             profile.XPlaneRotorIndex = Settings.XPlaneRotorIndex;
-            profile.XPlaneAircraftIsHelicopter = Settings.XPlaneAircraftIsHelicopter;
-            profile.XPlaneVrefKts = Settings.XPlaneVrefKtsSystem;
-            profile.XPlaneNominalRpm = Settings.XPlaneNominalRpmSystem;
-            profile.XPlaneMainRotorTorqueRefNm = Settings.XPlaneMainRotorTorqueRefNmSystem;
 
             // Include current graph param values
             var currentProfile = GetCurrentAircraftProfile();
@@ -2570,10 +2052,6 @@ namespace User.PluginSdkDemo
                    AreFunctionFfbSettingsEqual(left.FlightStickCollective, right.FlightStickCollective) &&
                    AreFunctionFfbSettingsEqual(left.FlightPedals, right.FlightPedals) &&
                    left.XPlaneRotorIndex == right.XPlaneRotorIndex &&
-                   left.XPlaneAircraftIsHelicopter == right.XPlaneAircraftIsHelicopter &&
-                   NearlyEqual(left.XPlaneVrefKts, right.XPlaneVrefKts) &&
-                   NearlyEqual(left.XPlaneNominalRpm, right.XPlaneNominalRpm) &&
-                   NearlyEqual(left.XPlaneMainRotorTorqueRefNm, right.XPlaneMainRotorTorqueRefNm) &&
                    AreGraphParamValuesEqual(left.GraphParamValues, right.GraphParamValues);
         }
 
@@ -2606,24 +2084,7 @@ namespace User.PluginSdkDemo
                 return left == right;
             }
 
-            return left.XPlaneFfbEnabled == right.XPlaneFfbEnabled &&
-                   NearlyEqual(left.XPlaneFfbKq, right.XPlaneFfbKq) &&
-                   NearlyEqual(left.XPlaneFfbKrate, right.XPlaneFfbKrate) &&
-                   NearlyEqual(left.XPlaneTrimMmPerDeg, right.XPlaneTrimMmPerDeg) &&
-                   NearlyEqual(left.XPlaneBuffetStartDeg, right.XPlaneBuffetStartDeg) &&
-                   NearlyEqual(left.XPlaneBuffetFullDeg, right.XPlaneBuffetFullDeg) &&
-                   NearlyEqual(left.XPlaneBuffetGain, right.XPlaneBuffetGain) &&
-                   NearlyEqual(left.XPlaneWeathervaneGain, right.XPlaneWeathervaneGain) &&
-                   NearlyEqual(left.XPlaneAeroMomentGain, right.XPlaneAeroMomentGain) &&
-                   NearlyEqual(left.XPlaneTorqueRefNm, right.XPlaneTorqueRefNm) &&
-                   NearlyEqual(left.XPlaneFfbKcenter, right.XPlaneFfbKcenter) &&
-                   NearlyEqual(left.XPlaneFrictionQ, right.XPlaneFrictionQ) &&
-                   NearlyEqual(left.XPlaneFrictionTorque, right.XPlaneFrictionTorque) &&
-                   NearlyEqual(left.XPlaneFrictionLowRpm, right.XPlaneFrictionLowRpm) &&
-                   NearlyEqual(left.XPlaneRpmBlend, right.XPlaneRpmBlend) &&
-                   NearlyEqual(left.XPlaneLoadTorqueGain, right.XPlaneLoadTorqueGain) &&
-                   left.XPlaneReferenceFlightMode == right.XPlaneReferenceFlightMode &&
-                   NearlyEqual(left.XPlaneLoadForceClamp, right.XPlaneLoadForceClamp);
+            return true;
         }
 
         public string GetActiveCarId()
@@ -3193,8 +2654,7 @@ namespace User.PluginSdkDemo
             ApplyFfbProfileToCurrentSettings(profile);
             ui?.Dispatcher?.BeginInvoke(new Action(() =>
             {
-                ui.RefreshXPlaneRotorSelection();
-                ui.RefreshXPlaneSystemSettings();
+                ui.RefreshGraphSelection();
             }));
         }
 
@@ -3210,10 +2670,6 @@ namespace User.PluginSdkDemo
             profile.FlightStickCollective?.ApplyTo(GetFunctionSettings(FunctionID.FlightStickCollective));
             profile.FlightPedals?.ApplyTo(GetFunctionSettings(FunctionID.FlightPedals));
             Settings.XPlaneRotorIndex = profile.XPlaneRotorIndex;
-            Settings.XPlaneAircraftIsHelicopter = profile.XPlaneAircraftIsHelicopter;
-            Settings.XPlaneVrefKtsSystem = profile.XPlaneVrefKts;
-            Settings.XPlaneNominalRpmSystem = profile.XPlaneNominalRpm;
-            Settings.XPlaneMainRotorTorqueRefNmSystem = profile.XPlaneMainRotorTorqueRefNm;
         }
 
         public void SetPendingFfbProfile(DiyFfbPluginSettings.AircraftFfbProfile profile)
@@ -3309,8 +2765,6 @@ namespace User.PluginSdkDemo
 
             // Load settings
             Settings = this.ReadCommonSettings<DiyFfbPluginSettings>("GeneralSettings", () => new DiyFfbPluginSettings());
-            ApplyXPlaneFunctionDefaultsFromLegacy();
-            ApplyXPlaneSystemRefMigration();
 
             // Load any pending graph param changes from previous session
             LoadPendingGraphParams();
