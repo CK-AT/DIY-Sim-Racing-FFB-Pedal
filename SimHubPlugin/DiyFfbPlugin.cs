@@ -1803,120 +1803,36 @@ namespace User.PluginSdkDemo
         private void InitializeParamSnapshots(DiyFfbPluginSettings.AircraftFfbProfile profile, string hash)
         {
             var allParams = CollectAllGraphParams(activeVehicleGraph, activeGraphResolver);
-            var snapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>();
-
-            foreach (var param in allParams)
+            var paramInfos = allParams.Select(p => new ParamMigrationHelper.ParamInfo
             {
-                snapshots[param.Name] = new DiyFfbPluginSettings.ParamSnapshot
-                {
-                    DefaultValue = param.DefaultValue,
-                    Min = param.Min,
-                    Max = param.Max
-                };
-            }
+                Name = p.Name,
+                DefaultValue = p.DefaultValue,
+                Min = p.Min,
+                Max = p.Max
+            });
 
             profile.LastReviewedGraphHash = hash;
-            profile.LastReviewedParamSnapshots = snapshots;
+            profile.LastReviewedParamSnapshots = ParamMigrationHelper.CreateSnapshots(paramInfos);
         }
 
         private ParamMigrationResult MigrateParamOverrides(
             DiyFfbPluginSettings.AircraftFfbProfile profile,
             string newHash)
         {
-            var result = new ParamMigrationResult
+            var allParams = CollectAllGraphParams(activeVehicleGraph, activeGraphResolver);
+            var paramInfos = allParams.Select(p => new ParamMigrationHelper.ParamInfo
             {
-                NewHash = newHash
-            };
+                Name = p.Name,
+                DefaultValue = p.DefaultValue,
+                Min = p.Min,
+                Max = p.Max
+            });
 
-            // Collect all params from current graph
-            var currentParams = CollectAllGraphParams(activeVehicleGraph, activeGraphResolver);
-            var currentParamDict = currentParams.ToDictionary(p => p.Name);
-
-            // Build current snapshots
-            var currentSnapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>();
-            foreach (var param in currentParams)
-            {
-                currentSnapshots[param.Name] = new DiyFfbPluginSettings.ParamSnapshot
-                {
-                    DefaultValue = param.DefaultValue,
-                    Min = param.Min,
-                    Max = param.Max
-                };
-            }
-            result.CurrentSnapshots = currentSnapshots;
-
-            var oldSnapshots = profile.LastReviewedParamSnapshots ?? new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>();
-
-            // Check for changed defaults
-            foreach (var param in currentParams)
-            {
-                if (oldSnapshots.TryGetValue(param.Name, out var oldSnapshot))
-                {
-                    if (!NearlyEqual((float)oldSnapshot.DefaultValue, (float)param.DefaultValue))
-                    {
-                        result.ChangedDefaults.Add(new ParamDefaultChange
-                        {
-                            ParamName = param.Name,
-                            OldDefault = oldSnapshot.DefaultValue,
-                            NewDefault = param.DefaultValue
-                        });
-                    }
-                }
-            }
-
-            // Check overrides: clamp to new ranges, detect orphans
-            if (profile.GraphParamValues != null)
-            {
-                foreach (var kvp in profile.GraphParamValues.ToList())
-                {
-                    string paramName = kvp.Key;
-                    double overrideValue = kvp.Value;
-
-                    if (currentParamDict.TryGetValue(paramName, out var param))
-                    {
-                        // Param still exists - check if value needs clamping
-                        if (overrideValue < param.Min)
-                        {
-                            result.ClampedValues.Add(new ParamClampInfo
-                            {
-                                ParamName = paramName,
-                                OriginalValue = overrideValue,
-                                ClampedValue = param.Min,
-                                ClampedToMin = true,
-                                NewMin = param.Min,
-                                NewMax = param.Max
-                            });
-                            profile.GraphParamValues[paramName] = param.Min;
-                        }
-                        else if (overrideValue > param.Max)
-                        {
-                            result.ClampedValues.Add(new ParamClampInfo
-                            {
-                                ParamName = paramName,
-                                OriginalValue = overrideValue,
-                                ClampedValue = param.Max,
-                                ClampedToMax = true,
-                                NewMin = param.Min,
-                                NewMax = param.Max
-                            });
-                            profile.GraphParamValues[paramName] = param.Max;
-                        }
-                    }
-                    else
-                    {
-                        // Param no longer in graph - it's an orphan
-                        result.AllOrphans.Add(paramName);
-
-                        // Check if it's a NEW orphan (wasn't orphaned before)
-                        if (oldSnapshots.ContainsKey(paramName))
-                        {
-                            result.NewOrphans.Add(paramName);
-                        }
-                    }
-                }
-            }
-
-            return result;
+            return ParamMigrationHelper.Migrate(
+                paramInfos,
+                profile.LastReviewedParamSnapshots,
+                profile.GraphParamValues,
+                newHash);
         }
 
         private void EvaluateActiveGraph(GameData data)
@@ -2731,6 +2647,33 @@ namespace User.PluginSdkDemo
 
             // Notify listeners of parameter change
             GraphParamChanged?.Invoke(this, new GraphParamChangedEventArgs(paramName, value));
+        }
+
+        /// <summary>
+        /// Resets a graph parameter to its default value by removing the vehicle override.
+        /// </summary>
+        /// <param name="paramName">Name of the parameter to reset.</param>
+        public void ResetGraphParamValue(string paramName)
+        {
+            // Remove from profile (Tier 3)
+            var profile = GetCurrentAircraftProfile();
+            if (profile?.GraphParamValues != null)
+            {
+                profile.GraphParamValues.Remove(paramName);
+            }
+
+            // Get the default value (from graph Tier 2 or param definition)
+            var allParams = GetActiveGraphParams();
+            double defaultValue = allParams.TryGetValue(paramName, out var param) ? param.DefaultValue : 0.0;
+            double effectiveValue = ResolveParamValue(paramName, defaultValue);
+
+            // Update runtime param
+            graphParams[paramName] = effectiveValue;
+
+            MarkProfileDirty();
+
+            // Notify listeners so UI updates
+            GraphParamChanged?.Invoke(this, new GraphParamChangedEventArgs(paramName, effectiveValue));
         }
 
         /// <summary>

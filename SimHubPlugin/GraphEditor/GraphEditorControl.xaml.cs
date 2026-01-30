@@ -29,6 +29,7 @@ namespace User.PluginSdkDemo.GraphEditor
         private readonly ObservableCollection<PreviewEntry> _previewParamEntries = new ObservableCollection<PreviewEntry>();
         private readonly Dictionary<string, PreviewEntry> _previewInputLookup = new Dictionary<string, PreviewEntry>();
         private readonly Dictionary<string, PreviewEntry> _previewParamLookup = new Dictionary<string, PreviewEntry>();
+        private readonly HashSet<string> _explicitlyUpdatedParams = new HashSet<string>();
         private readonly DispatcherTimer _includePathDebounceTimer;
         private readonly DispatcherTimer _undoDebounceTimer;
         private readonly DispatcherTimer _previewRefreshTimer;
@@ -987,6 +988,9 @@ namespace User.PluginSdkDemo.GraphEditor
             _updatingParamValue = true;
             try
             {
+                // Track this param as explicitly updated (for context preview overlay)
+                _explicitlyUpdatedParams.Add(name);
+
                 // Update graph param
                 if (_graph.Params.TryGetValue(name, out var param))
                 {
@@ -1047,6 +1051,9 @@ namespace User.PluginSdkDemo.GraphEditor
             {
                 _updatingParamValue = false;
             }
+
+            // Refresh preview to show updated param values on node outputs
+            RefreshPreview();
         }
 
         private static int GetPortRowCount(GraphNode node)
@@ -2735,6 +2742,16 @@ namespace User.PluginSdkDemo.GraphEditor
                             foreach (var kvp in ctx.Parameters)
                             {
                                 parameters[kvp.Key] = kvp.Value;
+                            }
+                        }
+                        // Overlay only explicitly updated param values to ensure param changes
+                        // propagate to include context preview immediately, while preserving
+                        // profile overrides for params that haven't been changed this session
+                        foreach (var entry in _previewParamEntries)
+                        {
+                            if (_explicitlyUpdatedParams.Contains(entry.Name))
+                            {
+                                parameters[entry.Name] = entry.Value;
                             }
                         }
                     }

@@ -117,7 +117,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 var profile = GetCurrentProfile();
                 if (profile?.GraphParamValues != null && profile.GraphParamValues.ContainsKey(paramName))
                 {
-                    profile.GraphParamValues.Remove(paramName);
+                    _plugin.ResetGraphParamValue(paramName);
                     LoadData();
                 }
             }
@@ -134,9 +134,14 @@ namespace User.PluginSdkDemo.GraphEditor
             if (result == MessageBoxResult.Yes)
             {
                 var profile = GetCurrentProfile();
-                if (profile != null)
+                if (profile?.GraphParamValues != null)
                 {
-                    profile.GraphParamValues?.Clear();
+                    // Reset each param individually to trigger UI updates
+                    var paramNames = profile.GraphParamValues.Keys.ToList();
+                    foreach (var paramName in paramNames)
+                    {
+                        _plugin.ResetGraphParamValue(paramName);
+                    }
                     LoadData();
                 }
             }

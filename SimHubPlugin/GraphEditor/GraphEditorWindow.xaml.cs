@@ -186,13 +186,18 @@ namespace User.PluginSdkDemo.GraphEditor
 
         private void OnPluginGraphParamChanged(object sender, GraphParamChangedEventArgs e)
         {
-            // Update active graph tab's editor when plugin parameters change externally
+            // Update ALL open tabs when plugin parameters change externally
+            // (params are global across the graph tree, so include tabs need updates too)
             Dispatcher.Invoke(() =>
             {
+                foreach (var tab in tabManager.Tabs)
+                {
+                    tab.EditorControl.UpdateParamValue(e.ParamName, e.Value);
+                }
+                // Mark only the active graph tab as dirty (it owns the param)
                 var activeTab = tabManager.ActiveGraphTab;
                 if (activeTab != null)
                 {
-                    activeTab.EditorControl.UpdateParamValue(e.ParamName, e.Value);
                     activeTab.IsDirty = true;
                 }
             });

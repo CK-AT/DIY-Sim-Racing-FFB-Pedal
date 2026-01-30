@@ -227,6 +227,7 @@
       <DependentUpon>ParamReviewWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="GraphHashComputer.cs" />
+    <Compile Include="ParamMigrationHelper.cs" />
     <Compile Include="ParamMigrationResult.cs" />
     <Compile Include="GraphEditor\GraphEditorTab.cs" />
     <Compile Include="GraphEditor\GraphEditorTabManager.cs" />

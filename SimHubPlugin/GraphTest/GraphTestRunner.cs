@@ -97,6 +97,30 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Evaluator clears cache each evaluation", TestEvaluatorClearsCacheEachEvaluation));
             results.Add(TestRunner.RunTest("Graph undo stack basic", TestGraphUndoStackBasic));
 
+            // Param migration tests
+            results.Add(TestRunner.RunTest("Param migration: no changes", TestParamMigrationNoChanges));
+            results.Add(TestRunner.RunTest("Param migration: clamp to min", TestParamMigrationClampToMin));
+            results.Add(TestRunner.RunTest("Param migration: clamp to max", TestParamMigrationClampToMax));
+            results.Add(TestRunner.RunTest("Param migration: orphan detected", TestParamMigrationOrphanDetected));
+            results.Add(TestRunner.RunTest("Param migration: new orphan vs existing", TestParamMigrationNewOrphanVsExisting));
+            results.Add(TestRunner.RunTest("Param migration: changed default", TestParamMigrationChangedDefault));
+            results.Add(TestRunner.RunTest("Param migration: orphan restored", TestParamMigrationOrphanRestored));
+            results.Add(TestRunner.RunTest("Param migration: combined scenario", TestParamMigrationCombinedScenario));
+
+            // GraphUsageReport.IsShared tests
+            results.Add(TestRunner.RunTest("IsShared: multiple direct users", TestIsSharedMultipleDirectUsers));
+            results.Add(TestRunner.RunTest("IsShared: single user different vehicle", TestIsSharedSingleUserDifferentVehicle));
+            results.Add(TestRunner.RunTest("IsShared: included by graphs with users", TestIsSharedIncludedByGraphsWithUsers));
+            results.Add(TestRunner.RunTest("IsShared: single user same vehicle", TestIsSharedSingleUserSameVehicle));
+            results.Add(TestRunner.RunTest("IsShared: no users no includes", TestIsSharedNoUsersNoIncludes));
+
+            // GraphHashComputer tests
+            results.Add(TestRunner.RunTest("GraphHash: invalid path returns null", TestGraphHashInvalidPath));
+            results.Add(TestRunner.RunTest("GraphHash: deterministic same content", TestGraphHashDeterministic));
+            results.Add(TestRunner.RunTest("GraphHash: changed content different hash", TestGraphHashChangedContent));
+            results.Add(TestRunner.RunTest("GraphHash: nested includes in hash", TestGraphHashNestedIncludes));
+            results.Add(TestRunner.RunTest("GraphHash: cyclic includes handled", TestGraphHashCyclicIncludes));
+
             TestRunner.PrintResults("FFB Graph Tests", results);
         }
 
@@ -2660,6 +2684,475 @@ namespace DiyFfb.GraphTest
                 try { System.IO.Directory.Delete(tempDir, true); } catch { }
             }
         }
+
+        #region Param Migration Tests
+
+        private static bool TestParamMigrationNoChanges()
+        {
+            // Setup: same params, same ranges, no overrides
+            var currentParams = new List<ParamMigrationHelper.ParamInfo>
+            {
+                new ParamMigrationHelper.ParamInfo { Name = "gain", DefaultValue = 1.0, Min = 0, Max = 2 },
+                new ParamMigrationHelper.ParamInfo { Name = "damping", DefaultValue = 0.5, Min = 0, Max = 1 }
+            };
+            var oldSnapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>
+            {
+                ["gain"] = new DiyFfbPluginSettings.ParamSnapshot { DefaultValue = 1.0, Min = 0, Max = 2 },
+                ["damping"] = new DiyFfbPluginSettings.ParamSnapshot { DefaultValue = 0.5, Min = 0, Max = 1 }
+            };
+            var overrides = new Dictionary<string, double>();
+
+            var result = ParamMigrationHelper.Migrate(currentParams, oldSnapshots, overrides, "hash123");
+
+            return !result.HasChangesToReview &&
+                   result.ChangedDefaults.Count == 0 &&
+                   result.ClampedValues.Count == 0 &&
+                   result.NewOrphans.Count == 0 &&
+                   result.AllOrphans.Count == 0;
+        }
+
+        private static bool TestParamMigrationClampToMin()
+        {
+            // Setup: override below new min range
+            var currentParams = new List<ParamMigrationHelper.ParamInfo>
+            {
+                new ParamMigrationHelper.ParamInfo { Name = "gain", DefaultValue = 1.0, Min = 0.5, Max = 2 } // min changed from 0 to 0.5
+            };
+            var oldSnapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>
+            {
+                ["gain"] = new DiyFfbPluginSettings.ParamSnapshot { DefaultValue = 1.0, Min = 0, Max = 2 }
+            };
+            var overrides = new Dictionary<string, double> { ["gain"] = 0.2 }; // Below new min of 0.5
+
+            var result = ParamMigrationHelper.Migrate(currentParams, oldSnapshots, overrides, "hash123");
+
+            return result.HasChangesToReview &&
+                   result.ClampedValues.Count == 1 &&
+                   result.ClampedValues[0].ParamName == "gain" &&
+                   Math.Abs(result.ClampedValues[0].OriginalValue - 0.2) < 0.0001 &&
+                   Math.Abs(result.ClampedValues[0].ClampedValue - 0.5) < 0.0001 &&
+                   result.ClampedValues[0].ClampedToMin &&
+                   !result.ClampedValues[0].ClampedToMax &&
+                   Math.Abs(overrides["gain"] - 0.5) < 0.0001; // Override was mutated
+        }
+
+        private static bool TestParamMigrationClampToMax()
+        {
+            // Setup: override above new max range
+            var currentParams = new List<ParamMigrationHelper.ParamInfo>
+            {
+                new ParamMigrationHelper.ParamInfo { Name = "gain", DefaultValue = 1.0, Min = 0, Max = 1.5 } // max changed from 2 to 1.5
+            };
+            var oldSnapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>
+            {
+                ["gain"] = new DiyFfbPluginSettings.ParamSnapshot { DefaultValue = 1.0, Min = 0, Max = 2 }
+            };
+            var overrides = new Dictionary<string, double> { ["gain"] = 1.8 }; // Above new max of 1.5
+
+            var result = ParamMigrationHelper.Migrate(currentParams, oldSnapshots, overrides, "hash123");
+
+            return result.HasChangesToReview &&
+                   result.ClampedValues.Count == 1 &&
+                   result.ClampedValues[0].ParamName == "gain" &&
+                   Math.Abs(result.ClampedValues[0].OriginalValue - 1.8) < 0.0001 &&
+                   Math.Abs(result.ClampedValues[0].ClampedValue - 1.5) < 0.0001 &&
+                   !result.ClampedValues[0].ClampedToMin &&
+                   result.ClampedValues[0].ClampedToMax &&
+                   Math.Abs(overrides["gain"] - 1.5) < 0.0001; // Override was mutated
+        }
+
+        private static bool TestParamMigrationOrphanDetected()
+        {
+            // Setup: param removed from graph, override becomes orphan
+            var currentParams = new List<ParamMigrationHelper.ParamInfo>
+            {
+                new ParamMigrationHelper.ParamInfo { Name = "gain", DefaultValue = 1.0, Min = 0, Max = 2 }
+                // "damping" param was removed
+            };
+            var oldSnapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>
+            {
+                ["gain"] = new DiyFfbPluginSettings.ParamSnapshot { DefaultValue = 1.0, Min = 0, Max = 2 },
+                ["damping"] = new DiyFfbPluginSettings.ParamSnapshot { DefaultValue = 0.5, Min = 0, Max = 1 }
+            };
+            var overrides = new Dictionary<string, double> { ["damping"] = 0.7 }; // Override for removed param
+
+            var result = ParamMigrationHelper.Migrate(currentParams, oldSnapshots, overrides, "hash123");
+
+            return result.HasChangesToReview &&
+                   result.NewOrphans.Count == 1 &&
+                   result.NewOrphans[0] == "damping" &&
+                   result.AllOrphans.Count == 1 &&
+                   result.AllOrphans[0] == "damping";
+        }
+
+        private static bool TestParamMigrationNewOrphanVsExisting()
+        {
+            // Setup: one override was already orphaned, another becomes newly orphaned
+            var currentParams = new List<ParamMigrationHelper.ParamInfo>
+            {
+                new ParamMigrationHelper.ParamInfo { Name = "gain", DefaultValue = 1.0, Min = 0, Max = 2 }
+                // "damping" removed this time, "old_param" was already orphaned
+            };
+            var oldSnapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>
+            {
+                ["gain"] = new DiyFfbPluginSettings.ParamSnapshot { DefaultValue = 1.0, Min = 0, Max = 2 },
+                ["damping"] = new DiyFfbPluginSettings.ParamSnapshot { DefaultValue = 0.5, Min = 0, Max = 1 }
+                // "old_param" not in old snapshots (already orphaned before)
+            };
+            var overrides = new Dictionary<string, double>
+            {
+                ["damping"] = 0.7, // Becomes new orphan
+                ["old_param"] = 1.0 // Already orphaned (not in old snapshots)
+            };
+
+            var result = ParamMigrationHelper.Migrate(currentParams, oldSnapshots, overrides, "hash123");
+
+            return result.HasChangesToReview &&
+                   result.NewOrphans.Count == 1 &&
+                   result.NewOrphans[0] == "damping" && // Only damping is NEW orphan
+                   result.AllOrphans.Count == 2 && // Both are orphans total
+                   result.AllOrphans.Contains("damping") &&
+                   result.AllOrphans.Contains("old_param");
+        }
+
+        private static bool TestParamMigrationChangedDefault()
+        {
+            // Setup: param default value changed
+            var currentParams = new List<ParamMigrationHelper.ParamInfo>
+            {
+                new ParamMigrationHelper.ParamInfo { Name = "gain", DefaultValue = 1.5, Min = 0, Max = 2 } // Default changed from 1.0 to 1.5
+            };
+            var oldSnapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>
+            {
+                ["gain"] = new DiyFfbPluginSettings.ParamSnapshot { DefaultValue = 1.0, Min = 0, Max = 2 }
+            };
+            var overrides = new Dictionary<string, double>();
+
+            var result = ParamMigrationHelper.Migrate(currentParams, oldSnapshots, overrides, "hash123");
+
+            return result.HasChangesToReview &&
+                   result.ChangedDefaults.Count == 1 &&
+                   result.ChangedDefaults[0].ParamName == "gain" &&
+                   Math.Abs(result.ChangedDefaults[0].OldDefault - 1.0) < 0.0001 &&
+                   Math.Abs(result.ChangedDefaults[0].NewDefault - 1.5) < 0.0001;
+        }
+
+        private static bool TestParamMigrationOrphanRestored()
+        {
+            // Setup: param that was orphaned is now back in graph
+            var currentParams = new List<ParamMigrationHelper.ParamInfo>
+            {
+                new ParamMigrationHelper.ParamInfo { Name = "gain", DefaultValue = 1.0, Min = 0, Max = 2 },
+                new ParamMigrationHelper.ParamInfo { Name = "restored_param", DefaultValue = 0.5, Min = 0, Max = 1 } // Back in graph
+            };
+            var oldSnapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>
+            {
+                ["gain"] = new DiyFfbPluginSettings.ParamSnapshot { DefaultValue = 1.0, Min = 0, Max = 2 }
+                // "restored_param" not in old snapshots (was orphaned)
+            };
+            var overrides = new Dictionary<string, double>
+            {
+                ["restored_param"] = 0.8 // Override for previously orphaned param
+            };
+
+            var result = ParamMigrationHelper.Migrate(currentParams, oldSnapshots, overrides, "hash123");
+
+            // Override should be preserved (value within range), no orphan
+            return !result.HasChangesToReview &&
+                   result.AllOrphans.Count == 0 &&
+                   result.NewOrphans.Count == 0 &&
+                   Math.Abs(overrides["restored_param"] - 0.8) < 0.0001; // Value preserved
+        }
+
+        private static bool TestParamMigrationCombinedScenario()
+        {
+            // Setup: multiple changes at once
+            var currentParams = new List<ParamMigrationHelper.ParamInfo>
+            {
+                new ParamMigrationHelper.ParamInfo { Name = "gain", DefaultValue = 1.2, Min = 0.2, Max = 1.8 }, // Default + range changed
+                new ParamMigrationHelper.ParamInfo { Name = "friction", DefaultValue = 0.1, Min = 0, Max = 0.5 } // New param
+                // "damping" removed
+            };
+            var oldSnapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>
+            {
+                ["gain"] = new DiyFfbPluginSettings.ParamSnapshot { DefaultValue = 1.0, Min = 0, Max = 2 },
+                ["damping"] = new DiyFfbPluginSettings.ParamSnapshot { DefaultValue = 0.5, Min = 0, Max = 1 }
+            };
+            var overrides = new Dictionary<string, double>
+            {
+                ["gain"] = 0.1, // Below new min of 0.2
+                ["damping"] = 0.7 // Becomes orphan
+            };
+
+            var result = ParamMigrationHelper.Migrate(currentParams, oldSnapshots, overrides, "hash123");
+
+            return result.HasChangesToReview &&
+                   result.ChangedDefaults.Count == 1 && result.ChangedDefaults[0].ParamName == "gain" &&
+                   result.ClampedValues.Count == 1 && result.ClampedValues[0].ParamName == "gain" &&
+                   Math.Abs(overrides["gain"] - 0.2) < 0.0001 && // Clamped to min
+                   result.NewOrphans.Count == 1 && result.NewOrphans[0] == "damping" &&
+                   result.CurrentSnapshots.ContainsKey("gain") &&
+                   result.CurrentSnapshots.ContainsKey("friction") &&
+                   !result.CurrentSnapshots.ContainsKey("damping"); // Not in current graph
+        }
+
+        #endregion
+
+        #region IsShared Tests
+
+        private static bool TestIsSharedMultipleDirectUsers()
+        {
+            // Multiple vehicles directly use this graph → IsShared = true
+            var report = new GraphUsageReport
+            {
+                GraphPath = "test.json",
+                CurrentVehicleKey = "Vehicle_A"
+            };
+            report.DirectUsers.Add("Vehicle_A");
+            report.DirectUsers.Add("Vehicle_B");
+
+            return report.IsShared == true;
+        }
+
+        private static bool TestIsSharedSingleUserDifferentVehicle()
+        {
+            // Single vehicle uses this graph, but it's not the current vehicle → IsShared = true
+            var report = new GraphUsageReport
+            {
+                GraphPath = "test.json",
+                CurrentVehicleKey = "Vehicle_A"
+            };
+            report.DirectUsers.Add("Vehicle_B");
+
+            return report.IsShared == true;
+        }
+
+        private static bool TestIsSharedIncludedByGraphsWithUsers()
+        {
+            // Graph is included by another graph that has vehicle users → IsShared = true
+            var report = new GraphUsageReport
+            {
+                GraphPath = "included.json",
+                CurrentVehicleKey = "Vehicle_A"
+            };
+            // No direct users
+            var includeUsage = new IncludeUsage { IncludingGraphPath = "parent.json" };
+            includeUsage.VehicleKeys.Add("Vehicle_B");
+            report.IncludedBy.Add(includeUsage);
+
+            return report.IsShared == true;
+        }
+
+        private static bool TestIsSharedSingleUserSameVehicle()
+        {
+            // Single vehicle uses this graph, and it's the current vehicle → IsShared = false
+            var report = new GraphUsageReport
+            {
+                GraphPath = "test.json",
+                CurrentVehicleKey = "Vehicle_A"
+            };
+            report.DirectUsers.Add("Vehicle_A");
+
+            return report.IsShared == false;
+        }
+
+        private static bool TestIsSharedNoUsersNoIncludes()
+        {
+            // No direct users, no includes → IsShared = false
+            var report = new GraphUsageReport
+            {
+                GraphPath = "test.json",
+                CurrentVehicleKey = "Vehicle_A"
+            };
+
+            return report.IsShared == false;
+        }
+
+        #endregion
+
+        #region GraphHashComputer Tests
+
+        private static bool TestGraphHashInvalidPath()
+        {
+            // Null path
+            var hash1 = GraphHashComputer.ComputeGraphTreeHash(null, null);
+            if (hash1 != null) return false;
+
+            // Empty path
+            var hash2 = GraphHashComputer.ComputeGraphTreeHash("", null);
+            if (hash2 != null) return false;
+
+            // Non-existent path
+            var hash3 = GraphHashComputer.ComputeGraphTreeHash(@"C:\nonexistent\path\file.json", null);
+            if (hash3 != null) return false;
+
+            return true;
+        }
+
+        private static bool TestGraphHashDeterministic()
+        {
+            // Same content should produce same hash
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ffb_hash_test_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            try
+            {
+                System.IO.Directory.CreateDirectory(tempDir);
+
+                // Create a simple graph
+                var graph = new GraphEditor.GraphDefinition();
+                var constNode = new GraphEditor.GraphNode { Id = "c1", Kind = GraphEditor.GraphNodeKind.Const, ConstValue = 42.0 };
+                graph.Nodes.Add(constNode);
+                var outNode = new GraphEditor.GraphNode { Id = "out", Kind = GraphEditor.GraphNodeKind.Output };
+                outNode.Ports.Add(new GraphEditor.GraphPort { Name = "value", Kind = GraphEditor.GraphPortKind.Input });
+                graph.Nodes.Add(outNode);
+                graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "c1", FromPort = "value", ToNodeId = "out", ToPort = "value" });
+
+                string graphPath = System.IO.Path.Combine(tempDir, "test.json");
+                System.IO.File.WriteAllText(graphPath, GraphEditor.GraphSerializer.Serialize(graph));
+
+                // Compute hash twice
+                var hash1 = GraphHashComputer.ComputeGraphTreeHash(graphPath, graph);
+                var hash2 = GraphHashComputer.ComputeGraphTreeHash(graphPath, graph);
+
+                // Should be identical
+                return hash1 != null && hash1 == hash2;
+            }
+            finally
+            {
+                try { System.IO.Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+
+        private static bool TestGraphHashChangedContent()
+        {
+            // Changed content should produce different hash
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ffb_hash_test_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            try
+            {
+                System.IO.Directory.CreateDirectory(tempDir);
+
+                // Create initial graph
+                var graph1 = new GraphEditor.GraphDefinition();
+                var constNode1 = new GraphEditor.GraphNode { Id = "c1", Kind = GraphEditor.GraphNodeKind.Const, ConstValue = 42.0 };
+                graph1.Nodes.Add(constNode1);
+
+                string graphPath = System.IO.Path.Combine(tempDir, "test.json");
+                System.IO.File.WriteAllText(graphPath, GraphEditor.GraphSerializer.Serialize(graph1));
+
+                var hash1 = GraphHashComputer.ComputeGraphTreeHash(graphPath, graph1);
+
+                // Modify the graph
+                var graph2 = new GraphEditor.GraphDefinition();
+                var constNode2 = new GraphEditor.GraphNode { Id = "c1", Kind = GraphEditor.GraphNodeKind.Const, ConstValue = 99.0 }; // Different value
+                graph2.Nodes.Add(constNode2);
+
+                System.IO.File.WriteAllText(graphPath, GraphEditor.GraphSerializer.Serialize(graph2));
+
+                var hash2 = GraphHashComputer.ComputeGraphTreeHash(graphPath, graph2);
+
+                // Hashes should be different
+                return hash1 != null && hash2 != null && hash1 != hash2;
+            }
+            finally
+            {
+                try { System.IO.Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+
+        private static bool TestGraphHashNestedIncludes()
+        {
+            // Hash should include all files in the include tree
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ffb_hash_nested_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            try
+            {
+                System.IO.Directory.CreateDirectory(tempDir);
+
+                // Create inner graph
+                var innerGraph = new GraphEditor.GraphDefinition { IsLibraryGraph = true };
+                var innerConst = new GraphEditor.GraphNode { Id = "c1", Kind = GraphEditor.GraphNodeKind.Const, ConstValue = 10.0 };
+                innerGraph.Nodes.Add(innerConst);
+                var innerOut = new GraphEditor.GraphNode { Id = "out", Kind = GraphEditor.GraphNodeKind.Output };
+                innerOut.Ports.Add(new GraphEditor.GraphPort { Name = "value", Kind = GraphEditor.GraphPortKind.Input });
+                innerGraph.Nodes.Add(innerOut);
+                innerGraph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "c1", FromPort = "value", ToNodeId = "out", ToPort = "value" });
+
+                string innerPath = System.IO.Path.Combine(tempDir, "inner.json");
+                System.IO.File.WriteAllText(innerPath, GraphEditor.GraphSerializer.Serialize(innerGraph));
+
+                // Create parent graph that includes inner
+                var parentGraph = new GraphEditor.GraphDefinition();
+                var includeNode = new GraphEditor.GraphNode
+                {
+                    Id = "inc",
+                    Kind = GraphEditor.GraphNodeKind.Include,
+                    IncludePath = "inner.json"
+                };
+                parentGraph.Nodes.Add(includeNode);
+
+                string parentPath = System.IO.Path.Combine(tempDir, "parent.json");
+                System.IO.File.WriteAllText(parentPath, GraphEditor.GraphSerializer.Serialize(parentGraph));
+
+                var hash1 = GraphHashComputer.ComputeGraphTreeHash(parentPath, parentGraph);
+
+                // Now modify the inner graph
+                innerGraph.Nodes[0].ConstValue = 20.0; // Change const value
+                System.IO.File.WriteAllText(innerPath, GraphEditor.GraphSerializer.Serialize(innerGraph));
+
+                var hash2 = GraphHashComputer.ComputeGraphTreeHash(parentPath, parentGraph);
+
+                // Hash should change because inner file changed
+                return hash1 != null && hash2 != null && hash1 != hash2;
+            }
+            finally
+            {
+                try { System.IO.Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+
+        private static bool TestGraphHashCyclicIncludes()
+        {
+            // Cyclic includes should be handled gracefully (no infinite loop)
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ffb_hash_cyclic_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            try
+            {
+                System.IO.Directory.CreateDirectory(tempDir);
+
+                // Create graph A that includes B
+                var graphA = new GraphEditor.GraphDefinition();
+                var includeB = new GraphEditor.GraphNode
+                {
+                    Id = "incB",
+                    Kind = GraphEditor.GraphNodeKind.Include,
+                    IncludePath = "b.json"
+                };
+                graphA.Nodes.Add(includeB);
+
+                // Create graph B that includes A (cycle)
+                var graphB = new GraphEditor.GraphDefinition();
+                var includeA = new GraphEditor.GraphNode
+                {
+                    Id = "incA",
+                    Kind = GraphEditor.GraphNodeKind.Include,
+                    IncludePath = "a.json"
+                };
+                graphB.Nodes.Add(includeA);
+
+                string pathA = System.IO.Path.Combine(tempDir, "a.json");
+                string pathB = System.IO.Path.Combine(tempDir, "b.json");
+                System.IO.File.WriteAllText(pathA, GraphEditor.GraphSerializer.Serialize(graphA));
+                System.IO.File.WriteAllText(pathB, GraphEditor.GraphSerializer.Serialize(graphB));
+
+                // Should return a hash without infinite loop
+                var hash = GraphHashComputer.ComputeGraphTreeHash(pathA, graphA);
+
+                return hash != null && hash.Length > 0;
+            }
+            finally
+            {
+                try { System.IO.Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+
+        #endregion
 
     }
 }
