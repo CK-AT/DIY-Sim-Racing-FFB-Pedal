@@ -516,7 +516,6 @@
                                             <styles:SHButtonPrimary x:Name="btn_download_function_config" Click="OnDownloadFunctionConfigClicked" Width="125" Height="28" Content="Download" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Request the function config from a connected axis." />
                                             <styles:SHButtonPrimary x:Name="btn_load_function_config_from_file" Click="OnLoadConfigClick" Width="125" Height="28" Content="Load" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Load a function config from a .json file." />
                                             <styles:SHButtonPrimary x:Name="btn_store_function_config_to_file" Click="btn_store_function_config_to_file_Click" Width="125" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this function config to a .json file." />
-                                            <styles:SHButtonPrimary x:Name="btn_open_graph_editor" Click="OnOpenGraphEditorClicked" Width="125" Height="28" Content="Graph Editor" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Open the node-based FFB graph editor in a separate window." />
                                         </StackPanel>
                                     </Border>
                                     <ScrollViewer Height="764" >
@@ -685,7 +684,15 @@
                             <Canvas Height="6" Width="725" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1">
                                 <Line X1="2" Y1="3" X2="763" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
                             </Canvas>
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" Height="820" Margin="10,10,10,10">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="10,5,10,5">
+                                <styles:SHButtonPrimary x:Name="btn_manage_profiles" Click="btn_manage_profiles_Click" Width="110" Content="Manage Profiles" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
+                                <styles:SHButtonPrimary x:Name="btn_review_params" Click="btn_review_params_Click" Width="100" Content="Review Params" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
+                                <styles:SHButtonPrimary x:Name="btn_store_profile" Click="btn_store_profile_Click" Width="90" Content="Store Profile" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
+                                <styles:SHButtonPrimary x:Name="btn_save_aircraft_ffb" Click="btn_save_aircraft_ffb_Click" Width="90" Content="Export Profile" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
+                                <styles:SHButtonPrimary x:Name="btn_load_aircraft_ffb" Click="btn_load_aircraft_ffb_Click" Width="90" Content="Import Profile" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
+                                <styles:SHButtonPrimary x:Name="btn_open_graph_editor_vehicle" Click="OnOpenGraphEditorClicked" Width="90" Content="Graph Editor" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                            </StackPanel>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Height="786" Margin="10,10,10,10">
                                 <StackPanel x:Name="VehicleParamsContainer" Orientation="Vertical" Width="540"/>
                             </ScrollViewer>
                         </StackPanel>
@@ -875,14 +882,6 @@
                                                             <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Margin="70,10,0,0">
                                                                 <Label Content="System Parameters" FontFamily="Arial Black" FontSize="11" Height="20" Width="150" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" Margin="0,0,0,4"/>
                                                                 <ItemsControl x:Name="SystemGraphParamsPanel" Width="460" Margin="0,0,0,10"/>
-                                                            </StackPanel>
-                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,6,0,0">
-                                                                <styles:SHButtonPrimary x:Name="btn_manage_profiles" Click="btn_manage_profiles_Click" Width="120" Content="Manage Profiles" Height="24" HorizontalAlignment="Left" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="4,4,4,4" />
-                                                                <styles:SHButtonPrimary x:Name="btn_review_params" Click="btn_review_params_Click" Width="100" Content="Review Params" Height="24" HorizontalAlignment="Left" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
-                                                                <styles:SHButtonPrimary x:Name="btn_store_profile" Click="btn_store_profile_Click" Width="100" Content="Store Profile" Height="24" HorizontalAlignment="Left" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
-                                                                <styles:SHButtonPrimary x:Name="btn_save_aircraft_ffb" Click="btn_save_aircraft_ffb_Click" Width="100" Content="Export Profile" Height="24" HorizontalAlignment="Left" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
-                                                                <styles:SHButtonPrimary x:Name="btn_load_aircraft_ffb" Click="btn_load_aircraft_ffb_Click" Width="120" Content="Import Profile" Height="24" HorizontalAlignment="Left" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
-                                                                <styles:SHButtonPrimary x:Name="btn_reset_params_defaults" Click="btn_reset_params_defaults_Click" Width="120" Content="Reset to Defaults" Height="24" HorizontalAlignment="Left" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
                                                             </StackPanel>
                                                             <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
                                                                 <styles:SHButtonPrimary x:Name="btn_save_ffb_map" Click="btn_save_ffb_map_Click" Width="120" Content="Save FFB Map" HorizontalAlignment="Left" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
