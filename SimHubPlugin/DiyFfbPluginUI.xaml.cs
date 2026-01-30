@@ -799,6 +799,26 @@ namespace User.PluginSdkDemo
             ShowProfileBrowser(ProfileBrowserMode.ManageProfiles);
         }
 
+        private void btn_store_profile_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            string profileKey = Plugin.GetActiveProfileKey();
+            if (string.IsNullOrWhiteSpace(profileKey))
+            {
+                MessageBox.Show("No active vehicle detected.", "Store Profile", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (Plugin.StoreCurrentProfile())
+            {
+                MessageBox.Show($"Profile stored for {profileKey}.", "Store Profile", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
         private void ShowProfileBrowser(ProfileBrowserMode mode)
         {
             if (Plugin == null)

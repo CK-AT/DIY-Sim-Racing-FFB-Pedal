@@ -2038,6 +2038,21 @@ namespace User.PluginSdkDemo
             hasDirtyGraphParams = false;
         }
 
+        /// <summary>
+        /// Explicitly stores the current vehicle's profile settings.
+        /// </summary>
+        /// <returns>True if profile was stored, false if no active vehicle.</returns>
+        public bool StoreCurrentProfile()
+        {
+            if (string.IsNullOrWhiteSpace(activeCarId))
+            {
+                return false;
+            }
+
+            SaveCurrentAircraftProfile(activeGameId, activeCarId);
+            return true;
+        }
+
         private void ApplyAircraftProfile(string gameId, string carId)
         {
             if (Settings == null || string.IsNullOrWhiteSpace(carId))
@@ -2071,11 +2086,15 @@ namespace User.PluginSdkDemo
             var profile = new DiyFfbPluginSettings.AircraftFfbProfile();
             profile.XPlaneRotorIndex = Settings.XPlaneRotorIndex;
 
-            // Include current graph param values
+            // Include GraphPath and param values from current profile
             var currentProfile = GetCurrentAircraftProfile();
-            if (currentProfile?.GraphParamValues != null)
+            if (currentProfile != null)
             {
-                profile.GraphParamValues = new Dictionary<string, double>(currentProfile.GraphParamValues);
+                profile.GraphPath = currentProfile.GraphPath;
+                if (currentProfile.GraphParamValues != null)
+                {
+                    profile.GraphParamValues = new Dictionary<string, double>(currentProfile.GraphParamValues);
+                }
             }
 
             return profile;
@@ -2117,7 +2136,8 @@ namespace User.PluginSdkDemo
                 return left == right;
             }
 
-            return left.XPlaneRotorIndex == right.XPlaneRotorIndex &&
+            return string.Equals(left.GraphPath, right.GraphPath, System.StringComparison.OrdinalIgnoreCase) &&
+                   left.XPlaneRotorIndex == right.XPlaneRotorIndex &&
                    AreGraphParamValuesEqual(left.GraphParamValues, right.GraphParamValues);
         }
 
