@@ -219,6 +219,10 @@
     <Compile Include="GraphEditor\GraphPreviewEvaluator.cs" />
     <Compile Include="GraphEditor\GraphRuntimeConverter.cs" />
     <Compile Include="GraphEditor\GraphSerializer.cs" />
+    <Compile Include="GraphEditor\GraphUsageScanner.cs" />
+    <Compile Include="GraphEditor\SharedGraphSaveDialog.xaml.cs">
+      <DependentUpon>SharedGraphSaveDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="GraphEditor\GraphEditorTab.cs" />
     <Compile Include="GraphEditor\GraphEditorTabManager.cs" />
     <Compile Include="GraphEditor\GraphUndoStack.cs" />
@@ -320,6 +324,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="GraphEditor\GraphEditorWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="GraphEditor\SharedGraphSaveDialog.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

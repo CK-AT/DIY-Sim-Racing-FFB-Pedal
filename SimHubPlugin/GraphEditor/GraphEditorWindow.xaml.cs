@@ -467,6 +467,29 @@ namespace User.PluginSdkDemo.GraphEditor
                 return;
             }
 
+            // Check if graph is shared before saving
+            if (plugin != null)
+            {
+                var scanner = new GraphUsageScanner(plugin);
+                var report = scanner.GetUsageReport(CurrentTab.FilePath, plugin.GetActiveProfileKey());
+
+                if (report.IsShared)
+                {
+                    var result = ShowSharedGraphSaveDialog(report);
+                    switch (result)
+                    {
+                        case SharedGraphSaveResult.Cancel:
+                            return;
+                        case SharedGraphSaveResult.SaveAsCopy:
+                            SaveAsCopyForCurrentVehicle();
+                            return;
+                        case SharedGraphSaveResult.SaveAnyway:
+                            // Fall through to normal save
+                            break;
+                    }
+                }
+            }
+
             if (CurrentTab.Save())
             {
                 // Auto-apply to runtime when saving the active graph
@@ -522,6 +545,130 @@ namespace User.PluginSdkDemo.GraphEditor
                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+
+        /// <summary>
+        /// Shows the shared graph save dialog and returns the user's choice.
+        /// </summary>
+        private SharedGraphSaveResult ShowSharedGraphSaveDialog(GraphUsageReport report)
+        {
+            var dialog = new SharedGraphSaveDialog(report)
+            {
+                Owner = this
+            };
+            dialog.ShowDialog();
+            return dialog.Result;
+        }
+
+        /// <summary>
+        /// Saves the current graph as a copy and updates the current vehicle's GraphPath.
+        /// </summary>
+        private void SaveAsCopyForCurrentVehicle()
+        {
+            if (CurrentTab == null)
+                return;
+
+            // Generate default filename: original_copy.json or original_vehicleId.json
+            string originalName = Path.GetFileNameWithoutExtension(CurrentTab.FilePath);
+            string vehicleKey = plugin?.GetActiveProfileKey();
+            string suffix = "_copy";
+            if (!string.IsNullOrEmpty(vehicleKey))
+            {
+                // Extract car ID from "gameId::carId"
+                int sep = vehicleKey.IndexOf("::");
+                if (sep > 0 && sep + 2 < vehicleKey.Length)
+                {
+                    suffix = "_" + SanitizeFileName(vehicleKey.Substring(sep + 2));
+                }
+            }
+
+            string defaultDir = Path.GetDirectoryName(CurrentTab.FilePath);
+            string defaultName = originalName + suffix + ".json";
+
+            var dialog = new SaveFileDialog
+            {
+                Filter = "Graph JSON (*.json)|*.json",
+                DefaultExt = "json",
+                FileName = defaultName,
+                InitialDirectory = defaultDir
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                string newPath = dialog.FileName;
+
+                if (CurrentTab.SaveAs(newPath))
+                {
+                    RefreshHierarchy();
+
+                    // Update current vehicle's GraphPath to point to the new copy
+                    if (plugin != null)
+                    {
+                        string gameId = plugin.GetActiveGameId();
+                        string carId = plugin.GetActiveCarId();
+                        if (!string.IsNullOrEmpty(gameId) && !string.IsNullOrEmpty(carId))
+                        {
+                            // Convert to relative path if within base directory
+                            string relativePath = MakeRelativeGraphPath(newPath);
+                            plugin.SetVehicleGraphPath(gameId, carId, relativePath);
+                        }
+                    }
+
+                    // Auto-apply to runtime
+                    if (CurrentTab.IsActiveGraph)
+                    {
+                        plugin?.ApplyGraphToRuntime(CurrentTab.Graph, CurrentTab.FilePath);
+                    }
+
+                    CurrentTab.EditorControl.MarkUndoClean();
+                    UpdateUndoState(CurrentTab);
+                }
+                else
+                {
+                    MessageBox.Show(this, "Failed to save graph.", "Save Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Makes a graph path relative to the app base directory if possible.
+        /// </summary>
+        private string MakeRelativeGraphPath(string fullPath)
+        {
+            if (string.IsNullOrEmpty(fullPath))
+                return fullPath;
+
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            if (fullPath.StartsWith(baseDir, StringComparison.OrdinalIgnoreCase))
+            {
+                string relative = fullPath.Substring(baseDir.Length);
+                // Normalize to forward slashes for consistency
+                return relative.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                               .Replace(Path.DirectorySeparatorChar, '/');
+            }
+
+            return fullPath;
+        }
+
+        /// <summary>
+        /// Sanitizes a string for use in a filename.
+        /// </summary>
+        private static string SanitizeFileName(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return "copy";
+
+            var invalid = Path.GetInvalidFileNameChars();
+            var sanitized = new System.Text.StringBuilder();
+            foreach (char c in name)
+            {
+                if (Array.IndexOf(invalid, c) < 0 && c != ' ')
+                    sanitized.Append(c);
+                else if (c == ' ')
+                    sanitized.Append('_');
+            }
+            return sanitized.Length > 0 ? sanitized.ToString() : "copy";
         }
 
         private void ButtonApply_Click(object sender, RoutedEventArgs e)
