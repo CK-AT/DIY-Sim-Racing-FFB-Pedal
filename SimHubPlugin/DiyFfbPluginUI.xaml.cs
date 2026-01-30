@@ -632,23 +632,25 @@ namespace User.PluginSdkDemo
                 return;
             }
 
-            string carId = Plugin.GetActiveCarId();
-            if (string.IsNullOrWhiteSpace(carId))
+            string profileKey = Plugin.GetActiveProfileKey();
+            if (string.IsNullOrWhiteSpace(profileKey))
             {
                 MessageBox.Show("No active aircraft detected.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
+            // Use a safe filename based on the profile key
+            string safeFileName = string.Join("_", profileKey.Split(System.IO.Path.GetInvalidFileNameChars()));
             Microsoft.Win32.SaveFileDialog saveFileDialog = new Microsoft.Win32.SaveFileDialog
             {
                 Filter = "JSON files (*.json)|*.json",
                 DefaultExt = "json",
-                FileName = $"{carId}_ffb.json"
+                FileName = $"{safeFileName}_ffb.json"
             };
 
             if (saveFileDialog.ShowDialog() == true)
             {
-                if (!Plugin.Settings.AircraftFfbProfiles.TryGetValue(carId, out var profile))
+                if (!Plugin.Settings.AircraftFfbProfiles.TryGetValue(profileKey, out var profile))
                 {
                     MessageBox.Show("No stored profile for current aircraft.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;

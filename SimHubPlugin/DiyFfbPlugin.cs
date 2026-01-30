@@ -785,7 +785,7 @@ namespace User.PluginSdkDemo
         /// <param name="pluginManager"></param>
         public void End(PluginManager pluginManager)
         {           
-            if (!string.IsNullOrWhiteSpace(activeCarId) && HasUnsavedProfileChanges(activeCarId))
+            if (!string.IsNullOrWhiteSpace(activeCarId) && HasUnsavedProfileChanges(activeGameId, activeCarId))
             {
                 bool saveCurrent = false;
                 if (ui != null)
@@ -796,7 +796,7 @@ namespace User.PluginSdkDemo
 
                 if (saveCurrent)
                 {
-                    SaveCurrentAircraftProfile(activeCarId);
+                    SaveCurrentAircraftProfile(activeGameId, activeCarId);
                 }
             }
 
@@ -1477,6 +1477,49 @@ namespace User.PluginSdkDemo
             return string.IsNullOrWhiteSpace(trimmedGame) ? carId : $"{trimmedGame}::{carId}";
         }
 
+        /// <summary>
+        /// Builds the key used for AircraftFfbProfiles dictionary.
+        /// Uses same format as vehicle graph keys (gameId::carId) for consistency.
+        /// </summary>
+        private static string BuildProfileKey(string gameId, string carId)
+        {
+            return BuildVehicleGraphKey(gameId, carId);
+        }
+
+        /// <summary>
+        /// Migrates an old-style profile key (carId only) to new format (gameId::carId).
+        /// Call this when accessing a profile to ensure backward compatibility.
+        /// </summary>
+        private void MigrateProfileKeyIfNeeded(string gameId, string carId)
+        {
+            if (Settings?.AircraftFfbProfiles == null || string.IsNullOrWhiteSpace(carId))
+            {
+                return;
+            }
+
+            string newKey = BuildProfileKey(gameId, carId);
+            if (string.IsNullOrWhiteSpace(newKey) || !newKey.Contains("::"))
+            {
+                // No game context, can't migrate
+                return;
+            }
+
+            // If new key already exists, no migration needed
+            if (Settings.AircraftFfbProfiles.ContainsKey(newKey))
+            {
+                return;
+            }
+
+            // Check if old-style key (carId only) exists
+            if (Settings.AircraftFfbProfiles.TryGetValue(carId, out var oldProfile))
+            {
+                // Migrate: copy to new key and remove old key
+                Settings.AircraftFfbProfiles[newKey] = oldProfile;
+                Settings.AircraftFfbProfiles.Remove(carId);
+                SimHub.Logging.Current.Info($"[DIY-FFB] Migrated profile key '{carId}' -> '{newKey}'");
+            }
+        }
+
         private string ResolveGraphPath(string gameId, string carId)
         {
             if (Settings == null)
@@ -1834,7 +1877,13 @@ namespace User.PluginSdkDemo
                 return null;
             }
 
-            if (Settings.AircraftFfbProfiles.TryGetValue(activeCarId, out var profile))
+            string profileKey = BuildProfileKey(activeGameId, activeCarId);
+            if (string.IsNullOrWhiteSpace(profileKey))
+            {
+                return null;
+            }
+
+            if (Settings.AircraftFfbProfiles.TryGetValue(profileKey, out var profile))
             {
                 return profile;
             }
@@ -1855,7 +1904,7 @@ namespace User.PluginSdkDemo
                 return;
             }
 
-            if (!string.IsNullOrWhiteSpace(activeCarId) && HasUnsavedProfileChanges(activeCarId))
+            if (!string.IsNullOrWhiteSpace(activeCarId) && HasUnsavedProfileChanges(activeGameId, activeCarId))
             {
                 bool saveCurrent = false;
                 if (ui != null)
@@ -1866,7 +1915,7 @@ namespace User.PluginSdkDemo
 
                 if (saveCurrent)
                 {
-                    SaveCurrentAircraftProfile(activeCarId);
+                    SaveCurrentAircraftProfile(activeGameId, activeCarId);
                 }
             }
 
@@ -1881,18 +1930,22 @@ namespace User.PluginSdkDemo
 
                 if (applyPending)
                 {
-                    if (Settings.AircraftFfbProfiles == null)
+                    string profileKey = BuildProfileKey(gameId, carId);
+                    if (!string.IsNullOrWhiteSpace(profileKey))
                     {
-                        Settings.AircraftFfbProfiles = new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+                        if (Settings.AircraftFfbProfiles == null)
+                        {
+                            Settings.AircraftFfbProfiles = new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+                        }
+                        Settings.AircraftFfbProfiles[profileKey] = pendingFfbProfile;
                     }
-                    Settings.AircraftFfbProfiles[carId] = pendingFfbProfile;
                 }
 
                 pendingFfbProfile = null;
                 hasPendingFfbProfile = false;
             }
 
-            ApplyAircraftProfile(carId);
+            ApplyAircraftProfile(gameId, carId);
             activeCarId = carId;
             activeCarName = data.NewData?.CarModel;
             ResolveActiveGraph(gameId, carId);
@@ -1910,9 +1963,15 @@ namespace User.PluginSdkDemo
             }
         }
 
-        private void SaveCurrentAircraftProfile(string carId)
+        private void SaveCurrentAircraftProfile(string gameId, string carId)
         {
             if (Settings == null || string.IsNullOrWhiteSpace(carId))
+            {
+                return;
+            }
+
+            string profileKey = BuildProfileKey(gameId, carId);
+            if (string.IsNullOrWhiteSpace(profileKey))
             {
                 return;
             }
@@ -1922,14 +1981,24 @@ namespace User.PluginSdkDemo
                 Settings.AircraftFfbProfiles = new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
             }
 
-            Settings.AircraftFfbProfiles[carId] = BuildCurrentAircraftProfile();
+            Settings.AircraftFfbProfiles[profileKey] = BuildCurrentAircraftProfile();
             hasDirtyGraphParams = false;
         }
 
-        private void ApplyAircraftProfile(string carId)
+        private void ApplyAircraftProfile(string gameId, string carId)
         {
             if (Settings == null || string.IsNullOrWhiteSpace(carId))
             {
+                return;
+            }
+
+            // Migrate old-style key if needed
+            MigrateProfileKeyIfNeeded(gameId, carId);
+
+            string profileKey = BuildProfileKey(gameId, carId);
+            if (string.IsNullOrWhiteSpace(profileKey))
+            {
+                ApplyFfbProfileToCurrentSettings(new DiyFfbPluginSettings.AircraftFfbProfile());
                 return;
             }
 
@@ -1938,7 +2007,7 @@ namespace User.PluginSdkDemo
                 Settings.AircraftFfbProfiles = new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
             }
 
-            if (Settings.AircraftFfbProfiles.TryGetValue(carId, out var profile))
+            if (Settings.AircraftFfbProfiles.TryGetValue(profileKey, out var profile))
             {
                 profile.FlightStickPitch.ApplyTo(GetFunctionSettings(FunctionID.FlightStickPitch));
                 profile.FlightStickRoll.ApplyTo(GetFunctionSettings(FunctionID.FlightStickRoll));
@@ -1971,7 +2040,7 @@ namespace User.PluginSdkDemo
             return profile;
         }
 
-        private bool HasUnsavedProfileChanges(string carId)
+        private bool HasUnsavedProfileChanges(string gameId, string carId)
         {
             if (Settings == null || string.IsNullOrWhiteSpace(carId))
             {
@@ -1984,9 +2053,15 @@ namespace User.PluginSdkDemo
                 return true;
             }
 
+            string profileKey = BuildProfileKey(gameId, carId);
+            if (string.IsNullOrWhiteSpace(profileKey))
+            {
+                return false;
+            }
+
             var current = BuildCurrentAircraftProfile();
             if (Settings.AircraftFfbProfiles != null &&
-                Settings.AircraftFfbProfiles.TryGetValue(carId, out var stored))
+                Settings.AircraftFfbProfiles.TryGetValue(profileKey, out var stored))
             {
                 return !AreProfilesEqual(current, stored);
             }
@@ -2049,6 +2124,14 @@ namespace User.PluginSdkDemo
         public string GetActiveGameId()
         {
             return activeGameId;
+        }
+
+        /// <summary>
+        /// Gets the profile key for the current active vehicle (gameId::carId format).
+        /// </summary>
+        public string GetActiveProfileKey()
+        {
+            return BuildProfileKey(activeGameId, activeCarId);
         }
 
         public string GetVehicleGraphPath(string gameId, string carId)
@@ -2481,13 +2564,19 @@ namespace User.PluginSdkDemo
                 return;
             }
 
+            string profileKey = BuildProfileKey(activeGameId, carId);
+            if (string.IsNullOrWhiteSpace(profileKey))
+            {
+                return;
+            }
+
             if (Settings.AircraftFfbProfiles == null)
             {
                 Settings.AircraftFfbProfiles = new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
             }
 
-            Settings.AircraftFfbProfiles[carId] = profile;
-            ApplyAircraftProfile(carId);
+            Settings.AircraftFfbProfiles[profileKey] = profile;
+            ApplyAircraftProfile(activeGameId, carId);
             ApplyFfbProfileToCurrentSettings(profile);
             ui?.Dispatcher?.BeginInvoke(new Action(() =>
             {
@@ -2525,7 +2614,7 @@ namespace User.PluginSdkDemo
             Settings.AircraftFfbProfiles = profiles ?? new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
             if (!string.IsNullOrWhiteSpace(activeCarId))
             {
-                ApplyAircraftProfile(activeCarId);
+                ApplyAircraftProfile(activeGameId, activeCarId);
             }
         }
 

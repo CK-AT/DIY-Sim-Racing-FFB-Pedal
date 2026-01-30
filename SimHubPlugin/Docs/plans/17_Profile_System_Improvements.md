@@ -9,22 +9,11 @@ Identified gaps in the current vehicle profile system and proposed improvements.
 
 ## Issues
 
-### 1. Profile Key Inconsistency
+### 1. ~~Profile Key Inconsistency~~ ✓ DONE
 
-**Current:**
+**Status:** Resolved 2026-01-30
 
-- Profiles keyed by `CarId` alone
-- Graph paths keyed by `gameId:carId`
-
-**Problem:** Two games with same CarId (e.g., both have "A320") share a profile unintentionally.
-
-**Options:**
-
-- A) Use `gameId:carId` for profiles too (breaking change, requires migration)
-- B) Document as intentional—shared tuning across games for same aircraft
-- C) Keep as-is but warn user when collision detected
-
-**Recommendation:** Option A. Profile storage should match graph path keying for consistency. Migration: rename existing keys on first load.
+Changed profile keying from `CarId` alone to `gameId::carId` format (matching graph paths). Migration happens automatically when a vehicle profile is accessed—old-style keys are renamed to new format on first load. Added `BuildProfileKey()`, `MigrateProfileKeyIfNeeded()`, and `GetActiveProfileKey()` helper methods.
 
 ---
 
@@ -133,7 +122,7 @@ Removed cross-session `pending_graph_params.json` file and all related code. Pro
 | Issue | Priority | Effort | Notes |
 | ----- | -------- | ------ | ----- |
 | #2 Pending params file | ~~High~~ | ~~Low~~ | ✓ Done |
-| #1 Key inconsistency | High | Medium | Breaking change, needs migration |
+| #1 Key inconsistency | ~~High~~ | ~~Medium~~ | ✓ Done |
 | #4 Tier 2 deprecation | Medium | Medium | Part of migration plan #15 |
 | #7 Reset to defaults | Medium | Low | Simple UI addition |
 | #3 FunctionFfbSettings | Low | Low | Decide and act |
@@ -144,7 +133,7 @@ Removed cross-session `pending_graph_params.json` file and all related code. Pro
 ## Implementation Order
 
 1. ~~**Remove pending params file**~~ ✓ Done
-2. **Fix key inconsistency** — Do before more profiles accumulate
+2. ~~**Fix key inconsistency**~~ ✓ Done
 3. **Add reset to defaults** — Small UX win
 4. **Tier 2 deprecation** — Align with migration plan #15
 5. **FunctionFfbSettings decision** — Remove or implement
