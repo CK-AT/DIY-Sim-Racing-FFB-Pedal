@@ -656,7 +656,14 @@ namespace User.PluginSdkDemo
                     return;
                 }
 
-                string json = JsonConvert.SerializeObject(profile, Formatting.Indented);
+                var exported = new DiyFfbPluginSettings.ExportedProfile
+                {
+                    ProfileKey = profileKey,
+                    GraphPath = Plugin.GetActiveGraphPath(),
+                    ExportedAt = System.DateTime.UtcNow.ToString("o"),
+                    Profile = profile
+                };
+                string json = JsonConvert.SerializeObject(exported, Formatting.Indented);
                 System.IO.File.WriteAllText(saveFileDialog.FileName, json);
             }
         }
@@ -678,11 +685,62 @@ namespace User.PluginSdkDemo
             if (openFileDialog.ShowDialog() == true)
             {
                 string json = System.IO.File.ReadAllText(openFileDialog.FileName);
-                var profile = JsonConvert.DeserializeObject<DiyFfbPluginSettings.AircraftFfbProfile>(json);
+                DiyFfbPluginSettings.AircraftFfbProfile profile;
+                string sourceGraphPath = null;
+
+                // Try new ExportedProfile format first
+                var exported = JsonConvert.DeserializeObject<DiyFfbPluginSettings.ExportedProfile>(json);
+                if (exported?.Profile != null && exported.Version >= 1)
+                {
+                    profile = exported.Profile;
+                    sourceGraphPath = exported.GraphPath;
+                }
+                else
+                {
+                    // Fall back to legacy format (just AircraftFfbProfile)
+                    profile = JsonConvert.DeserializeObject<DiyFfbPluginSettings.AircraftFfbProfile>(json);
+                }
+
                 if (profile == null)
                 {
                     MessageBox.Show("Invalid profile JSON.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
+                }
+
+                // Check for graph path mismatch
+                string currentGraphPath = Plugin.GetActiveGraphPath();
+                if (!string.IsNullOrWhiteSpace(sourceGraphPath) && !string.IsNullOrWhiteSpace(currentGraphPath))
+                {
+                    if (!string.Equals(sourceGraphPath, currentGraphPath, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        var mismatchResult = MessageBox.Show(
+                            $"This profile was created for a different graph:\n\n" +
+                            $"Profile graph: {sourceGraphPath}\n" +
+                            $"Current graph: {currentGraphPath}\n\n" +
+                            $"Parameters may not match. Continue anyway?",
+                            "Graph Mismatch",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Warning);
+                        if (mismatchResult != MessageBoxResult.Yes)
+                        {
+                            return;
+                        }
+                    }
+                }
+
+                // Overwrite confirmation
+                string profileKey = Plugin.GetActiveProfileKey();
+                if (!string.IsNullOrWhiteSpace(profileKey) && Plugin.Settings.AircraftFfbProfiles.ContainsKey(profileKey))
+                {
+                    var overwriteResult = MessageBox.Show(
+                        $"Overwrite existing profile for '{profileKey}'?",
+                        "Confirm Overwrite",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                    if (overwriteResult != MessageBoxResult.Yes)
+                    {
+                        return;
+                    }
                 }
 
                 if (string.IsNullOrWhiteSpace(carId))

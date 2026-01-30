@@ -16,6 +16,19 @@ namespace User.PluginSdkDemo
             public Dictionary<string, double> GraphParamValues = new Dictionary<string, double>();
         }
 
+        /// <summary>
+        /// Wrapper for exporting/importing aircraft FFB profiles.
+        /// Includes the profile data plus metadata about which graph it was created for.
+        /// </summary>
+        public class ExportedProfile
+        {
+            public int Version = 1;
+            public string ProfileKey;
+            public string GraphPath;
+            public string ExportedAt;
+            public AircraftFfbProfile Profile;
+        }
+
         public class AxisSettings
         {
             public string com_port_name = "COM1";

@@ -1,100 +1,62 @@
 # Session Handoff
 
 Date: 2026-01-30
-Last commit: (pending)
+Last commit: `0ad2f28d` — Remove dead FunctionFfbSettings code
 
 ## What Was Done This Session
 
-### 1. Tier 2 ParamValues Deprecation (Issue #4)
+### Enhanced Export/Import (Issue #6)
 
-Made Tier 2 (graph.ParamValues) read-only at runtime:
+Improved the existing Save/Load Aircraft FFB functionality:
 
-**Code changes in `DiyFfbPlugin.cs`:**
+**Code changes in `DiyFfbPluginSettings.cs`:**
 
-- Removed runtime writes to `activeVehicleGraph.ParamValues` in `SetGraphParamValue()`
-- Updated `ResolveParamValue()` docstring to clarify Tier 2 is read-only template defaults
-- All user param edits now go only to Tier 3 (profile.GraphParamValues)
-
-**Behavior change:** Previously, editing a param wrote to both Tier 2 (in-memory graph) and Tier 3 (profile). Now only Tier 3 is written—Tier 2 retains the original values from the graph JSON file.
-
-### 2. Reset to Defaults Button (Issue #7)
-
-Added "Reset to Defaults" button to clear vehicle parameter overrides:
-
-**Code changes:**
-
-- `DiyFfbPlugin.cs`: Added `ResetCurrentProfileToDefaults()` method
-- `DiyFfbPluginUI.xaml`: Added button next to Save/Load Aircraft FFB
-- `DiyFfbPluginUI.xaml.cs`: Added click handler with confirmation dialog
-
-**Behavior:** Clears `GraphParamValues` for current vehicle, rebuilds params from graph defaults, refreshes UI.
-
-### 3. Removed FunctionFfbSettings Dead Code (Issue #3)
-
-Removed unused stub code:
-
-- Deleted `FunctionFfbSettings` class (had empty CopyFrom/ApplyTo methods)
-- Removed four unused fields from `AircraftFfbProfile`
-- Removed `AreFunctionFfbSettingsEqual` helper and related dead code
-
-Per-vehicle FFB settings are now handled entirely through `GraphParamValues`.
-
-### 4. Fixed Profile Key Inconsistency (Issue #1) — Previous Session
-
-Changed profile keying from `CarId` alone to `gameId::carId` format:
-
-**Code changes in `DiyFfbPlugin.cs`:**
-- Added `BuildProfileKey(gameId, carId)` helper method
-- Added `MigrateProfileKeyIfNeeded(gameId, carId)` for automatic migration of old keys
-- Added `GetActiveProfileKey()` public accessor for UI
-- Updated all profile access methods to use composite key:
-  - `GetCurrentAircraftProfile()`
-  - `SaveCurrentAircraftProfile(gameId, carId)`
-  - `ApplyAircraftProfile(gameId, carId)`
-  - `HasUnsavedProfileChanges(gameId, carId)`
-  - `ApplyAircraftFfbProfile()`
-  - `ReplaceAircraftFfbProfiles()`
-  - `HandleAircraftChange()`
+- Added `ExportedProfile` wrapper class with Version, ProfileKey, GraphPath, ExportedAt, and Profile
 
 **Code changes in `DiyFfbPluginUI.xaml.cs`:**
-- Updated `btn_save_aircraft_ffb_Click` to use `GetActiveProfileKey()`
 
-**Migration behavior:** When a profile is accessed, if the new key (`gameId::carId`) doesn't exist but the old key (`carId`) does, the profile is automatically migrated to the new key format.
+- `btn_save_aircraft_ffb_Click`: Now exports using `ExportedProfile` wrapper with metadata
+- `btn_load_aircraft_ffb_Click`:
+  - Handles both new (ExportedProfile) and legacy (AircraftFfbProfile) formats
+  - Shows warning dialog if graph path doesn't match current graph
+  - Shows overwrite confirmation when loading into existing profile
 
-## Open Items (Priority Order)
+### Added Unified Profile Browser Proposal (Issue #9)
+
+Added new issue to [17_Profile_System_Improvements.md](SimHubPlugin/Docs/plans/17_Profile_System_Improvements.md):
+
+- Proposes unified dialog for template selection + profile management + "copy from vehicle"
+- Includes ASCII mockup of dialog layout
+- Supersedes #8 (Profile Deletion)
+
+## Uncommitted Changes
+
+- `DiyFfbPluginSettings.cs` — ExportedProfile class
+- `DiyFfbPluginUI.xaml.cs` — Enhanced save/load handlers
+- `17_Profile_System_Improvements.md` — Issue #6 marked done, #9 added
+
+## Open Items
 
 From [17_Profile_System_Improvements.md](SimHubPlugin/Docs/plans/17_Profile_System_Improvements.md):
 
-| Priority | Issue               | Notes        |
-|----------|---------------------|--------------|
-| Low      | #6 Export/import    | Nice-to-have |
-| Low      | #8 Profile deletion | Nice-to-have |
+| Priority | Issue | Notes |
+|----------|-------|-------|
+| Medium | #9 Unified Profile Browser | Future UX overhaul |
 
 From [15_Graph_Param_Override_Migration_Plan.md](SimHubPlugin/Docs/plans/15_Graph_Param_Override_Migration_Plan.md):
+
 - Implement hash tracking for graph + includes
 - Implement Parameter Review Window
 - Add notification on defaults change
-- Add tests for override persistence/clamping/orphans
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `SimHubPlugin/DiyFfbPlugin.cs` | Main plugin—profile handling around lines 1469-1520, 1873-2070 |
-| `SimHubPlugin/DiyFfbPluginSettings.cs` | AircraftFfbProfile class, settings storage |
-| `SimHubPlugin/DiyFfbPluginUI.xaml.cs` | UI dialogs and controls |
-| `SimHubPlugin/Docs/plans/15*.md` | Migration plan |
-| `SimHubPlugin/Docs/plans/16*.md` | Profile lifecycle reference |
-| `SimHubPlugin/Docs/plans/17*.md` | Improvements backlog |
-
-## Decisions Made
-
-1. **No stable param IDs** — Match overrides by name only; if name changes, old override becomes orphan
-2. **Keep orphaned overrides silently** — Don't delete, let user clean up via review window
-3. **Non-blocking UX** — Brief notification + on-demand review window, not modal dialogs
-4. **No cross-session pending params** — Standard in-memory dirty tracking with save prompts
-5. **Profile keys use gameId::carId** — Consistent with graph path keys, auto-migration on access
-6. **Tier 2 is read-only at runtime** — Graph.ParamValues contains template defaults only; user edits go to Tier 3
+| `SimHubPlugin/DiyFfbPlugin.cs` | Main plugin |
+| `SimHubPlugin/DiyFfbPluginSettings.cs` | AircraftFfbProfile, ExportedProfile classes |
+| `SimHubPlugin/DiyFfbPluginUI.xaml.cs` | UI handlers (save/load at lines 628-700) |
+| `SimHubPlugin/Docs/plans/17*.md` | Profile improvements backlog |
 
 ## Build Command
 
@@ -104,6 +66,6 @@ MSYS_NO_PATHCONV=1 "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBu
 
 ## Next Steps
 
-1. **If continuing profile work**: Start with export/import (#6) or profile deletion (#8)
-2. **If implementing migration plan**: Start with hash tracking, then Parameter Review Window
-3. **If doing unrelated work**: This handoff can be ignored
+1. **Commit current changes** if desired (export/import enhancement)
+2. **If continuing profile work**: Unified Profile Browser (#9) is the main remaining item
+3. **If implementing migration plan**: Start with hash tracking
