@@ -25,18 +25,18 @@ Removed cross-session `pending_graph_params.json` file and all related code. Pro
 
 ---
 
-### 3. FunctionFfbSettings Stub
+### 3. ~~FunctionFfbSettings Stub~~ ✓ DONE
 
-**Current:** Structure exists but `CopyFrom`/`ApplyTo` methods are empty.
+**Status:** Resolved 2026-01-30 — Removed (Option B)
 
-**Problem:** Dead code creates confusion. Unclear if it's planned or abandoned.
+Removed dead code:
 
-**Options:**
+- Deleted `FunctionFfbSettings` class (empty CopyFrom/ApplyTo methods)
+- Removed four unused fields from `AircraftFfbProfile`
+- Removed `AreFunctionFfbSettingsEqual` helper method
+- Cleaned up `ApplyFfbProfileToCurrentSettings` and related methods
 
-- A) Implement it (per-control FFB settings like gain, curve, deadzone)
-- B) Remove it entirely
-
-**Recommendation:** Decide scope. If per-control settings are planned, keep and document. If not, remove the four `FunctionFfbSettings` fields from `AircraftFfbProfile`.
+Per-vehicle FFB settings are now handled entirely through `GraphParamValues`.
 
 ---
 
@@ -119,7 +119,7 @@ Added "Reset to Defaults" button next to Save/Load Aircraft FFB buttons:
 | #1 Key inconsistency | ~~High~~ | ~~Medium~~ | ✓ Done |
 | #4 Tier 2 deprecation | ~~Medium~~ | ~~Medium~~ | ✓ Done |
 | #7 Reset to defaults | ~~Medium~~ | ~~Low~~ | ✓ Done |
-| #3 FunctionFfbSettings | Low | Low | Decide and act |
+| #3 FunctionFfbSettings | ~~Low~~ | ~~Low~~ | ✓ Done (removed) |
 | #5 Game-specific fields | Low | - | Monitor only |
 | #6 Export/import | Low | Medium | Nice-to-have |
 | #8 Profile deletion | Low | Medium | Nice-to-have |
@@ -130,7 +130,7 @@ Added "Reset to Defaults" button next to Save/Load Aircraft FFB buttons:
 2. ~~**Fix key inconsistency**~~ ✓ Done
 3. ~~**Add reset to defaults**~~ ✓ Done
 4. ~~**Tier 2 deprecation**~~ ✓ Done
-5. **FunctionFfbSettings decision** — Remove or implement
+5. ~~**FunctionFfbSettings decision**~~ ✓ Done (removed)
 6. **Export/import, deletion** — Future polish
 
 ## Related Documents

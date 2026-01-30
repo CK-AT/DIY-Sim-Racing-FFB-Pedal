@@ -2010,25 +2010,13 @@ namespace User.PluginSdkDemo
 
             if (Settings.AircraftFfbProfiles.TryGetValue(profileKey, out var profile))
             {
-                profile.FlightStickPitch.ApplyTo(GetFunctionSettings(FunctionID.FlightStickPitch));
-                profile.FlightStickRoll.ApplyTo(GetFunctionSettings(FunctionID.FlightStickRoll));
-                profile.FlightStickCollective.ApplyTo(GetFunctionSettings(FunctionID.FlightStickCollective));
-                profile.FlightPedals.ApplyTo(GetFunctionSettings(FunctionID.FlightPedals));
                 Settings.XPlaneRotorIndex = profile.XPlaneRotorIndex;
-            }
-            else
-            {
-                ApplyFfbProfileToCurrentSettings(new DiyFfbPluginSettings.AircraftFfbProfile());
             }
         }
 
         private DiyFfbPluginSettings.AircraftFfbProfile BuildCurrentAircraftProfile()
         {
             var profile = new DiyFfbPluginSettings.AircraftFfbProfile();
-            profile.FlightStickPitch.CopyFrom(GetFunctionSettings(FunctionID.FlightStickPitch));
-            profile.FlightStickRoll.CopyFrom(GetFunctionSettings(FunctionID.FlightStickRoll));
-            profile.FlightStickCollective.CopyFrom(GetFunctionSettings(FunctionID.FlightStickCollective));
-            profile.FlightPedals.CopyFrom(GetFunctionSettings(FunctionID.FlightPedals));
             profile.XPlaneRotorIndex = Settings.XPlaneRotorIndex;
 
             // Include current graph param values
@@ -2077,11 +2065,7 @@ namespace User.PluginSdkDemo
                 return left == right;
             }
 
-            return AreFunctionFfbSettingsEqual(left.FlightStickPitch, right.FlightStickPitch) &&
-                   AreFunctionFfbSettingsEqual(left.FlightStickRoll, right.FlightStickRoll) &&
-                   AreFunctionFfbSettingsEqual(left.FlightStickCollective, right.FlightStickCollective) &&
-                   AreFunctionFfbSettingsEqual(left.FlightPedals, right.FlightPedals) &&
-                   left.XPlaneRotorIndex == right.XPlaneRotorIndex &&
+            return left.XPlaneRotorIndex == right.XPlaneRotorIndex &&
                    AreGraphParamValuesEqual(left.GraphParamValues, right.GraphParamValues);
         }
 
@@ -2101,17 +2085,6 @@ namespace User.PluginSdkDemo
                 {
                     return false;
                 }
-            }
-
-            return true;
-        }
-
-        private bool AreFunctionFfbSettingsEqual(DiyFfbPluginSettings.FunctionFfbSettings left,
-            DiyFfbPluginSettings.FunctionFfbSettings right)
-        {
-            if (left == null || right == null)
-            {
-                return left == right;
             }
 
             return true;
@@ -2613,10 +2586,6 @@ namespace User.PluginSdkDemo
                 return;
             }
 
-            profile.FlightStickPitch?.ApplyTo(GetFunctionSettings(FunctionID.FlightStickPitch));
-            profile.FlightStickRoll?.ApplyTo(GetFunctionSettings(FunctionID.FlightStickRoll));
-            profile.FlightStickCollective?.ApplyTo(GetFunctionSettings(FunctionID.FlightStickCollective));
-            profile.FlightPedals?.ApplyTo(GetFunctionSettings(FunctionID.FlightPedals));
             Settings.XPlaneRotorIndex = profile.XPlaneRotorIndex;
         }
 

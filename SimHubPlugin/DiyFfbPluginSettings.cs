@@ -10,25 +10,8 @@ namespace User.PluginSdkDemo
 
     public class DiyFfbPluginSettings
     {
-        public class FunctionFfbSettings
-        {
-            public void CopyFrom(FunctionSettings source)
-            {
-                return;
-            }
-
-            public void ApplyTo(FunctionSettings target)
-            {
-                return;
-            }
-        }
-
         public class AircraftFfbProfile
         {
-            public FunctionFfbSettings FlightStickPitch = new FunctionFfbSettings();
-            public FunctionFfbSettings FlightStickRoll = new FunctionFfbSettings();
-            public FunctionFfbSettings FlightStickCollective = new FunctionFfbSettings();
-            public FunctionFfbSettings FlightPedals = new FunctionFfbSettings();
             public int XPlaneRotorIndex = -1;
             public Dictionary<string, double> GraphParamValues = new Dictionary<string, double>();
         }

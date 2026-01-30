@@ -29,7 +29,17 @@ Added "Reset to Defaults" button to clear vehicle parameter overrides:
 
 **Behavior:** Clears `GraphParamValues` for current vehicle, rebuilds params from graph defaults, refreshes UI.
 
-### 3. Fixed Profile Key Inconsistency (Issue #1) — Previous Session
+### 3. Removed FunctionFfbSettings Dead Code (Issue #3)
+
+Removed unused stub code:
+
+- Deleted `FunctionFfbSettings` class (had empty CopyFrom/ApplyTo methods)
+- Removed four unused fields from `AircraftFfbProfile`
+- Removed `AreFunctionFfbSettingsEqual` helper and related dead code
+
+Per-vehicle FFB settings are now handled entirely through `GraphParamValues`.
+
+### 4. Fixed Profile Key Inconsistency (Issue #1) — Previous Session
 
 Changed profile keying from `CarId` alone to `gameId::carId` format:
 
@@ -55,11 +65,10 @@ Changed profile keying from `CarId` alone to `gameId::carId` format:
 
 From [17_Profile_System_Improvements.md](SimHubPlugin/Docs/plans/17_Profile_System_Improvements.md):
 
-| Priority | Issue | Notes |
-|----------|-------|-------|
-| Low | #3 FunctionFfbSettings | Stub code—decide to implement or remove |
-| Low | #6 Export/import | Nice-to-have |
-| Low | #8 Profile deletion | Nice-to-have |
+| Priority | Issue               | Notes        |
+|----------|---------------------|--------------|
+| Low      | #6 Export/import    | Nice-to-have |
+| Low      | #8 Profile deletion | Nice-to-have |
 
 From [15_Graph_Param_Override_Migration_Plan.md](SimHubPlugin/Docs/plans/15_Graph_Param_Override_Migration_Plan.md):
 - Implement hash tracking for graph + includes
@@ -95,6 +104,6 @@ MSYS_NO_PATHCONV=1 "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBu
 
 ## Next Steps
 
-1. **If continuing profile work**: Start with FunctionFfbSettings decision (#3) or export/import (#6)
+1. **If continuing profile work**: Start with export/import (#6) or profile deletion (#8)
 2. **If implementing migration plan**: Start with hash tracking, then Parameter Review Window
 3. **If doing unrelated work**: This handoff can be ignored
