@@ -40,21 +40,15 @@ Removed cross-session `pending_graph_params.json` file and all related code. Pro
 
 ---
 
-### 4. Tier 2 ParamValues Deprecation
+### 4. ~~Tier 2 ParamValues Deprecation~~ ✓ DONE
 
-**Current:** Three-tier param resolution:
+**Status:** Resolved 2026-01-30
 
-1. Param default (graph definition)
-2. Graph-level ParamValues (stored in graph JSON)
-3. Profile GraphParamValues (per-vehicle)
+Removed runtime writes to Tier 2 (graph.ParamValues) in `SetGraphParamValue()`. Now:
 
-**Problem:** Tier 2 and Tier 3 overlap. Editing in UI writes to Tier 3, but graph files can have Tier 2 values. Confusing.
-
-**Recommendation:** Per migration plan (#15):
-
-- Treat Tier 2 as "template defaults" only (read-only after graph creation)
-- All user edits go to Tier 3 (profile)
-- Document this clearly
+- Tier 2 (graph.ParamValues) is read-only at runtime, contains only template defaults from JSON file
+- All user edits go to Tier 3 (profile.GraphParamValues)
+- Docstrings updated to clarify this behavior
 
 ---
 
@@ -123,7 +117,7 @@ Removed cross-session `pending_graph_params.json` file and all related code. Pro
 | ----- | -------- | ------ | ----- |
 | #2 Pending params file | ~~High~~ | ~~Low~~ | ✓ Done |
 | #1 Key inconsistency | ~~High~~ | ~~Medium~~ | ✓ Done |
-| #4 Tier 2 deprecation | Medium | Medium | Part of migration plan #15 |
+| #4 Tier 2 deprecation | ~~Medium~~ | ~~Medium~~ | ✓ Done |
 | #7 Reset to defaults | Medium | Low | Simple UI addition |
 | #3 FunctionFfbSettings | Low | Low | Decide and act |
 | #5 Game-specific fields | Low | - | Monitor only |
@@ -135,7 +129,7 @@ Removed cross-session `pending_graph_params.json` file and all related code. Pro
 1. ~~**Remove pending params file**~~ ✓ Done
 2. ~~**Fix key inconsistency**~~ ✓ Done
 3. **Add reset to defaults** — Small UX win
-4. **Tier 2 deprecation** — Align with migration plan #15
+4. ~~**Tier 2 deprecation**~~ ✓ Done
 5. **FunctionFfbSettings decision** — Remove or implement
 6. **Export/import, deletion** — Future polish
 

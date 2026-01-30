@@ -1,11 +1,24 @@
 # Session Handoff
 
 Date: 2026-01-30
-Last commit: `53fcb8d7` — Remove cross-session pending graph params file
+Last commit: (pending)
 
 ## What Was Done This Session
 
-### 1. Fixed Profile Key Inconsistency (Issue #1)
+### 1. Tier 2 ParamValues Deprecation (Issue #4)
+
+Made Tier 2 (graph.ParamValues) read-only at runtime:
+
+**Code changes in `DiyFfbPlugin.cs`:**
+
+- Removed runtime writes to `activeVehicleGraph.ParamValues` in `SetGraphParamValue()`
+- Updated `ResolveParamValue()` docstring to clarify Tier 2 is read-only template defaults
+- All user param edits now go only to Tier 3 (profile.GraphParamValues)
+
+**Behavior change:** Previously, editing a param wrote to both Tier 2 (in-memory graph) and Tier 3 (profile). Now only Tier 3 is written—Tier 2 retains the original values from the graph JSON file.
+
+### 2. Fixed Profile Key Inconsistency (Issue #1) — Previous Session
+
 Changed profile keying from `CarId` alone to `gameId::carId` format:
 
 **Code changes in `DiyFfbPlugin.cs`:**
@@ -32,7 +45,6 @@ From [17_Profile_System_Improvements.md](SimHubPlugin/Docs/plans/17_Profile_Syst
 
 | Priority | Issue | Notes |
 |----------|-------|-------|
-| Medium | #4 Tier 2 deprecation | Clarify graph.ParamValues vs profile.GraphParamValues |
 | Medium | #7 Reset to defaults | Add button to clear vehicle profile |
 | Low | #3 FunctionFfbSettings | Stub code—decide to implement or remove |
 | Low | #6 Export/import | Nice-to-have |
@@ -62,6 +74,7 @@ From [15_Graph_Param_Override_Migration_Plan.md](SimHubPlugin/Docs/plans/15_Grap
 3. **Non-blocking UX** — Brief notification + on-demand review window, not modal dialogs
 4. **No cross-session pending params** — Standard in-memory dirty tracking with save prompts
 5. **Profile keys use gameId::carId** — Consistent with graph path keys, auto-migration on access
+6. **Tier 2 is read-only at runtime** — Graph.ParamValues contains template defaults only; user edits go to Tier 3
 
 ## Build Command
 
@@ -71,6 +84,6 @@ MSYS_NO_PATHCONV=1 "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBu
 
 ## Next Steps
 
-1. **If continuing profile work**: Start with reset to defaults (#7) or tier 2 deprecation (#4)
+1. **If continuing profile work**: Start with reset to defaults (#7) or FunctionFfbSettings decision (#3)
 2. **If implementing migration plan**: Start with hash tracking, then Parameter Review Window
 3. **If doing unrelated work**: This handoff can be ignored

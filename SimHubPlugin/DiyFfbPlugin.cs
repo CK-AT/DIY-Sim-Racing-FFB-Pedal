@@ -1764,8 +1764,9 @@ namespace User.PluginSdkDemo
         /// <summary>
         /// Resolves a param value using three-tier resolution:
         /// Tier 1: defaultValue (from param definition)
-        /// Tier 2: Graph-level override (ParamValues)
-        /// Tier 3: Vehicle profile override (GraphParamValues)
+        /// Tier 2: Graph-level template defaults (from graph JSON ParamValues, read-only at runtime)
+        /// Tier 3: Vehicle profile override (GraphParamValues, user edits go here)
+        /// Higher tiers take precedence. User edits only write to Tier 3.
         /// </summary>
         private double ResolveParamValue(string paramName, double defaultValue)
         {
@@ -2402,18 +2403,12 @@ namespace User.PluginSdkDemo
 
         public void SetGraphParamValue(string paramName, double value)
         {
-            // Update runtime param (immediate effect, but gets overwritten by BuildGraphParams)
+            // Update runtime param for immediate effect
             graphParams[paramName] = value;
 
-            // Update graph's ParamValues (Tier 2) so BuildGraphParams() picks it up
-            if (activeVehicleGraph != null)
-            {
-                if (activeVehicleGraph.ParamValues == null)
-                {
-                    activeVehicleGraph.ParamValues = new Dictionary<string, double>();
-                }
-                activeVehicleGraph.ParamValues[paramName] = value;
-            }
+            // Note: We intentionally do NOT write to activeVehicleGraph.ParamValues (Tier 2).
+            // Tier 2 contains template defaults from the graph JSON file and is read-only at runtime.
+            // All user edits go to Tier 3 (profile.GraphParamValues) which takes precedence.
 
             // Save to current aircraft profile (Tier 3, persists across sessions)
             var profile = GetCurrentAircraftProfile();
