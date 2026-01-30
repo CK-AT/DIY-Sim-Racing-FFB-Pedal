@@ -189,3 +189,4 @@ Resolution: `ResolveParamValue(name, default)` checks Tier 3 → 2 → 1.
 ## Related Documents
 
 - [15_Graph_Param_Override_Migration_Plan.md](15_Graph_Param_Override_Migration_Plan.md) — Handling graph changes while preserving overrides
+- [19_Shared_Graph_Save_Protection.md](19_Shared_Graph_Save_Protection.md) — Warn when saving graphs shared by multiple vehicles

@@ -216,3 +216,4 @@ A unified dialog that serves multiple purposes:
 
 - [15_Graph_Param_Override_Migration_Plan.md](15_Graph_Param_Override_Migration_Plan.md)
 - [16_Vehicle_Profile_Lifecycle.md](16_Vehicle_Profile_Lifecycle.md)
+- [19_Shared_Graph_Save_Protection.md](19_Shared_Graph_Save_Protection.md) — Warn when saving shared graphs
