@@ -1618,40 +1618,30 @@ namespace User.PluginSdkDemo
                 return null;
             }
 
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var templates = GraphEditor.GraphTemplateRegistry.GetTemplates(gameId, baseDir);
-
-            if (!templates.Any())
+            // Show ProfileBrowserDialog in NewVehicle mode on UI thread
+            var result = ui.Dispatcher.Invoke(new Func<(string graphPath, DiyFfbPluginSettings.AircraftFfbProfile profile, bool useTuning)?>(() =>
             {
-                // No templates available for this game - show info message
-                ui.Dispatcher.Invoke(new Action(() =>
-                {
-                    var parentWindow = System.Windows.Window.GetWindow(ui);
-                    System.Windows.MessageBox.Show(
-                        parentWindow,
-                        $"No graph templates are available for {gameId}.\n\nYou can create a custom graph in the Graph Editor tab.",
-                        "No Templates Available",
-                        System.Windows.MessageBoxButton.OK,
-                        System.Windows.MessageBoxImage.Information);
-                }));
-                return null;
-            }
+                var dialog = new ProfileBrowser.ProfileBrowserDialog(this, ProfileBrowser.ProfileBrowserMode.NewVehicle, gameId, carId);
 
-            // Show template selector dialog on UI thread
-            var result = ui.Dispatcher.Invoke(new Func<GraphEditor.GraphTemplateEntry>(() =>
-            {
-                var dialog = new GraphEditor.GraphTemplateSelectorDialog(gameId, carId, templates);
-
-                // Find parent window for owner
                 var parentWindow = System.Windows.Window.GetWindow(ui);
                 if (parentWindow != null)
                 {
                     dialog.Owner = parentWindow;
                 }
 
-                if (dialog.ShowDialog() == true)
+                if (dialog.ShowDialog() == true && dialog.SelectedEntry != null)
                 {
-                    return dialog.SelectedTemplate;
+                    var entry = dialog.SelectedEntry;
+                    string selectedPath = entry.GraphPath;
+
+                    // Resolve template path if needed
+                    if (entry.Source == ProfileBrowser.ProfileEntrySource.Template && entry.TemplateEntry != null)
+                    {
+                        selectedPath = GraphEditor.GraphTemplateRegistry.ResolveTemplatePath(
+                            entry.TemplateEntry.TemplatePath, AppDomain.CurrentDomain.BaseDirectory);
+                    }
+
+                    return (selectedPath, entry.Profile, dialog.UseTuning);
                 }
 
                 return null;
@@ -1662,40 +1652,30 @@ namespace User.PluginSdkDemo
                 return null;
             }
 
-            // Resolve template path
-            string templatePath = GraphEditor.GraphTemplateRegistry.ResolveTemplatePath(result.TemplatePath, baseDir);
-            if (string.IsNullOrWhiteSpace(templatePath) || !File.Exists(templatePath))
+            var (graphPath, profile, useTuning) = result.Value;
+
+            if (string.IsNullOrWhiteSpace(graphPath))
             {
                 return null;
             }
 
-            // Create vehicle-specific graph path
-            string graphsDir = Path.Combine(baseDir, "graphs", "vehicles");
-            if (!Directory.Exists(graphsDir))
+            // Store graph path in profile (no copying - reference directly)
+            SetVehicleGraphPath(gameId, carId, graphPath);
+
+            // Copy tuning parameters if requested
+            if (useTuning && profile?.GraphParamValues != null)
             {
-                Directory.CreateDirectory(graphsDir);
+                string profileKey = BuildProfileKey(gameId, carId);
+                if (Settings.AircraftFfbProfiles.TryGetValue(profileKey, out var currentProfile))
+                {
+                    foreach (var kvp in profile.GraphParamValues)
+                    {
+                        currentProfile.GraphParamValues[kvp.Key] = kvp.Value;
+                    }
+                }
             }
 
-            string vehicleKey = BuildVehicleGraphKey(gameId, carId);
-            string safeFileName = string.Join("_", vehicleKey.Split(Path.GetInvalidFileNameChars()));
-            string destPath = Path.Combine(graphsDir, $"{safeFileName}.json");
-
-            // Copy template to vehicle-specific path
-            try
-            {
-                File.Copy(templatePath, destPath, overwrite: true);
-            }
-            catch (Exception ex)
-            {
-                SimHub.Logging.Current.Error($"[Graph] Failed to copy template: {ex.Message}", ex);
-                return null;
-            }
-
-            // Store relative path in settings
-            string relativePath = $"graphs/vehicles/{Path.GetFileName(destPath)}";
-            SetVehicleGraphPath(gameId, carId, relativePath);
-
-            return relativePath;
+            return graphPath;
         }
 
         private void ResolveActiveGraph(string gameId, string carId)
