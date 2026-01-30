@@ -1520,6 +1520,56 @@ namespace User.PluginSdkDemo
             }
         }
 
+        /// <summary>
+        /// Migrates legacy VehicleGraphPaths entries into AircraftFfbProfiles.GraphPath.
+        /// Called once at startup.
+        /// </summary>
+        private void MigrateVehicleGraphPaths()
+        {
+            if (Settings?.VehicleGraphPaths == null || Settings.VehicleGraphPaths.Count == 0)
+            {
+                return;
+            }
+
+            if (Settings.AircraftFfbProfiles == null)
+            {
+                Settings.AircraftFfbProfiles = new Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+            }
+
+            int migratedCount = 0;
+            foreach (var kvp in Settings.VehicleGraphPaths)
+            {
+                string profileKey = kvp.Key;
+                string graphPath = kvp.Value;
+
+                if (string.IsNullOrWhiteSpace(profileKey) || string.IsNullOrWhiteSpace(graphPath))
+                {
+                    continue;
+                }
+
+                // Create or update profile with graph path
+                if (!Settings.AircraftFfbProfiles.TryGetValue(profileKey, out var profile))
+                {
+                    profile = new DiyFfbPluginSettings.AircraftFfbProfile();
+                    Settings.AircraftFfbProfiles[profileKey] = profile;
+                }
+
+                // Only set if not already set (don't overwrite existing)
+                if (string.IsNullOrWhiteSpace(profile.GraphPath))
+                {
+                    profile.GraphPath = graphPath;
+                    migratedCount++;
+                }
+            }
+
+            if (migratedCount > 0)
+            {
+                SimHub.Logging.Current.Info($"[DIY-FFB] Migrated {migratedCount} vehicle graph paths to profiles");
+                // Clear old data after migration
+                Settings.VehicleGraphPaths.Clear();
+            }
+        }
+
         private string ResolveGraphPath(string gameId, string carId)
         {
             if (Settings == null)
@@ -1527,15 +1577,17 @@ namespace User.PluginSdkDemo
                 return "";
             }
 
-            string vehicleKey = BuildVehicleGraphKey(gameId, carId);
-            if (!string.IsNullOrWhiteSpace(vehicleKey) &&
-                Settings.VehicleGraphPaths != null &&
-                Settings.VehicleGraphPaths.TryGetValue(vehicleKey, out var vehiclePath) &&
-                !string.IsNullOrWhiteSpace(vehiclePath))
+            // Check vehicle profile
+            string profileKey = BuildProfileKey(gameId, carId);
+            if (!string.IsNullOrWhiteSpace(profileKey) &&
+                Settings.AircraftFfbProfiles != null &&
+                Settings.AircraftFfbProfiles.TryGetValue(profileKey, out var profile) &&
+                !string.IsNullOrWhiteSpace(profile?.GraphPath))
             {
-                return vehiclePath;
+                return profile.GraphPath;
             }
 
+            // Fall back to game-level default
             if (!string.IsNullOrWhiteSpace(gameId) &&
                 Settings.GameGraphPaths != null &&
                 Settings.GameGraphPaths.TryGetValue(gameId, out var gamePath) &&
@@ -2137,18 +2189,18 @@ namespace User.PluginSdkDemo
 
         public string GetVehicleGraphPath(string gameId, string carId)
         {
-            if (Settings?.VehicleGraphPaths == null)
+            if (Settings?.AircraftFfbProfiles == null)
             {
                 return "";
             }
 
-            string key = BuildVehicleGraphKey(gameId, carId);
+            string key = BuildProfileKey(gameId, carId);
             if (string.IsNullOrWhiteSpace(key))
             {
                 return "";
             }
 
-            return Settings.VehicleGraphPaths.TryGetValue(key, out var path) ? path : "";
+            return Settings.AircraftFfbProfiles.TryGetValue(key, out var profile) ? profile?.GraphPath ?? "" : "";
         }
 
         public string GetGameGraphPath(string gameId)
@@ -2191,6 +2243,82 @@ namespace User.PluginSdkDemo
 
             // Return resolved absolute path to avoid path resolution inconsistencies
             return ResolveGraphFilePath(activeGraphPath);
+        }
+
+        /// <summary>
+        /// Gets the graph path for a profile key (gameId::carId format).
+        /// </summary>
+        public string GetGraphPathForProfileKey(string profileKey)
+        {
+            if (string.IsNullOrWhiteSpace(profileKey))
+                return "";
+
+            // Profile key format: "gameId::carId"
+            int sep = profileKey.IndexOf("::");
+            if (sep > 0 && sep < profileKey.Length - 2)
+            {
+                string gameId = profileKey.Substring(0, sep);
+                string carId = profileKey.Substring(sep + 2);
+                return GetVehicleGraphPath(gameId, carId);
+            }
+
+            // Legacy format: carId only
+            return GetVehicleGraphPath("", profileKey);
+        }
+
+        /// <summary>
+        /// Applies a profile selected from the Profile Browser to the current vehicle.
+        /// </summary>
+        /// <param name="graphPath">The graph path to use.</param>
+        /// <param name="profile">The profile to copy (can be null for templates).</param>
+        /// <param name="useTuning">If true, copies GraphParamValues from the source profile.</param>
+        public void ApplyProfileFromBrowser(string graphPath, DiyFfbPluginSettings.AircraftFfbProfile profile, bool useTuning)
+        {
+            if (string.IsNullOrWhiteSpace(activeCarId))
+                return;
+
+            // 1. Set graph path for current vehicle if provided
+            if (!string.IsNullOrWhiteSpace(graphPath))
+            {
+                SetVehicleGraphPath(activeGameId, activeCarId, graphPath);
+            }
+
+            // 2. Copy tuning params if requested and source has a profile
+            if (useTuning && profile?.GraphParamValues != null && profile.GraphParamValues.Count > 0)
+            {
+                var currentProfile = GetCurrentAircraftProfile();
+                if (currentProfile == null)
+                {
+                    currentProfile = new DiyFfbPluginSettings.AircraftFfbProfile();
+                    string currentKey = BuildProfileKey(activeGameId, activeCarId);
+                    if (Settings.AircraftFfbProfiles == null)
+                        Settings.AircraftFfbProfiles = new Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+                    Settings.AircraftFfbProfiles[currentKey] = currentProfile;
+                }
+
+                // Copy param values
+                if (currentProfile.GraphParamValues == null)
+                    currentProfile.GraphParamValues = new Dictionary<string, double>();
+
+                foreach (var kvp in profile.GraphParamValues)
+                {
+                    currentProfile.GraphParamValues[kvp.Key] = kvp.Value;
+                }
+
+                // Copy other settings
+                currentProfile.XPlaneRotorIndex = profile.XPlaneRotorIndex;
+            }
+
+            // 3. Reload graph for current vehicle
+            ResolveActiveGraph(activeGameId, activeCarId);
+            BuildGraphParams();
+
+            // 4. Notify UI
+            ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
+            ui?.Dispatcher?.BeginInvoke(new Action(() =>
+            {
+                ui.RefreshGraphSelection();
+            }));
         }
 
         /// <summary>
@@ -2505,24 +2633,31 @@ namespace User.PluginSdkDemo
                 return;
             }
 
-            string key = BuildVehicleGraphKey(gameId, carId);
+            string key = BuildProfileKey(gameId, carId);
             if (string.IsNullOrWhiteSpace(key))
             {
                 return;
             }
 
-            if (Settings.VehicleGraphPaths == null)
+            if (Settings.AircraftFfbProfiles == null)
             {
-                Settings.VehicleGraphPaths = new Dictionary<string, string>();
+                Settings.AircraftFfbProfiles = new Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
             }
 
             if (string.IsNullOrWhiteSpace(path))
             {
-                Settings.VehicleGraphPaths.Remove(key);
+                // Remove profile if clearing path
+                Settings.AircraftFfbProfiles.Remove(key);
             }
             else
             {
-                Settings.VehicleGraphPaths[key] = path;
+                // Create or update profile with graph path
+                if (!Settings.AircraftFfbProfiles.TryGetValue(key, out var profile))
+                {
+                    profile = new DiyFfbPluginSettings.AircraftFfbProfile();
+                    Settings.AircraftFfbProfiles[key] = profile;
+                }
+                profile.GraphPath = path;
             }
 
             ResolveActiveGraph(gameId, carId);
@@ -2682,6 +2817,9 @@ namespace User.PluginSdkDemo
 
             // Load settings
             Settings = this.ReadCommonSettings<DiyFfbPluginSettings>("GeneralSettings", () => new DiyFfbPluginSettings());
+
+            // Migrate VehicleGraphPaths to AircraftFfbProfiles.GraphPath
+            MigrateVehicleGraphPaths();
 
             Simhub_version = (String)pluginManager.GetPropertyValue("DataCorePlugin.SimHubVersion");
             // Declare a property available in the property list, this gets evaluated "on demand" (when shown or used in formulas)

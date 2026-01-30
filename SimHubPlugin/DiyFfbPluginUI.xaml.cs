@@ -19,6 +19,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using User.PluginSdkDemo.GraphEditor;
+using User.PluginSdkDemo.ProfileBrowser;
 using System.Windows.Data;
 using vJoyInterfaceWrap;
 using Windows.UI.Notifications;
@@ -790,6 +791,57 @@ namespace User.PluginSdkDemo
             else
             {
                 MessageBox.Show("No profile found to reset.", "Reset Parameters", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void btn_manage_profiles_Click(object sender, RoutedEventArgs e)
+        {
+            ShowProfileBrowser(ProfileBrowserMode.ManageProfiles);
+        }
+
+        private void ShowProfileBrowser(ProfileBrowserMode mode)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var dialog = new ProfileBrowserDialog(
+                    Plugin,
+                    mode,
+                    Plugin.GetActiveGameId(),
+                    Plugin.GetActiveCarId());
+
+                var parentWindow = Window.GetWindow(this);
+                if (parentWindow != null)
+                {
+                    dialog.Owner = parentWindow;
+                }
+
+                if (dialog.ShowDialog() == true && dialog.SelectedEntry != null)
+                {
+                    var entry = dialog.SelectedEntry;
+                    string graphPath = entry.GraphPath;
+
+                    // For templates, resolve the template path
+                    if (entry.TemplateEntry != null)
+                    {
+                        graphPath = GraphTemplateRegistry.ResolveTemplatePath(
+                            entry.TemplateEntry.TemplatePath,
+                            AppDomain.CurrentDomain.BaseDirectory);
+                    }
+
+                    Plugin.ApplyProfileFromBrowser(graphPath, entry.Profile, dialog.UseTuning);
+                    RefreshGraphSelection();
+                    RefreshSystemGraphParams();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error opening Profile Browser:\n\n{ex.Message}\n\n{ex.StackTrace}",
+                    "Profile Browser Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

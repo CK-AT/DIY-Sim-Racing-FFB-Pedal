@@ -12,6 +12,7 @@ namespace User.PluginSdkDemo
     {
         public class AircraftFfbProfile
         {
+            public string GraphPath;
             public int XPlaneRotorIndex = -1;
             public Dictionary<string, double> GraphParamValues = new Dictionary<string, double>();
         }
@@ -70,6 +71,7 @@ namespace User.PluginSdkDemo
         public uint axis_tab_selected = 0;
         public uint function_tab_selected = 0;
         public int XPlaneRotorIndex = -1;
+        // Obsolete: kept for migration. Use AircraftFfbProfiles[key].GraphPath instead.
         public Dictionary<string, string> VehicleGraphPaths = new Dictionary<string, string>();
         public Dictionary<string, string> GameGraphPaths = new Dictionary<string, string>();
 
