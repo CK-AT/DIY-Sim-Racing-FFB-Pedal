@@ -17,7 +17,19 @@ Made Tier 2 (graph.ParamValues) read-only at runtime:
 
 **Behavior change:** Previously, editing a param wrote to both Tier 2 (in-memory graph) and Tier 3 (profile). Now only Tier 3 is written—Tier 2 retains the original values from the graph JSON file.
 
-### 2. Fixed Profile Key Inconsistency (Issue #1) — Previous Session
+### 2. Reset to Defaults Button (Issue #7)
+
+Added "Reset to Defaults" button to clear vehicle parameter overrides:
+
+**Code changes:**
+
+- `DiyFfbPlugin.cs`: Added `ResetCurrentProfileToDefaults()` method
+- `DiyFfbPluginUI.xaml`: Added button next to Save/Load Aircraft FFB
+- `DiyFfbPluginUI.xaml.cs`: Added click handler with confirmation dialog
+
+**Behavior:** Clears `GraphParamValues` for current vehicle, rebuilds params from graph defaults, refreshes UI.
+
+### 3. Fixed Profile Key Inconsistency (Issue #1) — Previous Session
 
 Changed profile keying from `CarId` alone to `gameId::carId` format:
 
@@ -45,7 +57,6 @@ From [17_Profile_System_Improvements.md](SimHubPlugin/Docs/plans/17_Profile_Syst
 
 | Priority | Issue | Notes |
 |----------|-------|-------|
-| Medium | #7 Reset to defaults | Add button to clear vehicle profile |
 | Low | #3 FunctionFfbSettings | Stub code—decide to implement or remove |
 | Low | #6 Export/import | Nice-to-have |
 | Low | #8 Profile deletion | Nice-to-have |
@@ -84,6 +95,6 @@ MSYS_NO_PATHCONV=1 "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBu
 
 ## Next Steps
 
-1. **If continuing profile work**: Start with reset to defaults (#7) or FunctionFfbSettings decision (#3)
+1. **If continuing profile work**: Start with FunctionFfbSettings decision (#3) or export/import (#6)
 2. **If implementing migration plan**: Start with hash tracking, then Parameter Review Window
 3. **If doing unrelated work**: This handoff can be ignored

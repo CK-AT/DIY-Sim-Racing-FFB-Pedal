@@ -83,15 +83,15 @@ Removed runtime writes to Tier 2 (graph.ParamValues) in `SetGraphParamValue()`. 
 
 ---
 
-### 7. No Reset to Defaults
+### 7. ~~No Reset to Defaults~~ ✓ DONE
 
-**Current:** No way to wipe a vehicle profile and start fresh.
+**Status:** Resolved 2026-01-30
 
-**Recommendation:** Add "Reset to Defaults" button that:
+Added "Reset to Defaults" button next to Save/Load Aircraft FFB buttons:
 
-- Clears `GraphParamValues` for the vehicle
-- Optionally resets graph path to game default
-- Prompts for confirmation
+- Clears `GraphParamValues` for the current vehicle profile
+- Shows confirmation dialog before reset
+- Rebuilds params from graph defaults and refreshes UI
 
 ---
 
@@ -118,7 +118,7 @@ Removed runtime writes to Tier 2 (graph.ParamValues) in `SetGraphParamValue()`. 
 | #2 Pending params file | ~~High~~ | ~~Low~~ | ✓ Done |
 | #1 Key inconsistency | ~~High~~ | ~~Medium~~ | ✓ Done |
 | #4 Tier 2 deprecation | ~~Medium~~ | ~~Medium~~ | ✓ Done |
-| #7 Reset to defaults | Medium | Low | Simple UI addition |
+| #7 Reset to defaults | ~~Medium~~ | ~~Low~~ | ✓ Done |
 | #3 FunctionFfbSettings | Low | Low | Decide and act |
 | #5 Game-specific fields | Low | - | Monitor only |
 | #6 Export/import | Low | Medium | Nice-to-have |
@@ -128,7 +128,7 @@ Removed runtime writes to Tier 2 (graph.ParamValues) in `SetGraphParamValue()`. 
 
 1. ~~**Remove pending params file**~~ ✓ Done
 2. ~~**Fix key inconsistency**~~ ✓ Done
-3. **Add reset to defaults** — Small UX win
+3. ~~**Add reset to defaults**~~ ✓ Done
 4. ~~**Tier 2 deprecation**~~ ✓ Done
 5. **FunctionFfbSettings decision** — Remove or implement
 6. **Export/import, deletion** — Future polish

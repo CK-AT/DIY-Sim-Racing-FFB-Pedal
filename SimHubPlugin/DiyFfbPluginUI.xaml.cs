@@ -699,6 +699,42 @@ namespace User.PluginSdkDemo
             }
         }
 
+        private void btn_reset_params_defaults_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            string profileKey = Plugin.GetActiveProfileKey();
+            if (string.IsNullOrWhiteSpace(profileKey))
+            {
+                MessageBox.Show("No active aircraft detected.", "Reset Parameters", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Reset all parameter overrides for '{profileKey}' to graph defaults?\n\nThis cannot be undone.",
+                "Reset to Defaults",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            if (Plugin.ResetCurrentProfileToDefaults())
+            {
+                RefreshSystemGraphParams();
+                MessageBox.Show("Parameters reset to defaults.", "Reset Parameters", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show("No profile found to reset.", "Reset Parameters", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
         private void btn_save_ffb_map_Click(object sender, RoutedEventArgs e)
         {
             if (Plugin == null)

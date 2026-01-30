@@ -2128,6 +2128,33 @@ namespace User.PluginSdkDemo
         }
 
         /// <summary>
+        /// Resets the current vehicle's GraphParamValues to defaults (clears all overrides).
+        /// Returns true if reset was performed, false if no profile exists.
+        /// </summary>
+        public bool ResetCurrentProfileToDefaults()
+        {
+            var profile = GetCurrentAircraftProfile();
+            if (profile == null)
+            {
+                return false;
+            }
+
+            // Clear all param overrides
+            profile.GraphParamValues?.Clear();
+
+            // Clear dirty flag since we're intentionally resetting
+            hasDirtyGraphParams = false;
+
+            // Rebuild params from graph defaults (Tier 1) and graph template (Tier 2)
+            BuildGraphParams();
+
+            // Notify listeners so UI can refresh
+            ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
+
+            return true;
+        }
+
+        /// <summary>
         /// Gets the profile key for the current active vehicle (gameId::carId format).
         /// </summary>
         public string GetActiveProfileKey()
