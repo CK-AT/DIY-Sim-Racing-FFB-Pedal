@@ -190,6 +190,7 @@ namespace User.PluginSdkDemo
             {
                 plugin.ActiveGraphChanged += OnActiveGraphChanged_UI;
                 plugin.GraphParamChanged += OnGraphParamChanged_Vehicle;
+                plugin.ParamMigrationDetected += OnParamMigrationDetected;
             }
             UpdateVehicleTabHeader();
             RefreshSystemGraphParams();
@@ -797,6 +798,48 @@ namespace User.PluginSdkDemo
         private void btn_manage_profiles_Click(object sender, RoutedEventArgs e)
         {
             ShowProfileBrowser(ProfileBrowserMode.ManageProfiles);
+        }
+
+        private void btn_review_params_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            try
+            {
+                // Use pending migration result if available, otherwise create empty result
+                var result = _pendingMigrationResult;
+                if (result == null)
+                {
+                    string graphPath = Plugin.GetActiveGraphPath();
+                    if (string.IsNullOrWhiteSpace(graphPath))
+                    {
+                        MessageBox.Show("No graph is currently loaded.", "Review Params", MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+
+                    result = new ParamMigrationResult
+                    {
+                        NewHash = GraphHashComputer.ComputeGraphTreeHash(
+                            DiyFfbPlugin.ResolveGraphFilePath(graphPath),
+                            Plugin.GetActiveVehicleGraph()),
+                        CurrentSnapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>()
+                    };
+                }
+
+                var dialog = new GraphEditor.ParamReviewWindow(Plugin, result);
+                dialog.Owner = Window.GetWindow(this);
+                dialog.ShowDialog();
+
+                // Clear pending result after review
+                _pendingMigrationResult = null;
+            }
+            catch (System.Exception ex)
+            {
+                MessageBox.Show($"Error opening review window: {ex.Message}\n\n{ex.StackTrace}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void btn_store_profile_Click(object sender, RoutedEventArgs e)
@@ -2943,6 +2986,45 @@ namespace User.PluginSdkDemo
                 RefreshVehicleParams();
             });
         }
+
+        private void OnParamMigrationDetected(object sender, ParamMigrationResult e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                string summary = BuildMigrationSummary(e);
+                ShowParamMigrationNotification(summary, e);
+            });
+        }
+
+        private string BuildMigrationSummary(ParamMigrationResult result)
+        {
+            var parts = new List<string>();
+            if (result.ChangedDefaults.Count > 0)
+                parts.Add($"{result.ChangedDefaults.Count} default(s) changed");
+            if (result.ClampedValues.Count > 0)
+                parts.Add($"{result.ClampedValues.Count} value(s) clamped");
+            if (result.NewOrphans.Count > 0)
+                parts.Add($"{result.NewOrphans.Count} new orphan(s)");
+
+            return parts.Count > 0
+                ? string.Join(", ", parts)
+                : "Graph updated";
+        }
+
+        private void ShowParamMigrationNotification(string summary, ParamMigrationResult result)
+        {
+            // Store result for review window access
+            _pendingMigrationResult = result;
+
+            // Show notification in status bar or message box
+            System.Windows.MessageBox.Show(
+                $"FFB Graph Changed\n\n{summary}\n\nClick 'Review Params' in the Vehicle tab to see details.",
+                "Parameter Migration",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
+        }
+
+        private ParamMigrationResult _pendingMigrationResult;
 
         private void UpdateVehicleTabHeader()
         {

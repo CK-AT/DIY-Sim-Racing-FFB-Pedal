@@ -223,6 +223,11 @@
     <Compile Include="GraphEditor\SharedGraphSaveDialog.xaml.cs">
       <DependentUpon>SharedGraphSaveDialog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="GraphEditor\ParamReviewWindow.xaml.cs">
+      <DependentUpon>ParamReviewWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="GraphHashComputer.cs" />
+    <Compile Include="ParamMigrationResult.cs" />
     <Compile Include="GraphEditor\GraphEditorTab.cs" />
     <Compile Include="GraphEditor\GraphEditorTabManager.cs" />
     <Compile Include="GraphEditor\GraphUndoStack.cs" />
@@ -328,6 +333,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="GraphEditor\SharedGraphSaveDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="GraphEditor\ParamReviewWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

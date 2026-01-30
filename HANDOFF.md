@@ -1,62 +1,74 @@
 # Session Handoff
 
 Date: 2026-01-30
-Last commit: `0ad2f28d` — Remove dead FunctionFfbSettings code
+Last uncommitted: Plan 15 — Hash-based param override preservation
 
 ## What Was Done This Session
 
-### Enhanced Export/Import (Issue #6)
+### Implemented: Plan 15 — Hash-Based Param Override Preservation
 
-Improved the existing Save/Load Aircraft FFB functionality:
+Preserves vehicle parameter overrides when graphs change (template swap or file edits).
 
-**Code changes in `DiyFfbPluginSettings.cs`:**
+**New files:**
 
-- Added `ExportedProfile` wrapper class with Version, ProfileKey, GraphPath, ExportedAt, and Profile
+| File | Purpose |
+| ---- | ------- |
+| `SimHubPlugin/GraphHashComputer.cs` | Computes SHA256 hash of graph + all includes |
+| `SimHubPlugin/ParamMigrationResult.cs` | Migration result data classes |
+| `SimHubPlugin/GraphEditor/ParamReviewWindow.xaml` | Parameter review UI |
+| `SimHubPlugin/GraphEditor/ParamReviewWindow.xaml.cs` | Review window code-behind |
 
-**Code changes in `DiyFfbPluginUI.xaml.cs`:**
+**Modified files:**
 
-- `btn_save_aircraft_ffb_Click`: Now exports using `ExportedProfile` wrapper with metadata
-- `btn_load_aircraft_ffb_Click`:
-  - Handles both new (ExportedProfile) and legacy (AircraftFfbProfile) formats
-  - Shows warning dialog if graph path doesn't match current graph
-  - Shows overwrite confirmation when loading into existing profile
+| File | Changes |
+| ---- | ------- |
+| `DiyFfbPluginSettings.cs` | Added `ParamSnapshot` class, extended `AircraftFfbProfile` with `LastReviewedGraphHash` and `LastReviewedParamSnapshots` |
+| `DiyFfbPlugin.cs` | Added `CheckParamMigration()`, `MigrateParamOverrides()`, `InitializeParamSnapshots()`, `GetAllGraphParams()`, `GetActiveVehicleGraph()`, made `ResolveGraphFilePath()` public, added `ParamMigrationDetected` event |
+| `DiyFfbPluginUI.xaml` | Added "Review Params" button |
+| `DiyFfbPluginUI.xaml.cs` | Added `OnParamMigrationDetected()` handler, `btn_review_params_Click()`, notification logic |
+| `DiyFfbPlugin.csproj` | Added new files |
 
-### Added Unified Profile Browser Proposal (Issue #9)
+**How it works:**
 
-Added new issue to [17_Profile_System_Improvements.md](SimHubPlugin/Docs/plans/17_Profile_System_Improvements.md):
+1. On graph load, `CheckParamMigration()` computes content hash of root graph + includes
+2. Compares to stored `LastReviewedGraphHash` in profile
+3. If hash changed, `MigrateParamOverrides()`:
+   - Clamps override values to new min/max ranges
+   - Detects orphaned overrides (params no longer in graph)
+   - Detects changed default values
+4. If changes detected, fires `ParamMigrationDetected` event
+5. UI shows notification and enables "Review Params" button
+6. Review window shows active params (highlighted if changed/clamped) and orphans
+7. "Mark Reviewed" updates stored hash and snapshots
 
-- Proposes unified dialog for template selection + profile management + "copy from vehicle"
-- Includes ASCII mockup of dialog layout
-- Supersedes #8 (Profile Deletion)
+## Build Status
 
-## Uncommitted Changes
+Build succeeded.
 
-- `DiyFfbPluginSettings.cs` — ExportedProfile class
-- `DiyFfbPluginUI.xaml.cs` — Enhanced save/load handlers
-- `17_Profile_System_Improvements.md` — Issue #6 marked done, #9 added
+## Testing Checklist
 
-## Open Items
+### Hash-Based Param Override Preservation
 
-From [17_Profile_System_Improvements.md](SimHubPlugin/Docs/plans/17_Profile_System_Improvements.md):
-
-| Priority | Issue | Notes |
-|----------|-------|-------|
-| Medium | #9 Unified Profile Browser | Future UX overhaul |
-
-From [15_Graph_Param_Override_Migration_Plan.md](SimHubPlugin/Docs/plans/15_Graph_Param_Override_Migration_Plan.md):
-
-- Implement hash tracking for graph + includes
-- Implement Parameter Review Window
-- Add notification on defaults change
+1. [ ] New vehicle first load — hash initialized without notification
+2. [ ] Override persists across graph reload (same params)
+3. [ ] Override clamped when new range is tighter
+4. [ ] Orphan kept when param removed from graph
+5. [ ] Orphan restored when param re-added to graph
+6. [ ] Hash change detected on nested include edit
+7. [ ] Notification appears when graph changes with impact
+8. [ ] Review window shows active params and orphans
+9. [ ] Reset/delete buttons work in review window
+10. [ ] "Mark Reviewed" updates stored hash and clears highlights
 
 ## Key Files
 
 | File | Purpose |
-|------|---------|
-| `SimHubPlugin/DiyFfbPlugin.cs` | Main plugin |
-| `SimHubPlugin/DiyFfbPluginSettings.cs` | AircraftFfbProfile, ExportedProfile classes |
-| `SimHubPlugin/DiyFfbPluginUI.xaml.cs` | UI handlers (save/load at lines 628-700) |
-| `SimHubPlugin/Docs/plans/17*.md` | Profile improvements backlog |
+| ---- | ------- |
+| `SimHubPlugin/GraphHashComputer.cs` | Hash computation for graph tree |
+| `SimHubPlugin/ParamMigrationResult.cs` | Migration result classes |
+| `SimHubPlugin/GraphEditor/ParamReviewWindow.xaml.cs` | Review UI |
+| `SimHubPlugin/DiyFfbPlugin.cs:1742-1905` | Migration logic |
+| `SimHubPlugin/DiyFfbPluginSettings.cs:6-31` | Data model changes |
 
 ## Build Command
 
@@ -66,6 +78,5 @@ MSYS_NO_PATHCONV=1 "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBu
 
 ## Next Steps
 
-1. **Commit current changes** if desired (export/import enhancement)
-2. **If continuing profile work**: Unified Profile Browser (#9) is the main remaining item
-3. **If implementing migration plan**: Start with hash tracking
+1. **Test** the hash-based param override preservation
+2. Update plan document status to "Implemented"

@@ -1599,7 +1599,7 @@ namespace User.PluginSdkDemo
             return "";
         }
 
-        private static string ResolveGraphFilePath(string path)
+        public static string ResolveGraphFilePath(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
             {
@@ -1609,6 +1609,14 @@ namespace User.PluginSdkDemo
             return Path.IsPathRooted(path)
                 ? path
                 : Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path));
+        }
+
+        /// <summary>
+        /// Gets the currently loaded vehicle graph definition.
+        /// </summary>
+        public GraphEditor.GraphDefinition GetActiveVehicleGraph()
+        {
+            return activeVehicleGraph;
         }
 
         private string PromptForGraphTemplate(string gameId, string carId)
@@ -1732,6 +1740,9 @@ namespace User.PluginSdkDemo
 
                     // Notify UI that graph has changed
                     ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
+
+                    // Check for param migration needs
+                    CheckParamMigration(resolvedPath, gameId, carId);
                 }
             }
             catch (Exception ex)
@@ -1740,6 +1751,172 @@ namespace User.PluginSdkDemo
                 activeGraphValidation = new GraphValidationResult();
                 activeGraphValidation.Errors.Add($"Graph load failed: {ex.Message}");
             }
+        }
+
+        private void CheckParamMigration(string resolvedPath, string gameId, string carId)
+        {
+            if (activeVehicleGraph == null)
+            {
+                return;
+            }
+
+            var profile = GetCurrentAircraftProfile();
+            if (profile == null)
+            {
+                return;
+            }
+
+            // Compute current hash
+            string currentHash = GraphHashComputer.ComputeGraphTreeHash(resolvedPath, activeVehicleGraph);
+            if (string.IsNullOrWhiteSpace(currentHash))
+            {
+                return;
+            }
+
+            // First-time setup: initialize hash without triggering notification
+            if (string.IsNullOrWhiteSpace(profile.LastReviewedGraphHash))
+            {
+                InitializeParamSnapshots(profile, currentHash);
+                return;
+            }
+
+            // Compare to stored hash
+            if (currentHash == profile.LastReviewedGraphHash)
+            {
+                return;
+            }
+
+            // Hash changed - run migration
+            var result = MigrateParamOverrides(profile, currentHash);
+            if (result.HasChangesToReview)
+            {
+                ParamMigrationDetected?.Invoke(this, result);
+            }
+            else
+            {
+                // No notable changes, just update hash silently
+                profile.LastReviewedGraphHash = currentHash;
+                profile.LastReviewedParamSnapshots = result.CurrentSnapshots;
+            }
+        }
+
+        private void InitializeParamSnapshots(DiyFfbPluginSettings.AircraftFfbProfile profile, string hash)
+        {
+            var allParams = CollectAllGraphParams(activeVehicleGraph, activeGraphResolver);
+            var snapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>();
+
+            foreach (var param in allParams)
+            {
+                snapshots[param.Name] = new DiyFfbPluginSettings.ParamSnapshot
+                {
+                    DefaultValue = param.DefaultValue,
+                    Min = param.Min,
+                    Max = param.Max
+                };
+            }
+
+            profile.LastReviewedGraphHash = hash;
+            profile.LastReviewedParamSnapshots = snapshots;
+        }
+
+        private ParamMigrationResult MigrateParamOverrides(
+            DiyFfbPluginSettings.AircraftFfbProfile profile,
+            string newHash)
+        {
+            var result = new ParamMigrationResult
+            {
+                NewHash = newHash
+            };
+
+            // Collect all params from current graph
+            var currentParams = CollectAllGraphParams(activeVehicleGraph, activeGraphResolver);
+            var currentParamDict = currentParams.ToDictionary(p => p.Name);
+
+            // Build current snapshots
+            var currentSnapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>();
+            foreach (var param in currentParams)
+            {
+                currentSnapshots[param.Name] = new DiyFfbPluginSettings.ParamSnapshot
+                {
+                    DefaultValue = param.DefaultValue,
+                    Min = param.Min,
+                    Max = param.Max
+                };
+            }
+            result.CurrentSnapshots = currentSnapshots;
+
+            var oldSnapshots = profile.LastReviewedParamSnapshots ?? new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>();
+
+            // Check for changed defaults
+            foreach (var param in currentParams)
+            {
+                if (oldSnapshots.TryGetValue(param.Name, out var oldSnapshot))
+                {
+                    if (!NearlyEqual((float)oldSnapshot.DefaultValue, (float)param.DefaultValue))
+                    {
+                        result.ChangedDefaults.Add(new ParamDefaultChange
+                        {
+                            ParamName = param.Name,
+                            OldDefault = oldSnapshot.DefaultValue,
+                            NewDefault = param.DefaultValue
+                        });
+                    }
+                }
+            }
+
+            // Check overrides: clamp to new ranges, detect orphans
+            if (profile.GraphParamValues != null)
+            {
+                foreach (var kvp in profile.GraphParamValues.ToList())
+                {
+                    string paramName = kvp.Key;
+                    double overrideValue = kvp.Value;
+
+                    if (currentParamDict.TryGetValue(paramName, out var param))
+                    {
+                        // Param still exists - check if value needs clamping
+                        if (overrideValue < param.Min)
+                        {
+                            result.ClampedValues.Add(new ParamClampInfo
+                            {
+                                ParamName = paramName,
+                                OriginalValue = overrideValue,
+                                ClampedValue = param.Min,
+                                ClampedToMin = true,
+                                NewMin = param.Min,
+                                NewMax = param.Max
+                            });
+                            profile.GraphParamValues[paramName] = param.Min;
+                        }
+                        else if (overrideValue > param.Max)
+                        {
+                            result.ClampedValues.Add(new ParamClampInfo
+                            {
+                                ParamName = paramName,
+                                OriginalValue = overrideValue,
+                                ClampedValue = param.Max,
+                                ClampedToMax = true,
+                                NewMin = param.Min,
+                                NewMax = param.Max
+                            });
+                            profile.GraphParamValues[paramName] = param.Max;
+                        }
+                    }
+                    else
+                    {
+                        // Param no longer in graph - it's an orphan
+                        result.AllOrphans.Add(paramName);
+
+                        // Check if it's a NEW orphan (wasn't orphaned before)
+                        if (oldSnapshots.ContainsKey(paramName))
+                        {
+                            result.NewOrphans.Add(paramName);
+                        }
+                    }
+                }
+            }
+
+            return result;
         }
 
         private void EvaluateActiveGraph(GameData data)
@@ -2556,6 +2733,19 @@ namespace User.PluginSdkDemo
             GraphParamChanged?.Invoke(this, new GraphParamChangedEventArgs(paramName, value));
         }
 
+        /// <summary>
+        /// Gets all graph parameters from the current active graph.
+        /// </summary>
+        /// <returns>List of graph parameters, or empty list if no graph is loaded.</returns>
+        public List<GraphEditor.GraphParam> GetAllGraphParams()
+        {
+            if (activeVehicleGraph == null)
+            {
+                return new List<GraphEditor.GraphParam>();
+            }
+            return CollectAllGraphParams(activeVehicleGraph, activeGraphResolver);
+        }
+
         private bool hasDirtyGraphParams = false;
 
         private void MarkProfileDirty()
@@ -2565,6 +2755,7 @@ namespace User.PluginSdkDemo
 
         public event EventHandler ActiveGraphChanged;
         public event EventHandler<GraphParamChangedEventArgs> GraphParamChanged;
+        public event EventHandler<ParamMigrationResult> ParamMigrationDetected;
 
         /// <summary>
         /// Gets the current value of a graph output signal.

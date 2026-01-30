@@ -10,11 +10,34 @@ namespace User.PluginSdkDemo
 
     public class DiyFfbPluginSettings
     {
+        /// <summary>
+        /// Snapshot of a graph parameter's definition at time of last review.
+        /// Used to detect when defaults or ranges change.
+        /// </summary>
+        public class ParamSnapshot
+        {
+            public double DefaultValue;
+            public double Min;
+            public double Max;
+        }
+
         public class AircraftFfbProfile
         {
             public string GraphPath;
             public int XPlaneRotorIndex = -1;
             public Dictionary<string, double> GraphParamValues = new Dictionary<string, double>();
+
+            /// <summary>
+            /// Hash of graph + includes content at last review.
+            /// Null means profile predates hash tracking (will initialize on next load).
+            /// </summary>
+            public string LastReviewedGraphHash;
+
+            /// <summary>
+            /// Snapshot of param definitions at last review.
+            /// Key: param name, Value: default/min/max at that time.
+            /// </summary>
+            public Dictionary<string, ParamSnapshot> LastReviewedParamSnapshots = new Dictionary<string, ParamSnapshot>();
         }
 
         /// <summary>

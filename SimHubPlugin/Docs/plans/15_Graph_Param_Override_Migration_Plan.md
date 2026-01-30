@@ -2,7 +2,7 @@
 
 Date: 2026-01-29
 Owner: Codex
-Status: Draft
+Status: Implemented (2026-01-30)
 
 ## Goal
 
@@ -75,6 +75,19 @@ Two sections:
 - No stable `GraphParam.Id` — match by name only
 - No alias/rename mapping — if name changes, old override becomes orphan
 - No blocking migration dialogs — notification + on-demand review
+
+### Design Decision: Hash-Based vs Snapshot All
+
+**Alternative considered:** Snapshot all param values when template is first assigned.
+
+**Why hash-based instead:**
+
+- Smaller storage footprint (only store changed values)
+- Users see which params they've actually tuned vs defaults
+- Explicit review of default changes is better UX than silent isolation
+- Can still "lock in" current values via future "Snapshot All" action if needed
+
+The hash-based approach notifies users when defaults change, letting them consciously decide whether to adopt new defaults or keep current values.
 
 ## Touch Points
 
