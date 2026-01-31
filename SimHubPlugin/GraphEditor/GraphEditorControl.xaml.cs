@@ -4031,14 +4031,16 @@ namespace User.PluginSdkDemo.GraphEditor
                 return;
             }
 
-            if (sender is TextBox textBox)
+            if (sender is TextBox textBox &&
+                textBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
             {
                 _selectedNode.Node.IncludePath = textBox.Text?.Trim() ?? "";
-            }
 
-            // Debounce the file I/O for SyncIncludePorts - restart timer on each keystroke
-            _includePathDebounceTimer.Stop();
-            _includePathDebounceTimer.Start();
+                // Debounce the file I/O for SyncIncludePorts - restart timer on each keystroke
+                _includePathDebounceTimer.Stop();
+                _includePathDebounceTimer.Start();
+            }
         }
 
         private void OnIncludePathDebounce(object sender, EventArgs e)
@@ -5258,11 +5260,18 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             if (sender is Border border && border.Tag is GraphNode node)
             {
+                // Select the right-clicked node (matching Port_MouseRightButtonDown behavior)
+                if (_nodeVisuals.TryGetValue(node.Id, out var nodeVisual))
+                {
+                    _selectedNodes.Clear();
+                    _selectedNodes.Add(nodeVisual);
+                    UpdateSelectionVisuals();
+                    UpdateInspector();
+                }
+
                 var menu = new ContextMenu();
                 menu.Items.Add(BuildMenuItem("Delete Node", () =>
                 {
-                    _selectedNodes.Clear();
-                    _selectedNodes.Add(_nodeVisuals[node.Id]);
                     DeleteSelectedNodes();
                 }));
                 menu.Items.Add(BuildMenuItem("Duplicate Node", () =>
@@ -5286,6 +5295,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 }
 
                 border.ContextMenu = menu;
+                e.Handled = true;
             }
         }
 

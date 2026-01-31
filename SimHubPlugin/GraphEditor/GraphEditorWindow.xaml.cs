@@ -800,11 +800,65 @@ namespace User.PluginSdkDemo.GraphEditor
                                 return;
                             }
                         }
-                        else if (!tab.Save())
+                        else
                         {
-                            ThemedMessageBox.Show(this, "Failed to save graph.", "Save Error",
-                                MessageBoxButton.OK, MessageBoxImage.Error);
-                            return;
+                            // Check if graph is shared before saving
+                            if (plugin != null)
+                            {
+                                var scanner = new GraphUsageScanner(plugin);
+                                var report = scanner.GetUsageReport(tab.FilePath, plugin.GetActiveProfileKey());
+
+                                if (report.IsShared)
+                                {
+                                    var sharedResult = ShowSharedGraphSaveDialog(report);
+                                    switch (sharedResult)
+                                    {
+                                        case SharedGraphSaveResult.Cancel:
+                                            return; // Cancelled
+                                        case SharedGraphSaveResult.SaveAsCopy:
+                                            // Show SaveAs dialog for the tab
+                                            var saveAsDialog = new SaveFileDialog
+                                            {
+                                                Filter = "Graph JSON (*.json)|*.json",
+                                                DefaultExt = "json",
+                                                FileName = Path.GetFileName(tab.FilePath),
+                                                InitialDirectory = Path.GetDirectoryName(tab.FilePath)
+                                            };
+                                            if (saveAsDialog.ShowDialog() != true)
+                                            {
+                                                return; // Cancelled
+                                            }
+                                            if (!tab.SaveAs(saveAsDialog.FileName))
+                                            {
+                                                ThemedMessageBox.Show(this, "Failed to save graph.", "Save Error",
+                                                    MessageBoxButton.OK, MessageBoxImage.Error);
+                                                return;
+                                            }
+                                            break;
+                                        case SharedGraphSaveResult.SaveAnyway:
+                                            // Fall through to normal save
+                                            if (!tab.Save())
+                                            {
+                                                ThemedMessageBox.Show(this, "Failed to save graph.", "Save Error",
+                                                    MessageBoxButton.OK, MessageBoxImage.Error);
+                                                return;
+                                            }
+                                            break;
+                                    }
+                                }
+                                else if (!tab.Save())
+                                {
+                                    ThemedMessageBox.Show(this, "Failed to save graph.", "Save Error",
+                                        MessageBoxButton.OK, MessageBoxImage.Error);
+                                    return;
+                                }
+                            }
+                            else if (!tab.Save())
+                            {
+                                ThemedMessageBox.Show(this, "Failed to save graph.", "Save Error",
+                                    MessageBoxButton.OK, MessageBoxImage.Error);
+                                return;
+                            }
                         }
                         break;
 

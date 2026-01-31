@@ -1,36 +1,21 @@
 # Session Handoff
 
 Date: 2026-01-31
-Last commit: `25c54a6b` — Add ThemedMessageBox for dark-themed dialogs
+Last commit: `8b289671` — Add dark title bar to remaining dialog windows
 
 ## What Was Done This Session
 
-### Plan 21: Themed MessageBox — Implemented
+### Graph Editor Bug Fixes
 
-Replaced all native Windows `MessageBox.Show()` calls with dark-themed `ThemedMessageBox` class.
+Fixed three bugs in the graph editor:
 
-**Created files:**
+1. **Node deletion requiring deselection** — `Node_MouseRightButtonDown` now selects the right-clicked node and sets `e.Handled = true` to prevent event bubbling. Previously, right-clicking a node didn't select it, so Delete key and context menu deletion failed until user left-clicked first.
 
-- `SimHubPlugin/Controls/ThemedMessageBox.xaml` — Dark-themed dialog UI
-- `SimHubPlugin/Controls/ThemedMessageBox.xaml.cs` — Static Show() methods
+2. **Include node inspector showing wrong path** — `EditIncludePath_TextChanged` now validates `DataContext` with `ReferenceEquals` check (matching other inspector handlers). Previously, stale TextChanged events could update the wrong node's path.
 
-**Updated files (34 calls replaced):**
+3. **CloseTab bypassing SharedGraphSaveDialog** — When closing a dirty tab and clicking "Yes" to save, now checks if graph is shared and shows `SharedGraphSaveDialog` with Cancel/SaveAsCopy/SaveAnyway options. Previously saved directly without the shared graph warning.
 
-- DiyFfbPluginUI.xaml.cs (17 calls)
-- GraphEditorWindow.xaml.cs (8 calls)
-- ProfileBrowserDialog.xaml.cs (5 calls)
-- ParamReviewWindow.xaml.cs (2 calls)
-- AutomotivePedalConfigControl.xaml.cs (2 calls)
-- GraphEditorControl.xaml.cs (1 call)
-- GraphTemplateSelectorDialog.xaml.cs (1 call)
-
-**Features:**
-
-- Dark theme matching plugin UI (#1B1B1B background)
-- Support for OK, OKCancel, YesNo, YesNoCancel buttons
-- Support for Info, Warning, Error, Question icons
-- Draggable title bar
-- Keyboard support (Escape, Enter)
+**Updated file:** `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`, `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
 
 ## Build Status
 

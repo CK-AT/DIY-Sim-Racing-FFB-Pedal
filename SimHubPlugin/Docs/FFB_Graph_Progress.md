@@ -154,6 +154,9 @@ Status: living progress document for graph editor/runtime integration.
 - Hash-based param override preservation (Plan 15): when graph changes, matching param overrides (by name+hash) are preserved in the new profile.
 - Snapshot/discard mechanism for vehicle switch: param changes are snapshot on switch; user can save or discard before loading new vehicle.
 - FFB Graph tab removed (Plan 20): vehicle ID and active graph path now shown in Vehicle tab header; bulk export/import buttons moved to Settings panel under "Profile Backup".
+- Fixed node deletion requiring deselection: `Node_MouseRightButtonDown` now selects the right-clicked node and prevents event bubbling, so Delete key works immediately after right-click.
+- Fixed Include node inspector showing wrong path: `EditIncludePath_TextChanged` now validates DataContext with ReferenceEquals check to prevent stale events from updating the wrong node.
+- Fixed CloseTab bypassing SharedGraphSaveDialog: closing a dirty tab now checks if graph is shared and shows the save protection dialog before saving.
 
 ## In Progress
 
