@@ -3412,7 +3412,9 @@ namespace User.PluginSdkDemo.GraphEditor
                 return;
             }
 
-            if (sender is ComboBox comboBox && comboBox.DataContext is GraphNode node)
+            if (sender is ComboBox comboBox &&
+                comboBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
             {
                 string selectedGroup = comboBox.SelectedItem as string ?? "";
                 ApplySignalGroupSelection(node, selectedGroup);

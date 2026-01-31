@@ -11,7 +11,7 @@ Fixed three bugs in the graph editor:
 
 1. **Node deletion requiring deselection** — `Node_MouseRightButtonDown` now selects the right-clicked node and sets `e.Handled = true` to prevent event bubbling. Previously, right-clicking a node didn't select it, so Delete key and context menu deletion failed until user left-clicked first.
 
-2. **Include node inspector showing wrong path** — `EditIncludePath_TextChanged` now validates `DataContext` with `ReferenceEquals` check (matching other inspector handlers). Previously, stale TextChanged events could update the wrong node's path.
+2. **Inspector showing wrong values** — `EditIncludePath_TextChanged` and `InspectorSignalGroup_SelectionChanged` now validate `DataContext` with `ReferenceEquals` check (matching other inspector handlers). Previously, stale events could update the wrong node.
 
 3. **CloseTab bypassing SharedGraphSaveDialog** — When closing a dirty tab and clicking "Yes" to save, now checks if graph is shared and shows `SharedGraphSaveDialog` with Cancel/SaveAsCopy/SaveAnyway options. Previously saved directly without the shared graph warning.
 
