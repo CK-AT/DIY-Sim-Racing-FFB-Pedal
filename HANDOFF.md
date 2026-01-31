@@ -15,7 +15,9 @@ Fixed three bugs in the graph editor:
 
 3. **CloseTab bypassing SharedGraphSaveDialog** — When closing a dirty tab and clicking "Yes" to save, now checks if graph is shared and shows `SharedGraphSaveDialog` with Cancel/SaveAsCopy/SaveAnyway options. Previously saved directly without the shared graph warning.
 
-**Updated file:** `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`, `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
+4. **Escape key deselects** — Pressing Escape clears node and edge selection.
+
+**Updated files:** `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`, `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
 
 ## Build Status
 

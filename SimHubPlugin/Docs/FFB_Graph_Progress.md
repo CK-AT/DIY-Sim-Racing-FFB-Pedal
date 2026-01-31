@@ -157,6 +157,7 @@ Status: living progress document for graph editor/runtime integration.
 - Fixed node deletion requiring deselection: `Node_MouseRightButtonDown` now selects the right-clicked node and prevents event bubbling, so Delete key works immediately after right-click.
 - Fixed Include node inspector showing wrong path: `EditIncludePath_TextChanged` now validates DataContext with ReferenceEquals check to prevent stale events from updating the wrong node.
 - Fixed CloseTab bypassing SharedGraphSaveDialog: closing a dirty tab now checks if graph is shared and shows the save protection dialog before saving.
+- Escape key deselects all nodes and edges.
 
 ## In Progress
 

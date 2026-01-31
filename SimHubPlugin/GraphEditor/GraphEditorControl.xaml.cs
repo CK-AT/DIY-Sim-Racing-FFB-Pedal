@@ -1698,6 +1698,14 @@ namespace User.PluginSdkDemo.GraphEditor
                 CutSelectedToClipboard();
                 e.Handled = true;
             }
+            else if (e.Key == Key.Escape)
+            {
+                _selectedNodes.Clear();
+                _selectedLinks.Clear();
+                UpdateSelectionVisuals();
+                UpdateInspector();
+                e.Handled = true;
+            }
         }
 
         private void DeleteSelectedNodes()
