@@ -193,7 +193,6 @@ namespace User.PluginSdkDemo
                 plugin.ParamMigrationDetected += OnParamMigrationDetected;
             }
             UpdateVehicleTabHeader();
-            RefreshSystemGraphParams();
             RefreshVehicleParams();
 
             if (Plugin.Settings.Pedal_ESPNow_auto_connect_flag
@@ -444,105 +443,15 @@ namespace User.PluginSdkDemo
                 return;
             }
 
-            string gameId = Plugin.GetActiveGameId();
-            string carId = Plugin.GetActiveCarId();
-
-            if (TextBox_VehicleGraphPath != null)
+            // Update Vehicle tab info display
+            if (TextBlock_VehicleTabActiveGraph != null)
             {
-                TextBox_VehicleGraphPath.Text = Plugin.GetVehicleGraphPath(gameId, carId);
-            }
-            if (TextBox_GameGraphPath != null)
-            {
-                TextBox_GameGraphPath.Text = Plugin.GetGameGraphPath(gameId);
-            }
-            if (TextBlock_ActiveGraph != null)
-            {
-                TextBlock_ActiveGraph.Text = Plugin.GetActiveGraphStatus();
+                TextBlock_VehicleTabActiveGraph.Text = Plugin.GetActiveGraphStatus();
             }
 
             // Note: Do not auto-sync the graph editor window here.
             // The editor should be allowed to browse includes without being forced back to the vehicle graph.
             // Auto-sync only happens when opening the editor window initially.
-        }
-
-        private void btn_select_vehicle_graph_Click(object sender, RoutedEventArgs e)
-        {
-            if (Plugin == null)
-            {
-                return;
-            }
-
-            string gameId = Plugin.GetActiveGameId();
-            string carId = Plugin.GetActiveCarId();
-            if (string.IsNullOrWhiteSpace(carId))
-            {
-                SetDebugOutput("No active vehicle for graph selection.", UiLogLevel.Warning);
-                return;
-            }
-
-            var dialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Filter = "Graph JSON (*.json)|*.json",
-                DefaultExt = "json"
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                Plugin.SetVehicleGraphPath(gameId, carId, dialog.FileName);
-                RefreshGraphSelectionUI();
-            }
-        }
-
-        private void btn_clear_vehicle_graph_Click(object sender, RoutedEventArgs e)
-        {
-            if (Plugin == null)
-            {
-                return;
-            }
-
-            string gameId = Plugin.GetActiveGameId();
-            string carId = Plugin.GetActiveCarId();
-            Plugin.SetVehicleGraphPath(gameId, carId, "");
-            RefreshGraphSelectionUI();
-        }
-
-        private void btn_select_game_graph_Click(object sender, RoutedEventArgs e)
-        {
-            if (Plugin == null)
-            {
-                return;
-            }
-
-            string gameId = Plugin.GetActiveGameId();
-            if (string.IsNullOrWhiteSpace(gameId))
-            {
-                SetDebugOutput("No active game for graph selection.", UiLogLevel.Warning);
-                return;
-            }
-
-            var dialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Filter = "Graph JSON (*.json)|*.json",
-                DefaultExt = "json"
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                Plugin.SetGameGraphPath(gameId, dialog.FileName);
-                RefreshGraphSelectionUI();
-            }
-        }
-
-        private void btn_clear_game_graph_Click(object sender, RoutedEventArgs e)
-        {
-            if (Plugin == null)
-            {
-                return;
-            }
-
-            string gameId = Plugin.GetActiveGameId();
-            Plugin.SetGameGraphPath(gameId, "");
-            RefreshGraphSelectionUI();
         }
 
         private void UpdateSerialPortList_click(object sender, RoutedEventArgs e)
@@ -862,7 +771,6 @@ namespace User.PluginSdkDemo
 
                     Plugin.ApplyProfileFromBrowser(graphPath, entry.Profile, dialog.UseTuning);
                     RefreshGraphSelection();
-                    RefreshSystemGraphParams();
                 }
             }
             catch (Exception ex)
@@ -2249,16 +2157,20 @@ namespace User.PluginSdkDemo
             }
         }
 
-        public void UpdateActiveAircraftLabel(string carName, string carId)
+        public void UpdateActiveAircraftLabel(string carName, string carId, string gameId = null)
         {
-            if (TextBlock_ActiveAircraft == null)
+            if (TextBlock_VehicleTabVehicleId == null)
             {
                 return;
             }
 
             string label = string.IsNullOrWhiteSpace(carName) ? "-" : carName;
-            TextBlock_ActiveAircraft.Text = label;
-            TextBlock_ActiveAircraft.ToolTip = string.IsNullOrWhiteSpace(carId) ? null : carId;
+            if (!string.IsNullOrWhiteSpace(gameId))
+            {
+                label += $" ({gameId})";
+            }
+            TextBlock_VehicleTabVehicleId.Text = label;
+            TextBlock_VehicleTabVehicleId.ToolTip = string.IsNullOrWhiteSpace(carId) ? null : carId;
         }
 
         private void UpdateVjoy(AxisState axisState)
@@ -2946,7 +2858,6 @@ namespace User.PluginSdkDemo
             Dispatcher.Invoke(() =>
             {
                 UpdateVehicleTabHeader();
-                RefreshSystemGraphParams();
                 RefreshVehicleParams();
             });
         }
@@ -3013,74 +2924,6 @@ namespace User.PluginSdkDemo
                     VehicleTabLabel.Content = "VEHICLE";
                     break;
             }
-        }
-
-        private Dictionary<string, FrameworkElement> systemGraphParamControls = new Dictionary<string, FrameworkElement>();
-
-        private void RefreshSystemGraphParams()
-        {
-            SystemGraphParamsPanel.Items.Clear();
-            systemGraphParamControls.Clear();
-
-            if (Plugin == null)
-            {
-                return;
-            }
-
-            var allParams = Plugin.GetActiveGraphParams();
-            if (allParams == null || allParams.Count == 0)
-            {
-                return;
-            }
-
-            // Filter by System group
-            var orderedNames = Plugin.GetActiveGraphParamOrder();
-            var filteredParams = allParams.Values
-                .Where(p => "System".Equals(p.Ui?.Group, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            var orderedParams = OrderParamsByGraph(orderedNames, filteredParams);
-
-            foreach (var param in orderedParams)
-            {
-                var panel = new StackPanel
-                {
-                    Width = 400,
-                    Height = 40,
-                    Orientation = Orientation.Vertical
-                };
-
-                var label = new Label
-                {
-                    Foreground = Brushes.White,
-                    FontSize = 10,
-                    FontFamily = new FontFamily("Arial"),
-                    Content = FormatParamLabel(param),
-                    Padding = new Thickness(0, 0, 0, 8)
-                };
-
-                double currentValue = Plugin.GetGraphParamValue(param.Name);
-                var control = GraphParamControlBuilder.BuildControl(
-                    param,
-                    value => Plugin.SetGraphParamValue(param.Name, value),
-                    width: 400,
-                    initialValue: currentValue
-                );
-
-                panel.Children.Add(label);
-                panel.Children.Add(control);
-                SystemGraphParamsPanel.Items.Add(panel);
-                systemGraphParamControls[param.Name] = control;
-            }
-        }
-
-        private string FormatParamLabel(GraphParam param)
-        {
-            string label = param.Ui?.Label ?? param.Name;
-            if (!string.IsNullOrWhiteSpace(param.Ui?.Units))
-            {
-                label += $" ({param.Ui.Units})";
-            }
-            return label;
         }
 
         #region Vehicle Parameters
@@ -3171,7 +3014,7 @@ namespace User.PluginSdkDemo
                 Foreground = Brushes.White,
                 FontFamily = new FontFamily("Arial Black"),
                 FontSize = 12,
-                Margin = new Thickness(0, 0, 0, 10)
+                Margin = new Thickness(0, 0, 0, 0)
             };
 
             var border = new Border

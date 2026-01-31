@@ -1592,15 +1592,6 @@ namespace User.PluginSdkDemo
                 return profile.GraphPath;
             }
 
-            // Fall back to game-level default
-            if (!string.IsNullOrWhiteSpace(gameId) &&
-                Settings.GameGraphPaths != null &&
-                Settings.GameGraphPaths.TryGetValue(gameId, out var gamePath) &&
-                !string.IsNullOrWhiteSpace(gamePath))
-            {
-                return gamePath;
-            }
-
             return "";
         }
 
@@ -2090,10 +2081,11 @@ namespace User.PluginSdkDemo
             {
                 string carName = activeCarName;
                 string carIdLabel = activeCarId;
+                string gameIdCapture = gameId;
                 ui.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     ui.RefreshGraphSelection();
-                    ui.UpdateActiveAircraftLabel(carName, carIdLabel);
+                    ui.UpdateActiveAircraftLabel(carName, carIdLabel, gameIdCapture);
                     ui.RefreshFunctionSelection();
                 }));
             }
@@ -2306,37 +2298,27 @@ namespace User.PluginSdkDemo
             return Settings.AircraftFfbProfiles.TryGetValue(key, out var profile) ? profile?.GraphPath ?? "" : "";
         }
 
-        public string GetGameGraphPath(string gameId)
-        {
-            if (Settings?.GameGraphPaths == null || string.IsNullOrWhiteSpace(gameId))
-            {
-                return "";
-            }
-
-            return Settings.GameGraphPaths.TryGetValue(gameId, out var path) ? path : "";
-        }
-
         public string GetActiveGraphStatus()
         {
             if (string.IsNullOrWhiteSpace(activeGraphPath))
             {
-                return "Active graph: (none)";
+                return "(none)";
             }
 
             if (activeGraphValidation == null)
             {
-                return $"Active graph: {activeGraphPath}";
+                return $"{activeGraphPath}";
             }
 
             if (activeGraphValidation.IsValid)
             {
-                return $"Active graph: {activeGraphPath}";
+                return $"{activeGraphPath}";
             }
 
             string error = activeGraphValidation.Errors.Count > 0
                 ? activeGraphValidation.Errors[0]
                 : "Invalid graph.";
-            return $"Active graph: {activeGraphPath} ({error})";
+            return $"{activeGraphPath} ({error})";
         }
 
         public string GetActiveGraphPath()
@@ -2852,30 +2834,6 @@ namespace User.PluginSdkDemo
             }
 
             ResolveActiveGraph(gameId, carId);
-        }
-
-        public void SetGameGraphPath(string gameId, string path)
-        {
-            if (Settings == null || string.IsNullOrWhiteSpace(gameId))
-            {
-                return;
-            }
-
-            if (Settings.GameGraphPaths == null)
-            {
-                Settings.GameGraphPaths = new Dictionary<string, string>();
-            }
-
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                Settings.GameGraphPaths.Remove(gameId);
-            }
-            else
-            {
-                Settings.GameGraphPaths[gameId] = path;
-            }
-
-            ResolveActiveGraph(gameId, activeCarId);
         }
 
         public void ApplyAircraftFfbProfile(string carId, DiyFfbPluginSettings.AircraftFfbProfile profile)

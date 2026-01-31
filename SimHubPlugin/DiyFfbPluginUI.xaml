@@ -374,7 +374,6 @@
 
 
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
         <Grid RenderTransformOrigin="0,0">
             <TabControl  x:Name="Function_Tab_seleciton"  SelectionChanged="Function_Tab_seleciton_SelectionChanged" Width="820" HorizontalContentAlignment="Left" HorizontalAlignment="Center" VerticalAlignment="Top" RenderTransformOrigin="0,0" Grid.RowSpan="2">
                 <TabControl.Resources>
@@ -519,7 +518,7 @@
                                         </StackPanel>
                                     </Border>
                                     <ScrollViewer Height="764" >
-                                        <local:FunctionConfigControl x:Name="uc_function_config" VerticalAlignment="Top" ></local:FunctionConfigControl>
+                                        <local:FunctionConfigControl x:Name="uc_function_config" VerticalAlignment="Top" Margin="0,0,0,5" ></local:FunctionConfigControl>
                                     </ScrollViewer>
                                 </StackPanel>
                                 <!--<StackPanel Height="900" Width="360" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-2,0,0,0">
@@ -681,10 +680,19 @@
                     </TabItem.Header>
                     <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="800" CornerRadius="5,5,5,5" Margin="0,3,0,0">
                         <StackPanel Width="780" Grid.RowSpan="3" HorizontalAlignment="Left" VerticalAlignment="Top" Grid.ColumnSpan="4">
-                            <Canvas Height="6" Width="725" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1">
-                                <Line X1="2" Y1="3" X2="763" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
+                            <Canvas Height="6" Width="779" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1">
+                                <Line X1="2" Y1="3" X2="806" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
                             </Canvas>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="10,5,10,5">
+                            <!-- Vehicle info display -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="90,3,10,3">
+                                <Label Content="Vehicle:" Height="16" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Foreground="#CCCCCC"/>
+                                <TextBlock x:Name="TextBlock_VehicleTabVehicleId" Text="-" Height="14" Width="500" Padding="0,0,0,0" FontFamily="Arial" FontSize="10" TextTrimming="CharacterEllipsis" Foreground="White" VerticalAlignment="Bottom"/>
+                            </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="90,3,10,3">
+                            <Label Content="Graph:" Height="16" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Foreground="#CCCCCC"/>
+                            <TextBlock x:Name="TextBlock_VehicleTabActiveGraph" Text="(none)" Height="14" Width="500" Padding="0,0,0,0" VerticalAlignment="Bottom" FontFamily="Arial" FontSize="10" TextTrimming="CharacterEllipsis" Foreground="White"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10,5,10,5">
                                 <styles:SHButtonPrimary x:Name="btn_manage_profiles" Click="btn_manage_profiles_Click" Width="110" Content="Manage Profiles" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
                                 <styles:SHButtonPrimary x:Name="btn_review_params" Click="btn_review_params_Click" Width="100" Content="Review Params" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
                                 <styles:SHButtonPrimary x:Name="btn_store_profile" Click="btn_store_profile_Click" Width="90" Content="Store Profile" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
@@ -692,8 +700,8 @@
                                 <styles:SHButtonPrimary x:Name="btn_load_aircraft_ffb" Click="btn_load_aircraft_ffb_Click" Width="90" Content="Import Profile" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
                                 <styles:SHButtonPrimary x:Name="btn_open_graph_editor_vehicle" Click="OnOpenGraphEditorClicked" Width="90" Content="Graph Editor" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
                             </StackPanel>
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" Height="786" Margin="10,10,10,10">
-                                <StackPanel x:Name="VehicleParamsContainer" Orientation="Vertical" Width="540"/>
+                            <ScrollViewer VerticalScrollBarVisibility="Visible" Height="697" Margin="10,5,10,5">
+                                <StackPanel x:Name="VehicleParamsContainer" Orientation="Vertical" Width="600" Margin="11,0,0,0"/>
                             </ScrollViewer>
                         </StackPanel>
                     </Border>
@@ -733,6 +741,10 @@
                                             </StackPanel>
                                             <styles:SHButtonPrimary x:Name="btn_restart_all_axes" Click="btn_restart_all_axes_Click" Width="160" Height="25" Content="Restart All Axes" HorizontalAlignment="Left" Margin="0,6,0,0" Padding="15,0,15,0" VerticalContentAlignment="Center" ToolTip="Send a restart command to every axis." />
                                             <TextBlock x:Name="Label_Status" Text="Disconnected" FontFamily="Arial" FontSize="10" Margin="0,6,0,0"/>
+                                            <!-- Profile backup -->
+                                            <Label Content="Profile Backup" FontFamily="Arial Black" FontSize="10" Height="20" Width="160" Padding="0,0,0,0" VerticalContentAlignment="Center" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+                                            <styles:SHButtonPrimary x:Name="btn_save_ffb_map" Click="btn_save_ffb_map_Click" Width="160" Height="25" Content="Export All Profiles" HorizontalAlignment="Left" Margin="0,4,0,0" Padding="15,0,15,0" VerticalContentAlignment="Center" ToolTip="Export all FFB profiles to a single file." />
+                                            <styles:SHButtonPrimary x:Name="btn_load_ffb_map" Click="btn_load_ffb_map_Click" Width="160" Height="25" Content="Import All Profiles" HorizontalAlignment="Left" Margin="0,4,0,0" Padding="15,0,15,0" VerticalContentAlignment="Center" ToolTip="Import FFB profiles from a backup file." />
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -849,48 +861,6 @@
                                                     </Border>
                                                 </StackPanel>
                                             </TabItem>
-                                            <TabItem Width="120" Height="30" Padding="0,0,0,0" ToolTip="FFB graph settings">
-                                                <TabItem.Header>
-                                                    <Border Width="120" Height="30" Margin="0,0,0,0">
-                                                        <Label Content="FFB Graph" FontFamily="Arial Black" FontSize="10" Height="30" Width="120" Padding="0,0,0,0" VerticalAlignment="Bottom" HorizontalAlignment="Center" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" UseLayoutRounding="True" />
-                                                    </Border>
-                                                </TabItem.Header>
-                                                <StackPanel Width="540" Margin="1,3,0,0">
-                                                    <Border Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5">
-                                                        <StackPanel Width="540">
-                                                            <Label Content="FFB Graph" FontFamily="Arial Black" FontSize="12" Height="25" Width="150" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" Margin="5,0,0,0"/>
-                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,0,0,0">
-                                                                <Label Content="Aircraft:" Height="15" Width="55" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
-                                                                <TextBlock x:Name="TextBlock_ActiveAircraft" Text="-" Height="15" Width="360" Padding="0,0,0,0" VerticalAlignment="Center" FontFamily="Arial" FontSize="10" TextTrimming="CharacterEllipsis"/>
-                                                            </StackPanel>
-                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,6,0,0">
-                                                                <Label Content="Vehicle graph:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
-                                                                <TextBox x:Name="TextBox_VehicleGraphPath" Height="20" Width="260" Padding="2,0,2,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10" IsReadOnly="True" ToolTip="Graph path for this vehicle (GameId + CarId)."/>
-                                                                <styles:SHButtonPrimary x:Name="btn_select_vehicle_graph" Click="btn_select_vehicle_graph_Click" Width="55" Height="20" Content="Browse" Margin="6,0,0,0" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="9" />
-                                                                <styles:SHButtonPrimary x:Name="btn_clear_vehicle_graph" Click="btn_clear_vehicle_graph_Click" Width="45" Height="20" Content="Clear" Margin="4,0,0,0" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="9" />
-                                                            </StackPanel>
-                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
-                                                                <Label Content="Game graph:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
-                                                                <TextBox x:Name="TextBox_GameGraphPath" Height="20" Width="260" Padding="2,0,2,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10" IsReadOnly="True" ToolTip="Default graph path for the current game (fallback when no vehicle graph exists)."/>
-                                                                <styles:SHButtonPrimary x:Name="btn_select_game_graph" Click="btn_select_game_graph_Click" Width="55" Height="20" Content="Browse" Margin="6,0,0,0" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="9" />
-                                                                <styles:SHButtonPrimary x:Name="btn_clear_game_graph" Click="btn_clear_game_graph_Click" Width="45" Height="20" Content="Clear" Margin="4,0,0,0" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="9" />
-                                                            </StackPanel>
-                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
-                                                                <Label Content="Active graph:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
-                                                                <TextBlock x:Name="TextBlock_ActiveGraph" Text="Active graph: (none)" Width="380" Padding="0,0,0,0" VerticalAlignment="Center" FontFamily="Arial" FontSize="10" TextTrimming="CharacterEllipsis" ToolTip="Resolved active graph for this vehicle." TextWrapping="Wrap"/>
-                                                            </StackPanel>
-                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Margin="70,10,0,0">
-                                                                <Label Content="System Parameters" FontFamily="Arial Black" FontSize="11" Height="20" Width="150" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" Margin="0,0,0,4"/>
-                                                                <ItemsControl x:Name="SystemGraphParamsPanel" Width="460" Margin="0,0,0,10"/>
-                                                            </StackPanel>
-                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
-                                                                <styles:SHButtonPrimary x:Name="btn_save_ffb_map" Click="btn_save_ffb_map_Click" Width="120" Content="Save FFB Map" HorizontalAlignment="Left" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
-                                                                <styles:SHButtonPrimary x:Name="btn_load_ffb_map" Click="btn_load_ffb_map_Click" Width="120" Content="Load FFB Map" HorizontalAlignment="Left" Height="24" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
-                                                            </StackPanel>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </StackPanel>
-                                            </TabItem>
                                         </TabControl>
                                     </Border>
                                     <StackPanel Width="540" Height="281" Margin="1,3,0,0">
@@ -946,5 +916,4 @@
             </TabControl>
 
         </Grid>
-    </ScrollViewer>
 </UserControl>

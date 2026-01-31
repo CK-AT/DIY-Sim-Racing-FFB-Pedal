@@ -52,7 +52,7 @@
                         </Border>
                     </TabItem.Header>
                 <ScrollViewer>
-                    <local:GeneralKinematicsControl x:Name="GeneralKinematicsControl" Margin="0,2,0,0"></local:GeneralKinematicsControl>
+                    <local:GeneralKinematicsControl x:Name="GeneralKinematicsControl" Margin="0,2,0,5"></local:GeneralKinematicsControl>
                 </ScrollViewer>
                 </TabItem>
 

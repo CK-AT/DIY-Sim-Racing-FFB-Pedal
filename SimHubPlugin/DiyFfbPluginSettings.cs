@@ -96,6 +96,7 @@ namespace User.PluginSdkDemo
         public int XPlaneRotorIndex = -1;
         // Obsolete: kept for migration. Use AircraftFfbProfiles[key].GraphPath instead.
         public Dictionary<string, string> VehicleGraphPaths = new Dictionary<string, string>();
+        // Obsolete: game-level graph fallback removed. Profile Browser handles new vehicles.
         public Dictionary<string, string> GameGraphPaths = new Dictionary<string, string>();
 
         public string[] selectedJsonFileNames = { "1", "2", "3" };
