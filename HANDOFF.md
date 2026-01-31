@@ -1,7 +1,7 @@
 # Session Handoff
 
 Date: 2026-01-31
-Last commit: `186e7097` — Update session tracking docs
+Last commit: `d633e76b` — Remove FFB Graph tab, show vehicle info in Vehicle tab
 
 ## What Was Done This Session
 
@@ -11,18 +11,15 @@ Removed the redundant "FFB Graph" sub-tab from Settings and consolidated vehicle
 
 **Changes made:**
 
-1. **Vehicle tab info display** — Added vehicle ID and active graph path to Vehicle tab header area
-2. **Bulk export/import relocated** — Moved "Export All Profiles" / "Import All Profiles" buttons to Settings left panel under new "Profile Backup" section
-3. **FFB Graph sub-tab removed** — Entire tab removed from Settings → sub-tab control
-4. **Code-behind cleanup** — Removed:
-   - `btn_select_vehicle_graph_Click`, `btn_clear_vehicle_graph_Click`
-   - `btn_select_game_graph_Click`, `btn_clear_game_graph_Click`
-   - `RefreshSystemGraphParams` method and `systemGraphParamControls` dictionary
-   - Updated `RefreshGraphSelectionUI` and `UpdateActiveAircraftLabel` to use new Vehicle tab TextBlocks
-5. **Backend cleanup** — Removed:
-   - Game graph fallback from `ResolveActiveGraph`
-   - `GetGameGraphPath` and `SetGameGraphPath` methods
-   - Marked `GameGraphPaths` as obsolete (kept for backward compatibility)
+1. **Vehicle tab info display** — Added vehicle ID (with game name in parenthesis) and active graph path to Vehicle tab header
+2. **Bulk export/import relocated** — Moved "Export All Profiles" / "Import All Profiles" buttons to Settings left panel under "Profile Backup" section
+3. **FFB Graph sub-tab removed** — Entire tab removed from Settings
+4. **Code-behind cleanup** — Removed unused handlers and methods:
+   - Vehicle/game graph selection handlers
+   - `RefreshSystemGraphParams` and `systemGraphParamControls`
+   - Updated `UpdateActiveAircraftLabel` to show game name
+5. **Backend cleanup** — Removed game graph fallback logic and methods
+6. **Layout fixes** — ScrollViewer set to always-visible scrollbar with margin centering
 
 ## Build Status
 
@@ -30,11 +27,12 @@ Build compiles successfully. 77/77 tests pass.
 
 ## Files Modified
 
-- `DiyFfbPluginUI.xaml` — Added Vehicle tab info display, relocated bulk export buttons, removed FFB Graph tab
+- `DiyFfbPluginUI.xaml` — Vehicle tab info, bulk export buttons, removed FFB Graph tab, layout fixes
 - `DiyFfbPluginUI.xaml.cs` — Cleaned up handlers and refresh methods
 - `DiyFfbPlugin.cs` — Removed game graph methods and fallback logic
 - `DiyFfbPluginSettings.cs` — Marked `GameGraphPaths` as obsolete
-- `Docs/plans/20_FFB_Graph_Tab_Removal.md` — Status updated to Implemented
+- `AxisConfigControl.xaml` — Minor margin tweak
+- `Docs/plans/20_FFB_Graph_Tab_Removal.md` — Created and marked Implemented
 
 ## Build & Test Commands
 
