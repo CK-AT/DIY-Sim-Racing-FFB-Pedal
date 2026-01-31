@@ -2,7 +2,7 @@
 
 Date: 2026-01-29
 Owner: Codex
-Status: Draft
+Status: Implemented
 
 ## Goal
 Remove legacy X‑Plane FFB processing from the SimHub plugin and rely on the graph-based runtime for FFB generation. Update documentation to reflect the new single path (docs updated; legacy docs revised rather than deleted). No dead code shall remain.

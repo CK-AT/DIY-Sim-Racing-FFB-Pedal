@@ -1,7 +1,7 @@
 # Profile System Improvements
 
 Date: 2026-01-30
-Status: Draft
+Status: Implemented
 
 ## Overview
 
@@ -19,9 +19,9 @@ Changed profile keying from `CarId` alone to `gameId::carId` format (matching gr
 
 ### 2. ~~Pending Params File Unnecessary~~ ✓ DONE
 
-**Status:** Resolved 2026-01-30
+**Status:** Resolved 2026-01-30, discard fix 2026-01-31
 
-Removed cross-session `pending_graph_params.json` file and all related code. Profile changes are now tracked in-memory only, with save prompts on vehicle change or shutdown. If user declines to save, changes are discarded—standard app behavior.
+Removed cross-session `pending_graph_params.json` file and all related code. Profile changes are now tracked in-memory only, with save prompts on vehicle change or shutdown. If user declines to save, changes are properly discarded via snapshot/restore mechanism (see Plan 16 for details).
 
 ---
 
@@ -88,13 +88,15 @@ Enhanced existing Save/Load Aircraft FFB functionality:
 
 ### 7. ~~No Reset to Defaults~~ ✓ DONE
 
-**Status:** Resolved 2026-01-30
+**Status:** Resolved 2026-01-30, UI moved 2026-01-31
 
-Added "Reset to Defaults" button next to Save/Load Aircraft FFB buttons:
+Reset functionality available via "Review Params" dialog (ParamReviewWindow):
 
 - Clears `GraphParamValues` for the current vehicle profile
 - Shows confirmation dialog before reset
 - Rebuilds params from graph defaults and refreshes UI
+
+Note: Original button was removed from Settings tab when buttons were moved to Vehicle tab. Reset is now accessed via Review Params → Reset All button.
 
 ---
 
