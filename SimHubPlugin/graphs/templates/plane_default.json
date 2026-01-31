@@ -5,7 +5,7 @@
       "Id": "in_ias",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 40.0,
+      "Y": 60.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -18,7 +18,7 @@
       "Id": "in_alpha",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 100.0,
+      "Y": 130.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -31,7 +31,7 @@
       "Id": "in_aero_pitch",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 160.0,
+      "Y": 240.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -44,7 +44,7 @@
       "Id": "in_aero_roll",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 220.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -57,7 +57,7 @@
       "Id": "in_aero_yaw",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 280.0,
+      "Y": 600.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -71,83 +71,47 @@
       "Title": "Pitch Axis",
       "Kind": "Include",
       "X": 400.0,
-      "Y": 100.0,
-      "IncludePath": "../_embedded/plane_pitch.json"
+      "Y": 190.0,
+      "IncludePath": "..\\_embedded\\plane_pitch.json"
     },
     {
       "Id": "roll_include",
       "Title": "Roll Axis",
       "Kind": "Include",
       "X": 400.0,
-      "Y": 500.0,
-      "IncludePath": "../_embedded/plane_roll.json"
+      "Y": 370.0,
+      "IncludePath": "..\\_embedded\\plane_roll.json"
     },
     {
       "Id": "yaw_include",
       "Title": "Yaw Axis",
       "Kind": "Include",
       "X": 400.0,
-      "Y": 900.0,
-      "IncludePath": "../_embedded/plane_yaw.json"
+      "Y": 550.0,
+      "IncludePath": "..\\_embedded\\plane_yaw.json"
     },
     {
       "Id": "out_pitch_spring",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 40.0,
+      "X": 560.0,
+      "Y": 190.0,
       "Ports": [
         {
           "Kind": "Input",
           "SignalSuffix": "SpringGain"
-        }
-      ],
-      "SignalGroup": "FlightStickPitch"
-    },
-    {
-      "Id": "out_pitch_damper",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 100.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "DamperGain"
-        }
-      ],
-      "SignalGroup": "FlightStickPitch"
-    },
-    {
-      "Id": "out_pitch_friction",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 160.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "Friction"
-        }
-      ],
-      "SignalGroup": "FlightStickPitch"
-    },
-    {
-      "Id": "out_pitch_load",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 220.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "LoadForce"
-        }
-      ],
-      "SignalGroup": "FlightStickPitch"
-    },
-    {
-      "Id": "out_pitch_buffet",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 280.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "BuffetAmplitude"
@@ -158,61 +122,25 @@
     {
       "Id": "out_roll_spring",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 380.0,
+      "X": 560.0,
+      "Y": 370.0,
       "Ports": [
         {
           "Kind": "Input",
           "SignalSuffix": "SpringGain"
-        }
-      ],
-      "SignalGroup": "FlightStickRoll"
-    },
-    {
-      "Id": "out_roll_damper",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 440.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "DamperGain"
-        }
-      ],
-      "SignalGroup": "FlightStickRoll"
-    },
-    {
-      "Id": "out_roll_friction",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 500.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "Friction"
-        }
-      ],
-      "SignalGroup": "FlightStickRoll"
-    },
-    {
-      "Id": "out_roll_load",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 560.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "LoadForce"
-        }
-      ],
-      "SignalGroup": "FlightStickRoll"
-    },
-    {
-      "Id": "out_roll_buffet",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 620.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "BuffetAmplitude"
@@ -223,61 +151,25 @@
     {
       "Id": "out_yaw_spring",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 720.0,
+      "X": 560.0,
+      "Y": 550.0,
       "Ports": [
         {
           "Kind": "Input",
           "SignalSuffix": "SpringGain"
-        }
-      ],
-      "SignalGroup": "FlightPedals"
-    },
-    {
-      "Id": "out_yaw_damper",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 780.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "DamperGain"
-        }
-      ],
-      "SignalGroup": "FlightPedals"
-    },
-    {
-      "Id": "out_yaw_friction",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 840.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "Friction"
-        }
-      ],
-      "SignalGroup": "FlightPedals"
-    },
-    {
-      "Id": "out_yaw_load",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 900.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "LoadForce"
-        }
-      ],
-      "SignalGroup": "FlightPedals"
-    },
-    {
-      "Id": "out_yaw_buffet",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 960.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "BuffetAmplitude"
@@ -314,25 +206,25 @@
     {
       "FromNodeId": "pitch_include",
       "FromPort": "damper",
-      "ToNodeId": "out_pitch_damper",
+      "ToNodeId": "out_pitch_spring",
       "ToPort": "DamperGain"
     },
     {
       "FromNodeId": "pitch_include",
       "FromPort": "friction",
-      "ToNodeId": "out_pitch_friction",
+      "ToNodeId": "out_pitch_spring",
       "ToPort": "Friction"
     },
     {
       "FromNodeId": "pitch_include",
       "FromPort": "load",
-      "ToNodeId": "out_pitch_load",
+      "ToNodeId": "out_pitch_spring",
       "ToPort": "LoadForce"
     },
     {
       "FromNodeId": "pitch_include",
       "FromPort": "buffet",
-      "ToNodeId": "out_pitch_buffet",
+      "ToNodeId": "out_pitch_spring",
       "ToPort": "BuffetAmplitude"
     },
     {
@@ -362,25 +254,25 @@
     {
       "FromNodeId": "roll_include",
       "FromPort": "damper",
-      "ToNodeId": "out_roll_damper",
+      "ToNodeId": "out_roll_spring",
       "ToPort": "DamperGain"
     },
     {
       "FromNodeId": "roll_include",
       "FromPort": "friction",
-      "ToNodeId": "out_roll_friction",
+      "ToNodeId": "out_roll_spring",
       "ToPort": "Friction"
     },
     {
       "FromNodeId": "roll_include",
       "FromPort": "load",
-      "ToNodeId": "out_roll_load",
+      "ToNodeId": "out_roll_spring",
       "ToPort": "LoadForce"
     },
     {
       "FromNodeId": "roll_include",
       "FromPort": "buffet",
-      "ToNodeId": "out_roll_buffet",
+      "ToNodeId": "out_roll_spring",
       "ToPort": "BuffetAmplitude"
     },
     {
@@ -410,27 +302,28 @@
     {
       "FromNodeId": "yaw_include",
       "FromPort": "damper",
-      "ToNodeId": "out_yaw_damper",
+      "ToNodeId": "out_yaw_spring",
       "ToPort": "DamperGain"
     },
     {
       "FromNodeId": "yaw_include",
       "FromPort": "friction",
-      "ToNodeId": "out_yaw_friction",
+      "ToNodeId": "out_yaw_spring",
       "ToPort": "Friction"
     },
     {
       "FromNodeId": "yaw_include",
       "FromPort": "load",
-      "ToNodeId": "out_yaw_load",
+      "ToNodeId": "out_yaw_spring",
       "ToPort": "LoadForce"
     },
     {
       "FromNodeId": "yaw_include",
       "FromPort": "buffet",
-      "ToNodeId": "out_yaw_buffet",
+      "ToNodeId": "out_yaw_spring",
       "ToPort": "BuffetAmplitude"
     }
   ],
-  "Params": []
+  "Params": [],
+  "ParamValues": null
 }

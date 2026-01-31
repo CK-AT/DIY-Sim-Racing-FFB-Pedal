@@ -20,7 +20,7 @@
       "Title": "Alpha",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 100.0,
+      "Y": 180.0,
       "Ports": [
         {
           "Name": "alpha",
@@ -33,7 +33,7 @@
       "Title": "Aero Torque",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 160.0,
+      "Y": 250.0,
       "Ports": [
         {
           "Name": "aero_trq",
@@ -45,7 +45,7 @@
       "Id": "param_vref",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 240.0,
+      "Y": 110.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -58,7 +58,7 @@
       "Id": "param_aero_max",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 300.0,
+      "Y": 390.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -71,7 +71,7 @@
       "Id": "param_alpha_start",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 360.0,
+      "Y": 740.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -84,7 +84,7 @@
       "Id": "param_alpha_full",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 420.0,
+      "Y": 810.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -97,7 +97,7 @@
       "Id": "param_k_spring",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 500.0,
+      "Y": 320.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -110,7 +110,7 @@
       "Id": "param_k_damper",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 560.0,
+      "Y": 460.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -123,7 +123,7 @@
       "Id": "param_k_friction_base",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 620.0,
+      "Y": 530.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -136,7 +136,7 @@
       "Id": "param_k_friction",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 680.0,
+      "Y": 600.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -149,7 +149,7 @@
       "Id": "param_k_load",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 740.0,
+      "Y": 670.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -162,7 +162,7 @@
       "Id": "param_k_buffet",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 800.0,
+      "Y": 880.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -191,13 +191,14 @@
           "Kind": "Output"
         }
       ],
-      "Func": "qhat_eff"
+      "Func": "qhat_eff",
+      "IncludePath": ""
     },
     {
       "Id": "spring",
       "Title": "Spring",
       "Kind": "Op",
-      "X": 480.0,
+      "X": 670.0,
       "Y": 120.0,
       "Ports": [
         {
@@ -209,7 +210,7 @@
           "Kind": "Input"
         },
         {
-          "Name": "out",
+          "Name": "a*b",
           "Kind": "Output"
         }
       ],
@@ -219,8 +220,8 @@
       "Id": "damper",
       "Title": "Damper",
       "Kind": "Op",
-      "X": 480.0,
-      "Y": 200.0,
+      "X": 670.0,
+      "Y": 220.0,
       "Ports": [
         {
           "Name": "a",
@@ -231,7 +232,7 @@
           "Kind": "Input"
         },
         {
-          "Name": "out",
+          "Name": "a*b",
           "Kind": "Output"
         }
       ],
@@ -241,8 +242,8 @@
       "Id": "fric_scaled",
       "Title": "Fric Scaled",
       "Kind": "Op",
-      "X": 480.0,
-      "Y": 280.0,
+      "X": 670.0,
+      "Y": 320.0,
       "Ports": [
         {
           "Name": "a",
@@ -253,7 +254,7 @@
           "Kind": "Input"
         },
         {
-          "Name": "out",
+          "Name": "a*b",
           "Kind": "Output"
         }
       ],
@@ -263,8 +264,8 @@
       "Id": "friction",
       "Title": "Friction",
       "Kind": "Op",
-      "X": 640.0,
-      "Y": 280.0,
+      "X": 830.0,
+      "Y": 320.0,
       "Ports": [
         {
           "Name": "a",
@@ -275,7 +276,7 @@
           "Kind": "Input"
         },
         {
-          "Name": "out",
+          "Name": "a+b",
           "Kind": "Output"
         }
       ],
@@ -285,8 +286,8 @@
       "Id": "load_norm",
       "Title": "Load Norm",
       "Kind": "Op",
-      "X": 480.0,
-      "Y": 360.0,
+      "X": 670.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Name": "a",
@@ -297,7 +298,7 @@
           "Kind": "Input"
         },
         {
-          "Name": "out",
+          "Name": "a/b",
           "Kind": "Output"
         }
       ],
@@ -307,8 +308,8 @@
       "Id": "load",
       "Title": "Load",
       "Kind": "Op",
-      "X": 640.0,
-      "Y": 360.0,
+      "X": 830.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Name": "a",
@@ -316,10 +317,11 @@
         },
         {
           "Name": "b",
-          "Kind": "Input"
+          "Kind": "Input",
+          "Negate": true
         },
         {
-          "Name": "out",
+          "Name": "a*-b",
           "Kind": "Output"
         }
       ],
@@ -329,8 +331,8 @@
       "Id": "buffet",
       "Title": "Buffet",
       "Kind": "Func",
-      "X": 480.0,
-      "Y": 440.0,
+      "X": 670.0,
+      "Y": 520.0,
       "Ports": [
         {
           "Name": "alpha",
@@ -357,13 +359,14 @@
           "Kind": "Output"
         }
       ],
-      "Func": "buffet"
+      "Func": "buffet",
+      "IncludePath": ""
     },
     {
       "Id": "out_spring",
       "Title": "Spring Out",
       "Kind": "Output",
-      "X": 800.0,
+      "X": 990.0,
       "Y": 120.0,
       "Ports": [
         {
@@ -376,8 +379,8 @@
       "Id": "out_damper",
       "Title": "Damper Out",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 200.0,
+      "X": 990.0,
+      "Y": 220.0,
       "Ports": [
         {
           "Name": "damper",
@@ -389,8 +392,8 @@
       "Id": "out_friction",
       "Title": "Friction Out",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 280.0,
+      "X": 990.0,
+      "Y": 320.0,
       "Ports": [
         {
           "Name": "friction",
@@ -402,8 +405,8 @@
       "Id": "out_load",
       "Title": "Load Out",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 360.0,
+      "X": 990.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Name": "load",
@@ -415,8 +418,8 @@
       "Id": "out_buffet",
       "Title": "Buffet Out",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 440.0,
+      "X": 990.0,
+      "Y": 520.0,
       "Ports": [
         {
           "Name": "buffet",
@@ -478,12 +481,6 @@
       "FromNodeId": "param_k_friction_base",
       "FromPort": "FrictionBase",
       "ToNodeId": "friction",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "fric_scaled",
-      "FromPort": "out",
-      "ToNodeId": "friction",
       "ToPort": "b"
     },
     {
@@ -500,7 +497,7 @@
     },
     {
       "FromNodeId": "load_norm",
-      "FromPort": "out",
+      "FromPort": "a/b",
       "ToNodeId": "load",
       "ToPort": "a"
     },
@@ -542,25 +539,25 @@
     },
     {
       "FromNodeId": "spring",
-      "FromPort": "out",
+      "FromPort": "a*b",
       "ToNodeId": "out_spring",
       "ToPort": "spring"
     },
     {
       "FromNodeId": "damper",
-      "FromPort": "out",
+      "FromPort": "a*b",
       "ToNodeId": "out_damper",
       "ToPort": "damper"
     },
     {
       "FromNodeId": "friction",
-      "FromPort": "out",
+      "FromPort": "a+b",
       "ToNodeId": "out_friction",
       "ToPort": "friction"
     },
     {
       "FromNodeId": "load",
-      "FromPort": "out",
+      "FromPort": "a*-b",
       "ToNodeId": "out_load",
       "ToPort": "load"
     },
@@ -569,6 +566,12 @@
       "FromPort": "out",
       "ToNodeId": "out_buffet",
       "ToPort": "buffet"
+    },
+    {
+      "FromNodeId": "fric_scaled",
+      "FromPort": "a*b",
+      "ToNodeId": "friction",
+      "ToPort": "a"
     }
   ],
   "Params": [

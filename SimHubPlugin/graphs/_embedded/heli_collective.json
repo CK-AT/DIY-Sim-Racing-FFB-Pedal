@@ -20,7 +20,7 @@
       "Title": "RPM",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 100.0,
+      "Y": 180.0,
       "Ports": [
         {
           "Name": "rpm",
@@ -32,7 +32,7 @@
       "Id": "param_torque_ref",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 170.0,
+      "Y": 110.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -45,7 +45,7 @@
       "Id": "param_rpm_ref",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 230.0,
+      "Y": 250.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -58,7 +58,7 @@
       "Id": "param_rpm_blend",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 290.0,
+      "Y": 320.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -71,7 +71,7 @@
       "Id": "param_k_damper",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 360.0,
+      "Y": 390.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -84,7 +84,7 @@
       "Id": "param_k_friction_base",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 420.0,
+      "Y": 460.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -97,7 +97,7 @@
       "Id": "param_k_friction_torque",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 480.0,
+      "Y": 530.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -110,7 +110,7 @@
       "Id": "param_k_friction_lowrpm",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 540.0,
+      "Y": 600.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -123,7 +123,7 @@
       "Id": "param_k_load",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 600.0,
+      "Y": 670.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -136,17 +136,16 @@
       "Id": "scale_include",
       "Title": "Heli Scale",
       "Kind": "Include",
-      "X": 280.0,
-      "Y": 100.0,
-      "Ports": [],
-      "IncludePath": "common/heli_scale.json"
+      "X": 380.0,
+      "Y": 60.0,
+      "IncludePath": "common\\heli_scale.json"
     },
     {
       "Id": "damper",
       "Title": "Damper",
       "Kind": "Op",
-      "X": 500.0,
-      "Y": 100.0,
+      "X": 700.0,
+      "Y": 110.0,
       "Ports": [
         {
           "Name": "a",
@@ -157,7 +156,7 @@
           "Kind": "Input"
         },
         {
-          "Name": "out",
+          "Name": "a*b",
           "Kind": "Output"
         }
       ],
@@ -167,8 +166,8 @@
       "Id": "fric_torque",
       "Title": "Fric Torque",
       "Kind": "Op",
-      "X": 500.0,
-      "Y": 200.0,
+      "X": 700.0,
+      "Y": 210.0,
       "Ports": [
         {
           "Name": "a",
@@ -179,7 +178,7 @@
           "Kind": "Input"
         },
         {
-          "Name": "out",
+          "Name": "a*b",
           "Kind": "Output"
         }
       ],
@@ -189,8 +188,8 @@
       "Id": "fric_lowrpm",
       "Title": "Fric LowRPM",
       "Kind": "Op",
-      "X": 500.0,
-      "Y": 280.0,
+      "X": 700.0,
+      "Y": 370.0,
       "Ports": [
         {
           "Name": "a",
@@ -201,7 +200,7 @@
           "Kind": "Input"
         },
         {
-          "Name": "out",
+          "Name": "a*b",
           "Kind": "Output"
         }
       ],
@@ -211,8 +210,8 @@
       "Id": "fric_sum1",
       "Title": "Fric Sum 1",
       "Kind": "Op",
-      "X": 660.0,
-      "Y": 200.0,
+      "X": 840.0,
+      "Y": 250.0,
       "Ports": [
         {
           "Name": "a",
@@ -223,30 +222,12 @@
           "Kind": "Input"
         },
         {
-          "Name": "out",
+          "Name": "a+b+c",
           "Kind": "Output"
-        }
-      ],
-      "Op": "add"
-    },
-    {
-      "Id": "friction",
-      "Title": "Friction",
-      "Kind": "Op",
-      "X": 820.0,
-      "Y": 230.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
         },
         {
-          "Name": "b",
+          "Name": "c",
           "Kind": "Input"
-        },
-        {
-          "Name": "out",
-          "Kind": "Output"
         }
       ],
       "Op": "add"
@@ -255,8 +236,8 @@
       "Id": "load",
       "Title": "Load",
       "Kind": "Op",
-      "X": 500.0,
-      "Y": 360.0,
+      "X": 700.0,
+      "Y": 480.0,
       "Ports": [
         {
           "Name": "a",
@@ -264,10 +245,11 @@
         },
         {
           "Name": "b",
-          "Kind": "Input"
+          "Kind": "Input",
+          "Negate": true
         },
         {
-          "Name": "out",
+          "Name": "a*-b",
           "Kind": "Output"
         }
       ],
@@ -277,8 +259,8 @@
       "Id": "out_damper",
       "Title": "Damper Out",
       "Kind": "Output",
-      "X": 950.0,
-      "Y": 100.0,
+      "X": 980.0,
+      "Y": 110.0,
       "Ports": [
         {
           "Name": "damper",
@@ -290,8 +272,8 @@
       "Id": "out_friction",
       "Title": "Friction Out",
       "Kind": "Output",
-      "X": 950.0,
-      "Y": 230.0,
+      "X": 980.0,
+      "Y": 250.0,
       "Ports": [
         {
           "Name": "friction",
@@ -303,8 +285,8 @@
       "Id": "out_load",
       "Title": "Load Out",
       "Kind": "Output",
-      "X": 950.0,
-      "Y": 360.0,
+      "X": 980.0,
+      "Y": 480.0,
       "Ports": [
         {
           "Name": "load",
@@ -382,26 +364,20 @@
     },
     {
       "FromNodeId": "fric_torque",
-      "FromPort": "out",
+      "FromPort": "a*b",
       "ToNodeId": "fric_sum1",
       "ToPort": "a"
     },
     {
       "FromNodeId": "fric_lowrpm",
-      "FromPort": "out",
+      "FromPort": "a*b",
       "ToNodeId": "fric_sum1",
-      "ToPort": "b"
+      "ToPort": "c"
     },
     {
       "FromNodeId": "param_k_friction_base",
       "FromPort": "FrictionBase",
-      "ToNodeId": "friction",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "fric_sum1",
-      "FromPort": "out",
-      "ToNodeId": "friction",
+      "ToNodeId": "fric_sum1",
       "ToPort": "b"
     },
     {
@@ -418,21 +394,21 @@
     },
     {
       "FromNodeId": "damper",
-      "FromPort": "out",
+      "FromPort": "a*b",
       "ToNodeId": "out_damper",
       "ToPort": "damper"
     },
     {
-      "FromNodeId": "friction",
-      "FromPort": "out",
-      "ToNodeId": "out_friction",
-      "ToPort": "friction"
-    },
-    {
       "FromNodeId": "load",
-      "FromPort": "out",
+      "FromPort": "a*-b",
       "ToNodeId": "out_load",
       "ToPort": "load"
+    },
+    {
+      "FromNodeId": "fric_sum1",
+      "FromPort": "a+b+c",
+      "ToNodeId": "out_friction",
+      "ToPort": "friction"
     }
   ],
   "Params": [

@@ -4,8 +4,8 @@
     {
       "Id": "in_torque",
       "Kind": "Input",
-      "X": 40.0,
-      "Y": 40.0,
+      "X": 20.0,
+      "Y": 20.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -17,8 +17,8 @@
     {
       "Id": "in_rpm",
       "Kind": "Input",
-      "X": 40.0,
-      "Y": 100.0,
+      "X": 20.0,
+      "Y": 110.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -30,8 +30,8 @@
     {
       "Id": "in_aero_pitch",
       "Kind": "Input",
-      "X": 40.0,
-      "Y": 160.0,
+      "X": 20.0,
+      "Y": 200.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -43,8 +43,8 @@
     {
       "Id": "in_aero_roll",
       "Kind": "Input",
-      "X": 40.0,
-      "Y": 220.0,
+      "X": 20.0,
+      "Y": 360.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -56,8 +56,8 @@
     {
       "Id": "in_aero_yaw",
       "Kind": "Input",
-      "X": 40.0,
-      "Y": 280.0,
+      "X": 20.0,
+      "Y": 520.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -70,66 +70,48 @@
       "Id": "collective_include",
       "Title": "Collective",
       "Kind": "Include",
-      "X": 400.0,
-      "Y": 100.0,
-      "IncludePath": "../_embedded/heli_collective.json"
+      "X": 300.0,
+      "Y": 20.0,
+      "IncludePath": "..\\_embedded\\heli_collective.json"
     },
     {
       "Id": "cyclic_pitch_include",
       "Title": "Cyclic Pitch",
       "Kind": "Include",
-      "X": 400.0,
-      "Y": 400.0,
-      "IncludePath": "../_embedded/heli_cyclic_pitch.json"
+      "X": 300.0,
+      "Y": 150.0,
+      "IncludePath": "..\\_embedded\\heli_cyclic.json"
     },
     {
       "Id": "cyclic_roll_include",
       "Title": "Cyclic Roll",
       "Kind": "Include",
-      "X": 400.0,
-      "Y": 700.0,
-      "IncludePath": "../_embedded/heli_cyclic_roll.json"
+      "X": 300.0,
+      "Y": 310.0,
+      "IncludePath": "..\\_embedded\\heli_cyclic.json"
     },
     {
       "Id": "pedals_include",
       "Title": "Pedals",
       "Kind": "Include",
-      "X": 400.0,
-      "Y": 1000.0,
-      "IncludePath": "../_embedded/heli_pedals.json"
+      "X": 300.0,
+      "Y": 470.0,
+      "IncludePath": "..\\_embedded\\heli_pedals.json"
     },
     {
       "Id": "out_coll_damper",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 40.0,
+      "X": 510.0,
+      "Y": 20.0,
       "Ports": [
         {
           "Kind": "Input",
           "SignalSuffix": "DamperGain"
-        }
-      ],
-      "SignalGroup": "FlightStickCollective"
-    },
-    {
-      "Id": "out_coll_friction",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 100.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "Friction"
-        }
-      ],
-      "SignalGroup": "FlightStickCollective"
-    },
-    {
-      "Id": "out_coll_load",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 160.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "LoadForce"
@@ -140,48 +122,21 @@
     {
       "Id": "out_cyc_pitch_spring",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 260.0,
+      "X": 510.0,
+      "Y": 150.0,
       "Ports": [
         {
           "Kind": "Input",
           "SignalSuffix": "SpringGain"
-        }
-      ],
-      "SignalGroup": "FlightStickPitch"
-    },
-    {
-      "Id": "out_cyc_pitch_damper",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 320.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "DamperGain"
-        }
-      ],
-      "SignalGroup": "FlightStickPitch"
-    },
-    {
-      "Id": "out_cyc_pitch_friction",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 380.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "Friction"
-        }
-      ],
-      "SignalGroup": "FlightStickPitch"
-    },
-    {
-      "Id": "out_cyc_pitch_load",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 440.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "LoadForce"
@@ -192,48 +147,21 @@
     {
       "Id": "out_cyc_roll_spring",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 540.0,
+      "X": 510.0,
+      "Y": 310.0,
       "Ports": [
         {
           "Kind": "Input",
           "SignalSuffix": "SpringGain"
-        }
-      ],
-      "SignalGroup": "FlightStickRoll"
-    },
-    {
-      "Id": "out_cyc_roll_damper",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 600.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "DamperGain"
-        }
-      ],
-      "SignalGroup": "FlightStickRoll"
-    },
-    {
-      "Id": "out_cyc_roll_friction",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 660.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "Friction"
-        }
-      ],
-      "SignalGroup": "FlightStickRoll"
-    },
-    {
-      "Id": "out_cyc_roll_load",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 720.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "LoadForce"
@@ -244,48 +172,21 @@
     {
       "Id": "out_pedals_spring",
       "Kind": "Output",
-      "X": 800.0,
-      "Y": 820.0,
+      "X": 510.0,
+      "Y": 470.0,
       "Ports": [
         {
           "Kind": "Input",
           "SignalSuffix": "SpringGain"
-        }
-      ],
-      "SignalGroup": "FlightPedals"
-    },
-    {
-      "Id": "out_pedals_damper",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 880.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "DamperGain"
-        }
-      ],
-      "SignalGroup": "FlightPedals"
-    },
-    {
-      "Id": "out_pedals_friction",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 940.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "Friction"
-        }
-      ],
-      "SignalGroup": "FlightPedals"
-    },
-    {
-      "Id": "out_pedals_load",
-      "Kind": "Output",
-      "X": 800.0,
-      "Y": 1000.0,
-      "Ports": [
+        },
         {
           "Kind": "Input",
           "SignalSuffix": "LoadForce"
@@ -314,18 +215,6 @@
       "ToPort": "DamperGain"
     },
     {
-      "FromNodeId": "collective_include",
-      "FromPort": "friction",
-      "ToNodeId": "out_coll_friction",
-      "ToPort": "Friction"
-    },
-    {
-      "FromNodeId": "collective_include",
-      "FromPort": "load",
-      "ToNodeId": "out_coll_load",
-      "ToPort": "LoadForce"
-    },
-    {
       "FromNodeId": "in_torque",
       "FromPort": "MainRotor.Torque",
       "ToNodeId": "cyclic_pitch_include",
@@ -348,24 +237,6 @@
       "FromPort": "spring",
       "ToNodeId": "out_cyc_pitch_spring",
       "ToPort": "SpringGain"
-    },
-    {
-      "FromNodeId": "cyclic_pitch_include",
-      "FromPort": "damper",
-      "ToNodeId": "out_cyc_pitch_damper",
-      "ToPort": "DamperGain"
-    },
-    {
-      "FromNodeId": "cyclic_pitch_include",
-      "FromPort": "friction",
-      "ToNodeId": "out_cyc_pitch_friction",
-      "ToPort": "Friction"
-    },
-    {
-      "FromNodeId": "cyclic_pitch_include",
-      "FromPort": "load",
-      "ToNodeId": "out_cyc_pitch_load",
-      "ToPort": "LoadForce"
     },
     {
       "FromNodeId": "in_torque",
@@ -394,19 +265,19 @@
     {
       "FromNodeId": "cyclic_roll_include",
       "FromPort": "damper",
-      "ToNodeId": "out_cyc_roll_damper",
+      "ToNodeId": "out_cyc_roll_spring",
       "ToPort": "DamperGain"
     },
     {
       "FromNodeId": "cyclic_roll_include",
       "FromPort": "friction",
-      "ToNodeId": "out_cyc_roll_friction",
+      "ToNodeId": "out_cyc_roll_spring",
       "ToPort": "Friction"
     },
     {
       "FromNodeId": "cyclic_roll_include",
       "FromPort": "load",
-      "ToNodeId": "out_cyc_roll_load",
+      "ToNodeId": "out_cyc_roll_spring",
       "ToPort": "LoadForce"
     },
     {
@@ -436,21 +307,52 @@
     {
       "FromNodeId": "pedals_include",
       "FromPort": "damper",
-      "ToNodeId": "out_pedals_damper",
+      "ToNodeId": "out_pedals_spring",
       "ToPort": "DamperGain"
     },
     {
       "FromNodeId": "pedals_include",
       "FromPort": "friction",
-      "ToNodeId": "out_pedals_friction",
+      "ToNodeId": "out_pedals_spring",
       "ToPort": "Friction"
     },
     {
       "FromNodeId": "pedals_include",
       "FromPort": "load",
-      "ToNodeId": "out_pedals_load",
+      "ToNodeId": "out_pedals_spring",
+      "ToPort": "LoadForce"
+    },
+    {
+      "FromNodeId": "collective_include",
+      "FromPort": "friction",
+      "ToNodeId": "out_coll_damper",
+      "ToPort": "Friction"
+    },
+    {
+      "FromNodeId": "collective_include",
+      "FromPort": "load",
+      "ToNodeId": "out_coll_damper",
+      "ToPort": "LoadForce"
+    },
+    {
+      "FromNodeId": "cyclic_pitch_include",
+      "FromPort": "damper",
+      "ToNodeId": "out_cyc_pitch_spring",
+      "ToPort": "DamperGain"
+    },
+    {
+      "FromNodeId": "cyclic_pitch_include",
+      "FromPort": "friction",
+      "ToNodeId": "out_cyc_pitch_spring",
+      "ToPort": "Friction"
+    },
+    {
+      "FromNodeId": "cyclic_pitch_include",
+      "FromPort": "load",
+      "ToNodeId": "out_cyc_pitch_spring",
       "ToPort": "LoadForce"
     }
   ],
-  "Params": []
+  "Params": [],
+  "ParamValues": null
 }

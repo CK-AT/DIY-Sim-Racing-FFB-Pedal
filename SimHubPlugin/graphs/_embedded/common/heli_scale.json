@@ -7,21 +7,12 @@
       "Title": "Torque",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 40.0,
+      "Y": 60.0,
       "Ports": [
         {
           "Name": "in_torque",
           "Kind": "Output"
-        }
-      ]
-    },
-    {
-      "Id": "in_torque_ref",
-      "Title": "Torque Ref",
-      "Kind": "Input",
-      "X": 40.0,
-      "Y": 100.0,
-      "Ports": [
+        },
         {
           "Name": "in_torque_ref",
           "Kind": "Output"
@@ -33,21 +24,12 @@
       "Title": "RPM",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 160.0,
+      "Y": 180.0,
       "Ports": [
         {
           "Name": "in_rpm",
           "Kind": "Output"
-        }
-      ]
-    },
-    {
-      "Id": "in_rpm_ref",
-      "Title": "RPM Ref",
-      "Kind": "Input",
-      "X": 40.0,
-      "Y": 220.0,
-      "Ports": [
+        },
         {
           "Name": "in_rpm_ref",
           "Kind": "Output"
@@ -59,7 +41,7 @@
       "Title": "RPM Blend",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 280.0,
+      "Y": 330.0,
       "Ports": [
         {
           "Name": "in_rpm_blend",
@@ -87,7 +69,8 @@
           "Kind": "Output"
         }
       ],
-      "Func": "torque_norm"
+      "Func": "torque_norm",
+      "IncludePath": ""
     },
     {
       "Id": "rpm_norm",
@@ -109,7 +92,8 @@
           "Kind": "Output"
         }
       ],
-      "Func": "rpm_norm"
+      "Func": "rpm_norm",
+      "IncludePath": ""
     },
     {
       "Id": "assist_loss",
@@ -127,14 +111,15 @@
           "Kind": "Output"
         }
       ],
-      "Func": "assist_loss"
+      "Func": "assist_loss",
+      "IncludePath": ""
     },
     {
       "Id": "sum",
       "Title": "Sum",
       "Kind": "Op",
-      "X": 400.0,
-      "Y": 280.0,
+      "X": 580.0,
+      "Y": 260.0,
       "Ports": [
         {
           "Name": "a",
@@ -145,7 +130,7 @@
           "Kind": "Input"
         },
         {
-          "Name": "out",
+          "Name": "a+b",
           "Kind": "Output"
         }
       ],
@@ -155,7 +140,7 @@
       "Id": "damp_scale",
       "Title": "Damp Scale",
       "Kind": "Op",
-      "X": 560.0,
+      "X": 800.0,
       "Y": 280.0,
       "Ports": [
         {
@@ -171,7 +156,7 @@
           "Kind": "Input"
         },
         {
-          "Name": "out",
+          "Name": "lerp(a,b,t)",
           "Kind": "Output"
         }
       ],
@@ -181,7 +166,7 @@
       "Id": "out_torque_norm",
       "Title": "Torque Norm Out",
       "Kind": "Output",
-      "X": 720.0,
+      "X": 960.0,
       "Y": 60.0,
       "Ports": [
         {
@@ -194,7 +179,7 @@
       "Id": "out_assist_loss",
       "Title": "Assist Loss Out",
       "Kind": "Output",
-      "X": 720.0,
+      "X": 960.0,
       "Y": 180.0,
       "Ports": [
         {
@@ -207,7 +192,7 @@
       "Id": "out_damp_scale",
       "Title": "Damp Scale Out",
       "Kind": "Output",
-      "X": 720.0,
+      "X": 960.0,
       "Y": 280.0,
       "Ports": [
         {
@@ -225,22 +210,10 @@
       "ToPort": "trq"
     },
     {
-      "FromNodeId": "in_torque_ref",
-      "FromPort": "in_torque_ref",
-      "ToNodeId": "torque_norm",
-      "ToPort": "trq_ref"
-    },
-    {
       "FromNodeId": "in_rpm",
       "FromPort": "in_rpm",
       "ToNodeId": "rpm_norm",
       "ToPort": "rpm"
-    },
-    {
-      "FromNodeId": "in_rpm_ref",
-      "FromPort": "in_rpm_ref",
-      "ToNodeId": "rpm_norm",
-      "ToPort": "rpm_ref"
     },
     {
       "FromNodeId": "rpm_norm",
@@ -250,12 +223,6 @@
     },
     {
       "FromNodeId": "torque_norm",
-      "FromPort": "out",
-      "ToNodeId": "sum",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "assist_loss",
       "FromPort": "out",
       "ToNodeId": "sum",
       "ToPort": "b"
@@ -268,7 +235,7 @@
     },
     {
       "FromNodeId": "sum",
-      "FromPort": "out",
+      "FromPort": "a+b",
       "ToNodeId": "damp_scale",
       "ToPort": "b"
     },
@@ -292,10 +259,29 @@
     },
     {
       "FromNodeId": "damp_scale",
-      "FromPort": "out",
+      "FromPort": "lerp(a,b,t)",
       "ToNodeId": "out_damp_scale",
       "ToPort": "out_damp_scale"
+    },
+    {
+      "FromNodeId": "assist_loss",
+      "FromPort": "out",
+      "ToNodeId": "sum",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_torque",
+      "FromPort": "in_torque_ref",
+      "ToNodeId": "torque_norm",
+      "ToPort": "trq_ref"
+    },
+    {
+      "FromNodeId": "in_rpm",
+      "FromPort": "in_rpm_ref",
+      "ToNodeId": "rpm_norm",
+      "ToPort": "rpm_ref"
     }
   ],
-  "Params": []
+  "Params": [],
+  "ParamValues": null
 }
