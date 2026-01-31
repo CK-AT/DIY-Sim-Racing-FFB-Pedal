@@ -420,7 +420,7 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>
-ilrepack /out:$(ProjectDir)bin\$(TargetFileName) /lib:"C:\Program Files (x86)\SimHub" "$(ProjectDir)obj\Release\$(TargetFileName)" "$(OutDir)Google.Protobuf.dll" "$(OutDir)COBS.NET.dll" "$(OutDir)NullFX.CRC.dll" "$(OutDir)System.IO.Ports.dll" "$(OutDir)System.Text.Json.dll" "$(OutDir)System.Threading.Tasks.Dataflow.dll"</PostBuildEvent>
+ilrepack /out:$(ProjectDir)bin\$(TargetFileName) /lib:"C:\Program Files (x86)\SimHub" /lib:"C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8" "$(ProjectDir)obj\Release\$(TargetFileName)" "$(OutDir)Google.Protobuf.dll" "$(OutDir)COBS.NET.dll" "$(OutDir)NullFX.CRC.dll" "$(OutDir)System.IO.Ports.dll" "$(OutDir)System.Text.Json.dll" "$(OutDir)System.Threading.Tasks.Dataflow.dll"</PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
     <PreBuildEvent>protoc -I$(ProjectDir)\..\proto --csharp_out=$(ProjectDir) $(ProjectDir)\..\proto\diy_ffb_protocol.proto</PreBuildEvent>
