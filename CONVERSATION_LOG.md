@@ -2,6 +2,98 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-01-31 01:30:00 +01:00 (Claude Code)
+
+Request: Continue from handoff - commit UI reorganization and fix param discard bug.
+
+Summary:
+
+- Committed UI reorganization: moved profile buttons from Settings → FFB Graph to Vehicle tab.
+- Fixed bug where param changes persisted even when user clicked "No" (discard) in vehicle-change or shutdown dialog.
+- Root cause: `SetGraphParamValue` wrote directly to profile in `Settings.AircraftFfbProfiles`, and discard didn't restore original values.
+- Fix: snapshot `GraphParamValues` before first edit, restore from snapshot when user discards.
+- Also fixed: param overrides no longer incorrectly mark graph tab as dirty (stored in profile, not graph).
+
+Key files:
+
+- `SimHubPlugin/DiyFfbPlugin.cs` — snapshot/restore mechanism
+- `SimHubPlugin/DiyFfbPluginUI.xaml` — button layout changes
+- `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs` — remove incorrect dirty marking
+
+Open items:
+
+- None.
+
+Commit highlights:
+
+- `f7bf66b1` Move profile buttons from Settings to Vehicle tab
+- `5ba1989e` Fix param changes persisting when discarded on vehicle switch
+
+## 2026-01-29 15:45:00 +01:00 (CODex)
+Request: update the override migration plan with decisions and implementation notes.
+Summary:
+- Recorded decisions: store graph/include hashes in per-vehicle profiles; show orphaned overrides only in change dialog.
+- Added implementation notes detailing data model changes, hash computation, dialog flow, and test expectations.
+- No async/out-of-order handling changes; plan clarified dialog gating on hash changes.
+Key files:
+- `SimHubPlugin/Docs/plans/15_Graph_Param_Override_Migration_Plan.md`
+Open items:
+- Decide on param identity strategy (ID/aliases vs name-based).
+Commit highlights:
+- None (planning update only).
+
+## 2026-01-29 15:35:00 +01:00 (CODex)
+Request: expand the override migration plan to include include-graph hashing, user diff dialog, and orphaned overrides.
+Summary:
+- Updated the plan to track hashes for nested include graphs, show a defaults comparison dialog on change, and retain orphaned overrides.
+- Added test and open-question coverage for hash storage and orphan handling.
+- No async/out-of-order handling changes; plan notes dialog flow tied to hash changes.
+Key files:
+- `SimHubPlugin/Docs/plans/15_Graph_Param_Override_Migration_Plan.md`
+Open items:
+- Decide where to store graph/include hashes and how to surface orphaned overrides in UI.
+Commit highlights:
+- None (planning update only).
+
+## 2026-01-29 15:25:00 +01:00 (CODex)
+Request: add an AGENTS rule for graph override migration on graph updates.
+Summary:
+- Added an AGENTS.md rule to auto-migrate graph parameter overrides and require GraphTest coverage for mapping.
+- No async/out-of-order handling changes; rule addition only.
+Key files:
+- `AGENTS.md`
+Open items:
+- None.
+Commit highlights:
+- None (rule update only).
+
+## 2026-01-29 15:20:00 +01:00 (CODex)
+Request: create a planning document for preserving parameter overrides when updating vehicle graphs.
+Summary:
+- Added a draft plan covering override persistence, migration strategy, identity mapping, UI feedback, tests, and docs.
+- No async/out-of-order handling changes; plan notes the need for atomic migration around graph replacement.
+Key files:
+- `SimHubPlugin/Docs/plans/15_Graph_Param_Override_Migration_Plan.md`
+Open items:
+- Confirm param identity strategy (stable IDs/aliases vs name-based matching).
+Commit highlights:
+- None (planning doc only).
+
+## 2026-01-29 15:10:00 +01:00 (CODex)
+Request: propose a way to update a vehicle graph while preserving parameter overrides.
+Summary:
+- Reviewed current graph parameter override storage (graph ParamValues vs. per-vehicle profile GraphParamValues) and discussed migration approach.
+- Suggested preserving overrides by extracting old values, applying to new graph by param name/ID, and warning on dropped/renamed params.
+- No async/out-of-order data handling changes; discussion only.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/GraphEditor/GraphModel.cs`
+- `SimHubPlugin/DiyFfbPluginSettings.cs`
+Open items:
+- Decide whether to add stable param IDs/aliases for rename-safe migration or keep name-based matching.
+Commit highlights:
+- None (discussion only).
+
 ## 2026-01-29 14:44:00 +01:00 (CODex)
 Request: move X-Plane UDP enable/port controls to a dedicated system tab.
 Summary:
@@ -4390,4 +4482,25 @@ Summary:
 Request: add dedicated FlightStickPitch/FlightStickRoll configs and matching sim scripts. 
 Summary:
 - Protocol: added FunctionID FLIGHT_STICK_PITCH/ROLL and new FlightStickPitchConfig/FlightStickRollConfig in `proto/diy_ffb_protocol.proto`, with sizing hints in `proto/diy_ffb_protocol.options`. - Firmware: added `ESP32/include/FlightStickFunction.h` and `ESP32/src/FlightStickFunction.cpp`, wired in `ESP32/src/Main.cpp`. - SimHub: added `SimHubPlugin/FlightStickConfigControl.xaml` and `.xaml.cs`, wired in `SimHubPlugin/FunctionConfigControl.xaml` and `.xaml.cs`, extended function list in `SimHubPlugin/DiyFfbPluginUI.xaml.cs`, regenerated `SimHubPlugin/DiyFfbProtocol.cs`. - Sim scripts: added `ESP32/sim/flight_stick_pitch.py` and `ESP32/sim/flight_stick_roll.py`; updated brake/accelerator sim scripts to *_PEDAL enum names; regenerated `ESP32/sim/diy_ffb_protocol_pb2.py` (untracked). Defaults: - Stick range -50..50, damping 0.5, centering 1.5, output mode TRAVEL. - Pitch controller axis Y, roll controller axis X. Axis IDs: - `ESP32/sim/flight_stick_pitch.py` uses AXIS_ID_4. - `ESP32/sim/flight_stick_roll.py` uses AXIS_ID_5. Notes: - No tests run. - Unrelated modified/untracked files existed (DLL/PDB and various `DIY-FFB.srctrl*`/`ESP32/*` files), intentionally ignored.
+
+## 2026-01-30 15:59:05 +01:00 (DESKTOP-6KO022D)
+Request: fix profile storage issues - no explicit store button, no prompt on vehicle change when only GraphPath changed.
+Summary:
+- Fixed `BuildCurrentAircraftProfile()` to include `GraphPath` from current profile. - Fixed `AreProfilesEqual()` to compare `GraphPath` (case-insensitive). - Added `StoreCurrentProfile()` public method for explicit profile storage. - Added "Store Profile" button to UI between "Manage Profiles" and "Export Profile". - Added `btn_store_profile_Click()` handler.
+Key files:
+- `SimHubPlugin/DiyFfbPlugin.cs` - `SimHubPlugin/DiyFfbPluginUI.xaml` - `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+
+## 2026-01-30 15:30:00 +01:00 (DESKTOP-6KO022D)
+Request: commit Unified Profile Browser implementation.
+Summary:
+- Committed `9fc42c2d` — Add Unified Profile Browser dialog. - New ProfileBrowser directory with dialog, entry model, and mode enum. - Consolidated VehicleGraphPaths into AircraftFfbProfiles with migration. - Added Manage Profiles button, renamed Export/Import Profile buttons.
+Key files:
+- `SimHubPlugin/ProfileBrowser/ProfileBrowserDialog.xaml` - `SimHubPlugin/ProfileBrowser/ProfileBrowserDialog.xaml.cs` - `SimHubPlugin/ProfileBrowser/ProfileBrowserEntry.cs` - `SimHubPlugin/ProfileBrowser/ProfileBrowserMode.cs` - `SimHubPlugin/DiyFfbPlugin.cs` - `SimHubPlugin/DiyFfbPluginUI.xaml` - `SimHubPlugin/DiyFfbPluginUI.xaml.cs` - `SimHubPlugin/DiyFfbPluginSettings.cs`
+
+## 2026-01-30 16:15:00 +01:00 (DESKTOP-6KO022D)
+Request: create plan for shared graph save protection - warn when saving graphs used by multiple vehicles.
+Summary:
+- Created Plan 19: Shared Graph Save Protection. - Addresses gap where users can unknowingly affect multiple vehicles when editing shared graphs. - On save: detect direct/indirect usage, show impact dialog, offer Save Anyway / Save as Copy / Cancel. - Updated related plans (16, 17) and HANDOFF.md with references.
+Key files:
+- NEW: `SimHubPlugin/Docs/plans/19_Shared_Graph_Save_Protection.md` - `SimHubPlugin/Docs/plans/16_Vehicle_Profile_Lifecycle.md` - `SimHubPlugin/Docs/plans/17_Profile_System_Improvements.md` - `HANDOFF.md`
 
