@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows;
+using User.PluginSdkDemo.Helpers;
 
 namespace User.PluginSdkDemo.GraphEditor
 {
@@ -14,6 +15,7 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             _param = param ?? throw new ArgumentNullException(nameof(param));
             InitializeComponent();
+            SourceInitialized += (s, e) => DarkTitleBar.Enable(this);
             ComboWidget.ItemsSource = widgetOptions ?? Array.Empty<string>();
 
             var ui = param.Ui ?? new GraphParamUi();

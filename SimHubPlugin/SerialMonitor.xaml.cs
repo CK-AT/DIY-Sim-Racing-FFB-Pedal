@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using User.PluginSdkDemo.Helpers;
 
 namespace User.PluginSdkDemo
 {
@@ -20,6 +21,7 @@ namespace User.PluginSdkDemo
         public SerialMonitor_Window(DiyFfbPluginUI Main_UI)
         {
             InitializeComponent();
+            SourceInitialized += (s, e) => DarkTitleBar.Enable(this);
             _main_UI = Main_UI;
             if (_main_UI.Plugin.Settings.Serial_auto_clean)
             { 

@@ -6,6 +6,7 @@ using System.Windows.Input;
 using Newtonsoft.Json;
 using User.PluginSdkDemo.Controls;
 using User.PluginSdkDemo.GraphEditor;
+using User.PluginSdkDemo.Helpers;
 
 namespace User.PluginSdkDemo.ProfileBrowser
 {
@@ -38,6 +39,7 @@ namespace User.PluginSdkDemo.ProfileBrowser
             _currentCarId = carId;
 
             InitializeComponent();
+            SourceInitialized += (s, e) => DarkTitleBar.Enable(this);
 
             ListItems.ItemsSource = Items;
             ConfigureForMode();

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using User.PluginSdkDemo.Controls;
+using User.PluginSdkDemo.Helpers;
 
 namespace User.PluginSdkDemo.GraphEditor
 {
@@ -12,6 +13,7 @@ namespace User.PluginSdkDemo.GraphEditor
         public GraphTemplateSelectorDialog(string gameId, string carId, IEnumerable<GraphTemplateEntry> templates)
         {
             InitializeComponent();
+            SourceInitialized += (s, e) => DarkTitleBar.Enable(this);
 
             TextGame.Text = string.IsNullOrWhiteSpace(gameId) ? "(unknown)" : gameId;
             TextVehicle.Text = string.IsNullOrWhiteSpace(carId) ? "(unknown)" : carId;

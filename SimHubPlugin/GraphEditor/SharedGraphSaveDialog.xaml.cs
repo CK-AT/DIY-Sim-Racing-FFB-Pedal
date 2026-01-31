@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using User.PluginSdkDemo.Helpers;
 
 namespace User.PluginSdkDemo.GraphEditor
 {
@@ -37,6 +38,7 @@ namespace User.PluginSdkDemo.GraphEditor
         {
             _report = report;
             InitializeComponent();
+            SourceInitialized += (s, e) => DarkTitleBar.Enable(this);
             PopulateUsageDetails();
         }
 

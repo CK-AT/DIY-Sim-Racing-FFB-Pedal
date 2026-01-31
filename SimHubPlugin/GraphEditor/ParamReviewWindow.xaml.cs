@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using User.PluginSdkDemo.Controls;
+using User.PluginSdkDemo.Helpers;
 
 namespace User.PluginSdkDemo.GraphEditor
 {
@@ -16,6 +17,7 @@ namespace User.PluginSdkDemo.GraphEditor
         public ParamReviewWindow(DiyFfbPlugin plugin, ParamMigrationResult migrationResult)
         {
             InitializeComponent();
+            SourceInitialized += (s, e) => DarkTitleBar.Enable(this);
             _plugin = plugin;
             _migrationResult = migrationResult;
 
