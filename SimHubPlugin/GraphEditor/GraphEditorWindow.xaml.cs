@@ -194,12 +194,8 @@ namespace User.PluginSdkDemo.GraphEditor
                 {
                     tab.EditorControl.UpdateParamValue(e.ParamName, e.Value);
                 }
-                // Mark only the active graph tab as dirty (it owns the param)
-                var activeTab = tabManager.ActiveGraphTab;
-                if (activeTab != null)
-                {
-                    activeTab.IsDirty = true;
-                }
+                // Note: We don't mark the graph tab as dirty here because param overrides
+                // are stored in the profile, not the graph file.
             });
         }
 

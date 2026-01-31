@@ -798,6 +798,11 @@ namespace User.PluginSdkDemo
                 {
                     SaveCurrentAircraftProfile(activeGameId, activeCarId);
                 }
+                else
+                {
+                    // User chose to discard - restore profile to its original state
+                    DiscardProfileChanges();
+                }
             }
 
             // Save settings
@@ -2043,6 +2048,11 @@ namespace User.PluginSdkDemo
                 {
                     SaveCurrentAircraftProfile(activeGameId, activeCarId);
                 }
+                else
+                {
+                    // User chose to discard - restore profile to its original state
+                    DiscardProfileChanges();
+                }
             }
 
             bool applyPending = false;
@@ -2108,7 +2118,7 @@ namespace User.PluginSdkDemo
             }
 
             Settings.AircraftFfbProfiles[profileKey] = BuildCurrentAircraftProfile();
-            hasDirtyGraphParams = false;
+            ClearDirtyState();
         }
 
         /// <summary>
@@ -2260,8 +2270,8 @@ namespace User.PluginSdkDemo
             // Clear all param overrides
             profile.GraphParamValues?.Clear();
 
-            // Clear dirty flag since we're intentionally resetting
-            hasDirtyGraphParams = false;
+            // Clear dirty flag and snapshot since we're intentionally resetting
+            ClearDirtyState();
 
             // Rebuild params from graph defaults (Tier 1) and graph template (Tier 2)
             BuildGraphParams();
@@ -2631,6 +2641,9 @@ namespace User.PluginSdkDemo
             // Tier 2 contains template defaults from the graph JSON file and is read-only at runtime.
             // All user edits go to Tier 3 (profile.GraphParamValues) which takes precedence.
 
+            // Snapshot BEFORE modifying profile (so we can restore on discard)
+            MarkProfileDirty();
+
             // Save to current aircraft profile (Tier 3, persists across sessions)
             var profile = GetCurrentAircraftProfile();
             if (profile != null)
@@ -2642,9 +2655,6 @@ namespace User.PluginSdkDemo
                 profile.GraphParamValues[paramName] = value;
             }
 
-            // Always mark dirty and save pending params (even if no profile exists yet)
-            MarkProfileDirty();
-
             // Notify listeners of parameter change
             GraphParamChanged?.Invoke(this, new GraphParamChangedEventArgs(paramName, value));
         }
@@ -2655,6 +2665,9 @@ namespace User.PluginSdkDemo
         /// <param name="paramName">Name of the parameter to reset.</param>
         public void ResetGraphParamValue(string paramName)
         {
+            // Snapshot BEFORE modifying profile (so we can restore on discard)
+            MarkProfileDirty();
+
             // Remove from profile (Tier 3)
             var profile = GetCurrentAircraftProfile();
             if (profile?.GraphParamValues != null)
@@ -2669,8 +2682,6 @@ namespace User.PluginSdkDemo
 
             // Update runtime param
             graphParams[paramName] = effectiveValue;
-
-            MarkProfileDirty();
 
             // Notify listeners so UI updates
             GraphParamChanged?.Invoke(this, new GraphParamChangedEventArgs(paramName, effectiveValue));
@@ -2690,10 +2701,56 @@ namespace User.PluginSdkDemo
         }
 
         private bool hasDirtyGraphParams = false;
+        private Dictionary<string, double> _graphParamValuesSnapshot = null;
 
         private void MarkProfileDirty()
         {
+            // On first dirty, snapshot the current profile's GraphParamValues
+            if (!hasDirtyGraphParams)
+            {
+                var profile = GetCurrentAircraftProfile();
+                if (profile?.GraphParamValues != null)
+                {
+                    _graphParamValuesSnapshot = new Dictionary<string, double>(profile.GraphParamValues);
+                }
+                else
+                {
+                    _graphParamValuesSnapshot = new Dictionary<string, double>();
+                }
+            }
             hasDirtyGraphParams = true;
+        }
+
+        /// <summary>
+        /// Discards unsaved profile changes by restoring GraphParamValues from the snapshot.
+        /// Called when user declines to save changes on vehicle switch.
+        /// </summary>
+        public void DiscardProfileChanges()
+        {
+            if (!hasDirtyGraphParams || _graphParamValuesSnapshot == null)
+            {
+                return;
+            }
+
+            var profile = GetCurrentAircraftProfile();
+            if (profile != null)
+            {
+                // Restore from snapshot
+                profile.GraphParamValues = new Dictionary<string, double>(_graphParamValuesSnapshot);
+            }
+
+            // Clear dirty state and snapshot
+            hasDirtyGraphParams = false;
+            _graphParamValuesSnapshot = null;
+
+            // Rebuild runtime params from restored profile
+            BuildGraphParams();
+        }
+
+        private void ClearDirtyState()
+        {
+            hasDirtyGraphParams = false;
+            _graphParamValuesSnapshot = null;
         }
 
         public event EventHandler ActiveGraphChanged;
