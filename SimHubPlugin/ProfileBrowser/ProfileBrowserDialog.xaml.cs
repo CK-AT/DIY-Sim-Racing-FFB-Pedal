@@ -4,6 +4,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using Newtonsoft.Json;
+using User.PluginSdkDemo.Controls;
 using User.PluginSdkDemo.GraphEditor;
 
 namespace User.PluginSdkDemo.ProfileBrowser
@@ -181,12 +182,12 @@ namespace User.PluginSdkDemo.ProfileBrowser
                     return;
                 }
 
-                MessageBox.Show(this, "Could not read profile from file.", "Import Failed",
+                ThemedMessageBox.Show(this, "Could not read profile from file.", "Import Failed",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, $"Error reading file: {ex.Message}", "Import Failed",
+                ThemedMessageBox.Show(this, $"Error reading file: {ex.Message}", "Import Failed",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -283,7 +284,7 @@ namespace User.PluginSdkDemo.ProfileBrowser
             if (((System.Windows.Controls.Button)sender).DataContext is ProfileBrowserEntry entry &&
                 entry.Source == ProfileEntrySource.StoredProfile)
             {
-                var result = MessageBox.Show(this,
+                var result = ThemedMessageBox.Show(this,
                     $"Delete profile for '{entry.Name}'?\n\nThis will remove all saved tuning for this vehicle.",
                     "Confirm Delete",
                     MessageBoxButton.YesNo,
@@ -330,12 +331,12 @@ namespace User.PluginSdkDemo.ProfileBrowser
                 string json = JsonConvert.SerializeObject(exported, Formatting.Indented);
                 File.WriteAllText(saveDialog.FileName, json);
 
-                MessageBox.Show(this, $"Profile exported to:\n{saveDialog.FileName}", "Export Complete",
+                ThemedMessageBox.Show(this, $"Profile exported to:\n{saveDialog.FileName}", "Export Complete",
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, $"Error exporting profile: {ex.Message}", "Export Failed",
+                ThemedMessageBox.Show(this, $"Error exporting profile: {ex.Message}", "Export Failed",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }

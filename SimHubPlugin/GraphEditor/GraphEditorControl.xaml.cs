@@ -16,6 +16,7 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using DiyFfb.GraphTest;
 using User.PluginSdkDemo;
+using User.PluginSdkDemo.Controls;
 
 namespace User.PluginSdkDemo.GraphEditor
 {
@@ -4228,11 +4229,11 @@ namespace User.PluginSdkDemo.GraphEditor
                         _isInspectorUpdating = true;
                         entry.Name = oldName;
                         _isInspectorUpdating = false;
-                        System.Windows.MessageBox.Show(
+                        ThemedMessageBox.Show(
                             $"Parameter name '{newFullName}' conflicts with a reserved output signal name.",
                             "Invalid Parameter Name",
-                            System.Windows.MessageBoxButton.OK,
-                            System.Windows.MessageBoxImage.Warning);
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
                         return;
                     }
 

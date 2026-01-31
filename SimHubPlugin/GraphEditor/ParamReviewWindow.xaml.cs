@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Windows;
+using User.PluginSdkDemo.Controls;
 
 namespace User.PluginSdkDemo.GraphEditor
 {
@@ -125,7 +126,7 @@ namespace User.PluginSdkDemo.GraphEditor
 
         private void OnResetAllClick(object sender, RoutedEventArgs e)
         {
-            var result = MessageBox.Show(
+            var result = ThemedMessageBox.Show(
                 "Reset all parameters to their default values?\n\nThis will remove all your customizations for this vehicle.",
                 "Reset All Parameters",
                 MessageBoxButton.YesNo,
@@ -167,7 +168,7 @@ namespace User.PluginSdkDemo.GraphEditor
 
         private void OnDeleteAllOrphansClick(object sender, RoutedEventArgs e)
         {
-            var result = MessageBox.Show(
+            var result = ThemedMessageBox.Show(
                 $"Delete all {_orphans.Count} orphaned override(s)?\n\nThese are parameter values for parameters that no longer exist in the current graph.",
                 "Delete All Orphans",
                 MessageBoxButton.YesNo,

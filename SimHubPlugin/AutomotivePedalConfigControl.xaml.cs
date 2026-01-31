@@ -2,6 +2,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using MahApps.Metro.Controls;
+using User.PluginSdkDemo.Controls;
 
 namespace User.PluginSdkDemo
 {
@@ -579,7 +580,7 @@ namespace User.PluginSdkDemo
             {
                 plugin.Settings.function_settings[((int)current_function_id - 1)].CV1_enabled = false;
                 string MSG_tmp = "ERROR! String can not be evaluated";
-                System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ThemedMessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
 
             }
             //updateTheGuiFromConfig();
@@ -652,7 +653,7 @@ namespace User.PluginSdkDemo
             {
                 plugin.Settings.function_settings[((int)current_function_id - 1)].CV2_enabled = false;
                 string MSG_tmp = "ERROR! String can not be evaluated";
-                System.Windows.MessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ThemedMessageBox.Show(MSG_tmp, "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
 
             }
             /*

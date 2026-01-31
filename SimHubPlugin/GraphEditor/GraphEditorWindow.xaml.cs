@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
 using Microsoft.Win32;
+using User.PluginSdkDemo.Controls;
 
 namespace User.PluginSdkDemo.GraphEditor
 {
@@ -504,7 +505,7 @@ namespace User.PluginSdkDemo.GraphEditor
             }
             else
             {
-                MessageBox.Show(this, "Failed to save graph.", "Save Error",
+                ThemedMessageBox.Show(this, "Failed to save graph.", "Save Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -542,7 +543,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 }
                 else
                 {
-                    MessageBox.Show(this, "Failed to save graph.", "Save Error",
+                    ThemedMessageBox.Show(this, "Failed to save graph.", "Save Error",
                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
@@ -626,7 +627,7 @@ namespace User.PluginSdkDemo.GraphEditor
                 }
                 else
                 {
-                    MessageBox.Show(this, "Failed to save graph.", "Save Error",
+                    ThemedMessageBox.Show(this, "Failed to save graph.", "Save Error",
                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
@@ -766,7 +767,7 @@ namespace User.PluginSdkDemo.GraphEditor
 
             if (tab.IsDirty)
             {
-                var result = MessageBox.Show(
+                var result = ThemedMessageBox.Show(
                     this,
                     $"Save changes to {tab.DisplayName}?",
                     "Unsaved Changes",
@@ -792,14 +793,14 @@ namespace User.PluginSdkDemo.GraphEditor
 
                             if (!tab.SaveAs(dialog.FileName))
                             {
-                                MessageBox.Show(this, "Failed to save graph.", "Save Error",
+                                ThemedMessageBox.Show(this, "Failed to save graph.", "Save Error",
                                     MessageBoxButton.OK, MessageBoxImage.Error);
                                 return;
                             }
                         }
                         else if (!tab.Save())
                         {
-                            MessageBox.Show(this, "Failed to save graph.", "Save Error",
+                            ThemedMessageBox.Show(this, "Failed to save graph.", "Save Error",
                                 MessageBoxButton.OK, MessageBoxImage.Error);
                             return;
                         }
@@ -896,7 +897,7 @@ namespace User.PluginSdkDemo.GraphEditor
             var tab = tabManager.OpenGraph(resolved);
             if (tab == null)
             {
-                MessageBox.Show(this, $"Include not found:\n{path}", "Include not found",
+                ThemedMessageBox.Show(this, $"Include not found:\n{path}", "Include not found",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }

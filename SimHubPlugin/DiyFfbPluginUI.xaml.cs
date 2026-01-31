@@ -18,6 +18,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using User.PluginSdkDemo.Controls;
 using User.PluginSdkDemo.GraphEditor;
 using User.PluginSdkDemo.ProfileBrowser;
 using System.Windows.Data;
@@ -546,7 +547,7 @@ namespace User.PluginSdkDemo
             string profileKey = Plugin.GetActiveProfileKey();
             if (string.IsNullOrWhiteSpace(profileKey))
             {
-                MessageBox.Show("No active aircraft detected.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
+                ThemedMessageBox.Show("No active aircraft detected.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -563,7 +564,7 @@ namespace User.PluginSdkDemo
             {
                 if (!Plugin.Settings.AircraftFfbProfiles.TryGetValue(profileKey, out var profile))
                 {
-                    MessageBox.Show("No stored profile for current aircraft.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ThemedMessageBox.Show("No stored profile for current aircraft.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
 
@@ -614,7 +615,7 @@ namespace User.PluginSdkDemo
 
                 if (profile == null)
                 {
-                    MessageBox.Show("Invalid profile JSON.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    ThemedMessageBox.Show("Invalid profile JSON.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -624,7 +625,7 @@ namespace User.PluginSdkDemo
                 {
                     if (!string.Equals(sourceGraphPath, currentGraphPath, System.StringComparison.OrdinalIgnoreCase))
                     {
-                        var mismatchResult = MessageBox.Show(
+                        var mismatchResult = ThemedMessageBox.Show(
                             $"This profile was created for a different graph:\n\n" +
                             $"Profile graph: {sourceGraphPath}\n" +
                             $"Current graph: {currentGraphPath}\n\n" +
@@ -643,7 +644,7 @@ namespace User.PluginSdkDemo
                 string profileKey = Plugin.GetActiveProfileKey();
                 if (!string.IsNullOrWhiteSpace(profileKey) && Plugin.Settings.AircraftFfbProfiles.ContainsKey(profileKey))
                 {
-                    var overwriteResult = MessageBox.Show(
+                    var overwriteResult = ThemedMessageBox.Show(
                         $"Overwrite existing profile for '{profileKey}'?",
                         "Confirm Overwrite",
                         MessageBoxButton.YesNo,
@@ -658,7 +659,7 @@ namespace User.PluginSdkDemo
                 {
                     Plugin.ApplyFfbProfileToCurrentSettings(profile);
                     Plugin.SetPendingFfbProfile(profile);
-                    MessageBox.Show("Loaded profile into current settings (no active aircraft).", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ThemedMessageBox.Show("Loaded profile into current settings (no active aircraft).", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 else
                 {
@@ -689,7 +690,7 @@ namespace User.PluginSdkDemo
                     string graphPath = Plugin.GetActiveGraphPath();
                     if (string.IsNullOrWhiteSpace(graphPath))
                     {
-                        MessageBox.Show("No graph is currently loaded.", "Review Params", MessageBoxButton.OK, MessageBoxImage.Information);
+                        ThemedMessageBox.Show("No graph is currently loaded.", "Review Params", MessageBoxButton.OK, MessageBoxImage.Information);
                         return;
                     }
 
@@ -711,7 +712,7 @@ namespace User.PluginSdkDemo
             }
             catch (System.Exception ex)
             {
-                MessageBox.Show($"Error opening review window: {ex.Message}\n\n{ex.StackTrace}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ThemedMessageBox.Show($"Error opening review window: {ex.Message}\n\n{ex.StackTrace}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -725,13 +726,13 @@ namespace User.PluginSdkDemo
             string profileKey = Plugin.GetActiveProfileKey();
             if (string.IsNullOrWhiteSpace(profileKey))
             {
-                MessageBox.Show("No active vehicle detected.", "Store Profile", MessageBoxButton.OK, MessageBoxImage.Information);
+                ThemedMessageBox.Show("No active vehicle detected.", "Store Profile", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
             if (Plugin.StoreCurrentProfile())
             {
-                MessageBox.Show($"Profile stored for {profileKey}.", "Store Profile", MessageBoxButton.OK, MessageBoxImage.Information);
+                ThemedMessageBox.Show($"Profile stored for {profileKey}.", "Store Profile", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
@@ -775,7 +776,7 @@ namespace User.PluginSdkDemo
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error opening Profile Browser:\n\n{ex.Message}\n\n{ex.StackTrace}",
+                ThemedMessageBox.Show($"Error opening Profile Browser:\n\n{ex.Message}\n\n{ex.StackTrace}",
                     "Profile Browser Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -806,7 +807,7 @@ namespace User.PluginSdkDemo
             string label = string.IsNullOrWhiteSpace(carName) ? carId : $"{carName} ({carId})";
             string message = $"A pending FFB profile is loaded without an active aircraft.\n\n" +
                              $"Apply it to {label} or discard and use the stored profile?";
-            var result = MessageBox.Show(message, "FFB Profiles", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var result = ThemedMessageBox.Show(message, "FFB Profiles", MessageBoxButton.YesNo, MessageBoxImage.Question);
             return result == MessageBoxResult.Yes;
         }
 
@@ -815,7 +816,7 @@ namespace User.PluginSdkDemo
             string label = string.IsNullOrWhiteSpace(carName) ? carId : $"{carName} ({carId})";
             string message = $"Save FFB changes for {label} before switching aircraft?\n\n" +
                              "Choose Yes to update the stored profile or No to discard these changes.";
-            var result = MessageBox.Show(message, "FFB Profiles", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var result = ThemedMessageBox.Show(message, "FFB Profiles", MessageBoxButton.YesNo, MessageBoxImage.Question);
             return result == MessageBoxResult.Yes;
         }
 
@@ -838,7 +839,7 @@ namespace User.PluginSdkDemo
                 var profiles = JsonConvert.DeserializeObject<System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>>(json);
                 if (profiles == null)
                 {
-                    MessageBox.Show("Invalid profile map JSON.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    ThemedMessageBox.Show("Invalid profile map JSON.", "FFB Profiles", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -2468,7 +2469,7 @@ namespace User.PluginSdkDemo
                 }
                 catch (Exception caughtEx)
                 {
-                    MessageBox.Show($"Error loading {openFileDialog.FileName}: {caughtEx.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    ThemedMessageBox.Show($"Error loading {openFileDialog.FileName}: {caughtEx.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
         }
@@ -2892,11 +2893,11 @@ namespace User.PluginSdkDemo
             _pendingMigrationResult = result;
 
             // Show notification in status bar or message box
-            System.Windows.MessageBox.Show(
+            ThemedMessageBox.Show(
                 $"FFB Graph Changed\n\n{summary}\n\nClick 'Review Params' in the Vehicle tab to see details.",
                 "Parameter Migration",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Information);
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
 
         private ParamMigrationResult _pendingMigrationResult;

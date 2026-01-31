@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Windows;
+using User.PluginSdkDemo.Controls;
 
 namespace User.PluginSdkDemo.GraphEditor
 {
@@ -38,7 +39,7 @@ namespace User.PluginSdkDemo.GraphEditor
             }
             else
             {
-                MessageBox.Show(this, "Please select a template from the list.", "No Selection",
+                ThemedMessageBox.Show(this, "Please select a template from the list.", "No Selection",
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
