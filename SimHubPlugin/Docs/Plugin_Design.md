@@ -416,9 +416,11 @@ class GraphNode {
 **AircraftFfbProfile**:
 ```csharp
 class AircraftFfbProfile {
-    string ActiveGraphPath;
-    Dictionary<string, double> GraphParamValues;  // Vehicle-level overrides
-    // ... function-specific settings ...
+    string GraphPath;
+    int XPlaneRotorIndex;
+    Dictionary<string, double> GraphParamValues;  // Vehicle-level overrides (Tier 3)
+    string LastReviewedGraphHash;                  // For graph change detection
+    Dictionary<string, ParamSnapshot> LastReviewedParamSnapshot;  // For param migration
 }
 ```
 

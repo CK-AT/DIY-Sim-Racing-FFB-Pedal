@@ -28,19 +28,19 @@ Per-vehicle FFB configuration.
 ```csharp
 public class AircraftFfbProfile
 {
-    public FunctionFfbSettings FlightStickPitch;
-    public FunctionFfbSettings FlightStickRoll;
-    public FunctionFfbSettings FlightStickCollective;
-    public FunctionFfbSettings FlightPedals;
-    public int XPlaneRotorIndex = -1;  // -1 = auto
-    public Dictionary<string, double> GraphParamValues;  // Param overrides
+    public string GraphPath;                              // Path to graph file
+    public int XPlaneRotorIndex = -1;                     // -1 = auto
+    public Dictionary<string, double> GraphParamValues;   // Param overrides (Tier 3)
+    public string LastReviewedGraphHash;                  // For change detection
+    public Dictionary<string, ParamSnapshot> LastReviewedParamSnapshot;  // For migration
 }
 ```
 
 **Notes:**
 
-- FunctionFfbSettings currently a stub (reserved for future per-control settings)
 - GraphParamValues holds user-customized graph parameter overrides (Tier 3)
+- LastReviewedGraphHash tracks graph content for change detection (see Plan 15)
+- FunctionFfbSettings was removed (Plan 17) - per-vehicle FFB handled via GraphParamValues
 
 ### Vehicle Identification
 
@@ -96,7 +96,9 @@ Resolution: `ResolveParamValue(name, default)` checks Tier 3 → 2 → 1.
 
 ```
 1. Check HasUnsavedProfileChanges() for previous aircraft
-   └─ Prompt save if dirty
+   └─ If dirty: prompt user to save
+      ├─ Yes: SaveCurrentAircraftProfile() + ClearDirtyState()
+      └─ No: DiscardProfileChanges() (restore from snapshot)
 
 2. Apply pending FFB profile if hasPendingFfbProfile flag set
 
@@ -111,8 +113,10 @@ Resolution: `ResolveParamValue(name, default)` checks Tier 3 → 2 → 1.
 ### Graph Param Edit (UI)
 
 ```
-1. Store value in profile.GraphParamValues[paramName]
-2. Set hasDirtyGraphParams = true
+1. MarkProfileDirty()
+   └─ On first dirty: snapshot profile.GraphParamValues to _graphParamValuesSnapshot
+   └─ Set hasDirtyGraphParams = true
+2. Store value in profile.GraphParamValues[paramName]
 3. Queued for save on aircraft change or shutdown
 ```
 
@@ -124,10 +128,13 @@ Resolution: `ResolveParamValue(name, default)` checks Tier 3 → 2 → 1.
    ├─ Check hasDirtyGraphParams flag
    └─ If dirty: prompt user to save
       ├─ Yes: SaveCurrentAircraftProfile(activeCarId)
-      └─ No: discard changes
+      │       └─ ClearDirtyState() (clear flag + snapshot)
+      └─ No: DiscardProfileChanges()
+              └─ Restore profile.GraphParamValues from _graphParamValuesSnapshot
+              └─ ClearDirtyState()
 
 2. SaveCommonSettings("GeneralSettings", Settings)
-   └─ Persist entire settings dict to disk
+   └─ Persist entire settings dict to disk (now with restored values if discarded)
 
 3. Cleanup: close serial ports, stop UDP receiver
 ```
@@ -142,9 +149,36 @@ Resolution: `ResolveParamValue(name, default)` checks Tier 3 → 2 → 1.
 
 **AreProfilesEqual():**
 
-- Compares all four FunctionFfbSettings
+- Compares GraphPath
 - Compares XPlaneRotorIndex
 - Compares GraphParamValues dictionaries
+
+## Dirty State & Snapshot Mechanism
+
+When the user edits parameters, changes are written directly to `profile.GraphParamValues` for immediate effect. To support discarding changes, a snapshot is taken before the first modification:
+
+**Fields:**
+
+- `hasDirtyGraphParams` — true if any param was modified since last save/discard
+- `_graphParamValuesSnapshot` — copy of `GraphParamValues` before first modification
+
+**MarkProfileDirty():**
+
+- On first dirty (when `hasDirtyGraphParams` is false): snapshot current `GraphParamValues`
+- Set `hasDirtyGraphParams = true`
+
+**DiscardProfileChanges():**
+
+- Restore `profile.GraphParamValues` from `_graphParamValuesSnapshot`
+- Call `ClearDirtyState()` to reset flag and snapshot
+- Rebuild runtime params via `BuildGraphParams()`
+
+**ClearDirtyState():**
+
+- Set `hasDirtyGraphParams = false`
+- Set `_graphParamValuesSnapshot = null`
+
+**Note:** Param overrides do NOT mark the graph tab as dirty in the Graph Editor, since they're stored in the profile (not the graph file).
 
 ## Lifecycle Diagram
 
@@ -181,10 +215,13 @@ Resolution: `ResolveParamValue(name, default)` checks Tier 3 → 2 → 1.
 | -------- | ---- | ---- | ------- |
 | Init | DiyFfbPlugin.cs | ~2762 | Load settings on startup |
 | End | DiyFfbPlugin.cs | ~786 | Save on shutdown |
-| HandleAircraftChange | DiyFfbPlugin.cs | ~1849 | Profile apply/save on vehicle change |
-| ApplyAircraftProfile | DiyFfbPlugin.cs | ~1975 | Load profile into runtime |
-| SaveCurrentAircraftProfile | DiyFfbPlugin.cs | ~1959 | Persist profile to settings |
-| ResolveActiveGraph | DiyFfbPlugin.cs | ~1610 | Graph resolution & loading |
+| HandleAircraftChange | DiyFfbPlugin.cs | ~2020 | Profile apply/save on vehicle change |
+| ApplyAircraftProfile | DiyFfbPlugin.cs | ~2134 | Load profile into runtime |
+| SaveCurrentAircraftProfile | DiyFfbPlugin.cs | ~2097 | Persist profile to settings |
+| ResolveActiveGraph | DiyFfbPlugin.cs | ~1689 | Graph resolution & loading |
+| MarkProfileDirty | DiyFfbPlugin.cs | ~2706 | Snapshot + set dirty flag |
+| DiscardProfileChanges | DiyFfbPlugin.cs | ~2728 | Restore from snapshot |
+| ClearDirtyState | DiyFfbPlugin.cs | ~2750 | Reset dirty flag + snapshot |
 
 ## Related Documents
 
