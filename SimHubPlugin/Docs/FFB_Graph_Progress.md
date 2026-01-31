@@ -143,16 +143,24 @@ Status: living progress document for graph editor/runtime integration.
 - Signal dropdowns populate immediately for Input/Output nodes even when SignalGroup is still empty (uses default group for options without mutating node state).
 - Undo/redo support in graph editor (per-tab undo stacks, toolbar buttons, Ctrl+Z/Ctrl+Y).
 - Vehicle/System/function parameter UI now follows graph layout order (includes ordered by include-node position); Vehicle tab surfaces function params.
+- Profile key format changed to `gameId::carId` for consistent vehicle identification.
+- Tier 2 graph.ParamValues made read-only at runtime; param edits write to Tier 3 (vehicle profile) only.
+- Cross-session pending params file removed; param edits now tracked in-memory only with save prompt on vehicle change.
+- Reset to Defaults button: clears vehicle-level param overrides for current graph, reverting to graph defaults.
+- Store Profile button: explicitly saves current param values to vehicle profile.
+- Enhanced profile export: includes graph metadata (path, hash) for validation on import.
+- Unified Profile Browser dialog (Plan 18): consolidated template selection, profile management, and import into a single dialog. Replaces `PromptForGraphTemplate()` with richer "My Vehicles" and "Templates" tabs.
+- Shared graph save protection (Plan 19): warns when saving changes to graphs used by multiple vehicles; offers Save As alternative.
+- Hash-based param override preservation (Plan 15): when graph changes, matching param overrides (by name+hash) are preserved in the new profile.
+- Snapshot/discard mechanism for vehicle switch: param changes are snapshot on switch; user can save or discard before loading new vehicle.
+- FFB Graph tab removed (Plan 20): vehicle ID and active graph path now shown in Vehicle tab header; bulk export/import buttons moved to Settings panel under "Profile Backup".
 
 ## In Progress
 
 - UX polish (orthogonal routing, mini-map).
 - Grid padding/centering strategy (grid currently background brush; padding intent documented).
-- Per-node inspector templates (Const/Op/Func/Input/Output/Param/Include complete; legacy panel removed).
-- Param inspector uses a two-column property grid with Range/UI expanders for the selected port.
 
 ## Open
 
 - Typed units and validation.
-- Graph persistence in profiles and migrations.
 - Future: Tooltips with mini-curves and live cursors on param nodes.

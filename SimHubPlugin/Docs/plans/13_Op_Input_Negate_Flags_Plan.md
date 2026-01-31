@@ -1,7 +1,7 @@
 # Op Input Negate Flags Plan
 
 ## Status (2026-01-28)
-- Plan only. No implementation yet.
+- Implemented
 
 ## Goal
 Allow per-input negation for Op nodes where it is useful (add/mul), so users can flip individual inputs without extra Neg nodes.

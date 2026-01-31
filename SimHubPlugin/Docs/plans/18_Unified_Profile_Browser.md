@@ -1,7 +1,7 @@
 # Unified Profile Browser Dialog
 
 Date: 2026-01-30
-Status: Implemented (pending commit)
+Status: Implemented
 Issue: #9 from 17_Profile_System_Improvements.md
 
 ## Overview

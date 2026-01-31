@@ -138,7 +138,7 @@ Vehicle profile (in plugin settings):
 - Legacy X-Plane math paths are removed; graph outputs are the single source of flight FFB.
 - Config persistence is separate from graph file storage.
 - Graph params are surfaced in the function UI for tuning.
-- A single top-level graph is resolved per vehicle `(GameId, CarId)` with a per-game fallback graph.
+- A single top-level graph is resolved per vehicle `(GameId, CarId)` stored in the vehicle profile.
 
 ### Parameter UI Surfacing
 Parameters are exposed in function configuration panels based on their `group` attribute:
@@ -150,7 +150,7 @@ Parameters are exposed in function configuration panels based on their `group` a
   - Replace legacy X-Plane FFB sliders with graph-driven params
 
 - **System Params**: Group = `"System"`
-  - Shown in FFB Graph tab under "System Parameters" section
+  - Shown in Vehicle tab under "System Parameters" section
   - Global graph constants (e.g., Vref, rotor references) when present in the active graph
 
 **UI Generation**:
@@ -162,14 +162,51 @@ Parameters are exposed in function configuration panels based on their `group` a
 **Future Enhancement**:
 - Add tooltips with mini-curves and live cursors for visual feedback on param nodes
 
+### Profile Browser Dialog
+A unified dialog for template selection, profile management, and profile import:
+
+- **Templates tab**: Graph templates from registry (no tuning data)
+- **My Vehicles tab**: Stored profiles with graph path and tuning indicators
+- **Import File**: Load exported profile files
+
+Actions:
+
+- "Use Graph Only": Apply graph without copying tuning
+- "Use Graph + Tuning": Apply graph and copy param values
+- Delete/Export profiles from My Vehicles tab
+
+### Shared Graph Save Protection
+
+When saving changes to a graph file used by multiple vehicles:
+
+- Warning dialog lists affected vehicles
+- Offers "Save As" to create vehicle-specific copy
+- Prevents accidental changes to shared templates
+
+### Parameter Override Preservation
+
+When changing a vehicle's graph assignment:
+
+- Param overrides are preserved if the param name and definition hash match
+- Allows graph upgrades without losing per-vehicle tuning
+- Non-matching params are discarded (graph structure changed)
+
+### Vehicle Switch Workflow
+
+When switching vehicles with unsaved param changes:
+
+- Changes are snapshot before switch
+- User prompted to Save or Discard
+- Discard reverts to last-saved profile state
+
 ## Testing
 - GraphTest (runtime model validation and evaluator checks).
 - PluginTest (editor JSON roundtrip + preview evaluator).
 
 ## Open Questions
+
 - Should we add typed ports or keep all numeric?
 - Should we allow stateful nodes (e.g., integrator, delay)?
-- How should per-vehicle graph overrides be surfaced and edited?
 
 ## Risks and Mitigations
 - Param UI schema complexity: start with slider/knob/checkbox, add advanced widgets later.
