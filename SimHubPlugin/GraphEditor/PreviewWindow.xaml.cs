@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Windows;
 using System.Windows.Controls;
+using User.PluginSdkDemo.Helpers;
 
 namespace User.PluginSdkDemo.GraphEditor
 {
@@ -12,6 +13,7 @@ namespace User.PluginSdkDemo.GraphEditor
         public PreviewWindow()
         {
             InitializeComponent();
+            SourceInitialized += (s, e) => DarkTitleBar.Enable(this);
         }
 
         public event EventHandler<bool> LiveInputsToggled;

@@ -178,6 +178,7 @@
     <Compile Include="Controls\ThemedMessageBox.xaml.cs">
       <DependentUpon>ThemedMessageBox.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Helpers\DarkTitleBar.cs" />
     <Compile Include="FlightPedalsConfigControl.xaml.cs">
       <DependentUpon>FlightPedalsConfigControl.xaml</DependentUpon>
     </Compile>

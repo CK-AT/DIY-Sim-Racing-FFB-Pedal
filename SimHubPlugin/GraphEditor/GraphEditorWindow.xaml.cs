@@ -9,6 +9,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using Microsoft.Win32;
 using User.PluginSdkDemo.Controls;
+using User.PluginSdkDemo.Helpers;
 
 namespace User.PluginSdkDemo.GraphEditor
 {
@@ -46,6 +47,7 @@ namespace User.PluginSdkDemo.GraphEditor
         public GraphEditorWindow()
         {
             InitializeComponent();
+            SourceInitialized += (s, e) => DarkTitleBar.Enable(this);
 
             tabManager = new GraphEditorTabManager();
             tabManager.SelectedTabChanged += OnSelectedTabChanged;
