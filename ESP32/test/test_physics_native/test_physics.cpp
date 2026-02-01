@@ -5,6 +5,7 @@
 #include <unity.h>
 
 #include "Physics.h"
+#include "OscillationGuard.h"
 
 namespace {
 void SetSimPosition(Sim &sim, float position) {
