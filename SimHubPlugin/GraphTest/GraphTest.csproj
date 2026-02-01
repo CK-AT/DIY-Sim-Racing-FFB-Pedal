@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Google.Protobuf" Version="3.30.0" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\GraphSignalCatalogData.cs" Link="GraphSignalCatalogData.cs" />

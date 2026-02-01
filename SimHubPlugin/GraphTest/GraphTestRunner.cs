@@ -121,6 +121,44 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("GraphHash: nested includes in hash", TestGraphHashNestedIncludes));
             results.Add(TestRunner.RunTest("GraphHash: cyclic includes handled", TestGraphHashCyclicIncludes));
 
+            // Tools.cs utility tests
+            results.Add(TestRunner.RunTest("Normalize: value in range", TestNormalize_InRange));
+            results.Add(TestRunner.RunTest("Normalize: below min", TestNormalize_BelowMin));
+            results.Add(TestRunner.RunTest("Normalize: above max", TestNormalize_AboveMax));
+            results.Add(TestRunner.RunTest("Normalize: zero range", TestNormalize_ZeroRange));
+            results.Add(TestRunner.RunTest("TryComputeMarkerX: valid", TestTryComputeMarkerX_Valid));
+            results.Add(TestRunner.RunTest("TryComputeMarkerX: zero width", TestTryComputeMarkerX_ZeroWidth));
+            results.Add(TestRunner.RunTest("TryComputeMarkerX: swapped min/max", TestTryComputeMarkerX_SwappedMinMax));
+            results.Add(TestRunner.RunTest("TryAutoTuneLoadGain: below min force", TestTryAutoTuneLoadGain_BelowMinForce));
+            results.Add(TestRunner.RunTest("TryAutoTuneLoadGain: ratio high", TestTryAutoTuneLoadGain_RatioHigh));
+            results.Add(TestRunner.RunTest("TryAutoTuneLoadGain: ratio low", TestTryAutoTuneLoadGain_RatioLow));
+            results.Add(TestRunner.RunTest("TryAutoTuneLoadGain: ratio in range", TestTryAutoTuneLoadGain_InRange));
+
+            // CubicSpline tests
+            results.Add(TestRunner.RunTest("CubicSpline: linear data", TestInterpolate_LinearData));
+            results.Add(TestRunner.RunTest("CubicSpline: endpoint match", TestInterpolate_EndpointMatch));
+            results.Add(TestRunner.RunTest("CubicSpline: monotonic", TestInterpolate_Monotonic));
+            results.Add(TestRunner.RunTest("CubicSpline: count matches", TestInterpolate1D_CountMatches));
+            results.Add(TestRunner.RunTest("CubicSpline: mismatched arrays", TestInterpolate_MismatchedArrays));
+
+            // StringExtensions tests
+            results.Add(TestRunner.RunTest("ConstCaseToTitleCase", TestConstCaseToTitleCase));
+            results.Add(TestRunner.RunTest("CamelCaseToTitleCase", TestCamelCaseToTitleCase));
+
+            // GeneralKinematics tests
+            results.Add(TestRunner.RunTest("Kinematics: null config", TestCalcKinematicParameters_NullConfig));
+            results.Add(TestRunner.RunTest("Kinematics: no pins", TestCalcKinematicParameters_NoPins));
+            results.Add(TestRunner.RunTest("Kinematics: no bars", TestCalcKinematicParameters_NoBars));
+            results.Add(TestRunner.RunTest("Kinematics: negative travel", TestCalcKinematicParameters_NegativeTravel));
+            results.Add(TestRunner.RunTest("Kinematics: simple linkage computes", TestSimpleLinkage_Computes));
+            results.Add(TestRunner.RunTest("Kinematics: rail travel bounds", TestRailTravel_Bounds));
+            results.Add(TestRunner.RunTest("Kinematics: pose cache pin count", TestPoseCache_PinCount));
+            results.Add(TestRunner.RunTest("Kinematics: pose cache sample count", TestPoseCache_SampleCount));
+            results.Add(TestRunner.RunTest("Kinematics: collinear pins", TestCollinearPins_Handled));
+            results.Add(TestRunner.RunTest("Kinematics: zero length bar throws", TestZeroLengthBar_Throws));
+            results.Add(TestRunner.RunTest("Kinematics: missing contact point", TestMissingContactPoint_Throws));
+            results.Add(TestRunner.RunTest("Kinematics: missing rail interface", TestMissingRailInterface_Throws));
+
             TestRunner.PrintResults("FFB Graph Tests", results);
         }
 
@@ -3149,6 +3187,506 @@ namespace DiyFfb.GraphTest
             finally
             {
                 try { System.IO.Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+
+        #endregion
+
+        #region Tools.cs Tests
+
+        private static bool TestNormalize_InRange()
+        {
+            // Value between min/max should return normalized 0-1
+            double result = Tools.Normalize(50, 0, 100);
+            return Math.Abs(result - 0.5) < 1e-9;
+        }
+
+        private static bool TestNormalize_BelowMin()
+        {
+            // Value <= min should return 0
+            double atMin = Tools.Normalize(0, 0, 100);
+            double belowMin = Tools.Normalize(-10, 0, 100);
+            return atMin == 0 && belowMin == 0;
+        }
+
+        private static bool TestNormalize_AboveMax()
+        {
+            // Value >= max should return 1
+            double atMax = Tools.Normalize(100, 0, 100);
+            double aboveMax = Tools.Normalize(150, 0, 100);
+            return atMax == 1 && aboveMax == 1;
+        }
+
+        private static bool TestNormalize_ZeroRange()
+        {
+            // min ≈ max (range < 0.0000001) should return 0
+            double result = Tools.Normalize(5, 5, 5);
+            double nearlyZero = Tools.Normalize(5, 5, 5.00000001);
+            return result == 0 && nearlyZero == 0;
+        }
+
+        private static bool TestTryComputeMarkerX_Valid()
+        {
+            // Valid computation should return true with correct x position
+            bool success = Tools.TryComputeMarkerX(
+                value: 50, lower: 0, upper: 100, min: 0, max: 100, width: 200, out double x);
+            // At midpoint of full range: should be at midpoint of width
+            return success && Math.Abs(x - 100) < 1e-9;
+        }
+
+        private static bool TestTryComputeMarkerX_ZeroWidth()
+        {
+            // Width <= 0 should return false
+            bool successZero = Tools.TryComputeMarkerX(50, 0, 100, 0, 100, 0, out _);
+            bool successNegative = Tools.TryComputeMarkerX(50, 0, 100, 0, 100, -10, out _);
+            return !successZero && !successNegative;
+        }
+
+        private static bool TestTryComputeMarkerX_SwappedMinMax()
+        {
+            // Should handle min > max by swapping internally
+            bool success = Tools.TryComputeMarkerX(
+                value: 50, lower: 0, upper: 100, min: 100, max: 0, width: 200, out double x);
+            return success && Math.Abs(x - 100) < 1e-9;
+        }
+
+        private static bool TestTryAutoTuneLoadGain_BelowMinForce()
+        {
+            // When axisForce < minForce, should return false without changing gain
+            bool changed = Tools.TryAutoTuneLoadGain(
+                axisForceAbs: 5, loadForceAbs: 3, currentGain: 1.0,
+                minGainAbs: 0.1, maxGainAbs: 2.0,
+                ratioLow: 0.8, ratioHigh: 1.2, gainStep: 0.1, minForceAbs: 10,
+                out double updatedGain);
+            return !changed && updatedGain == 1.0;
+        }
+
+        private static bool TestTryAutoTuneLoadGain_RatioHigh()
+        {
+            // ratio > ratioHigh should decrease gain
+            // ratio = 15/10 = 1.5 > 1.2
+            bool changed = Tools.TryAutoTuneLoadGain(
+                axisForceAbs: 10, loadForceAbs: 15, currentGain: 1.0,
+                minGainAbs: 0.1, maxGainAbs: 2.0,
+                ratioLow: 0.8, ratioHigh: 1.2, gainStep: 0.1, minForceAbs: 5,
+                out double updatedGain);
+            return changed && Math.Abs(updatedGain - 0.9) < 1e-9;
+        }
+
+        private static bool TestTryAutoTuneLoadGain_RatioLow()
+        {
+            // ratio < ratioLow should increase gain
+            // ratio = 5/10 = 0.5 < 0.8
+            bool changed = Tools.TryAutoTuneLoadGain(
+                axisForceAbs: 10, loadForceAbs: 5, currentGain: 1.0,
+                minGainAbs: 0.1, maxGainAbs: 2.0,
+                ratioLow: 0.8, ratioHigh: 1.2, gainStep: 0.1, minForceAbs: 5,
+                out double updatedGain);
+            return changed && Math.Abs(updatedGain - 1.1) < 1e-9;
+        }
+
+        private static bool TestTryAutoTuneLoadGain_InRange()
+        {
+            // ratio in [ratioLow, ratioHigh] should return false, no change
+            // ratio = 10/10 = 1.0, which is between 0.8 and 1.2
+            bool changed = Tools.TryAutoTuneLoadGain(
+                axisForceAbs: 10, loadForceAbs: 10, currentGain: 1.0,
+                minGainAbs: 0.1, maxGainAbs: 2.0,
+                ratioLow: 0.8, ratioHigh: 1.2, gainStep: 0.1, minForceAbs: 5,
+                out double updatedGain);
+            return !changed && updatedGain == 1.0;
+        }
+
+        #endregion
+
+        #region CubicSpline Tests
+
+        private static bool TestInterpolate_LinearData()
+        {
+            // Linear points should produce linear interpolation
+            double[] xs = { 0, 1, 2, 3, 4 };
+            double[] ys = { 0, 1, 2, 3, 4 };
+            double[] xInterp = { 0.5, 1.5, 2.5, 3.5 };
+
+            var (yInterp, _, _) = Cubic.Interpolate(xs, ys, xInterp);
+
+            // For linear data, interpolated values should match x values
+            return Math.Abs(yInterp[0] - 0.5) < 1e-6 &&
+                   Math.Abs(yInterp[1] - 1.5) < 1e-6 &&
+                   Math.Abs(yInterp[2] - 2.5) < 1e-6 &&
+                   Math.Abs(yInterp[3] - 3.5) < 1e-6;
+        }
+
+        private static bool TestInterpolate_EndpointMatch()
+        {
+            // Interpolated endpoints should match original endpoints
+            double[] xs = { 0, 1, 2, 3, 4 };
+            double[] ys = { 0, 2, 1, 3, 4 };
+            double[] xInterp = { 0, 4 }; // endpoints
+
+            var (yInterp, _, _) = Cubic.Interpolate(xs, ys, xInterp);
+
+            return Math.Abs(yInterp[0] - ys[0]) < 1e-6 &&
+                   Math.Abs(yInterp[1] - ys[4]) < 1e-6;
+        }
+
+        private static bool TestInterpolate_Monotonic()
+        {
+            // Monotonic input should produce smooth output (no wild oscillations)
+            double[] xs = { 0, 1, 2, 3, 4 };
+            double[] ys = { 0, 1, 4, 9, 16 }; // quadratic-like
+            double[] xInterp = { 0.5, 1.5, 2.5, 3.5 };
+
+            var (yInterp, _, _) = Cubic.Interpolate(xs, ys, xInterp);
+
+            // Values should be increasing and within reasonable bounds
+            return yInterp[0] > 0 && yInterp[0] < 1 &&
+                   yInterp[1] > 1 && yInterp[1] < 4 &&
+                   yInterp[2] > 4 && yInterp[2] < 9 &&
+                   yInterp[3] > 9 && yInterp[3] < 16;
+        }
+
+        private static bool TestInterpolate1D_CountMatches()
+        {
+            // Output array should have requested count
+            double[] xs = { 0, 1, 2, 3, 4 };
+            double[] ys = { 0, 2, 1, 3, 4 };
+            int requestedCount = 20;
+
+            var (evenDistances, ysOut, _, _) = Cubic.Interpolate1D(xs, ys, requestedCount);
+
+            return evenDistances.Length == requestedCount && ysOut.Length == requestedCount;
+        }
+
+        private static bool TestInterpolate_MismatchedArrays()
+        {
+            // Mismatched array lengths should throw ArgumentException
+            double[] xs = { 0, 1, 2 };
+            double[] ys = { 0, 1 }; // different length
+
+            try
+            {
+                Cubic.Interpolate1D(xs, ys, 10);
+                return false; // Should have thrown
+            }
+            catch (ArgumentException)
+            {
+                return true;
+            }
+        }
+
+        #endregion
+
+        #region StringExtensions Tests
+
+        private static bool TestConstCaseToTitleCase()
+        {
+            // "HELLO_WORLD" -> "Hello World"
+            string result = "HELLO_WORLD".ConstCaseToTitleCaseSentence();
+            return result == "Hello World";
+        }
+
+        private static bool TestCamelCaseToTitleCase()
+        {
+            // "helloWorld" -> "hello World"
+            string result = "helloWorld".CamelCaseToTitleCase();
+            return result == "hello World";
+        }
+
+        #endregion
+
+        #region GeneralKinematics Tests
+
+        /// <summary>
+        /// Creates a minimal valid kinematics config for testing.
+        /// A simple 4-pin, 2-bar linkage with one metering bar.
+        /// </summary>
+        private static GeneralKinematicConfig CreateValidKinematicsConfig()
+        {
+            var config = new GeneralKinematicConfig();
+
+            // Pin 1: Grounded pivot
+            config.Pins.Add(new GeneralKinematicPin { PinId = 1, X = 0, Y = 0, Grounded = true });
+            // Pin 2: Middle of lever
+            config.Pins.Add(new GeneralKinematicPin { PinId = 2, X = 0, Y = 100 });
+            // Pin 3: Contact point at end of lever
+            config.Pins.Add(new GeneralKinematicPin { PinId = 3, X = 0, Y = 180, IsContactPoint = true });
+            // Pin 4: Rail interface (sled)
+            config.Pins.Add(new GeneralKinematicPin { PinId = 4, X = 250, Y = 23, IsRailInterface = true });
+
+            // Bar 1: Lever (3-pin collinear bar)
+            var bar1 = new GeneralKinematicBar();
+            bar1.PinIds.Add(1);
+            bar1.PinIds.Add(2);
+            bar1.PinIds.Add(3);
+            config.Bars.Add(bar1);
+
+            // Bar 2: Metering rod connecting pin 2 to sled
+            var bar2 = new GeneralKinematicBar { IsMetering = true };
+            bar2.PinIds.Add(2);
+            bar2.PinIds.Add(4);
+            config.Bars.Add(bar2);
+
+            config.RailTravelNegative = 0;
+            config.RailTravelPositive = 60;
+
+            return config;
+        }
+
+        private static bool TestCalcKinematicParameters_NullConfig()
+        {
+            try
+            {
+                GeneralKinematics.CalcKinematicParameters(null);
+                return false; // Should have thrown
+            }
+            catch (ArgumentNullException)
+            {
+                return true;
+            }
+        }
+
+        private static bool TestCalcKinematicParameters_NoPins()
+        {
+            try
+            {
+                var config = new GeneralKinematicConfig();
+                // No pins added
+                var bar = new GeneralKinematicBar();
+                bar.PinIds.Add(1);
+                bar.PinIds.Add(2);
+                config.Bars.Add(bar);
+                config.RailTravelPositive = 10;
+
+                GeneralKinematics.CalcKinematicParameters(config);
+                return false; // Should have thrown
+            }
+            catch (ArgumentException ex) when (ex.Message.Contains("pins"))
+            {
+                return true;
+            }
+        }
+
+        private static bool TestCalcKinematicParameters_NoBars()
+        {
+            try
+            {
+                var config = new GeneralKinematicConfig();
+                config.Pins.Add(new GeneralKinematicPin { PinId = 1, X = 0, Y = 0, Grounded = true });
+                config.Pins.Add(new GeneralKinematicPin { PinId = 2, X = 10, Y = 0, IsContactPoint = true });
+                // No bars added
+                config.RailTravelPositive = 10;
+
+                GeneralKinematics.CalcKinematicParameters(config);
+                return false; // Should have thrown
+            }
+            catch (ArgumentException ex) when (ex.Message.Contains("bars"))
+            {
+                return true;
+            }
+        }
+
+        private static bool TestCalcKinematicParameters_NegativeTravel()
+        {
+            try
+            {
+                var config = CreateValidKinematicsConfig();
+                config.RailTravelNegative = -5; // Negative value not allowed
+
+                GeneralKinematics.CalcKinematicParameters(config);
+                return false; // Should have thrown
+            }
+            catch (ArgumentException ex) when (ex.Message.Contains("rail_travel"))
+            {
+                return true;
+            }
+        }
+
+        private static bool TestSimpleLinkage_Computes()
+        {
+            // A valid configuration should compute without throwing
+            var config = CreateValidKinematicsConfig();
+
+            try
+            {
+                var parameters = GeneralKinematics.CalcKinematicParameters(config);
+
+                // Should have polynomial coefficients
+                if (parameters.CoeffsSledPosOverContactPointPos.Count == 0) return false;
+                if (parameters.CoeffsForceFactorOverContactPointPos.Count == 0) return false;
+
+                // Contact point range should be non-zero
+                if (parameters.ContactPointPosMinAbs == 0 && parameters.ContactPointPosMaxAbs == 0) return false;
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool TestRailTravel_Bounds()
+        {
+            // Contact positions should be bounded within expected range
+            var config = CreateValidKinematicsConfig();
+
+            var poseCache = GeneralKinematics.BuildPoseCache(config);
+
+            // ContactPositions array should span a reasonable range
+            double minContact = poseCache.ContactPositions.Min();
+            double maxContact = poseCache.ContactPositions.Max();
+
+            // The range should be non-zero (there should be movement)
+            if (Math.Abs(maxContact - minContact) < 1e-6) return false;
+
+            // Rail offsets should span from -RailTravelNegative to +RailTravelPositive
+            double minRail = poseCache.RailOffsets.Min();
+            double maxRail = poseCache.RailOffsets.Max();
+
+            // Allow small tolerance for floating point
+            if (Math.Abs(minRail - (-config.RailTravelNegative)) > 0.1) return false;
+            if (Math.Abs(maxRail - config.RailTravelPositive) > 0.1) return false;
+
+            return true;
+        }
+
+        private static bool TestPoseCache_PinCount()
+        {
+            var config = CreateValidKinematicsConfig();
+            var poseCache = GeneralKinematics.BuildPoseCache(config);
+
+            // Should have as many pin IDs as pins in config
+            if (poseCache.PinIds.Length != config.Pins.Count) return false;
+
+            // Each sample should have position arrays for all pins
+            if (poseCache.PinPositionsX[0].Length != config.Pins.Count) return false;
+            if (poseCache.PinPositionsY[0].Length != config.Pins.Count) return false;
+
+            return true;
+        }
+
+        private static bool TestPoseCache_SampleCount()
+        {
+            var config = CreateValidKinematicsConfig();
+            var poseCache = GeneralKinematics.BuildPoseCache(config);
+
+            // SampleCount is 200 (private const in GeneralKinematics)
+            const int expectedSampleCount = 200;
+
+            if (poseCache.RailOffsets.Length != expectedSampleCount) return false;
+            if (poseCache.ContactPositions.Length != expectedSampleCount) return false;
+            if (poseCache.PinPositionsX.Length != expectedSampleCount) return false;
+            if (poseCache.PinPositionsY.Length != expectedSampleCount) return false;
+
+            return true;
+        }
+
+        private static bool TestCollinearPins_Handled()
+        {
+            // A bar with collinear pins should be handled properly (treated as rigid bar)
+            var config = CreateValidKinematicsConfig();
+            // The 3-pin bar (pins 1,2,3) is already collinear in the test config
+
+            try
+            {
+                var poseCache = GeneralKinematics.BuildPoseCache(config);
+
+                // All samples should have valid positions (no NaN)
+                for (int i = 0; i < poseCache.ContactPositions.Length; i++)
+                {
+                    if (double.IsNaN(poseCache.ContactPositions[i])) return false;
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool TestZeroLengthBar_Throws()
+        {
+            // A bar with two pins at the same location should throw
+            try
+            {
+                var config = new GeneralKinematicConfig();
+                config.Pins.Add(new GeneralKinematicPin { PinId = 1, X = 0, Y = 0, Grounded = true });
+                config.Pins.Add(new GeneralKinematicPin { PinId = 2, X = 0, Y = 0 }); // Same position!
+                config.Pins.Add(new GeneralKinematicPin { PinId = 3, X = 50, Y = 50, IsContactPoint = true });
+                config.Pins.Add(new GeneralKinematicPin { PinId = 4, X = 100, Y = 0, IsRailInterface = true });
+
+                var bar1 = new GeneralKinematicBar();
+                bar1.PinIds.Add(1);
+                bar1.PinIds.Add(2); // Zero-length bar!
+                config.Bars.Add(bar1);
+
+                var bar2 = new GeneralKinematicBar { IsMetering = true };
+                bar2.PinIds.Add(2);
+                bar2.PinIds.Add(4);
+                config.Bars.Add(bar2);
+
+                config.RailTravelPositive = 30;
+
+                GeneralKinematics.CalcKinematicParameters(config);
+                return false; // Should have thrown
+            }
+            catch (ArgumentException ex) when (ex.Message.Contains("length"))
+            {
+                return true;
+            }
+        }
+
+        private static bool TestMissingContactPoint_Throws()
+        {
+            // Config without a contact point pin should throw
+            try
+            {
+                var config = new GeneralKinematicConfig();
+                config.Pins.Add(new GeneralKinematicPin { PinId = 1, X = 0, Y = 0, Grounded = true });
+                config.Pins.Add(new GeneralKinematicPin { PinId = 2, X = 50, Y = 0 }); // No IsContactPoint!
+                config.Pins.Add(new GeneralKinematicPin { PinId = 3, X = 100, Y = 0, IsRailInterface = true });
+
+                var bar = new GeneralKinematicBar { IsMetering = true };
+                bar.PinIds.Add(1);
+                bar.PinIds.Add(2);
+                config.Bars.Add(bar);
+
+                config.RailTravelPositive = 30;
+
+                GeneralKinematics.CalcKinematicParameters(config);
+                return false; // Should have thrown
+            }
+            catch (ArgumentException ex) when (ex.Message.Contains("contact point"))
+            {
+                return true;
+            }
+        }
+
+        private static bool TestMissingRailInterface_Throws()
+        {
+            // Config without a rail interface pin should throw
+            try
+            {
+                var config = new GeneralKinematicConfig();
+                config.Pins.Add(new GeneralKinematicPin { PinId = 1, X = 0, Y = 0, Grounded = true });
+                config.Pins.Add(new GeneralKinematicPin { PinId = 2, X = 50, Y = 0, IsContactPoint = true });
+                config.Pins.Add(new GeneralKinematicPin { PinId = 3, X = 100, Y = 0 }); // No IsRailInterface!
+
+                var bar = new GeneralKinematicBar { IsMetering = true };
+                bar.PinIds.Add(1);
+                bar.PinIds.Add(2);
+                config.Bars.Add(bar);
+
+                config.RailTravelPositive = 30;
+
+                GeneralKinematics.CalcKinematicParameters(config);
+                return false; // Should have thrown
+            }
+            catch (ArgumentException ex) when (ex.Message.Contains("rail interface"))
+            {
+                return true;
             }
         }
 

@@ -1,27 +1,39 @@
 # Session Handoff
 
-Date: 2026-01-31
-Last commit: `8b289671` — Add dark title bar to remaining dialog windows
+Date: 2026-02-01
+Last commit: `a688c128` — Fix ILRepack Release build by adding .NET Framework lib path
 
 ## What Was Done This Session
 
-### Graph Editor Bug Fixes
+### Unit Test Expansion - Phase 2 Complete
 
-Fixed three bugs in the graph editor:
+Implemented Phase 2 (GeneralKinematics tests) from [Plan 22](SimHubPlugin/Docs/plans/22_Unit_Test_Expansion_Plan.md):
 
-1. **Node deletion requiring deselection** — `Node_MouseRightButtonDown` now selects the right-clicked node and sets `e.Handled = true` to prevent event bubbling. Previously, right-clicking a node didn't select it, so Delete key and context menu deletion failed until user left-clicked first.
+**Added 12 new tests:**
 
-2. **Inspector showing wrong values** — `EditIncludePath_TextChanged` and `InspectorSignalGroup_SelectionChanged` now validate `DataContext` with `ReferenceEquals` check (matching other inspector handlers). Previously, stale events could update the wrong node.
+1. **Input validation tests (4 tests):**
+   - `TestCalcKinematicParameters_NullConfig` - Verifies ArgumentNullException
+   - `TestCalcKinematicParameters_NoPins` - Verifies ArgumentException for empty pins
+   - `TestCalcKinematicParameters_NoBars` - Verifies ArgumentException for empty bars
+   - `TestCalcKinematicParameters_NegativeTravel` - Verifies ArgumentException for negative travel
 
-3. **CloseTab bypassing SharedGraphSaveDialog** — When closing a dirty tab and clicking "Yes" to save, now checks if graph is shared and shows `SharedGraphSaveDialog` with Cancel/SaveAsCopy/SaveAnyway options. Previously saved directly without the shared graph warning.
+2. **Known geometry tests (4 tests):**
+   - `TestSimpleLinkage_Computes` - Valid 4-pin 2-bar linkage produces coefficients
+   - `TestRailTravel_Bounds` - Contact positions span expected rail travel range
+   - `TestPoseCache_PinCount` - PoseCache has correct pin count matching config
+   - `TestPoseCache_SampleCount` - PoseCache has 200 samples as expected
 
-4. **Escape key deselects** — Pressing Escape clears node and edge selection.
+3. **Edge case tests (4 tests):**
+   - `TestCollinearPins_Handled` - Collinear 3-pin bars work correctly
+   - `TestZeroLengthBar_Throws` - Zero-length bars throw ArgumentException
+   - `TestMissingContactPoint_Throws` - Missing contact point throws
+   - `TestMissingRailInterface_Throws` - Missing rail interface throws
 
-**Updated files:** `SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs`, `SimHubPlugin/GraphEditor/GraphEditorWindow.xaml.cs`
+**Infrastructure change:** Added `Google.Protobuf` package reference to `GraphTest.csproj` (required for protobuf message types).
 
 ## Build Status
 
-Build compiles successfully. 77/77 tests pass.
+Build compiles successfully (Debug and Release). **107/107 tests pass** (was 95).
 
 ## Build & Test Commands
 
@@ -34,7 +46,14 @@ MSYS_NO_PATHCONV=1 "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBu
 "d:\Projects\DIY-Sim-Racing-FFB-Pedal\SimHubPlugin\GraphTest\bin\Debug\net48\GraphTest.exe"
 ```
 
+## Next Steps
+
+Continue Plan 22:
+
+- **Phase 3:** GraphRuntimeConverter tests (~15 tests) — catches conversion bugs between editor and runtime formats
+
 ## Related Documents
 
+- [Plan 22: Unit Test Expansion](SimHubPlugin/Docs/plans/22_Unit_Test_Expansion_Plan.md) — Phases 1-2 complete, Phases 3-5 pending
 - [Plan 21: Themed MessageBox](SimHubPlugin/Docs/plans/21_Themed_MessageBox_Plan.md) — Implemented
-- [Plan 20: FFB Graph Tab Removal](SimHubPlugin/Docs/plans/20_FFB_Graph_Tab_Removal.md)
+- [Plan 20: FFB Graph Tab Removal](SimHubPlugin/Docs/plans/20_FFB_Graph_Tab_Removal.md) — Implemented
