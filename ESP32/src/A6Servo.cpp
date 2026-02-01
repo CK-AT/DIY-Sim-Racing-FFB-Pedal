@@ -196,6 +196,11 @@ bool A6Servo::disable(void) {
 
 bool A6Servo::home(void) {
     if (_state != State::Enabled) return false;
+    // Reset resettable faults before homing (F31.00 = 1)
+    if (_last_fault_code != 0) {
+        write_hold_register<uint16_t>(0x3E00, 1);
+        LogOutput::printf("A6Servo: Fault reset requested before homing");
+    }
     _homing_state = HomingState::Pending;
     return true;
 }
