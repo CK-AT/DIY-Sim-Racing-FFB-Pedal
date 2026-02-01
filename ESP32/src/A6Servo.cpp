@@ -1,6 +1,62 @@
 #include <A6Servo.h>
 #include <LogOutput.h>
 
+// Fault code lookup table: code -> {description, resettable}
+struct FaultInfo {
+    uint16_t code;
+    const char* description;
+    bool resettable;
+};
+
+static const FaultInfo fault_table[] = {
+    // Class 1: Non-resettable hardware faults
+    {0x0600, "Er06.0 Runaway protection", false},
+    {0x1400, "Er20.0 Encoder disconnected", false},
+    {0x1401, "Er20.1 Encoder internal fault", false},
+    {0x1500, "Er21.0 Encoder count error", false},
+    {0x1600, "Er22.0 Encoder multi-turn overflow", false},
+    {0x1700, "Er23.0 Encoder battery low", false},
+    {0x1701, "Er23.1 Encoder battery disconnected", false},
+    // Class 2: Resettable faults
+    {0x2800, "Er40.0 Drive overload", true},
+    {0x2900, "Er41.0 Motor overload", true},
+    {0x2901, "Er41.1 Motor over-temp (locked rotor)", true},
+    {0x2A00, "Er42.0 IGBT temp too high", true},
+    {0x2A02, "Er42.2 Heatsink temp too high", true},
+    {0x2B00, "Er43.0 Main circuit overvoltage", true},
+    {0x2B01, "Er43.1 Main circuit undervoltage", true},
+    {0x2C00, "Er44.0 Brake resistor overload", true},
+    {0x2D00, "Er45.0 Motor wire break", true},
+    {0x2E00, "Er46.0 Motor overspeed", true},
+    {0x2F00, "Er47.0 Position deviation overflow (static)", true},
+    {0x2F01, "Er47.1 Position deviation overflow (running)", true},
+    {0x3000, "Er48.0 Full-closed loop deviation overflow", true},
+    {0x3100, "Er49.0 Output phase loss", true},
+    {0x3200, "Er50.0 IPM protection", true},
+    {0x3400, "Er52.0 Output short-circuit", true},
+    {0x3500, "Er53.0 Brake circuit fault", true},
+    {0x3800, "Er56.0 Inrush resistor fault", true},
+    // Class 3: Alarms (resettable)
+    {0xF200, "ALF2.0 Forward overtravel", true},
+    {0xF201, "ALF2.1 Reverse overtravel", true},
+    {0xF400, "ALF4.0 Homing timeout", true},
+    {0xF401, "ALF4.1 Homing interrupted", true},
+    {0xF600, "ALF6.0 Input phase loss", true},
+    {0xFA00, "ALFA.0 Drive high temp warning", true},
+    {0, nullptr, false}  // sentinel
+};
+
+static const char* get_fault_description(uint16_t code, bool* resettable) {
+    for (const FaultInfo* f = fault_table; f->description != nullptr; f++) {
+        if (f->code == code) {
+            if (resettable) *resettable = f->resettable;
+            return f->description;
+        }
+    }
+    if (resettable) *resettable = (code >= 0x2800);  // Class 2+ are generally resettable
+    return nullptr;
+}
+
 void A6Servo::periodic_task_func(void) {
     if (ti_pause_end && (esp_timer_get_time() > ti_pause_end)) {
         ti_pause_end = 0;
@@ -11,6 +67,25 @@ void A6Servo::periodic_task_func(void) {
     } else if (!_locking_blocked && _homing_state == HomingState::Homed && _state == State::Enabled) {
         if (_curr_pos_valid) {
             lock_onto_curr_pos();
+        }
+    }
+
+    // Poll fault register (U41.00 = 0x4100)
+    uint16_t fault_code = 0;
+    if (read_hold_register<uint16_t>(0x4100, fault_code) == Modbus::Error::SUCCESS) {
+        if (fault_code != _last_fault_code) {
+            if (fault_code != 0) {
+                bool resettable = false;
+                const char* desc = get_fault_description(fault_code, &resettable);
+                if (desc) {
+                    LogOutput::printf("A6Servo: FAULT %s [%s]", desc, resettable ? "resettable" : "non-resettable");
+                } else {
+                    LogOutput::printf("A6Servo: FAULT 0x%04X (unknown)", fault_code);
+                }
+            } else if (_last_fault_code != 0) {
+                LogOutput::printf("A6Servo: Fault cleared");
+            }
+            _last_fault_code = fault_code;
         }
     }
 }

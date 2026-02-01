@@ -105,6 +105,7 @@ class A6Servo : public Servo {
         float _spd_open_loop = 200.0;
         bool _reverse_motion = false;
         HomingDirection _homing_direction = HomingDirection::Negative;
+        uint16_t _last_fault_code = 0;
         static void task_func(void* pv_parameters) {
             A6Servo* servo = (A6Servo*)pv_parameters;
             delay(1000);
