@@ -18,7 +18,7 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 ## Core Concepts
 ### Graph Definition
 - Directed acyclic graph (DAG) of nodes with typed input/output ports.
-- Graph schema versioned (v1 for now).
+- Graph schema versioned (currently v3).
 - Nodes:
   - Input: pulls a named input value.
   - Param: pulls a tunable parameter.
