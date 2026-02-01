@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Windows.Media.Converters;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     /// <summary>
     /// Settings class, make sure it can be correctly serialized using JSON.net

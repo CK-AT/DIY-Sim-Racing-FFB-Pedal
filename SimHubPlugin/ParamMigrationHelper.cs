@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     /// <summary>
     /// Testable helper class for parameter migration logic.

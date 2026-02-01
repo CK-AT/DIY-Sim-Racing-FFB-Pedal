@@ -14,10 +14,10 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Windows.Media;
-using User.PluginSdkDemo.GraphEditor;
+using DiyFfb.GraphEditor;
 using Windows.UI.Notifications;
 using IPlugin = SimHub.Plugins.IPlugin;
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     /// <summary>
     /// Category of the active graph, used to customize the Vehicle/Aircraft tab.

@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 
-namespace User.PluginSdkDemo.Helpers
+namespace DiyFfb.Helpers
 {
     /// <summary>
     /// Helper to enable dark mode title bar on Windows 10/11 windows.

@@ -11,7 +11,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using MahApps.Metro.Controls;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     /// <summary>
     /// Interaction logic for ShifterConfigControl.xaml

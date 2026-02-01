@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using Google.Protobuf;
-using User.PluginSdkDemo;
+using DiyFfb;
 using SimHubPlugin.TestCommon;
 
 namespace DiyFfb.KinematicsTests

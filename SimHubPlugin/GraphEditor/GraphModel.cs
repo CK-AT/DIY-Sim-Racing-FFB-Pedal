@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace User.PluginSdkDemo.GraphEditor
+namespace DiyFfb.GraphEditor
 {
     public enum GraphNodeKind
     {

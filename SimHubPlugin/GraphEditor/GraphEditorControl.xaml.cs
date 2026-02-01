@@ -15,10 +15,10 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using DiyFfb.GraphTest;
-using User.PluginSdkDemo;
-using User.PluginSdkDemo.Controls;
+using DiyFfb;
+using DiyFfb.Controls;
 
-namespace User.PluginSdkDemo.GraphEditor
+namespace DiyFfb.GraphEditor
 {
     public partial class GraphEditorControl : UserControl
     {

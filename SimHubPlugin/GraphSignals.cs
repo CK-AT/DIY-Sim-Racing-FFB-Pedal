@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using GameReaderCommon;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     public static class GraphSignalCatalog
     {

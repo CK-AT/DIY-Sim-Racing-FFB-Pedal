@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     public class Function : INotifyPropertyChanged
     {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -8,7 +8,7 @@ using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using MahApps.Metro.Controls;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     /// <summary>
     /// Interaction logic for SplineForceCurve.xaml

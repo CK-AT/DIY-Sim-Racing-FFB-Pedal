@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     public static class GraphSignalCatalogData
     {

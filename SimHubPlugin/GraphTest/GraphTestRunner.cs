@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using User.PluginSdkDemo;
-using User.PluginSdkDemo.GraphEditor;
-using GraphEditor = User.PluginSdkDemo.GraphEditor;
+using DiyFfb;
+using DiyFfb.GraphEditor;
+using GraphEditor = DiyFfb.GraphEditor;
 using SimHubPlugin.TestCommon;
 
 namespace DiyFfb.GraphTest

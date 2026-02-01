@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Windows;
-using User.PluginSdkDemo.Controls;
-using User.PluginSdkDemo.Helpers;
+using DiyFfb.Controls;
+using DiyFfb.Helpers;
 
-namespace User.PluginSdkDemo.GraphEditor
+namespace DiyFfb.GraphEditor
 {
     public partial class GraphTemplateSelectorDialog : Window
     {

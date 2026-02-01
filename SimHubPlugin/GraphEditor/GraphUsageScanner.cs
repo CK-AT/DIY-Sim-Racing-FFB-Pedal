@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace User.PluginSdkDemo.GraphEditor
+namespace DiyFfb.GraphEditor
 {
     /// <summary>
     /// Result of scanning graph usage across vehicles and includes.

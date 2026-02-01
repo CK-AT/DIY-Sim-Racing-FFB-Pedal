@@ -1,11 +1,11 @@
-﻿using ProtbufTest;
+using ProtbufTest;
 using System;
 using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     public class Axis : INotifyPropertyChanged
     {

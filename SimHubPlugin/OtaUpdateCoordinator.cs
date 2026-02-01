@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     public class OtaUpdateCoordinator
     {

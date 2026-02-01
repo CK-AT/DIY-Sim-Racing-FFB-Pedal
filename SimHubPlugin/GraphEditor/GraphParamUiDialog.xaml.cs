@@ -2,9 +2,9 @@ using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows;
-using User.PluginSdkDemo.Helpers;
+using DiyFfb.Helpers;
 
-namespace User.PluginSdkDemo.GraphEditor
+namespace DiyFfb.GraphEditor
 {
     public partial class GraphParamUiDialog : Window
     {

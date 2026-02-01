@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace User.PluginSdkDemo.GraphEditor
+namespace DiyFfb.GraphEditor
 {
     /// <summary>
     /// Holds copied graph content for clipboard operations.

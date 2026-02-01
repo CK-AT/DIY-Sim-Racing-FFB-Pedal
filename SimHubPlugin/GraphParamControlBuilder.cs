@@ -3,9 +3,9 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using User.PluginSdkDemo.GraphEditor;
+using DiyFfb.GraphEditor;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     /// <summary>
     /// Utility class for building WPF controls from graph parameter definitions.

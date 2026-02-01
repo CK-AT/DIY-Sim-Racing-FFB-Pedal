@@ -2,9 +2,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows;
-using User.PluginSdkDemo.Helpers;
+using DiyFfb.Helpers;
 
-namespace User.PluginSdkDemo.GraphEditor
+namespace DiyFfb.GraphEditor
 {
     /// <summary>
     /// Result of the SharedGraphSaveDialog.

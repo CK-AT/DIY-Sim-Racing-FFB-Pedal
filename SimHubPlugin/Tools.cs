@@ -1,10 +1,10 @@
-﻿
+
 using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Windows.Controls;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     internal class Tools
     {

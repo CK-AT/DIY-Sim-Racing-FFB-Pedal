@@ -8,10 +8,10 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
 using Microsoft.Win32;
-using User.PluginSdkDemo.Controls;
-using User.PluginSdkDemo.Helpers;
+using DiyFfb.Controls;
+using DiyFfb.Helpers;
 
-namespace User.PluginSdkDemo.GraphEditor
+namespace DiyFfb.GraphEditor
 {
     /// <summary>
     /// Converts true to Collapsed, false to Visible.

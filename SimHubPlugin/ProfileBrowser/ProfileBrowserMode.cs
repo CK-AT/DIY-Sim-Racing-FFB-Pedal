@@ -1,4 +1,4 @@
-namespace User.PluginSdkDemo.ProfileBrowser
+namespace DiyFfb.ProfileBrowser
 {
     /// <summary>
     /// Defines the context in which the Profile Browser dialog is opened.

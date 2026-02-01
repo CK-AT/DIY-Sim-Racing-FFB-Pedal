@@ -1,4 +1,4 @@
-<Window x:Class="User.PluginSdkDemo.Controls.ThemedMessageBox"
+<Window x:Class="DiyFfb.Controls.ThemedMessageBox"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Message"

@@ -4,11 +4,11 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using Newtonsoft.Json;
-using User.PluginSdkDemo.Controls;
-using User.PluginSdkDemo.GraphEditor;
-using User.PluginSdkDemo.Helpers;
+using DiyFfb.Controls;
+using DiyFfb.GraphEditor;
+using DiyFfb.Helpers;
 
-namespace User.PluginSdkDemo.ProfileBrowser
+namespace DiyFfb.ProfileBrowser
 {
     public partial class ProfileBrowserDialog : Window
     {

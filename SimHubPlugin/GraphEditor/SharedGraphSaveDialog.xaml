@@ -1,4 +1,4 @@
-<Window x:Class="User.PluginSdkDemo.GraphEditor.SharedGraphSaveDialog"
+<Window x:Class="DiyFfb.GraphEditor.SharedGraphSaveDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Save Shared Graph"

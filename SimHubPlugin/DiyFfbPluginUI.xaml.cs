@@ -18,14 +18,14 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using User.PluginSdkDemo.Controls;
-using User.PluginSdkDemo.GraphEditor;
-using User.PluginSdkDemo.ProfileBrowser;
+using DiyFfb.Controls;
+using DiyFfb.GraphEditor;
+using DiyFfb.ProfileBrowser;
 using System.Windows.Data;
 using vJoyInterfaceWrap;
 using Windows.UI.Notifications;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     /// <summary>
     /// Interaction logic for DiyFfbPluginUI.xaml

@@ -1,8 +1,8 @@
 using System.ComponentModel;
 using System.IO;
-using User.PluginSdkDemo.GraphEditor;
+using DiyFfb.GraphEditor;
 
-namespace User.PluginSdkDemo.ProfileBrowser
+namespace DiyFfb.ProfileBrowser
 {
     /// <summary>
     /// Identifies the source of a profile browser entry.

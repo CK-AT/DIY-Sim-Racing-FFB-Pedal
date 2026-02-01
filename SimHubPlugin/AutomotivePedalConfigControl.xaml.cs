@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using MahApps.Metro.Controls;
-using User.PluginSdkDemo.Controls;
+using DiyFfb.Controls;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     /// <summary>
     /// Interaction logic for AutomotivePedalEffects.xaml

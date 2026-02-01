@@ -4,7 +4,7 @@ using System.Linq;
 using MathNet.Numerics;
 using MathNet.Numerics.LinearAlgebra;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     public static class GeneralKinematics
     {

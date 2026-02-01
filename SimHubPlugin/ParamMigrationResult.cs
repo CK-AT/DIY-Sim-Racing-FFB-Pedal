@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     /// <summary>
     /// Result of parameter migration when graph hash changes.

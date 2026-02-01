@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using RuntimeGraphDefinition = DiyFfb.GraphTest.GraphDefinition;
 
-namespace User.PluginSdkDemo.GraphEditor
+namespace DiyFfb.GraphEditor
 {
     public sealed class GraphPreviewEvaluator
     {

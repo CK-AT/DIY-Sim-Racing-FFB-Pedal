@@ -11,9 +11,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
-using User.PluginSdkDemo.Helpers;
+using DiyFfb.Helpers;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     public partial class SerialMonitor_Window : Window
     {

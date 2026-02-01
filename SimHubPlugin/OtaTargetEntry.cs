@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     public class OtaTargetEntry : INotifyPropertyChanged
     {

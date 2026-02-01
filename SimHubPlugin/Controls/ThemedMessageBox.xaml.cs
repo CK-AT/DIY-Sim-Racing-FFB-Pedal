@@ -3,7 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 
-namespace User.PluginSdkDemo.Controls
+namespace DiyFfb.Controls
 {
     /// <summary>
     /// A dark-themed message box that matches the plugin's visual style.

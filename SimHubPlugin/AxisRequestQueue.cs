@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Windows.Threading;
 using ProtbufTest;
 
-namespace User.PluginSdkDemo
+namespace DiyFfb
 {
     public enum AxisRequestType
     {
