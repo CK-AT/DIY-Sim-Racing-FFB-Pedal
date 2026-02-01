@@ -165,19 +165,20 @@ void A6Servo::do_homing(void) {
         }
     };
     // Start drive-controlled homing first
-    write_hold_register<int16_t>(0x1001, homing_negative ? -1 : -2); // homing mode = search for mechanical limit in configured direction
-    write_hold_register<int16_t>(0x1002, _spd_open_loop / 2.0); // set initial homing speed to half of the open loop speed to avoid getting stuck
+    // Mode 35 = current position as home (skip mechanical limit + Z pulse search)
+    // This avoids Er47.1 position deviation overflow during Z pulse reversal on some axes
+    // The stepper verification phase below handles actual endstop detection
+    write_hold_register<int16_t>(0x1001, 35);
     write_hold_register<uint16_t>(0x1000, 0);        // homing off
     delay(100);
     write_hold_register<uint16_t>(0x1000, 1);  // homing on
-    LogOutput::printf("A6Servo: Waiting for %s endstop (drive auto-homing)...", first_endstop);
-    wait_for_stop(20, 100);
-    _stepper_engine->force_stop();
-    write_hold_register<uint16_t>(0x1000, 0);  // reset homing command after drive homing
-    int32_t pos_endstop_first_auto = read_position();
-    LogOutput::printf("A6Servo: Drive homing stopped @ %i counts, verifying mechanical endstop with stepper...", pos_endstop_first_auto);
+    LogOutput::printf("A6Servo: Setting current position as home, starting stepper verification...");
+    delay(200);  // brief delay for mode 35 to complete
+    write_hold_register<uint16_t>(0x1000, 0);  // reset homing command
+    int32_t pos_start = read_position();
+    LogOutput::printf("A6Servo: Home set @ %i counts, searching for %s endstop...", pos_start, first_endstop);
 
-    // Verify/mechanically settle at first endstop to account for angular mounting tolerances
+    // Find first endstop using stepper
     uint32_t homing_speed_counts = (_steps_per_mm * _mm_per_rev) * (_spd_open_loop / 60.0);  // unified homing speed
     if (homing_negative) {
         _stepper_engine->keep_running_backward(homing_speed_counts);
