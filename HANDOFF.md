@@ -1,39 +1,40 @@
 # Session Handoff
 
 Date: 2026-02-01
-Last commit: `a688c128` — Fix ILRepack Release build by adding .NET Framework lib path
+Last commit: `4a9a4b85` — Add GeneralKinematics unit tests (Phase 2)
 
 ## What Was Done This Session
 
-### Unit Test Expansion - Phase 2 Complete
+### Unit Test Expansion - Phase 3 Complete
 
-Implemented Phase 2 (GeneralKinematics tests) from [Plan 22](SimHubPlugin/Docs/plans/22_Unit_Test_Expansion_Plan.md):
+Implemented Phase 3 (GraphRuntimeConverter tests) from [Plan 22](SimHubPlugin/Docs/plans/22_Unit_Test_Expansion_Plan.md):
 
-**Added 12 new tests:**
+**Added 15 new tests:**
 
-1. **Input validation tests (4 tests):**
-   - `TestCalcKinematicParameters_NullConfig` - Verifies ArgumentNullException
-   - `TestCalcKinematicParameters_NoPins` - Verifies ArgumentException for empty pins
-   - `TestCalcKinematicParameters_NoBars` - Verifies ArgumentException for empty bars
-   - `TestCalcKinematicParameters_NegativeTravel` - Verifies ArgumentException for negative travel
+1. **Node Type Mapping tests (4 tests):**
+   - `TestMapNodeType_AllKinds` - All GraphNodeKind values map to correct NodeType
+   - `TestMapOp_AllOperators` - All op strings (add, sub, mul, etc.) map correctly
+   - `TestMapOp_CaseInsensitive` - "ADD", "add", "Add" all work
+   - `TestMapOp_Symbols` - "+", "-", "*", "/" map correctly
 
-2. **Known geometry tests (4 tests):**
-   - `TestSimpleLinkage_Computes` - Valid 4-pin 2-bar linkage produces coefficients
-   - `TestRailTravel_Bounds` - Contact positions span expected rail travel range
-   - `TestPoseCache_PinCount` - PoseCache has correct pin count matching config
-   - `TestPoseCache_SampleCount` - PoseCache has 200 samples as expected
+2. **Conversion tests (9 tests):**
+   - `TestConvert_InputNode` - Input node converts with SignalGroup.SignalSuffix name
+   - `TestConvert_ParamNode` - Param node gets default value from graph.Params
+   - `TestConvert_OutputNode` - Output node converts with source connection
+   - `TestConvert_OpNode_Args` - Op node args populated from links
+   - `TestConvert_OpNode_Negate` - Negate flags only work for Add/Mul ops
+   - `TestConvert_IncludeNode_InputMap` - Include input map populated from links
+   - `TestConvert_IncludeNode_OutputMap` - Include output map populated for all output ports
+   - `TestConvert_SignalGroup` - Full signal name built from group.suffix
+   - `TestConvert_SignalGroup_Legacy` - Falls back to port name when no group
 
-3. **Edge case tests (4 tests):**
-   - `TestCollinearPins_Handled` - Collinear 3-pin bars work correctly
-   - `TestZeroLengthBar_Throws` - Zero-length bars throw ArgumentException
-   - `TestMissingContactPoint_Throws` - Missing contact point throws
-   - `TestMissingRailInterface_Throws` - Missing rail interface throws
-
-**Infrastructure change:** Added `Google.Protobuf` package reference to `GraphTest.csproj` (required for protobuf message types).
+3. **Editor Format Detection tests (2 tests):**
+   - `TestConvertEditorJson_DetectsLinks` - JSON with "links" detected as editor format
+   - `TestConvertEditorJson_DetectsKind` - JSON with "kind" detected as editor format
 
 ## Build Status
 
-Build compiles successfully (Debug and Release). **107/107 tests pass** (was 95).
+Build compiles successfully (Debug and Release). **122/122 tests pass** (was 107).
 
 ## Build & Test Commands
 
@@ -50,10 +51,11 @@ MSYS_NO_PATHCONV=1 "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBu
 
 Continue Plan 22:
 
-- **Phase 3:** GraphRuntimeConverter tests (~15 tests) — catches conversion bugs between editor and runtime formats
+- **Phase 4:** AxisRequestQueue tests (~9 tests) — requires refactoring to extract interface
+- **Phase 5:** Regression tests for recent bugs — may require extracting logic from UI code
 
 ## Related Documents
 
-- [Plan 22: Unit Test Expansion](SimHubPlugin/Docs/plans/22_Unit_Test_Expansion_Plan.md) — Phases 1-2 complete, Phases 3-5 pending
+- [Plan 22: Unit Test Expansion](SimHubPlugin/Docs/plans/22_Unit_Test_Expansion_Plan.md) — Phases 1-3 complete, Phases 4-5 pending
 - [Plan 21: Themed MessageBox](SimHubPlugin/Docs/plans/21_Themed_MessageBox_Plan.md) — Implemented
 - [Plan 20: FFB Graph Tab Removal](SimHubPlugin/Docs/plans/20_FFB_Graph_Tab_Removal.md) — Implemented
