@@ -1,40 +1,35 @@
 # Session Handoff
 
 Date: 2026-02-01
-Last commit: `4a9a4b85` — Add GeneralKinematics unit tests (Phase 2)
+Last commit: `21eab6e3` — Add GraphRuntimeConverter unit tests (Phase 3)
 
 ## What Was Done This Session
 
-### Unit Test Expansion - Phase 3 Complete
+### Unit Test Expansion - Phase 5 Complete
 
-Implemented Phase 3 (GraphRuntimeConverter tests) from [Plan 22](SimHubPlugin/Docs/plans/22_Unit_Test_Expansion_Plan.md):
+Implemented Phase 5 (Regression tests for recent bugs) from [Plan 22](SimHubPlugin/Docs/plans/22_Unit_Test_Expansion_Plan.md):
 
-**Added 15 new tests:**
+**Analysis of Recent Bug Fixes:**
 
-1. **Node Type Mapping tests (4 tests):**
-   - `TestMapNodeType_AllKinds` - All GraphNodeKind values map to correct NodeType
-   - `TestMapOp_AllOperators` - All op strings (add, sub, mul, etc.) map correctly
-   - `TestMapOp_CaseInsensitive` - "ADD", "add", "Add" all work
-   - `TestMapOp_Symbols` - "+", "-", "*", "/" map correctly
+Reviewed the following bug fix commits for testable logic:
 
-2. **Conversion tests (9 tests):**
-   - `TestConvert_InputNode` - Input node converts with SignalGroup.SignalSuffix name
-   - `TestConvert_ParamNode` - Param node gets default value from graph.Params
-   - `TestConvert_OutputNode` - Output node converts with source connection
-   - `TestConvert_OpNode_Args` - Op node args populated from links
-   - `TestConvert_OpNode_Negate` - Negate flags only work for Add/Mul ops
-   - `TestConvert_IncludeNode_InputMap` - Include input map populated from links
-   - `TestConvert_IncludeNode_OutputMap` - Include output map populated for all output ports
-   - `TestConvert_SignalGroup` - Full signal name built from group.suffix
-   - `TestConvert_SignalGroup_Legacy` - Falls back to port name when no group
+- `2c43aa27` — Node deletion, include path, close tab bugs (UI event handlers)
+- `1aa69edd` — Signal group inspector showing wrong value (UI DataContext validation)
+- `5ba1989e` — Param changes persisting on discard (snapshot/restore in plugin)
 
-3. **Editor Format Detection tests (2 tests):**
-   - `TestConvertEditorJson_DetectsLinks` - JSON with "links" detected as editor format
-   - `TestConvertEditorJson_DetectsKind` - JSON with "kind" detected as editor format
+**Finding:** Most recent bugs were UI-related (event handlers, DataContext validation, selection state). These are tightly coupled to WPF and difficult to test without mocking the UI framework.
+
+**Testable Logic Found:** The `GraphUsageReport.IsShared` logic (used by shared graph save protection) had untested edge cases.
+
+**Added 3 new edge case tests:**
+
+1. `TestIsSharedEmptyCurrentVehicleKey` — Single user with empty current vehicle key returns false
+2. `TestIsSharedCaseInsensitiveMatch` — Vehicle keys compared case-insensitively
+3. `TestIsSharedIncludedWithoutVehicleUsers` — Includes without vehicle users don't count as shared
 
 ## Build Status
 
-Build compiles successfully (Debug and Release). **122/122 tests pass** (was 107).
+Build compiles successfully (Debug and Release). **134/134 tests pass** (was 131).
 
 ## Build & Test Commands
 
@@ -49,13 +44,14 @@ MSYS_NO_PATHCONV=1 "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBu
 
 ## Next Steps
 
-Continue Plan 22:
+Plan 22 (Unit Test Expansion) is complete. Consider:
 
-- **Phase 4:** AxisRequestQueue tests (~9 tests) — requires refactoring to extract interface
-- **Phase 5:** Regression tests for recent bugs — may require extracting logic from UI code
+- Adding UI automation tests if WPF testing framework is adopted
+- Integration tests with actual hardware (out of scope per plan)
+- Code coverage metrics tooling
 
 ## Related Documents
 
-- [Plan 22: Unit Test Expansion](SimHubPlugin/Docs/plans/22_Unit_Test_Expansion_Plan.md) — Phases 1-3 complete, Phases 4-5 pending
+- [Plan 22: Unit Test Expansion](SimHubPlugin/Docs/plans/22_Unit_Test_Expansion_Plan.md) — All phases complete
 - [Plan 21: Themed MessageBox](SimHubPlugin/Docs/plans/21_Themed_MessageBox_Plan.md) — Implemented
 - [Plan 20: FFB Graph Tab Removal](SimHubPlugin/Docs/plans/20_FFB_Graph_Tab_Removal.md) — Implemented

@@ -113,6 +113,9 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("IsShared: included by graphs with users", TestIsSharedIncludedByGraphsWithUsers));
             results.Add(TestRunner.RunTest("IsShared: single user same vehicle", TestIsSharedSingleUserSameVehicle));
             results.Add(TestRunner.RunTest("IsShared: no users no includes", TestIsSharedNoUsersNoIncludes));
+            results.Add(TestRunner.RunTest("IsShared: empty current vehicle key", TestIsSharedEmptyCurrentVehicleKey));
+            results.Add(TestRunner.RunTest("IsShared: case insensitive match", TestIsSharedCaseInsensitiveMatch));
+            results.Add(TestRunner.RunTest("IsShared: included without vehicle users", TestIsSharedIncludedWithoutVehicleUsers));
 
             // GraphHashComputer tests
             results.Add(TestRunner.RunTest("GraphHash: invalid path returns null", TestGraphHashInvalidPath));
@@ -175,6 +178,17 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Converter: signal group legacy fallback", TestConvert_SignalGroup_Legacy));
             results.Add(TestRunner.RunTest("Converter: editor JSON detects links", TestConvertEditorJson_DetectsLinks));
             results.Add(TestRunner.RunTest("Converter: editor JSON detects kind", TestConvertEditorJson_DetectsKind));
+
+            // AxisRequestQueue tests
+            results.Add(TestRunner.RunTest("Queue: enqueue adds to queue", TestEnqueue_AddsToQueue));
+            results.Add(TestRunner.RunTest("Queue: duplicate ignored", TestEnqueue_DuplicateIgnored));
+            results.Add(TestRunner.RunTest("Queue: upload not deduplicated", TestEnqueue_UploadNotDeduplicated));
+            results.Add(TestRunner.RunTest("Queue: response matches current", TestHandleResponse_MatchesCurrentRequest));
+            results.Add(TestRunner.RunTest("Queue: wrong type ignored", TestHandleResponse_WrongType_Ignored));
+            results.Add(TestRunner.RunTest("Queue: wrong axis ignored", TestHandleResponse_WrongAxis_Ignored));
+            results.Add(TestRunner.RunTest("Queue: requires response types", TestRequiresResponse_RequestTypes));
+            results.Add(TestRunner.RunTest("Queue: retry on send failure", TestRetry_OnSendFailure));
+            results.Add(TestRunner.RunTest("Queue: max retries exhausted", TestRetry_MaxRetriesExhausted));
 
             TestRunner.PrintResults("FFB Graph Tests", results);
         }
@@ -3023,6 +3037,55 @@ namespace DiyFfb.GraphTest
             return report.IsShared == false;
         }
 
+        private static bool TestIsSharedEmptyCurrentVehicleKey()
+        {
+            // Single direct user but CurrentVehicleKey is empty → IsShared = false
+            // (can't determine if it's "different" without a current vehicle to compare)
+            var report = new GraphUsageReport
+            {
+                GraphPath = "test.json",
+                CurrentVehicleKey = "" // Empty
+            };
+            report.DirectUsers.Add("Vehicle_A");
+
+            // The code checks !string.IsNullOrEmpty(CurrentVehicleKey) before comparing
+            // So with empty key, single user should not trigger "different vehicle" check
+            return report.IsShared == false;
+        }
+
+        private static bool TestIsSharedCaseInsensitiveMatch()
+        {
+            // Vehicle keys should be compared case-insensitively
+            // Same vehicle in different case → IsShared = false
+            var report = new GraphUsageReport
+            {
+                GraphPath = "test.json",
+                CurrentVehicleKey = "vehicle_a" // lowercase
+            };
+            report.DirectUsers.Add("Vehicle_A"); // Different case
+
+            // Should match due to OrdinalIgnoreCase comparison
+            return report.IsShared == false;
+        }
+
+        private static bool TestIsSharedIncludedWithoutVehicleUsers()
+        {
+            // Graph is included by another graph, but that parent has no vehicle users
+            // → IsShared = false (include without actual vehicle impact)
+            var report = new GraphUsageReport
+            {
+                GraphPath = "utility_lib.json",
+                CurrentVehicleKey = "Vehicle_A"
+            };
+            // Included by a graph with no vehicle users
+            var includeUsage = new IncludeUsage { IncludingGraphPath = "orphan_graph.json" };
+            // Note: includeUsage.VehicleKeys is empty
+            report.IncludedBy.Add(includeUsage);
+
+            // The code checks i.VehicleKeys.Count > 0, so includes without users don't count
+            return report.IsShared == false;
+        }
+
         #endregion
 
         #region GraphHashComputer Tests
@@ -4138,6 +4201,197 @@ namespace DiyFfb.GraphTest
 
             // The JSON should contain "kind" (from node Kind property)
             return json.Contains("\"kind\"") || json.Contains("\"Kind\"");
+        }
+
+        #endregion
+
+        #region AxisRequestQueue Tests
+
+        /// <summary>
+        /// Mock sender for testing AxisRequestQueue
+        /// </summary>
+        private class MockAxisRequestSender : IAxisRequestSender
+        {
+            public List<(AxisID, AxisRequestType, Message)> Requests = new List<(AxisID, AxisRequestType, Message)>();
+            public bool ReturnValue = true;
+
+            public bool SendAxisRequest(AxisID axisId, AxisRequestType type, Message payload)
+            {
+                Requests.Add((axisId, type, payload));
+                return ReturnValue;
+            }
+        }
+
+        private static bool TestEnqueue_AddsToQueue()
+        {
+            var sender = new MockAxisRequestSender();
+            var queue = new AxisRequestQueue(sender, manualTick: true);
+
+            queue.Enqueue(AxisID._1, AxisRequestType.AxisConfig);
+
+            return queue.QueueCount == 1;
+        }
+
+        private static bool TestEnqueue_DuplicateIgnored()
+        {
+            var sender = new MockAxisRequestSender();
+            var queue = new AxisRequestQueue(sender, manualTick: true);
+
+            queue.Enqueue(AxisID._1, AxisRequestType.AxisConfig);
+            queue.Enqueue(AxisID._1, AxisRequestType.AxisConfig); // duplicate
+
+            // Only one should be in queue
+            return queue.QueueCount == 1;
+        }
+
+        private static bool TestEnqueue_UploadNotDeduplicated()
+        {
+            var sender = new MockAxisRequestSender();
+            var queue = new AxisRequestQueue(sender, manualTick: true);
+
+            queue.Enqueue(AxisID._1, AxisRequestType.AxisConfigUpload);
+            queue.Enqueue(AxisID._1, AxisRequestType.AxisConfigUpload); // should NOT be deduplicated
+
+            // Both should be in queue
+            return queue.QueueCount == 2;
+        }
+
+        private static bool TestHandleResponse_MatchesCurrentRequest()
+        {
+            var sender = new MockAxisRequestSender();
+            var queue = new AxisRequestQueue(sender, manualTick: true);
+
+            // Enqueue and tick to make it current
+            queue.Enqueue(AxisID._1, AxisRequestType.AxisConfig);
+            queue.Tick();
+
+            // Should have current request waiting for response
+            if (!queue.HasCurrentRequest) return false;
+
+            // Send matching response
+            var response = new Message
+            {
+                AxisConfig = new AxisConfig { AxisId = AxisID._1 }
+            };
+            queue.HandleResponse(response);
+
+            // Current request should be cleared
+            return !queue.HasCurrentRequest;
+        }
+
+        private static bool TestHandleResponse_WrongType_Ignored()
+        {
+            var sender = new MockAxisRequestSender();
+            var queue = new AxisRequestQueue(sender, manualTick: true);
+
+            // Enqueue AxisConfig request
+            queue.Enqueue(AxisID._1, AxisRequestType.AxisConfig);
+            queue.Tick();
+
+            if (!queue.HasCurrentRequest) return false;
+
+            // Send DeviceInfo response (wrong type)
+            var response = new Message
+            {
+                DeviceInfo = new DeviceInfo { AxisId = AxisID._1 }
+            };
+            queue.HandleResponse(response);
+
+            // Current request should still be pending (wrong type)
+            return queue.HasCurrentRequest;
+        }
+
+        private static bool TestHandleResponse_WrongAxis_Ignored()
+        {
+            var sender = new MockAxisRequestSender();
+            var queue = new AxisRequestQueue(sender, manualTick: true);
+
+            // Enqueue request for Axis1
+            queue.Enqueue(AxisID._1, AxisRequestType.AxisConfig);
+            queue.Tick();
+
+            if (!queue.HasCurrentRequest) return false;
+
+            // Send response for Axis2 (wrong axis)
+            var response = new Message
+            {
+                AxisConfig = new AxisConfig { AxisId = AxisID._2 }
+            };
+            queue.HandleResponse(response);
+
+            // Current request should still be pending (wrong axis)
+            return queue.HasCurrentRequest;
+        }
+
+        private static bool TestRequiresResponse_RequestTypes()
+        {
+            var sender = new MockAxisRequestSender();
+            var queue = new AxisRequestQueue(sender, manualTick: true);
+
+            // Test that Restart (which doesn't require response) completes immediately
+            queue.Enqueue(AxisID._1, AxisRequestType.Restart);
+            queue.Tick();
+
+            // Should not be waiting for response
+            bool restartCompleted = !queue.HasCurrentRequest;
+
+            // Test that AxisConfig (which requires response) waits for response
+            queue.Enqueue(AxisID._1, AxisRequestType.AxisConfig);
+            queue.Tick();
+
+            // Should be waiting for response
+            bool axisConfigWaiting = queue.HasCurrentRequest;
+
+            return restartCompleted && axisConfigWaiting;
+        }
+
+        private static bool TestRetry_OnSendFailure()
+        {
+            var sender = new MockAxisRequestSender();
+            sender.ReturnValue = false; // Simulate send failure
+            var queue = new AxisRequestQueue(sender, manualTick: true);
+
+            DateTime now = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            queue.SetNowProvider(() => now);
+
+            queue.Enqueue(AxisID._1, AxisRequestType.Restart);
+            queue.Tick(); // First attempt fails
+
+            // Should still have current (pending retry)
+            if (!queue.HasCurrentRequest) return false;
+
+            // Request should have been sent
+            if (sender.Requests.Count != 1) return false;
+
+            // Advance time past retry delay
+            now = now.AddMilliseconds(300);
+
+            queue.Tick(); // Second attempt (still fails)
+
+            // Should have sent twice now
+            return sender.Requests.Count == 2;
+        }
+
+        private static bool TestRetry_MaxRetriesExhausted()
+        {
+            var sender = new MockAxisRequestSender();
+            sender.ReturnValue = false; // Simulate send failure
+            var queue = new AxisRequestQueue(sender, manualTick: true);
+
+            DateTime now = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            queue.SetNowProvider(() => now);
+
+            queue.Enqueue(AxisID._1, AxisRequestType.Restart);
+
+            // MaxRetries = 3, so we need to tick 3 times with time advances
+            for (int i = 0; i < 4; i++)
+            {
+                queue.Tick();
+                now = now.AddMilliseconds(300);
+            }
+
+            // Should have dropped the request after max retries
+            return !queue.HasCurrentRequest && sender.Requests.Count == 3;
         }
 
         #endregion

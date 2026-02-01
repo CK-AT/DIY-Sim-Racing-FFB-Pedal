@@ -18,6 +18,14 @@ namespace User.PluginSdkDemo
         FunctionConfigUpload
     }
 
+    /// <summary>
+    /// Interface for sending axis requests, extracted for testability.
+    /// </summary>
+    public interface IAxisRequestSender
+    {
+        bool SendAxisRequest(AxisID axisId, AxisRequestType type, Message payload);
+    }
+
     public class AxisRequestQueue
     {
         private class RequestItem
@@ -30,25 +38,79 @@ namespace User.PluginSdkDemo
             public Message Payload;
         }
 
-        private readonly DiyFfbPluginUI ui;
+        private readonly IAxisRequestSender sender;
         private readonly DispatcherTimer timer;
         private readonly Queue<RequestItem> queue = new Queue<RequestItem>();
         private readonly object sync = new object();
         private RequestItem current;
         private bool hasCurrent;
+        private readonly bool manualTick;
+        private Func<DateTime> nowProvider = () => DateTime.UtcNow;
 
         private const int RetryDelayMs = 250;
         private const int MaxRetries = 3;
 
         public AxisRequestQueue(DiyFfbPluginUI ui)
+            : this(new PluginUISender(ui), manualTick: false)
         {
-            this.ui = ui;
-            timer = new DispatcherTimer
+        }
+
+        /// <summary>
+        /// Constructor for testing: accepts an IAxisRequestSender and allows manual tick control.
+        /// </summary>
+        internal AxisRequestQueue(IAxisRequestSender sender, bool manualTick)
+        {
+            this.sender = sender;
+            this.manualTick = manualTick;
+            if (!manualTick)
             {
-                Interval = TimeSpan.FromMilliseconds(50)
-            };
-            timer.Tick += OnTick;
-            timer.Start();
+                timer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(50)
+                };
+                timer.Tick += OnTick;
+                timer.Start();
+            }
+        }
+
+        /// <summary>
+        /// For testing: override the time provider.
+        /// </summary>
+        internal void SetNowProvider(Func<DateTime> provider)
+        {
+            nowProvider = provider ?? (() => DateTime.UtcNow);
+        }
+
+        /// <summary>
+        /// For testing: manually trigger the tick logic.
+        /// </summary>
+        internal void Tick()
+        {
+            OnTick(null, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// For testing: get the current queue count.
+        /// </summary>
+        internal int QueueCount
+        {
+            get { lock (sync) return queue.Count; }
+        }
+
+        /// <summary>
+        /// For testing: check if there's a current request being processed.
+        /// </summary>
+        internal bool HasCurrentRequest
+        {
+            get { lock (sync) return hasCurrent; }
+        }
+
+        private class PluginUISender : IAxisRequestSender
+        {
+            private readonly DiyFfbPluginUI ui;
+            public PluginUISender(DiyFfbPluginUI ui) => this.ui = ui;
+            public bool SendAxisRequest(AxisID axisId, AxisRequestType type, Message payload)
+                => ui.SendAxisRequest(axisId, type, payload);
         }
 
         public void Enqueue(AxisID axisId, AxisRequestType type, Message payload = null)
@@ -65,7 +127,7 @@ namespace User.PluginSdkDemo
                     Type = type,
                     RemainingRetries = MaxRetries,
                     AwaitResponse = RequiresResponse(type),
-                    NextSendUtc = DateTime.UtcNow,
+                    NextSendUtc = nowProvider(),
                     Payload = payload
                 });
             }
@@ -128,7 +190,7 @@ namespace User.PluginSdkDemo
             }
         }
 
-        private void OnTick(object sender, EventArgs e)
+        private void OnTick(object timerSender, EventArgs e)
         {
             RequestItem item = null;
             lock (sync)
@@ -142,14 +204,14 @@ namespace User.PluginSdkDemo
                 {
                     return;
                 }
-                if (DateTime.UtcNow < current.NextSendUtc)
+                if (nowProvider() < current.NextSendUtc)
                 {
                     return;
                 }
                 item = current;
             }
 
-            bool sent = ui.SendAxisRequest(item.AxisId, item.Type, item.Payload);
+            bool sent = sender.SendAxisRequest(item.AxisId, item.Type, item.Payload);
             lock (sync)
             {
                 if (!hasCurrent)
@@ -164,7 +226,7 @@ namespace User.PluginSdkDemo
                         hasCurrent = false;
                         return;
                     }
-                    current.NextSendUtc = DateTime.UtcNow.AddMilliseconds(RetryDelayMs);
+                    current.NextSendUtc = nowProvider().AddMilliseconds(RetryDelayMs);
                     return;
                 }
 
@@ -180,7 +242,7 @@ namespace User.PluginSdkDemo
                     hasCurrent = false;
                     return;
                 }
-                current.NextSendUtc = DateTime.UtcNow.AddMilliseconds(RetryDelayMs);
+                current.NextSendUtc = nowProvider().AddMilliseconds(RetryDelayMs);
             }
         }
 
