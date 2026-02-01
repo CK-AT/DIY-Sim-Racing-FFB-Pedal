@@ -1444,6 +1444,7 @@ namespace DiyFfb
             if (!string.IsNullOrWhiteSpace(activeCarId))
             {
                 ResolveActiveGraph(activeGameId, activeCarId);
+                BuildGraphParams();
             }
         }
 
@@ -2076,6 +2077,7 @@ namespace DiyFfb
             activeCarId = carId;
             activeCarName = data.NewData?.CarModel;
             ResolveActiveGraph(gameId, carId);
+            BuildGraphParams();
 
             if (ui != null)
             {
@@ -2834,6 +2836,7 @@ namespace DiyFfb
             }
 
             ResolveActiveGraph(gameId, carId);
+            BuildGraphParams();
         }
 
         public void ApplyAircraftFfbProfile(string carId, DiyFfbPluginSettings.AircraftFfbProfile profile)
