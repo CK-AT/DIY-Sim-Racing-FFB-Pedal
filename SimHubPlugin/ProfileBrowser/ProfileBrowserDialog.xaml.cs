@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using Newtonsoft.Json;
@@ -12,6 +14,9 @@ namespace DiyFfb.ProfileBrowser
 {
     public partial class ProfileBrowserDialog : Window
     {
+        private const string AllGamesFilter = "<All Games>";
+        private const string ImportsFilter = "<Imports>";
+
         // Public result properties
         public ProfileBrowserEntry SelectedEntry { get; private set; }
         public bool UseGraphOnly { get; private set; }
@@ -19,6 +24,12 @@ namespace DiyFfb.ProfileBrowser
 
         // Data binding
         public ObservableCollection<ProfileBrowserEntry> Items { get; } = new ObservableCollection<ProfileBrowserEntry>();
+
+        // All stored profiles (unfiltered)
+        private List<ProfileBrowserEntry> _allStoredProfiles = new List<ProfileBrowserEntry>();
+
+        // Staged imports (not yet saved to library)
+        private List<ProfileBrowserEntry> _stagedImports = new List<ProfileBrowserEntry>();
 
         // Constructor params
         private readonly ProfileBrowserMode _mode;
@@ -84,13 +95,20 @@ namespace DiyFfb.ProfileBrowser
                 return;
 
             if (RadioTemplates.IsChecked == true)
+            {
+                PanelGameFilter.Visibility = Visibility.Collapsed;
                 LoadTemplates();
+            }
             else if (RadioMyVehicles.IsChecked == true)
+            {
+                PanelGameFilter.Visibility = Visibility.Visible;
                 LoadStoredProfiles();
+            }
         }
 
         private void LoadTemplates()
         {
+            PanelGameFilter.Visibility = Visibility.Collapsed;
             Items.Clear();
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
             var templates = GraphTemplateRegistry.GetTemplates(_currentGameId, baseDir);
@@ -109,20 +127,103 @@ namespace DiyFfb.ProfileBrowser
 
         private void LoadStoredProfiles()
         {
+            PanelGameFilter.Visibility = Visibility.Visible;
             Items.Clear();
+            _allStoredProfiles.Clear();
+
             var profiles = _plugin?.Settings?.AircraftFfbProfiles;
             if (profiles == null)
             {
+                PopulateGameFilter();
                 UpdateDetailsPanel();
                 UpdateButtonStates();
                 return;
             }
 
+            // Build full list of profiles with game ID extracted
             foreach (var kvp in profiles)
             {
-                // GraphPath is now stored directly in the profile
                 string graphPath = kvp.Value?.GraphPath ?? "";
-                Items.Add(ProfileBrowserEntry.FromProfile(kvp.Key, kvp.Value, graphPath));
+                var entry = ProfileBrowserEntry.FromProfile(kvp.Key, kvp.Value, graphPath);
+                entry.GameId = ExtractGameId(kvp.Key);
+                _allStoredProfiles.Add(entry);
+            }
+
+            PopulateGameFilter();
+            ApplyGameFilter();
+        }
+
+        private string ExtractGameId(string profileKey)
+        {
+            if (string.IsNullOrEmpty(profileKey))
+                return null;
+
+            int sep = profileKey.IndexOf("::");
+            return sep > 0 ? profileKey.Substring(0, sep) : null;
+        }
+
+        private void PopulateGameFilter()
+        {
+            var previousSelection = ComboGameFilter.SelectedItem as string;
+            ComboGameFilter.Items.Clear();
+            ComboGameFilter.Items.Add(AllGamesFilter);
+
+            // Add <Imports> option if there are staged imports
+            if (_stagedImports.Count > 0)
+            {
+                ComboGameFilter.Items.Add(ImportsFilter);
+            }
+
+            // Get distinct game IDs, sorted
+            var gameIds = _allStoredProfiles
+                .Where(p => !string.IsNullOrEmpty(p.GameId))
+                .Select(p => p.GameId)
+                .Distinct()
+                .OrderBy(g => g)
+                .ToList();
+
+            foreach (var gameId in gameIds)
+            {
+                ComboGameFilter.Items.Add(gameId);
+            }
+
+            // Select appropriate default
+            if (previousSelection != null && ComboGameFilter.Items.Contains(previousSelection))
+            {
+                ComboGameFilter.SelectedItem = previousSelection;
+            }
+            else if (!string.IsNullOrEmpty(_currentGameId) && ComboGameFilter.Items.Contains(_currentGameId))
+            {
+                ComboGameFilter.SelectedItem = _currentGameId;
+            }
+            else
+            {
+                ComboGameFilter.SelectedItem = AllGamesFilter;
+            }
+        }
+
+        private void ApplyGameFilter()
+        {
+            Items.Clear();
+            string selectedGame = ComboGameFilter.SelectedItem as string;
+
+            IEnumerable<ProfileBrowserEntry> filtered;
+            if (selectedGame == ImportsFilter)
+            {
+                filtered = _stagedImports;
+            }
+            else if (!string.IsNullOrEmpty(selectedGame) && selectedGame != AllGamesFilter)
+            {
+                filtered = _allStoredProfiles.Where(p => p.GameId == selectedGame);
+            }
+            else
+            {
+                filtered = _allStoredProfiles;
+            }
+
+            foreach (var entry in filtered)
+            {
+                Items.Add(entry);
             }
 
             if (Items.Count > 0)
@@ -132,66 +233,102 @@ namespace DiyFfb.ProfileBrowser
             UpdateButtonStates();
         }
 
+        private void OnGameFilterChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (!_isInitialized)
+                return;
+
+            ApplyGameFilter();
+        }
+
         private void OnImportClick(object sender, RoutedEventArgs e)
         {
             var dialog = new Microsoft.Win32.OpenFileDialog
             {
                 Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
                 DefaultExt = "json",
-                Title = "Import Profile"
+                Title = "Import Profiles",
+                Multiselect = true
             };
 
-            if (dialog.ShowDialog() != true)
+            if (dialog.ShowDialog() != true || dialog.FileNames.Length == 0)
                 return;
 
-            try
+            var importedEntries = new List<ProfileBrowserEntry>();
+            var failedFiles = new List<string>();
+
+            foreach (string filePath in dialog.FileNames)
             {
-                string json = File.ReadAllText(dialog.FileName);
-
-                // Try new ExportedProfile format first
-                var exported = JsonConvert.DeserializeObject<DiyFfbPluginSettings.ExportedProfile>(json);
-                if (exported?.Profile != null)
+                try
                 {
-                    var entry = ProfileBrowserEntry.FromImportedFile(exported);
-                    Items.Clear();
-                    Items.Add(entry);
-                    ListItems.SelectedItem = entry;
-                    RadioTemplates.IsChecked = false;
-                    RadioMyVehicles.IsChecked = false;
-                    UpdateDetailsPanel();
-                    UpdateButtonStates();
-                    return;
-                }
-
-                // Try legacy AircraftFfbProfile format
-                var legacyProfile = JsonConvert.DeserializeObject<DiyFfbPluginSettings.AircraftFfbProfile>(json);
-                if (legacyProfile != null)
-                {
-                    var legacyExported = new DiyFfbPluginSettings.ExportedProfile
+                    var entry = ImportSingleFile(filePath);
+                    if (entry != null)
                     {
-                        Version = 1,
-                        ProfileKey = Path.GetFileNameWithoutExtension(dialog.FileName),
-                        Profile = legacyProfile
-                    };
-                    var entry = ProfileBrowserEntry.FromImportedFile(legacyExported);
-                    Items.Clear();
-                    Items.Add(entry);
-                    ListItems.SelectedItem = entry;
-                    RadioTemplates.IsChecked = false;
-                    RadioMyVehicles.IsChecked = false;
-                    UpdateDetailsPanel();
-                    UpdateButtonStates();
-                    return;
+                        importedEntries.Add(entry);
+                    }
+                    else
+                    {
+                        failedFiles.Add(Path.GetFileName(filePath));
+                    }
                 }
+                catch (Exception ex)
+                {
+                    failedFiles.Add($"{Path.GetFileName(filePath)}: {ex.Message}");
+                }
+            }
 
-                ThemedMessageBox.Show(this, "Could not read profile from file.", "Import Failed",
+            if (importedEntries.Count > 0)
+            {
+                // Add to staged imports (don't replace existing staged imports)
+                _stagedImports.AddRange(importedEntries);
+
+                // Ensure My Vehicles tab is active
+                RadioMyVehicles.IsChecked = true;
+
+                // Rebuild filter to include <Imports>
+                PopulateGameFilter();
+
+                // Switch to Imports filter
+                ComboGameFilter.SelectedItem = ImportsFilter;
+            }
+
+            if (failedFiles.Count > 0)
+            {
+                string message = failedFiles.Count == 1
+                    ? $"Failed to import: {failedFiles[0]}"
+                    : $"Failed to import {failedFiles.Count} file(s):\n\n{string.Join("\n", failedFiles.Take(5))}" +
+                      (failedFiles.Count > 5 ? $"\n...and {failedFiles.Count - 5} more" : "");
+
+                ThemedMessageBox.Show(this, message, "Import Warning",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
             }
-            catch (Exception ex)
+        }
+
+        private ProfileBrowserEntry ImportSingleFile(string filePath)
+        {
+            string json = File.ReadAllText(filePath);
+
+            // Try new ExportedProfile format first
+            var exported = JsonConvert.DeserializeObject<DiyFfbPluginSettings.ExportedProfile>(json);
+            if (exported?.Profile != null)
             {
-                ThemedMessageBox.Show(this, $"Error reading file: {ex.Message}", "Import Failed",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return ProfileBrowserEntry.FromImportedFile(exported);
             }
+
+            // Try legacy AircraftFfbProfile format
+            var legacyProfile = JsonConvert.DeserializeObject<DiyFfbPluginSettings.AircraftFfbProfile>(json);
+            if (legacyProfile != null)
+            {
+                var legacyExported = new DiyFfbPluginSettings.ExportedProfile
+                {
+                    Version = 1,
+                    ProfileKey = Path.GetFileNameWithoutExtension(filePath),
+                    Profile = legacyProfile
+                };
+                return ProfileBrowserEntry.FromImportedFile(legacyExported);
+            }
+
+            return null;
         }
 
         private void OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -230,14 +367,34 @@ namespace DiyFfb.ProfileBrowser
 
         private void UpdateButtonStates()
         {
-            var entry = ListItems.SelectedItem as ProfileBrowserEntry;
-            bool hasSelection = entry != null;
+            var selectedItems = ListItems.SelectedItems.Cast<ProfileBrowserEntry>().ToList();
+            int count = selectedItems.Count;
+            bool hasSelection = count > 0;
+            bool singleSelection = count == 1;
+            var entry = singleSelection ? selectedItems[0] : null;
 
-            ButtonUseGraphOnly.IsEnabled = hasSelection;
-            ButtonUseGraphTuning.IsEnabled = hasSelection && (entry.HasTuning || entry.Source != ProfileEntrySource.Template);
-            ButtonExport.IsEnabled = hasSelection && entry.CanExport;
+            bool hasAnyStaged = selectedItems.Any(e => e.Source == ProfileEntrySource.ImportedFile);
+            bool hasAnyDeletable = selectedItems.Any(e => e.CanDelete);
 
-            // Hide "Use Graph + Tuning" for templates with no tuning
+            // Save to Library: visible when viewing imports, enabled when staged items selected
+            bool showingImports = (ComboGameFilter.SelectedItem as string) == ImportsFilter;
+            ButtonSaveToLibrary.Visibility = showingImports ? Visibility.Visible : Visibility.Collapsed;
+            ButtonSaveToLibrary.IsEnabled = hasAnyStaged;
+
+            // Delete: visible on My Vehicles tab (not Templates), enabled when deletable items selected
+            bool showingMyVehicles = RadioMyVehicles.IsChecked == true;
+            ButtonDeleteSelected.Visibility = showingMyVehicles ? Visibility.Visible : Visibility.Collapsed;
+            ButtonDeleteSelected.IsEnabled = hasAnyDeletable;
+
+            // Graph Only / Graph+Tuning: only for single selection
+            ButtonUseGraphOnly.IsEnabled = singleSelection;
+            ButtonUseGraphTuning.IsEnabled = singleSelection && entry != null &&
+                (entry.HasTuning || entry.Source != ProfileEntrySource.Template);
+
+            // Export: only for single selection of exportable item
+            ButtonExport.IsEnabled = singleSelection && entry?.CanExport == true;
+
+            // Hide "Use Graph + Tuning" for templates
             if (entry != null && entry.Source == ProfileEntrySource.Template)
             {
                 ButtonUseGraphTuning.Visibility = Visibility.Collapsed;
@@ -283,8 +440,10 @@ namespace DiyFfb.ProfileBrowser
 
         private void OnDeleteClick(object sender, RoutedEventArgs e)
         {
-            if (((System.Windows.Controls.Button)sender).DataContext is ProfileBrowserEntry entry &&
-                entry.Source == ProfileEntrySource.StoredProfile)
+            if (!(((System.Windows.Controls.Button)sender).DataContext is ProfileBrowserEntry entry))
+                return;
+
+            if (entry.Source == ProfileEntrySource.StoredProfile)
             {
                 var result = ThemedMessageBox.Show(this,
                     $"Delete profile for '{entry.Name}'?\n\nThis will remove all saved tuning for this vehicle.",
@@ -295,11 +454,83 @@ namespace DiyFfb.ProfileBrowser
                 if (result == MessageBoxResult.Yes)
                 {
                     _plugin?.Settings?.AircraftFfbProfiles?.Remove(entry.ProfileKey);
+                    _allStoredProfiles.Remove(entry);
                     Items.Remove(entry);
                     UpdateDetailsPanel();
                     UpdateButtonStates();
                 }
             }
+            else if (entry.Source == ProfileEntrySource.ImportedFile)
+            {
+                // Remove staged import without confirmation
+                _stagedImports.Remove(entry);
+                Items.Remove(entry);
+
+                // If no more staged imports, rebuild filter to remove <Imports> option
+                if (_stagedImports.Count == 0)
+                {
+                    PopulateGameFilter();
+                    // Switch away from Imports filter since it's now empty
+                    if ((ComboGameFilter.SelectedItem as string) == ImportsFilter)
+                    {
+                        ComboGameFilter.SelectedItem = AllGamesFilter;
+                    }
+                }
+
+                UpdateDetailsPanel();
+                UpdateButtonStates();
+            }
+        }
+
+        private void OnDeleteSelectedClick(object sender, RoutedEventArgs e)
+        {
+            var selectedItems = ListItems.SelectedItems
+                .Cast<ProfileBrowserEntry>()
+                .Where(entry => entry.CanDelete)
+                .ToList();
+
+            if (selectedItems.Count == 0)
+                return;
+
+            // Check if any are stored profiles (require confirmation)
+            var storedProfiles = selectedItems.Where(x => x.Source == ProfileEntrySource.StoredProfile).ToList();
+            if (storedProfiles.Count > 0)
+            {
+                string message = storedProfiles.Count == 1
+                    ? $"Delete profile for '{storedProfiles[0].Name}'?\n\nThis will remove all saved tuning for this vehicle."
+                    : $"Delete {storedProfiles.Count} profiles?\n\nThis will remove all saved tuning for these vehicles.";
+
+                var result = ThemedMessageBox.Show(this, message, "Confirm Delete",
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+                if (result != MessageBoxResult.Yes)
+                    return;
+            }
+
+            // Delete all selected items
+            foreach (var entry in selectedItems)
+            {
+                if (entry.Source == ProfileEntrySource.StoredProfile)
+                {
+                    _plugin?.Settings?.AircraftFfbProfiles?.Remove(entry.ProfileKey);
+                    _allStoredProfiles.Remove(entry);
+                }
+                else if (entry.Source == ProfileEntrySource.ImportedFile)
+                {
+                    _stagedImports.Remove(entry);
+                }
+                Items.Remove(entry);
+            }
+
+            // Refresh filter if needed
+            if (_stagedImports.Count == 0 && (ComboGameFilter.SelectedItem as string) == ImportsFilter)
+            {
+                PopulateGameFilter();
+                ComboGameFilter.SelectedItem = AllGamesFilter;
+            }
+
+            UpdateDetailsPanel();
+            UpdateButtonStates();
         }
 
         private void OnExportClick(object sender, RoutedEventArgs e)
@@ -340,6 +571,75 @@ namespace DiyFfb.ProfileBrowser
             {
                 ThemedMessageBox.Show(this, $"Error exporting profile: {ex.Message}", "Export Failed",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void OnSaveToLibraryClick(object sender, RoutedEventArgs e)
+        {
+            var selectedItems = ListItems.SelectedItems
+                .Cast<ProfileBrowserEntry>()
+                .Where(entry => entry.Source == ProfileEntrySource.ImportedFile)
+                .ToList();
+
+            if (selectedItems.Count == 0)
+                return;
+
+            // Check for duplicates
+            var existingKeys = _plugin?.Settings?.AircraftFfbProfiles?.Keys.ToHashSet() ?? new HashSet<string>();
+            var duplicates = selectedItems.Where(x => !string.IsNullOrEmpty(x.ProfileKey) && existingKeys.Contains(x.ProfileKey)).ToList();
+
+            if (duplicates.Count > 0)
+            {
+                string message = duplicates.Count == 1
+                    ? $"Profile '{duplicates[0].Name}' already exists in your library.\n\nOverwrite it?"
+                    : $"{duplicates.Count} profiles already exist in your library.\n\nOverwrite them?";
+
+                var result = ThemedMessageBox.Show(this, message, "Duplicate Profiles",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                if (result != MessageBoxResult.Yes)
+                {
+                    // Remove duplicates from the list to save
+                    selectedItems = selectedItems.Except(duplicates).ToList();
+                    if (selectedItems.Count == 0)
+                        return;
+                }
+            }
+
+            foreach (var entry in selectedItems)
+            {
+                // Save to settings
+                if (_plugin?.Settings?.AircraftFfbProfiles != null && !string.IsNullOrEmpty(entry.ProfileKey))
+                {
+                    // Remove existing entry from _allStoredProfiles if overwriting
+                    var existing = _allStoredProfiles.FirstOrDefault(x => x.ProfileKey == entry.ProfileKey);
+                    if (existing != null)
+                        _allStoredProfiles.Remove(existing);
+
+                    _plugin.Settings.AircraftFfbProfiles[entry.ProfileKey] = entry.Profile;
+                }
+
+                // Move from staged to stored
+                _stagedImports.Remove(entry);
+                entry.Source = ProfileEntrySource.StoredProfile;
+                _allStoredProfiles.Add(entry);
+            }
+
+            // Refresh filter and view
+            PopulateGameFilter();
+
+            // If no more staged imports, switch to appropriate game filter
+            if (_stagedImports.Count == 0)
+            {
+                var lastSaved = selectedItems.LastOrDefault();
+                if (lastSaved != null && !string.IsNullOrEmpty(lastSaved.GameId))
+                    ComboGameFilter.SelectedItem = lastSaved.GameId;
+                else
+                    ComboGameFilter.SelectedItem = AllGamesFilter;
+            }
+            else
+            {
+                ApplyGameFilter(); // Stay on Imports
             }
         }
 

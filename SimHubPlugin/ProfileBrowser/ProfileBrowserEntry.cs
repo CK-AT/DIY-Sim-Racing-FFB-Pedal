@@ -29,6 +29,7 @@ namespace DiyFfb.ProfileBrowser
         // Identity
         public string ProfileKey { get; set; }
         public ProfileEntrySource Source { get; set; }
+        public string GameId { get; set; }
 
         // Display properties
         public string Name { get; set; }
@@ -63,9 +64,9 @@ namespace DiyFfb.ProfileBrowser
         }
 
         /// <summary>
-        /// Whether this entry can be deleted (only stored profiles).
+        /// Whether this entry can be deleted (stored profiles and staged imports).
         /// </summary>
-        public bool CanDelete => Source == ProfileEntrySource.StoredProfile;
+        public bool CanDelete => Source == ProfileEntrySource.StoredProfile || Source == ProfileEntrySource.ImportedFile;
 
         /// <summary>
         /// Whether this entry can be exported (only stored profiles and imports).
@@ -118,11 +119,21 @@ namespace DiyFfb.ProfileBrowser
             int paramCount = exported?.Profile?.GraphParamValues?.Count ?? 0;
             string displayName = FormatProfileKeyAsName(exported?.ProfileKey ?? "Imported Profile");
 
+            // Extract game ID from profile key
+            string gameId = null;
+            if (!string.IsNullOrEmpty(exported?.ProfileKey))
+            {
+                int sep = exported.ProfileKey.IndexOf("::");
+                if (sep > 0)
+                    gameId = exported.ProfileKey.Substring(0, sep);
+            }
+
             return new ProfileBrowserEntry
             {
                 Source = ProfileEntrySource.ImportedFile,
                 ProfileKey = exported?.ProfileKey,
                 Name = displayName,
+                GameId = gameId,
                 GraphPath = exported?.GraphPath,
                 Profile = exported?.Profile,
                 HasTuning = paramCount > 0,

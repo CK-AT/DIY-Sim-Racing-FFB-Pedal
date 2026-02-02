@@ -1677,6 +1677,9 @@ namespace DiyFfb
                     {
                         currentProfile.GraphParamValues[kvp.Key] = kvp.Value;
                     }
+
+                    // Rebuild graph params to reflect copied tuning values
+                    BuildGraphParams();
                 }
             }
 
