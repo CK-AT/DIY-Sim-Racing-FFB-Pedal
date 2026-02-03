@@ -273,6 +273,14 @@
     <Compile Include="CubicSpline.cs" />
     <Compile Include="DiyFfbPlugin.cs" />
     <Compile Include="DiyFfbPluginSettings.cs" />
+    <Compile Include="TieredConfig\AxisConfigManager.cs" />
+    <Compile Include="TieredConfig\ChangeTracker.cs" />
+    <Compile Include="TieredConfig\ConfigComparer.cs" />
+    <Compile Include="TieredConfig\ConfigMerger.cs" />
+    <Compile Include="TieredConfig\ConflictDetector.cs" />
+    <Compile Include="TieredConfig\FieldRouter.cs" />
+    <Compile Include="TieredConfig\FunctionConfigManager.cs" />
+    <Compile Include="TieredConfig\TieredConfigTypes.cs" />
     <Compile Include="DiyFfbProtocol.cs" />
     <Compile Include="FrameSerial.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

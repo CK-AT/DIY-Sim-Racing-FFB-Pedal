@@ -15,6 +15,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Windows.Media;
 using DiyFfb.GraphEditor;
+using DiyFfb.TieredConfig;
 using Windows.UI.Notifications;
 using IPlugin = SimHub.Plugins.IPlugin;
 namespace DiyFfb
@@ -135,6 +136,20 @@ namespace DiyFfb
         private readonly Queue<RotorRpmSample>[] rotorRpmHistory = new Queue<RotorRpmSample>[XPlaneMaxRotors];
         private int lastAutoRotorIndex = 0;
         private bool hasAutoRotorIndex = false;
+
+        // Tiered config managers for profile/user overrides
+        private readonly FunctionConfigManager _functionConfigManager = new FunctionConfigManager();
+        private readonly AxisConfigManager _axisConfigManager = new AxisConfigManager();
+
+        /// <summary>
+        /// Manages function config lifecycle for profile/user overrides.
+        /// </summary>
+        public FunctionConfigManager FunctionConfigManager => _functionConfigManager;
+
+        /// <summary>
+        /// Manages axis config lifecycle for function overrides.
+        /// </summary>
+        public AxisConfigManager AxisConfigManager => _axisConfigManager;
 
         internal sealed class XPlaneUdpPacket
         {
@@ -2158,7 +2173,93 @@ namespace DiyFfb
             if (Settings.AircraftFfbProfiles.TryGetValue(profileKey, out var profile))
             {
                 Settings.XPlaneRotorIndex = profile.XPlaneRotorIndex;
+                ApplyProfileFunctionOverrides(profile);
             }
+            else
+            {
+                // No profile - clear any active overrides
+                ApplyProfileFunctionOverrides(null);
+            }
+        }
+
+        /// <summary>
+        /// Apply function and axis config overrides from a profile.
+        /// Called on vehicle/aircraft change.
+        /// </summary>
+        private void ApplyProfileFunctionOverrides(DiyFfbPluginSettings.AircraftFfbProfile profile)
+        {
+            // Clear existing overrides first
+            _functionConfigManager.ClearAllProfileOverrides();
+            _axisConfigManager.Reset(); // Clear function overrides for axes
+
+            if (profile == null)
+                return;
+
+            var userOverrides = GetCurrentUserOverrides();
+            var activeFunctions = profile.ActiveFunctionIds ?? new HashSet<int>();
+
+            foreach (var functionId in activeFunctions)
+            {
+                // 1. Apply FunctionConfig overrides
+                if (_functionConfigManager.HasBaseConfig(functionId))
+                {
+                    profile.FunctionOverrides.TryGetValue(functionId, out var profileDelta);
+                    FunctionConfigOverrides userDelta = null;
+                    userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
+                    _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta);
+                }
+
+                // 2. Apply AxisConfig overrides for this function
+                if (Settings.FunctionAxisOverrides.TryGetValue(functionId, out var axisOverrides))
+                {
+                    _axisConfigManager.ApplyFunctionOverrides(functionId, axisOverrides);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Apply profile overrides to a single function.
+        /// Called when a function config is first received from ESP32.
+        /// </summary>
+        public void ApplyProfileOverridesToFunction(int functionId)
+        {
+            var profile = GetCurrentAircraftProfile();
+            if (profile?.ActiveFunctionIds?.Contains(functionId) != true)
+                return;
+
+            profile.FunctionOverrides.TryGetValue(functionId, out var profileDelta);
+            var userOverrides = GetCurrentUserOverrides();
+            FunctionConfigOverrides userDelta = null;
+            userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
+            _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta);
+
+            if (Settings.FunctionAxisOverrides.TryGetValue(functionId, out var axisOverrides))
+            {
+                _axisConfigManager.ApplyFunctionOverrides(functionId, axisOverrides);
+            }
+        }
+
+        /// <summary>
+        /// Get user preferences for the current user profile.
+        /// </summary>
+        private UserPreferences GetCurrentUserOverrides()
+        {
+            if (Settings?.UserPreferencesProfiles == null)
+                return null;
+
+            string userProfile = Settings.CurrentUserProfile ?? System.Environment.UserName;
+            Settings.UserPreferencesProfiles.TryGetValue(userProfile, out var prefs);
+            return prefs;
+        }
+
+        /// <summary>
+        /// Check if profile overrides should be applied to a function.
+        /// Returns true if the function is in the active profile's function list.
+        /// </summary>
+        public bool ShouldApplyProfileOverride(int functionId)
+        {
+            var profile = GetCurrentAircraftProfile();
+            return profile?.ActiveFunctionIds?.Contains(functionId) == true;
         }
 
         private DiyFfbPluginSettings.AircraftFfbProfile BuildCurrentAircraftProfile()

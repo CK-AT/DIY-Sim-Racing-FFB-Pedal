@@ -1,77 +1,145 @@
 # Session Handoff
 
-Date: 2026-02-01
-Last commit: `acddc868` — Fix Vehicle tab params not syncing on profile load
+Date: 2026-02-03
+Last commit: `05171481` — Add staged imports feature to Profile Browser
 
 ## What Was Done This Session
 
-### Vehicle Tab Param Sync Bug Fix (Committed)
+### Phase 3: Profile Integration — COMPLETE ✅
 
-Fixed bug where Vehicle tab graph parameters showed stale values after profile load, while Function tab showed correct values.
+Implemented the profile override integration flow that auto-applies FunctionConfig and AxisConfig overrides on vehicle change.
 
-**Root Cause**: `ResolveActiveGraph()` fired `ActiveGraphChanged` event before `graphParams` was updated, so the Vehicle tab's `RefreshVehicleParams()` read stale values from `graphParams` dictionary.
+#### Files Created
 
-**Fix**: Added `BuildGraphParams()` call immediately after every `ResolveActiveGraph()` call:
+| File | Purpose |
+|------|---------|
+| `TieredConfig/FunctionConfigManager.cs` | Manages function config lifecycle for profile/user overrides |
 
-- `HandleGameChange()` — when game changes (e.g., X-Plane → MSFS)
-- `HandleAircraftChange()` — when vehicle changes
-- `SetVehicleGraphPath()` — when graph path is changed
+#### Files Modified
 
-**Files Changed**: `SimHubPlugin/DiyFfbPlugin.cs`
+| File | Changes |
+|------|---------|
+| `DiyFfbPlugin.cs` | Added `_functionConfigManager`, `_axisConfigManager` fields and public properties; Added `ApplyProfileFunctionOverrides()`, `ApplyProfileOverridesToFunction()`, `GetCurrentUserOverrides()`, `ShouldApplyProfileOverride()` methods; Modified `ApplyAircraftProfile()` to call override logic |
+| `DiyFfbPluginUI.xaml.cs` | Added event handlers `OnMergedFunctionConfigChanged()`, `OnMergedAxisConfigChanged()`; Wired manager events in constructor; Modified `OnFunctionConfigUpdate()` to integrate with FunctionConfigManager |
+| `DiyFfbPlugin.csproj` | Added `TieredConfig\FunctionConfigManager.cs` to compilation |
 
-## Previous Session Work
+#### Build Status
 
-### Progressive Spring Plan (Planned)
+**COMPILING** ✅ — All Phase 3 changes integrated.
 
-Created comprehensive plan for adding non-linear spring behavior to flight controls at [docs/plans/01_progressive-spring.md](docs/plans/01_progressive-spring.md).
+#### Architecture
 
-**Features**:
+```
+Vehicle Change
+     │
+     ▼
+ApplyAircraftProfile()
+     │
+     ▼
+ApplyProfileFunctionOverrides(profile)
+     │
+     ├── ClearAllProfileOverrides()      ← Restore base configs
+     │
+     ▼
+For each function in profile.ActiveFunctionIds:
+     │
+     ├── FunctionConfigManager.ApplyProfileOverrides()
+     │        │
+     │        ├── ConfigMerger.MergeAllLayers(base, profile, user)
+     │        │
+     │        └── Fire FunctionConfigChanged event
+     │                   │
+     │                   ▼
+     │              OnMergedFunctionConfigChanged()
+     │                   │
+     │                   ├── Update functions[] cache
+     │                   ├── EnqueueFunctionConfigUpload(merged, store:false)
+     │                   └── Update UI if selected
+     │
+     └── AxisConfigManager.ApplyFunctionOverrides()
+              │
+              └── Fire AxisConfigChanged event
+                         │
+                         ▼
+                    OnMergedAxisConfigChanged()
+                         │
+                         ├── Update axes[] cache
+                         ├── EnqueueAxisConfigUpload(axisId, merged, store:false)
+                         └── Update UI if selected
+```
 
-- Spring exponent parameter: `F = -k * sign(x) * |x|^n`
-- n=1.0 linear (default), n>1 progressive, n<1 degressive
-- Graph output signals for all flight functions
-- CAN transport via renamed FlightFfbPayload1/2 structs
-- `fast_powf` approximation for performance (~10 cycles vs ~100)
+#### New Config Reception Flow
 
-**Status**: Plan complete, ready for implementation
+When ESP32 sends a FunctionConfig:
+1. `OnFunctionConfigUpdate()` receives config
+2. Stores as base via `FunctionConfigManager.SetBaseConfig()`
+3. Checks `ShouldApplyProfileOverride()` — is function in active profile?
+4. If yes: calls `ApplyProfileOverridesToFunction()` → merged config sent to ESP32
+5. If no: uses base config directly in UI
 
-### A6 Servo Fault Monitoring (Implemented)
+---
 
-Implemented servo fault logging and auto-reset per plan at [ESP32/docs/plans/01_a6-servo-error-logging.md](ESP32/docs/plans/01_a6-servo-error-logging.md).
+### Tiered Config Override Implementation — Foundation (Phase 1-2) ✅
 
-**Features**:
+Created foundation files for the tiered configuration override system in `SimHubPlugin/TieredConfig/`:
 
-- Polls fault register (0x4100) every 100ms
-- Logs faults with human-readable descriptions and resettable status
-- Auto-resets resettable faults when `home()` is called (writes F31.00=1)
+#### Files Created
 
-**Status**: Implemented, build verified (+1.6KB flash, +0 RAM)
+| File | Purpose |
+|------|---------|
+| `TieredConfigTypes.cs` | Core data types: `ConfigLayer` enum, `UserPreferences`, `FunctionConfigOverrides`, `AxisParameterOverrides` |
+| `ConfigMerger.cs` | Merge logic for config overlays (User > Profile > Hardware) |
+| `ConfigComparer.cs` | Equality checks for diff-based config sending |
+| `ConflictDetector.cs` | Detects when multiple functions override same axis |
+| `FieldRouter.cs` | Routes field changes to appropriate layer (User/Profile/Hardware) |
+| `ChangeTracker.cs` | Tracks pending unsaved changes per layer |
+| `AxisConfigManager.cs` | Manages axis config lifecycle for function overrides |
+
+#### Settings Changes (`DiyFfbPluginSettings.cs`)
+
+Added to `DiyFfbPluginSettings`:
+
+- `CurrentUserProfile` — user identity (defaults to Windows username)
+- `UserPreferencesProfiles` — per-user preferences storage
+- `FunctionAxisOverrides` — per-function axis parameter overrides
+
+Added to `AircraftFfbProfile`:
+
+- `FunctionOverrides` — vehicle-specific function config deltas
+- `ActiveFunctionIds` — which functions are active for this profile
+
+## Key Concepts
+
+**StaticBalanceTuning vs StaticBalanceConfig:**
+
+- `FunctionConfig.Types.StaticBalanceTuning` — Part of FunctionConfig, user-tunable (Enabled, Gain)
+- `AxisConfig.Types.StaticBalanceConfig` — Part of AxisConfig, function-dependent axis override (XCenter, XHalfRange, Coeffs)
 
 ## Build & Test Commands
 
 ```bash
-# SimHub Plugin (use MSBuild, not dotnet)
+# SimHub Plugin
 MSYS_NO_PATHCONV=1 \
   "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" \
   "d:\Projects\DIY-Sim-Racing-FFB-Pedal\SimHubPlugin\DiyFfbPlugin.csproj" \
   /p:Configuration=Debug /v:minimal /nologo
-
-# ESP32 Firmware
-PIO="C:\Users\Christian\.platformio\penv\Scripts\pio.exe"
-cd ESP32
-"$PIO" run                    # Build default env
-"$PIO" run -t upload          # Flash to device
-"$PIO" test -e native         # Run unit tests
 ```
 
 ## Next Steps
 
-1. Test Vehicle tab param sync fix with profile switching
-2. Implement progressive spring feature per plan
-3. Flash firmware and test fault logging
+### Phase 4: UI for Override Configuration
 
-## Related Documents
+Add UI controls to:
+- View/edit function config overrides per profile
+- Manage ActiveFunctionIds for each profile
+- Configure user preferences
 
-- [docs/plans/01_progressive-spring.md](docs/plans/01_progressive-spring.md) — Progressive spring feature plan
-- [ESP32/docs/plans/01_a6-servo-error-logging.md](ESP32/docs/plans/01_a6-servo-error-logging.md) — Error logging plan
-- [SimHubPlugin/Docs/Plugin_Design.md](SimHubPlugin/Docs/Plugin_Design.md) — Plugin architecture and build instructions
+### Phase 5: AxisConfig Override UI
+
+Add controls for axis parameter overrides:
+- Kinematic parameters per function
+- Static balance config per function
+
+### Alternative
+
+Implement progressive spring feature first (simpler, self-contained).

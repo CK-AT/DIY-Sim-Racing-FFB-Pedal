@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Windows.Media.Converters;
+using DiyFfb.TieredConfig;
 
 namespace DiyFfb
 {
@@ -38,6 +39,18 @@ namespace DiyFfb
             /// Key: param name, Value: default/min/max at that time.
             /// </summary>
             public Dictionary<string, ParamSnapshot> LastReviewedParamSnapshots = new Dictionary<string, ParamSnapshot>();
+
+            /// <summary>
+            /// Vehicle-specific function config overrides.
+            /// Key: function ID, Value: delta overlay for that function.
+            /// </summary>
+            public Dictionary<int, FunctionConfigOverrides> FunctionOverrides = new Dictionary<int, FunctionConfigOverrides>();
+
+            /// <summary>
+            /// Which functions are active for this profile.
+            /// On profile load, only these functions have their overrides applied.
+            /// </summary>
+            public HashSet<int> ActiveFunctionIds = new HashSet<int>();
         }
 
         /// <summary>
@@ -132,6 +145,25 @@ namespace DiyFfb
         public bool XPlaneUdpEnabled = true;
         public int XPlaneUdpPort = 27015;
         public Dictionary<string, AircraftFfbProfile> AircraftFfbProfiles = new Dictionary<string, AircraftFfbProfile>();
+
+        // Tiered Config Override System
+        /// <summary>
+        /// Current user profile name. Defaults to Windows username.
+        /// User preferences are stored per-profile to support multiple users on shared rigs.
+        /// </summary>
+        public string CurrentUserProfile = System.Environment.UserName;
+
+        /// <summary>
+        /// Per-user preferences keyed by user profile name.
+        /// Contains function config overrides that follow the user across vehicles.
+        /// </summary>
+        public Dictionary<string, UserPreferences> UserPreferencesProfiles = new Dictionary<string, UserPreferences>();
+
+        /// <summary>
+        /// Per-function axis parameter overrides (function_id → axis_id → overrides).
+        /// Defined globally; only applied when function is active for current profile.
+        /// </summary>
+        public Dictionary<int, Dictionary<int, AxisParameterOverrides>> FunctionAxisOverrides = new Dictionary<int, Dictionary<int, AxisParameterOverrides>>();
     }
         
 

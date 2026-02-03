@@ -21,6 +21,7 @@ using System.Windows.Media;
 using DiyFfb.Controls;
 using DiyFfb.GraphEditor;
 using DiyFfb.ProfileBrowser;
+using DiyFfb.TieredConfig;
 using System.Windows.Data;
 using vJoyInterfaceWrap;
 using Windows.UI.Notifications;
@@ -192,6 +193,8 @@ namespace DiyFfb
                 plugin.ActiveGraphChanged += OnActiveGraphChanged_UI;
                 plugin.GraphParamChanged += OnGraphParamChanged_Vehicle;
                 plugin.ParamMigrationDetected += OnParamMigrationDetected;
+                plugin.FunctionConfigManager.FunctionConfigChanged += OnMergedFunctionConfigChanged;
+                plugin.AxisConfigManager.AxisConfigChanged += OnMergedAxisConfigChanged;
             }
             UpdateVehicleTabHeader();
             RefreshVehicleParams();
@@ -2362,10 +2365,26 @@ namespace DiyFfb
                 return;
             }
 
-            functions[newFunctionId].Config = newFunctionConfig;
-            if (newFunctionId == selected_function_id)
+            int funcId = (int)newFunctionId;
+
+            // Store base config from ESP32
+            Plugin.FunctionConfigManager.SetBaseConfig(funcId, newFunctionConfig);
+
+            // Check if we should apply profile overrides
+            if (Plugin.ShouldApplyProfileOverride(funcId))
             {
-                uc_function_config.SwitchFunction(functions[newFunctionId]);
+                // ApplyProfileOverridesToFunction will fire FunctionConfigChanged event
+                // which will update UI and send merged config to ESP32
+                Plugin.ApplyProfileOverridesToFunction(funcId);
+            }
+            else
+            {
+                // No profile override - use base config directly
+                functions[newFunctionId].Config = newFunctionConfig;
+                if (newFunctionId == selected_function_id)
+                {
+                    uc_function_config.SwitchFunction(functions[newFunctionId]);
+                }
             }
         }
 
@@ -2415,6 +2434,60 @@ namespace DiyFfb
             else
             {
                 SetDebugOutput($"Invalid axis ID ({(int)newAxisId})", UiLogLevel.Warning);
+            }
+        }
+
+        /// <summary>
+        /// Called when FunctionConfigManager fires after merging profile/user overrides.
+        /// Sends the merged config to ESP32 and updates UI.
+        /// </summary>
+        private void OnMergedFunctionConfigChanged(object sender, FunctionConfigChangedEventArgs e)
+        {
+            FunctionID funcId = (FunctionID)e.FunctionId;
+            if (funcId == FunctionID.Undefined || !functions.ContainsKey(funcId))
+                return;
+
+            // Update local cache with merged config
+            functions[funcId].Config = e.NewConfig;
+
+            // Send to ESP32 (don't store to EEPROM - these are runtime overrides)
+            EnqueueFunctionConfigUpload(e.NewConfig, store: false);
+
+            // Update UI if this is the selected function
+            if (funcId == selected_function_id)
+            {
+                var func = functions[funcId];
+                this.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    uc_function_config.SwitchFunction(func);
+                }));
+            }
+        }
+
+        /// <summary>
+        /// Called when AxisConfigManager fires after applying function overrides.
+        /// Sends the merged config to ESP32 and updates UI.
+        /// </summary>
+        private void OnMergedAxisConfigChanged(object sender, AxisConfigChangedEventArgs e)
+        {
+            AxisID axisId = (AxisID)e.AxisId;
+            if (axisId == AxisID.AxisUndefined || !axes.ContainsKey(axisId))
+                return;
+
+            // Update local cache with merged config
+            axes[axisId].Config = e.NewConfig;
+
+            // Send to ESP32 (don't store to EEPROM - these are runtime overrides)
+            EnqueueAxisConfigUpload(axisId, e.NewConfig, store: false);
+
+            // Update UI if this is the selected axis
+            if (axisId == selected_axis_id)
+            {
+                var config = axes[axisId].Config;
+                this.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    uc_axis_config.UpdateConfig(config);
+                }));
             }
         }
 
