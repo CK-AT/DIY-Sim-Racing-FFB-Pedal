@@ -44,6 +44,20 @@ namespace DiyFfb.TieredConfigTests
             if (!axisManagerResults.TrueForAll(r => r.Passed))
                 allPassed = false;
 
+            // Run ChangeTracker tests
+            var changeTrackerResults = ChangeTrackerTests.RunAll();
+            TestRunner.PrintResults("ChangeTracker", changeTrackerResults);
+            allResults.AddRange(changeTrackerResults);
+            if (!changeTrackerResults.TrueForAll(r => r.Passed))
+                allPassed = false;
+
+            // Run FieldRouter tests
+            var fieldRouterResults = FieldRouterTests.RunAll();
+            TestRunner.PrintResults("FieldRouter", fieldRouterResults);
+            allResults.AddRange(fieldRouterResults);
+            if (!fieldRouterResults.TrueForAll(r => r.Passed))
+                allPassed = false;
+
             // Summary
             Console.WriteLine("===================");
             int totalPassed = allResults.Count(r => r.Passed);

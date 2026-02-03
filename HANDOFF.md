@@ -1,55 +1,91 @@
-# Session Handoff
+# Tiered Config System — Implementation Complete
 
-Date: 2026-02-03
 Branch: `ck_tiered_config`
-Last commit: `f7d68181` — Add function selector UI for axis parameter overrides
+Last commit: `95c17a92` — Add unit tests for tiered config system
 
-## Current State
+## Status: Ready for Merge
 
-**Phase 5: AxisConfig Override UI** — COMMITTED
-**Unit Tests** — ADDED (uncommitted)
+All core phases from the design doc are implemented and tested.
 
-## What Was Implemented
+## Implementation Summary
 
-Added function selector dropdown to the Axis tab allowing users to edit axis parameters (kinematics, static balance) either for axis base config OR as per-function override.
+### Core Classes (`SimHubPlugin/TieredConfig/`)
 
-### Files Modified
+| File                       | Purpose                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------ |
+| `TieredConfigTypes.cs`     | `ConfigLayer` enum, `UserPreferences`, `FunctionConfigOverrides`, `AxisParameterOverrides` |
+| `ConfigMerger.cs`          | Pure merge functions: `MergeAxisOverrides`, `MergeFunctionConfig`, `MergeAllLayers`        |
+| `ConfigComparer.cs`        | Deep equality checks with float tolerance for diff-checking                                |
+| `ConflictDetector.cs`      | Detects when multiple active functions override the same axis                              |
+| `AxisConfigManager.cs`     | Tracks base configs, applies/clears function overrides, fires events                       |
+| `FunctionConfigManager.cs` | Manages profile + user override merging for function configs                               |
+| `FieldRouter.cs`           | Routes field changes to User/Profile/Hardware layer by default                             |
+| `ChangeTracker.cs`         | Tracks pending unsaved changes per layer                                                   |
 
-**DiyFfbPlugin.cs** — Added API methods:
-- `FunctionAxisLink` class for function-axis linking info
-- `GetFunctionsLinkingToAxis(int axisId)` — Returns functions linking to an axis
-- `HasAxisParameterOverride()` / `GetAxisParameterOverride()` — Query overrides
-- `SetAxisParameterOverride()` / `UpdateAxisParameterOverride()` — Set overrides
-- `ClearAxisParameterOverride()` / `ClearAllAxisParameterOverrides()` — Remove overrides
+### Plugin API (`DiyFfbPlugin.cs`)
 
-**AxisConfigControl.xaml** — Added UI elements:
-- `BooleanToVisibilityConverter` resource
-- `FunctionSelectorPanel` with ComboBox and Clear Override button
-- `[F]` badge indicator for functions with overrides
+```csharp
+// Query functions linking to an axis
+List<FunctionAxisLink> GetFunctionsLinkingToAxis(int axisId)
 
-**AxisConfigControl.xaml.cs** — Added code-behind:
-- `FunctionSelectorItem` class, `AxisEditingMode` enum
-- `RefreshFunctionSelector()` — Populate dropdown with linked functions
-- Mode switching and override save logic
+// Check/get axis parameter overrides
+bool HasAxisParameterOverride(int functionId, int axisId)
+AxisParameterOverrides GetAxisParameterOverride(int functionId, int axisId)
 
-### UI Behavior
+// Set/update axis parameter overrides
+void SetAxisParameterOverride(int functionId, int axisId, AxisParameterOverrides overrides)
+void UpdateAxisParameterOverride(int functionId, int axisId, Action<AxisParameterOverrides> updateAction)
 
-1. Function Selector appears on Axis tab when functions link to the axis
-2. "Axis N (base)" edits the hardware axis config (normal behavior)
-3. Function name options enable override editing mode
-4. `[F]` badge indicates functions with existing overrides
-5. "Clear Override" button removes the override
+// Clear overrides
+void ClearAxisParameterOverride(int functionId, int axisId)
+void ClearAllAxisParameterOverrides(int functionId)
+```
 
-## Commit History (this branch)
+### UI Components
 
-| Commit | Description |
-|--------|-------------|
-| `f7d68181` | Add function selector UI for axis parameter overrides |
-| `38603843` | Add override value editor UI for active functions |
-| `a2625da0` | Add Active Functions UI for vehicle profile overrides |
+**Axis Tab — Function Selector** (`AxisConfigControl.xaml/.cs`)
+
+- Dropdown to switch between "Axis N (base)" and function override modes
+- `[F]` badge indicates functions with existing overrides
+- "Clear Override" button to remove per-function axis overrides
+- Kinematics and static balance editors work in both modes
+
+**Vehicle Profile — Active Functions** (`DiyFfbPluginUI.xaml.cs`)
+
+- Checkbox list of functions per vehicle profile
+- Expandable override editor for each active function
+- Sliders for OutputMin/Max, SimulatedMass, Friction
+- Static balance tuning controls (Enabled, Gain)
+
+### Unit Tests (132 tests, all passing)
+
+| Suite                  | Count | Coverage                                                                      |
+| ---------------------- | ----- | ----------------------------------------------------------------------------- |
+| ConfigMergerTests      | 18    | Axis override merge, function delta merge, three-layer merge, mutation safety |
+| ConfigComparerTests    | 28    | Equality checks, float tolerance, null handling, list comparison              |
+| ConflictDetectorTests  | 14    | No-conflict cases, conflict detection, partial overlap, locked axes           |
+| AxisConfigManagerTests | 20    | Base config lifecycle, apply/clear overrides, diff-checking, events           |
+| ChangeTrackerTests     | 25    | Track/commit/discard changes, layer routing, reroute, pending state queries   |
+| FieldRouterTests       | 27    | User/Hardware/Profile routing, case insensitivity, nested fields, helpers     |
+
+Run tests:
+
+```bash
+cd SimHubPlugin/TieredConfigTests/bin/Debug
+./TieredConfigTests.exe
+```
+
+## Commit History
+
+| Commit     | Description                                               |
+| ---------- | --------------------------------------------------------- |
+| `95c17a92` | Add unit tests for tiered config system                   |
+| `f7d68181` | Add function selector UI for axis parameter overrides     |
+| `38603843` | Add override value editor UI for active functions         |
+| `a2625da0` | Add Active Functions UI for vehicle profile overrides     |
 | `f77294c8` | Add tiered config override system with profile integration |
 
-## Build Command
+## Build
 
 ```bash
 MSYS_NO_PATHCONV=1 \
@@ -58,33 +94,24 @@ MSYS_NO_PATHCONV=1 \
   /p:Configuration=Debug /v:minimal /nologo
 ```
 
-## Unit Tests Added
+## Next Tasks
 
-Created `TieredConfigTests` project with 80 tests covering:
+Optional improvements if continuing development:
 
-| Test Suite | Tests | Description |
-|------------|-------|-------------|
-| ConfigMergerTests | 18 | Axis override merge, function config delta merge, three-layer merge |
-| ConfigComparerTests | 28 | Equality checks for configs, overrides, floats, lists |
-| ConflictDetectorTests | 14 | Axis conflict detection, partial overlap, locked axes |
-| AxisConfigManagerTests | 20 | Base config lifecycle, apply/clear overrides, diff checking |
+1. **Add per-field layer badges** — Show `[P]`/`[U]` indicators on config fields to indicate override source
+2. **Add Save/Discard Review Dialog** — UI for triaging pending changes before save (re-route, discard individual changes)
+3. **Implement `DeltaExtractor`** — Extract changed fields from full config for cleaner delta generation
 
-### Test Project Files
+## Deferred Items Reference
 
-- `SimHubPlugin/TieredConfigTests/TieredConfigTests.csproj`
-- `SimHubPlugin/TieredConfigTests/Program.cs`
-- `SimHubPlugin/TieredConfigTests/ConfigMergerTests.cs`
-- `SimHubPlugin/TieredConfigTests/ConfigComparerTests.cs`
-- `SimHubPlugin/TieredConfigTests/ConflictDetectorTests.cs`
-- `SimHubPlugin/TieredConfigTests/AxisConfigManagerTests.cs`
+These were lower-priority items from the design doc, not blocking merge:
 
-### Run Tests
+| Item                         | Priority | Notes                                                                 |
+| ---------------------------- | -------- | --------------------------------------------------------------------- |
+| `DeltaExtractor` class       | Medium   | Extract changed fields from full config (not needed for current flow) |
+| Per-field `[P]`/`[U]` badges | Low      | UI polish — show which layer each value comes from                    |
+| Save/Discard Review Dialog   | Low      | UI polish — triage pending changes before save                        |
 
-```bash
-cd SimHubPlugin/TieredConfigTests/bin/Debug
-./TieredConfigTests.exe
-```
+## Design Reference
 
-## Reference
-
-Design doc: `SimHubPlugin/Docs/plans/24_Tiered_Config_Overrides.md`
+Full design doc: `SimHubPlugin/Docs/plans/24_Tiered_Config_Overrides.md`
