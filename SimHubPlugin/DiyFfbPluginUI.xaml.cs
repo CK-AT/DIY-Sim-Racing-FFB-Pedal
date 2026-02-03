@@ -1,4 +1,4 @@
-using Google.Protobuf;
+﻿using Google.Protobuf;
 using Newtonsoft.Json;
 using ProtbufTest;
 using System;
@@ -86,6 +86,44 @@ namespace DiyFfb
         private AxisRequestQueue axisRequestQueue;
         private GraphEditorWindow graphEditorWindow;
         private string lastGraphEditorPath;
+        private bool isUpdatingOverrideUi;
+        private bool suppressUserProfileSelectionChange;
+
+        private sealed class OverrideFieldTag
+        {
+            public OverrideFieldTag(FunctionID functionId, string fieldName, TextBox textBox, Button clearButton, TextBlock badge)
+            {
+                FunctionId = functionId;
+                FieldName = fieldName;
+                TextBox = textBox;
+                ClearButton = clearButton;
+                Badge = badge;
+            }
+
+            public FunctionID FunctionId { get; }
+            public string FieldName { get; }
+            public TextBox TextBox { get; }
+            public Button ClearButton { get; }
+            public TextBlock Badge { get; }
+        }
+
+        private sealed class OverrideCheckboxTag
+        {
+            public OverrideCheckboxTag(FunctionID functionId, string fieldName, CheckBox checkbox, TextBlock stateLabel, TextBlock badge)
+            {
+                FunctionId = functionId;
+                FieldName = fieldName;
+                Checkbox = checkbox;
+                StateLabel = stateLabel;
+                Badge = badge;
+            }
+
+            public FunctionID FunctionId { get; }
+            public string FieldName { get; }
+            public CheckBox Checkbox { get; }
+            public TextBlock StateLabel { get; }
+            public TextBlock Badge { get; }
+        }
 
         private enum UiLogLevel
         {
@@ -414,6 +452,7 @@ namespace DiyFfb
             UpdateActiveAircraftLabel(null, null);
             RefreshGraphSelectionUI();
             RefreshXPlaneUdpSettings();
+            RefreshUserProfileUi();
         }
 
         public void RefreshGraphSelection()
@@ -438,6 +477,67 @@ namespace DiyFfb
                 TextBox_XPlanePort.Text = Plugin.Settings.XPlaneUdpPort.ToString();
             }
             updatingXPlaneUdp = false;
+        }
+
+        private void RefreshUserProfileUi()
+        {
+            if (Plugin == null || ComboBox_UserProfile == null)
+            {
+                return;
+            }
+
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (Plugin.Settings.UserPreferencesProfiles != null)
+            {
+                foreach (var key in Plugin.Settings.UserPreferencesProfiles.Keys)
+                {
+                    if (!string.IsNullOrWhiteSpace(key))
+                    {
+                        names.Add(key);
+                    }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(Plugin.Settings.CurrentUserProfile))
+            {
+                names.Add(Plugin.Settings.CurrentUserProfile);
+            }
+
+            var windowsUser = System.Environment.UserName;
+            if (!string.IsNullOrWhiteSpace(windowsUser))
+            {
+                names.Add(windowsUser);
+            }
+
+            var ordered = names.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+            suppressUserProfileSelectionChange = true;
+            ComboBox_UserProfile.ItemsSource = ordered;
+            if (!string.IsNullOrWhiteSpace(Plugin.Settings.CurrentUserProfile))
+            {
+                ComboBox_UserProfile.SelectedItem = Plugin.Settings.CurrentUserProfile;
+            }
+            else if (ordered.Count > 0)
+            {
+                ComboBox_UserProfile.SelectedIndex = 0;
+            }
+            suppressUserProfileSelectionChange = false;
+
+            if (TextBlock_UserProfileInfo != null)
+            {
+                TextBlock_UserProfileInfo.Text = $"Profiles: {ordered.Count}";
+            }
+        }
+
+        private void SetCurrentUserProfile(string userProfile)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            Plugin.SetCurrentUserProfile(userProfile);
+            RefreshUserProfileUi();
+            RefreshVehicleParams();
         }
 
         private void RefreshGraphSelectionUI()
@@ -880,6 +980,94 @@ namespace DiyFfb
             }
 
             Plugin.ApplyXPlaneUdpSettings(enabled, port);
+        }
+
+        private void ComboBox_UserProfile_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (suppressUserProfileSelectionChange)
+            {
+                return;
+            }
+
+            if (ComboBox_UserProfile.SelectedItem is string profileName)
+            {
+                SetCurrentUserProfile(profileName);
+            }
+        }
+
+        private void btn_user_profile_refresh_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshUserProfileUi();
+        }
+
+        private void btn_user_profile_create_Click(object sender, RoutedEventArgs e)
+        {
+            if (TextBox_UserProfileName == null)
+            {
+                return;
+            }
+
+            var profileName = TextBox_UserProfileName.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(profileName))
+            {
+                ThemedMessageBox.Show("Enter a user profile name first.", "User Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            SetCurrentUserProfile(profileName);
+            TextBox_UserProfileName.Text = string.Empty;
+        }
+
+        private void TextBox_UserProfileName_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter)
+            {
+                return;
+            }
+
+            btn_user_profile_create_Click(sender, e);
+            e.Handled = true;
+        }
+
+        private void btn_user_profile_delete_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            var profileName = ComboBox_UserProfile?.SelectedItem as string;
+            if (string.IsNullOrWhiteSpace(profileName))
+            {
+                return;
+            }
+
+            var result = ThemedMessageBox.Show(
+                $"Delete user profile '{profileName}'? This removes stored user preference overrides.",
+                "User Profiles",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            if (Plugin.Settings.UserPreferencesProfiles != null)
+            {
+                Plugin.Settings.UserPreferencesProfiles.Remove(profileName);
+            }
+
+            var fallback = System.Environment.UserName;
+            if (string.Equals(Plugin.Settings.CurrentUserProfile, profileName, StringComparison.OrdinalIgnoreCase))
+            {
+                SetCurrentUserProfile(fallback);
+            }
+            else
+            {
+                RefreshUserProfileUi();
+                RefreshVehicleParams();
+            }
         }
 
         private void textbox_SSID_TextChanged(object sender, TextChangedEventArgs e)
@@ -3177,24 +3365,17 @@ namespace DiyFfb
                 Margin = new Thickness(5, 0, 0, 0)
             };
 
-            // Add override indicator if function has profile overrides
-            var profile = Plugin.GetCurrentAircraftProfile();
-            bool hasOverrides = profile?.FunctionOverrides?.ContainsKey((int)functionId) == true;
-            TextBlock badge = null;
-            if (hasOverrides && isActive)
+            // Add override indicator badge (always create, update visibility dynamically)
+            var badge = new TextBlock
             {
-                badge = new TextBlock
-                {
-                    Text = "[P]",
-                    Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50)), // Green
-                    FontFamily = new FontFamily("Arial"),
-                    FontSize = 10,
-                    FontWeight = FontWeights.Bold,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(5, 0, 0, 0),
-                    ToolTip = "Has profile overrides"
-                };
-            }
+                Tag = $"functionBadge_{(int)functionId}",
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(5, 0, 0, 0)
+            };
+            UpdateFunctionLevelBadge(badge, functionId);
 
             // Edit button (only for active functions)
             Button editButton = null;
@@ -3216,7 +3397,7 @@ namespace DiyFfb
 
             row.Children.Add(checkbox);
             row.Children.Add(nameLabel);
-            if (badge != null) row.Children.Add(badge);
+            row.Children.Add(badge);
             row.Children.Add(statusLabel);
             if (editButton != null) row.Children.Add(editButton);
 
@@ -3265,7 +3446,7 @@ namespace DiyFfb
 
             var header = new TextBlock
             {
-                Text = "Profile Overrides",
+                Text = "Overrides",
                 Foreground = Brushes.LightGray,
                 FontFamily = new FontFamily("Arial"),
                 FontSize = 10,
@@ -3274,14 +3455,11 @@ namespace DiyFfb
             };
             panel.Children.Add(header);
 
-            // Get current overrides
-            var overrides = Plugin.GetFunctionOverrides((int)functionId);
-
             // Output scaling section
             panel.Children.Add(CreateOverrideFieldRow(functionId, "OutputMin", "Output Min",
-                overrides?.OutputMin, 0f, 1f, "Minimum output value (0-1)"));
+                GetOverrideFloatValue(functionId, "OutputMin"), 0f, 1f, "Minimum output value (0-1)"));
             panel.Children.Add(CreateOverrideFieldRow(functionId, "OutputMax", "Output Max",
-                overrides?.OutputMax, 0f, 1f, "Maximum output value (0-1)"));
+                GetOverrideFloatValue(functionId, "OutputMax"), 0f, 1f, "Maximum output value (0-1)"));
 
             // Physics parameters section
             var physicsHeader = new TextBlock
@@ -3295,9 +3473,9 @@ namespace DiyFfb
             panel.Children.Add(physicsHeader);
 
             panel.Children.Add(CreateOverrideFieldRow(functionId, "SimulatedMass", "Simulated Mass",
-                overrides?.SimulatedMass, 0f, 100f, "Simulated mass in kg"));
+                GetOverrideFloatValue(functionId, "SimulatedMass"), 0f, 100f, "Simulated mass in kg"));
             panel.Children.Add(CreateOverrideFieldRow(functionId, "Friction", "Friction",
-                overrides?.Friction, 0f, 10f, "Friction coefficient"));
+                GetOverrideFloatValue(functionId, "Friction"), 0f, 10f, "Friction coefficient"));
 
             // Static balance section
             var balanceHeader = new TextBlock
@@ -3311,9 +3489,9 @@ namespace DiyFfb
             panel.Children.Add(balanceHeader);
 
             panel.Children.Add(CreateOverrideCheckboxRow(functionId, "StaticBalanceEnabled", "Enabled",
-                overrides?.StaticBalanceTuning?.Enabled, "Enable static balance compensation"));
+                GetOverrideBoolValue(functionId, "StaticBalanceEnabled"), "Enable static balance compensation"));
             panel.Children.Add(CreateOverrideFieldRow(functionId, "StaticBalanceGain", "Gain",
-                overrides?.StaticBalanceTuning?.Gain, 0f, 2f, "Static balance gain multiplier"));
+                GetOverrideFloatValue(functionId, "StaticBalanceGain"), 0f, 2f, "Static balance gain multiplier"));
 
             border.Child = panel;
             return border;
@@ -3346,10 +3524,10 @@ namespace DiyFfb
                 Height = 20,
                 FontSize = 10,
                 Text = currentValue?.ToString("F2") ?? "",
-                VerticalContentAlignment = VerticalAlignment.Center,
-                Tag = new Tuple<FunctionID, string>(functionId, fieldName)
+                VerticalContentAlignment = VerticalAlignment.Center
             };
             textBox.LostFocus += OnOverrideFieldLostFocus;
+            textBox.KeyDown += OnOverrideFieldKeyDown;
 
             var clearButton = new Button
             {
@@ -3366,19 +3544,11 @@ namespace DiyFfb
             };
             clearButton.Click += OnClearOverrideClick;
 
-            // Badge showing this is a profile override
-            var badge = new TextBlock
-            {
-                Text = "[P]",
-                Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50)),
-                FontFamily = new FontFamily("Arial"),
-                FontSize = 8,
-                FontWeight = FontWeights.Bold,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(4, 0, 0, 0),
-                Visibility = currentValue.HasValue ? Visibility.Visible : Visibility.Collapsed,
-                ToolTip = "Profile override active"
-            };
+            // Badge showing which layer this value comes from
+            var badge = CreateLayerBadge((int)functionId, fieldName);
+            var tag = new OverrideFieldTag(functionId, fieldName, textBox, clearButton, badge);
+            textBox.Tag = tag;
+            clearButton.Tag = tag;
 
             row.Children.Add(labelBlock);
             row.Children.Add(textBox);
@@ -3386,6 +3556,25 @@ namespace DiyFfb
             row.Children.Add(badge);
 
             return row;
+        }
+
+        /// <summary>
+        /// Create a layer badge that shows [P] for Profile or [U] for User layer.
+        /// </summary>
+        private TextBlock CreateLayerBadge(int functionId, string fieldName)
+        {
+            var badge = new TextBlock
+            {
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 8,
+                FontWeight = FontWeights.Bold,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, 0, 0, 0)
+            };
+
+            UpdateLayerBadge(badge, functionId, fieldName);
+
+            return badge;
         }
 
         private StackPanel CreateOverrideCheckboxRow(FunctionID functionId, string fieldName, string label,
@@ -3430,11 +3619,16 @@ namespace DiyFfb
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(8, 0, 0, 0)
             };
-            checkbox.Tag = new Tuple<FunctionID, string, TextBlock>(functionId, fieldName, stateLabel);
+
+            // Badge showing which layer this value comes from
+            var badge = CreateLayerBadge((int)functionId, fieldName);
+            var tag = new OverrideCheckboxTag(functionId, fieldName, checkbox, stateLabel, badge);
+            checkbox.Tag = tag;
 
             row.Children.Add(labelBlock);
             row.Children.Add(checkbox);
             row.Children.Add(stateLabel);
+            row.Children.Add(badge);
 
             return row;
         }
@@ -3442,37 +3636,28 @@ namespace DiyFfb
         private void OnOverrideFieldLostFocus(object sender, RoutedEventArgs e)
         {
             if (!(sender is TextBox textBox)) return;
-            if (!(textBox.Tag is Tuple<FunctionID, string> tag)) return;
+            if (!(textBox.Tag is OverrideFieldTag tag)) return;
 
-            var functionId = tag.Item1;
-            var fieldName = tag.Item2;
+            var functionId = tag.FunctionId;
+            var fieldName = tag.FieldName;
 
             if (string.IsNullOrWhiteSpace(textBox.Text))
             {
                 // Empty = clear the override
-                Plugin.ClearFunctionOverrideField((int)functionId, fieldName);
+                ClearOverrideFieldAndRefresh(tag);
                 return;
             }
 
             if (!float.TryParse(textBox.Text, out float value))
             {
                 // Invalid input - restore previous value
-                var overrides = Plugin.GetFunctionOverrides((int)functionId);
-                float? currentValue = null;
-                switch (fieldName)
-                {
-                    case "OutputMin": currentValue = overrides?.OutputMin; break;
-                    case "OutputMax": currentValue = overrides?.OutputMax; break;
-                    case "SimulatedMass": currentValue = overrides?.SimulatedMass; break;
-                    case "Friction": currentValue = overrides?.Friction; break;
-                    case "StaticBalanceGain": currentValue = overrides?.StaticBalanceTuning?.Gain; break;
-                }
+                var currentValue = GetOverrideFloatValue(functionId, fieldName);
                 textBox.Text = currentValue?.ToString("F2") ?? "";
                 return;
             }
 
             // Update the override
-            Plugin.UpdateFunctionOverride((int)functionId, overrides =>
+            Plugin.UpdateFunctionOverrideField((int)functionId, fieldName, overrides =>
             {
                 switch (fieldName)
                 {
@@ -3487,64 +3672,48 @@ namespace DiyFfb
                         break;
                 }
             });
+
+            RefreshOverrideFieldRow(tag);
+            // Note: Removed RefreshVehicleParams() to preserve editor panel state
+            // The per-field badge and value are already updated by RefreshOverrideFieldRow
+        }
+
+        private void OnOverrideFieldKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter)
+                return;
+
+            OnOverrideFieldLostFocus(sender, e);
+            e.Handled = true;
         }
 
         private void OnClearOverrideClick(object sender, RoutedEventArgs e)
         {
             if (!(sender is Button button)) return;
-            if (!(button.Tag is Tuple<FunctionID, string, TextBox> tag)) return;
+            if (!(button.Tag is OverrideFieldTag tag)) return;
 
-            var functionId = tag.Item1;
-            var fieldName = tag.Item2;
-            var textBox = tag.Item3;
-
-            Plugin.ClearFunctionOverrideField((int)functionId, fieldName);
-            textBox.Text = "";
-            button.Visibility = Visibility.Collapsed;
-
-            // Hide the badge too
-            if (button.Parent is StackPanel row && row.Children.Count > 3 && row.Children[3] is TextBlock badge)
-            {
-                badge.Visibility = Visibility.Collapsed;
-            }
+            ClearOverrideFieldAndRefresh(tag);
         }
 
         private void OnOverrideCheckboxChanged(object sender, RoutedEventArgs e)
         {
+            if (isUpdatingOverrideUi)
+                return;
             if (!(sender is CheckBox checkbox)) return;
-            if (!(checkbox.Tag is Tuple<FunctionID, string, TextBlock> tag)) return;
+            if (!(checkbox.Tag is OverrideCheckboxTag tag)) return;
 
-            var functionId = tag.Item1;
-            var fieldName = tag.Item2;
-            var stateLabel = tag.Item3;
+            var functionId = tag.FunctionId;
+            var fieldName = tag.FieldName;
 
             if (checkbox.IsChecked == null)
             {
                 // Indeterminate = clear override (use default)
-                if (fieldName == "StaticBalanceEnabled")
-                {
-                    var overrides = Plugin.GetFunctionOverrides((int)functionId);
-                    if (overrides?.StaticBalanceTuning != null)
-                    {
-                        overrides.StaticBalanceTuning.Enabled = null;
-                        if (overrides.StaticBalanceTuning.IsEmpty)
-                        {
-                            Plugin.ClearFunctionOverrideField((int)functionId, "StaticBalanceTuning");
-                        }
-                        else if (Plugin.IsFunctionActive((int)functionId))
-                        {
-                            Plugin.UpdateFunctionOverride((int)functionId, o => { }); // Trigger re-apply
-                        }
-                    }
-                }
-                stateLabel.Text = "(default)";
-                stateLabel.Foreground = Brushes.Gray;
-                stateLabel.FontStyle = FontStyles.Italic;
+                ClearOverrideCheckboxAndRefresh(tag);
             }
             else
             {
                 bool value = checkbox.IsChecked.Value;
-                Plugin.UpdateFunctionOverride((int)functionId, overrides =>
+                Plugin.UpdateFunctionOverrideField((int)functionId, fieldName, overrides =>
                 {
                     if (fieldName == "StaticBalanceEnabled")
                     {
@@ -3553,10 +3722,192 @@ namespace DiyFfb
                         overrides.StaticBalanceTuning.Enabled = value;
                     }
                 });
-                stateLabel.Text = value ? "On" : "Off";
-                stateLabel.Foreground = Brushes.LightGray;
-                stateLabel.FontStyle = FontStyles.Normal;
+
+                RefreshOverrideCheckboxRow(tag);
             }
+        }
+
+        private void ClearOverrideFieldAndRefresh(OverrideFieldTag tag)
+        {
+            var layer = GetOverrideSourceLayer(tag.FunctionId, tag.FieldName);
+            Plugin.ClearFunctionOverrideField((int)tag.FunctionId, tag.FieldName, layer);
+
+            // Clear both User and Profile layers to fully remove the override
+            // Plugin.ClearFunctionOverrideField((int)tag.FunctionId, tag.FieldName, ConfigLayer.User);
+            // Plugin.ClearFunctionOverrideField((int)tag.FunctionId, tag.FieldName, ConfigLayer.Profile);
+            RefreshOverrideFieldRow(tag);
+            // Note: Not calling RefreshVehicleParams() to preserve editor panel state
+        }
+
+        private void ClearOverrideCheckboxAndRefresh(OverrideCheckboxTag tag)
+        {
+            var layer = GetOverrideSourceLayer(tag.FunctionId, tag.FieldName);
+            Plugin.ClearFunctionOverrideField((int)tag.FunctionId, tag.FieldName, layer);
+            // Clear both User and Profile layers to fully remove the override
+            // Plugin.ClearFunctionOverrideField((int)tag.FunctionId, tag.FieldName, ConfigLayer.User);
+            // Plugin.ClearFunctionOverrideField((int)tag.FunctionId, tag.FieldName, ConfigLayer.Profile);
+            RefreshOverrideCheckboxRow(tag);
+            // Note: Not calling RefreshVehicleParams() to preserve editor panel state
+        }
+
+        private void RefreshOverrideFieldRow(OverrideFieldTag tag)
+        {
+            var currentValue = GetOverrideFloatValue(tag.FunctionId, tag.FieldName);
+            tag.TextBox.Text = currentValue?.ToString("F2") ?? "";
+            tag.ClearButton.Visibility = currentValue.HasValue ? Visibility.Visible : Visibility.Collapsed;
+            UpdateLayerBadge(tag.Badge, (int)tag.FunctionId, tag.FieldName);
+            RefreshFunctionLevelBadge(tag.FunctionId);
+        }
+
+        private void RefreshOverrideCheckboxRow(OverrideCheckboxTag tag)
+        {
+            var currentValue = GetOverrideBoolValue(tag.FunctionId, tag.FieldName);
+            isUpdatingOverrideUi = true;
+            tag.Checkbox.IsChecked = currentValue;
+            isUpdatingOverrideUi = false;
+
+            tag.StateLabel.Text = currentValue.HasValue ? (currentValue.Value ? "On" : "Off") : "(default)";
+            tag.StateLabel.Foreground = currentValue.HasValue ? Brushes.LightGray : Brushes.Gray;
+            tag.StateLabel.FontStyle = currentValue.HasValue ? FontStyles.Normal : FontStyles.Italic;
+
+            UpdateLayerBadge(tag.Badge, (int)tag.FunctionId, tag.FieldName);
+            RefreshFunctionLevelBadge(tag.FunctionId);
+        }
+
+        private ConfigLayer? GetOverrideSourceLayer(FunctionID functionId, string fieldName)
+        {
+            var layerProvider = Plugin.CreateConfigLayerProvider();
+            return layerProvider.GetFieldSourceLayer((int)functionId, fieldName);
+        }
+
+        private float? GetOverrideFloatValue(FunctionID functionId, string fieldName)
+        {
+            var userOverrides = Plugin.GetUserFunctionOverrides((int)functionId);
+            var profileOverrides = Plugin.GetFunctionOverrides((int)functionId);
+
+            switch (fieldName)
+            {
+                case "OutputMin":
+                    return userOverrides?.OutputMin ?? profileOverrides?.OutputMin;
+                case "OutputMax":
+                    return userOverrides?.OutputMax ?? profileOverrides?.OutputMax;
+                case "SimulatedMass":
+                    return userOverrides?.SimulatedMass ?? profileOverrides?.SimulatedMass;
+                case "Friction":
+                    return userOverrides?.Friction ?? profileOverrides?.Friction;
+                case "StaticBalanceGain":
+                    return userOverrides?.StaticBalanceTuning?.Gain ?? profileOverrides?.StaticBalanceTuning?.Gain;
+                default:
+                    return null;
+            }
+        }
+
+        private bool? GetOverrideBoolValue(FunctionID functionId, string fieldName)
+        {
+            var userOverrides = Plugin.GetUserFunctionOverrides((int)functionId);
+            var profileOverrides = Plugin.GetFunctionOverrides((int)functionId);
+
+            switch (fieldName)
+            {
+                case "StaticBalanceEnabled":
+                    return userOverrides?.StaticBalanceTuning?.Enabled ?? profileOverrides?.StaticBalanceTuning?.Enabled;
+                default:
+                    return null;
+            }
+        }
+
+        private void UpdateLayerBadge(TextBlock badge, int functionId, string fieldName)
+        {
+            var layerProvider = Plugin.CreateConfigLayerProvider();
+            var layer = layerProvider.GetFieldSourceLayer(functionId, fieldName);
+
+            if (layer == ConfigLayer.User)
+            {
+                badge.Text = "[U]";
+                badge.Foreground = new SolidColorBrush(Color.FromRgb(0x64, 0xB5, 0xF6));
+                badge.ToolTip = "User preference override";
+                badge.Visibility = Visibility.Visible;
+            }
+            else if (layer == ConfigLayer.Profile)
+            {
+                badge.Text = "[P]";
+                badge.Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
+                badge.ToolTip = "Vehicle profile override";
+                badge.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                badge.Text = "";
+                badge.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// Update the function-level badge that shows [U] or [P] next to the function name.
+        /// Shows [U] if any field has User override, [P] if any field has Profile override, hidden otherwise.
+        /// </summary>
+        private void UpdateFunctionLevelBadge(TextBlock badge, FunctionID functionId)
+        {
+            var userOverrides = Plugin.GetUserFunctionOverrides((int)functionId);
+            var profileOverrides = Plugin.GetFunctionOverrides((int)functionId);
+            bool hasUserOverrides = userOverrides != null && !userOverrides.IsEmpty;
+            bool hasProfileOverrides = profileOverrides != null && !profileOverrides.IsEmpty;
+            bool isActive = Plugin.IsFunctionActive((int)functionId);
+
+            if (hasUserOverrides && isActive)
+            {
+                badge.Text = "[U]";
+                badge.Foreground = new SolidColorBrush(Color.FromRgb(0x64, 0xB5, 0xF6));
+                badge.ToolTip = "Has user preference overrides";
+                badge.Visibility = Visibility.Visible;
+            }
+            else if (hasProfileOverrides && isActive)
+            {
+                badge.Text = "[P]";
+                badge.Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
+                badge.ToolTip = "Has vehicle profile overrides";
+                badge.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                badge.Text = "";
+                badge.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// Find and update the function-level badge for a given function ID.
+        /// Called after field-level changes to keep the function badge in sync.
+        /// </summary>
+        private void RefreshFunctionLevelBadge(FunctionID functionId)
+        {
+            var tagName = $"functionBadge_{(int)functionId}";
+            var badge = FindElementByTag<TextBlock>(VehicleParamsContainer, tagName);
+            if (badge != null)
+            {
+                UpdateFunctionLevelBadge(badge, functionId);
+            }
+        }
+
+        /// <summary>
+        /// Find a UI element by its Tag value within a container.
+        /// </summary>
+        private T FindElementByTag<T>(DependencyObject parent, string tag) where T : FrameworkElement
+        {
+            if (parent == null) return null;
+
+            int childCount = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childCount; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T element && element.Tag?.ToString() == tag)
+                    return element;
+
+                var result = FindElementByTag<T>(child, tag);
+                if (result != null)
+                    return result;
+            }
+            return null;
         }
 
         private void OnActiveFunctionChecked(object sender, RoutedEventArgs e)

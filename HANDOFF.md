@@ -3,9 +3,21 @@
 Branch: `ck_tiered_config`
 Last commit: `8f89eded` — Add ChangeTracker and FieldRouter unit tests
 
-## Status: Ready for Merge
+**Uncommitted changes**: Bug fix #4 below (badge update issue)
 
-All core phases from the design doc are implemented and tested.
+## Status: Ready for testing
+
+All core phases from the design doc are implemented and tested, plus per-field layer badges and user profile UI.
+
+### Recent Bug Fixes
+
+1. **User profile key mismatch**: `GetCurrentUserOverrides()` now uses same key logic as write path (added `IsNullOrWhiteSpace` check).
+
+2. **Clear requires two clicks**: Clearing an override now removes from BOTH User and Profile layers in one click.
+
+3. **UI collapse on edit**: Removed `RefreshVehicleParams()` calls after field edits to preserve the expanded editor panel state. Per-field badges update via `RefreshOverrideFieldRow()` without rebuilding the entire UI.
+
+4. **Badge not updating after edit**: `ApplyProfileOverridesToFunction()` was throwing `InvalidOperationException` when no base config existed (ESP32 not connected), which silently prevented `RefreshOverrideFieldRow()` from running. Fixed by adding `HasBaseConfig` check before calling `ApplyProfileOverrides` — matches the guard already used in `ApplyCurrentProfileOverrides()`. Overrides are still stored; they just won't apply to hardware until base config arrives.
 
 ## Implementation Summary
 
@@ -21,6 +33,7 @@ All core phases from the design doc are implemented and tested.
 | `FunctionConfigManager.cs` | Manages profile + user override merging for function configs                               |
 | `FieldRouter.cs`           | Routes field changes to User/Profile/Hardware layer by default                             |
 | `ChangeTracker.cs`         | Tracks pending unsaved changes per layer                                                   |
+| `ConfigLayerProvider.cs`   | Determines which layer a field value comes from for UI badges                              |
 
 ### Plugin API (`DiyFfbPlugin.cs`)
 
@@ -39,6 +52,17 @@ void UpdateAxisParameterOverride(int functionId, int axisId, Action<AxisParamete
 // Clear overrides
 void ClearAxisParameterOverride(int functionId, int axisId)
 void ClearAllAxisParameterOverrides(int functionId)
+
+// Function config overrides (profile and user layers)
+FunctionConfigOverrides GetFunctionOverrides(int functionId)       // Profile layer
+FunctionConfigOverrides GetUserFunctionOverrides(int functionId)   // User layer
+
+// Create layer provider for UI badges
+ConfigLayerProvider CreateConfigLayerProvider()
+
+// User profile selection
+void SetCurrentUserProfile(string userProfile)
+void ApplyCurrentProfileOverrides()
 ```
 
 ### UI Components
@@ -56,6 +80,8 @@ void ClearAllAxisParameterOverrides(int functionId)
 - Expandable override editor for each active function
 - Sliders for OutputMin/Max, SimulatedMass, Friction
 - Static balance tuning controls (Enabled, Gain)
+- **Per-field layer badges**: `[P]` (green) for Profile overrides, `[U]` (blue) for User overrides
+- **System → User tab**: create/select/delete user profiles for user-layer overrides
 
 ### Unit Tests (132 tests, all passing)
 
@@ -99,9 +125,12 @@ MSYS_NO_PATHCONV=1 \
 
 Optional improvements if continuing development:
 
-1. **Add per-field layer badges** — Show `[P]`/`[U]` indicators on config fields to indicate override source
-2. **Add Save/Discard Review Dialog** — UI for triaging pending changes before save (re-route, discard individual changes)
-3. **Implement `DeltaExtractor`** — Extract changed fields from full config for cleaner delta generation
+1. **Add Save/Discard Review Dialog** — UI for triaging pending changes before save (re-route, discard individual changes)
+2. **Implement `DeltaExtractor`** — Extract changed fields from full config for cleaner delta generation
+3. **Create single source of truth for override parameters** — Currently override field definitions are scattered across 5+ files (TieredConfigTypes.cs, FieldRouter.cs, ConfigLayerProvider.cs, DiyFfbPlugin.cs, DiyFfbPluginUI.xaml.cs). Consider:
+   - JSON schema defining all overridable parameters with metadata (name, type, layer routing, min/max, tooltip)
+   - Code generation or runtime loading from this schema
+   - Developer documentation on how to add new override parameters
 
 ## Deferred Items Reference
 
@@ -110,7 +139,7 @@ These were lower-priority items from the design doc, not blocking merge:
 | Item                         | Priority | Notes                                                                 |
 | ---------------------------- | -------- | --------------------------------------------------------------------- |
 | `DeltaExtractor` class       | Medium   | Extract changed fields from full config (not needed for current flow) |
-| Per-field `[P]`/`[U]` badges | Low      | UI polish — show which layer each value comes from                    |
+| Per-field `[P]`/`[U]` badges | Done     | Live refresh now works correctly                                      |
 | Save/Discard Review Dialog   | Low      | UI polish — triage pending changes before save                        |
 
 ## Design Reference

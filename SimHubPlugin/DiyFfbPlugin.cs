@@ -2227,6 +2227,10 @@ namespace DiyFfb
             if (profile?.ActiveFunctionIds?.Contains(functionId) != true)
                 return;
 
+            // Only apply if we have a base config from the ESP32
+            if (!_functionConfigManager.HasBaseConfig(functionId))
+                return;
+
             profile.FunctionOverrides.TryGetValue(functionId, out var profileDelta);
             var userOverrides = GetCurrentUserOverrides();
             FunctionConfigOverrides userDelta = null;
@@ -2248,6 +2252,9 @@ namespace DiyFfb
                 return null;
 
             string userProfile = Settings.CurrentUserProfile ?? System.Environment.UserName;
+            if (string.IsNullOrWhiteSpace(userProfile))
+                userProfile = System.Environment.UserName;
+
             Settings.UserPreferencesProfiles.TryGetValue(userProfile, out var prefs);
             return prefs;
         }
@@ -2342,6 +2349,31 @@ namespace DiyFfb
         }
 
         /// <summary>
+        /// Get the user preference overrides for a function.
+        /// Returns null if no user overrides exist.
+        /// </summary>
+        public FunctionConfigOverrides GetUserFunctionOverrides(int functionId)
+        {
+            var userPrefs = GetCurrentUserOverrides();
+            if (userPrefs?.FunctionOverrides == null)
+                return null;
+
+            userPrefs.FunctionOverrides.TryGetValue(functionId, out var overrides);
+            return overrides;
+        }
+
+        /// <summary>
+        /// Create a ConfigLayerProvider for UI layer badge display.
+        /// </summary>
+        public TieredConfig.ConfigLayerProvider CreateConfigLayerProvider()
+        {
+            return new TieredConfig.ConfigLayerProvider(
+                GetFunctionOverrides,
+                GetUserFunctionOverrides
+            );
+        }
+
+        /// <summary>
         /// Get or create the function config overrides for a function in the current vehicle profile.
         /// </summary>
         public FunctionConfigOverrides GetOrCreateFunctionOverrides(int functionId)
@@ -2381,9 +2413,36 @@ namespace DiyFfb
         }
 
         /// <summary>
+        /// Update a function override value routed to the default layer for the field.
+        /// </summary>
+        public void UpdateFunctionOverrideField(int functionId, string fieldName, Action<FunctionConfigOverrides> updateAction)
+        {
+            var targetLayer = GetFunctionOverrideTargetLayer(fieldName);
+            if (targetLayer == TieredConfig.ConfigLayer.User)
+            {
+                UpdateUserFunctionOverride(functionId, updateAction);
+                return;
+            }
+
+            UpdateFunctionOverride(functionId, updateAction);
+        }
+
+        /// <summary>
         /// Clear a specific override field for a function.
         /// </summary>
-        public void ClearFunctionOverrideField(int functionId, string fieldName)
+        public void ClearFunctionOverrideField(int functionId, string fieldName, TieredConfig.ConfigLayer? layerOverride = null)
+        {
+            var targetLayer = layerOverride ?? GetFunctionOverrideTargetLayer(fieldName);
+            if (targetLayer == TieredConfig.ConfigLayer.User)
+            {
+                ClearUserFunctionOverrideField(functionId, fieldName);
+                return;
+            }
+
+            ClearProfileFunctionOverrideField(functionId, fieldName);
+        }
+
+        private void ClearProfileFunctionOverrideField(int functionId, string fieldName)
         {
             var profile = GetCurrentAircraftProfile();
             if (profile?.FunctionOverrides == null)
@@ -2392,14 +2451,7 @@ namespace DiyFfb
             if (!profile.FunctionOverrides.TryGetValue(functionId, out var overrides))
                 return;
 
-            switch (fieldName)
-            {
-                case "OutputMin": overrides.OutputMin = null; break;
-                case "OutputMax": overrides.OutputMax = null; break;
-                case "SimulatedMass": overrides.SimulatedMass = null; break;
-                case "Friction": overrides.Friction = null; break;
-                case "StaticBalanceTuning": overrides.StaticBalanceTuning = null; break;
-            }
+            ClearOverrideFieldValue(overrides, fieldName);
 
             // Remove the override entry if it's now empty
             if (overrides.IsEmpty)
@@ -2412,6 +2464,165 @@ namespace DiyFfb
             {
                 ApplyProfileOverridesToFunction(functionId);
             }
+        }
+
+        private void UpdateUserFunctionOverride(int functionId, Action<FunctionConfigOverrides> updateAction)
+        {
+            var overrides = GetOrCreateUserFunctionOverrides(functionId);
+            if (overrides == null)
+                return;
+
+            updateAction(overrides);
+
+            if (IsFunctionActive(functionId))
+            {
+                ApplyProfileOverridesToFunction(functionId);
+            }
+        }
+
+        private void ClearUserFunctionOverrideField(int functionId, string fieldName)
+        {
+            var prefs = GetCurrentUserOverrides();
+            if (prefs?.FunctionOverrides == null)
+                return;
+
+            if (!prefs.FunctionOverrides.TryGetValue(functionId, out var overrides))
+                return;
+
+            ClearOverrideFieldValue(overrides, fieldName);
+
+            if (overrides.IsEmpty)
+            {
+                prefs.FunctionOverrides.Remove(functionId);
+            }
+
+            if (IsFunctionActive(functionId))
+            {
+                ApplyProfileOverridesToFunction(functionId);
+            }
+        }
+
+        private static void ClearOverrideFieldValue(FunctionConfigOverrides overrides, string fieldName)
+        {
+            switch (fieldName)
+            {
+                case "OutputMin": overrides.OutputMin = null; break;
+                case "OutputMax": overrides.OutputMax = null; break;
+                case "SimulatedMass": overrides.SimulatedMass = null; break;
+                case "Friction": overrides.Friction = null; break;
+                case "StaticBalanceEnabled":
+                    if (overrides.StaticBalanceTuning != null)
+                    {
+                        overrides.StaticBalanceTuning.Enabled = null;
+                        if (overrides.StaticBalanceTuning.IsEmpty)
+                            overrides.StaticBalanceTuning = null;
+                    }
+                    break;
+                case "StaticBalanceGain":
+                    if (overrides.StaticBalanceTuning != null)
+                    {
+                        overrides.StaticBalanceTuning.Gain = null;
+                        if (overrides.StaticBalanceTuning.IsEmpty)
+                            overrides.StaticBalanceTuning = null;
+                    }
+                    break;
+                case "StaticBalanceTuning": overrides.StaticBalanceTuning = null; break;
+            }
+        }
+
+        private FunctionConfigOverrides GetOrCreateUserFunctionOverrides(int functionId)
+        {
+            var prefs = GetOrCreateCurrentUserOverrides();
+            if (prefs == null)
+                return null;
+
+            if (prefs.FunctionOverrides == null)
+                prefs.FunctionOverrides = new Dictionary<int, FunctionConfigOverrides>();
+
+            if (!prefs.FunctionOverrides.TryGetValue(functionId, out var overrides))
+            {
+                overrides = new FunctionConfigOverrides();
+                prefs.FunctionOverrides[functionId] = overrides;
+            }
+
+            return overrides;
+        }
+
+        private UserPreferences GetOrCreateCurrentUserOverrides()
+        {
+            if (Settings == null)
+                return null;
+
+            if (Settings.UserPreferencesProfiles == null)
+                Settings.UserPreferencesProfiles = new Dictionary<string, UserPreferences>();
+
+            string userProfile = Settings.CurrentUserProfile ?? System.Environment.UserName;
+            if (string.IsNullOrWhiteSpace(userProfile))
+                userProfile = System.Environment.UserName;
+
+            if (!Settings.UserPreferencesProfiles.TryGetValue(userProfile, out var prefs))
+            {
+                prefs = new UserPreferences();
+                Settings.UserPreferencesProfiles[userProfile] = prefs;
+            }
+
+            return prefs;
+        }
+
+        /// <summary>
+        /// Set the current user profile name and ensure its preferences entry exists.
+        /// </summary>
+        public void SetCurrentUserProfile(string userProfile)
+        {
+            if (Settings == null)
+                return;
+
+            var normalized = string.IsNullOrWhiteSpace(userProfile)
+                ? System.Environment.UserName
+                : userProfile.Trim();
+
+            if (string.IsNullOrWhiteSpace(normalized))
+                normalized = System.Environment.UserName;
+
+            Settings.CurrentUserProfile = normalized;
+
+            if (Settings.UserPreferencesProfiles == null)
+                Settings.UserPreferencesProfiles = new Dictionary<string, UserPreferences>();
+
+            if (!Settings.UserPreferencesProfiles.ContainsKey(normalized))
+                Settings.UserPreferencesProfiles[normalized] = new UserPreferences();
+
+            ApplyCurrentProfileOverrides();
+        }
+
+        /// <summary>
+        /// Re-apply profile/user overrides for the current vehicle profile.
+        /// </summary>
+        public void ApplyCurrentProfileOverrides()
+        {
+            var profile = GetCurrentAircraftProfile();
+            ApplyProfileFunctionOverrides(profile);
+        }
+
+        private static string NormalizeFunctionOverrideFieldPath(string fieldName)
+        {
+            switch (fieldName)
+            {
+                case "OutputMin": return "output_min";
+                case "OutputMax": return "output_max";
+                case "SimulatedMass": return "simulated_mass";
+                case "Friction": return "friction";
+                case "StaticBalanceEnabled": return "static_balance_tuning.enabled";
+                case "StaticBalanceGain": return "static_balance_tuning.gain";
+                case "StaticBalanceTuning": return "static_balance_tuning";
+                default: return fieldName;
+            }
+        }
+
+        private static TieredConfig.ConfigLayer GetFunctionOverrideTargetLayer(string fieldName)
+        {
+            var normalized = NormalizeFunctionOverrideFieldPath(fieldName);
+            return TieredConfig.FieldRouter.GetTargetLayer(normalized);
         }
 
         #region Axis Parameter Override API
