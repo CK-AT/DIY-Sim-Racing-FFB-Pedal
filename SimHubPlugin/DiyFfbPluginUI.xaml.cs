@@ -3032,10 +3032,20 @@ namespace DiyFfb
                 return;
             }
 
+            // Add Active Functions section at the top
+            var activeFunctionsExpander = CreateActiveFunctionsExpander();
+            if (activeFunctionsExpander != null)
+            {
+                VehicleParamsContainer.Children.Add(activeFunctionsExpander);
+            }
+
             var allParams = Plugin.GetActiveGraphParams();
             if (allParams == null || allParams.Count == 0)
             {
-                ShowVehicleEmptyState();
+                if (activeFunctionsExpander == null)
+                {
+                    ShowVehicleEmptyState();
+                }
                 return;
             }
 
@@ -3046,7 +3056,10 @@ namespace DiyFfb
 
             if (vehicleParams.Count == 0)
             {
-                ShowVehicleEmptyState();
+                if (activeFunctionsExpander == null)
+                {
+                    ShowVehicleEmptyState();
+                }
                 return;
             }
 
@@ -3062,6 +3075,147 @@ namespace DiyFfb
                 var orderedParams = OrderParamsByGraph(orderedNames, group);
                 var expander = CreateVehicleGroupExpander(group.Key, orderedParams);
                 VehicleParamsContainer.Children.Add(expander);
+            }
+        }
+
+        private Expander CreateActiveFunctionsExpander()
+        {
+            // Only show if we have known functions
+            if (functions.Count == 0)
+                return null;
+
+            var expander = new Expander
+            {
+                Header = "Active Functions",
+                IsExpanded = false,
+                Foreground = Brushes.White,
+                FontFamily = new FontFamily("Arial Black"),
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 0, 5)
+            };
+
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x7F, 0x4E, 0x4E, 0x4E)),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(10)
+            };
+
+            var panel = new StackPanel { Orientation = Orientation.Vertical };
+
+            // Add description
+            var description = new TextBlock
+            {
+                Text = "Select which functions should use profile-specific overrides for this vehicle.",
+                Foreground = Brushes.Gray,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 10,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            panel.Children.Add(description);
+
+            // Add a checkbox for each known function (skip Undefined)
+            foreach (var kvp in functions)
+            {
+                if (kvp.Key == FunctionID.Undefined)
+                    continue;
+
+                var functionPanel = CreateActiveFunctionRow(kvp.Key, kvp.Value);
+                panel.Children.Add(functionPanel);
+            }
+
+            border.Child = panel;
+            expander.Content = border;
+            return expander;
+        }
+
+        private StackPanel CreateActiveFunctionRow(FunctionID functionId, Function function)
+        {
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 2, 0, 2),
+                Height = 24
+            };
+
+            bool isActive = Plugin.IsFunctionActive((int)functionId);
+
+            var checkbox = new CheckBox
+            {
+                IsChecked = isActive,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            checkbox.Tag = functionId;
+            checkbox.Checked += OnActiveFunctionChecked;
+            checkbox.Unchecked += OnActiveFunctionUnchecked;
+
+            var nameLabel = new TextBlock
+            {
+                Text = function.Name,
+                Foreground = Brushes.White,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 140
+            };
+
+            var statusLabel = new TextBlock
+            {
+                Text = function.IsOnline ? "(online)" : "(offline)",
+                Foreground = function.IsOnline ? Brushes.LightGreen : Brushes.Gray,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 10,
+                FontStyle = FontStyles.Italic,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(5, 0, 0, 0)
+            };
+
+            // Add override indicator if function has profile overrides
+            var profile = Plugin.GetCurrentAircraftProfile();
+            bool hasOverrides = profile?.FunctionOverrides?.ContainsKey((int)functionId) == true;
+            if (hasOverrides && isActive)
+            {
+                var badge = new TextBlock
+                {
+                    Text = "[P]",
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50)), // Green
+                    FontFamily = new FontFamily("Arial"),
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(5, 0, 0, 0),
+                    ToolTip = "Has profile overrides"
+                };
+                row.Children.Add(checkbox);
+                row.Children.Add(nameLabel);
+                row.Children.Add(badge);
+                row.Children.Add(statusLabel);
+            }
+            else
+            {
+                row.Children.Add(checkbox);
+                row.Children.Add(nameLabel);
+                row.Children.Add(statusLabel);
+            }
+
+            return row;
+        }
+
+        private void OnActiveFunctionChecked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkbox && checkbox.Tag is FunctionID functionId)
+            {
+                Plugin.SetFunctionActive((int)functionId, true);
+            }
+        }
+
+        private void OnActiveFunctionUnchecked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkbox && checkbox.Tag is FunctionID functionId)
+            {
+                Plugin.SetFunctionActive((int)functionId, false);
             }
         }
 

@@ -2011,7 +2011,7 @@ namespace DiyFfb
             }
         }
 
-        private DiyFfbPluginSettings.AircraftFfbProfile GetCurrentAircraftProfile()
+        public DiyFfbPluginSettings.AircraftFfbProfile GetCurrentAircraftProfile()
         {
             if (Settings?.AircraftFfbProfiles == null || string.IsNullOrWhiteSpace(activeCarId))
             {
@@ -2260,6 +2260,71 @@ namespace DiyFfb
         {
             var profile = GetCurrentAircraftProfile();
             return profile?.ActiveFunctionIds?.Contains(functionId) == true;
+        }
+
+        /// <summary>
+        /// Check if a function is active for the current vehicle profile.
+        /// </summary>
+        public bool IsFunctionActive(int functionId)
+        {
+            return ShouldApplyProfileOverride(functionId);
+        }
+
+        /// <summary>
+        /// Set whether a function is active for the current vehicle profile.
+        /// When activated, applies profile/user overrides; when deactivated, restores base config.
+        /// </summary>
+        public void SetFunctionActive(int functionId, bool active)
+        {
+            var profile = GetOrCreateCurrentProfile();
+            if (profile == null)
+                return;
+
+            if (profile.ActiveFunctionIds == null)
+                profile.ActiveFunctionIds = new HashSet<int>();
+
+            bool wasActive = profile.ActiveFunctionIds.Contains(functionId);
+            if (active == wasActive)
+                return;
+
+            if (active)
+            {
+                profile.ActiveFunctionIds.Add(functionId);
+                // Apply overrides for newly activated function
+                ApplyProfileOverridesToFunction(functionId);
+            }
+            else
+            {
+                profile.ActiveFunctionIds.Remove(functionId);
+                // Clear overrides - restore base config
+                _functionConfigManager.ClearProfileOverride(functionId);
+                // Clear axis overrides for this function
+                _axisConfigManager.ClearFunctionOverrides(functionId);
+            }
+        }
+
+        /// <summary>
+        /// Get or create the current vehicle profile.
+        /// </summary>
+        private DiyFfbPluginSettings.AircraftFfbProfile GetOrCreateCurrentProfile()
+        {
+            if (Settings == null || string.IsNullOrWhiteSpace(activeCarId))
+                return null;
+
+            if (Settings.AircraftFfbProfiles == null)
+                Settings.AircraftFfbProfiles = new Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+
+            string profileKey = BuildProfileKey(activeGameId, activeCarId);
+            if (string.IsNullOrWhiteSpace(profileKey))
+                return null;
+
+            if (!Settings.AircraftFfbProfiles.TryGetValue(profileKey, out var profile))
+            {
+                profile = new DiyFfbPluginSettings.AircraftFfbProfile();
+                Settings.AircraftFfbProfiles[profileKey] = profile;
+            }
+
+            return profile;
         }
 
         private DiyFfbPluginSettings.AircraftFfbProfile BuildCurrentAircraftProfile()
