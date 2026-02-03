@@ -1,145 +1,90 @@
 # Session Handoff
 
 Date: 2026-02-03
-Last commit: `05171481` — Add staged imports feature to Profile Browser
+Branch: `ck_tiered_config`
+Last commit: `f7d68181` — Add function selector UI for axis parameter overrides
 
-## What Was Done This Session
+## Current State
 
-### Phase 3: Profile Integration — COMPLETE ✅
+**Phase 5: AxisConfig Override UI** — COMMITTED
+**Unit Tests** — ADDED (uncommitted)
 
-Implemented the profile override integration flow that auto-applies FunctionConfig and AxisConfig overrides on vehicle change.
+## What Was Implemented
 
-#### Files Created
+Added function selector dropdown to the Axis tab allowing users to edit axis parameters (kinematics, static balance) either for axis base config OR as per-function override.
 
-| File | Purpose |
-|------|---------|
-| `TieredConfig/FunctionConfigManager.cs` | Manages function config lifecycle for profile/user overrides |
+### Files Modified
 
-#### Files Modified
+**DiyFfbPlugin.cs** — Added API methods:
+- `FunctionAxisLink` class for function-axis linking info
+- `GetFunctionsLinkingToAxis(int axisId)` — Returns functions linking to an axis
+- `HasAxisParameterOverride()` / `GetAxisParameterOverride()` — Query overrides
+- `SetAxisParameterOverride()` / `UpdateAxisParameterOverride()` — Set overrides
+- `ClearAxisParameterOverride()` / `ClearAllAxisParameterOverrides()` — Remove overrides
 
-| File | Changes |
-|------|---------|
-| `DiyFfbPlugin.cs` | Added `_functionConfigManager`, `_axisConfigManager` fields and public properties; Added `ApplyProfileFunctionOverrides()`, `ApplyProfileOverridesToFunction()`, `GetCurrentUserOverrides()`, `ShouldApplyProfileOverride()` methods; Modified `ApplyAircraftProfile()` to call override logic |
-| `DiyFfbPluginUI.xaml.cs` | Added event handlers `OnMergedFunctionConfigChanged()`, `OnMergedAxisConfigChanged()`; Wired manager events in constructor; Modified `OnFunctionConfigUpdate()` to integrate with FunctionConfigManager |
-| `DiyFfbPlugin.csproj` | Added `TieredConfig\FunctionConfigManager.cs` to compilation |
+**AxisConfigControl.xaml** — Added UI elements:
+- `BooleanToVisibilityConverter` resource
+- `FunctionSelectorPanel` with ComboBox and Clear Override button
+- `[F]` badge indicator for functions with overrides
 
-#### Build Status
+**AxisConfigControl.xaml.cs** — Added code-behind:
+- `FunctionSelectorItem` class, `AxisEditingMode` enum
+- `RefreshFunctionSelector()` — Populate dropdown with linked functions
+- Mode switching and override save logic
 
-**COMPILING** ✅ — All Phase 3 changes integrated.
+### UI Behavior
 
-#### Architecture
+1. Function Selector appears on Axis tab when functions link to the axis
+2. "Axis N (base)" edits the hardware axis config (normal behavior)
+3. Function name options enable override editing mode
+4. `[F]` badge indicates functions with existing overrides
+5. "Clear Override" button removes the override
 
-```
-Vehicle Change
-     │
-     ▼
-ApplyAircraftProfile()
-     │
-     ▼
-ApplyProfileFunctionOverrides(profile)
-     │
-     ├── ClearAllProfileOverrides()      ← Restore base configs
-     │
-     ▼
-For each function in profile.ActiveFunctionIds:
-     │
-     ├── FunctionConfigManager.ApplyProfileOverrides()
-     │        │
-     │        ├── ConfigMerger.MergeAllLayers(base, profile, user)
-     │        │
-     │        └── Fire FunctionConfigChanged event
-     │                   │
-     │                   ▼
-     │              OnMergedFunctionConfigChanged()
-     │                   │
-     │                   ├── Update functions[] cache
-     │                   ├── EnqueueFunctionConfigUpload(merged, store:false)
-     │                   └── Update UI if selected
-     │
-     └── AxisConfigManager.ApplyFunctionOverrides()
-              │
-              └── Fire AxisConfigChanged event
-                         │
-                         ▼
-                    OnMergedAxisConfigChanged()
-                         │
-                         ├── Update axes[] cache
-                         ├── EnqueueAxisConfigUpload(axisId, merged, store:false)
-                         └── Update UI if selected
-```
+## Commit History (this branch)
 
-#### New Config Reception Flow
+| Commit | Description |
+|--------|-------------|
+| `f7d68181` | Add function selector UI for axis parameter overrides |
+| `38603843` | Add override value editor UI for active functions |
+| `a2625da0` | Add Active Functions UI for vehicle profile overrides |
+| `f77294c8` | Add tiered config override system with profile integration |
 
-When ESP32 sends a FunctionConfig:
-1. `OnFunctionConfigUpdate()` receives config
-2. Stores as base via `FunctionConfigManager.SetBaseConfig()`
-3. Checks `ShouldApplyProfileOverride()` — is function in active profile?
-4. If yes: calls `ApplyProfileOverridesToFunction()` → merged config sent to ESP32
-5. If no: uses base config directly in UI
-
----
-
-### Tiered Config Override Implementation — Foundation (Phase 1-2) ✅
-
-Created foundation files for the tiered configuration override system in `SimHubPlugin/TieredConfig/`:
-
-#### Files Created
-
-| File | Purpose |
-|------|---------|
-| `TieredConfigTypes.cs` | Core data types: `ConfigLayer` enum, `UserPreferences`, `FunctionConfigOverrides`, `AxisParameterOverrides` |
-| `ConfigMerger.cs` | Merge logic for config overlays (User > Profile > Hardware) |
-| `ConfigComparer.cs` | Equality checks for diff-based config sending |
-| `ConflictDetector.cs` | Detects when multiple functions override same axis |
-| `FieldRouter.cs` | Routes field changes to appropriate layer (User/Profile/Hardware) |
-| `ChangeTracker.cs` | Tracks pending unsaved changes per layer |
-| `AxisConfigManager.cs` | Manages axis config lifecycle for function overrides |
-
-#### Settings Changes (`DiyFfbPluginSettings.cs`)
-
-Added to `DiyFfbPluginSettings`:
-
-- `CurrentUserProfile` — user identity (defaults to Windows username)
-- `UserPreferencesProfiles` — per-user preferences storage
-- `FunctionAxisOverrides` — per-function axis parameter overrides
-
-Added to `AircraftFfbProfile`:
-
-- `FunctionOverrides` — vehicle-specific function config deltas
-- `ActiveFunctionIds` — which functions are active for this profile
-
-## Key Concepts
-
-**StaticBalanceTuning vs StaticBalanceConfig:**
-
-- `FunctionConfig.Types.StaticBalanceTuning` — Part of FunctionConfig, user-tunable (Enabled, Gain)
-- `AxisConfig.Types.StaticBalanceConfig` — Part of AxisConfig, function-dependent axis override (XCenter, XHalfRange, Coeffs)
-
-## Build & Test Commands
+## Build Command
 
 ```bash
-# SimHub Plugin
 MSYS_NO_PATHCONV=1 \
   "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" \
   "d:\Projects\DIY-Sim-Racing-FFB-Pedal\SimHubPlugin\DiyFfbPlugin.csproj" \
   /p:Configuration=Debug /v:minimal /nologo
 ```
 
-## Next Steps
+## Unit Tests Added
 
-### Phase 4: UI for Override Configuration
+Created `TieredConfigTests` project with 80 tests covering:
 
-Add UI controls to:
-- View/edit function config overrides per profile
-- Manage ActiveFunctionIds for each profile
-- Configure user preferences
+| Test Suite | Tests | Description |
+|------------|-------|-------------|
+| ConfigMergerTests | 18 | Axis override merge, function config delta merge, three-layer merge |
+| ConfigComparerTests | 28 | Equality checks for configs, overrides, floats, lists |
+| ConflictDetectorTests | 14 | Axis conflict detection, partial overlap, locked axes |
+| AxisConfigManagerTests | 20 | Base config lifecycle, apply/clear overrides, diff checking |
 
-### Phase 5: AxisConfig Override UI
+### Test Project Files
 
-Add controls for axis parameter overrides:
-- Kinematic parameters per function
-- Static balance config per function
+- `SimHubPlugin/TieredConfigTests/TieredConfigTests.csproj`
+- `SimHubPlugin/TieredConfigTests/Program.cs`
+- `SimHubPlugin/TieredConfigTests/ConfigMergerTests.cs`
+- `SimHubPlugin/TieredConfigTests/ConfigComparerTests.cs`
+- `SimHubPlugin/TieredConfigTests/ConflictDetectorTests.cs`
+- `SimHubPlugin/TieredConfigTests/AxisConfigManagerTests.cs`
 
-### Alternative
+### Run Tests
 
-Implement progressive spring feature first (simpler, self-contained).
+```bash
+cd SimHubPlugin/TieredConfigTests/bin/Debug
+./TieredConfigTests.exe
+```
+
+## Reference
+
+Design doc: `SimHubPlugin/Docs/plans/24_Tiered_Config_Overrides.md`
