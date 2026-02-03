@@ -1,7 +1,7 @@
 # Tiered Config System — Implementation Complete
 
 Branch: `ck_tiered_config`
-Last commit: `95c17a92` — Add unit tests for tiered config system
+Last commit: `8f89eded` — Add ChangeTracker and FieldRouter unit tests
 
 ## Status: Ready for Merge
 
@@ -79,6 +79,7 @@ cd SimHubPlugin/TieredConfigTests/bin/Debug
 
 | Commit     | Description                                               |
 | ---------- | --------------------------------------------------------- |
+| `8f89eded` | Add ChangeTracker and FieldRouter unit tests              |
 | `95c17a92` | Add unit tests for tiered config system                   |
 | `f7d68181` | Add function selector UI for axis parameter overrides     |
 | `38603843` | Add override value editor UI for active functions         |
