@@ -1,7 +1,7 @@
 # Tiered Config System — Implementation Complete
 
 Branch: `ck_tiered_config`
-Last commit: `9ef65069` — Add user profile UI and fix function badge refresh
+Last commit: `4b21b196` — Update HANDOFF.md with latest commit
 
 ## Status: Ready for testing
 
