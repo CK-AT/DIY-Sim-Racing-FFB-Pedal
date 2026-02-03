@@ -1,9 +1,7 @@
 # Tiered Config System — Implementation Complete
 
 Branch: `ck_tiered_config`
-Last commit: `8f89eded` — Add ChangeTracker and FieldRouter unit tests
-
-**Uncommitted changes**: Bug fix #4 below (badge update issue)
+Last commit: `9ef65069` — Add user profile UI and fix function badge refresh
 
 ## Status: Ready for testing
 
@@ -13,11 +11,13 @@ All core phases from the design doc are implemented and tested, plus per-field l
 
 1. **User profile key mismatch**: `GetCurrentUserOverrides()` now uses same key logic as write path (added `IsNullOrWhiteSpace` check).
 
-2. **Clear requires two clicks**: Clearing an override now removes from BOTH User and Profile layers in one click.
+2. **Clear behavior**: Clearing an override removes only the top layer (User first, then Profile on second click). If no Profile value exists, field returns to hardware default after clearing User.
 
 3. **UI collapse on edit**: Removed `RefreshVehicleParams()` calls after field edits to preserve the expanded editor panel state. Per-field badges update via `RefreshOverrideFieldRow()` without rebuilding the entire UI.
 
 4. **Badge not updating after edit**: `ApplyProfileOverridesToFunction()` was throwing `InvalidOperationException` when no base config existed (ESP32 not connected), which silently prevented `RefreshOverrideFieldRow()` from running. Fixed by adding `HasBaseConfig` check before calling `ApplyProfileOverrides` — matches the guard already used in `ApplyCurrentProfileOverrides()`. Overrides are still stored; they just won't apply to hardware until base config arrives.
+
+5. **Function-level badge not updating**: The `[U]`/`[P]` badge next to the function name wasn't refreshing when all field overrides were cleared. Fixed by always creating the badge element and calling `RefreshFunctionLevelBadge()` after any field change.
 
 ## Implementation Summary
 
@@ -105,6 +105,7 @@ cd SimHubPlugin/TieredConfigTests/bin/Debug
 
 | Commit     | Description                                               |
 | ---------- | --------------------------------------------------------- |
+| `9ef65069` | Add user profile UI and fix function badge refresh        |
 | `8f89eded` | Add ChangeTracker and FieldRouter unit tests              |
 | `95c17a92` | Add unit tests for tiered config system                   |
 | `f7d68181` | Add function selector UI for axis parameter overrides     |
