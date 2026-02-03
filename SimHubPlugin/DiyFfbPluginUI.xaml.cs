@@ -3132,10 +3132,15 @@ namespace DiyFfb
 
         private StackPanel CreateActiveFunctionRow(FunctionID functionId, Function function)
         {
+            var container = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+
             var row = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 2, 0, 2),
                 Height = 24
             };
 
@@ -3175,9 +3180,10 @@ namespace DiyFfb
             // Add override indicator if function has profile overrides
             var profile = Plugin.GetCurrentAircraftProfile();
             bool hasOverrides = profile?.FunctionOverrides?.ContainsKey((int)functionId) == true;
+            TextBlock badge = null;
             if (hasOverrides && isActive)
             {
-                var badge = new TextBlock
+                badge = new TextBlock
                 {
                     Text = "[P]",
                     Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50)), // Green
@@ -3188,19 +3194,369 @@ namespace DiyFfb
                     Margin = new Thickness(5, 0, 0, 0),
                     ToolTip = "Has profile overrides"
                 };
-                row.Children.Add(checkbox);
-                row.Children.Add(nameLabel);
-                row.Children.Add(badge);
-                row.Children.Add(statusLabel);
+            }
+
+            // Edit button (only for active functions)
+            Button editButton = null;
+            if (isActive)
+            {
+                editButton = new Button
+                {
+                    Content = "▼",
+                    Width = 20,
+                    Height = 18,
+                    FontSize = 8,
+                    Padding = new Thickness(0),
+                    Margin = new Thickness(10, 0, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    ToolTip = "Edit overrides"
+                };
+                editButton.Tag = functionId;
+            }
+
+            row.Children.Add(checkbox);
+            row.Children.Add(nameLabel);
+            if (badge != null) row.Children.Add(badge);
+            row.Children.Add(statusLabel);
+            if (editButton != null) row.Children.Add(editButton);
+
+            container.Children.Add(row);
+
+            // Override editor panel (initially collapsed)
+            if (isActive)
+            {
+                var editorPanel = CreateOverrideEditorPanel(functionId);
+                editorPanel.Visibility = Visibility.Collapsed;
+                editorPanel.Tag = $"editor_{(int)functionId}";
+                container.Children.Add(editorPanel);
+
+                // Wire up edit button toggle
+                editButton.Click += (s, e) =>
+                {
+                    if (editorPanel.Visibility == Visibility.Collapsed)
+                    {
+                        editorPanel.Visibility = Visibility.Visible;
+                        editButton.Content = "▲";
+                    }
+                    else
+                    {
+                        editorPanel.Visibility = Visibility.Collapsed;
+                        editButton.Content = "▼";
+                    }
+                };
+            }
+
+            return container;
+        }
+
+        private Border CreateOverrideEditorPanel(FunctionID functionId)
+        {
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x40, 0x30, 0x30, 0x30)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x60, 0x60, 0x60, 0x60)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(3),
+                Margin = new Thickness(20, 5, 0, 5),
+                Padding = new Thickness(10)
+            };
+
+            var panel = new StackPanel { Orientation = Orientation.Vertical };
+
+            var header = new TextBlock
+            {
+                Text = "Profile Overrides",
+                Foreground = Brushes.LightGray,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            panel.Children.Add(header);
+
+            // Get current overrides
+            var overrides = Plugin.GetFunctionOverrides((int)functionId);
+
+            // Output scaling section
+            panel.Children.Add(CreateOverrideFieldRow(functionId, "OutputMin", "Output Min",
+                overrides?.OutputMin, 0f, 1f, "Minimum output value (0-1)"));
+            panel.Children.Add(CreateOverrideFieldRow(functionId, "OutputMax", "Output Max",
+                overrides?.OutputMax, 0f, 1f, "Maximum output value (0-1)"));
+
+            // Physics parameters section
+            var physicsHeader = new TextBlock
+            {
+                Text = "Physics",
+                Foreground = Brushes.Gray,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 9,
+                Margin = new Thickness(0, 8, 0, 4)
+            };
+            panel.Children.Add(physicsHeader);
+
+            panel.Children.Add(CreateOverrideFieldRow(functionId, "SimulatedMass", "Simulated Mass",
+                overrides?.SimulatedMass, 0f, 100f, "Simulated mass in kg"));
+            panel.Children.Add(CreateOverrideFieldRow(functionId, "Friction", "Friction",
+                overrides?.Friction, 0f, 10f, "Friction coefficient"));
+
+            // Static balance section
+            var balanceHeader = new TextBlock
+            {
+                Text = "Static Balance Tuning",
+                Foreground = Brushes.Gray,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 9,
+                Margin = new Thickness(0, 8, 0, 4)
+            };
+            panel.Children.Add(balanceHeader);
+
+            panel.Children.Add(CreateOverrideCheckboxRow(functionId, "StaticBalanceEnabled", "Enabled",
+                overrides?.StaticBalanceTuning?.Enabled, "Enable static balance compensation"));
+            panel.Children.Add(CreateOverrideFieldRow(functionId, "StaticBalanceGain", "Gain",
+                overrides?.StaticBalanceTuning?.Gain, 0f, 2f, "Static balance gain multiplier"));
+
+            border.Child = panel;
+            return border;
+        }
+
+        private StackPanel CreateOverrideFieldRow(FunctionID functionId, string fieldName, string label,
+            float? currentValue, float min, float max, string tooltip)
+        {
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Height = 26,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+
+            var labelBlock = new TextBlock
+            {
+                Text = label,
+                Foreground = Brushes.LightGray,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 10,
+                Width = 100,
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = tooltip
+            };
+
+            var textBox = new TextBox
+            {
+                Width = 60,
+                Height = 20,
+                FontSize = 10,
+                Text = currentValue?.ToString("F2") ?? "",
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Tag = new Tuple<FunctionID, string>(functionId, fieldName)
+            };
+            textBox.LostFocus += OnOverrideFieldLostFocus;
+
+            var clearButton = new Button
+            {
+                Content = "×",
+                Width = 18,
+                Height = 18,
+                FontSize = 10,
+                Padding = new Thickness(0),
+                Margin = new Thickness(4, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Clear override",
+                Tag = new Tuple<FunctionID, string, TextBox>(functionId, fieldName, textBox),
+                Visibility = currentValue.HasValue ? Visibility.Visible : Visibility.Collapsed
+            };
+            clearButton.Click += OnClearOverrideClick;
+
+            // Badge showing this is a profile override
+            var badge = new TextBlock
+            {
+                Text = "[P]",
+                Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50)),
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 8,
+                FontWeight = FontWeights.Bold,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, 0, 0, 0),
+                Visibility = currentValue.HasValue ? Visibility.Visible : Visibility.Collapsed,
+                ToolTip = "Profile override active"
+            };
+
+            row.Children.Add(labelBlock);
+            row.Children.Add(textBox);
+            row.Children.Add(clearButton);
+            row.Children.Add(badge);
+
+            return row;
+        }
+
+        private StackPanel CreateOverrideCheckboxRow(FunctionID functionId, string fieldName, string label,
+            bool? currentValue, string tooltip)
+        {
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Height = 26,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+
+            var labelBlock = new TextBlock
+            {
+                Text = label,
+                Foreground = Brushes.LightGray,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 10,
+                Width = 100,
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = tooltip
+            };
+
+            var checkbox = new CheckBox
+            {
+                IsChecked = currentValue,
+                IsThreeState = true, // null = no override, true/false = override value
+                VerticalAlignment = VerticalAlignment.Center,
+                Tag = new Tuple<FunctionID, string>(functionId, fieldName)
+            };
+            checkbox.Checked += OnOverrideCheckboxChanged;
+            checkbox.Unchecked += OnOverrideCheckboxChanged;
+            checkbox.Indeterminate += OnOverrideCheckboxChanged;
+
+            var stateLabel = new TextBlock
+            {
+                Text = currentValue.HasValue ? (currentValue.Value ? "On" : "Off") : "(default)",
+                Foreground = currentValue.HasValue ? Brushes.LightGray : Brushes.Gray,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 9,
+                FontStyle = currentValue.HasValue ? FontStyles.Normal : FontStyles.Italic,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+            checkbox.Tag = new Tuple<FunctionID, string, TextBlock>(functionId, fieldName, stateLabel);
+
+            row.Children.Add(labelBlock);
+            row.Children.Add(checkbox);
+            row.Children.Add(stateLabel);
+
+            return row;
+        }
+
+        private void OnOverrideFieldLostFocus(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is TextBox textBox)) return;
+            if (!(textBox.Tag is Tuple<FunctionID, string> tag)) return;
+
+            var functionId = tag.Item1;
+            var fieldName = tag.Item2;
+
+            if (string.IsNullOrWhiteSpace(textBox.Text))
+            {
+                // Empty = clear the override
+                Plugin.ClearFunctionOverrideField((int)functionId, fieldName);
+                return;
+            }
+
+            if (!float.TryParse(textBox.Text, out float value))
+            {
+                // Invalid input - restore previous value
+                var overrides = Plugin.GetFunctionOverrides((int)functionId);
+                float? currentValue = null;
+                switch (fieldName)
+                {
+                    case "OutputMin": currentValue = overrides?.OutputMin; break;
+                    case "OutputMax": currentValue = overrides?.OutputMax; break;
+                    case "SimulatedMass": currentValue = overrides?.SimulatedMass; break;
+                    case "Friction": currentValue = overrides?.Friction; break;
+                    case "StaticBalanceGain": currentValue = overrides?.StaticBalanceTuning?.Gain; break;
+                }
+                textBox.Text = currentValue?.ToString("F2") ?? "";
+                return;
+            }
+
+            // Update the override
+            Plugin.UpdateFunctionOverride((int)functionId, overrides =>
+            {
+                switch (fieldName)
+                {
+                    case "OutputMin": overrides.OutputMin = value; break;
+                    case "OutputMax": overrides.OutputMax = value; break;
+                    case "SimulatedMass": overrides.SimulatedMass = value; break;
+                    case "Friction": overrides.Friction = value; break;
+                    case "StaticBalanceGain":
+                        if (overrides.StaticBalanceTuning == null)
+                            overrides.StaticBalanceTuning = new TieredConfig.StaticBalanceTuningOverrides();
+                        overrides.StaticBalanceTuning.Gain = value;
+                        break;
+                }
+            });
+        }
+
+        private void OnClearOverrideClick(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button button)) return;
+            if (!(button.Tag is Tuple<FunctionID, string, TextBox> tag)) return;
+
+            var functionId = tag.Item1;
+            var fieldName = tag.Item2;
+            var textBox = tag.Item3;
+
+            Plugin.ClearFunctionOverrideField((int)functionId, fieldName);
+            textBox.Text = "";
+            button.Visibility = Visibility.Collapsed;
+
+            // Hide the badge too
+            if (button.Parent is StackPanel row && row.Children.Count > 3 && row.Children[3] is TextBlock badge)
+            {
+                badge.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void OnOverrideCheckboxChanged(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is CheckBox checkbox)) return;
+            if (!(checkbox.Tag is Tuple<FunctionID, string, TextBlock> tag)) return;
+
+            var functionId = tag.Item1;
+            var fieldName = tag.Item2;
+            var stateLabel = tag.Item3;
+
+            if (checkbox.IsChecked == null)
+            {
+                // Indeterminate = clear override (use default)
+                if (fieldName == "StaticBalanceEnabled")
+                {
+                    var overrides = Plugin.GetFunctionOverrides((int)functionId);
+                    if (overrides?.StaticBalanceTuning != null)
+                    {
+                        overrides.StaticBalanceTuning.Enabled = null;
+                        if (overrides.StaticBalanceTuning.IsEmpty)
+                        {
+                            Plugin.ClearFunctionOverrideField((int)functionId, "StaticBalanceTuning");
+                        }
+                        else if (Plugin.IsFunctionActive((int)functionId))
+                        {
+                            Plugin.UpdateFunctionOverride((int)functionId, o => { }); // Trigger re-apply
+                        }
+                    }
+                }
+                stateLabel.Text = "(default)";
+                stateLabel.Foreground = Brushes.Gray;
+                stateLabel.FontStyle = FontStyles.Italic;
             }
             else
             {
-                row.Children.Add(checkbox);
-                row.Children.Add(nameLabel);
-                row.Children.Add(statusLabel);
+                bool value = checkbox.IsChecked.Value;
+                Plugin.UpdateFunctionOverride((int)functionId, overrides =>
+                {
+                    if (fieldName == "StaticBalanceEnabled")
+                    {
+                        if (overrides.StaticBalanceTuning == null)
+                            overrides.StaticBalanceTuning = new TieredConfig.StaticBalanceTuningOverrides();
+                        overrides.StaticBalanceTuning.Enabled = value;
+                    }
+                });
+                stateLabel.Text = value ? "On" : "Off";
+                stateLabel.Foreground = Brushes.LightGray;
+                stateLabel.FontStyle = FontStyles.Normal;
             }
-
-            return row;
         }
 
         private void OnActiveFunctionChecked(object sender, RoutedEventArgs e)

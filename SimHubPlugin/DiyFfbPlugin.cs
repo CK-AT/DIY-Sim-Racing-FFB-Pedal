@@ -2306,7 +2306,7 @@ namespace DiyFfb
         /// <summary>
         /// Get or create the current vehicle profile.
         /// </summary>
-        private DiyFfbPluginSettings.AircraftFfbProfile GetOrCreateCurrentProfile()
+        public DiyFfbPluginSettings.AircraftFfbProfile GetOrCreateCurrentProfile()
         {
             if (Settings == null || string.IsNullOrWhiteSpace(activeCarId))
                 return null;
@@ -2325,6 +2325,93 @@ namespace DiyFfb
             }
 
             return profile;
+        }
+
+        /// <summary>
+        /// Get the function config overrides for a function in the current vehicle profile.
+        /// Returns null if no overrides exist.
+        /// </summary>
+        public FunctionConfigOverrides GetFunctionOverrides(int functionId)
+        {
+            var profile = GetCurrentAircraftProfile();
+            if (profile?.FunctionOverrides == null)
+                return null;
+
+            profile.FunctionOverrides.TryGetValue(functionId, out var overrides);
+            return overrides;
+        }
+
+        /// <summary>
+        /// Get or create the function config overrides for a function in the current vehicle profile.
+        /// </summary>
+        public FunctionConfigOverrides GetOrCreateFunctionOverrides(int functionId)
+        {
+            var profile = GetOrCreateCurrentProfile();
+            if (profile == null)
+                return null;
+
+            if (profile.FunctionOverrides == null)
+                profile.FunctionOverrides = new Dictionary<int, FunctionConfigOverrides>();
+
+            if (!profile.FunctionOverrides.TryGetValue(functionId, out var overrides))
+            {
+                overrides = new FunctionConfigOverrides();
+                profile.FunctionOverrides[functionId] = overrides;
+            }
+
+            return overrides;
+        }
+
+        /// <summary>
+        /// Update a function override value and re-apply if the function is active.
+        /// </summary>
+        public void UpdateFunctionOverride(int functionId, Action<FunctionConfigOverrides> updateAction)
+        {
+            var overrides = GetOrCreateFunctionOverrides(functionId);
+            if (overrides == null)
+                return;
+
+            updateAction(overrides);
+
+            // If function is active, re-apply the merged config
+            if (IsFunctionActive(functionId))
+            {
+                ApplyProfileOverridesToFunction(functionId);
+            }
+        }
+
+        /// <summary>
+        /// Clear a specific override field for a function.
+        /// </summary>
+        public void ClearFunctionOverrideField(int functionId, string fieldName)
+        {
+            var profile = GetCurrentAircraftProfile();
+            if (profile?.FunctionOverrides == null)
+                return;
+
+            if (!profile.FunctionOverrides.TryGetValue(functionId, out var overrides))
+                return;
+
+            switch (fieldName)
+            {
+                case "OutputMin": overrides.OutputMin = null; break;
+                case "OutputMax": overrides.OutputMax = null; break;
+                case "SimulatedMass": overrides.SimulatedMass = null; break;
+                case "Friction": overrides.Friction = null; break;
+                case "StaticBalanceTuning": overrides.StaticBalanceTuning = null; break;
+            }
+
+            // Remove the override entry if it's now empty
+            if (overrides.IsEmpty)
+            {
+                profile.FunctionOverrides.Remove(functionId);
+            }
+
+            // Re-apply if function is active
+            if (IsFunctionActive(functionId))
+            {
+                ApplyProfileOverridesToFunction(functionId);
+            }
         }
 
         private DiyFfbPluginSettings.AircraftFfbProfile BuildCurrentAircraftProfile()
