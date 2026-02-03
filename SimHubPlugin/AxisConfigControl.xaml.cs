@@ -5,9 +5,31 @@ using System.Globalization;
 using System.Collections.Generic;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Linq;
+using DiyFfb.TieredConfig;
 
 namespace DiyFfb
 {
+    /// <summary>
+    /// Item for the function selector ComboBox.
+    /// </summary>
+    public class FunctionSelectorItem
+    {
+        public int FunctionId { get; set; }
+        public string DisplayName { get; set; }
+        public bool HasOverride { get; set; }
+        public bool IsAxisBase { get; set; }
+    }
+
+    /// <summary>
+    /// Editing mode for axis config - base or function override.
+    /// </summary>
+    public enum AxisEditingMode
+    {
+        AxisBase,
+        FunctionOverride
+    }
+
     /// <summary>
     /// Interaction logic for AxisConfigControl.xaml
     /// </summary>
@@ -27,6 +49,11 @@ namespace DiyFfb
         public delegate void KinematicParametersChangedEventHandler(KinematicParameters parameters);
         public event KinematicParametersChangedEventHandler KinematicParametersChanged;
 
+        // Function override editing state
+        private AxisEditingMode _editingMode = AxisEditingMode.AxisBase;
+        private int _selectedFunctionId = -1;
+        private bool _updatingFunctionSelector = false;
+
         public AxisConfigControl()
         {
             config = GetDefaultConfig(AxisID.AxisUndefined);
@@ -41,7 +68,16 @@ namespace DiyFfb
         private void GeneralKinematicsControl_KinematicParametersChanged(KinematicParameters parameters)
         {
             config.KinematicParameters = parameters;
-            KinematicParametersChanged?.Invoke(parameters);
+
+            // In override mode, save to function override instead of raising the event
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0)
+            {
+                SaveKinematicsChange(parameters);
+            }
+            else
+            {
+                KinematicParametersChanged?.Invoke(parameters);
+            }
         }
 
         public void OnAxisStateUpdate(global::AxisState axis_state)
@@ -58,6 +94,241 @@ namespace DiyFfb
             this.plugin = plugin;
             GeneralKinematicsControl.SetGui(ui, plugin);
         }
+
+        #region Function Selector for Override Mode
+
+        /// <summary>
+        /// Refresh the function selector dropdown with functions linking to this axis.
+        /// </summary>
+        public void RefreshFunctionSelector()
+        {
+            if (FunctionSelector == null || plugin == null || config == null)
+                return;
+
+            _updatingFunctionSelector = true;
+            try
+            {
+                var items = new List<FunctionSelectorItem>();
+                int axisId = (int)config.AxisId;
+
+                // Add the "Axis Base" option first
+                string axisName = config.AxisId.ToString().Replace("Axis", "Axis ");
+                items.Add(new FunctionSelectorItem
+                {
+                    FunctionId = -1,
+                    DisplayName = $"{axisName} (base)",
+                    HasOverride = false,
+                    IsAxisBase = true
+                });
+
+                // Get functions linking to this axis
+                var linkedFunctions = plugin.GetFunctionsLinkingToAxis(axisId);
+                foreach (var func in linkedFunctions)
+                {
+                    items.Add(new FunctionSelectorItem
+                    {
+                        FunctionId = func.FunctionId,
+                        DisplayName = func.FunctionName,
+                        HasOverride = func.HasOverride,
+                        IsAxisBase = false
+                    });
+                }
+
+                FunctionSelector.ItemsSource = items;
+
+                // Select the appropriate item
+                if (_editingMode == AxisEditingMode.AxisBase || _selectedFunctionId < 0)
+                {
+                    FunctionSelector.SelectedIndex = 0;
+                }
+                else
+                {
+                    var matchingItem = items.FirstOrDefault(i => i.FunctionId == _selectedFunctionId);
+                    if (matchingItem != null)
+                    {
+                        FunctionSelector.SelectedItem = matchingItem;
+                    }
+                    else
+                    {
+                        FunctionSelector.SelectedIndex = 0;
+                    }
+                }
+
+                // Show/hide selector panel based on whether there are functions to select
+                FunctionSelectorPanel.Visibility = items.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+            }
+            finally
+            {
+                _updatingFunctionSelector = false;
+            }
+        }
+
+        /// <summary>
+        /// Handle function selector selection change.
+        /// </summary>
+        private void FunctionSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_updatingFunctionSelector || FunctionSelector.SelectedItem == null)
+                return;
+
+            var selectedItem = FunctionSelector.SelectedItem as FunctionSelectorItem;
+            if (selectedItem == null)
+                return;
+
+            if (selectedItem.IsAxisBase)
+            {
+                // Switch to axis base editing mode
+                _editingMode = AxisEditingMode.AxisBase;
+                _selectedFunctionId = -1;
+                BtnClearOverride.Visibility = Visibility.Collapsed;
+
+                // Reload the axis base config
+                ReloadBaseConfig();
+            }
+            else
+            {
+                // Switch to function override editing mode
+                _editingMode = AxisEditingMode.FunctionOverride;
+                _selectedFunctionId = selectedItem.FunctionId;
+                BtnClearOverride.Visibility = selectedItem.HasOverride ? Visibility.Visible : Visibility.Collapsed;
+
+                // Load the override config (or base if no override exists)
+                LoadFunctionOverrideConfig();
+            }
+
+            DebugMessage?.Invoke($"Editing mode: {_editingMode}, Function: {_selectedFunctionId}");
+        }
+
+        /// <summary>
+        /// Reload the base axis config from the UI cache.
+        /// </summary>
+        private void ReloadBaseConfig()
+        {
+            if (ui == null || config == null)
+                return;
+
+            if (ui.axes.TryGetValue(config.AxisId, out var axis) && axis.Config != null)
+            {
+                UpdateConfig(axis.Config);
+            }
+        }
+
+        /// <summary>
+        /// Load the axis config for function override editing.
+        /// If an override exists, use it; otherwise use the base axis config.
+        /// Note: The UI always shows base geometry; overrides store computed parameters.
+        /// </summary>
+        private void LoadFunctionOverrideConfig()
+        {
+            if (plugin == null || config == null || _selectedFunctionId < 0)
+                return;
+
+            // First, load the base config to show the geometry
+            ReloadBaseConfig();
+
+            int axisId = (int)config.AxisId;
+            var overrides = plugin.GetAxisParameterOverride(_selectedFunctionId, axisId);
+
+            if (overrides != null)
+            {
+                // If we have overrides, update the internal config fields
+                // (The UI shows base geometry, but internal values reflect overrides)
+                if (overrides.Kinematics != null)
+                {
+                    config.KinematicParameters = overrides.Kinematics.Clone();
+                }
+
+                if (overrides.StaticBalance != null)
+                {
+                    config.StaticBalanceConfig = overrides.StaticBalance.Clone();
+                    UpdateStaticBalanceUi(config.StaticBalanceConfig);
+                    UpdateStaticBalancePlot();
+                }
+
+                BtnClearOverride.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                BtnClearOverride.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// Handle clear override button click.
+        /// </summary>
+        private void ClearOverride_Click(object sender, RoutedEventArgs e)
+        {
+            if (plugin == null || config == null || _selectedFunctionId < 0)
+                return;
+
+            int axisId = (int)config.AxisId;
+            plugin.ClearAxisParameterOverride(_selectedFunctionId, axisId);
+
+            // Reload base config
+            LoadFunctionOverrideConfig();
+
+            // Refresh the selector to update the [F] badge
+            RefreshFunctionSelector();
+
+            DebugMessage?.Invoke($"Cleared axis override for function {_selectedFunctionId}, axis {axisId}");
+        }
+
+        /// <summary>
+        /// Save kinematics changes to the appropriate location (base or override).
+        /// </summary>
+        private void SaveKinematicsChange(KinematicParameters parameters)
+        {
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0 && plugin != null)
+            {
+                int axisId = (int)config.AxisId;
+                plugin.UpdateAxisParameterOverride(_selectedFunctionId, axisId, overrides =>
+                {
+                    overrides.Kinematics = parameters.Clone();
+                });
+
+                // Show clear button now that we have an override
+                BtnClearOverride.Visibility = Visibility.Visible;
+
+                // Refresh to update [F] badge
+                RefreshFunctionSelector();
+            }
+            // In AxisBase mode, the existing KinematicParametersChanged event handles it
+        }
+
+        /// <summary>
+        /// Save static balance changes to the appropriate location (base or override).
+        /// </summary>
+        private void SaveStaticBalanceChange(AxisConfig.Types.StaticBalanceConfig staticBalance)
+        {
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0 && plugin != null)
+            {
+                int axisId = (int)config.AxisId;
+                plugin.UpdateAxisParameterOverride(_selectedFunctionId, axisId, overrides =>
+                {
+                    overrides.StaticBalance = staticBalance.Clone();
+                });
+
+                // Show clear button now that we have an override
+                BtnClearOverride.Visibility = Visibility.Visible;
+
+                // Refresh to update [F] badge
+                RefreshFunctionSelector();
+            }
+            // In AxisBase mode, the base config is already modified
+        }
+
+        /// <summary>
+        /// Get the current editing mode.
+        /// </summary>
+        public AxisEditingMode EditingMode => _editingMode;
+
+        /// <summary>
+        /// Get the currently selected function ID for override editing.
+        /// Returns -1 if in AxisBase mode.
+        /// </summary>
+        public int SelectedFunctionId => _selectedFunctionId;
+
+        #endregion
 
         public static AxisConfig GetDefaultConfig(AxisID axis_id)
         {
@@ -253,6 +524,12 @@ namespace DiyFfb
             {
                 LabelStaticBalanceStatus.Content = "Idle";
             }
+
+            // Refresh function selector when axis changes
+            // Reset to base mode when loading a new axis config
+            _editingMode = AxisEditingMode.AxisBase;
+            _selectedFunctionId = -1;
+            RefreshFunctionSelector();
         }
 
         private static GeneralKinematicConfig ConvertDiyPedalToGeneral(DIYPedalKinematicConfig diy)
@@ -691,6 +968,12 @@ namespace DiyFfb
             }
 
             UpdateStaticBalancePlot();
+
+            // In override mode, save to function override
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0)
+            {
+                SaveStaticBalanceChange(staticCfg);
+            }
         }
 
         private void StaticBalance_LostFocus(object sender, RoutedEventArgs e)
