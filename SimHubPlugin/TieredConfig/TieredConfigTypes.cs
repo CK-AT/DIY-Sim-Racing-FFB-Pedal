@@ -44,6 +44,19 @@ namespace DiyFfb.TieredConfig
         // Static balance tuning (user-tunable)
         public StaticBalanceTuningOverrides StaticBalanceTuning { get; set; }
 
+        // AutomotivePedals overrides
+        public SplineForceCurveConfig ForceCurve { get; set; }
+        public DamperConfigOverrides DamperConfig { get; set; }
+
+        // FlightPedals overrides
+        public FlightPedalsConfig FlightPedalsConfig { get; set; }
+
+        // FlightStick overrides (Pitch/Roll/Collective all use same structure)
+        public FlightStickPitchConfig FlightStickConfig { get; set; }
+
+        // Shifter overrides
+        public ShifterConfig ShifterConfig { get; set; }
+
         /// <summary>
         /// Returns true if all override fields are null/empty.
         /// </summary>
@@ -52,7 +65,12 @@ namespace DiyFfb.TieredConfig
             OutputMax == null &&
             SimulatedMass == null &&
             Friction == null &&
-            (StaticBalanceTuning == null || StaticBalanceTuning.IsEmpty);
+            (StaticBalanceTuning == null || StaticBalanceTuning.IsEmpty) &&
+            ForceCurve == null &&
+            (DamperConfig == null || DamperConfig.IsEmpty) &&
+            FlightPedalsConfig == null &&
+            FlightStickConfig == null &&
+            ShifterConfig == null;
     }
 
     /// <summary>
@@ -65,6 +83,17 @@ namespace DiyFfb.TieredConfig
         public float? Gain { get; set; }
 
         public bool IsEmpty => Enabled == null && Gain == null;
+    }
+
+    /// <summary>
+    /// Delta overlay for DamperConfig parameters (AutomotivePedals).
+    /// </summary>
+    public class DamperConfigOverrides
+    {
+        public float? PositiveFactor { get; set; }
+        public float? NegativeFactor { get; set; }
+
+        public bool IsEmpty => PositiveFactor == null && NegativeFactor == null;
     }
 
     /// <summary>

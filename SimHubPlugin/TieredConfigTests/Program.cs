@@ -58,6 +58,13 @@ namespace DiyFfb.TieredConfigTests
             if (!fieldRouterResults.TrueForAll(r => r.Passed))
                 allPassed = false;
 
+            // Run OverrideFieldRegistry tests
+            var registryResults = OverrideFieldRegistryTests.RunAll();
+            TestRunner.PrintResults("OverrideFieldRegistry", registryResults);
+            allResults.AddRange(registryResults);
+            if (!registryResults.TrueForAll(r => r.Passed))
+                allPassed = false;
+
             // Summary
             Console.WriteLine("===================");
             int totalPassed = allResults.Count(r => r.Passed);

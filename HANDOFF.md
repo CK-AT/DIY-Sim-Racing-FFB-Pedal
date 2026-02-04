@@ -1,117 +1,264 @@
-# Tiered Config System — Implementation Complete
+# Override Field Registry — Infrastructure Complete
 
 Branch: `ck_tiered_config`
 Last commit: `9ef65069` — Add user profile UI and fix function badge refresh
 
-## Status: Ready for testing
+## Session Summary (2026-02-04)
 
-All core phases from the design doc are implemented and tested, plus per-field layer badges and user profile UI.
+Implemented complete infrastructure for unified override system with layer badges. All core components built and tested, ready for UI integration.
 
-### Recent Bug Fixes
+**Phases completed:** 1-6 (Registry, Control, Events, Storage, Fields, Wiring)
+**Phase deferred:** 7 (Baseline integration - needs explicit user control UI)
+**Next:** Phase 8 - UI integration (wrap function editor controls with badges)
 
-1. **User profile key mismatch**: `GetCurrentUserOverrides()` now uses same key logic as write path (added `IsNullOrWhiteSpace` check).
+**Files created:** 4 new files
+**Files modified:** 7 existing files
+**Tests:** 172/172 passing (40 new registry tests)
+**Build:** All code compiles successfully
 
-2. **Clear behavior**: Clearing an override removes only the top layer (User first, then Profile on second click). If no Profile value exists, field returns to hardware default after clearing User.
+## Phase 1 Complete ✓
 
-3. **UI collapse on edit**: Removed `RefreshVehicleParams()` calls after field edits to preserve the expanded editor panel state. Per-field badges update via `RefreshOverrideFieldRow()` without rebuilding the entire UI.
+Created unified field registry for function-level override fields with comprehensive unit tests.
 
-4. **Badge not updating after edit**: `ApplyProfileOverridesToFunction()` was throwing `InvalidOperationException` when no base config existed (ESP32 not connected), which silently prevented `RefreshOverrideFieldRow()` from running. Fixed by adding `HasBaseConfig` check before calling `ApplyProfileOverrides` — matches the guard already used in `ApplyCurrentProfileOverrides()`. Overrides are still stored; they just won't apply to hardware until base config arrives.
+**Files created:**
 
-5. **Function-level badge not updating**: The `[U]`/`[P]` badge next to the function name wasn't refreshing when all field overrides were cleared. Fixed by always creating the badge element and calling `RefreshFunctionLevelBadge()` after any field change.
+- `TieredConfig/OverrideFieldRegistry.cs` — Unified field definitions, metadata, and accessors
+- `TieredConfigTests/OverrideFieldRegistryTests.cs` — 40 comprehensive unit tests
 
-## Implementation Summary
+**Test results:** 172/172 tests passing (132 existing + 40 new registry tests)
 
-### Core Classes (`SimHubPlugin/TieredConfig/`)
+## Phase 2 Complete ✓
 
-| File                       | Purpose                                                                                    |
-| -------------------------- | ------------------------------------------------------------------------------------------ |
-| `TieredConfigTypes.cs`     | `ConfigLayer` enum, `UserPreferences`, `FunctionConfigOverrides`, `AxisParameterOverrides` |
-| `ConfigMerger.cs`          | Pure merge functions: `MergeAxisOverrides`, `MergeFunctionConfig`, `MergeAllLayers`        |
-| `ConfigComparer.cs`        | Deep equality checks with float tolerance for diff-checking                                |
-| `ConflictDetector.cs`      | Detects when multiple active functions override the same axis                              |
-| `AxisConfigManager.cs`     | Tracks base configs, applies/clears function overrides, fires events                       |
-| `FunctionConfigManager.cs` | Manages profile + user override merging for function configs                               |
-| `FieldRouter.cs`           | Routes field changes to User/Profile/Hardware layer by default                             |
-| `ChangeTracker.cs`         | Tracks pending unsaved changes per layer                                                   |
-| `ConfigLayerProvider.cs`   | Determines which layer a field value comes from for UI badges                              |
+Created `LayerBadgeWrapper` WPF control for displaying layer badges on override fields.
 
-### Plugin API (`DiyFfbPlugin.cs`)
+**Files created:**
+
+- `Controls/LayerBadgeWrapper.xaml.cs` — Control code-behind with badge display logic
+- `Controls/LayerBadgeWrapper.xaml` — Control template with badge overlay
+
+**Features:**
+
+- Wraps any content control (TextBox, Slider, etc.)
+- Displays [U]/[P] badges in upper-right corner
+- Blue badge for User layer, Green for Profile layer
+- Hides badge when using Hardware defaults
+- Simple tooltip showing field name and layer source
+- Queries OverrideFieldRegistry for field metadata
+- Creates ConfigLayerProvider on demand to determine source layer
+
+**Build status:** Compiles successfully with no errors
+
+## Phase 3 Complete ✓ (Infrastructure)
+
+Added event system for badge refresh coordination.
+
+**Changes to DiyFfbPlugin.cs:**
+
+- Added `ContextChanged` event — fired on profile/vehicle/user switches
+- Added `OverrideFieldChanged` event — fired on single field edits (no ESP32 send)
+- Added `OverrideFieldChangedEventArgs` class
+- Added `OnContextChanged()` helper method
+- Added `OnOverrideFieldChanged(int functionId, string fieldPath)` helper method
+
+**Event firing locations (to be wired up):**
+
+- `OnContextChanged()` should be called:
+  - When profile switches (game/aircraft change)
+  - When vehicle changes
+  - After "Upload Changes" button sends to ESP32
+- `OnOverrideFieldChanged(functionId, fieldPath)` should be called:
+  - In `UpdateFunctionOverrideField()` after update
+  - In `ClearFunctionOverrideField()` after clear
+  - In any UI code that directly modifies overrides
+
+**Build status:** Compiles successfully with no errors
+
+## Phase 4 Complete ✓ (Infrastructure)
+
+Added function baseline storage system for Hardware layer.
+
+**Changes to DiyFfbPluginSettings.cs:**
+
+- Added `FunctionBaselines` dictionary (int → FunctionConfig)
+- Stores complete FunctionConfig snapshots as Hardware layer
+- Automatically persisted with plugin settings (JSON serialization)
+
+**Changes to DiyFfbPlugin.cs:**
+
+- Added `GetFunctionBaseline(int functionId)` — retrieves Hardware layer config
+- Added `SetFunctionBaseline(int functionId, FunctionConfig config)` — updates Hardware layer
+- Added `HasFunctionBaseline(int functionId)` — checks if baseline exists
+
+**Usage pattern:**
 
 ```csharp
-// Query functions linking to an axis
-List<FunctionAxisLink> GetFunctionsLinkingToAxis(int axisId)
+// On ESP32 connect or compound config import:
+SetFunctionBaseline(functionId, configFromEsp32);
 
-// Check/get axis parameter overrides
-bool HasAxisParameterOverride(int functionId, int axisId)
-AxisParameterOverrides GetAxisParameterOverride(int functionId, int axisId)
-
-// Set/update axis parameter overrides
-void SetAxisParameterOverride(int functionId, int axisId, AxisParameterOverrides overrides)
-void UpdateAxisParameterOverride(int functionId, int axisId, Action<AxisParameterOverrides> updateAction)
-
-// Clear overrides
-void ClearAxisParameterOverride(int functionId, int axisId)
-void ClearAllAxisParameterOverrides(int functionId)
-
-// Function config overrides (profile and user layers)
-FunctionConfigOverrides GetFunctionOverrides(int functionId)       // Profile layer
-FunctionConfigOverrides GetUserFunctionOverrides(int functionId)   // User layer
-
-// Create layer provider for UI badges
-ConfigLayerProvider CreateConfigLayerProvider()
-
-// User profile selection
-void SetCurrentUserProfile(string userProfile)
-void ApplyCurrentProfileOverrides()
+// For merge operations:
+var hardware = GetFunctionBaseline(functionId);
+var profile = GetFunctionOverrides(functionId);
+var user = GetUserFunctionOverrides(functionId);
+var merged = ConfigMerger.MergeAllLayers(hardware, profile, user);
 ```
 
-### UI Components
+**Integration points (to be wired up):**
 
-**Axis Tab — Function Selector** (`AxisConfigControl.xaml/.cs`)
+- Call `SetFunctionBaseline()` when receiving configs from ESP32
+- Call `SetFunctionBaseline()` when importing compound configs
+- Use baselines in merge operations instead of ESP32-only configs
 
-- Dropdown to switch between "Axis N (base)" and function override modes
-- `[F]` badge indicates functions with existing overrides
-- "Clear Override" button to remove per-function axis overrides
-- Kinematics and static balance editors work in both modes
+**Build status:** Compiles successfully with no errors
 
-**Vehicle Profile — Active Functions** (`DiyFfbPluginUI.xaml.cs`)
+## Phase 5 Complete ✓ (Field Expansion)
 
-- Checkbox list of functions per vehicle profile
-- Expandable override editor for each active function
-- Sliders for OutputMin/Max, SimulatedMass, Friction
-- Static balance tuning controls (Enabled, Gain)
-- **Per-field layer badges**: `[P]` (green) for Profile overrides, `[U]` (blue) for User overrides
-- **System → User tab**: create/select/delete user profiles for user-layer overrides
+Added all remaining override fields to registry for all function types.
 
-### Unit Tests (132 tests, all passing)
+**Changes to TieredConfigTypes.cs:**
 
-| Suite                  | Count | Coverage                                                                      |
-| ---------------------- | ----- | ----------------------------------------------------------------------------- |
-| ConfigMergerTests      | 18    | Axis override merge, function delta merge, three-layer merge, mutation safety |
-| ConfigComparerTests    | 28    | Equality checks, float tolerance, null handling, list comparison              |
-| ConflictDetectorTests  | 14    | No-conflict cases, conflict detection, partial overlap, locked axes           |
-| AxisConfigManagerTests | 20    | Base config lifecycle, apply/clear overrides, diff-checking, events           |
-| ChangeTrackerTests     | 25    | Track/commit/discard changes, layer routing, reroute, pending state queries   |
-| FieldRouterTests       | 27    | User/Hardware/Profile routing, case insensitivity, nested fields, helpers     |
+- Added `DamperConfigOverrides` class (PositiveFactor, NegativeFactor)
+- Added to `FunctionConfigOverrides`:
+  - `ForceCurve` (SplineForceCurveConfig) - AutomotivePedals
+  - `DamperConfig` (DamperConfigOverrides) - AutomotivePedals
+  - `FlightPedalsConfig` (FlightPedalsConfig) - FlightPedals
+  - `FlightStickConfig` (FlightStickPitchConfig) - FlightStick
+  - `ShifterConfig` (ShifterConfig) - Shifter
+- Updated `IsEmpty` to check all new fields
 
-Run tests:
+**Changes to OverrideFieldRegistry.cs:**
 
+- Added OverrideFieldGroup enums: Damper, AutomotivePedals, FlightPedals, FlightStick
+- Added `FormatValue` property to OverrideFieldDefinition for complex type tooltips
+- Registered 7 new fields:
+  - DamperPositiveFactor, DamperNegativeFactor (User, Float)
+  - ForceCurve (Profile, Complex with FormatValue)
+  - FlightPedalsConfig (User, Complex with FormatValue)
+  - FlightStickConfig (User, Complex with FormatValue)
+  - ShifterConfig (Profile, Complex with FormatValue)
+
+**Changes to FieldRouter.cs:**
+
+- Added new User-level field paths (damper_config, flight_pedals, flight_stick)
+- Added prefix routing for nested fields
+- Added explicit Profile routing for force_curve and shifter_config
+
+**Total fields in registry:** 13 fields (6 original + 7 new)
+
+- 8 scalar (Float/Bool)
+- 5 complex (with FormatValue delegates)
+
+**Build status:** Compiles successfully with no errors
+
+## Phase 6 Complete ✓ (Event Wiring)
+
+Wired up event firing at all context change and field edit locations.
+
+**Changes to DiyFfbPlugin.cs:**
+
+- Added `OnContextChanged()` call in `HandleAircraftChange()` (line ~2100)
+  - Fires when profile/vehicle switches (game/aircraft change)
+  - Triggers full badge refresh + UI update
+- Added `OnOverrideFieldChanged()` call in `UpdateFunctionOverrideField()` (line ~2468)
+  - Fires after field updates (User or Profile layer)
+  - Triggers targeted badge refresh only, NO ESP32 send
+- Added `OnOverrideFieldChanged()` call in `ClearFunctionOverrideField()` (line ~2483)
+  - Fires after field clears (User or Profile layer)
+  - Triggers targeted badge refresh only, NO ESP32 send
+
+**Event flow:**
+
+```text
+Profile/Vehicle Switch → OnContextChanged() → Subscribers refresh all badges
+Field Edit/Clear       → OnOverrideFieldChanged() → Subscribers refresh single badge
+```
+
+**Build status:** Compiles successfully with no errors
+
+## Phase 7 - Deferred (Design Clarification Needed)
+
+**Baseline Integration:** Infrastructure exists (GetFunctionBaseline/SetFunctionBaseline methods, FunctionBaselines storage) but integration deferred pending design clarification.
+
+**Key insight:** ESP32 configs should NOT auto-populate baselines because:
+
+- ESP32 RAM config may already have overrides applied from previous session
+- Auto-baseline on every connect/reconnect would corrupt baseline with overridden values
+- Defeats purpose of persistent baseline
+
+**Correct baseline approach (TBD):**
+
+- Baselines set explicitly by user (e.g., "Save as Baseline" button in UI)
+- Baselines loaded from known-good template configs
+- Baselines used as fallback when ESP32 not connected
+- **NOT** auto-set from ESP32 arrival or file imports
+
+**Integration deferred** until baseline semantics are fully defined.
+
+## Next Steps
+
+Infrastructure complete and ready for UI integration:
+
+- ✓ Phase 1: OverrideFieldRegistry (field definitions + accessors)
+- ✓ Phase 2: LayerBadgeWrapper (WPF control)
+- ✓ Phase 3: Event system (ContextChanged + OverrideFieldChanged)
+- ✓ Phase 4: Baseline storage (Hardware layer persistence)
+- ✓ Phase 5: Field expansion (all 13 fields registered)
+- ✓ Phase 6: Event wiring (context changes + field edits)
+- ⏸️ Phase 7: Baseline integration (deferred - infrastructure ready)
+
+**Ready for Phase 8:** UI integration - wrap function editor controls with LayerBadgeWrapper.
+
+See plan: `SimHubPlugin/Docs/plans/25_Override_Field_Registry_Plan.md`
+
+## Key Design Decisions
+
+| Decision | Choice |
+|----------|--------|
+| ESP32 sends | Manual "Upload Changes" button only — no auto-send during edits |
+| Event system | Two-tier: `ContextChanged` (full refresh + ESP32), `OverrideFieldChanged` (local badge only) |
+| LayerBadgeWrapper | Wraps any editor (TextBox, Slider, complex), displays `[U]`/`[P]` badge |
+| Subscriber lifecycle | Subscribe in `Loaded`, unsubscribe in `Unloaded` |
+| Debouncing | Not needed for ESP32 (no sends); optional for UI if slider lag observed |
+
+## ESP32 Send Policy
+
+| Action | Badge update | ESP32 send |
+|--------|--------------|------------|
+| Edit override field | ✓ Immediate | ✗ No |
+| Clear override | ✓ Immediate | ✗ No |
+| Click "Upload Changes" | — | ✓ Yes |
+| Profile/vehicle switch | ✓ Full refresh | ✓ Yes |
+
+## Implementation Phases
+
+1. **Phase 1**: Create `OverrideFieldRegistry.cs` + unit tests ← **START HERE**
+2. **Phase 2**: Create `LayerBadgeWrapper` control
+3. **Phase 3**: Wrap scalar fields in Vehicle Profile tab
+4. **Phase 4**: Wrap function-level fields in Functions tab
+5. **Phase 5**: Add "Linked Axes" summary panel + navigation
+6. **Phase 6**: Add activation toggle to Functions tab
+7. **Phase 7**: Add "Upload Changes" button
+
+## Files to Create (Phase 1)
+
+| File | Purpose |
+|------|---------|
+| `TieredConfig/OverrideFieldRegistry.cs` | Field definitions, accessors, layer routing |
+| `TieredConfigTests/OverrideFieldRegistryTests.cs` | Unit tests |
+
+## Existing Infrastructure
+
+**TieredConfig classes** (`SimHubPlugin/TieredConfig/`):
+- `TieredConfigTypes.cs` — `ConfigLayer` enum, `FunctionConfigOverrides`, `AxisParameterOverrides`
+- `ConfigMerger.cs` — Pure merge functions
+- `ConfigLayerProvider.cs` — Determines field source layer
+- `FieldRouter.cs` — Routes changes to correct layer
+- `FunctionConfigManager.cs` — Manages function config lifecycle, fires `FunctionConfigChanged`
+- `AxisConfigManager.cs` — Manages axis config lifecycle, fires `AxisConfigChanged`
+
+**Unit tests**: 132 tests passing
 ```bash
-cd SimHubPlugin/TieredConfigTests/bin/Debug
-./TieredConfigTests.exe
+cd SimHubPlugin/TieredConfigTests/bin/Debug && ./TieredConfigTests.exe
 ```
-
-## Commit History
-
-| Commit     | Description                                               |
-| ---------- | --------------------------------------------------------- |
-| `9ef65069` | Add user profile UI and fix function badge refresh        |
-| `8f89eded` | Add ChangeTracker and FieldRouter unit tests              |
-| `95c17a92` | Add unit tests for tiered config system                   |
-| `f7d68181` | Add function selector UI for axis parameter overrides     |
-| `38603843` | Add override value editor UI for active functions         |
-| `a2625da0` | Add Active Functions UI for vehicle profile overrides     |
-| `f77294c8` | Add tiered config override system with profile integration |
 
 ## Build
 
@@ -122,27 +269,7 @@ MSYS_NO_PATHCONV=1 \
   /p:Configuration=Debug /v:minimal /nologo
 ```
 
-## Next Tasks
+## References
 
-Optional improvements if continuing development:
-
-1. **Add Save/Discard Review Dialog** — UI for triaging pending changes before save (re-route, discard individual changes)
-2. **Implement `DeltaExtractor`** — Extract changed fields from full config for cleaner delta generation
-3. **Create single source of truth for override parameters** — Currently override field definitions are scattered across 5+ files (TieredConfigTypes.cs, FieldRouter.cs, ConfigLayerProvider.cs, DiyFfbPlugin.cs, DiyFfbPluginUI.xaml.cs). Consider:
-   - JSON schema defining all overridable parameters with metadata (name, type, layer routing, min/max, tooltip)
-   - Code generation or runtime loading from this schema
-   - Developer documentation on how to add new override parameters
-
-## Deferred Items Reference
-
-These were lower-priority items from the design doc, not blocking merge:
-
-| Item                         | Priority | Notes                                                                 |
-| ---------------------------- | -------- | --------------------------------------------------------------------- |
-| `DeltaExtractor` class       | Medium   | Extract changed fields from full config (not needed for current flow) |
-| Per-field `[P]`/`[U]` badges | Done     | Live refresh now works correctly                                      |
-| Save/Discard Review Dialog   | Low      | UI polish — triage pending changes before save                        |
-
-## Design Reference
-
-Full design doc: `SimHubPlugin/Docs/plans/24_Tiered_Config_Overrides.md`
+- **Full plan**: `SimHubPlugin/Docs/plans/25_Override_Field_Registry_Plan.md`
+- **Tiered config design**: `SimHubPlugin/Docs/plans/24_Tiered_Config_Overrides.md`

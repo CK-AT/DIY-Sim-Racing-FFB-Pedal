@@ -19,7 +19,12 @@ namespace DiyFfb.TieredConfig
             "friction",
             "static_balance_tuning",
             "static_balance_tuning.enabled",
-            "static_balance_tuning.gain"
+            "static_balance_tuning.gain",
+            "damper_config",
+            "damper_config.positive_factor",
+            "damper_config.negative_factor",
+            "flight_pedals",
+            "flight_stick"
         };
 
         // Hardware-level fields: rarely changed, tied to physical hardware
@@ -65,11 +70,23 @@ namespace DiyFfb.TieredConfig
                 normalizedPath.StartsWith("static_balance_config."))
                 return ConfigLayer.Hardware;
 
-            if (normalizedPath.StartsWith("static_balance_tuning."))
+            if (normalizedPath.StartsWith("static_balance_tuning.") ||
+                normalizedPath.StartsWith("damper_config.") ||
+                normalizedPath.StartsWith("flight_pedals.") ||
+                normalizedPath.StartsWith("flight_stick."))
                 return ConfigLayer.User;
 
+            if (normalizedPath.StartsWith("force_curve.") ||
+                normalizedPath.StartsWith("shifter_config."))
+                return ConfigLayer.Profile;
+
+            // Explicit Profile-level top-level fields
+            if (normalizedPath == "force_curve" ||
+                normalizedPath == "shifter_config")
+                return ConfigLayer.Profile;
+
             // Default to Profile layer for vehicle-specific tuning
-            // This includes: shifter_config, detent positions, force curves, etc.
+            // This includes nested config fields not explicitly handled above
             return ConfigLayer.Profile;
         }
 

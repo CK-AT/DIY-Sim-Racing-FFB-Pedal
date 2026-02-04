@@ -178,6 +178,9 @@
     <Compile Include="Controls\ThemedMessageBox.xaml.cs">
       <DependentUpon>ThemedMessageBox.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\LayerBadgeWrapper.xaml.cs">
+      <DependentUpon>LayerBadgeWrapper.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Helpers\DarkTitleBar.cs" />
     <Compile Include="FlightPedalsConfigControl.xaml.cs">
       <DependentUpon>FlightPedalsConfigControl.xaml</DependentUpon>
@@ -281,6 +284,7 @@
     <Compile Include="TieredConfig\ConflictDetector.cs" />
     <Compile Include="TieredConfig\FieldRouter.cs" />
     <Compile Include="TieredConfig\FunctionConfigManager.cs" />
+    <Compile Include="TieredConfig\OverrideFieldRegistry.cs" />
     <Compile Include="TieredConfig\TieredConfigTypes.cs" />
     <Compile Include="DiyFfbProtocol.cs" />
     <Compile Include="FrameSerial.cs" />
@@ -327,6 +331,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Controls\ThemedMessageBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\LayerBadgeWrapper.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

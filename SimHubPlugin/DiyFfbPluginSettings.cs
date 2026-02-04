@@ -164,7 +164,15 @@ namespace DiyFfb
         /// Defined globally; only applied when function is active for current profile.
         /// </summary>
         public Dictionary<int, Dictionary<int, AxisParameterOverrides>> FunctionAxisOverrides = new Dictionary<int, Dictionary<int, AxisParameterOverrides>>();
+
+        /// <summary>
+        /// Function baselines (complete FunctionConfig snapshots) stored in SimHub.
+        /// These serve as the "Hardware layer" for tiered config merge operations.
+        /// Updated only by: importing compound configs, or explicit "Save to Hardware" action.
+        /// Key: function ID, Value: complete FunctionConfig snapshot.
+        /// </summary>
+        public Dictionary<int, FunctionConfig> FunctionBaselines = new Dictionary<int, FunctionConfig>();
     }
-        
+
 
 }

@@ -2097,6 +2097,9 @@ namespace DiyFfb
             ResolveActiveGraph(gameId, carId);
             BuildGraphParams();
 
+            // Fire ContextChanged event for badge/UI refresh
+            OnContextChanged();
+
             if (ui != null)
             {
                 string carName = activeCarName;
@@ -2374,6 +2377,42 @@ namespace DiyFfb
         }
 
         /// <summary>
+        /// Get the function baseline (Hardware layer) for a function.
+        /// Returns null if no baseline has been stored.
+        /// </summary>
+        public FunctionConfig GetFunctionBaseline(int functionId)
+        {
+            if (Settings.FunctionBaselines == null)
+                return null;
+
+            Settings.FunctionBaselines.TryGetValue(functionId, out var baseline);
+            return baseline?.Clone();
+        }
+
+        /// <summary>
+        /// Set the function baseline (Hardware layer) for a function.
+        /// This stores a complete FunctionConfig snapshot as the hardware default.
+        /// </summary>
+        public void SetFunctionBaseline(int functionId, FunctionConfig config)
+        {
+            if (config == null)
+                throw new System.ArgumentNullException(nameof(config));
+
+            if (Settings.FunctionBaselines == null)
+                Settings.FunctionBaselines = new Dictionary<int, FunctionConfig>();
+
+            Settings.FunctionBaselines[functionId] = config.Clone();
+        }
+
+        /// <summary>
+        /// Check if a function has a stored baseline.
+        /// </summary>
+        public bool HasFunctionBaseline(int functionId)
+        {
+            return Settings.FunctionBaselines?.ContainsKey(functionId) == true;
+        }
+
+        /// <summary>
         /// Get or create the function config overrides for a function in the current vehicle profile.
         /// </summary>
         public FunctionConfigOverrides GetOrCreateFunctionOverrides(int functionId)
@@ -2421,10 +2460,14 @@ namespace DiyFfb
             if (targetLayer == TieredConfig.ConfigLayer.User)
             {
                 UpdateUserFunctionOverride(functionId, updateAction);
-                return;
+            }
+            else
+            {
+                UpdateFunctionOverride(functionId, updateAction);
             }
 
-            UpdateFunctionOverride(functionId, updateAction);
+            // Fire OverrideFieldChanged event for badge refresh (NO ESP32 send)
+            OnOverrideFieldChanged(functionId, fieldName);
         }
 
         /// <summary>
@@ -2436,10 +2479,14 @@ namespace DiyFfb
             if (targetLayer == TieredConfig.ConfigLayer.User)
             {
                 ClearUserFunctionOverrideField(functionId, fieldName);
-                return;
+            }
+            else
+            {
+                ClearProfileFunctionOverrideField(functionId, fieldName);
             }
 
-            ClearProfileFunctionOverrideField(functionId, fieldName);
+            // Fire OverrideFieldChanged event for badge refresh (NO ESP32 send)
+            OnOverrideFieldChanged(functionId, fieldName);
         }
 
         private void ClearProfileFunctionOverrideField(int functionId, string fieldName)
@@ -3416,6 +3463,35 @@ namespace DiyFfb
         public event EventHandler<ParamMigrationResult> ParamMigrationDetected;
 
         /// <summary>
+        /// Fired when the active context changes (profile/user/vehicle switch, or Upload Changes).
+        /// Subscribers should perform full refresh and expect ESP32 config send.
+        /// </summary>
+        public event EventHandler ContextChanged;
+
+        /// <summary>
+        /// Fired when a single override field is edited (NO ESP32 send).
+        /// Subscribers should perform targeted badge/UI refresh only.
+        /// </summary>
+        public event EventHandler<OverrideFieldChangedEventArgs> OverrideFieldChanged;
+
+        /// <summary>
+        /// Fires the ContextChanged event to notify subscribers of a full context change.
+        /// Call this on profile/vehicle/user switches, or after "Upload Changes" button.
+        /// </summary>
+        protected virtual void OnContextChanged()
+        {
+            ContextChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// Fires the OverrideFieldChanged event for a specific field edit (NO ESP32 send).
+        /// </summary>
+        protected virtual void OnOverrideFieldChanged(int functionId, string fieldPath)
+        {
+            OverrideFieldChanged?.Invoke(this, new OverrideFieldChangedEventArgs(functionId, fieldPath));
+        }
+
+        /// <summary>
         /// Gets the current value of a graph output signal.
         /// </summary>
         /// <param name="outputName">Full output signal name (e.g., "FlightPedals.SpringGain")</param>
@@ -4023,6 +4099,21 @@ namespace DiyFfb
         {
             ParamName = paramName;
             Value = value;
+        }
+    }
+
+    /// <summary>
+    /// Event args for override field changes.
+    /// </summary>
+    public class OverrideFieldChangedEventArgs : EventArgs
+    {
+        public int FunctionId { get; }
+        public string FieldPath { get; }
+
+        public OverrideFieldChangedEventArgs(int functionId, string fieldPath)
+        {
+            FunctionId = functionId;
+            FieldPath = fieldPath;
         }
     }
 }

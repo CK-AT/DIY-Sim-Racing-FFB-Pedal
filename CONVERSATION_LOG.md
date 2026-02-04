@@ -2,6 +2,52 @@
 Purpose: keep cross-machine continuity for this repo.
 Update policy: append new entries at the top; include date/time, machine, request, summary, key files, and open items.
 
+## 2026-02-04 (Claude Code)
+
+Request: Continue from handoff - implement Override Field Registry infrastructure (Phases 1-6).
+
+Summary:
+
+Implemented complete infrastructure for unified override system with layer badges. All 6 core phases completed, Phase 7 (baseline integration) deferred pending design decisions.
+
+**Phase 1**: Created OverrideFieldRegistry - centralized field definitions, metadata, and accessors. Added 40 comprehensive unit tests - all 172 tests passing.
+
+**Phase 2**: Created LayerBadgeWrapper WPF control - composable wrapper that displays [U]/[P] badges on any content control. Blue for User, Green for Profile. Self-contained with on-demand ConfigLayerProvider creation.
+
+**Phase 3**: Added event system - `ContextChanged` event for full context switches, `OverrideFieldChanged` event for single field edits (no ESP32 send). Added helper methods.
+
+**Phase 4**: Added function baseline storage infrastructure - `FunctionBaselines` dictionary in settings, get/set/has methods. Auto-persisted via JSON. Note: Deferred actual integration (see Phase 7).
+
+**Phase 5**: Field expansion - added all override fields for all function types (13 total). Added `FormatValue` delegate for complex types. Removed redundant MinValue/MaxValue. Added DamperConfigOverrides. Extended FunctionConfigOverrides with all function-specific configs. Updated FieldRouter routing.
+
+**Phase 6**: Event wiring - wired up `OnContextChanged()` in HandleAircraftChange (profile/vehicle switches), `OnOverrideFieldChanged()` in UpdateFunctionOverrideField and ClearFunctionOverrideField (field edits/clears).
+
+**Phase 7 (Deferred)**: Baseline integration deferred. Key insight: ESP32 configs should NOT auto-populate baselines (could be overridden values). Requires explicit user control ("Save as Baseline" button). Infrastructure ready, awaiting UI implementation.
+
+Key files:
+
+- `SimHubPlugin/TieredConfig/OverrideFieldRegistry.cs` — NEW: Field registry (13 fields)
+- `SimHubPlugin/TieredConfigTests/OverrideFieldRegistryTests.cs` — NEW: 40 tests
+- `SimHubPlugin/Controls/LayerBadgeWrapper.xaml.cs` — NEW: Badge wrapper control
+- `SimHubPlugin/Controls/LayerBadgeWrapper.xaml` — NEW: Control template
+- `SimHubPlugin/TieredConfig/TieredConfigTypes.cs` — MODIFIED: Expanded overrides
+- `SimHubPlugin/TieredConfig/FieldRouter.cs` — MODIFIED: New field routing
+- `SimHubPlugin/DiyFfbPlugin.cs` — MODIFIED: Events + baseline methods + event wiring
+- `SimHubPlugin/DiyFfbPluginSettings.cs` — MODIFIED: FunctionBaselines storage
+
+Field breakdown:
+
+- 8 scalar (Float/Bool): OutputMin/Max, SimulatedMass, Friction, StaticBalance×2, Damper×2
+- 5 complex (with FormatValue): ForceCurve, FlightPedalsConfig, FlightStickConfig, ShifterConfig
+
+Open items:
+
+- Phase 7: Add "Save as Baseline" button for explicit baseline management
+- Phase 8: UI integration - wrap function editor controls with LayerBadgeWrapper
+- Phase 9+: Linked Axes panel, activation toggle, Upload Changes button
+
+Build status: All code compiles successfully, 172/172 tests passing.
+
 ## 2026-01-31 01:30:00 +01:00 (Claude Code)
 
 Request: Continue from handoff - commit UI reorganization and fix param discard bug.
@@ -28,6 +74,147 @@ Commit highlights:
 
 - `f7bf66b1` Move profile buttons from Settings to Vehicle tab
 - `5ba1989e` Fix param changes persisting when discarded on vehicle switch
+
+## 2026-02-03 16:30:00 +01:00 (Codex)
+
+Request: finish per-field layer badges (incomplete).
+
+Summary:
+
+- Routed function override edits/clears to User vs Profile using FieldRouter defaults, with user override storage helpers.
+- Updated Active Functions override UI to show effective values, refresh badges/clear buttons after edits, and show user overrides in the function list badge.
+- Added Enter-to-commit on override text inputs; no async/out-of-order handling changes.
+
+Key files:
+
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+
+Open items:
+
+- Confirm desired behavior when profile + user overrides coexist (UI now clears highest-priority layer first).
+
+Commit highlights:
+
+- Route function override edits/clears to user layer by default
+- Refresh override badges/values after edits and show [U]/[P] at function row
+
+## 2026-02-03 16:32:00 +01:00 (Codex)
+
+Request: add AGENTS rule for function override UI routing and badges.
+
+Summary:
+
+- Added AGENTS rule to require FieldRouter routing for override edits/clears and effective value display with badge refresh.
+- No async/out-of-order handling changes.
+
+Key files:
+
+- `AGENTS.md`
+
+Open items:
+
+- None.
+
+Commit highlights:
+
+- Require FieldRouter-based override routing and badge refresh in UI
+
+## 2026-02-03 16:45:00 +01:00 (Codex)
+
+Request: add UI to create/select user profiles.
+
+Summary:
+
+- Added System tab "User" panel for profile selection, creation, and deletion.
+- Wired UI to set current user profile, ensure preferences exist, and reapply overrides.
+- No async/out-of-order handling changes.
+
+Key files:
+
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+
+Open items:
+
+- None.
+
+Commit highlights:
+
+- Add user profile selector/creator UI
+- Reapply overrides when switching user profile
+
+## 2026-02-03 16:58:00 +01:00 (Codex)
+
+Request: fix C# 7.3 build error from `is not` pattern.
+
+Summary:
+
+- Replaced `is not` pattern in user profile delete handler with C# 7.3-compatible checks.
+- No async/out-of-order handling changes.
+
+Key files:
+
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+
+Open items:
+
+- None.
+
+Commit highlights:
+
+- Fix user profile delete handler for C# 7.3
+
+## 2026-02-03 17:06:00 +01:00 (Codex)
+
+Request: badges not appearing after override edits.
+
+Summary:
+
+- Triggered Vehicle tab refresh after override edits/clears to update function-row badges and per-field badges.
+- No async/out-of-order handling changes.
+
+Key files:
+
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+
+Open items:
+
+- If badges still missing, add debug log to print stored override layer/value on edit.
+
+Commit highlights:
+
+- Refresh Active Functions UI after override edits/clears
+
+## 2026-02-03 17:18:00 +01:00 (Codex)
+
+Request: investigate missing badges; prepare handoff.
+
+Summary:
+
+- Added User profile UI (System → User) with create/select/delete and override reapply on switch.
+- Routed function override edits/clears by FieldRouter, refreshed badges/values after edits, and fixed C# 7.3 `is not` usage.
+- Added Active Functions UI refresh after override edits; badges still only update after SimHub restart when running old build.
+- Build attempt failed due to locked `SimHubPlugin\\obj\\Debug` files (XAML compile cache) and reported existing MSB3277/MSB3270 warnings.
+- No async/out-of-order handling changes.
+
+Key files:
+
+- `SimHubPlugin/DiyFfbPluginUI.xaml`
+- `SimHubPlugin/DiyFfbPluginUI.xaml.cs`
+- `SimHubPlugin/DiyFfbPlugin.cs`
+- `AGENTS.md`
+
+Open items:
+
+- Rebuild with SimHub closed; if badges still don't update live, add UI refresh on FunctionConfigChanged.
+- Decide whether to add user profile rename UI.
+
+Commit highlights:
+
+- Add User profile selector/creator UI and reapply overrides on switch
+- Route override edits to user layer and refresh badges/values after edits
 
 ## 2026-01-29 15:45:00 +01:00 (CODex)
 Request: update the override migration plan with decisions and implementation notes.
@@ -4503,4 +4690,3 @@ Summary:
 - Created Plan 19: Shared Graph Save Protection. - Addresses gap where users can unknowingly affect multiple vehicles when editing shared graphs. - On save: detect direct/indirect usage, show impact dialog, offer Save Anyway / Save as Copy / Cancel. - Updated related plans (16, 17) and HANDOFF.md with references.
 Key files:
 - NEW: `SimHubPlugin/Docs/plans/19_Shared_Graph_Save_Protection.md` - `SimHubPlugin/Docs/plans/16_Vehicle_Profile_Lifecycle.md` - `SimHubPlugin/Docs/plans/17_Profile_System_Improvements.md` - `HANDOFF.md`
-
