@@ -76,6 +76,27 @@ namespace DiyFfb.TieredConfig
                 ApplyStaticBalanceTuningOverrides(merged, delta.StaticBalanceTuning);
             }
 
+            // Merge AutomotivePedals-specific overrides
+            if (merged.AutomotivePedal != null)
+            {
+                ApplyAutomotivePedalOverrides(merged.AutomotivePedal, delta);
+            }
+
+            // Merge FlightPedals-specific overrides
+            if (merged.FlightPedals != null)
+            {
+                ApplyFlightPedalsOverrides(merged.FlightPedals, merged.AuxFunction, delta);
+            }
+
+            // Merge FlightStick-specific overrides (mode-specific)
+            ApplyFlightStickOverrides(merged, delta);
+
+            // Merge Shifter-specific overrides
+            if (merged.Shifter != null && delta.ShifterConfig != null)
+            {
+                merged.Shifter = delta.ShifterConfig.Clone();
+            }
+
             return merged;
         }
 
@@ -121,6 +142,127 @@ namespace DiyFfb.TieredConfig
                 tuning.Enabled = overrides.Enabled.Value;
             if (overrides.Gain.HasValue)
                 tuning.Gain = overrides.Gain.Value;
+        }
+
+        /// <summary>
+        /// Apply AutomotivePedal-specific overrides.
+        /// NOTE: Does NOT update Base.OutputMin/Max - controls derive these from ForceCurveConfig.
+        /// </summary>
+        private static void ApplyAutomotivePedalOverrides(
+            AutomotivePedalConfig config,
+            FunctionConfigOverrides delta)
+        {
+            // Merge damper config
+            if (delta.DamperConfig != null && !delta.DamperConfig.IsEmpty)
+            {
+                if (config.DamperConfig == null)
+                    config.DamperConfig = new DamperConfig();
+
+                if (delta.DamperConfig.PositiveFactor.HasValue)
+                    config.DamperConfig.PositiveFactor = delta.DamperConfig.PositiveFactor.Value;
+                if (delta.DamperConfig.NegativeFactor.HasValue)
+                    config.DamperConfig.NegativeFactor = delta.DamperConfig.NegativeFactor.Value;
+            }
+
+            // Merge force curve (full replacement)
+            if (delta.ForceCurve != null)
+            {
+                config.ForceCurveConfig = delta.ForceCurve.Clone();
+            }
+        }
+
+        /// <summary>
+        /// Apply FlightPedals-specific overrides.
+        /// NOTE: Does NOT update Base.OutputMin/Max - controls derive these from PosNearLim/PosFarLim.
+        /// </summary>
+        private static void ApplyFlightPedalsOverrides(
+            FlightPedalsConfig config,
+            AuxFunctionConfig auxConfig,
+            FunctionConfigOverrides delta)
+        {
+            // Merge motion range
+            if (delta.FlightPedalsMotionRange != null && !delta.FlightPedalsMotionRange.IsEmpty)
+            {
+                if (delta.FlightPedalsMotionRange.NearLim.HasValue)
+                    config.PosNearLim = delta.FlightPedalsMotionRange.NearLim.Value;
+                if (delta.FlightPedalsMotionRange.FarLim.HasValue)
+                    config.PosFarLim = delta.FlightPedalsMotionRange.FarLim.Value;
+            }
+
+            // Merge damping
+            if (delta.FlightPedalsDamping.HasValue)
+                config.Damping = delta.FlightPedalsDamping.Value;
+
+            // Merge centering spring constant
+            if (delta.FlightPedalsCenteringSpringConst.HasValue)
+                config.CenteringSpringConst = delta.FlightPedalsCenteringSpringConst.Value;
+
+            // Merge rudder brake force range (aux_function)
+            if (auxConfig != null && delta.RudderBrakeForceRange != null && !delta.RudderBrakeForceRange.IsEmpty)
+            {
+                if (auxConfig.RudderBrake == null)
+                    auxConfig.RudderBrake = new RudderBrakeConfig();
+
+                if (delta.RudderBrakeForceRange.Min.HasValue)
+                    auxConfig.RudderBrake.FMin = delta.RudderBrakeForceRange.Min.Value;
+                if (delta.RudderBrakeForceRange.Max.HasValue)
+                    auxConfig.RudderBrake.FMax = delta.RudderBrakeForceRange.Max.Value;
+            }
+        }
+
+        /// <summary>
+        /// Apply FlightStick-specific overrides (mode-dependent: Pitch/Roll/Collective).
+        /// NOTE: Does NOT update Base.OutputMin/Max - controls derive these from PosMin/PosMax.
+        /// </summary>
+        private static void ApplyFlightStickOverrides(
+            FunctionConfig merged,
+            FunctionConfigOverrides delta)
+        {
+            // Helper to apply overrides to any flight stick config type
+            void ApplyToConfig<T>(T config) where T : class
+            {
+                if (config == null) return;
+
+                // Use dynamic to work with any FlightStick config type
+                dynamic cfg = config;
+
+                // Merge motion range
+                if (delta.FlightStickMotionRange != null && !delta.FlightStickMotionRange.IsEmpty)
+                {
+                    if (delta.FlightStickMotionRange.Min.HasValue)
+                        cfg.PosMin = delta.FlightStickMotionRange.Min.Value;
+                    if (delta.FlightStickMotionRange.Max.HasValue)
+                        cfg.PosMax = delta.FlightStickMotionRange.Max.Value;
+                }
+
+                // Merge damping
+                if (delta.FlightStickDamping.HasValue)
+                    cfg.Damping = delta.FlightStickDamping.Value;
+
+                // Merge centering spring constant
+                if (delta.FlightStickCenteringSpringConst.HasValue)
+                    cfg.CenteringSpringConst = delta.FlightStickCenteringSpringConst.Value;
+            }
+
+            // Apply to the appropriate config based on function type
+            switch (merged.Base.FunctionId)
+            {
+                case FunctionID.FlightStickPitch:
+                    if (merged.FlightStickPitch == null)
+                        merged.FlightStickPitch = new FlightStickPitchConfig();
+                    ApplyToConfig(merged.FlightStickPitch);
+                    break;
+                case FunctionID.FlightStickRoll:
+                    if (merged.FlightStickRoll == null)
+                        merged.FlightStickRoll = new FlightStickRollConfig();
+                    ApplyToConfig(merged.FlightStickRoll);
+                    break;
+                case FunctionID.FlightStickCollective:
+                    if (merged.FlightStickCollective == null)
+                        merged.FlightStickCollective = new FlightStickCollectiveConfig();
+                    ApplyToConfig(merged.FlightStickCollective);
+                    break;
+            }
         }
     }
 }
