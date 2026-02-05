@@ -517,6 +517,11 @@
                                             <styles:SHButtonPrimary x:Name="btn_store_function_config_to_file" Click="btn_store_function_config_to_file_Click" Width="125" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this function config to a .json file." />
                                         </StackPanel>
                                     </Border>
+                                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Margin="0,0,0,3">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <styles:SHButtonPrimary x:Name="btn_save_function_baseline" Click="OnSaveFunctionBaselineClicked" Width="160" Height="28" Content="Save as Baseline" Margin="5,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Save current function configuration as hardware baseline for this function." />
+                                        </StackPanel>
+                                    </Border>
                                     <ScrollViewer Height="764" >
                                         <local:FunctionConfigControl x:Name="uc_function_config" VerticalAlignment="Top" Margin="0,0,0,5" ></local:FunctionConfigControl>
                                     </ScrollViewer>

@@ -131,11 +131,12 @@ Badge system 100% complete. Next phase: Update UI event handlers to create overr
 - ✓ Phase 4: Baseline storage (Hardware layer persistence)
 - ✓ Phase 5: Field expansion (corrected in Phase 10)
 - ✓ Phase 6: Event wiring (context changes + field edits)
-- ⏸️ Phase 7: Baseline integration (deferred - infrastructure ready)
+- ✓ Phase 7: Baseline integration (manager initialization on startup)
 - ✓ Phase 8: UI integration (badges on all function editors)
 - ✓ Phase 9: Badge initialization fix (OnLoaded + SwitchFunction)
 - ✓ Phase 10: Registry structure correction (per-field vs whole-config)
 - ✓ Phase 11: ConfigMerger complete (all function types)
+- ✓ Phase 12: Proof-of-concept (simulated_mass override with full persistence)
 
 **Infrastructure complete:**
 - ✅ Badge system (display, initialization, refresh)
@@ -206,6 +207,52 @@ MSYS_NO_PATHCONV=1 \
 - **Full plan**: `SimHubPlugin/Docs/plans/25_Override_Field_Registry_Plan.md`
 - **Tiered config design**: `SimHubPlugin/Docs/plans/24_Tiered_Config_Overrides.md`
 - **Control analysis**: Task agent a5a2995 (field mappings, derived fields, transformations)
+
+## Phase 7 - Baseline Integration (Complete) ✓
+
+Initialize FunctionConfigManager with stored baselines and overrides on plugin startup. Add "Save as Baseline" button for explicit baseline creation.
+
+**Implementation:**
+
+1. **InitializeManagerFromSettings()** (DiyFfbPlugin.cs:2415-2447):
+   - Loads all stored baselines from `Settings.FunctionBaselines`
+   - Calls `_functionConfigManager.SetBaseConfig()` for each function
+   - Retrieves profile and user overrides from settings
+   - Applies overrides via `ApplyProfileOverrides()` to populate merged configs
+   - Called in `Init()` after settings load (DiyFfbPlugin.cs:3728)
+
+2. **"Save as Baseline" button**:
+   - Added to main UI below Upload/Download/Load/Store buttons (DiyFfbPluginUI.xaml:520-524)
+   - Click handler `OnSaveFunctionBaselineClicked()` (DiyFfbPluginUI.xaml.cs:2835-2871)
+   - Gets current merged config from manager (baseline + all overrides)
+   - Saves merged config as new baseline via `SetFunctionBaseline()`
+   - **Clears all overrides** via `ClearAllFunctionOverrides()` (bakes them into baseline)
+   - Re-applies to manager and refreshes UI
+   - Shows confirmation dialog
+
+3. **ClearAllFunctionOverrides()** (DiyFfbPlugin.cs:2582-2606):
+   - Clears profile overrides for function
+   - Clears user overrides for function
+   - Re-applies to manager to update merged config
+   - Used when "baking" overrides into baseline
+
+**Architecture:**
+
+Baselines are **explicitly saved** by user action (not auto-saved from ESP32):
+- User clicks "Save as Baseline" to capture current effective config
+- Baseline stored in `Settings.FunctionBaselines` (persisted to disk)
+- On startup, baseline loaded as base layer for merge operations
+- Overrides (Profile + User) merge on top of baseline
+
+**Result:**
+
+Manager is now populated with merged configs (baseline + profile + user overrides) before UI loads. Function switching displays correct values immediately, even before ESP32 connection. Stored overrides persist across plugin restarts.
+
+**Testing workflow:**
+1. Edit simulated_mass on Flight Stick Pitch → override created, [U] badge appears
+2. Click "Save as Baseline" → baseline saved, overrides cleared (badge disappears)
+3. Edit simulated_mass again → new override created, [U] badge appears
+4. Restart plugin → UI shows baseline + new override (persisted correctly)
 
 ## Phase 12 - Proof-of-Concept (Complete) ✓
 

@@ -205,6 +205,7 @@ namespace DiyFfb
             for (FunctionID id = FunctionID.BrakePedal; id <= FunctionID.FlightStickCollective; id++)
             {
                 Function function = new Function(id);
+                // Config will be populated later in PopulateFunctionConfigsFromBaselines() after manager is initialized
                 function.Config = FunctionConfigControl.GetDefaultConfig(id);
                 functions[id] = function;
             }
@@ -247,6 +248,30 @@ namespace DiyFfb
             SetInitialSelections();
 
             InitializeVjoyIfEnabled();
+        }
+
+        /// <summary>
+        /// Populate Function.Config from stored baselines in the manager.
+        /// Called after InitializeManagerFromSettings() has loaded baselines.
+        /// </summary>
+        public void PopulateFunctionConfigsFromBaselines()
+        {
+            if (Plugin == null)
+                return;
+
+            foreach (var kvp in functions)
+            {
+                var functionId = (int)kvp.Key;
+                var function = kvp.Value;
+
+                // Get baseline + overrides from manager
+                var config = Plugin.GetInitialFunctionConfig(functionId);
+                if (config != null)
+                {
+                    // Replace default config with stored baseline + overrides
+                    function.Config = config;
+                }
+            }
         }
 
         public KinematicParameters GetKinematicParameters(AxisID axis_id)
@@ -2829,6 +2854,41 @@ namespace DiyFfb
                 btn_store_function_config_to_file.IsEnabled = false;
                 btn_store_axis_config_to_file.IsEnabled = false;
                 saveSelectionDialog.Show();
+            }
+        }
+
+        private void OnSaveFunctionBaselineClicked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || !functions.TryGetValue(selected_function_id, out var function) || function == null)
+            {
+                return;
+            }
+
+            // Use function.Config which has ALL current edits (override-tracked + direct edits)
+            // The manager's merged config only includes override-tracked fields, losing direct edits to non-wrapped fields
+            var configToSave = function.Config?.Clone();
+
+            if (configToSave != null)
+            {
+                // Save as baseline (this "bakes" all overrides AND direct edits into the new baseline)
+                Plugin.SetFunctionBaseline((int)function.ID, configToSave);
+
+                // Clear all overrides since they're now part of the baseline
+                Plugin.ClearAllFunctionOverrides((int)function.ID);
+
+                // Update manager with new baseline (no overrides)
+                Plugin.FunctionConfigManager.SetBaseConfig((int)function.ID, configToSave);
+                Plugin.ApplyProfileOverridesToFunction((int)function.ID);
+
+                // Refresh UI to show new baseline without badges
+                uc_function_config.SwitchFunction(function);
+
+                // Show confirmation
+                ThemedMessageBox.Show(
+                    $"Saved {function.Name} configuration as hardware baseline.\n\nAll overrides have been baked into the baseline and cleared.",
+                    "Baseline Saved",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
             }
         }
 

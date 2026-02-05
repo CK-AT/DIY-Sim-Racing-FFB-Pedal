@@ -2385,8 +2385,19 @@ namespace DiyFfb
             if (Settings.FunctionBaselines == null)
                 return null;
 
-            Settings.FunctionBaselines.TryGetValue(functionId, out var baseline);
-            return baseline?.Clone();
+            if (!Settings.FunctionBaselines.TryGetValue(functionId, out var json) || string.IsNullOrEmpty(json))
+                return null;
+
+            // Parse JSON string back to protobuf
+            try
+            {
+                var parser = new Google.Protobuf.JsonParser(Google.Protobuf.JsonParser.Settings.Default);
+                return parser.Parse<FunctionConfig>(json);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>
@@ -2399,9 +2410,15 @@ namespace DiyFfb
                 throw new System.ArgumentNullException(nameof(config));
 
             if (Settings.FunctionBaselines == null)
-                Settings.FunctionBaselines = new Dictionary<int, FunctionConfig>();
+                Settings.FunctionBaselines = new Dictionary<int, string>();
 
-            Settings.FunctionBaselines[functionId] = config.Clone();
+            // Convert protobuf to JSON string for storage (protobuf doesn't serialize correctly with JSON.NET)
+            var jsonFormatter = new Google.Protobuf.JsonFormatter(Google.Protobuf.JsonFormatter.Settings.Default);
+            string json = jsonFormatter.Format(config);
+            Settings.FunctionBaselines[functionId] = json;
+
+            // Persist to disk
+            this.SaveCommonSettings("GeneralSettings", Settings);
         }
 
         /// <summary>
@@ -2410,6 +2427,69 @@ namespace DiyFfb
         public bool HasFunctionBaseline(int functionId)
         {
             return Settings.FunctionBaselines?.ContainsKey(functionId) == true;
+        }
+
+        /// <summary>
+        /// Initialize FunctionConfigManager with stored baselines and overrides from settings.
+        /// Call this during plugin initialization after settings are loaded.
+        /// </summary>
+        public void InitializeManagerFromSettings()
+        {
+            if (Settings?.FunctionBaselines == null)
+                return;
+
+            // Load all stored baselines into the manager
+            var parser = new Google.Protobuf.JsonParser(Google.Protobuf.JsonParser.Settings.Default);
+            foreach (var kvp in Settings.FunctionBaselines)
+            {
+                int functionId = kvp.Key;
+                string json = kvp.Value;
+
+                if (string.IsNullOrEmpty(json))
+                    continue;
+
+                // Parse JSON string to protobuf
+                FunctionConfig baseline;
+                try
+                {
+                    baseline = parser.Parse<FunctionConfig>(json);
+                }
+                catch
+                {
+                    continue; // Skip corrupted baseline
+                }
+
+                // Set base config in manager
+                _functionConfigManager.SetBaseConfig(functionId, baseline);
+
+                // Apply stored overrides (profile + user)
+                var profile = GetCurrentAircraftProfile();
+                FunctionConfigOverrides profileDelta = null;
+                profile?.FunctionOverrides?.TryGetValue(functionId, out profileDelta);
+
+                var userOverrides = GetCurrentUserOverrides();
+                FunctionConfigOverrides userDelta = null;
+                userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
+
+                // Merge overrides into manager (without sending to ESP32)
+                if (profileDelta != null || userDelta != null)
+                {
+                    _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get initial function config from manager (for UI initialization).
+        /// Returns merged config (baseline + overrides) if available, otherwise null.
+        /// </summary>
+        public FunctionConfig GetInitialFunctionConfig(int functionId)
+        {
+            if (_functionConfigManager.HasBaseConfig(functionId))
+            {
+                return _functionConfigManager.GetCurrentConfig(functionId);
+            }
+            return null;
         }
 
         /// <summary>
@@ -2521,9 +2601,21 @@ namespace DiyFfb
 
             updateAction(overrides);
 
-            if (IsFunctionActive(functionId))
+            // Persist user overrides to disk
+            this.SaveCommonSettings("GeneralSettings", Settings);
+
+            // Always update manager if we have a baseline, even if function not in active profile
+            if (_functionConfigManager.HasBaseConfig(functionId))
             {
-                ApplyProfileOverridesToFunction(functionId);
+                var profile = GetCurrentAircraftProfile();
+                FunctionConfigOverrides profileDelta = null;
+                profile?.FunctionOverrides?.TryGetValue(functionId, out profileDelta);
+
+                var userPrefs = GetCurrentUserOverrides();
+                FunctionConfigOverrides userDelta = null;
+                userPrefs?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
+
+                _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: false);
             }
         }
 
@@ -2542,7 +2634,29 @@ namespace DiyFfb
             {
                 prefs.FunctionOverrides.Remove(functionId);
             }
+        }
 
+        /// <summary>
+        /// Clear all overrides (profile + user) for a function.
+        /// Used when saving baseline to "bake" overrides into the new baseline.
+        /// </summary>
+        public void ClearAllFunctionOverrides(int functionId)
+        {
+            // Clear profile overrides
+            var profile = GetCurrentAircraftProfile();
+            if (profile?.FunctionOverrides != null)
+            {
+                profile.FunctionOverrides.Remove(functionId);
+            }
+
+            // Clear user overrides
+            var userPrefs = GetCurrentUserOverrides();
+            if (userPrefs?.FunctionOverrides != null)
+            {
+                userPrefs.FunctionOverrides.Remove(functionId);
+            }
+
+            // Re-apply to manager (clears merged overrides)
             if (IsFunctionActive(functionId))
             {
                 ApplyProfileOverridesToFunction(functionId);
@@ -3722,6 +3836,15 @@ namespace DiyFfb
 
             // Migrate VehicleGraphPaths to AircraftFfbProfiles.GraphPath
             MigrateVehicleGraphPaths();
+
+            // Initialize manager with stored baselines and overrides (Phase 7)
+            InitializeManagerFromSettings();
+
+            // Populate function configs from manager
+            if (ui != null)
+            {
+                ui.PopulateFunctionConfigsFromBaselines();
+            }
 
             Simhub_version = (String)pluginManager.GetPropertyValue("DataCorePlugin.SimHubVersion");
             // Declare a property available in the property list, this gets evaluated "on demand" (when shown or used in formulas)

@@ -171,7 +171,8 @@ namespace DiyFfb
         /// Updated only by: importing compound configs, or explicit "Save to Hardware" action.
         /// Key: function ID, Value: complete FunctionConfig snapshot.
         /// </summary>
-        public Dictionary<int, FunctionConfig> FunctionBaselines = new Dictionary<int, FunctionConfig>();
+        // Store as JSON strings because FunctionConfig (protobuf) doesn't serialize correctly with JSON.NET
+        public Dictionary<int, string> FunctionBaselines = new Dictionary<int, string>();
     }
 
 
