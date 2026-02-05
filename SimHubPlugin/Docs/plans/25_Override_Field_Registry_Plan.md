@@ -2,21 +2,23 @@
 
 ## Implementation Status
 
-**Last updated:** 2026-02-04
+**Last updated:** 2026-02-05
 
-| Phase    | Status          | Description                                              |
-|----------|-----------------|----------------------------------------------------------|
-| Phase 1  | ✅ **Complete** | OverrideFieldRegistry + 40 unit tests (172/172 passing)  |
-| Phase 2  | ✅ **Complete** | LayerBadgeWrapper WPF control                            |
-| Phase 3  | ✅ **Complete** | Event system (ContextChanged + OverrideFieldChanged)     |
-| Phase 4  | ✅ **Complete** | Function baseline storage (Hardware layer)               |
-| Phase 5  | ✅ **Complete** | Field expansion (all 13 fields + FormatValue support)    |
-| Phase 6  | ✅ **Complete** | Event wiring (context changes + field edits)             |
-| Phase 7  | ⏸️ **Deferred** | Baseline integration (needs "Save as Baseline" UI)       |
-| Phase 8  | ⏳ **Pending**  | UI integration (wrap function editor controls)           |
-| Phase 9  | ⏳ **Pending**  | Add "Linked Axes" summary panel                          |
-| Phase 10 | ⏳ **Pending**  | Add activation toggle to Functions tab                   |
-| Phase 11 | ⏳ **Pending**  | Add "Upload Changes" button                              |
+| Phase     | Status          | Description                                              |
+|-----------|-----------------|----------------------------------------------------------|
+| Phase 1   | ✅ **Complete** | OverrideFieldRegistry + 40 unit tests (172/172 passing)  |
+| Phase 2   | ✅ **Complete** | LayerBadgeWrapper WPF control                            |
+| Phase 3   | ✅ **Complete** | Event system (ContextChanged + OverrideFieldChanged)     |
+| Phase 4   | ✅ **Complete** | Function baseline storage (Hardware layer)               |
+| Phase 5   | ✅ **Complete** | Field expansion (17 fields, corrected in Phase 10)       |
+| Phase 6   | ✅ **Complete** | Event wiring (context changes + field edits)             |
+| Phase 7   | ✅ **Complete** | Baseline integration + "Save as Baseline" button         |
+| Phase 8   | ✅ **Complete** | UI integration (badges on all function editors)          |
+| Phase 9   | ✅ **Complete** | Badge initialization fix (OnLoaded + SwitchFunction)     |
+| Phase 10  | ✅ **Complete** | Registry structure correction (per-field vs whole-config)|
+| Phase 11  | ✅ **Complete** | ConfigMerger complete (all function types)               |
+| Phase 12  | ✅ **Complete** | Proof-of-concept (simulated_mass with full persistence)  |
+| Phase 13+ | ⏳ **Pending**  | Migrate remaining ~50 event handlers to override pattern |
 
 **Files created:**
 
@@ -35,9 +37,40 @@
 - `TieredConfigTests.csproj` (test file updates)
 - `TieredConfigTests/OverrideFieldRegistryTests.cs` (removed MinValue/MaxValue tests)
 
-**Registry contents:** 13 fields registered (8 scalar Float/Bool, 5 complex with FormatValue)
+**Registry contents:** 17 fields registered (corrected in Phase 10)
 
 **Build status:** ✅ All code compiles, 172/172 tests passing
+
+## Actual Implementation vs Original Plan
+
+**Major architectural changes discovered during implementation:**
+
+1. **Hybrid two-track system** (not in original plan):
+   - `function.Config` = Primary working copy (preserves all edits)
+   - `FunctionConfigManager` = Secondary tracker (badge state only)
+   - Required to support incremental migration alongside non-wrapped fields
+
+2. **JSON serialization for baselines** (discovered in Phase 7):
+   - Protobuf types incompatible with JSON.NET (SimHub's serializer)
+   - Solution: Store as JSON strings using Google.Protobuf.JsonFormatter
+   - Settings: `Dictionary<int, string>` instead of `Dictionary<int, FunctionConfig>`
+
+3. **Baseline requirement for overrides** (discovered in Phase 12):
+   - Creating overrides without baseline caused config corruption
+   - Solution: Check `HasFunctionBaseline()` before allowing override creation
+   - Workflow: Save baseline first, then create overrides
+
+4. **Manager not used for UI display** (critical discovery):
+   - Original plan: UI reads from manager's merged config
+   - Actual: UI reads from function.Config (preserves non-wrapped field edits)
+   - Manager's merged config used for ESP32 send only
+
+5. **FunctionConfigChanged event handler fix** (Phase 12):
+   - Event was overwriting function.Config with merged config
+   - Lost all direct edits to non-wrapped fields
+   - Solution: Commented out `functions[funcId].Config = e.NewConfig;`
+
+See HANDOFF.md for complete implementation details and all fixes discovered during POC testing.
 
 ---
 
