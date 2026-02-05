@@ -49,10 +49,17 @@ namespace DiyFfb.TieredConfig
         public DamperConfigOverrides DamperConfig { get; set; }
 
         // FlightPedals overrides
-        public FlightPedalsConfig FlightPedalsConfig { get; set; }
+        public MotionRangeOverrides FlightPedalsMotionRange { get; set; }
+        public float? FlightPedalsDamping { get; set; }
+        public float? FlightPedalsCenteringSpringConst { get; set; }
 
         // FlightStick overrides (Pitch/Roll/Collective all use same structure)
-        public FlightStickPitchConfig FlightStickConfig { get; set; }
+        public MotionRangeOverrides FlightStickMotionRange { get; set; }
+        public float? FlightStickDamping { get; set; }
+        public float? FlightStickCenteringSpringConst { get; set; }
+
+        // RudderBrake overrides (aux_function in FlightPedals)
+        public ForceRangeOverrides RudderBrakeForceRange { get; set; }
 
         // Shifter overrides
         public ShifterConfig ShifterConfig { get; set; }
@@ -68,8 +75,13 @@ namespace DiyFfb.TieredConfig
             (StaticBalanceTuning == null || StaticBalanceTuning.IsEmpty) &&
             ForceCurve == null &&
             (DamperConfig == null || DamperConfig.IsEmpty) &&
-            FlightPedalsConfig == null &&
-            FlightStickConfig == null &&
+            (FlightPedalsMotionRange == null || FlightPedalsMotionRange.IsEmpty) &&
+            FlightPedalsDamping == null &&
+            FlightPedalsCenteringSpringConst == null &&
+            (FlightStickMotionRange == null || FlightStickMotionRange.IsEmpty) &&
+            FlightStickDamping == null &&
+            FlightStickCenteringSpringConst == null &&
+            (RudderBrakeForceRange == null || RudderBrakeForceRange.IsEmpty) &&
             ShifterConfig == null;
     }
 
@@ -94,6 +106,31 @@ namespace DiyFfb.TieredConfig
         public float? NegativeFactor { get; set; }
 
         public bool IsEmpty => PositiveFactor == null && NegativeFactor == null;
+    }
+
+    /// <summary>
+    /// Delta overlay for motion range (FlightPedals/FlightStick).
+    /// Stores position limits as a pair.
+    /// </summary>
+    public class MotionRangeOverrides
+    {
+        public int? NearLim { get; set; }  // FlightPedals: pos_near_lim
+        public int? FarLim { get; set; }   // FlightPedals: pos_far_lim
+        public int? Min { get; set; }      // FlightStick: pos_min
+        public int? Max { get; set; }      // FlightStick: pos_max
+
+        public bool IsEmpty => NearLim == null && FarLim == null && Min == null && Max == null;
+    }
+
+    /// <summary>
+    /// Delta overlay for rudder brake force range.
+    /// </summary>
+    public class ForceRangeOverrides
+    {
+        public float? Min { get; set; }  // f_min
+        public float? Max { get; set; }  // f_max
+
+        public bool IsEmpty => Min == null && Max == null;
     }
 
     /// <summary>

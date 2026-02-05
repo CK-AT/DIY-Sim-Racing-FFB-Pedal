@@ -1,12 +1,13 @@
 <UserControl x:Class="DiyFfb.FlightPedalsConfigControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:DiyFfb"
-             xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins" mc:Ignorable="d" 
-             xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins" 
-             xmlns:controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+             xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins" mc:Ignorable="d"
+             xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins"
+             xmlns:metro="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+             xmlns:badge="clr-namespace:DiyFfb.Controls"
              >
     <Grid>
         <StackPanel Orientation="Vertical" Grid.RowSpan="3">
@@ -43,15 +44,17 @@
                     <StackPanel Width="540" Orientation="Vertical">
                         <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,0">
                             <Label x:Name="Label_near_pos" Width="37" Height="30" Foreground="White" RenderTransformOrigin="0.5,0.5" Canvas.Top="3" FontSize="10" FontFamily="Arial" Canvas.Left="5" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Min" Padding="0,0,0,0" HorizontalContentAlignment="Center"/>
-                            <Grid Width="326" Height="20">
-                                <controls:RangeSlider x:Name="Rangeslider_travel_range" Style="{DynamicResource RangeSliderStyle}" MinRangeWidth="1" Grid.Column="2" Height="20" LowerValueChanged="Rangeslider_travel_range_LowerValueChanged" UpperValueChanged="Rangeslider_travel_range_UpperValueChanged" MinRange="1" SmallChange="1" IsSnapToTickEnabled="True" UpperValue="30" VerticalAlignment="Top" LowerValue="5" Minimum="-100" Maximum="100" Width="326" SizeChanged="Rangeslider_travel_range_SizeChanged"/>
-                                <Canvas x:Name="Canvas_travel_markers" Width="326" Height="20" IsHitTestVisible="False">
-                                    <Path x:Name="Rect_axis_position" Width="10" Height="8" Fill="#FF5BD65B" Stroke="#FF5BD65B" StrokeThickness="1" StrokeLineJoin="Round" Stretch="Fill" Canvas.Top="-2"
-                                          Data="M 0,0 L 1,0 L 0.5,1 Z"/>
-                                    <Path x:Name="Rect_trim_center" Width="8" Height="8" Fill="#FFF0B84A" Stroke="#FFF0B84A" StrokeThickness="1" StrokeLineJoin="Round" Stretch="Fill" Canvas.Top="15"
-                                          Data="M 0.5,0 L 1,0.5 L 0.5,1 L 0,0.5 Z"/>
-                                </Canvas>
-                            </Grid>
+                            <badge:LayerBadgeWrapper FieldPath="flight_pedals.motion_range">
+                                <Grid Width="326" Height="20">
+                                    <metro:RangeSlider x:Name="Rangeslider_travel_range" Style="{DynamicResource RangeSliderStyle}" MinRangeWidth="1" Grid.Column="2" Height="20" LowerValueChanged="Rangeslider_travel_range_LowerValueChanged" UpperValueChanged="Rangeslider_travel_range_UpperValueChanged" MinRange="1" SmallChange="1" IsSnapToTickEnabled="True" UpperValue="30" VerticalAlignment="Top" LowerValue="5" Minimum="-100" Maximum="100" Width="326" SizeChanged="Rangeslider_travel_range_SizeChanged"/>
+                                    <Canvas x:Name="Canvas_travel_markers" Width="326" Height="20" IsHitTestVisible="False">
+                                        <Path x:Name="Rect_axis_position" Width="10" Height="8" Fill="#FF5BD65B" Stroke="#FF5BD65B" StrokeThickness="1" StrokeLineJoin="Round" Stretch="Fill" Canvas.Top="-2"
+                                              Data="M 0,0 L 1,0 L 0.5,1 Z"/>
+                                        <Path x:Name="Rect_trim_center" Width="8" Height="8" Fill="#FFF0B84A" Stroke="#FFF0B84A" StrokeThickness="1" StrokeLineJoin="Round" Stretch="Fill" Canvas.Top="15"
+                                              Data="M 0.5,0 L 1,0.5 L 0.5,1 L 0,0.5 Z"/>
+                                    </Canvas>
+                                </Grid>
+                            </badge:LayerBadgeWrapper>
                             <Label x:Name="Label_far_pos" Width="37" Height="30" Foreground="White" RenderTransformOrigin="0.5,0.5" Canvas.Top="3" FontSize="10" FontFamily="Arial" Canvas.Left="5" HorizontalAlignment="Right" VerticalAlignment="Top" Content="Min" Padding="0,0,0,0" HorizontalContentAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
@@ -63,19 +66,27 @@
                     <StackPanel Width="540" Orientation="Vertical">
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_damping"  Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Damping:" Padding="0,0,0,8"/>
-                            <Slider x:Name="Slider_damping" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.005" Maximum="10" IsSnapToTickEnabled="True" Value="0.5" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnDampingChanged"/>
+                            <badge:LayerBadgeWrapper FieldPath="flight_pedals.damping">
+                                <Slider x:Name="Slider_damping" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.005" Maximum="10" IsSnapToTickEnabled="True" Value="0.5" SmallChange="0.001" TickFrequency="0.001" ValueChanged="OnDampingChanged"/>
+                            </badge:LayerBadgeWrapper>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
                             <Label x:Name="label_centering_spring_const" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Centering Spring Constant:" Padding="0,0,0,8"/>
-                            <Slider x:Name="Slider_centering_spring_const" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="10" IsSnapToTickEnabled="True" Value="1.5" SmallChange="0.1" TickFrequency="0.1" ValueChanged="OnCentringSpringChanged"/>
+                            <badge:LayerBadgeWrapper FieldPath="flight_pedals.centering_spring_const">
+                                <Slider x:Name="Slider_centering_spring_const" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="10" IsSnapToTickEnabled="True" Value="1.5" SmallChange="0.1" TickFrequency="0.1" ValueChanged="OnCentringSpringChanged"/>
+                            </badge:LayerBadgeWrapper>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
-                            <Label x:Name="label_friction"  Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Friction:" Padding="0,0,0,8"/>
-                            <Slider x:Name="Slider_friction" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="100" IsSnapToTickEnabled="True" Value="2.0" SmallChange="0.1"  TickFrequency="0.1" ValueChanged="OnFrictionChanged"/>
+                            <Label x:Name="label_friction" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Friction:" Padding="0,0,0,8"/>
+                            <badge:LayerBadgeWrapper FieldPath="friction">
+                                <Slider x:Name="Slider_friction" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.0" Maximum="100" IsSnapToTickEnabled="True" Value="2.0" SmallChange="0.1" TickFrequency="0.1" ValueChanged="OnFrictionChanged"/>
+                            </badge:LayerBadgeWrapper>
                         </StackPanel>
                         <StackPanel Width="400" Height="40">
-                            <Label x:Name="label_simulated_mass"  Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Simulated Mass:" Padding="0,0,0,8"/>
-                            <Slider x:Name="Slider_simulated_mass" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.05" Maximum="10" IsSnapToTickEnabled="True" Value="0.1" SmallChange="0.01"  TickFrequency="0.01" ValueChanged="OnSimulatedMassChanged"/>
+                            <Label x:Name="label_simulated_mass" Foreground="White" FontSize="10" FontFamily="Arial" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Simulated Mass:" Padding="0,0,0,8"/>
+                            <badge:LayerBadgeWrapper FieldPath="simulated_mass">
+                                <Slider x:Name="Slider_simulated_mass" Style="{DynamicResource SliderStyle_single_H}" HorizontalAlignment="Left" Grid.Row="1" Width="400" Height="10" Minimum="0.05" Maximum="10" IsSnapToTickEnabled="True" Value="0.1" SmallChange="0.01" TickFrequency="0.01" ValueChanged="OnSimulatedMassChanged"/>
+                            </badge:LayerBadgeWrapper>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>
@@ -86,7 +97,7 @@
                     <StackPanel Width="540" Orientation="Vertical">
                         <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,0">
                             <Label x:Name="Label_min_brake_force" Width="42" Height="30" Foreground="White" RenderTransformOrigin="0.5,0.5" Canvas.Top="3" FontSize="10" FontFamily="Arial" Canvas.Left="5" HorizontalAlignment="Left" VerticalAlignment="Top" Content="Min" Padding="0,0,0,0" HorizontalContentAlignment="Center"/>
-                            <controls:RangeSlider x:Name="Rangeslider_brake_force_range" Style="{DynamicResource RangeSliderStyle}" MinRangeWidth="1" Grid.Column="2" Height="20" LowerValueChanged="Rangeslider_brake_force_range_LowerValueChanged" UpperValueChanged="Rangeslider_brake_force_range_UpperValueChanged" MinRange="1" SmallChange="1" IsSnapToTickEnabled="True" UpperValue="30" VerticalAlignment="Top" LowerValue="5" Minimum="0" Maximum="100" Width="317"/>
+                            <metro:RangeSlider x:Name="Rangeslider_brake_force_range" Style="{DynamicResource RangeSliderStyle}" MinRangeWidth="1" Grid.Column="2" Height="20" LowerValueChanged="Rangeslider_brake_force_range_LowerValueChanged" UpperValueChanged="Rangeslider_brake_force_range_UpperValueChanged" MinRange="1" SmallChange="1" IsSnapToTickEnabled="True" UpperValue="30" VerticalAlignment="Top" LowerValue="5" Minimum="0" Maximum="100" Width="317"/>
                             <Label x:Name="Label_max_brake_force" Width="42" Height="30" Foreground="White" RenderTransformOrigin="0.5,0.5" Canvas.Top="3" FontSize="10" FontFamily="Arial" Canvas.Left="5" HorizontalAlignment="Right" VerticalAlignment="Top" Content="Min" Padding="0,0,0,0" HorizontalContentAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Width="400" Orientation="Horizontal" Margin="0,0,0,10">

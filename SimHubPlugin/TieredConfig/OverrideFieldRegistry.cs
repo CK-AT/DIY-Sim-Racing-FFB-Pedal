@@ -289,22 +289,75 @@ namespace DiyFfb.TieredConfig
 
             RegisterField(new OverrideFieldDefinition
             {
-                Name = "FlightPedalsConfig",
-                FieldPath = "flight_pedals",
-                DisplayName = "Flight Pedals Config",
-                Tooltip = "Complete flight pedals configuration (motion range, damping, spring)",
+                Name = "FlightPedalsMotionRange",
+                FieldPath = "flight_pedals.motion_range",
+                DisplayName = "Motion Range",
+                Tooltip = "Flight pedals motion range (near/far position limits in mm)",
                 FieldType = OverrideFieldType.Complex,
                 Group = OverrideFieldGroup.FlightPedals,
                 DefaultLayer = ConfigLayer.User,
-                HasValue = o => o.FlightPedalsConfig != null,
-                GetValue = o => o.FlightPedalsConfig,
-                SetValue = (o, v) => o.FlightPedalsConfig = (FlightPedalsConfig)v,
-                ClearValue = o => o.FlightPedalsConfig = null,
+                HasValue = o => o.FlightPedalsMotionRange != null && !o.FlightPedalsMotionRange.IsEmpty,
+                GetValue = o => o.FlightPedalsMotionRange,
+                SetValue = (o, v) => o.FlightPedalsMotionRange = (MotionRangeOverrides)v,
+                ClearValue = o => o.FlightPedalsMotionRange = null,
                 FormatValue = (val) =>
                 {
-                    var cfg = val as FlightPedalsConfig;
-                    if (cfg == null) return "(not set)";
-                    return $"Range: {cfg.PosNearLim}-{cfg.PosFarLim}mm, Damping: {cfg.Damping}, Spring: {cfg.CenteringSpringConst}";
+                    var range = val as MotionRangeOverrides;
+                    if (range == null) return "(not set)";
+                    return $"{range.NearLim ?? 0}-{range.FarLim ?? 0}mm";
+                }
+            });
+
+            RegisterField(new OverrideFieldDefinition
+            {
+                Name = "FlightPedalsDamping",
+                FieldPath = "flight_pedals.damping",
+                DisplayName = "Damping",
+                Tooltip = "Flight pedals damping ((N*s)/mm)",
+                FieldType = OverrideFieldType.Float,
+                Group = OverrideFieldGroup.FlightPedals,
+                DefaultLayer = ConfigLayer.User,
+                HasValue = o => o.FlightPedalsDamping.HasValue,
+                GetValue = o => o.FlightPedalsDamping,
+                SetValue = (o, v) => o.FlightPedalsDamping = (float?)v,
+                ClearValue = o => o.FlightPedalsDamping = null
+            });
+
+            RegisterField(new OverrideFieldDefinition
+            {
+                Name = "FlightPedalsCenteringSpringConst",
+                FieldPath = "flight_pedals.centering_spring_const",
+                DisplayName = "Centering Spring Constant",
+                Tooltip = "Flight pedals centering spring constant (N/mm)",
+                FieldType = OverrideFieldType.Float,
+                Group = OverrideFieldGroup.FlightPedals,
+                DefaultLayer = ConfigLayer.User,
+                HasValue = o => o.FlightPedalsCenteringSpringConst.HasValue,
+                GetValue = o => o.FlightPedalsCenteringSpringConst,
+                SetValue = (o, v) => o.FlightPedalsCenteringSpringConst = (float?)v,
+                ClearValue = o => o.FlightPedalsCenteringSpringConst = null
+            });
+
+            // === RudderBrake (aux_function) ===
+
+            RegisterField(new OverrideFieldDefinition
+            {
+                Name = "RudderBrakeForceRange",
+                FieldPath = "aux_function.rudder_brake.force_range",
+                DisplayName = "Rudder Brake Force Range",
+                Tooltip = "Rudder brake force range (min/max threshold in N)",
+                FieldType = OverrideFieldType.Complex,
+                Group = OverrideFieldGroup.FlightPedals,
+                DefaultLayer = ConfigLayer.User,
+                HasValue = o => o.RudderBrakeForceRange != null && !o.RudderBrakeForceRange.IsEmpty,
+                GetValue = o => o.RudderBrakeForceRange,
+                SetValue = (o, v) => o.RudderBrakeForceRange = (ForceRangeOverrides)v,
+                ClearValue = o => o.RudderBrakeForceRange = null,
+                FormatValue = (val) =>
+                {
+                    var range = val as ForceRangeOverrides;
+                    if (range == null) return "(not set)";
+                    return $"{range.Min ?? 0:F1}-{range.Max ?? 100:F1}N";
                 }
             });
 
@@ -312,24 +365,56 @@ namespace DiyFfb.TieredConfig
 
             RegisterField(new OverrideFieldDefinition
             {
-                Name = "FlightStickConfig",
-                FieldPath = "flight_stick",
-                DisplayName = "Flight Stick Config",
-                Tooltip = "Complete flight stick configuration (motion range, damping, spring)",
+                Name = "FlightStickMotionRange",
+                FieldPath = "flight_stick.motion_range",
+                DisplayName = "Motion Range",
+                Tooltip = "Flight stick motion range (min/max position limits in mm)",
                 FieldType = OverrideFieldType.Complex,
                 Group = OverrideFieldGroup.FlightStick,
                 DefaultLayer = ConfigLayer.User,
-                HasValue = o => o.FlightStickConfig != null,
-                GetValue = o => o.FlightStickConfig,
-                SetValue = (o, v) => o.FlightStickConfig = (FlightStickPitchConfig)v,
-                ClearValue = o => o.FlightStickConfig = null,
+                HasValue = o => o.FlightStickMotionRange != null && !o.FlightStickMotionRange.IsEmpty,
+                GetValue = o => o.FlightStickMotionRange,
+                SetValue = (o, v) => o.FlightStickMotionRange = (MotionRangeOverrides)v,
+                ClearValue = o => o.FlightStickMotionRange = null,
                 FormatValue = (val) =>
                 {
-                    var cfg = val as FlightStickPitchConfig;
-                    if (cfg == null) return "(not set)";
-                    return $"Range: {cfg.PosMin}-{cfg.PosMax}mm, Damping: {cfg.Damping}, Spring: {cfg.CenteringSpringConst}";
+                    var range = val as MotionRangeOverrides;
+                    if (range == null) return "(not set)";
+                    return $"{range.Min ?? 0}-{range.Max ?? 0}mm";
                 }
             });
+
+            RegisterField(new OverrideFieldDefinition
+            {
+                Name = "FlightStickDamping",
+                FieldPath = "flight_stick.damping",
+                DisplayName = "Damping",
+                Tooltip = "Flight stick damping ((N*s)/mm)",
+                FieldType = OverrideFieldType.Float,
+                Group = OverrideFieldGroup.FlightStick,
+                DefaultLayer = ConfigLayer.User,
+                HasValue = o => o.FlightStickDamping.HasValue,
+                GetValue = o => o.FlightStickDamping,
+                SetValue = (o, v) => o.FlightStickDamping = (float?)v,
+                ClearValue = o => o.FlightStickDamping = null
+            });
+
+            RegisterField(new OverrideFieldDefinition
+            {
+                Name = "FlightStickCenteringSpringConst",
+                FieldPath = "flight_stick.centering_spring_const",
+                DisplayName = "Centering Spring Constant",
+                Tooltip = "Flight stick centering spring constant (N/mm)",
+                FieldType = OverrideFieldType.Float,
+                Group = OverrideFieldGroup.FlightStick,
+                DefaultLayer = ConfigLayer.User,
+                HasValue = o => o.FlightStickCenteringSpringConst.HasValue,
+                GetValue = o => o.FlightStickCenteringSpringConst,
+                SetValue = (o, v) => o.FlightStickCenteringSpringConst = (float?)v,
+                ClearValue = o => o.FlightStickCenteringSpringConst = null
+            });
+
+            // === Shifter ===
 
             // === Shifter ===
 

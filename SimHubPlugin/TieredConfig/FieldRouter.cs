@@ -22,9 +22,7 @@ namespace DiyFfb.TieredConfig
             "static_balance_tuning.gain",
             "damper_config",
             "damper_config.positive_factor",
-            "damper_config.negative_factor",
-            "flight_pedals",
-            "flight_stick"
+            "damper_config.negative_factor"
         };
 
         // Hardware-level fields: rarely changed, tied to physical hardware
@@ -73,7 +71,8 @@ namespace DiyFfb.TieredConfig
             if (normalizedPath.StartsWith("static_balance_tuning.") ||
                 normalizedPath.StartsWith("damper_config.") ||
                 normalizedPath.StartsWith("flight_pedals.") ||
-                normalizedPath.StartsWith("flight_stick."))
+                normalizedPath.StartsWith("flight_stick.") ||
+                normalizedPath.StartsWith("aux_function."))
                 return ConfigLayer.User;
 
             if (normalizedPath.StartsWith("force_curve.") ||
