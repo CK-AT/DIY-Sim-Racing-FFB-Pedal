@@ -81,6 +81,12 @@ namespace DiyFfb
                 plugin.ContextChanged += OnContextChanged;
                 plugin.OverrideFieldChanged += OnOverrideFieldChanged;
             }
+
+            // Subscribe to badge clear events to update sliders
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                wrapper.OverrideCleared += OnBadgeOverrideCleared;
+            }
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -89,6 +95,12 @@ namespace DiyFfb
             {
                 plugin.ContextChanged -= OnContextChanged;
                 plugin.OverrideFieldChanged -= OnOverrideFieldChanged;
+            }
+
+            // Unsubscribe from badge events
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                wrapper.OverrideCleared -= OnBadgeOverrideCleared;
             }
         }
 
@@ -103,6 +115,31 @@ namespace DiyFfb
             {
                 RefreshBadgeForField(e.FieldPath);
             }
+        }
+
+        private void OnBadgeOverrideCleared(object sender, LayerBadgeWrapper.OverrideClearedEventArgs e)
+        {
+            // When an override is cleared, update the slider to show the baseline value
+            if (plugin == null || function == null)
+                return;
+
+            // Get the merged config (now without the cleared override)
+            var mergedConfig = plugin.FunctionConfigManager.GetCurrentConfig((int)function.ID);
+            if (mergedConfig == null)
+                return;
+
+            // Update function_config and UI based on which field was cleared
+            is_updating = true;
+            switch (e.FieldPath)
+            {
+                case "simulated_mass":
+                    function_config.SimulatedMass = mergedConfig.SimulatedMass;
+                    Slider_simulated_mass.Value = mergedConfig.SimulatedMass;
+                    label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
+                    break;
+                // Add other fields as they're migrated
+            }
+            is_updating = false;
         }
 
         private void RefreshAllBadges()

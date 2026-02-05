@@ -13,6 +13,18 @@ namespace DiyFfb.Controls
     /// </summary>
     public partial class LayerBadgeWrapper : ContentControl
     {
+        /// <summary>
+        /// Fired when an override is cleared via context menu.
+        /// Parent control should update the UI control to show the new value from the baseline.
+        /// </summary>
+        public event EventHandler<OverrideClearedEventArgs> OverrideCleared;
+
+        public class OverrideClearedEventArgs : EventArgs
+        {
+            public string FieldPath { get; set; }
+            public ConfigLayer ClearedLayer { get; set; }
+        }
+
         static LayerBadgeWrapper()
         {
             // Set default style key to enable template lookup
@@ -97,10 +109,11 @@ namespace DiyFfb.Controls
             _badge = GetTemplateChild("PART_Badge") as Border;
             _badgeText = GetTemplateChild("PART_BadgeText") as TextBlock;
 
-            // Set up tooltip
+            // Set up tooltip and context menu
             if (_badge != null)
             {
                 _badge.MouseEnter += OnBadgeMouseEnter;
+                _badge.MouseRightButtonDown += OnBadgeRightClick;
             }
 
             UpdateBadge();
@@ -187,22 +200,156 @@ namespace DiyFfb.Controls
 
         private void UpdateTooltip()
         {
-            var sourceLayer = GetSourceLayer();
-            if (sourceLayer == null)
+            if (_badge == null)
+                return;
+
+            var field = OverrideFieldRegistry.GetField(FieldPath);
+            if (field == null || Plugin == null || FunctionId < 0)
             {
-                ToolTip = null;
+                _badge.ToolTip = null;
                 return;
             }
+
+            var layerProvider = Plugin.CreateConfigLayerProvider();
+            var sourceLayer = layerProvider.GetFieldSourceLayer(FunctionId, FieldPath);
+
+            // Build enhanced tooltip showing all layer values
+            var tooltip = new System.Text.StringBuilder();
+            tooltip.AppendLine(field.DisplayName);
+            tooltip.AppendLine("─────────────────────");
+
+            // Get values from all layers
+            var userValue = GetLayerValueString(layerProvider, ConfigLayer.User, field);
+            var profileValue = GetLayerValueString(layerProvider, ConfigLayer.Profile, field);
+            var hardwareValue = GetLayerValueString(layerProvider, ConfigLayer.Hardware, field);
+
+            // Display with active indicator
+            tooltip.AppendLine($"User:     {userValue}{(sourceLayer == ConfigLayer.User ? " ◄ active" : "")}");
+            tooltip.AppendLine($"Profile:  {profileValue}{(sourceLayer == ConfigLayer.Profile ? " ◄ active" : "")}");
+            tooltip.AppendLine($"Hardware: {hardwareValue}{(sourceLayer == ConfigLayer.Hardware ? " ◄ active" : "")}");
+
+            _badge.ToolTip = tooltip.ToString().TrimEnd();
+        }
+
+        private string GetLayerValueString(ConfigLayerProvider layerProvider, ConfigLayer layer, OverrideFieldDefinition field)
+        {
+            var hasValue = layerProvider.HasFieldValue(FunctionId, FieldPath, layer);
+            if (!hasValue)
+            {
+                return "(not set)";
+            }
+
+            // For complex fields, just show "(configured)"
+            if (field.FieldType == OverrideFieldType.Complex)
+            {
+                return "(configured)";
+            }
+
+            // For scalar fields, get and format the value
+            var value = layerProvider.GetFieldValue(FunctionId, FieldPath, layer);
+            if (value == null)
+            {
+                return "(not set)";
+            }
+
+            // Use field's FormatValue if available
+            if (field.FormatValue != null)
+            {
+                return field.FormatValue(value);
+            }
+
+            // Default formatting
+            if (value is float f)
+                return f.ToString("F2");
+            if (value is bool b)
+                return b ? "Enabled" : "Disabled";
+
+            return value.ToString();
+        }
+
+        private void OnBadgeRightClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (Plugin == null || FunctionId < 0 || string.IsNullOrEmpty(FieldPath))
+                return;
 
             var field = OverrideFieldRegistry.GetField(FieldPath);
             if (field == null)
-            {
-                ToolTip = ConfigLayerProvider.GetLayerTooltip(sourceLayer);
                 return;
+
+            // Build context menu
+            var contextMenu = new ContextMenu();
+            var layerProvider = Plugin.CreateConfigLayerProvider();
+
+            // Section 1: Layer values (header items, not clickable)
+            var userValue = GetLayerValueString(layerProvider, ConfigLayer.User, field);
+            var profileValue = GetLayerValueString(layerProvider, ConfigLayer.Profile, field);
+            var hardwareValue = GetLayerValueString(layerProvider, ConfigLayer.Hardware, field);
+            var sourceLayer = layerProvider.GetFieldSourceLayer(FunctionId, FieldPath);
+
+            var userHeader = new MenuItem
+            {
+                Header = $"{(sourceLayer == ConfigLayer.User ? "✓ " : "  ")}User: {userValue}",
+                IsEnabled = false
+            };
+            var profileHeader = new MenuItem
+            {
+                Header = $"{(sourceLayer == ConfigLayer.Profile ? "✓ " : "  ")}Profile: {profileValue}",
+                IsEnabled = false
+            };
+            var hardwareHeader = new MenuItem
+            {
+                Header = $"{(sourceLayer == ConfigLayer.Hardware || sourceLayer == null ? "✓ " : "  ")}Hardware: {hardwareValue}",
+                IsEnabled = false
+            };
+
+            contextMenu.Items.Add(userHeader);
+            contextMenu.Items.Add(profileHeader);
+            contextMenu.Items.Add(hardwareHeader);
+            contextMenu.Items.Add(new Separator());
+
+            // Section 2: Clear operations
+            if (layerProvider.HasFieldValue(FunctionId, FieldPath, ConfigLayer.User))
+            {
+                var clearUser = new MenuItem { Header = "Clear User override" };
+                clearUser.Click += (s, args) => OnClearOverride(ConfigLayer.User);
+                contextMenu.Items.Add(clearUser);
             }
 
-            // Simple tooltip showing field name and layer source
-            ToolTip = $"{field.DisplayName}\n{ConfigLayerProvider.GetLayerTooltip(sourceLayer)}";
+            if (layerProvider.HasFieldValue(FunctionId, FieldPath, ConfigLayer.Profile))
+            {
+                var clearProfile = new MenuItem { Header = "Clear Profile override" };
+                clearProfile.Click += (s, args) => OnClearOverride(ConfigLayer.Profile);
+                contextMenu.Items.Add(clearProfile);
+            }
+
+            if (contextMenu.Items.Count > 4) // Has clear items
+            {
+                contextMenu.Items.Add(new Separator());
+            }
+
+            // Section 3: Save to layer operations (disabled for now - requires additional logic)
+            // TODO: Implement "Save to User", "Save to Profile", "Save to Hardware" menu items
+
+            _badge.ContextMenu = contextMenu;
+            contextMenu.IsOpen = true;
+            e.Handled = true;
+        }
+
+        private void OnClearOverride(ConfigLayer layer)
+        {
+            if (Plugin == null || FunctionId < 0 || string.IsNullOrEmpty(FieldPath))
+                return;
+
+            Plugin.ClearFunctionOverrideField(FunctionId, FieldPath, layer);
+            UpdateBadge();
+            UpdateTooltip();
+
+            // Notify parent control so it can update the UI slider to show the new value
+            OverrideCleared?.Invoke(this, new OverrideClearedEventArgs
+            {
+                FieldPath = FieldPath,
+                ClearedLayer = layer
+            });
         }
     }
 }

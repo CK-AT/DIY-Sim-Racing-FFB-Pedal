@@ -10,18 +10,22 @@ namespace DiyFfb.TieredConfig
     {
         private readonly Func<int, FunctionConfigOverrides> _getProfileOverrides;
         private readonly Func<int, FunctionConfigOverrides> _getUserOverrides;
+        private readonly Func<int, FunctionConfig> _getBaseline;
 
         /// <summary>
         /// Create a ConfigLayerProvider with delegates to access profile and user overrides.
         /// </summary>
         /// <param name="getProfileOverrides">Delegate to get profile overrides for a function ID.</param>
         /// <param name="getUserOverrides">Delegate to get user overrides for a function ID.</param>
+        /// <param name="getBaseline">Delegate to get baseline config for a function ID.</param>
         public ConfigLayerProvider(
             Func<int, FunctionConfigOverrides> getProfileOverrides,
-            Func<int, FunctionConfigOverrides> getUserOverrides)
+            Func<int, FunctionConfigOverrides> getUserOverrides,
+            Func<int, FunctionConfig> getBaseline = null)
         {
             _getProfileOverrides = getProfileOverrides ?? throw new ArgumentNullException(nameof(getProfileOverrides));
             _getUserOverrides = getUserOverrides ?? throw new ArgumentNullException(nameof(getUserOverrides));
+            _getBaseline = getBaseline; // Optional - if null, baseline values won't be available
         }
 
         /// <summary>
@@ -124,6 +128,81 @@ namespace DiyFfb.TieredConfig
                     return "Hardware default";
                 default:
                     return "Using hardware default";
+            }
+        }
+
+        /// <summary>
+        /// Check if a specific layer has a value for a field.
+        /// </summary>
+        public bool HasFieldValue(int functionId, string fieldPath, ConfigLayer layer)
+        {
+            switch (layer)
+            {
+                case ConfigLayer.User:
+                    var userOverrides = _getUserOverrides(functionId);
+                    return userOverrides != null && HasFieldValue(userOverrides, fieldPath);
+
+                case ConfigLayer.Profile:
+                    var profileOverrides = _getProfileOverrides(functionId);
+                    return profileOverrides != null && HasFieldValue(profileOverrides, fieldPath);
+
+                case ConfigLayer.Hardware:
+                    // Hardware layer always has a value if baseline exists
+                    return _getBaseline != null && _getBaseline(functionId) != null;
+
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Get the field value from a specific layer.
+        /// </summary>
+        public object GetFieldValue(int functionId, string fieldPath, ConfigLayer layer)
+        {
+            var field = OverrideFieldRegistry.GetField(fieldPath);
+            if (field == null)
+                return null;
+
+            switch (layer)
+            {
+                case ConfigLayer.User:
+                    var userOverrides = _getUserOverrides(functionId);
+                    return userOverrides != null ? field.GetValue(userOverrides) : null;
+
+                case ConfigLayer.Profile:
+                    var profileOverrides = _getProfileOverrides(functionId);
+                    return profileOverrides != null ? field.GetValue(profileOverrides) : null;
+
+                case ConfigLayer.Hardware:
+                    if (_getBaseline == null)
+                        return null;
+                    var baseline = _getBaseline(functionId);
+                    return baseline != null ? GetFieldValueFromConfig(baseline, fieldPath) : null;
+
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// Extract field value from a FunctionConfig based on field path.
+        /// </summary>
+        private object GetFieldValueFromConfig(FunctionConfig config, string fieldPath)
+        {
+            if (config == null)
+                return null;
+
+            switch (fieldPath)
+            {
+                case "output_min": return config.Base?.OutputMin;
+                case "output_max": return config.Base?.OutputMax;
+                case "simulated_mass": return config.SimulatedMass;
+                case "friction": return config.Friction;
+                case "static_balance_tuning.enabled": return config.StaticBalanceTuning?.Enabled;
+                case "static_balance_tuning.gain": return config.StaticBalanceTuning?.Gain;
+                // Add more fields as needed
+                default: return null;
             }
         }
     }

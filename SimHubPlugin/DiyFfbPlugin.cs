@@ -2372,7 +2372,8 @@ namespace DiyFfb
         {
             return new TieredConfig.ConfigLayerProvider(
                 GetFunctionOverrides,
-                GetUserFunctionOverrides
+                GetUserFunctionOverrides,
+                GetFunctionBaseline
             );
         }
 
@@ -2632,6 +2633,23 @@ namespace DiyFfb
             if (overrides.IsEmpty)
             {
                 prefs.FunctionOverrides.Remove(functionId);
+            }
+
+            // Persist to disk (critical for clear operations)
+            this.SaveCommonSettings("GeneralSettings", Settings);
+
+            // Update manager if baseline exists
+            if (_functionConfigManager.HasBaseConfig(functionId))
+            {
+                var profile = GetCurrentAircraftProfile();
+                FunctionConfigOverrides profileDelta = null;
+                profile?.FunctionOverrides?.TryGetValue(functionId, out profileDelta);
+
+                var userPrefs = GetCurrentUserOverrides();
+                FunctionConfigOverrides userDelta = null;
+                userPrefs?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
+
+                _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: false);
             }
         }
 
