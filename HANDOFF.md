@@ -137,6 +137,8 @@ Badge system 100% complete. Next phase: Update UI event handlers to create overr
 - ✓ Phase 10: Registry structure correction (per-field vs whole-config)
 - ✓ Phase 11: ConfigMerger complete (all function types)
 - ✓ Phase 12: Proof-of-concept (simulated_mass override with full persistence)
+- ✓ Phase 13: Enhanced tooltips (all layer values + active indicator)
+- ✓ Phase 14: Context menu (clear overrides via right-click)
 
 **Infrastructure complete:**
 - ✅ Badge system (display, initialization, refresh)
@@ -254,6 +256,44 @@ Manager is now populated with merged configs (baseline + profile + user override
 3. Edit simulated_mass again → new override created, [U] badge appears
 4. Restart plugin → UI shows baseline + new override (persisted correctly)
 
+## Phase 13 - Enhanced Tooltips (Complete) ✓
+
+Tooltip shows all layer values with active indicator when hovering over badge.
+
+**Implementation:** LayerBadgeWrapper.xaml.cs:206-259
+- Shows User, Profile, Hardware values for each field
+- Marks active layer with "◄ active"
+- Format: Field name + separator + 3 layer rows
+- Complex fields show "(configured)" or "(not set)"
+- Tooltip duration: 30 seconds (set in XAML)
+
+**ConfigLayerProvider extensions:** TieredConfig/ConfigLayerProvider.cs:11-196
+- Added `getBaseline` delegate to constructor
+- Added `HasFieldValue(functionId, fieldPath, layer)` - check if layer has value
+- Added `GetFieldValue(functionId, fieldPath, layer)` - get value from specific layer
+- Added `GetFieldValueFromConfig(config, fieldPath)` - extract field from baseline
+
+## Phase 14 - Context Menu (Complete) ✓
+
+Right-click on badge shows context menu with layer values and clear operations.
+
+**Implementation:** LayerBadgeWrapper.xaml.cs:278-357
+- Layer values shown as header items (checked mark for active)
+- "Clear User override" - clears user layer, persists, updates badge
+- "Clear Profile override" - clears profile layer
+- OnClearOverride handler updates badge + tooltip + fires OverrideCleared event
+- OverrideClearedEventArgs includes FieldPath and ClearedLayer
+
+**Critical fix:** DiyFfbPlugin.cs:2683-2720
+- ClearOverrideFieldValue now handles both camelCase AND underscore_case field names
+- Bug: Only had "SimulatedMass", missing "simulated_mass" → clear did nothing
+- Added all underscore variants: simulated_mass, friction, output_min/max, static_balance_tuning.*
+
+**ClearUserFunctionOverrideField updates:** DiyFfbPlugin.cs:2638-2650
+- Added SaveCommonSettings to persist clear operation
+- Added manager update via ApplyProfileOverrides
+- Clear now fully functional (persist + manager sync + badge refresh)
+
 ## Phase 12 - Proof-of-Concept (Complete) ✓
 
 Implemented end-to-end test with FlightStickPitch.simulated_mass. Full persistence cycle working: edit → badge appears → save baseline → badge disappears → restart → values restored.
@@ -350,21 +390,21 @@ POC fully working end-to-end. Badge system operational, all values persist corre
 
 ### Important - Enhanced UX
 
-4. **Enhanced Tooltips** (Phase 13):
-   - ✅ Basic tooltip (field name + layer)
-   - ❌ Show all layer values (User/Profile/Hardware)
-   - ❌ Active indicator ("◄ active")
-   - ❌ Formatted layout with separators
-   - ❌ Complex field "(not set)" vs "(configured)"
+4. **Enhanced Tooltips** (Phase 13): ✅ **COMPLETE**
+   - ✅ Show all layer values (User/Profile/Hardware)
+   - ✅ Active indicator ("◄ active")
+   - ✅ Formatted layout with separators
+   - ✅ Complex field "(not set)" vs "(configured)"
+   - ✅ 30 second display duration
 
-5. **Context Menu** (Phase 14):
-   - ❌ Right-click on badge
-   - ❌ Show layer values in menu header
-   - ❌ "Clear User override"
-   - ❌ "Clear Profile override"
-   - ❌ "Save to User" (re-route)
-   - ❌ "Save to Profile" (re-route)
-   - ❌ "Save to Hardware" (bake into baseline)
+5. **Context Menu** (Phase 14): ✅ **COMPLETE (core functionality)**
+   - ✅ Right-click on badge
+   - ✅ Show layer values in menu header (✓ for active)
+   - ✅ "Clear User override" (functional, persisted)
+   - ✅ "Clear Profile override" (functional, persisted)
+   - ⏳ "Save to User" (deferred - requires re-routing logic)
+   - ⏳ "Save to Profile" (deferred - requires re-routing logic)
+   - ⏳ "Save to Hardware" (deferred - use "Save as Baseline" button instead)
 
 6. **Complex Editor Events**:
    - ❌ SplineForceCurve.ConfigChanged event
