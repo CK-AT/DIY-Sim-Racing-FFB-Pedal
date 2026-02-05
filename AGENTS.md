@@ -21,6 +21,7 @@
 - Add unit tests for new features whenever feasible.
 - Keep graph runtime logic in a shared evaluator and reuse it for editor previews/tests to avoid divergence.
 - Keep `SimHubPlugin/Docs/FFB_Graph_Progress.md` updated with Done/In Progress/Open items whenever graph work changes.
+- Function override UI must route edits/clears via `FieldRouter` and display effective values (User > Profile), updating badges immediately after edits.
 - Always adhere to the project's current C# language version and .NET target framework.
 - Ensure the SimHub plugin builds as a self-contained DLL with all dependencies merged via ILRepack (Release builds only). Any new package references must be added to the ILRepack merge list in the post-build event.
 - When changing graph behavior, update both `SimHubPlugin/Docs/FFB_Graph_Design.md` and `SimHubPlugin/Docs/FFB_Graph_Progress.md`.

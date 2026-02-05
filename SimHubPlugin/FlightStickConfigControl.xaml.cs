@@ -441,7 +441,25 @@ namespace DiyFfb
         public void SwitchFunction(Function function)
         {
             this.function = function;
-            function_config = function.Config;
+
+            // Get merged config from manager if available, otherwise fall back to function.Config
+            if (plugin != null && plugin.FunctionConfigManager.HasBaseConfig((int)function.ID))
+            {
+                var mergedConfig = plugin.FunctionConfigManager.GetCurrentConfig((int)function.ID);
+                if (mergedConfig != null)
+                {
+                    function_config = mergedConfig;
+                }
+                else
+                {
+                    function_config = function.Config;
+                }
+            }
+            else
+            {
+                function_config = function.Config;
+            }
+
             current_function_id = function_config.Base.FunctionId;
             EnsureConfigInitialized();
             hasAxisRange = false;
@@ -476,6 +494,12 @@ namespace DiyFfb
             UpdateTrimCenter();
             UpdateTravelMarkers();
             is_updating = false;
+
+            // Update labels with merged config values (event handlers were blocked by is_updating flag)
+            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", function_config.SimulatedMass);
+            label_friction.Content = String.Format("Friction: {0:F1}N", function_config.Friction);
+            label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", GetCenteringSpringConst());
+            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", GetDamping());
             RefreshGraphParams();
             UpdateDisableOutputsToggle();
             InitializeBadges();
@@ -557,16 +581,35 @@ namespace DiyFfb
             if (is_updating) return;
 
             var newValue = (float)e.NewValue;
-            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", newValue);
 
-            // Keep old direct edit for immediate UI feedback
-            function_config.SimulatedMass = newValue;
-
-            // Also create override for badge system
+            // Create override first
             if (plugin != null && function != null)
             {
                 plugin.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
                     overrides => overrides.SimulatedMass = newValue);
+
+                // Get the merged config from the manager
+                var mergedConfig = plugin.FunctionConfigManager.GetCurrentConfig((int)function.ID);
+                if (mergedConfig != null)
+                {
+                    // Update function_config with the merged value
+                    function_config.SimulatedMass = mergedConfig.SimulatedMass;
+
+                    // Update the label with the merged value
+                    label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
+                }
+                else
+                {
+                    // Fallback to direct edit if manager doesn't have the config yet
+                    function_config.SimulatedMass = newValue;
+                    label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", newValue);
+                }
+            }
+            else
+            {
+                // Fallback to direct edit if plugin/function not available
+                function_config.SimulatedMass = newValue;
+                label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", newValue);
             }
         }
 

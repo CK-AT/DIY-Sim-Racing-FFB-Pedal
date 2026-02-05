@@ -155,7 +155,27 @@ namespace DiyFfb
         public void SwitchFunction(Function function)
         {
             this.function = function;
-            config = function.Config;
+
+            // Get merged config from manager if available, otherwise fall back to function.Config
+            if (plugin != null && plugin.FunctionConfigManager.HasBaseConfig((int)function.ID))
+            {
+                var mergedConfig = plugin.FunctionConfigManager.GetCurrentConfig((int)function.ID);
+                if (mergedConfig != null)
+                {
+                    config = mergedConfig;
+                    // Also update function.Config so child controls see the merged config
+                    function.Config = mergedConfig;
+                }
+                else
+                {
+                    config = function.Config;
+                }
+            }
+            else
+            {
+                config = function.Config;
+            }
+
             EnsureStaticBalanceTuningConfig();
             UpdateStaticBalanceTuningUi();
 
