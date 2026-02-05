@@ -9,6 +9,7 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using MahApps.Metro.Controls;
 using DiyFfb.GraphEditor;
+using DiyFfb.Controls;
 
 namespace DiyFfb
 {
@@ -45,7 +46,10 @@ namespace DiyFfb
         {
             config = GetDefaultConfig();
             InitializeComponent();
+            Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
         }
+
         public void SetGui(DiyFfbPluginUI ui, DiyFfbPlugin plugin)
         {
             this.ui = ui;
@@ -55,11 +59,90 @@ namespace DiyFfb
             {
                 plugin.ActiveGraphChanged += OnActiveGraphChanged;
                 plugin.GraphParamChanged += OnGraphParamChanged;
+
+                // Subscribe to plugin events for badge refresh if already loaded
+                if (IsLoaded)
+                {
+                    plugin.ContextChanged += OnContextChanged;
+                    plugin.OverrideFieldChanged += OnOverrideFieldChanged;
+                }
             }
 
             is_updating = false;
             StartXPlaneTimer();
             RefreshGraphParams();
+        }
+
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            if (plugin != null)
+            {
+                plugin.ContextChanged += OnContextChanged;
+                plugin.OverrideFieldChanged += OnOverrideFieldChanged;
+            }
+        }
+
+        private void OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            if (plugin != null)
+            {
+                plugin.ContextChanged -= OnContextChanged;
+                plugin.OverrideFieldChanged -= OnOverrideFieldChanged;
+            }
+        }
+
+        private void OnContextChanged(object sender, EventArgs e)
+        {
+            RefreshAllBadges();
+        }
+
+        private void OnOverrideFieldChanged(object sender, OverrideFieldChangedEventArgs e)
+        {
+            if (function != null && e.FunctionId == (int)function.ID)
+            {
+                RefreshBadgeForField(e.FieldPath);
+            }
+        }
+
+        private void RefreshAllBadges()
+        {
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                wrapper.UpdateBadge();
+            }
+        }
+
+        private void RefreshBadgeForField(string fieldPath)
+        {
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                if (wrapper.FieldPath == fieldPath)
+                {
+                    wrapper.UpdateBadge();
+                }
+            }
+        }
+
+        private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) yield break;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T t) yield return t;
+                foreach (var descendant in FindVisualChildren<T>(child)) yield return descendant;
+            }
+        }
+
+        private void InitializeBadges()
+        {
+            if (plugin == null || function == null) return;
+            int functionId = (int)function.ID;
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                wrapper.Plugin = plugin;
+                wrapper.FunctionId = functionId;
+            }
         }
 
         private void StartXPlaneTimer()
@@ -174,7 +257,7 @@ namespace DiyFfb
             is_updating = false;
             RefreshGraphParams();
             UpdateDisableOutputsToggle();
-
+            InitializeBadges();
         }
 
         private void OnDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
