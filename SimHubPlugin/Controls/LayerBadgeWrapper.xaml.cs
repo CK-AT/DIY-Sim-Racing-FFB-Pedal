@@ -125,7 +125,7 @@ namespace DiyFfb.Controls
 
             if (string.IsNullOrEmpty(FieldPath) || FunctionId < 0)
             {
-                _badge.Visibility = Visibility.Collapsed;
+                _badge.Visibility = Visibility.Hidden;
                 return;
             }
 
@@ -133,7 +133,7 @@ namespace DiyFfb.Controls
             var field = OverrideFieldRegistry.GetField(FieldPath);
             if (field == null)
             {
-                _badge.Visibility = Visibility.Collapsed;
+                _badge.Visibility = Visibility.Hidden;
                 return;
             }
 
@@ -143,7 +143,7 @@ namespace DiyFfb.Controls
             if (sourceLayer == null || sourceLayer == ConfigLayer.Hardware)
             {
                 // No override - hide badge
-                _badge.Visibility = Visibility.Collapsed;
+                _badge.Visibility = Visibility.Hidden;
                 return;
             }
 

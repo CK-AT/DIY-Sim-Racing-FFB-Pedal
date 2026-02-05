@@ -2466,7 +2466,7 @@ namespace DiyFfb
                 UpdateFunctionOverride(functionId, updateAction);
             }
 
-            // Fire OverrideFieldChanged event for badge refresh (NO ESP32 send)
+            // Fire OverrideFieldChanged event for badge refresh (NO ESP32 send, NO manager update to avoid loops)
             OnOverrideFieldChanged(functionId, fieldName);
         }
 

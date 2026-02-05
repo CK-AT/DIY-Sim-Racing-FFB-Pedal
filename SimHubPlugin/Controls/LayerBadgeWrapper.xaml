@@ -17,9 +17,9 @@
                                 VerticalAlignment="Top"
                                 CornerRadius="2"
                                 Padding="4,1"
-                                Margin="2"
+                                Margin="0,-20,-2,0"
                                 Background="Transparent"
-                                Visibility="Collapsed">
+                                Visibility="Hidden">
                             <TextBlock x:Name="PART_BadgeText"
                                        FontSize="10"
                                        FontWeight="Bold"

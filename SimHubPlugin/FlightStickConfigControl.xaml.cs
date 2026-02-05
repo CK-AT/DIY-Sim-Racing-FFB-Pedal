@@ -554,8 +554,20 @@ namespace DiyFfb
 
         private void OnSimulatedMassChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", e.NewValue);
-            function_config.SimulatedMass = (float)e.NewValue;
+            if (is_updating) return;
+
+            var newValue = (float)e.NewValue;
+            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", newValue);
+
+            // Keep old direct edit for immediate UI feedback
+            function_config.SimulatedMass = newValue;
+
+            // Also create override for badge system
+            if (plugin != null && function != null)
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
+                    overrides => overrides.SimulatedMass = newValue);
+            }
         }
 
         private void RefreshGraphParams()
