@@ -137,6 +137,20 @@ namespace DiyFfb
                     Slider_simulated_mass.Value = mergedConfig.SimulatedMass;
                     label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
                     break;
+
+                case "flight_stick.motion_range":
+                    // Update both min and max from merged config
+                    SetPosMin(GetPosMin()); // Read current value from mode config
+                    SetPosMax(GetPosMax());
+                    function_config.Base.OutputMin = GetPosMin();
+                    function_config.Base.OutputMax = GetPosMax();
+                    Rangeslider_travel_range.LowerValue = GetPosMin();
+                    Rangeslider_travel_range.UpperValue = GetPosMax();
+                    Label_min_pos.Content = String.Format("Min\n{0}mm", GetPosMin());
+                    Label_max_pos.Content = String.Format("Max\n{0}mm", GetPosMax());
+                    UpdateTravelMarkers();
+                    break;
+
                 // Add other fields as they're migrated
             }
             is_updating = false;
@@ -553,8 +567,21 @@ namespace DiyFfb
         {
             if (!is_updating)
             {
-                SetPosMin(Convert.ToInt16(e.NewValue));
-                function_config.Base.OutputMin = Convert.ToInt16(e.NewValue);
+                var newValue = Convert.ToInt16(e.NewValue);
+                SetPosMin(newValue);
+                function_config.Base.OutputMin = newValue;
+
+                // Create override for badge system (only if baseline exists)
+                if (plugin != null && function != null && plugin.HasFunctionBaseline((int)function.ID))
+                {
+                    plugin.UpdateFunctionOverrideField((int)function.ID, "flight_stick.motion_range",
+                        overrides =>
+                        {
+                            if (overrides.FlightStickMotionRange == null)
+                                overrides.FlightStickMotionRange = new TieredConfig.MotionRangeOverrides();
+                            overrides.FlightStickMotionRange.Min = newValue;
+                        });
+                }
             }
             if (Label_min_pos != null)
             {
@@ -567,8 +594,21 @@ namespace DiyFfb
         {
             if (!is_updating)
             {
-                SetPosMax(Convert.ToInt16(e.NewValue));
-                function_config.Base.OutputMax = Convert.ToInt16(e.NewValue);
+                var newValue = Convert.ToInt16(e.NewValue);
+                SetPosMax(newValue);
+                function_config.Base.OutputMax = newValue;
+
+                // Create override for badge system (only if baseline exists)
+                if (plugin != null && function != null && plugin.HasFunctionBaseline((int)function.ID))
+                {
+                    plugin.UpdateFunctionOverrideField((int)function.ID, "flight_stick.motion_range",
+                        overrides =>
+                        {
+                            if (overrides.FlightStickMotionRange == null)
+                                overrides.FlightStickMotionRange = new TieredConfig.MotionRangeOverrides();
+                            overrides.FlightStickMotionRange.Max = newValue;
+                        });
+                }
             }
             if (Label_max_pos != null)
             {

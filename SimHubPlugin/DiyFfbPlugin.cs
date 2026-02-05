@@ -2717,6 +2717,10 @@ namespace DiyFfb
                 case "StaticBalanceTuning":
                 case "static_balance_tuning":
                     overrides.StaticBalanceTuning = null; break;
+                case "flight_stick.motion_range":
+                    overrides.FlightStickMotionRange = null; break;
+                case "flight_pedals.motion_range":
+                    overrides.FlightPedalsMotionRange = null; break;
             }
         }
 
