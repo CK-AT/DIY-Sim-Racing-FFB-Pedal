@@ -2601,8 +2601,7 @@ namespace DiyFfb
 
             updateAction(overrides);
 
-            // Persist user overrides to disk
-            this.SaveCommonSettings("GeneralSettings", Settings);
+            // Note: Settings auto-saved periodically by SimHub. Explicit save only for critical operations (baseline save).
 
             // Always update manager if we have a baseline, even if function not in active profile
             if (_functionConfigManager.HasBaseConfig(functionId))

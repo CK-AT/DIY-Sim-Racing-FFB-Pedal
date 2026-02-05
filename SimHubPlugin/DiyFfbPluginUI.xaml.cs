@@ -2663,8 +2663,9 @@ namespace DiyFfb
             if (funcId == FunctionID.Undefined || !functions.ContainsKey(funcId))
                 return;
 
-            // Update local cache with merged config
-            functions[funcId].Config = e.NewConfig;
+            // DON'T overwrite function.Config - it contains direct edits to non-wrapped fields
+            // The merged config only includes override-tracked fields and would lose those edits
+            // functions[funcId].Config = e.NewConfig; // <-- REMOVED: causes loss of non-wrapped field edits
 
             // Send to ESP32 (don't store to EEPROM - these are runtime overrides)
             EnqueueFunctionConfigUpload(e.NewConfig, store: false);
