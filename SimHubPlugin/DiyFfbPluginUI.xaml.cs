@@ -248,6 +248,9 @@ namespace DiyFfb
             SetInitialSelections();
 
             InitializeVjoyIfEnabled();
+
+            // Populate function configs from stored baselines (after manager is initialized in Init())
+            PopulateFunctionConfigsFromBaselines();
         }
 
         /// <summary>
