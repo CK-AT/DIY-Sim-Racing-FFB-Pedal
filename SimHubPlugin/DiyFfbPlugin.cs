@@ -2684,11 +2684,20 @@ namespace DiyFfb
         {
             switch (fieldName)
             {
-                case "OutputMin": overrides.OutputMin = null; break;
-                case "OutputMax": overrides.OutputMax = null; break;
-                case "SimulatedMass": overrides.SimulatedMass = null; break;
-                case "Friction": overrides.Friction = null; break;
+                case "OutputMin":
+                case "output_min":
+                    overrides.OutputMin = null; break;
+                case "OutputMax":
+                case "output_max":
+                    overrides.OutputMax = null; break;
+                case "SimulatedMass":
+                case "simulated_mass":
+                    overrides.SimulatedMass = null; break;
+                case "Friction":
+                case "friction":
+                    overrides.Friction = null; break;
                 case "StaticBalanceEnabled":
+                case "static_balance_tuning.enabled":
                     if (overrides.StaticBalanceTuning != null)
                     {
                         overrides.StaticBalanceTuning.Enabled = null;
@@ -2697,6 +2706,7 @@ namespace DiyFfb
                     }
                     break;
                 case "StaticBalanceGain":
+                case "static_balance_tuning.gain":
                     if (overrides.StaticBalanceTuning != null)
                     {
                         overrides.StaticBalanceTuning.Gain = null;
@@ -2704,7 +2714,9 @@ namespace DiyFfb
                             overrides.StaticBalanceTuning = null;
                     }
                     break;
-                case "StaticBalanceTuning": overrides.StaticBalanceTuning = null; break;
+                case "StaticBalanceTuning":
+                case "static_balance_tuning":
+                    overrides.StaticBalanceTuning = null; break;
             }
         }
 
