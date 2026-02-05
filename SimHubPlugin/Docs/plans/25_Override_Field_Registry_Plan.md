@@ -18,7 +18,9 @@
 | Phase 10  | ✅ **Complete** | Registry structure correction (per-field vs whole-config)|
 | Phase 11  | ✅ **Complete** | ConfigMerger complete (all function types)               |
 | Phase 12  | ✅ **Complete** | Proof-of-concept (simulated_mass with full persistence)  |
-| Phase 13+ | ⏳ **Pending**  | Migrate remaining ~50 event handlers to override pattern |
+| Phase 13  | ⏳ **Pending**  | Enhanced tooltips (show all layer values)                |
+| Phase 14  | ⏳ **Pending**  | Context menu (clear overrides, save to layer)            |
+| Phase 15+ | ⏳ **Pending**  | Migrate remaining ~50 event handlers to override pattern |
 
 **Files created:**
 
@@ -71,6 +73,27 @@
    - Solution: Commented out `functions[funcId].Config = e.NewConfig;`
 
 See HANDOFF.md for complete implementation details and all fixes discovered during POC testing.
+
+## LayerBadgeWrapper - Current Implementation vs Plan
+
+**Implemented:**
+- ✅ Badge display ([U]/[P] text)
+- ✅ Badge color (blue for User, green for Profile)
+- ✅ Badge visibility (shown only when override exists)
+- ✅ Basic tooltip (field name + layer source)
+- ✅ Badge initialization (Plugin/FunctionId setup)
+- ✅ Badge refresh (UpdateBadge() on override changes)
+
+**Missing (deferred to Phase 13-14):**
+- ❌ Enhanced tooltip showing all layer values (User/Profile/Hardware) with active indicator
+- ❌ Context menu (right-click on badge)
+- ❌ "Clear User override" menu item
+- ❌ "Clear Profile override" menu item
+- ❌ "Save to User" menu item
+- ❌ "Save to Profile" menu item
+- ❌ "Save to Hardware" menu item (bake into baseline)
+
+**Reason for deferral:** POC focused on core functionality (badge display, persistence, manager integration). Context menu and enhanced tooltips are UX improvements that can be added after basic system is proven and all fields are migrated.
 
 ---
 
