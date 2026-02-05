@@ -14,6 +14,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using SimHub.Plugins.OutputPlugins.ControlRemapper.Models;
+using DiyFfb.Controls;
 
 namespace DiyFfb
 {
@@ -26,6 +27,8 @@ namespace DiyFfb
         {
             config = GetDefaultConfig(FunctionID.Undefined);
             InitializeComponent();
+            Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
         }
 
         public delegate void DebugMessageEventHandler(string message);
@@ -48,6 +51,13 @@ namespace DiyFfb
             FlightPedalsConfig.SetGui(ui, plugin);
             FlightStickConfig.SetGui(ui, plugin);
             ShifterConfig.SetGui(ui, plugin);
+
+            // Subscribe to plugin events for badge refresh if already loaded
+            if (IsLoaded && plugin != null)
+            {
+                plugin.ContextChanged += OnContextChanged;
+                plugin.OverrideFieldChanged += OnOverrideFieldChanged;
+            }
         }
 
         private void OnDebugMessage(string message)
@@ -148,6 +158,10 @@ namespace DiyFfb
             config = function.Config;
             EnsureStaticBalanceTuningConfig();
             UpdateStaticBalanceTuningUi();
+
+            // Defer badge initialization until after the UI has been fully rendered
+            Dispatcher.BeginInvoke(new Action(() => InitializeBadges()), System.Windows.Threading.DispatcherPriority.ContextIdle);
+
             switch (function.ID)
             {
                 case FunctionID.BrakePedal:
@@ -262,6 +276,94 @@ namespace DiyFfb
         private void StaticBalanceGain_LostFocus(object sender, RoutedEventArgs e)
         {
             UpdateStaticBalanceTuningUi();
+        }
+
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            if (plugin != null)
+            {
+                plugin.ContextChanged += OnContextChanged;
+                plugin.OverrideFieldChanged += OnOverrideFieldChanged;
+            }
+
+            // Initialize badges for the currently displayed function after UI is fully loaded
+            Dispatcher.BeginInvoke(new Action(() => InitializeBadges()), System.Windows.Threading.DispatcherPriority.ContextIdle);
+        }
+
+        private void OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            if (plugin != null)
+            {
+                plugin.ContextChanged -= OnContextChanged;
+                plugin.OverrideFieldChanged -= OnOverrideFieldChanged;
+            }
+        }
+
+        private void OnContextChanged(object sender, EventArgs e)
+        {
+            RefreshAllBadges();
+        }
+
+        private void OnOverrideFieldChanged(object sender, OverrideFieldChangedEventArgs e)
+        {
+            // If the changed field is for our current function, refresh that badge
+            if (function != null && e.FunctionId == (int)function.ID)
+            {
+                RefreshBadgeForField(e.FieldPath);
+            }
+        }
+
+        private void RefreshAllBadges()
+        {
+            // Refresh all LayerBadgeWrapper controls in the visual tree
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                wrapper.UpdateBadge();
+            }
+        }
+
+        private void RefreshBadgeForField(string fieldPath)
+        {
+            // Find and refresh the badge matching the field path
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                if (wrapper.FieldPath == fieldPath)
+                {
+                    wrapper.UpdateBadge();
+                }
+            }
+        }
+
+        private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) yield break;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T t)
+                {
+                    yield return t;
+                }
+                foreach (var descendant in FindVisualChildren<T>(child))
+                {
+                    yield return descendant;
+                }
+            }
+        }
+
+        private void InitializeBadges()
+        {
+            if (plugin == null || function == null) return;
+
+            int functionId = (int)function.ID;
+
+            // Set Plugin and FunctionId on all badge wrappers found in the visual tree
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                wrapper.Plugin = plugin;
+                wrapper.FunctionId = functionId;
+            }
         }
     }
 }

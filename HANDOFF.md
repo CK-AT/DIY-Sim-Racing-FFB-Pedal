@@ -1,20 +1,46 @@
-# Override Field Registry — Infrastructure Complete
+# Override Field Registry — Badge System Complete
 
 Branch: `ck_tiered_config`
-Last commit: `9ef65069` — Add user profile UI and fix function badge refresh
+Last commit: `e7f13625` — Add override field registry infrastructure (Phases 1-6)
 
-## Session Summary (2026-02-04)
+## Session Summary (2026-02-05)
 
-Implemented complete infrastructure for unified override system with layer badges. All core components built and tested, ready for UI integration.
+Fixed badge display system - badges now initialize correctly on load and function switches. All infrastructure complete and functional.
 
-**Phases completed:** 1-6 (Registry, Control, Events, Storage, Fields, Wiring)
+**Phases completed:** 1-6 (Registry, Control, Events, Storage, Fields, Wiring), 8 (UI Integration), 9 (Badge Initialization Fix)
 **Phase deferred:** 7 (Baseline integration - needs explicit user control UI)
-**Next:** Phase 8 - UI integration (wrap function editor controls with badges)
+**Status:** Badge system complete and tested. Ready for UI handler updates to create overrides.
 
 **Files created:** 4 new files
-**Files modified:** 7 existing files
+**Files modified:** 9 existing files (7 original + 2 badge fixes)
 **Tests:** 172/172 passing (40 new registry tests)
 **Build:** All code compiles successfully
+
+## Phase 9 Complete ✓ (Badge Initialization Fix)
+
+Fixed badge initialization timing issue. Badges now load correctly for both initial function and function switches.
+
+**Files modified:**
+
+- `Controls/LayerBadgeWrapper.xaml.cs` — Fixed template loading, removed debug logging
+- `FunctionConfigControl.xaml.cs` — Added deferred InitializeBadges in OnLoaded, removed debug logging
+
+**Issue fixed:**
+
+Initial function load: Badges weren't found because SwitchFunction() called InitializeBadges before child controls were in visual tree.
+
+**Solution:**
+
+- Added deferred InitializeBadges call in OnLoaded event (ContextIdle priority)
+- Kept deferred call in SwitchFunction for function switches
+- Both paths now successfully initialize badges
+
+**Test results:**
+
+- Initial function load: ✅ 4 badges found after OnLoaded
+- Function switches: ✅ 4 badges found immediately
+- Badge visibility: ✅ Hidden when using Hardware defaults (correct behavior)
+- Badge updates: ✅ Properties set correctly (Plugin, FunctionId)
 
 ## Phase 1 Complete ✓
 
@@ -193,9 +219,58 @@ Field Edit/Clear       → OnOverrideFieldChanged() → Subscribers refresh sing
 
 **Integration deferred** until baseline semantics are fully defined.
 
+## Phase 8 Complete ✓ (UI Integration)
+
+Wrapped function editor controls with LayerBadgeWrapper to display [U]/[P] layer badges.
+
+**Files modified (XAML):**
+
+- `FunctionConfigControl.xaml` — Added `badge:` namespace, wrapped Static Balance controls
+- `AutomotivePedalConfigControl.xaml` — Wrapped damping, friction, simulated_mass, force_curve
+- `FlightPedalsConfigControl.xaml` — Wrapped friction, simulated_mass
+- `FlightStickConfigControl.xaml` — Wrapped friction, simulated_mass
+- `ShifterConfigControl.xaml` — Wrapped friction, simulated_mass
+
+**Files modified (code-behind):**
+
+- `FunctionConfigControl.xaml.cs` — Badge infrastructure (InitializeBadges, event subscriptions, visual tree traversal)
+- `AutomotivePedalConfigControl.xaml.cs` — Badge event wiring (Loaded/Unloaded handlers)
+- `FlightPedalsConfigControl.xaml.cs` — Badge event wiring
+- `FlightStickConfigControl.xaml.cs` — Badge event wiring
+- `ShifterConfigControl.xaml.cs` — Badge event wiring
+
+**Badge pattern:**
+
+```xml
+<badge:LayerBadgeWrapper FieldPath="friction">
+    <Slider x:Name="Slider_friction" .../>
+</badge:LayerBadgeWrapper>
+```
+
+**Code-behind pattern:**
+
+```csharp
+private void InitializeBadges()
+{
+    if (plugin == null || function == null) return;
+    int functionId = (int)function.ID;
+    foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+    {
+        wrapper.Plugin = plugin;
+        wrapper.FunctionId = functionId;
+    }
+}
+```
+
+**Namespace change:** Changed `controls:RangeSlider` to `metro:RangeSlider` across all function editor XAMLs (fixed undeclared prefix error).
+
+**Build status:** Compiles successfully with no errors
+
 ## Next Steps
 
-Infrastructure complete and ready for UI integration:
+Badge system fully functional. Next phase: Update UI event handlers to use override system.
+
+**Completed phases:**
 
 - ✓ Phase 1: OverrideFieldRegistry (field definitions + accessors)
 - ✓ Phase 2: LayerBadgeWrapper (WPF control)
@@ -204,8 +279,51 @@ Infrastructure complete and ready for UI integration:
 - ✓ Phase 5: Field expansion (all 13 fields registered)
 - ✓ Phase 6: Event wiring (context changes + field edits)
 - ⏸️ Phase 7: Baseline integration (deferred - infrastructure ready)
+- ✓ Phase 8: UI integration (badges on all function editors)
+- ✓ Phase 9: Badge initialization fix (OnLoaded + SwitchFunction)
 
-**Ready for Phase 8:** UI integration - wrap function editor controls with LayerBadgeWrapper.
+**Current state:**
+
+- ✅ Badge system works correctly (displays, hides, updates)
+- ✅ Badges initialize on load and function switches
+- ✅ Override infrastructure complete (UpdateFunctionOverrideField, events, storage)
+- ❌ UI controls still use direct-edit approach (bypass override system)
+
+**To make badges appear with user edits:**
+
+Update UI event handlers to call `plugin.UpdateFunctionOverrideField()` instead of directly setting `function_config.Field`. This will:
+
+1. Create User/Profile overrides
+2. Fire `OnOverrideFieldChanged` event
+3. Badges will display [U] or [P]
+
+**Example conversion (FlightStickConfigControl.xaml.cs):**
+
+```csharp
+// OLD: Direct edit (bypasses override system)
+private void OnSimulatedMassChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+{
+    label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", e.NewValue);
+    function_config.SimulatedMass = (float)e.NewValue;
+}
+
+// NEW: Use override system
+private void OnSimulatedMassChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+{
+    label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", e.NewValue);
+    if (plugin != null && function != null)
+    {
+        plugin.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
+            overrides => overrides.SimulatedMass = (float)e.NewValue);
+    }
+}
+```
+
+**Future enhancements:**
+
+- Add "Clear Override" context menu to badges
+- Add "Upload Changes" button for explicit ESP32 sync
+- Add badges to additional fields (ABS, RPM effects, etc.)
 
 See plan: `SimHubPlugin/Docs/plans/25_Override_Field_Registry_Plan.md`
 
@@ -217,6 +335,7 @@ See plan: `SimHubPlugin/Docs/plans/25_Override_Field_Registry_Plan.md`
 | Event system | Two-tier: `ContextChanged` (full refresh + ESP32), `OverrideFieldChanged` (local badge only) |
 | LayerBadgeWrapper | Wraps any editor (TextBox, Slider, complex), displays `[U]`/`[P]` badge |
 | Subscriber lifecycle | Subscribe in `Loaded`, unsubscribe in `Unloaded` |
+| Badge initialization | Deferred to ContextIdle priority in both OnLoaded and SwitchFunction |
 | Debouncing | Not needed for ESP32 (no sends); optional for UI if slider lag observed |
 
 ## ESP32 Send Policy
@@ -227,38 +346,6 @@ See plan: `SimHubPlugin/Docs/plans/25_Override_Field_Registry_Plan.md`
 | Clear override | ✓ Immediate | ✗ No |
 | Click "Upload Changes" | — | ✓ Yes |
 | Profile/vehicle switch | ✓ Full refresh | ✓ Yes |
-
-## Implementation Phases
-
-1. **Phase 1**: Create `OverrideFieldRegistry.cs` + unit tests ← **START HERE**
-2. **Phase 2**: Create `LayerBadgeWrapper` control
-3. **Phase 3**: Wrap scalar fields in Vehicle Profile tab
-4. **Phase 4**: Wrap function-level fields in Functions tab
-5. **Phase 5**: Add "Linked Axes" summary panel + navigation
-6. **Phase 6**: Add activation toggle to Functions tab
-7. **Phase 7**: Add "Upload Changes" button
-
-## Files to Create (Phase 1)
-
-| File | Purpose |
-|------|---------|
-| `TieredConfig/OverrideFieldRegistry.cs` | Field definitions, accessors, layer routing |
-| `TieredConfigTests/OverrideFieldRegistryTests.cs` | Unit tests |
-
-## Existing Infrastructure
-
-**TieredConfig classes** (`SimHubPlugin/TieredConfig/`):
-- `TieredConfigTypes.cs` — `ConfigLayer` enum, `FunctionConfigOverrides`, `AxisParameterOverrides`
-- `ConfigMerger.cs` — Pure merge functions
-- `ConfigLayerProvider.cs` — Determines field source layer
-- `FieldRouter.cs` — Routes changes to correct layer
-- `FunctionConfigManager.cs` — Manages function config lifecycle, fires `FunctionConfigChanged`
-- `AxisConfigManager.cs` — Manages axis config lifecycle, fires `AxisConfigChanged`
-
-**Unit tests**: 132 tests passing
-```bash
-cd SimHubPlugin/TieredConfigTests/bin/Debug && ./TieredConfigTests.exe
-```
 
 ## Build
 

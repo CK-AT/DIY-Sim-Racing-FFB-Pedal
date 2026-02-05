@@ -13,6 +13,14 @@ namespace DiyFfb.Controls
     /// </summary>
     public partial class LayerBadgeWrapper : ContentControl
     {
+        static LayerBadgeWrapper()
+        {
+            // Set default style key to enable template lookup
+            DefaultStyleKeyProperty.OverrideMetadata(
+                typeof(LayerBadgeWrapper),
+                new FrameworkPropertyMetadata(typeof(LayerBadgeWrapper)));
+        }
+
         // Dependency properties for configuration
         public static readonly DependencyProperty FieldPathProperty =
             DependencyProperty.Register(
@@ -68,7 +76,17 @@ namespace DiyFfb.Controls
 
         public LayerBadgeWrapper()
         {
-            // Template will be loaded from XAML
+            // Load the control template from the resource dictionary
+            var resourceDict = new ResourceDictionary
+            {
+                Source = new Uri("/DiyFfbPlugin;component/Controls/LayerBadgeWrapper.xaml", UriKind.Relative)
+            };
+
+            // Apply the style explicitly
+            if (resourceDict.Contains(typeof(LayerBadgeWrapper)))
+            {
+                this.Style = (Style)resourceDict[typeof(LayerBadgeWrapper)];
+            }
         }
 
         public override void OnApplyTemplate()
