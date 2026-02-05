@@ -256,7 +256,7 @@ Manager is now populated with merged configs (baseline + profile + user override
 
 ## Phase 12 - Proof-of-Concept (Complete) ✓
 
-Implemented end-to-end test with FlightStickPitch.simulated_mass to validate badge system. Fixed all UI refresh issues.
+Implemented end-to-end test with FlightStickPitch.simulated_mass. Full persistence cycle working: edit → badge appears → save baseline → badge disappears → restart → values restored.
 
 **What works:**
 - ✅ Override creation (UpdateFunctionOverrideField)
@@ -292,21 +292,35 @@ Implemented end-to-end test with FlightStickPitch.simulated_mass to validate bad
    - Explicitly update all labels after is_updating=false (simulated_mass, friction, centering_spring_const, damping)
    - Fallback to function.Config if manager unavailable
 
-**Architecture:**
+**Final Architecture - Hybrid Pattern:**
 
-The POC uses a **merged config display pattern**:
-- `FunctionConfigManager` maintains merged configs in `_currentConfigs`
-- UI controls read merged config via `GetCurrentConfig()` on load
-- When editing, create override AND fetch merged config from manager
-- Manager automatically re-merges when override is updated
+The POC uses a **two-track system** to support incremental migration:
 
-**Files modified:**
-- `Controls/LayerBadgeWrapper.xaml` — Fixed layout (Visibility.Hidden, negative margins)
-- `Controls/LayerBadgeWrapper.xaml.cs` — Use Hidden instead of Collapsed
-- `FunctionConfigControl.xaml.cs` — Load merged config in SwitchFunction
-- `FlightStickConfigControl.xaml.cs` — Load merged config in SwitchFunction, fetch merged value after override
-- `DiyFfbPlugin.cs` — UpdateFunctionOverrideField re-merges via manager
+1. **function.Config** = Primary working copy (all edits, wrapped + non-wrapped)
+   - Directly mutated by non-wrapped field handlers
+   - Updated by wrapped field handlers (immediate feedback)
+   - Never overwritten during operation
+   - Source of truth for "Save as Baseline"
+
+2. **FunctionConfigManager** = Override tracker (badge state only)
+   - Tracks which fields have overrides
+   - Provides badge display state
+   - Used for initial load from stored baselines
+   - Manager's merged config sent to ESP32 (not used for UI display)
+
+**Key Decisions:**
+
+| Issue | Solution |
+|-------|----------|
+| Non-wrapped field edits lost when creating override | Removed `function.Config = e.NewConfig` from FunctionConfigChanged handler |
+| Baseline not persisting | Changed to JSON string storage (protobuf incompatible with JSON.NET) |
+| Excessive disk writes | Removed SaveCommonSettings from override updates (SimHub auto-saves) |
+| Badge not refreshing on baseline save | Call RefreshAllBadges() after clearing overrides |
+| Config not loading on startup | Two-phase init: defaults → PopulateFunctionConfigsFromBaselines() |
+| Overrides without baseline corrupt config | Require baseline before allowing override creation |
+
+**Critical Fix:** Manager updates are tracked for badge display, but function.Config remains the source of truth for UI display and baseline saves.
 
 **Result:**
 
-POC fully working. Badge system displays override state, UI shows merged values at all times (initial load, after edits, during function switches). Ready to migrate remaining event handlers using this pattern.
+POC fully working end-to-end. Badge system operational, all values persist correctly, non-wrapped fields preserved. Ready to migrate remaining ~50 event handlers using this pattern.

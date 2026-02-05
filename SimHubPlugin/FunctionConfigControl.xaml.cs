@@ -313,7 +313,7 @@ namespace DiyFfb
             }
         }
 
-        private void RefreshAllBadges()
+        public void RefreshAllBadges()
         {
             // Refresh all LayerBadgeWrapper controls in the visual tree
             foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))

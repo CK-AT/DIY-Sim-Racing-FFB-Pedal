@@ -2884,8 +2884,11 @@ namespace DiyFfb
                 Plugin.FunctionConfigManager.SetBaseConfig((int)function.ID, configToSave);
                 Plugin.ApplyProfileOverridesToFunction((int)function.ID);
 
-                // Refresh UI to show new baseline without badges
-                uc_function_config.SwitchFunction(function);
+                // Refresh badges to remove [U] badge after clearing overrides
+                Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    uc_function_config.RefreshAllBadges();
+                }), System.Windows.Threading.DispatcherPriority.Background);
 
                 // Show confirmation
                 ThemedMessageBox.Show(
