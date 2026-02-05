@@ -324,3 +324,74 @@ The POC uses a **two-track system** to support incremental migration:
 **Result:**
 
 POC fully working end-to-end. Badge system operational, all values persist correctly, non-wrapped fields preserved. Ready to migrate remaining ~50 event handlers using this pattern.
+
+## Missing Features (Deferred to Phase 13+)
+
+### Critical - Core Functionality
+
+1. **Event Handler Migration** (~50 handlers, ~6% complete):
+   - ✅ FlightStickPitch.simulated_mass (POC)
+   - ❌ All other fields in AutomotivePedalConfigControl
+   - ❌ All other fields in FlightPedalsConfigControl
+   - ❌ All other fields in FlightStickConfigControl
+   - ❌ All ShifterConfigControl fields
+   - ❌ Static Balance Tuning fields in FunctionConfigControl
+   - **Impact:** Most field edits don't create overrides/badges yet
+
+2. **"Upload Changes" Button** (dirty state tracking):
+   - ❌ Dirty state detection (show button when overrides exist)
+   - ❌ Confirmation dialog listing changes to send
+   - ❌ Send only modified fields to ESP32
+
+3. **Functions Tab UI**:
+   - ❌ Activation toggle ("Active for [vehicle]" checkbox)
+   - ❌ Linked Axes summary panel
+   - ❌ Navigate to Axis tab (⚙ button)
+
+### Important - Enhanced UX
+
+4. **Enhanced Tooltips** (Phase 13):
+   - ✅ Basic tooltip (field name + layer)
+   - ❌ Show all layer values (User/Profile/Hardware)
+   - ❌ Active indicator ("◄ active")
+   - ❌ Formatted layout with separators
+   - ❌ Complex field "(not set)" vs "(configured)"
+
+5. **Context Menu** (Phase 14):
+   - ❌ Right-click on badge
+   - ❌ Show layer values in menu header
+   - ❌ "Clear User override"
+   - ❌ "Clear Profile override"
+   - ❌ "Save to User" (re-route)
+   - ❌ "Save to Profile" (re-route)
+   - ❌ "Save to Hardware" (bake into baseline)
+
+6. **Complex Editor Events**:
+   - ❌ SplineForceCurve.ConfigChanged event
+   - ❌ ShifterConfigControl.ConfigChanged event
+   - ❌ Parent subscription to child config changes
+
+### Nice-to-Have - Future Extensions
+
+7. **Batch Operations**:
+   - ❌ Clear all User overrides
+   - ❌ Reset to Profile
+
+8. **Named Presets** (future):
+   - ❌ Save/load multiple baseline configs per function
+
+9. **Diff View** (future):
+   - ❌ Show what changed vs baseline
+
+### Documentation Updates Needed
+
+10. **Plan Document**:
+    - ❌ Update field wrapping status table (line 102: "EDIT THIS SECTION")
+    - ❌ Mark implemented fields with ✅ status
+
+11. **Validation**:
+    - ✅ Baseline requirement check (HasFunctionBaseline)
+    - ❌ User guidance when no baseline exists
+
+**Priority Recommendation:**
+Phase 15 (handler migration) is critical blocker - without it, 94% of field edits bypass the override system.
