@@ -19,10 +19,12 @@
                 <Label Content="Static Balance Tuning" Height="15" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial Black" Margin="70,8,0,0"/>
                 <StackPanel Orientation="Horizontal" Margin="0,6,0,8">
                     <badge:LayerBadgeWrapper x:Name="BadgeStaticBalanceEnabled" FieldPath="static_balance_tuning.enabled" Margin="60,0,0,0">
-                        <styles:SHToggleButton x:Name="ToggleStaticBalanceEnabled" Content="" IsChecked="False" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial"
-                                               Checked="StaticBalanceEnabled_Checked" Unchecked="StaticBalanceEnabled_Unchecked"/>
+                        <StackPanel Orientation="Horizontal">
+                            <styles:SHToggleButton x:Name="ToggleStaticBalanceEnabled" Content="" IsChecked="False" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial"
+                                                   Checked="StaticBalanceEnabled_Checked" Unchecked="StaticBalanceEnabled_Unchecked"/>
+                            <Label Content="Enable" Height="20" Width="50" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="4,0,0,0"/>
+                        </StackPanel>
                     </badge:LayerBadgeWrapper>
-                    <Label Content="Enable" Height="20" Width="50" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="4,0,0,0"/>
                     <Label Content="Gain" Height="20" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="20,0,0,0"/>
                     <badge:LayerBadgeWrapper x:Name="BadgeStaticBalanceGain" FieldPath="static_balance_tuning.gain">
                         <Slider x:Name="SliderStaticBalanceGain" Style="{DynamicResource SliderStyle_single_H}" Height="10" Width="180"

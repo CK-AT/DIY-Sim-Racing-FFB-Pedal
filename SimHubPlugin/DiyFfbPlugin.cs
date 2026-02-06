@@ -2758,7 +2758,9 @@ namespace DiyFfb
                     }
                     break;
                 case "shifter_config":
-                    overrides.ShifterConfig = null; break;
+                    overrides.ShifterConfig = null;
+                    overrides.ShifterDetectConfig = null;
+                    break;
             }
         }
 

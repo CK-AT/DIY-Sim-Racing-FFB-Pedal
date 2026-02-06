@@ -423,14 +423,14 @@ namespace DiyFfb.TieredConfig
                 Name = "ShifterConfig",
                 FieldPath = "shifter_config",
                 DisplayName = "Shifter Config",
-                Tooltip = "Complete shifter configuration (geometry, gates, detents)",
+                Tooltip = "Complete shifter configuration (geometry, gates, detents, detection)",
                 FieldType = OverrideFieldType.Complex,
                 Group = OverrideFieldGroup.Shifter,
                 DefaultLayer = ConfigLayer.Profile,
-                HasValue = o => o.ShifterConfig != null,
+                HasValue = o => o.ShifterConfig != null || o.ShifterDetectConfig != null,
                 GetValue = o => o.ShifterConfig,
                 SetValue = (o, v) => o.ShifterConfig = (ShifterConfig)v,
-                ClearValue = o => o.ShifterConfig = null,
+                ClearValue = o => { o.ShifterConfig = null; o.ShifterDetectConfig = null; },
                 FormatValue = (val) =>
                 {
                     var cfg = val as ShifterConfig;

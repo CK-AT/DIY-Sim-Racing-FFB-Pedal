@@ -96,6 +96,10 @@ namespace DiyFfb.TieredConfig
             {
                 merged.Shifter = delta.ShifterConfig.Clone();
             }
+            if (merged.AuxFunction?.ShifterDetect != null && delta.ShifterDetectConfig != null)
+            {
+                merged.AuxFunction.ShifterDetect = delta.ShifterDetectConfig.Clone();
+            }
 
             return merged;
         }

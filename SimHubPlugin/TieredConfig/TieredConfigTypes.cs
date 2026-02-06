@@ -63,6 +63,7 @@ namespace DiyFfb.TieredConfig
 
         // Shifter overrides
         public ShifterConfig ShifterConfig { get; set; }
+        public ShifterDetectConfig ShifterDetectConfig { get; set; }
 
         /// <summary>
         /// Returns true if all override fields are null/empty.
@@ -82,7 +83,8 @@ namespace DiyFfb.TieredConfig
             FlightStickDamping == null &&
             FlightStickCenteringSpringConst == null &&
             (RudderBrakeForceRange == null || RudderBrakeForceRange.IsEmpty) &&
-            ShifterConfig == null;
+            ShifterConfig == null &&
+            ShifterDetectConfig == null;
     }
 
     /// <summary>

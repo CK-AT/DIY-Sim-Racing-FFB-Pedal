@@ -22,6 +22,7 @@ namespace DiyFfb
         private Function function;
         private FunctionID current_function_id;
         private bool update_lockout = false;
+        private bool allowOverrideCreation = false;
 
         public AutomotivePedalConfigControl()
         {
@@ -53,6 +54,11 @@ namespace DiyFfb
                 plugin.ContextChanged += OnContextChanged;
                 plugin.OverrideFieldChanged += OnOverrideFieldChanged;
             }
+
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                wrapper.OverrideCleared += OnBadgeOverrideCleared;
+            }
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -62,6 +68,48 @@ namespace DiyFfb
                 plugin.ContextChanged -= OnContextChanged;
                 plugin.OverrideFieldChanged -= OnOverrideFieldChanged;
             }
+
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                wrapper.OverrideCleared -= OnBadgeOverrideCleared;
+            }
+        }
+
+        private void OnBadgeOverrideCleared(object sender, LayerBadgeWrapper.OverrideClearedEventArgs e)
+        {
+            if (plugin == null || function == null) return;
+
+            var mergedConfig = plugin.FunctionConfigManager.GetCurrentConfig((int)function.ID);
+            if (mergedConfig == null) return;
+
+            update_lockout = true;
+            switch (e.FieldPath)
+            {
+                case "damper_config.positive_factor":
+                    config.DamperConfig.PositiveFactor = mergedConfig.AutomotivePedal.DamperConfig.PositiveFactor;
+                    Slider_damping_push.Value = config.DamperConfig.PositiveFactor;
+                    label_damping_push.Content = String.Format("Damping (Push): {0:F3}N*mm/s", config.DamperConfig.PositiveFactor);
+                    break;
+
+                case "damper_config.negative_factor":
+                    config.DamperConfig.NegativeFactor = mergedConfig.AutomotivePedal.DamperConfig.NegativeFactor;
+                    Slider_damping_pull.Value = config.DamperConfig.NegativeFactor;
+                    label_damping_pull.Content = String.Format("Damping (Pull): {0:F3}N*mm/s", config.DamperConfig.NegativeFactor);
+                    break;
+
+                case "simulated_mass":
+                    function_config.SimulatedMass = mergedConfig.SimulatedMass;
+                    Slider_simulated_mass.Value = mergedConfig.SimulatedMass;
+                    label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
+                    break;
+
+                case "friction":
+                    function_config.Friction = mergedConfig.Friction;
+                    Slider_friction.Value = mergedConfig.Friction;
+                    label_friction.Content = String.Format("Friction: {0:F1}N", mergedConfig.Friction);
+                    break;
+            }
+            update_lockout = false;
         }
 
         private void OnContextChanged(object sender, EventArgs e)
@@ -179,6 +227,7 @@ namespace DiyFfb
             function_config = function.Config;
             config = function_config.AutomotivePedal;
             current_function_id = function_config.Base.FunctionId;
+            allowOverrideCreation = false;
 
             update_lockout = true;
 
@@ -398,6 +447,9 @@ namespace DiyFfb
             InitializeBadges();
 
             update_lockout = false;
+
+            Dispatcher.BeginInvoke(new Action(() => allowOverrideCreation = true),
+                System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
         public void TestAbs_click(object sender, RoutedEventArgs e)
@@ -978,20 +1030,57 @@ namespace DiyFfb
 
         private void OnPushDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            config.DamperConfig.PositiveFactor = (float)e.NewValue;
-            label_damping_push.Content = String.Format("Damping (Push): {0:F3}N*mm/s", e.NewValue);
+            if (update_lockout) return;
+            var newValue = (float)e.NewValue;
+            config.DamperConfig.PositiveFactor = newValue;
+            label_damping_push.Content = String.Format("Damping (Push): {0:F3}N*mm/s", newValue);
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "damper_config.positive_factor",
+                    overrides =>
+                    {
+                        if (overrides.DamperConfig == null)
+                            overrides.DamperConfig = new TieredConfig.DamperConfigOverrides();
+                        overrides.DamperConfig.PositiveFactor = newValue;
+                    });
+            }
         }
 
         private void OnPullDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            config.DamperConfig.NegativeFactor = (float)e.NewValue;
-            label_damping_pull.Content = String.Format("Damping (Pull): {0:F3}N*mm/s", e.NewValue);
+            if (update_lockout) return;
+            var newValue = (float)e.NewValue;
+            config.DamperConfig.NegativeFactor = newValue;
+            label_damping_pull.Content = String.Format("Damping (Pull): {0:F3}N*mm/s", newValue);
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "damper_config.negative_factor",
+                    overrides =>
+                    {
+                        if (overrides.DamperConfig == null)
+                            overrides.DamperConfig = new TieredConfig.DamperConfigOverrides();
+                        overrides.DamperConfig.NegativeFactor = newValue;
+                    });
+            }
         }
 
         private void OnSimulatedMassChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", e.NewValue);
-            function_config.SimulatedMass = (float)e.NewValue;
+            if (update_lockout) return;
+            var newValue = (float)e.NewValue;
+            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", newValue);
+            function_config.SimulatedMass = newValue;
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
+                    overrides => overrides.SimulatedMass = newValue);
+            }
         }
 
         private void AutomotivePedal_AxisSelector_AxisIDChanged(object sender, AxisSelector.AxisIDChangedEventArgs e)
@@ -1035,8 +1124,17 @@ namespace DiyFfb
         
         private void OnFrictionChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            label_friction.Content = String.Format("Friction: {0:F1}N", e.NewValue);
-            function_config.Friction = (float)e.NewValue;
+            if (update_lockout) return;
+            var newValue = (float)e.NewValue;
+            label_friction.Content = String.Format("Friction: {0:F1}N", newValue);
+            function_config.Friction = newValue;
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "friction",
+                    overrides => overrides.Friction = newValue);
+            }
         }
     }
 }

@@ -121,7 +121,7 @@ namespace DiyFfb.TieredConfig
                     return overrides.DamperConfig?.NegativeFactor.HasValue == true;
 
                 case "shifter_config":
-                    return overrides.ShifterConfig != null;
+                    return overrides.ShifterConfig != null || overrides.ShifterDetectConfig != null;
 
                 default:
                     return false;

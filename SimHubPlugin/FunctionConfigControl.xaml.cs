@@ -40,6 +40,7 @@ namespace DiyFfb
         private FunctionConfig config;
         private FunctionID current_function_id;
         private bool updatingStaticBalanceUi;
+        private bool allowOverrideCreation = false;
 
         public void SetGui(DiyFfbPluginUI ui, DiyFfbPlugin plugin)
         {
@@ -156,11 +157,16 @@ namespace DiyFfb
         {
             this.function = function;
             config = function.Config;
+            allowOverrideCreation = false;
             EnsureStaticBalanceTuningConfig();
             UpdateStaticBalanceTuningUi();
 
             // Defer badge initialization until after the UI has been fully rendered
             Dispatcher.BeginInvoke(new Action(() => InitializeBadges()), System.Windows.Threading.DispatcherPriority.ContextIdle);
+
+            // Allow override creation only after all deferred events have been processed
+            Dispatcher.BeginInvoke(new Action(() => allowOverrideCreation = true),
+                System.Windows.Threading.DispatcherPriority.ContextIdle);
 
             switch (function.ID)
             {
@@ -228,20 +234,38 @@ namespace DiyFfb
 
         private void StaticBalanceEnabled_Checked(object sender, RoutedEventArgs e)
         {
-            if (config == null)
-            {
-                return;
-            }
+            if (config == null || updatingStaticBalanceUi) return;
             EnsureStaticBalanceTuningConfig().Enabled = true;
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.enabled",
+                    overrides =>
+                    {
+                        if (overrides.StaticBalanceTuning == null)
+                            overrides.StaticBalanceTuning = new TieredConfig.StaticBalanceTuningOverrides();
+                        overrides.StaticBalanceTuning.Enabled = true;
+                    });
+            }
         }
 
         private void StaticBalanceEnabled_Unchecked(object sender, RoutedEventArgs e)
         {
-            if (config == null)
-            {
-                return;
-            }
+            if (config == null || updatingStaticBalanceUi) return;
             EnsureStaticBalanceTuningConfig().Enabled = false;
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.enabled",
+                    overrides =>
+                    {
+                        if (overrides.StaticBalanceTuning == null)
+                            overrides.StaticBalanceTuning = new TieredConfig.StaticBalanceTuningOverrides();
+                        overrides.StaticBalanceTuning.Enabled = false;
+                    });
+            }
         }
 
         private void StaticBalanceGain_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -251,10 +275,23 @@ namespace DiyFfb
                 return;
             }
             var tuning = EnsureStaticBalanceTuningConfig();
-            tuning.Gain = (float)e.NewValue;
+            var newValue = (float)e.NewValue;
+            tuning.Gain = newValue;
             updatingStaticBalanceUi = true;
             TextStaticBalanceGain.Text = tuning.Gain.ToString("0.###", CultureInfo.CurrentCulture);
             updatingStaticBalanceUi = false;
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.gain",
+                    overrides =>
+                    {
+                        if (overrides.StaticBalanceTuning == null)
+                            overrides.StaticBalanceTuning = new TieredConfig.StaticBalanceTuningOverrides();
+                        overrides.StaticBalanceTuning.Gain = newValue;
+                    });
+            }
         }
 
         private void StaticBalanceGain_TextChanged(object sender, TextChangedEventArgs e)
@@ -270,6 +307,18 @@ namespace DiyFfb
                 updatingStaticBalanceUi = true;
                 SliderStaticBalanceGain.Value = value;
                 updatingStaticBalanceUi = false;
+
+                if (allowOverrideCreation && plugin != null && function != null &&
+                    plugin.HasFunctionBaseline((int)function.ID))
+                {
+                    plugin.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.gain",
+                        overrides =>
+                        {
+                            if (overrides.StaticBalanceTuning == null)
+                                overrides.StaticBalanceTuning = new TieredConfig.StaticBalanceTuningOverrides();
+                            overrides.StaticBalanceTuning.Gain = value;
+                        });
+                }
             }
         }
 
@@ -286,6 +335,11 @@ namespace DiyFfb
                 plugin.OverrideFieldChanged += OnOverrideFieldChanged;
             }
 
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                wrapper.OverrideCleared += OnBadgeOverrideCleared;
+            }
+
             // Initialize badges for the currently displayed function after UI is fully loaded
             Dispatcher.BeginInvoke(new Action(() => InitializeBadges()), System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
@@ -297,6 +351,46 @@ namespace DiyFfb
                 plugin.ContextChanged -= OnContextChanged;
                 plugin.OverrideFieldChanged -= OnOverrideFieldChanged;
             }
+
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                wrapper.OverrideCleared -= OnBadgeOverrideCleared;
+            }
+        }
+
+        private void OnBadgeOverrideCleared(object sender, LayerBadgeWrapper.OverrideClearedEventArgs e)
+        {
+            if (plugin == null || function == null) return;
+
+            var mergedConfig = plugin.FunctionConfigManager.GetCurrentConfig((int)function.ID);
+            if (mergedConfig == null) return;
+
+            updatingStaticBalanceUi = true;
+            switch (e.FieldPath)
+            {
+                case "static_balance_tuning.enabled":
+                    var tuningEnabled = mergedConfig.StaticBalanceTuning ?? new FunctionConfig.Types.StaticBalanceTuning { Enabled = false, Gain = 1.0f };
+                    config.StaticBalanceTuning.Enabled = tuningEnabled.Enabled;
+                    ToggleStaticBalanceEnabled.IsChecked = tuningEnabled.Enabled;
+                    break;
+
+                case "static_balance_tuning.gain":
+                    var tuningGain = mergedConfig.StaticBalanceTuning ?? new FunctionConfig.Types.StaticBalanceTuning { Enabled = false, Gain = 1.0f };
+                    config.StaticBalanceTuning.Gain = tuningGain.Gain;
+                    SliderStaticBalanceGain.Value = tuningGain.Gain;
+                    TextStaticBalanceGain.Text = tuningGain.Gain.ToString("0.###", CultureInfo.CurrentCulture);
+                    break;
+
+                case "static_balance_tuning":
+                    var tuningFull = mergedConfig.StaticBalanceTuning ?? new FunctionConfig.Types.StaticBalanceTuning { Enabled = false, Gain = 1.0f };
+                    config.StaticBalanceTuning.Enabled = tuningFull.Enabled;
+                    config.StaticBalanceTuning.Gain = tuningFull.Gain;
+                    ToggleStaticBalanceEnabled.IsChecked = tuningFull.Enabled;
+                    SliderStaticBalanceGain.Value = tuningFull.Gain;
+                    TextStaticBalanceGain.Text = tuningFull.Gain.ToString("0.###", CultureInfo.CurrentCulture);
+                    break;
+            }
+            updatingStaticBalanceUi = false;
         }
 
         private void OnContextChanged(object sender, EventArgs e)
