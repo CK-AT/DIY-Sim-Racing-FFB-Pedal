@@ -61,11 +61,33 @@ namespace DiyFfb
         }
         public void OnKinematicParametersChanged(KinematicParameters parameters)
         {
-            hasAxisRange = true;
             double min = parameters.ContactPointPosMinAbs / 10.0;
             double max = parameters.ContactPointPosMaxAbs / 10.0;
-            Rangeslider_travel_range.Minimum = Math.Min(min, max);
-            Rangeslider_travel_range.Maximum = Math.Max(min, max);
+            double newMin = Math.Min(min, max);
+            double newMax = Math.Max(min, max);
+
+            // Skip degenerate bounds (e.g., from uncomputed ESP32 KinematicParameters)
+            if (newMin >= newMax)
+                return;
+
+            hasAxisRange = true;
+
+            bool wasUpdating = is_updating;
+            if (!wasUpdating) is_updating = true;
+
+            Rangeslider_travel_range.Minimum = newMin;
+            Rangeslider_travel_range.Maximum = newMax;
+
+            // Restore slider values from config to counteract WPF clamping
+            Rangeslider_travel_range.LowerValue = config.PosMin;
+            Rangeslider_travel_range.UpperValue = config.PosMax;
+
+            if (!wasUpdating)
+            {
+                Dispatcher.BeginInvoke(
+                    new Action(() => is_updating = false),
+                    System.Windows.Threading.DispatcherPriority.ContextIdle);
+            }
         }
 
         public void UpdateConfig(SplineForceCurveConfig new_config)

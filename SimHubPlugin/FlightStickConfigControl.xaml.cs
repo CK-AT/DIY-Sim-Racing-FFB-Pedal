@@ -285,9 +285,17 @@ namespace DiyFfb
 
         public void OnKinematicParametersChanged(KinematicParameters parameters)
         {
-            hasAxisRange = true;
             double min = parameters.ContactPointPosMinAbs / 10.0f;
             double max = parameters.ContactPointPosMaxAbs / 10.0f;
+            double newMin = Math.Min(min, max);
+            double newMax = Math.Max(min, max);
+
+            // Skip degenerate bounds (e.g., from uncomputed ESP32 KinematicParameters
+            // where both fields default to 0)
+            if (newMin >= newMax)
+                return;
+
+            hasAxisRange = true;
 
             // Changing slider bounds can clamp current values, firing ValueChanged events.
             // When called from SwitchFunction, is_updating is already true (safe).
@@ -296,8 +304,14 @@ namespace DiyFfb
             bool wasUpdating = is_updating;
             if (!wasUpdating) is_updating = true;
 
-            Rangeslider_travel_range.Minimum = Math.Min(min, max);
-            Rangeslider_travel_range.Maximum = Math.Max(min, max);
+            Rangeslider_travel_range.Minimum = newMin;
+            Rangeslider_travel_range.Maximum = newMax;
+
+            // Restore slider values from config to counteract WPF clamping.
+            // Without this, async bounds changes leave the slider thumbs at
+            // clamped positions even though the config values are correct.
+            Rangeslider_travel_range.LowerValue = GetPosMin();
+            Rangeslider_travel_range.UpperValue = GetPosMax();
 
             if (!wasUpdating)
             {
@@ -532,14 +546,16 @@ namespace DiyFfb
             hasAxisRange = false;
             allowOverrideCreation = false;  // Reset until function switch stabilizes
 
+            var linkedAxis = function_config.Base.LinkedAxes[0];
+
             is_updating = true;
             function_config.Base.OutputMode = OutputMode.Travel;
-            uc_axis_selector_stick.Value = function_config.Base.LinkedAxes[0];
+            uc_axis_selector_stick.Value = linkedAxis;
             uc_controller_axis_stick.Value = function_config.Base.ControllerOutputAxis;
 
-            if (function_config.Base.LinkedAxes[0] != AxisID.AxisUndefined)
+            if (linkedAxis != AxisID.AxisUndefined)
             {
-                var kinematic_parameters = ui.GetKinematicParameters(function_config.Base.LinkedAxes[0]);
+                var kinematic_parameters = ui.GetKinematicParameters(linkedAxis);
                 if (kinematic_parameters != null)
                 {
                     OnKinematicParametersChanged(kinematic_parameters);

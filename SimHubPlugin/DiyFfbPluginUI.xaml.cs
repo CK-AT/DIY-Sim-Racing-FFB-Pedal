@@ -281,10 +281,8 @@ namespace DiyFfb
         {
             if (axes.TryGetValue(axis_id, out Axis axis))
             {
-                if (!axis.HasAxisConfig)
-                {
-                    return null;
-                }
+                // Return KP whether from ESP32 config or local axis tab computation.
+                // Callers filter out degenerate (zero) values.
                 return axis.Config?.KinematicParameters;
             }
             return null;
@@ -2145,6 +2143,42 @@ namespace DiyFfb
 
         private void OnKinematicParametersChanged(KinematicParameters parameters)
         {
+            // This event fires from the axis tab's GeneralKinematicsControl, which
+            // computes KP for whichever axis is currently selected in the axis tab.
+            // Only forward to the function control if that axis is actually linked
+            // to the currently selected function — otherwise we'd apply wrong bounds.
+            if (selected_function_id == FunctionID.Undefined ||
+                !functions.TryGetValue(selected_function_id, out Function function))
+                return;
+
+            FunctionConfig cfg = function.Config;
+            bool axisLinked = false;
+            if (cfg?.Base != null)
+            {
+                foreach (var axis in cfg.Base.LinkedAxes)
+                {
+                    if ((axis & AxisID.Mask) == selected_axis_id)
+                    {
+                        axisLinked = true;
+                        break;
+                    }
+                }
+            }
+            if (!axisLinked && cfg?.AuxFunction != null)
+            {
+                foreach (var axis in cfg.AuxFunction.LinkedAxes)
+                {
+                    if ((axis & AxisID.Mask) == selected_axis_id)
+                    {
+                        axisLinked = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!axisLinked)
+                return;
+
             uc_function_config.OnKinematicParametersChanged(parameters);
         }
 
