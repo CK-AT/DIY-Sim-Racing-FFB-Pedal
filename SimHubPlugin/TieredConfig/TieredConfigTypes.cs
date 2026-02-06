@@ -116,8 +116,9 @@ namespace DiyFfb.TieredConfig
     {
         public int? NearLim { get; set; }  // FlightPedals: pos_near_lim
         public int? FarLim { get; set; }   // FlightPedals: pos_far_lim
-        public int? Min { get; set; }      // FlightStick: pos_min
-        public int? Max { get; set; }      // FlightStick: pos_max
+
+        public int? Min { get; set; }
+        public int? Max { get; set; }
 
         public bool IsEmpty => NearLim == null && FarLim == null && Min == null && Max == null;
     }

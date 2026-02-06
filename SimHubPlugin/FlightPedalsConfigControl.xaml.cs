@@ -165,8 +165,18 @@ namespace DiyFfb
             hasAxisRange = true;
             double min = parameters.ContactPointPosMinAbs / 10.0f;
             double max = parameters.ContactPointPosMaxAbs / 10.0f;
+
+            bool wasUpdating = is_updating;
+            if (!wasUpdating) is_updating = true;
+
             Rangeslider_travel_range.Minimum = Math.Min(min, max);
             Rangeslider_travel_range.Maximum = Math.Max(min, max);
+
+            if (!wasUpdating)
+            {
+                Dispatcher.BeginInvoke(new Action(() => is_updating = false),
+                    System.Windows.Threading.DispatcherPriority.ContextIdle);
+            }
         }
 
         public void OnAxisStateUpdate(global::AxisState axis_state)

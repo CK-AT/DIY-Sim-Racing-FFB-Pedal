@@ -90,6 +90,24 @@ namespace DiyFfb.TieredConfig
                 case "static_balance_tuning":
                     return overrides.StaticBalanceTuning != null && !overrides.StaticBalanceTuning.IsEmpty;
 
+                case "flight_stick.motion_range":
+                    return overrides.FlightStickMotionRange != null && !overrides.FlightStickMotionRange.IsEmpty;
+
+                case "flight_pedals.motion_range":
+                    return overrides.FlightPedalsMotionRange != null && !overrides.FlightPedalsMotionRange.IsEmpty;
+
+                case "flight_stick.damping":
+                    return overrides.FlightStickDamping.HasValue;
+
+                case "flight_stick.centering_spring_const":
+                    return overrides.FlightStickCenteringSpringConst.HasValue;
+
+                case "flight_pedals.damping":
+                    return overrides.FlightPedalsDamping.HasValue;
+
+                case "flight_pedals.centering_spring_const":
+                    return overrides.FlightPedalsCenteringSpringConst.HasValue;
+
                 default:
                     return false;
             }

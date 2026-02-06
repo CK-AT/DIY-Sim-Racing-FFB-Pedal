@@ -2587,10 +2587,19 @@ namespace DiyFfb
                 profile.FunctionOverrides.Remove(functionId);
             }
 
-            // Re-apply if function is active
-            if (IsFunctionActive(functionId))
+            // Settings auto-save periodically by SimHub
+
+            // Update manager if baseline exists
+            if (_functionConfigManager.HasBaseConfig(functionId))
             {
-                ApplyProfileOverridesToFunction(functionId);
+                var profileDelta = profile?.FunctionOverrides?.ContainsKey(functionId) == true
+                    ? profile.FunctionOverrides[functionId] : null;
+
+                var userPrefs = GetCurrentUserOverrides();
+                FunctionConfigOverrides userDelta = null;
+                userPrefs?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
+
+                _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: false);
             }
         }
 
@@ -2635,8 +2644,7 @@ namespace DiyFfb
                 prefs.FunctionOverrides.Remove(functionId);
             }
 
-            // Persist to disk (critical for clear operations)
-            this.SaveCommonSettings("GeneralSettings", Settings);
+            // Settings auto-save periodically by SimHub
 
             // Update manager if baseline exists
             if (_functionConfigManager.HasBaseConfig(functionId))

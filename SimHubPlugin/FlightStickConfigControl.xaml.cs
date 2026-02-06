@@ -28,6 +28,7 @@ namespace DiyFfb
         private FlightStickRollConfig roll_config;
         private FlightStickCollectiveConfig collective_config;
         private bool is_updating = true;
+        private bool allowOverrideCreation = false;  // Only true after initial load stabilizes
         private double latestAxisPosition;
         private bool hasAxisPosition;
         private double latestAxisForce;
@@ -139,15 +140,32 @@ namespace DiyFfb
                     break;
 
                 case "flight_stick.motion_range":
-                    // Update both min and max from merged config
-                    SetPosMin(GetPosMin()); // Read current value from mode config
-                    SetPosMax(GetPosMax());
-                    function_config.Base.OutputMin = GetPosMin();
-                    function_config.Base.OutputMax = GetPosMax();
-                    Rangeslider_travel_range.LowerValue = GetPosMin();
-                    Rangeslider_travel_range.UpperValue = GetPosMax();
-                    Label_min_pos.Content = String.Format("Min\n{0}mm", GetPosMin());
-                    Label_max_pos.Content = String.Format("Max\n{0}mm", GetPosMax());
+                    // Get pos min/max from merged config's mode-specific sub-config
+                    int posMin, posMax;
+                    switch (GetMode())
+                    {
+                        case FlightStickMode.Roll:
+                            posMin = mergedConfig.FlightStickRoll.PosMin;
+                            posMax = mergedConfig.FlightStickRoll.PosMax;
+                            break;
+                        case FlightStickMode.Collective:
+                            posMin = mergedConfig.FlightStickCollective.PosMin;
+                            posMax = mergedConfig.FlightStickCollective.PosMax;
+                            break;
+                        default:
+                            posMin = mergedConfig.FlightStickPitch.PosMin;
+                            posMax = mergedConfig.FlightStickPitch.PosMax;
+                            break;
+                    }
+
+                    SetPosMin(posMin);
+                    SetPosMax(posMax);
+                    function_config.Base.OutputMin = posMin;
+                    function_config.Base.OutputMax = posMax;
+                    if (Label_min_pos != null)
+                        Label_min_pos.Content = String.Format("Min\n{0}mm", posMin);
+                    if (Label_max_pos != null)
+                        Label_max_pos.Content = String.Format("Max\n{0}mm", posMax);
                     UpdateTravelMarkers();
                     break;
 
@@ -270,8 +288,24 @@ namespace DiyFfb
             hasAxisRange = true;
             double min = parameters.ContactPointPosMinAbs / 10.0f;
             double max = parameters.ContactPointPosMaxAbs / 10.0f;
+
+            // Changing slider bounds can clamp current values, firing ValueChanged events.
+            // When called from SwitchFunction, is_updating is already true (safe).
+            // When called externally (e.g., axis tab timer), we must block those events
+            // to prevent clamped values from overwriting the config.
+            bool wasUpdating = is_updating;
+            if (!wasUpdating) is_updating = true;
+
             Rangeslider_travel_range.Minimum = Math.Min(min, max);
             Rangeslider_travel_range.Maximum = Math.Max(min, max);
+
+            if (!wasUpdating)
+            {
+                // Defer clearing is_updating until ContextIdle so that any WPF
+                // deferred clamping events are also suppressed.
+                Dispatcher.BeginInvoke(new Action(() => is_updating = false),
+                    System.Windows.Threading.DispatcherPriority.ContextIdle);
+            }
         }
 
         public void OnAxisStateUpdate(global::AxisState axis_state)
@@ -496,6 +530,7 @@ namespace DiyFfb
             current_function_id = function_config.Base.FunctionId;
             EnsureConfigInitialized();
             hasAxisRange = false;
+            allowOverrideCreation = false;  // Reset until function switch stabilizes
 
             is_updating = true;
             function_config.Base.OutputMode = OutputMode.Travel;
@@ -536,6 +571,10 @@ namespace DiyFfb
             RefreshGraphParams();
             UpdateDisableOutputsToggle();
             InitializeBadges();
+
+            // Allow override creation only after all deferred events have been processed
+            Dispatcher.BeginInvoke(new Action(() => allowOverrideCreation = true),
+                System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
         private void OnAxisIDChanged(object sender, AxisSelector.AxisIDChangedEventArgs e)
@@ -568,11 +607,18 @@ namespace DiyFfb
             if (!is_updating)
             {
                 var newValue = Convert.ToInt16(e.NewValue);
+
+                // Skip stale deferred events - if newValue doesn't match slider's current value, ignore
+                if (Rangeslider_travel_range != null && Convert.ToInt16(Rangeslider_travel_range.LowerValue) != newValue)
+                    return;
+
+                var oldValue = GetPosMin();
+
                 SetPosMin(newValue);
                 function_config.Base.OutputMin = newValue;
 
-                // Create override for badge system (only if baseline exists)
-                if (plugin != null && function != null && plugin.HasFunctionBaseline((int)function.ID))
+                // Create override for badge system (only after init stabilizes, baseline exists, AND value changed)
+                if (allowOverrideCreation && newValue != oldValue && plugin != null && function != null && plugin.HasFunctionBaseline((int)function.ID))
                 {
                     plugin.UpdateFunctionOverrideField((int)function.ID, "flight_stick.motion_range",
                         overrides =>
@@ -595,11 +641,18 @@ namespace DiyFfb
             if (!is_updating)
             {
                 var newValue = Convert.ToInt16(e.NewValue);
+
+                // Skip stale deferred events - if newValue doesn't match slider's current value, ignore
+                if (Rangeslider_travel_range != null && Convert.ToInt16(Rangeslider_travel_range.UpperValue) != newValue)
+                    return;
+
+                var oldValue = GetPosMax();
+
                 SetPosMax(newValue);
                 function_config.Base.OutputMax = newValue;
 
-                // Create override for badge system (only if baseline exists)
-                if (plugin != null && function != null && plugin.HasFunctionBaseline((int)function.ID))
+                // Create override for badge system (only after init stabilizes, baseline exists, AND value changed)
+                if (allowOverrideCreation && newValue != oldValue && plugin != null && function != null && plugin.HasFunctionBaseline((int)function.ID))
                 {
                     plugin.UpdateFunctionOverrideField((int)function.ID, "flight_stick.motion_range",
                         overrides =>
@@ -946,10 +999,10 @@ namespace DiyFfb
                 return;
             }
 
-            double min = Math.Min(GetPosMin(), GetPosMax());
-            double max = Math.Max(GetPosMin(), GetPosMax());
-            Rangeslider_travel_range.Minimum = min;
-            Rangeslider_travel_range.Maximum = max;
+            // Use reasonable fixed limits when axis kinematics not available
+            // Don't use current pos min/max - that would lock the slider to current range!
+            Rangeslider_travel_range.Minimum = -100;
+            Rangeslider_travel_range.Maximum = 100;
         }
     }
 }

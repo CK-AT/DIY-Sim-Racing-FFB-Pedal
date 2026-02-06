@@ -245,12 +245,13 @@ namespace DiyFfb
                 ConnectToPort(Plugin.Settings.ESPNow_port);
             }
 
+            // Populate function configs from stored baselines BEFORE selecting initial function,
+            // so SwitchFunction displays merged values instead of defaults
+            PopulateFunctionConfigsFromBaselines();
+
             SetInitialSelections();
 
             InitializeVjoyIfEnabled();
-
-            // Populate function configs from stored baselines (after manager is initialized in Init())
-            PopulateFunctionConfigsFromBaselines();
         }
 
         /// <summary>
@@ -271,7 +272,6 @@ namespace DiyFfb
                 var config = Plugin.GetInitialFunctionConfig(functionId);
                 if (config != null)
                 {
-                    // Replace default config with stored baseline + overrides
                     function.Config = config;
                 }
             }
@@ -2595,8 +2595,17 @@ namespace DiyFfb
             }
             else
             {
-                // No profile override - use base config directly
-                functions[newFunctionId].Config = newFunctionConfig;
+                // No profile override - but still apply user overrides if any exist
+                var userOverrides = Plugin.GetUserFunctionOverrides(funcId);
+                if (userOverrides != null && !userOverrides.IsEmpty)
+                {
+                    var merged = TieredConfig.ConfigMerger.MergeFunctionConfig(newFunctionConfig, userOverrides);
+                    functions[newFunctionId].Config = merged;
+                }
+                else
+                {
+                    functions[newFunctionId].Config = newFunctionConfig;
+                }
                 if (newFunctionId == selected_function_id)
                 {
                     uc_function_config.SwitchFunction(functions[newFunctionId]);
