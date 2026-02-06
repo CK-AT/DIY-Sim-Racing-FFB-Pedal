@@ -178,6 +178,38 @@ private void OnBadgeOverrideCleared(object sender, LayerBadgeWrapper.OverrideCle
 | FlightStick | `GetPosMin()` / `SetPosMin()` | `GetPosMax()` / `SetPosMax()` | `MotionRangeOverrides` | `.Min` | `.Max` |
 | FlightPedals | `config.PosNearLim` | `config.PosFarLim` | `MotionRangeOverrides` | `.NearLim` | `.FarLim` |
 
+## Step 6: XAML — Add LayerBadgeWrapper
+
+The badge template uses `RenderTransform Y=-14` to float above the wrapped control. It needs vertical space above it (typically a section header label) or it gets clipped by SimHub's outer ScrollViewer.
+
+**Pattern A — Regular Slider** (used in "Additional Settings" for damping, friction, etc.):
+
+```xml
+<StackPanel Width="400" Height="40">
+    <Label Content="Field Name:" Foreground="White" FontSize="10" FontFamily="Arial"
+           HorizontalAlignment="Left" VerticalAlignment="Top" Padding="0,0,0,8"/>
+    <badge:LayerBadgeWrapper FieldPath="field.path">
+        <Slider ... Width="400" Height="10"/>
+    </badge:LayerBadgeWrapper>
+</StackPanel>
+```
+
+The label above the slider provides the badge's landing zone within the fixed-height container.
+
+**Pattern B — RangeSlider** (used for motion_range and rudder brake force_range):
+
+```xml
+<StackPanel Width="400" Orientation="Horizontal">
+    <Label x:Name="Label_min" Width="42" Height="30" Content="Min" .../>
+    <badge:LayerBadgeWrapper FieldPath="field.path">
+        <metro:RangeSlider ... Width="316" Height="20"/>
+    </badge:LayerBadgeWrapper>
+    <Label x:Name="Label_max" Width="42" Height="30" Content="Max" .../>
+</StackPanel>
+```
+
+Min/Max labels go **outside** the badge wrapper. The section header above provides the badge's landing zone. Widths must sum to the container width (42 + 316 + 42 = 400).
+
 ## Checklist
 
 Per control, check off:

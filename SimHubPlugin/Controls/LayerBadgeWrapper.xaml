@@ -11,17 +11,21 @@
                         <!-- Content (the wrapped control) -->
                         <ContentPresenter />
 
-                        <!-- Badge overlay (upper-right corner) -->
+                        <!-- Badge overlay: positioned at top-right, shifted up via RenderTransform
+                             to avoid layout clipping while staying above the slider -->
                         <Border x:Name="PART_Badge"
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Top"
                                 CornerRadius="2"
                                 Padding="4,1"
-                                Margin="0,-20,-2,0"
+                                Margin="0,0,2,0"
                                 Background="Transparent"
                                 Visibility="Hidden"
                                 ToolTipService.ShowDuration="30000"
                                 ToolTipService.InitialShowDelay="300">
+                            <Border.RenderTransform>
+                                <TranslateTransform Y="-14" />
+                            </Border.RenderTransform>
                             <TextBlock x:Name="PART_BadgeText"
                                        FontSize="10"
                                        FontWeight="Bold"

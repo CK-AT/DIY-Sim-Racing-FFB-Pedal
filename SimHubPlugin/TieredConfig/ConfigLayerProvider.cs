@@ -108,6 +108,21 @@ namespace DiyFfb.TieredConfig
                 case "flight_pedals.centering_spring_const":
                     return overrides.FlightPedalsCenteringSpringConst.HasValue;
 
+                case "aux_function.rudder_brake.force_range":
+                    return overrides.RudderBrakeForceRange != null && !overrides.RudderBrakeForceRange.IsEmpty;
+
+                case "force_curve":
+                    return overrides.ForceCurve != null;
+
+                case "damper_config.positive_factor":
+                    return overrides.DamperConfig?.PositiveFactor.HasValue == true;
+
+                case "damper_config.negative_factor":
+                    return overrides.DamperConfig?.NegativeFactor.HasValue == true;
+
+                case "shifter_config":
+                    return overrides.ShifterConfig != null;
+
                 default:
                     return false;
             }
@@ -219,7 +234,21 @@ namespace DiyFfb.TieredConfig
                 case "friction": return config.Friction;
                 case "static_balance_tuning.enabled": return config.StaticBalanceTuning?.Enabled;
                 case "static_balance_tuning.gain": return config.StaticBalanceTuning?.Gain;
-                // Add more fields as needed
+                case "flight_pedals.motion_range":
+                    return config.FlightPedals != null ? $"{config.FlightPedals.PosNearLim}-{config.FlightPedals.PosFarLim}mm" : null;
+                case "flight_pedals.damping": return config.FlightPedals?.Damping;
+                case "flight_pedals.centering_spring_const": return config.FlightPedals?.CenteringSpringConst;
+                case "flight_stick.motion_range":
+                    if (config.FlightStickPitch != null) return $"{config.FlightStickPitch.PosMin}-{config.FlightStickPitch.PosMax}mm";
+                    return null;
+                case "flight_stick.damping": return config.FlightStickPitch?.Damping;
+                case "flight_stick.centering_spring_const": return config.FlightStickPitch?.CenteringSpringConst;
+                case "aux_function.rudder_brake.force_range":
+                    return config.AuxFunction?.RudderBrake != null ? $"{config.AuxFunction.RudderBrake.FMin:F1}-{config.AuxFunction.RudderBrake.FMax:F1}N" : null;
+                case "force_curve": return config.AutomotivePedal?.ForceCurveConfig;
+                case "damper_config.positive_factor": return config.AutomotivePedal?.DamperConfig?.PositiveFactor;
+                case "damper_config.negative_factor": return config.AutomotivePedal?.DamperConfig?.NegativeFactor;
+                case "shifter_config": return config.Shifter;
                 default: return null;
             }
         }

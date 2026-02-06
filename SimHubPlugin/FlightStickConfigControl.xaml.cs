@@ -168,7 +168,37 @@ namespace DiyFfb
                     UpdateTravelMarkers();
                     break;
 
-                // Add other fields as they're migrated
+                case "flight_stick.damping":
+                    float mergedDamping;
+                    switch (GetMode())
+                    {
+                        case FlightStickMode.Roll: mergedDamping = mergedConfig.FlightStickRoll.Damping; break;
+                        case FlightStickMode.Collective: mergedDamping = mergedConfig.FlightStickCollective.Damping; break;
+                        default: mergedDamping = mergedConfig.FlightStickPitch.Damping; break;
+                    }
+                    SetDamping(mergedDamping);
+                    Slider_damping.Value = mergedDamping;
+                    label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", mergedDamping);
+                    break;
+
+                case "flight_stick.centering_spring_const":
+                    float mergedSpring;
+                    switch (GetMode())
+                    {
+                        case FlightStickMode.Roll: mergedSpring = mergedConfig.FlightStickRoll.CenteringSpringConst; break;
+                        case FlightStickMode.Collective: mergedSpring = mergedConfig.FlightStickCollective.CenteringSpringConst; break;
+                        default: mergedSpring = mergedConfig.FlightStickPitch.CenteringSpringConst; break;
+                    }
+                    SetCenteringSpringConst(mergedSpring);
+                    Slider_centering_spring_const.Value = mergedSpring;
+                    label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", mergedSpring);
+                    break;
+
+                case "friction":
+                    function_config.Friction = mergedConfig.Friction;
+                    Slider_friction.Value = mergedConfig.Friction;
+                    label_friction.Content = String.Format("Friction: {0:F1}N", mergedConfig.Friction);
+                    break;
             }
             is_updating = false;
         }
@@ -686,20 +716,47 @@ namespace DiyFfb
 
         private void OnDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            SetDamping((float)e.NewValue);
-            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", e.NewValue);
+            if (is_updating) return;
+            var newValue = (float)e.NewValue;
+            SetDamping(newValue);
+            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", newValue);
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "flight_stick.damping",
+                    overrides => overrides.FlightStickDamping = newValue);
+            }
         }
 
         private void OnCentringSpringChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            SetCenteringSpringConst((float)e.NewValue);
-            label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", e.NewValue);
+            if (is_updating) return;
+            var newValue = (float)e.NewValue;
+            SetCenteringSpringConst(newValue);
+            label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", newValue);
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "flight_stick.centering_spring_const",
+                    overrides => overrides.FlightStickCenteringSpringConst = newValue);
+            }
         }
 
         private void OnFrictionChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            label_friction.Content = String.Format("Friction: {0:F1}N", e.NewValue);
-            function_config.Friction = (float)e.NewValue;
+            if (is_updating) return;
+            var newValue = (float)e.NewValue;
+            label_friction.Content = String.Format("Friction: {0:F1}N", newValue);
+            function_config.Friction = newValue;
+
+            if (plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "friction",
+                    overrides => overrides.Friction = newValue);
+            }
         }
 
         private void OnSimulatedMassChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

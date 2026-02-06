@@ -29,6 +29,7 @@ namespace DiyFfb
         private Function function;
         private FunctionID current_function_id;
         bool is_updating = true;
+        private bool allowOverrideCreation = false;  // Only true after initial load stabilizes
         private double latestAxisPosition;
         private bool hasAxisPosition;
         private double latestAxisForce;
@@ -79,6 +80,12 @@ namespace DiyFfb
                 plugin.ContextChanged += OnContextChanged;
                 plugin.OverrideFieldChanged += OnOverrideFieldChanged;
             }
+
+            // Subscribe to badge clear events to update sliders
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                wrapper.OverrideCleared += OnBadgeOverrideCleared;
+            }
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -87,6 +94,12 @@ namespace DiyFfb
             {
                 plugin.ContextChanged -= OnContextChanged;
                 plugin.OverrideFieldChanged -= OnOverrideFieldChanged;
+            }
+
+            // Unsubscribe from badge events
+            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
+            {
+                wrapper.OverrideCleared -= OnBadgeOverrideCleared;
             }
         }
 
@@ -101,6 +114,68 @@ namespace DiyFfb
             {
                 RefreshBadgeForField(e.FieldPath);
             }
+        }
+
+        private void OnBadgeOverrideCleared(object sender, LayerBadgeWrapper.OverrideClearedEventArgs e)
+        {
+            if (plugin == null || function == null) return;
+
+            var mergedConfig = plugin.FunctionConfigManager.GetCurrentConfig((int)function.ID);
+            if (mergedConfig == null) return;
+
+            is_updating = true;
+            switch (e.FieldPath)
+            {
+                case "flight_pedals.motion_range":
+                    config.PosNearLim = mergedConfig.FlightPedals.PosNearLim;
+                    config.PosFarLim = mergedConfig.FlightPedals.PosFarLim;
+                    function_config.Base.OutputMin = config.PosNearLim;
+                    function_config.Base.OutputMax = config.PosFarLim;
+                    Rangeslider_travel_range.LowerValue = config.PosNearLim;
+                    Rangeslider_travel_range.UpperValue = config.PosFarLim;
+                    if (Label_near_pos != null)
+                        Label_near_pos.Content = String.Format("Near\n{0}mm", config.PosNearLim);
+                    if (Label_far_pos != null)
+                        Label_far_pos.Content = String.Format("Far\n{0}mm", config.PosFarLim);
+                    UpdateTravelMarkers();
+                    break;
+
+                case "flight_pedals.damping":
+                    config.Damping = mergedConfig.FlightPedals.Damping;
+                    Slider_damping.Value = config.Damping;
+                    label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", config.Damping);
+                    break;
+
+                case "flight_pedals.centering_spring_const":
+                    config.CenteringSpringConst = mergedConfig.FlightPedals.CenteringSpringConst;
+                    Slider_centering_spring_const.Value = config.CenteringSpringConst;
+                    label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", config.CenteringSpringConst);
+                    break;
+
+                case "simulated_mass":
+                    function_config.SimulatedMass = mergedConfig.SimulatedMass;
+                    Slider_simulated_mass.Value = mergedConfig.SimulatedMass;
+                    label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
+                    break;
+
+                case "friction":
+                    function_config.Friction = mergedConfig.Friction;
+                    Slider_friction.Value = mergedConfig.Friction;
+                    label_friction.Content = String.Format("Friction: {0:F1}N", mergedConfig.Friction);
+                    break;
+
+                case "aux_function.rudder_brake.force_range":
+                    function_config.AuxFunction.RudderBrake.FMin = mergedConfig.AuxFunction.RudderBrake.FMin;
+                    function_config.AuxFunction.RudderBrake.FMax = mergedConfig.AuxFunction.RudderBrake.FMax;
+                    Rangeslider_brake_force_range.LowerValue = mergedConfig.AuxFunction.RudderBrake.FMin / 9.81f;
+                    Rangeslider_brake_force_range.UpperValue = mergedConfig.AuxFunction.RudderBrake.FMax / 9.81f;
+                    if (Label_min_brake_force != null)
+                        Label_min_brake_force.Content = String.Format("Preload\n{0:F1}kg", mergedConfig.AuxFunction.RudderBrake.FMin / 9.81f);
+                    if (Label_max_brake_force != null)
+                        Label_max_brake_force.Content = String.Format("Max\n{0:F1}kg", mergedConfig.AuxFunction.RudderBrake.FMax / 9.81f);
+                    break;
+            }
+            is_updating = false;
         }
 
         private void RefreshAllBadges()
@@ -237,6 +312,7 @@ namespace DiyFfb
             brake_config = function_config.AuxFunction.RudderBrake;
             current_function_id = function_config.Base.FunctionId;
             hasAxisRange = false;
+            allowOverrideCreation = false;  // Reset until function switch stabilizes
 
             is_updating = true;
             uc_axis_selector_pilot_right.Value = function_config.Base.LinkedAxes[0];
@@ -274,27 +350,64 @@ namespace DiyFfb
             UpdateTrimCenter();
             UpdateTravelMarkers();
             is_updating = false;
+
+            // Update labels with config values (event handlers were blocked by is_updating flag)
+            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", function_config.SimulatedMass);
+            label_friction.Content = String.Format("Friction: {0:F1}N", function_config.Friction);
+            label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", config.CenteringSpringConst);
+            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", config.Damping);
             RefreshGraphParams();
             UpdateDisableOutputsToggle();
             InitializeBadges();
+
+            // Allow override creation only after all deferred events have been processed
+            Dispatcher.BeginInvoke(new Action(() => allowOverrideCreation = true),
+                System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
         private void OnDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            config.Damping = (float)e.NewValue;
-            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", e.NewValue);
+            if (is_updating) return;
+            var newValue = (float)e.NewValue;
+            config.Damping = newValue;
+            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", newValue);
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.damping",
+                    overrides => overrides.FlightPedalsDamping = newValue);
+            }
         }
 
         private void OnCentringSpringChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            config.CenteringSpringConst = (float)e.NewValue;
-            label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", e.NewValue);
+            if (is_updating) return;
+            var newValue = (float)e.NewValue;
+            config.CenteringSpringConst = newValue;
+            label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", newValue);
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.centering_spring_const",
+                    overrides => overrides.FlightPedalsCenteringSpringConst = newValue);
+            }
         }
 
         private void OnSimulatedMassChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", e.NewValue);
-            function_config.SimulatedMass = (float)e.NewValue;
+            if (is_updating) return;
+            var newValue = (float)e.NewValue;
+            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", newValue);
+            function_config.SimulatedMass = newValue;
+
+            if (plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
+                    overrides => overrides.SimulatedMass = newValue);
+            }
         }
 
         private void AutomotivePedal_AxisSelector_AxisIDChanged(object sender, AxisSelector.AxisIDChangedEventArgs e)
@@ -355,7 +468,22 @@ namespace DiyFfb
         {
             if (!is_updating)
             {
-                function_config.AuxFunction.RudderBrake.FMin = (float)(e.NewValue * 9.81);
+                var newValueN = (float)(e.NewValue * 9.81);
+                var oldValue = function_config.AuxFunction.RudderBrake.FMin;
+                function_config.AuxFunction.RudderBrake.FMin = newValueN;
+
+                if (allowOverrideCreation && Math.Abs(newValueN - oldValue) > 0.01f &&
+                    plugin != null && function != null &&
+                    plugin.HasFunctionBaseline((int)function.ID))
+                {
+                    plugin.UpdateFunctionOverrideField((int)function.ID, "aux_function.rudder_brake.force_range",
+                        overrides =>
+                        {
+                            if (overrides.RudderBrakeForceRange == null)
+                                overrides.RudderBrakeForceRange = new TieredConfig.ForceRangeOverrides();
+                            overrides.RudderBrakeForceRange.Min = newValueN;
+                        });
+                }
             }
             if (Label_min_brake_force != null)
             {
@@ -367,7 +495,22 @@ namespace DiyFfb
         {
             if (!is_updating)
             {
-                function_config.AuxFunction.RudderBrake.FMax = (float)(e.NewValue * 9.81);
+                var newValueN = (float)(e.NewValue * 9.81);
+                var oldValue = function_config.AuxFunction.RudderBrake.FMax;
+                function_config.AuxFunction.RudderBrake.FMax = newValueN;
+
+                if (allowOverrideCreation && Math.Abs(newValueN - oldValue) > 0.01f &&
+                    plugin != null && function != null &&
+                    plugin.HasFunctionBaseline((int)function.ID))
+                {
+                    plugin.UpdateFunctionOverrideField((int)function.ID, "aux_function.rudder_brake.force_range",
+                        overrides =>
+                        {
+                            if (overrides.RudderBrakeForceRange == null)
+                                overrides.RudderBrakeForceRange = new TieredConfig.ForceRangeOverrides();
+                            overrides.RudderBrakeForceRange.Max = newValueN;
+                        });
+                }
             }
             if (Label_max_brake_force != null)
             {
@@ -385,8 +528,29 @@ namespace DiyFfb
         {
             if (!is_updating)
             {
-                config.PosNearLim = Convert.ToInt16(e.NewValue);
-                function_config.Base.OutputMin = Convert.ToInt16(e.NewValue);
+                var newValue = Convert.ToInt16(e.NewValue);
+
+                // Skip stale deferred events
+                if (Rangeslider_travel_range != null &&
+                    Convert.ToInt16(Rangeslider_travel_range.LowerValue) != newValue)
+                    return;
+
+                var oldValue = config.PosNearLim;
+                config.PosNearLim = newValue;
+                function_config.Base.OutputMin = newValue;
+
+                if (allowOverrideCreation && newValue != oldValue &&
+                    plugin != null && function != null &&
+                    plugin.HasFunctionBaseline((int)function.ID))
+                {
+                    plugin.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.motion_range",
+                        overrides =>
+                        {
+                            if (overrides.FlightPedalsMotionRange == null)
+                                overrides.FlightPedalsMotionRange = new TieredConfig.MotionRangeOverrides();
+                            overrides.FlightPedalsMotionRange.NearLim = newValue;
+                        });
+                }
             }
             if (Label_near_pos != null)
             {
@@ -399,8 +563,29 @@ namespace DiyFfb
         {
             if (!is_updating)
             {
-                config.PosFarLim = Convert.ToInt16(e.NewValue);
-                function_config.Base.OutputMax = Convert.ToInt16(e.NewValue);
+                var newValue = Convert.ToInt16(e.NewValue);
+
+                // Skip stale deferred events
+                if (Rangeslider_travel_range != null &&
+                    Convert.ToInt16(Rangeslider_travel_range.UpperValue) != newValue)
+                    return;
+
+                var oldValue = config.PosFarLim;
+                config.PosFarLim = newValue;
+                function_config.Base.OutputMax = newValue;
+
+                if (allowOverrideCreation && newValue != oldValue &&
+                    plugin != null && function != null &&
+                    plugin.HasFunctionBaseline((int)function.ID))
+                {
+                    plugin.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.motion_range",
+                        overrides =>
+                        {
+                            if (overrides.FlightPedalsMotionRange == null)
+                                overrides.FlightPedalsMotionRange = new TieredConfig.MotionRangeOverrides();
+                            overrides.FlightPedalsMotionRange.FarLim = newValue;
+                        });
+                }
             }
             if (Label_far_pos != null)
             {
@@ -421,8 +606,17 @@ namespace DiyFfb
 
         private void OnFrictionChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            label_friction.Content = String.Format("Friction: {0:F1}N", e.NewValue);
-            function_config.Friction = (float)e.NewValue;
+            if (is_updating) return;
+            var newValue = (float)e.NewValue;
+            label_friction.Content = String.Format("Friction: {0:F1}N", newValue);
+            function_config.Friction = newValue;
+
+            if (plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "friction",
+                    overrides => overrides.Friction = newValue);
+            }
         }
 
         private void UpdateTrimCenter()

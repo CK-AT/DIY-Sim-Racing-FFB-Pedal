@@ -2727,8 +2727,38 @@ namespace DiyFfb
                     overrides.StaticBalanceTuning = null; break;
                 case "flight_stick.motion_range":
                     overrides.FlightStickMotionRange = null; break;
+                case "flight_stick.damping":
+                    overrides.FlightStickDamping = null; break;
+                case "flight_stick.centering_spring_const":
+                    overrides.FlightStickCenteringSpringConst = null; break;
                 case "flight_pedals.motion_range":
                     overrides.FlightPedalsMotionRange = null; break;
+                case "flight_pedals.damping":
+                    overrides.FlightPedalsDamping = null; break;
+                case "flight_pedals.centering_spring_const":
+                    overrides.FlightPedalsCenteringSpringConst = null; break;
+                case "aux_function.rudder_brake.force_range":
+                    overrides.RudderBrakeForceRange = null; break;
+                case "force_curve":
+                    overrides.ForceCurve = null; break;
+                case "DamperPositiveFactor":
+                case "damper_config.positive_factor":
+                    if (overrides.DamperConfig != null)
+                    {
+                        overrides.DamperConfig.PositiveFactor = null;
+                        if (overrides.DamperConfig.IsEmpty) overrides.DamperConfig = null;
+                    }
+                    break;
+                case "DamperNegativeFactor":
+                case "damper_config.negative_factor":
+                    if (overrides.DamperConfig != null)
+                    {
+                        overrides.DamperConfig.NegativeFactor = null;
+                        if (overrides.DamperConfig.IsEmpty) overrides.DamperConfig = null;
+                    }
+                    break;
+                case "shifter_config":
+                    overrides.ShifterConfig = null; break;
             }
         }
 
