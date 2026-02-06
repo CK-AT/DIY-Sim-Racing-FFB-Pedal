@@ -32,7 +32,6 @@ namespace DiyFfb
         private double latestAxisPosition;
         private bool hasAxisPosition;
         private double latestAxisForce;
-        private bool hasAxisForce;
         private double latestTrimCenter;
         private bool hasTrimCenter;
         private DispatcherTimer xplaneTimer;
@@ -206,7 +205,6 @@ namespace DiyFfb
             latestAxisPosition = axis_state.Position;
             hasAxisPosition = true;
             latestAxisForce = axis_state.Force;
-            hasAxisForce = true;
             UpdateTrimCenter();
             UpdateTravelMarkers();
         }
