@@ -199,6 +199,7 @@ namespace DiyFfb
             uc_function_config.DebugMessage += OnDebugMessage;
             uc_axis_config.DebugMessage += OnDebugMessage;
             uc_axis_config.KinematicParametersChanged += OnKinematicParametersChanged;
+            uc_axis_config.OverrideChanged += RefreshAxisFunctionSelector;
             uc_function_config.SetGui(this, plugin);
             uc_axis_config.SetGui(this, plugin);
 
@@ -2976,6 +2977,101 @@ namespace DiyFfb
             }
         }
 
+        #region Axis Function Selector
+
+        private bool _updatingAxisFunctionSelector = false;
+
+        /// <summary>
+        /// Refresh the axis function selector dropdown with functions linking to the selected axis.
+        /// </summary>
+        private void RefreshAxisFunctionSelector()
+        {
+            if (AxisFunctionSelector == null || Plugin == null || selected_axis_id == AxisID.AxisUndefined)
+                return;
+
+            _updatingAxisFunctionSelector = true;
+            try
+            {
+                var items = new List<FunctionSelectorItem>();
+                int axisId = (int)selected_axis_id;
+
+                items.Add(new FunctionSelectorItem
+                {
+                    FunctionId = -1,
+                    DisplayName = "Baseline",
+                    HasOverride = false,
+                    IsAxisBase = true
+                });
+
+                var linkedFunctions = Plugin.GetFunctionsLinkingToAxis(axisId);
+                foreach (var func in linkedFunctions)
+                {
+                    items.Add(new FunctionSelectorItem
+                    {
+                        FunctionId = func.FunctionId,
+                        DisplayName = func.FunctionName,
+                        HasOverride = func.HasOverride,
+                        IsAxisBase = false
+                    });
+                }
+
+                AxisFunctionSelector.ItemsSource = items;
+
+                // Restore selection to match AxisConfigControl's current state
+                var mode = uc_axis_config.EditingMode;
+                var funcId = uc_axis_config.SelectedFunctionId;
+                if (mode == AxisEditingMode.AxisBase || funcId < 0)
+                {
+                    AxisFunctionSelector.SelectedIndex = 0;
+                }
+                else
+                {
+                    var match = items.FirstOrDefault(i => i.FunctionId == funcId);
+                    if (match != null)
+                        AxisFunctionSelector.SelectedItem = match;
+                    else
+                        AxisFunctionSelector.SelectedIndex = 0;
+                }
+
+                // Show/hide clear button based on current override state
+                bool hasOverride = mode == AxisEditingMode.FunctionOverride
+                    && Plugin.GetAxisParameterOverride(funcId, axisId) != null;
+                BtnClearAxisOverride.Visibility = hasOverride ? Visibility.Visible : Visibility.Collapsed;
+            }
+            finally
+            {
+                _updatingAxisFunctionSelector = false;
+            }
+        }
+
+        private void AxisFunctionSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_updatingAxisFunctionSelector || AxisFunctionSelector.SelectedItem == null)
+                return;
+
+            var selectedItem = AxisFunctionSelector.SelectedItem as FunctionSelectorItem;
+            if (selectedItem == null)
+                return;
+
+            if (selectedItem.IsAxisBase)
+            {
+                uc_axis_config.SwitchToBaseline();
+                BtnClearAxisOverride.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                bool hasOverride = uc_axis_config.SwitchToFunction(selectedItem.FunctionId);
+                BtnClearAxisOverride.Visibility = hasOverride ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+
+        private void OnClearAxisOverrideClicked(object sender, RoutedEventArgs e)
+        {
+            uc_axis_config.ClearCurrentOverride();
+            BtnClearAxisOverride.Visibility = Visibility.Collapsed;
+            RefreshAxisFunctionSelector();
+        }
+
         private void OnSaveAxisBaselineClicked(object sender, RoutedEventArgs e)
         {
             if (Plugin == null || selected_axis_id == AxisID.AxisUndefined)
@@ -2986,7 +3082,7 @@ namespace DiyFfb
 
             int axisIdInt = (int)selected_axis_id;
 
-            var result = ThemedMessageBox.Show(
+            var result = Controls.ThemedMessageBox.Show(
                 $"Save Axis {axisIdInt} configuration as hardware baseline?\n\nAxis overrides for this axis will be cleared.",
                 "Save as Baseline",
                 MessageBoxButton.YesNo,
@@ -2995,8 +3091,6 @@ namespace DiyFfb
                 return;
 
             var configToSave = axis.Config.Clone();
-
-            // Save as baseline
             Plugin.SetAxisBaseline(axisIdInt, configToSave);
 
             // Clear axis overrides for this axis across all functions
@@ -3009,9 +3103,11 @@ namespace DiyFfb
                 }
             }
 
-            // Refresh UI
             uc_axis_config.UpdateConfig(axis.Config);
+            RefreshAxisFunctionSelector();
         }
+
+        #endregion
 
         private void OnOpenGraphEditorClicked(object sender, RoutedEventArgs e)
         {

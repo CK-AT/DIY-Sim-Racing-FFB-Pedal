@@ -52,8 +52,13 @@ namespace DiyFfb
         // Function override editing state
         private AxisEditingMode _editingMode = AxisEditingMode.AxisBase;
         private int _selectedFunctionId = -1;
-        private bool _updatingFunctionSelector = false;
         private bool _suppressOverrideSave = false;
+
+        /// <summary>
+        /// Fired when an axis override is created or modified (e.g. kinematics/static-balance edit in override mode).
+        /// The parent should refresh the selector badges and show the clear button.
+        /// </summary>
+        public event Action OverrideChanged;
 
         // Baseline snapshots: fallback for when the manager doesn't yet have a
         // base config (before first ESP32 config arrives).  Once the manager has
@@ -111,108 +116,45 @@ namespace DiyFfb
             GeneralKinematicsControl.SetGui(ui, plugin);
         }
 
-        #region Function Selector for Override Mode
+        #region Function Override Editing
 
         /// <summary>
-        /// Refresh the function selector dropdown with functions linking to this axis.
+        /// Switch to baseline editing mode. Called by the parent UI.
         /// </summary>
-        public void RefreshFunctionSelector()
+        public void SwitchToBaseline()
         {
-            if (FunctionSelector == null || plugin == null || config == null)
-                return;
-
-            _updatingFunctionSelector = true;
-            try
-            {
-                var items = new List<FunctionSelectorItem>();
-                int axisId = (int)config.AxisId;
-
-                // Add the "Baseline" option first
-                string axisName = config.AxisId.ToString().Replace("Axis", "Axis ");
-                items.Add(new FunctionSelectorItem
-                {
-                    FunctionId = -1,
-                    DisplayName = "Baseline",
-                    HasOverride = false,
-                    IsAxisBase = true
-                });
-
-                // Get functions linking to this axis
-                var linkedFunctions = plugin.GetFunctionsLinkingToAxis(axisId);
-                foreach (var func in linkedFunctions)
-                {
-                    items.Add(new FunctionSelectorItem
-                    {
-                        FunctionId = func.FunctionId,
-                        DisplayName = func.FunctionName,
-                        HasOverride = func.HasOverride,
-                        IsAxisBase = false
-                    });
-                }
-
-                FunctionSelector.ItemsSource = items;
-
-                // Select the appropriate item
-                if (_editingMode == AxisEditingMode.AxisBase || _selectedFunctionId < 0)
-                {
-                    FunctionSelector.SelectedIndex = 0;
-                }
-                else
-                {
-                    var matchingItem = items.FirstOrDefault(i => i.FunctionId == _selectedFunctionId);
-                    if (matchingItem != null)
-                    {
-                        FunctionSelector.SelectedItem = matchingItem;
-                    }
-                    else
-                    {
-                        FunctionSelector.SelectedIndex = 0;
-                    }
-                }
-
-                // Show/hide selector panel based on whether there are functions to select
-                FunctionSelectorPanel.Visibility = items.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
-            }
-            finally
-            {
-                _updatingFunctionSelector = false;
-            }
+            _editingMode = AxisEditingMode.AxisBase;
+            _selectedFunctionId = -1;
+            ReloadBaseConfig();
         }
 
         /// <summary>
-        /// Handle function selector selection change.
+        /// Switch to function override editing mode. Called by the parent UI.
+        /// Returns true if an override exists for this function/axis pair.
         /// </summary>
-        private void FunctionSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        public bool SwitchToFunction(int functionId)
         {
-            if (_updatingFunctionSelector || FunctionSelector.SelectedItem == null)
+            _editingMode = AxisEditingMode.FunctionOverride;
+            _selectedFunctionId = functionId;
+            LoadFunctionOverrideConfig();
+
+            int axisId = (int)config.AxisId;
+            var overrides = plugin?.GetAxisParameterOverride(functionId, axisId);
+            return overrides != null && !overrides.IsEmpty;
+        }
+
+        /// <summary>
+        /// Clear the override for the currently selected function, then reload.
+        /// </summary>
+        public void ClearCurrentOverride()
+        {
+            if (plugin == null || config == null || _selectedFunctionId < 0)
                 return;
 
-            var selectedItem = FunctionSelector.SelectedItem as FunctionSelectorItem;
-            if (selectedItem == null)
-                return;
-
-            if (selectedItem.IsAxisBase)
-            {
-                // Switch to axis base editing mode
-                _editingMode = AxisEditingMode.AxisBase;
-                _selectedFunctionId = -1;
-                BtnClearOverride.Visibility = Visibility.Collapsed;
-
-                // Reload the axis base config
-                ReloadBaseConfig();
-            }
-            else
-            {
-                // Switch to function override editing mode
-                _editingMode = AxisEditingMode.FunctionOverride;
-                _selectedFunctionId = selectedItem.FunctionId;
-                BtnClearOverride.Visibility = selectedItem.HasOverride ? Visibility.Visible : Visibility.Collapsed;
-
-                // Load the override config (or base if no override exists)
-                LoadFunctionOverrideConfig();
-            }
-
-            DebugMessage?.Invoke($"Editing mode: {_editingMode}, Function: {_selectedFunctionId}");
+            int axisId = (int)config.AxisId;
+            plugin.ClearAxisParameterOverride(_selectedFunctionId, axisId);
+            LoadFunctionOverrideConfig();
+            DebugMessage?.Invoke($"Cleared axis override for function {_selectedFunctionId}, axis {axisId}");
         }
 
         /// <summary>
@@ -256,7 +198,6 @@ namespace DiyFfb
         /// <summary>
         /// Load the axis config for function override editing.
         /// If an override exists, use it; otherwise use the base axis config.
-        /// Note: The UI always shows base geometry; overrides store computed parameters.
         /// </summary>
         private void LoadFunctionOverrideConfig()
         {
@@ -301,7 +242,6 @@ namespace DiyFfb
 
             if (overrides != null)
             {
-                // If the override has stored geometry, load it into the kinematics editor
                 if (overrides.GeometryJson != null)
                 {
                     try
@@ -327,37 +267,11 @@ namespace DiyFfb
                     UpdateStaticBalanceUi(config.StaticBalanceConfig);
                     UpdateStaticBalancePlot();
                 }
-
-                BtnClearOverride.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                BtnClearOverride.Visibility = Visibility.Collapsed;
             }
 
             // Re-enable override saves after the QueueRebuild timer has had a chance to fire
             Dispatcher.BeginInvoke(new Action(() => _suppressOverrideSave = false),
                 System.Windows.Threading.DispatcherPriority.ContextIdle);
-        }
-
-        /// <summary>
-        /// Handle clear override button click.
-        /// </summary>
-        private void ClearOverride_Click(object sender, RoutedEventArgs e)
-        {
-            if (plugin == null || config == null || _selectedFunctionId < 0)
-                return;
-
-            int axisId = (int)config.AxisId;
-            plugin.ClearAxisParameterOverride(_selectedFunctionId, axisId);
-
-            // Reload base config
-            LoadFunctionOverrideConfig();
-
-            // Refresh the selector to update the [F] badge
-            RefreshFunctionSelector();
-
-            DebugMessage?.Invoke($"Cleared axis override for function {_selectedFunctionId}, axis {axisId}");
         }
 
         /// <summary>
@@ -368,7 +282,6 @@ namespace DiyFfb
             if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0 && plugin != null)
             {
                 int axisId = (int)config.AxisId;
-                // Store both computed parameters and the geometry that produced them
                 string geometryJson = null;
                 if (config.GeneralKinematic != null)
                 {
@@ -381,11 +294,7 @@ namespace DiyFfb
                     overrides.GeometryJson = geometryJson;
                 });
 
-                // Show clear button now that we have an override
-                BtnClearOverride.Visibility = Visibility.Visible;
-
-                // Refresh to update [F] badge
-                RefreshFunctionSelector();
+                OverrideChanged?.Invoke();
             }
             // In AxisBase mode, the existing KinematicParametersChanged event handles it
         }
@@ -403,11 +312,7 @@ namespace DiyFfb
                     overrides.StaticBalance = staticBalance.Clone();
                 });
 
-                // Show clear button now that we have an override
-                BtnClearOverride.Visibility = Visibility.Visible;
-
-                // Refresh to update [F] badge
-                RefreshFunctionSelector();
+                OverrideChanged?.Invoke();
             }
             // In AxisBase mode, the base config is already modified
         }
@@ -554,7 +459,7 @@ namespace DiyFfb
             // Reset to base mode when loading a new axis config
             _editingMode = AxisEditingMode.AxisBase;
             _selectedFunctionId = -1;
-            RefreshFunctionSelector();
+            OverrideChanged?.Invoke();
         }
 
         /// <summary>

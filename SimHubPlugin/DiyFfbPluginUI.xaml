@@ -367,6 +367,7 @@
                     </Trigger>
                 </Style.Triggers>
             </Style>
+            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -658,6 +659,7 @@
                                 </Canvas>
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
                                     <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="580" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Margin="0,0,0,3">
+                                    <StackPanel Orientation="Vertical">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                             <styles:SHButtonPrimary x:Name="btn_upload_axis_config" Click="OnUploadAxisConfigClicked" Width="110" Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends the axis configuration to the axis currently selected.&#x0a;Hold CTRL while clicking to store it into the axis' persistent memory as well." />
                                             <styles:SHButtonPrimary x:Name="btn_download_axis_config" Click="OnDownloadAxisConfigClicked" Width="110" Height="28" Content="Download" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Request the axis config from the selected axis." />
@@ -665,12 +667,30 @@
                                             <styles:SHButtonPrimary x:Name="btn_store_axis_config_to_file" Click="btn_store_axis_config_to_file_Click" Width="110" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this axis config to a .json file." />
                                             <styles:SHButtonPrimary x:Name="btn_home_axis" Click="btn_home_axis_Click" Width="110" Height="28" Content="Home" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Run the homing routine on the selected axis." />
                                         </StackPanel>
-                                    </Border>
-                                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="580" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Margin="0,0,0,3">
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                            <styles:SHButtonPrimary x:Name="btn_save_axis_baseline" Click="OnSaveAxisBaselineClicked" Width="160" Height="28" Content="Save as Baseline" Margin="5,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Save current axis configuration as the hardware baseline.&#x0a;This baseline is preserved across ESP32 reconnects and restarts." />
-                                        </StackPanel>
-                                    </Border>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,3" HorizontalAlignment="Left" Width="580">
+                                        <Label Content="Editing:" FontFamily="Arial" FontSize="10" VerticalContentAlignment="Center" Padding="0,0,5,0" Margin="6,0,0,0"/>
+                                        <ComboBox x:Name="AxisFunctionSelector" Width="200" Height="22" FontSize="10" SelectionChanged="AxisFunctionSelector_SelectionChanged">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text=" [F]" Foreground="#FF8B5CF6" FontWeight="Bold"
+                                                                   Visibility="{Binding HasOverride, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                   VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        <Button x:Name="BtnClearAxisOverride" Content="Clear Override" Width="100" Height="22" FontSize="10"
+                                                Margin="8,0,0,0" Click="OnClearAxisOverrideClicked" Visibility="Collapsed"
+                                                ToolTip="Remove axis parameter override for this function"/>
+                                        <styles:SHButtonPrimary x:Name="btn_save_axis_baseline" Click="OnSaveAxisBaselineClicked" Width="130" Height="22"
+                                                Content="Save as Baseline" Margin="5,0,0,0" FontSize="10"
+                                                VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0"
+                                                ToolTip="Save current axis configuration as the hardware baseline.&#x0a;This baseline is preserved across ESP32 reconnects and restarts."/>
+                                    </StackPanel>
+                                    </StackPanel>
+                                </Border>
                                     <local:AxisConfigControl x:Name="uc_axis_config" VerticalAlignment="Center" Height="762"></local:AxisConfigControl>
                                 </StackPanel>
                             </StackPanel>
