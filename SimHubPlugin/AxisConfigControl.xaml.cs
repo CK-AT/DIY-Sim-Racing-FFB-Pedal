@@ -55,9 +55,9 @@ namespace DiyFfb
         private bool _updatingFunctionSelector = false;
         private bool _suppressOverrideSave = false;
 
-        // Baseline snapshots: config is a reference to axis.Config, so applying
-        // overrides mutates it.  We snapshot these before overwriting so that
-        // switching back to Axis-Base restores the originals.
+        // Baseline snapshots: fallback for when the manager doesn't yet have a
+        // base config (before first ESP32 config arrives).  Once the manager has
+        // a baseline, it is the authoritative source.
         private GeneralKinematicConfig _baselineGeometry;
         private KinematicParameters _baselineKinematics;
         private AxisConfig.Types.StaticBalanceConfig _baselineStaticBalance;
@@ -127,12 +127,12 @@ namespace DiyFfb
                 var items = new List<FunctionSelectorItem>();
                 int axisId = (int)config.AxisId;
 
-                // Add the "Axis Base" option first
+                // Add the "Baseline" option first
                 string axisName = config.AxisId.ToString().Replace("Axis", "Axis ");
                 items.Add(new FunctionSelectorItem
                 {
                     FunctionId = -1,
-                    DisplayName = $"{axisName} (base)",
+                    DisplayName = "Baseline",
                     HasOverride = false,
                     IsAxisBase = true
                 });
@@ -227,22 +227,27 @@ namespace DiyFfb
 
             if (ui.axes.TryGetValue(config.AxisId, out var axis) && axis.Config != null)
             {
-                // Restore baseline values that were overwritten by function overrides
-                if (_baselineGeometry != null)
+                // Restore baseline values that were overwritten by function overrides.
+                // Prefer the manager's authoritative baseline; fall back to snapshots.
+                var managerBaseline = plugin?.AxisConfigManager?.GetBaseConfig((int)config.AxisId);
+                if (managerBaseline != null)
                 {
-                    axis.Config.GeneralKinematic = _baselineGeometry;
-                    _baselineGeometry = null;
+                    axis.Config.GeneralKinematic = managerBaseline.GeneralKinematic;
+                    axis.Config.KinematicParameters = managerBaseline.KinematicParameters;
+                    axis.Config.StaticBalanceConfig = managerBaseline.StaticBalanceConfig;
                 }
-                if (_baselineKinematics != null)
+                else
                 {
-                    axis.Config.KinematicParameters = _baselineKinematics;
-                    _baselineKinematics = null;
+                    if (_baselineGeometry != null)
+                        axis.Config.GeneralKinematic = _baselineGeometry;
+                    if (_baselineKinematics != null)
+                        axis.Config.KinematicParameters = _baselineKinematics;
+                    if (_baselineStaticBalance != null)
+                        axis.Config.StaticBalanceConfig = _baselineStaticBalance;
                 }
-                if (_baselineStaticBalance != null)
-                {
-                    axis.Config.StaticBalanceConfig = _baselineStaticBalance;
-                    _baselineStaticBalance = null;
-                }
+                _baselineGeometry = null;
+                _baselineKinematics = null;
+                _baselineStaticBalance = null;
 
                 UpdateConfig(axis.Config);
             }
@@ -262,25 +267,31 @@ namespace DiyFfb
             // that would otherwise overwrite stored overrides with base values.
             _suppressOverrideSave = true;
 
-            // Undo any mutations from a previous override before loading base config.
-            // config is a direct reference to axis.Config, so previous override
-            // applies or user edits have corrupted it.
+            // Restore axis.Config to baseline before loading UI and applying overrides.
+            // Prefer manager's authoritative baseline; fall back to snapshots.
+            var managerBaseline = plugin.AxisConfigManager.GetBaseConfig((int)config.AxisId);
             if (ui != null && ui.axes.TryGetValue(config.AxisId, out var axis) && axis.Config != null)
             {
-                if (_baselineGeometry != null)
-                    axis.Config.GeneralKinematic = _baselineGeometry;
-                if (_baselineKinematics != null)
-                    axis.Config.KinematicParameters = _baselineKinematics;
-                if (_baselineStaticBalance != null)
-                    axis.Config.StaticBalanceConfig = _baselineStaticBalance;
+                if (managerBaseline != null)
+                {
+                    axis.Config.GeneralKinematic = managerBaseline.GeneralKinematic;
+                    axis.Config.KinematicParameters = managerBaseline.KinematicParameters;
+                    axis.Config.StaticBalanceConfig = managerBaseline.StaticBalanceConfig;
+                }
+                else
+                {
+                    if (_baselineGeometry != null)
+                        axis.Config.GeneralKinematic = _baselineGeometry;
+                    if (_baselineKinematics != null)
+                        axis.Config.KinematicParameters = _baselineKinematics;
+                    if (_baselineStaticBalance != null)
+                        axis.Config.StaticBalanceConfig = _baselineStaticBalance;
+                }
 
                 LoadConfigIntoUi(axis.Config);
             }
 
-            // Snapshot baseline values now — config is a direct reference to
-            // axis.Config, so any later mutations (override apply or user edits)
-            // would corrupt the base.  Must happen before overrides AND before
-            // user edits can create a first override.
+            // Snapshot as fallback (for when manager doesn't have a baseline yet)
             _baselineGeometry = config.GeneralKinematic?.Clone();
             _baselineKinematics = config.KinematicParameters?.Clone();
             _baselineStaticBalance = config.StaticBalanceConfig?.Clone();

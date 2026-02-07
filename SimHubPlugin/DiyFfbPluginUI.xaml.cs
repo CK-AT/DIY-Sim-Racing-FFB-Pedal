@@ -2653,7 +2653,39 @@ namespace DiyFfb
             AxisID newAxisId = newAxisConfig.AxisId;
             if (newAxisId != AxisID.AxisUndefined && newAxisId <= AxisID._8)
             {
-                axes[newAxisId].Config = newAxisConfig;
+                int axisIdInt = (int)newAxisId;
+
+                // Use stored baseline if available (ESP32 may echo back overridden values)
+                AxisConfig baseConfig;
+                if (Plugin.HasAxisBaseline(axisIdInt))
+                {
+                    baseConfig = Plugin.GetAxisBaseline(axisIdInt);
+                    // Preserve axis ID from ESP32
+                    baseConfig.AxisId = newAxisId;
+                }
+                else
+                {
+                    baseConfig = newAxisConfig;
+                }
+
+                // Update manager's base config (also sets _currentConfigs)
+                Plugin.AxisConfigManager.SetBaseConfig(axisIdInt, baseConfig);
+
+                // Re-apply active function override if one exists
+                int? overridingFunc = Plugin.AxisConfigManager.GetOverridingFunction(axisIdInt);
+                if (overridingFunc.HasValue)
+                {
+                    var overrides = Plugin.GetAxisParameterOverride(overridingFunc.Value, axisIdInt);
+                    if (overrides != null && !overrides.IsEmpty)
+                    {
+                        Plugin.AxisConfigManager.ApplyFunctionOverride(
+                            axisIdInt, overridingFunc.Value, overrides, diffCheck: false);
+                    }
+                }
+
+                // Use manager's current config (base or overridden)
+                var currentConfig = Plugin.AxisConfigManager.GetCurrentConfig(axisIdInt) ?? baseConfig;
+                axes[newAxisId].Config = currentConfig;
                 axes[newAxisId].HasAxisConfig = true;
                 if (newAxisId == selected_axis_id)
                 {
@@ -2918,6 +2950,14 @@ namespace DiyFfb
 
             if (configToSave != null)
             {
+                var result = ThemedMessageBox.Show(
+                    $"Save {function.Name} configuration as hardware baseline?\n\nAll overrides will be baked into the baseline and cleared.",
+                    "Save as Baseline",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+                if (result != MessageBoxResult.Yes)
+                    return;
+
                 // Save as baseline (this "bakes" all overrides AND direct edits into the new baseline)
                 Plugin.SetFunctionBaseline((int)function.ID, configToSave);
 
@@ -2933,14 +2973,44 @@ namespace DiyFfb
                 {
                     uc_function_config.RefreshAllBadges();
                 }), System.Windows.Threading.DispatcherPriority.Background);
-
-                // Show confirmation
-                ThemedMessageBox.Show(
-                    $"Saved {function.Name} configuration as hardware baseline.\n\nAll overrides have been baked into the baseline and cleared.",
-                    "Baseline Saved",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
             }
+        }
+
+        private void OnSaveAxisBaselineClicked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || selected_axis_id == AxisID.AxisUndefined)
+                return;
+
+            if (!axes.TryGetValue(selected_axis_id, out var axis) || axis.Config == null)
+                return;
+
+            int axisIdInt = (int)selected_axis_id;
+
+            var result = ThemedMessageBox.Show(
+                $"Save Axis {axisIdInt} configuration as hardware baseline?\n\nAxis overrides for this axis will be cleared.",
+                "Save as Baseline",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            var configToSave = axis.Config.Clone();
+
+            // Save as baseline
+            Plugin.SetAxisBaseline(axisIdInt, configToSave);
+
+            // Clear axis overrides for this axis across all functions
+            if (Plugin.Settings?.FunctionAxisOverrides != null)
+            {
+                var functionIds = Plugin.Settings.FunctionAxisOverrides.Keys.ToList();
+                foreach (var funcId in functionIds)
+                {
+                    Plugin.ClearAxisParameterOverride(funcId, axisIdInt);
+                }
+            }
+
+            // Refresh UI
+            uc_axis_config.UpdateConfig(axis.Config);
         }
 
         private void OnOpenGraphEditorClicked(object sender, RoutedEventArgs e)

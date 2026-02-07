@@ -173,6 +173,13 @@ namespace DiyFfb
         /// </summary>
         // Store as JSON strings because FunctionConfig (protobuf) doesn't serialize correctly with JSON.NET
         public Dictionary<int, string> FunctionBaselines = new Dictionary<int, string>();
+
+        /// <summary>
+        /// Axis baselines (complete AxisConfig snapshots) stored in SimHub.
+        /// Prevents ESP32 reconnect from overwriting axis geometry with overridden values.
+        /// Key: axis ID, Value: complete AxisConfig snapshot as JSON.
+        /// </summary>
+        public Dictionary<int, string> AxisBaselines = new Dictionary<int, string>();
     }
 
 

@@ -666,6 +666,11 @@
                                             <styles:SHButtonPrimary x:Name="btn_home_axis" Click="btn_home_axis_Click" Width="110" Height="28" Content="Home" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Run the homing routine on the selected axis." />
                                         </StackPanel>
                                     </Border>
+                                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="580" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Margin="0,0,0,3">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <styles:SHButtonPrimary x:Name="btn_save_axis_baseline" Click="OnSaveAxisBaselineClicked" Width="160" Height="28" Content="Save as Baseline" Margin="5,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Save current axis configuration as the hardware baseline.&#x0a;This baseline is preserved across ESP32 reconnects and restarts." />
+                                        </StackPanel>
+                                    </Border>
                                     <local:AxisConfigControl x:Name="uc_axis_config" VerticalAlignment="Center" Height="762"></local:AxisConfigControl>
                                 </StackPanel>
                             </StackPanel>

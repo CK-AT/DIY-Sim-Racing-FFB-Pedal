@@ -2431,6 +2431,60 @@ namespace DiyFfb
         }
 
         /// <summary>
+        /// Get the axis baseline (Baseline layer) for an axis.
+        /// Returns null if no baseline has been stored.
+        /// </summary>
+        public AxisConfig GetAxisBaseline(int axisId)
+        {
+            if (Settings.AxisBaselines == null)
+                return null;
+
+            if (!Settings.AxisBaselines.TryGetValue(axisId, out var json) || string.IsNullOrEmpty(json))
+                return null;
+
+            try
+            {
+                var parser = new Google.Protobuf.JsonParser(Google.Protobuf.JsonParser.Settings.Default);
+                return parser.Parse<AxisConfig>(json);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Set the axis baseline (Baseline layer) for an axis.
+        /// Stores a complete AxisConfig snapshot as the baseline default.
+        /// </summary>
+        public void SetAxisBaseline(int axisId, AxisConfig config)
+        {
+            if (config == null)
+                throw new System.ArgumentNullException(nameof(config));
+
+            if (Settings.AxisBaselines == null)
+                Settings.AxisBaselines = new Dictionary<int, string>();
+
+            var jsonFormatter = new Google.Protobuf.JsonFormatter(Google.Protobuf.JsonFormatter.Settings.Default);
+            string json = jsonFormatter.Format(config);
+            Settings.AxisBaselines[axisId] = json;
+
+            // Update manager's base config
+            _axisConfigManager.SetBaseConfig(axisId, config);
+
+            // Persist to disk
+            this.SaveCommonSettings("GeneralSettings", Settings);
+        }
+
+        /// <summary>
+        /// Check if an axis has a stored baseline.
+        /// </summary>
+        public bool HasAxisBaseline(int axisId)
+        {
+            return Settings.AxisBaselines?.ContainsKey(axisId) == true;
+        }
+
+        /// <summary>
         /// Initialize FunctionConfigManager with stored baselines and overrides from settings.
         /// Call this during plugin initialization after settings are loaded.
         /// </summary>
@@ -2477,6 +2531,40 @@ namespace DiyFfb
                 {
                     _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: false);
                 }
+            }
+
+            // Load axis baselines into the axis config manager
+            InitializeAxisManagerFromSettings();
+        }
+
+        /// <summary>
+        /// Initialize AxisConfigManager with stored axis baselines from settings.
+        /// </summary>
+        private void InitializeAxisManagerFromSettings()
+        {
+            if (Settings?.AxisBaselines == null)
+                return;
+
+            var parser = new Google.Protobuf.JsonParser(Google.Protobuf.JsonParser.Settings.Default);
+            foreach (var kvp in Settings.AxisBaselines)
+            {
+                int axisId = kvp.Key;
+                string json = kvp.Value;
+
+                if (string.IsNullOrEmpty(json))
+                    continue;
+
+                AxisConfig baseline;
+                try
+                {
+                    baseline = parser.Parse<AxisConfig>(json);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                _axisConfigManager.SetBaseConfig(axisId, baseline);
             }
         }
 

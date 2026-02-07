@@ -68,6 +68,14 @@ namespace DiyFfb.TieredConfig
         }
 
         /// <summary>
+        /// Check if a base config has been set for an axis.
+        /// </summary>
+        public bool HasBaseConfig(int axisId)
+        {
+            return _baseConfigs.ContainsKey(axisId);
+        }
+
+        /// <summary>
         /// Get the current (possibly overridden) config for an axis.
         /// </summary>
         public AxisConfig GetCurrentConfig(int axisId)
