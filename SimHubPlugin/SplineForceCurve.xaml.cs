@@ -335,6 +335,7 @@ namespace DiyFfb
             config.FRelPoints[4] = 93;
             config.FRelPoints[5] = 100;
             UpdateSpline();
+            RangeSettingsChanged?.Invoke(this);
         }
         private void btn_10xcurve_Click(object sender, RoutedEventArgs e)
         {
@@ -345,6 +346,7 @@ namespace DiyFfb
             config.FRelPoints[4] = 95;
             config.FRelPoints[5] = 100;
             UpdateSpline();
+            RangeSettingsChanged?.Invoke(this);
         }
         private void btn_logcurve_Click(object sender, RoutedEventArgs e)
         {
@@ -355,6 +357,7 @@ namespace DiyFfb
             config.FRelPoints[4] = 59;
             config.FRelPoints[5] = 100;
             UpdateSpline();
+            RangeSettingsChanged?.Invoke(this);
         }
         private void btn_linearcurve_Click(object sender, RoutedEventArgs e)
         {
@@ -365,6 +368,7 @@ namespace DiyFfb
             config.FRelPoints[4] = 80;
             config.FRelPoints[5] = 100;
             UpdateSpline();
+            RangeSettingsChanged?.Invoke(this);
         }
         private void Rectangle_MouseMove_ABS(object sender, MouseEventArgs e)
         {
@@ -572,6 +576,7 @@ namespace DiyFfb
                     };
                     rectangle.Fill = ui.MouseUpColor;
                     rectangle.Effect = dropShadowEffect;
+                    RangeSettingsChanged?.Invoke(this);
                 }
             }
         }

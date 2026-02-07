@@ -22,7 +22,8 @@ namespace DiyFfb.TieredConfig
             "static_balance_tuning.gain",
             "damper_config",
             "damper_config.positive_factor",
-            "damper_config.negative_factor"
+            "damper_config.negative_factor",
+            "force_curve"
         };
 
         // Hardware-level fields: rarely changed, tied to physical hardware
@@ -75,13 +76,14 @@ namespace DiyFfb.TieredConfig
                 normalizedPath.StartsWith("aux_function."))
                 return ConfigLayer.User;
 
-            if (normalizedPath.StartsWith("force_curve.") ||
-                normalizedPath.StartsWith("shifter_config."))
+            if (normalizedPath.StartsWith("force_curve."))
+                return ConfigLayer.User;
+
+            if (normalizedPath.StartsWith("shifter_config."))
                 return ConfigLayer.Profile;
 
             // Explicit Profile-level top-level fields
-            if (normalizedPath == "force_curve" ||
-                normalizedPath == "shifter_config")
+            if (normalizedPath == "shifter_config")
                 return ConfigLayer.Profile;
 
             // Default to Profile layer for vehicle-specific tuning

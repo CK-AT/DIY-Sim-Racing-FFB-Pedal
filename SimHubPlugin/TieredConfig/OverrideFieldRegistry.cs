@@ -272,7 +272,7 @@ namespace DiyFfb.TieredConfig
                 Tooltip = "Spline force curve configuration",
                 FieldType = OverrideFieldType.Complex,
                 Group = OverrideFieldGroup.ForceFeedback,
-                DefaultLayer = ConfigLayer.Profile,
+                DefaultLayer = ConfigLayer.User,
                 HasValue = o => o.ForceCurve != null,
                 GetValue = o => o.ForceCurve,
                 SetValue = (o, v) => o.ForceCurve = (SplineForceCurveConfig)v,

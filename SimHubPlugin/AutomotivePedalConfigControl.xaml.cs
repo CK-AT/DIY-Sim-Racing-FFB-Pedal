@@ -108,6 +108,14 @@ namespace DiyFfb
                     Slider_friction.Value = mergedConfig.Friction;
                     label_friction.Content = String.Format("Friction: {0:F1}N", mergedConfig.Friction);
                     break;
+
+                case "force_curve":
+                    config.ForceCurveConfig = mergedConfig.AutomotivePedal.ForceCurveConfig.Clone();
+                    allowOverrideCreation = false;
+                    AutomotivePedal_SplineForceCurve.UpdateConfig(config.ForceCurveConfig);
+                    Dispatcher.BeginInvoke(new Action(() => allowOverrideCreation = true),
+                        System.Windows.Threading.DispatcherPriority.ContextIdle);
+                    break;
             }
             update_lockout = false;
         }
@@ -181,6 +189,13 @@ namespace DiyFfb
             }
             config.PosIdle = config.ForceCurveConfig.PosMin;
             config.PosEnd = config.ForceCurveConfig.PosMax;
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.UpdateFunctionOverrideField((int)function.ID, "force_curve",
+                    overrides => overrides.ForceCurve = config.ForceCurveConfig.Clone());
+            }
         }
 
         public void OnKinematicParametersChanged(KinematicParameters parameters)
