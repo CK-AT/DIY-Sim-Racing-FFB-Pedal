@@ -3159,15 +3159,20 @@ namespace DiyFfb
             var profile = new DiyFfbPluginSettings.AircraftFfbProfile();
             profile.XPlaneRotorIndex = Settings.XPlaneRotorIndex;
 
-            // Include GraphPath and param values from current profile
+            // Copy all fields from current stored profile
             var currentProfile = GetCurrentAircraftProfile();
             if (currentProfile != null)
             {
                 profile.GraphPath = currentProfile.GraphPath;
                 if (currentProfile.GraphParamValues != null)
-                {
                     profile.GraphParamValues = new Dictionary<string, double>(currentProfile.GraphParamValues);
-                }
+                profile.LastReviewedGraphHash = currentProfile.LastReviewedGraphHash;
+                if (currentProfile.LastReviewedParamSnapshots != null)
+                    profile.LastReviewedParamSnapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>(currentProfile.LastReviewedParamSnapshots);
+                if (currentProfile.FunctionOverrides != null)
+                    profile.FunctionOverrides = new Dictionary<int, FunctionConfigOverrides>(currentProfile.FunctionOverrides);
+                if (currentProfile.ActiveFunctionIds != null)
+                    profile.ActiveFunctionIds = new HashSet<int>(currentProfile.ActiveFunctionIds);
             }
 
             return profile;
@@ -3915,9 +3920,42 @@ namespace DiyFfb
             }
 
             Settings.AircraftFfbProfiles = profiles ?? new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+            BackupAircraftProfiles();
             if (!string.IsNullOrWhiteSpace(activeCarId))
             {
                 ApplyAircraftProfile(activeGameId, activeCarId);
+            }
+        }
+
+        /// <summary>
+        /// Safety net: backs up non-empty profiles, restores from backup if profiles are empty.
+        /// Protects against JSON.NET silently dropping protobuf data on deserialize.
+        /// </summary>
+        private void BackupOrRestoreAircraftProfiles()
+        {
+            if (Settings.AircraftFfbProfiles != null && Settings.AircraftFfbProfiles.Count > 0)
+            {
+                BackupAircraftProfiles();
+            }
+            else
+            {
+                // Profiles empty — try to restore from backup
+                var backup = this.ReadCommonSettings<Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>>(
+                    "AircraftProfilesBackup", () => null);
+                if (backup != null && backup.Count > 0)
+                {
+                    SimHub.Logging.Current.Warn(
+                        $"[Profiles] AircraftFfbProfiles empty — restoring {backup.Count} profiles from backup");
+                    Settings.AircraftFfbProfiles = backup;
+                }
+            }
+        }
+
+        private void BackupAircraftProfiles()
+        {
+            if (Settings.AircraftFfbProfiles != null && Settings.AircraftFfbProfiles.Count > 0)
+            {
+                this.SaveCommonSettings("AircraftProfilesBackup", Settings.AircraftFfbProfiles);
             }
         }
 
@@ -3997,6 +4035,9 @@ namespace DiyFfb
 
             // Migrate VehicleGraphPaths to AircraftFfbProfiles.GraphPath
             MigrateVehicleGraphPaths();
+
+            // Safety net: backup non-empty profiles, restore if empty
+            BackupOrRestoreAircraftProfiles();
 
             // Initialize manager with stored baselines and overrides (Phase 7)
             InitializeManagerFromSettings();

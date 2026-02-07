@@ -1,7 +1,30 @@
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace DiyFfb.TieredConfig
 {
+    /// <summary>
+    /// Shared protobuf JSON formatter/parser for types that don't round-trip through JSON.NET.
+    /// </summary>
+    internal static class ProtobufJsonHelper
+    {
+        internal static readonly Google.Protobuf.JsonFormatter Formatter =
+            new Google.Protobuf.JsonFormatter(Google.Protobuf.JsonFormatter.Settings.Default);
+        internal static readonly Google.Protobuf.JsonParser Parser =
+            new Google.Protobuf.JsonParser(Google.Protobuf.JsonParser.Settings.Default);
+
+        internal static string ToJson(Google.Protobuf.IMessage message)
+        {
+            return message == null ? null : Formatter.Format(message);
+        }
+
+        internal static T FromJson<T>(string json) where T : Google.Protobuf.IMessage<T>, new()
+        {
+            if (string.IsNullOrEmpty(json)) return default;
+            try { return Parser.Parse<T>(json); }
+            catch { return default; }
+        }
+    }
     /// <summary>
     /// Configuration layer in the override hierarchy.
     /// Resolution order: User > Profile > Baseline (first non-null wins).
@@ -45,7 +68,14 @@ namespace DiyFfb.TieredConfig
         public StaticBalanceTuningOverrides StaticBalanceTuning { get; set; }
 
         // AutomotivePedals overrides
+        [JsonIgnore]
         public SplineForceCurveConfig ForceCurve { get; set; }
+        [JsonProperty("ForceCurveJson")]
+        public string ForceCurveJson
+        {
+            get => ProtobufJsonHelper.ToJson(ForceCurve);
+            set => ForceCurve = ProtobufJsonHelper.FromJson<SplineForceCurveConfig>(value);
+        }
         public DamperConfigOverrides DamperConfig { get; set; }
 
         // FlightPedals overrides
@@ -62,8 +92,22 @@ namespace DiyFfb.TieredConfig
         public ForceRangeOverrides RudderBrakeForceRange { get; set; }
 
         // Shifter overrides
+        [JsonIgnore]
         public ShifterConfig ShifterConfig { get; set; }
+        [JsonProperty("ShifterConfigJson")]
+        public string ShifterConfigJson
+        {
+            get => ProtobufJsonHelper.ToJson(ShifterConfig);
+            set => ShifterConfig = ProtobufJsonHelper.FromJson<ShifterConfig>(value);
+        }
+        [JsonIgnore]
         public ShifterDetectConfig ShifterDetectConfig { get; set; }
+        [JsonProperty("ShifterDetectConfigJson")]
+        public string ShifterDetectConfigJson
+        {
+            get => ProtobufJsonHelper.ToJson(ShifterDetectConfig);
+            set => ShifterDetectConfig = ProtobufJsonHelper.FromJson<ShifterDetectConfig>(value);
+        }
 
         /// <summary>
         /// Returns true if all override fields are null/empty.
@@ -147,7 +191,14 @@ namespace DiyFfb.TieredConfig
         /// Kinematic parameters override (linkage geometry, travel limits).
         /// If non-null, replaces the axis's kinematic_parameters entirely.
         /// </summary>
+        [JsonIgnore]
         public KinematicParameters Kinematics { get; set; }
+        [JsonProperty("KinematicsJson")]
+        public string KinematicsJson
+        {
+            get => ProtobufJsonHelper.ToJson(Kinematics);
+            set => Kinematics = ProtobufJsonHelper.FromJson<KinematicParameters>(value);
+        }
 
         /// <summary>
         /// The GeneralKinematicConfig geometry that produced these Kinematics.
@@ -160,7 +211,14 @@ namespace DiyFfb.TieredConfig
         /// Static balance config override (position-dependent force compensation).
         /// If non-null, replaces the axis's static_balance_config entirely.
         /// </summary>
+        [JsonIgnore]
         public AxisConfig.Types.StaticBalanceConfig StaticBalance { get; set; }
+        [JsonProperty("StaticBalanceJson")]
+        public string StaticBalanceJson
+        {
+            get => ProtobufJsonHelper.ToJson(StaticBalance);
+            set => StaticBalance = ProtobufJsonHelper.FromJson<AxisConfig.Types.StaticBalanceConfig>(value);
+        }
 
         /// <summary>
         /// Returns true if no overrides are defined.
