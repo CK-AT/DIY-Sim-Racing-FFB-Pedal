@@ -328,7 +328,11 @@ namespace DiyFfb
             TextRailNegative.Text = railTravelNegative.ToString("0.#", CultureInfo.CurrentCulture);
             TextRailPositive.Text = railTravelPositive.ToString("0.#", CultureInfo.CurrentCulture);
             isLoading = false;
-            QueueRebuild();
+            // Cancel any pending user-edit timer, then do a synchronous
+            // visual rebuild.  No KinematicParametersChanged event — this is
+            // a programmatic load, not a user edit.
+            rebuildTimer.Stop();
+            RebuildVisual();
         }
 
         public void OnAxisStateUpdate(AxisState axisState)
@@ -560,7 +564,13 @@ namespace DiyFfb
             config.RailTravelPositive = (float)railTravelPositive;
         }
 
-        private void RebuildCache()
+        /// <summary>
+        /// Rebuild pose cache, canvas, and status label from the current config.
+        /// Does NOT fire KinematicParametersChanged — use RebuildCache() for that.
+        /// Called by UpdateConfig() for programmatic loads where the event would
+        /// cause unwanted side-effects (e.g. auto-creating axis overrides).
+        /// </summary>
+        private void RebuildVisual()
         {
             if (config == null) return;
             try
@@ -570,9 +580,7 @@ namespace DiyFfb
                 SetTestAxisPosition(testAxisPosition, poseMode == PoseDisplayMode.Test);
                 AutoFitCanvasToPoses(false);
                 BuildCanvas();
-                var parameters = GeneralKinematics.CalcKinematicParameters(config);
-                currentParameters = parameters;
-                KinematicParametersChanged?.Invoke(parameters);
+                currentParameters = GeneralKinematics.CalcKinematicParameters(config);
                 if (poseCache.ContactPositions.Length > 0)
                 {
                     Label_status.Content = string.Format(CultureInfo.CurrentCulture,
@@ -593,6 +601,17 @@ namespace DiyFfb
                 AutoFitCanvasToPoses(false);
                 BuildCanvas();
             }
+        }
+
+        /// <summary>
+        /// Full rebuild: visual + fires KinematicParametersChanged.
+        /// Called by the QueueRebuild timer for user-initiated changes.
+        /// </summary>
+        private void RebuildCache()
+        {
+            RebuildVisual();
+            if (currentParameters != null)
+                KinematicParametersChanged?.Invoke(currentParameters);
         }
 
         private void RefreshPose()

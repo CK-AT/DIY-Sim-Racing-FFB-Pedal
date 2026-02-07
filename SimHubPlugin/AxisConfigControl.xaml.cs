@@ -262,23 +262,34 @@ namespace DiyFfb
             // that would otherwise overwrite stored overrides with base values.
             _suppressOverrideSave = true;
 
-            // Load base config to show geometry, without resetting the function selector
+            // Undo any mutations from a previous override before loading base config.
+            // config is a direct reference to axis.Config, so previous override
+            // applies or user edits have corrupted it.
             if (ui != null && ui.axes.TryGetValue(config.AxisId, out var axis) && axis.Config != null)
             {
+                if (_baselineGeometry != null)
+                    axis.Config.GeneralKinematic = _baselineGeometry;
+                if (_baselineKinematics != null)
+                    axis.Config.KinematicParameters = _baselineKinematics;
+                if (_baselineStaticBalance != null)
+                    axis.Config.StaticBalanceConfig = _baselineStaticBalance;
+
                 LoadConfigIntoUi(axis.Config);
             }
+
+            // Snapshot baseline values now — config is a direct reference to
+            // axis.Config, so any later mutations (override apply or user edits)
+            // would corrupt the base.  Must happen before overrides AND before
+            // user edits can create a first override.
+            _baselineGeometry = config.GeneralKinematic?.Clone();
+            _baselineKinematics = config.KinematicParameters?.Clone();
+            _baselineStaticBalance = config.StaticBalanceConfig?.Clone();
 
             int axisId = (int)config.AxisId;
             var overrides = plugin.GetAxisParameterOverride(_selectedFunctionId, axisId);
 
             if (overrides != null)
             {
-                // Snapshot baseline values before overwriting -- config is a
-                // direct reference to axis.Config, so mutations stick.
-                _baselineGeometry = config.GeneralKinematic?.Clone();
-                _baselineKinematics = config.KinematicParameters?.Clone();
-                _baselineStaticBalance = config.StaticBalanceConfig?.Clone();
-
                 // If the override has stored geometry, load it into the kinematics editor
                 if (overrides.GeometryJson != null)
                 {
