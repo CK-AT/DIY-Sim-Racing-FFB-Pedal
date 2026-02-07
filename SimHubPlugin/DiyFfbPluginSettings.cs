@@ -167,8 +167,8 @@ namespace DiyFfb
 
         /// <summary>
         /// Function baselines (complete FunctionConfig snapshots) stored in SimHub.
-        /// These serve as the "Hardware layer" for tiered config merge operations.
-        /// Updated only by: importing compound configs, or explicit "Save to Hardware" action.
+        /// These serve as the "Baseline layer" for tiered config merge operations.
+        /// Updated only by: importing compound configs, or explicit "Save to Baseline" action.
         /// Key: function ID, Value: complete FunctionConfig snapshot.
         /// </summary>
         // Store as JSON strings because FunctionConfig (protobuf) doesn't serialize correctly with JSON.NET

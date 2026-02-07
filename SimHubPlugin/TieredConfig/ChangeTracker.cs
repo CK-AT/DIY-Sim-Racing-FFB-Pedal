@@ -28,7 +28,7 @@ namespace DiyFfb.TieredConfig
             {
                 { ConfigLayer.User, new Dictionary<int, Dictionary<string, object>>() },
                 { ConfigLayer.Profile, new Dictionary<int, Dictionary<string, object>>() },
-                { ConfigLayer.Hardware, new Dictionary<int, Dictionary<string, object>>() }
+                { ConfigLayer.Baseline, new Dictionary<int, Dictionary<string, object>>() }
             };
 
         /// <summary>

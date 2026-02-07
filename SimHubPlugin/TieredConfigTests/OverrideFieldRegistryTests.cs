@@ -245,7 +245,7 @@ namespace DiyFfb.TieredConfigTests
 
         private static void IsUserTunable_KinematicParameters_ReturnsFalse()
         {
-            // This should fallback to FieldRouter which returns Hardware
+            // This should fallback to FieldRouter which returns Baseline
             AssertFalse(OverrideFieldRegistry.IsUserTunable("kinematic_parameters"),
                 "kinematic_parameters should not be user tunable");
         }

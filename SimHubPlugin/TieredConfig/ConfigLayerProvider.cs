@@ -48,7 +48,7 @@ namespace DiyFfb.TieredConfig
             if (profileOverrides != null && HasFieldValue(profileOverrides, fieldName))
                 return ConfigLayer.Profile;
 
-            // No override - hardware default
+            // No override - baseline default
             return null;
         }
 
@@ -139,8 +139,8 @@ namespace DiyFfb.TieredConfig
                     return "[U]";
                 case ConfigLayer.Profile:
                     return "[P]";
-                case ConfigLayer.Hardware:
-                    return "[H]";
+                case ConfigLayer.Baseline:
+                    return "[B]";
                 default:
                     return null;
             }
@@ -157,10 +157,10 @@ namespace DiyFfb.TieredConfig
                     return "User preference override";
                 case ConfigLayer.Profile:
                     return "Vehicle profile override";
-                case ConfigLayer.Hardware:
-                    return "Hardware default";
+                case ConfigLayer.Baseline:
+                    return "Baseline default";
                 default:
-                    return "Using hardware default";
+                    return "Using baseline default";
             }
         }
 
@@ -179,8 +179,8 @@ namespace DiyFfb.TieredConfig
                     var profileOverrides = _getProfileOverrides(functionId);
                     return profileOverrides != null && HasFieldValue(profileOverrides, fieldPath);
 
-                case ConfigLayer.Hardware:
-                    // Hardware layer always has a value if baseline exists
+                case ConfigLayer.Baseline:
+                    // Baseline layer always has a value if baseline exists
                     return _getBaseline != null && _getBaseline(functionId) != null;
 
                 default:
@@ -207,7 +207,7 @@ namespace DiyFfb.TieredConfig
                     var profileOverrides = _getProfileOverrides(functionId);
                     return profileOverrides != null ? field.GetValue(profileOverrides) : null;
 
-                case ConfigLayer.Hardware:
+                case ConfigLayer.Baseline:
                     if (_getBaseline == null)
                         return null;
                     var baseline = _getBaseline(functionId);

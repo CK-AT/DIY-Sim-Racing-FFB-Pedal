@@ -24,14 +24,14 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("GetTargetLayer_StaticBalanceTuningNested_ReturnsUser", GetTargetLayer_StaticBalanceTuningNested_ReturnsUser),
                 TestRunner.RunTest("GetTargetLayer_BaseOutputMin_ReturnsUser", GetTargetLayer_BaseOutputMin_ReturnsUser),
 
-                // Hardware field routing tests
-                TestRunner.RunTest("GetTargetLayer_KinematicParameters_ReturnsHardware", GetTargetLayer_KinematicParameters_ReturnsHardware),
-                TestRunner.RunTest("GetTargetLayer_KinematicParametersNested_ReturnsHardware", GetTargetLayer_KinematicParametersNested_ReturnsHardware),
-                TestRunner.RunTest("GetTargetLayer_StaticBalanceConfig_ReturnsHardware", GetTargetLayer_StaticBalanceConfig_ReturnsHardware),
-                TestRunner.RunTest("GetTargetLayer_StaticBalanceConfigNested_ReturnsHardware", GetTargetLayer_StaticBalanceConfigNested_ReturnsHardware),
-                TestRunner.RunTest("GetTargetLayer_LinkedAxes_ReturnsHardware", GetTargetLayer_LinkedAxes_ReturnsHardware),
-                TestRunner.RunTest("GetTargetLayer_StepsPerMm_ReturnsHardware", GetTargetLayer_StepsPerMm_ReturnsHardware),
-                TestRunner.RunTest("GetTargetLayer_FMaxLoadcell_ReturnsHardware", GetTargetLayer_FMaxLoadcell_ReturnsHardware),
+                // Baseline field routing tests
+                TestRunner.RunTest("GetTargetLayer_KinematicParameters_ReturnsBaseline", GetTargetLayer_KinematicParameters_ReturnsBaseline),
+                TestRunner.RunTest("GetTargetLayer_KinematicParametersNested_ReturnsBaseline", GetTargetLayer_KinematicParametersNested_ReturnsBaseline),
+                TestRunner.RunTest("GetTargetLayer_StaticBalanceConfig_ReturnsBaseline", GetTargetLayer_StaticBalanceConfig_ReturnsBaseline),
+                TestRunner.RunTest("GetTargetLayer_StaticBalanceConfigNested_ReturnsBaseline", GetTargetLayer_StaticBalanceConfigNested_ReturnsBaseline),
+                TestRunner.RunTest("GetTargetLayer_LinkedAxes_ReturnsBaseline", GetTargetLayer_LinkedAxes_ReturnsBaseline),
+                TestRunner.RunTest("GetTargetLayer_StepsPerMm_ReturnsBaseline", GetTargetLayer_StepsPerMm_ReturnsBaseline),
+                TestRunner.RunTest("GetTargetLayer_FMaxLoadcell_ReturnsBaseline", GetTargetLayer_FMaxLoadcell_ReturnsBaseline),
 
                 // Profile field routing tests (default)
                 TestRunner.RunTest("GetTargetLayer_ShifterConfig_ReturnsProfile", GetTargetLayer_ShifterConfig_ReturnsProfile),
@@ -45,13 +45,13 @@ namespace DiyFfb.TieredConfigTests
 
                 // IsUserTunable tests
                 TestRunner.RunTest("IsUserTunable_UserField_ReturnsTrue", IsUserTunable_UserField_ReturnsTrue),
-                TestRunner.RunTest("IsUserTunable_HardwareField_ReturnsFalse", IsUserTunable_HardwareField_ReturnsFalse),
+                TestRunner.RunTest("IsUserTunable_BaselineField_ReturnsFalse", IsUserTunable_BaselineField_ReturnsFalse),
                 TestRunner.RunTest("IsUserTunable_ProfileField_ReturnsFalse", IsUserTunable_ProfileField_ReturnsFalse),
 
-                // IsHardwareField tests
-                TestRunner.RunTest("IsHardwareField_HardwareField_ReturnsTrue", IsHardwareField_HardwareField_ReturnsTrue),
-                TestRunner.RunTest("IsHardwareField_UserField_ReturnsFalse", IsHardwareField_UserField_ReturnsFalse),
-                TestRunner.RunTest("IsHardwareField_ProfileField_ReturnsFalse", IsHardwareField_ProfileField_ReturnsFalse),
+                // IsBaselineField tests
+                TestRunner.RunTest("IsBaselineField_BaselineField_ReturnsTrue", IsBaselineField_BaselineField_ReturnsTrue),
+                TestRunner.RunTest("IsBaselineField_UserField_ReturnsFalse", IsBaselineField_UserField_ReturnsFalse),
+                TestRunner.RunTest("IsBaselineField_ProfileField_ReturnsFalse", IsBaselineField_ProfileField_ReturnsFalse),
 
                 // GetUserTunableFields tests
                 TestRunner.RunTest("GetUserTunableFields_ContainsExpectedFields", GetUserTunableFields_ContainsExpectedFields),
@@ -107,48 +107,48 @@ namespace DiyFfb.TieredConfigTests
             AssertEqual(ConfigLayer.User, layer, "base.output_min should route to User");
         }
 
-        // === Hardware Field Routing Tests ===
+        // === Baseline Field Routing Tests ===
 
-        private static void GetTargetLayer_KinematicParameters_ReturnsHardware()
+        private static void GetTargetLayer_KinematicParameters_ReturnsBaseline()
         {
             var layer = FieldRouter.GetTargetLayer("kinematic_parameters");
-            AssertEqual(ConfigLayer.Hardware, layer, "kinematic_parameters should route to Hardware");
+            AssertEqual(ConfigLayer.Baseline, layer, "kinematic_parameters should route to Baseline");
         }
 
-        private static void GetTargetLayer_KinematicParametersNested_ReturnsHardware()
+        private static void GetTargetLayer_KinematicParametersNested_ReturnsBaseline()
         {
             var layer = FieldRouter.GetTargetLayer("kinematic_parameters.contact_point_pos_min");
-            AssertEqual(ConfigLayer.Hardware, layer, "kinematic_parameters.* should route to Hardware");
+            AssertEqual(ConfigLayer.Baseline, layer, "kinematic_parameters.* should route to Baseline");
         }
 
-        private static void GetTargetLayer_StaticBalanceConfig_ReturnsHardware()
+        private static void GetTargetLayer_StaticBalanceConfig_ReturnsBaseline()
         {
             var layer = FieldRouter.GetTargetLayer("static_balance_config");
-            AssertEqual(ConfigLayer.Hardware, layer, "static_balance_config should route to Hardware");
+            AssertEqual(ConfigLayer.Baseline, layer, "static_balance_config should route to Baseline");
         }
 
-        private static void GetTargetLayer_StaticBalanceConfigNested_ReturnsHardware()
+        private static void GetTargetLayer_StaticBalanceConfigNested_ReturnsBaseline()
         {
             var layer = FieldRouter.GetTargetLayer("static_balance_config.x_center");
-            AssertEqual(ConfigLayer.Hardware, layer, "static_balance_config.* should route to Hardware");
+            AssertEqual(ConfigLayer.Baseline, layer, "static_balance_config.* should route to Baseline");
         }
 
-        private static void GetTargetLayer_LinkedAxes_ReturnsHardware()
+        private static void GetTargetLayer_LinkedAxes_ReturnsBaseline()
         {
             var layer = FieldRouter.GetTargetLayer("linked_axes");
-            AssertEqual(ConfigLayer.Hardware, layer, "linked_axes should route to Hardware");
+            AssertEqual(ConfigLayer.Baseline, layer, "linked_axes should route to Baseline");
         }
 
-        private static void GetTargetLayer_StepsPerMm_ReturnsHardware()
+        private static void GetTargetLayer_StepsPerMm_ReturnsBaseline()
         {
             var layer = FieldRouter.GetTargetLayer("steps_per_mm");
-            AssertEqual(ConfigLayer.Hardware, layer, "steps_per_mm should route to Hardware");
+            AssertEqual(ConfigLayer.Baseline, layer, "steps_per_mm should route to Baseline");
         }
 
-        private static void GetTargetLayer_FMaxLoadcell_ReturnsHardware()
+        private static void GetTargetLayer_FMaxLoadcell_ReturnsBaseline()
         {
             var layer = FieldRouter.GetTargetLayer("f_max_loadcell");
-            AssertEqual(ConfigLayer.Hardware, layer, "f_max_loadcell should route to Hardware");
+            AssertEqual(ConfigLayer.Baseline, layer, "f_max_loadcell should route to Baseline");
         }
 
         // === Profile Field Routing Tests (default) ===
@@ -195,8 +195,8 @@ namespace DiyFfb.TieredConfigTests
             var lower = FieldRouter.GetTargetLayer("kinematic_parameters");
             var upper = FieldRouter.GetTargetLayer("KINEMATIC_PARAMETERS");
 
-            AssertEqual(ConfigLayer.Hardware, lower, "kinematic_parameters lowercase should route to Hardware");
-            AssertEqual(ConfigLayer.Hardware, upper, "KINEMATIC_PARAMETERS uppercase should route to Hardware");
+            AssertEqual(ConfigLayer.Baseline, lower, "kinematic_parameters lowercase should route to Baseline");
+            AssertEqual(ConfigLayer.Baseline, upper, "KINEMATIC_PARAMETERS uppercase should route to Baseline");
         }
 
         // === IsUserTunable Tests ===
@@ -207,7 +207,7 @@ namespace DiyFfb.TieredConfigTests
             AssertTrue(FieldRouter.IsUserTunable("friction"), "friction should be user tunable");
         }
 
-        private static void IsUserTunable_HardwareField_ReturnsFalse()
+        private static void IsUserTunable_BaselineField_ReturnsFalse()
         {
             AssertFalse(FieldRouter.IsUserTunable("kinematic_parameters"), "kinematic_parameters should not be user tunable");
         }
@@ -217,22 +217,22 @@ namespace DiyFfb.TieredConfigTests
             AssertFalse(FieldRouter.IsUserTunable("shifter_config"), "shifter_config should not be user tunable");
         }
 
-        // === IsHardwareField Tests ===
+        // === IsBaselineField Tests ===
 
-        private static void IsHardwareField_HardwareField_ReturnsTrue()
+        private static void IsBaselineField_BaselineField_ReturnsTrue()
         {
-            AssertTrue(FieldRouter.IsHardwareField("kinematic_parameters"), "kinematic_parameters should be hardware field");
-            AssertTrue(FieldRouter.IsHardwareField("steps_per_mm"), "steps_per_mm should be hardware field");
+            AssertTrue(FieldRouter.IsBaselineField("kinematic_parameters"), "kinematic_parameters should be baseline field");
+            AssertTrue(FieldRouter.IsBaselineField("steps_per_mm"), "steps_per_mm should be baseline field");
         }
 
-        private static void IsHardwareField_UserField_ReturnsFalse()
+        private static void IsBaselineField_UserField_ReturnsFalse()
         {
-            AssertFalse(FieldRouter.IsHardwareField("output_min"), "output_min should not be hardware field");
+            AssertFalse(FieldRouter.IsBaselineField("output_min"), "output_min should not be baseline field");
         }
 
-        private static void IsHardwareField_ProfileField_ReturnsFalse()
+        private static void IsBaselineField_ProfileField_ReturnsFalse()
         {
-            AssertFalse(FieldRouter.IsHardwareField("shifter_config"), "shifter_config should not be hardware field");
+            AssertFalse(FieldRouter.IsBaselineField("shifter_config"), "shifter_config should not be baseline field");
         }
 
         // === GetUserTunableFields Tests ===

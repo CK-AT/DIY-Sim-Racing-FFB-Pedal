@@ -9,7 +9,7 @@ namespace DiyFfb.Controls
     /// <summary>
     /// A wrapper control that displays layer badges ([U]/[P]) for override fields.
     /// Wraps any content and overlays a badge in the upper-right corner showing
-    /// which layer (User/Profile/Hardware) the current value comes from.
+    /// which layer (User/Profile/Baseline) the current value comes from.
     /// </summary>
     public partial class LayerBadgeWrapper : ContentControl
     {
@@ -153,7 +153,7 @@ namespace DiyFfb.Controls
             // Get source layer from plugin's ConfigLayerProvider
             var sourceLayer = GetSourceLayer();
 
-            if (sourceLayer == null || sourceLayer == ConfigLayer.Hardware)
+            if (sourceLayer == null || sourceLayer == ConfigLayer.Baseline)
             {
                 // No override - hide badge
                 _badge.Visibility = Visibility.Hidden;
@@ -186,7 +186,7 @@ namespace DiyFfb.Controls
                     return new SolidColorBrush(Color.FromRgb(0x64, 0xB5, 0xF6)); // Blue
                 case ConfigLayer.Profile:
                     return new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50)); // Green
-                case ConfigLayer.Hardware:
+                case ConfigLayer.Baseline:
                     return new SolidColorBrush(Color.FromRgb(0x75, 0x75, 0x75)); // Gray
                 default:
                     return Brushes.Transparent;
@@ -221,12 +221,12 @@ namespace DiyFfb.Controls
             // Get values from all layers
             var userValue = GetLayerValueString(layerProvider, ConfigLayer.User, field);
             var profileValue = GetLayerValueString(layerProvider, ConfigLayer.Profile, field);
-            var hardwareValue = GetLayerValueString(layerProvider, ConfigLayer.Hardware, field);
+            var baselineValue = GetLayerValueString(layerProvider, ConfigLayer.Baseline, field);
 
             // Display with active indicator
             tooltip.AppendLine($"User:     {userValue}{(sourceLayer == ConfigLayer.User ? " ◄ active" : "")}");
             tooltip.AppendLine($"Profile:  {profileValue}{(sourceLayer == ConfigLayer.Profile ? " ◄ active" : "")}");
-            tooltip.AppendLine($"Hardware: {hardwareValue}{(sourceLayer == ConfigLayer.Hardware ? " ◄ active" : "")}");
+            tooltip.AppendLine($"Baseline: {baselineValue}{(sourceLayer == ConfigLayer.Baseline ? " ◄ active" : "")}");
 
             _badge.ToolTip = tooltip.ToString().TrimEnd();
         }
@@ -283,7 +283,7 @@ namespace DiyFfb.Controls
             // Section 1: Layer values (header items, not clickable)
             var userValue = GetLayerValueString(layerProvider, ConfigLayer.User, field);
             var profileValue = GetLayerValueString(layerProvider, ConfigLayer.Profile, field);
-            var hardwareValue = GetLayerValueString(layerProvider, ConfigLayer.Hardware, field);
+            var baselineValue = GetLayerValueString(layerProvider, ConfigLayer.Baseline, field);
             var sourceLayer = layerProvider.GetFieldSourceLayer(FunctionId, FieldPath);
 
             var userHeader = new MenuItem
@@ -296,15 +296,15 @@ namespace DiyFfb.Controls
                 Header = $"{(sourceLayer == ConfigLayer.Profile ? "✓ " : "  ")}Profile: {profileValue}",
                 IsEnabled = false
             };
-            var hardwareHeader = new MenuItem
+            var baselineHeader = new MenuItem
             {
-                Header = $"{(sourceLayer == ConfigLayer.Hardware || sourceLayer == null ? "✓ " : "  ")}Hardware: {hardwareValue}",
+                Header = $"{(sourceLayer == ConfigLayer.Baseline || sourceLayer == null ? "✓ " : "  ")}Baseline: {baselineValue}",
                 IsEnabled = false
             };
 
             contextMenu.Items.Add(userHeader);
             contextMenu.Items.Add(profileHeader);
-            contextMenu.Items.Add(hardwareHeader);
+            contextMenu.Items.Add(baselineHeader);
             contextMenu.Items.Add(new Separator());
 
             // Section 2: Clear operations
@@ -328,7 +328,7 @@ namespace DiyFfb.Controls
             }
 
             // Section 3: Save to layer operations (disabled for now - requires additional logic)
-            // TODO: Implement "Save to User", "Save to Profile", "Save to Hardware" menu items
+            // TODO: Implement "Save to User", "Save to Profile", "Save to Baseline" menu items
 
             _badge.ContextMenu = contextMenu;
             contextMenu.IsOpen = true;

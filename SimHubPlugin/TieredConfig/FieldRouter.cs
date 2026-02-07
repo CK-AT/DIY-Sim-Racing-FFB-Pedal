@@ -26,8 +26,8 @@ namespace DiyFfb.TieredConfig
             "force_curve"
         };
 
-        // Hardware-level fields: rarely changed, tied to physical hardware
-        private static readonly HashSet<string> HardwareFields = new HashSet<string>
+        // Baseline-level fields: rarely changed, tied to physical hardware
+        private static readonly HashSet<string> BaselineFields = new HashSet<string>
         {
             "kinematic_parameters",
             "static_balance_config",
@@ -60,14 +60,14 @@ namespace DiyFfb.TieredConfig
             if (UserFields.Contains(normalizedPath))
                 return ConfigLayer.User;
 
-            // Check Hardware fields
-            if (HardwareFields.Contains(normalizedPath))
-                return ConfigLayer.Hardware;
+            // Check Baseline fields
+            if (BaselineFields.Contains(normalizedPath))
+                return ConfigLayer.Baseline;
 
             // Check prefixes for nested fields
             if (normalizedPath.StartsWith("kinematic_parameters.") ||
                 normalizedPath.StartsWith("static_balance_config."))
-                return ConfigLayer.Hardware;
+                return ConfigLayer.Baseline;
 
             if (normalizedPath.StartsWith("static_balance_tuning.") ||
                 normalizedPath.StartsWith("damper_config.") ||
@@ -101,12 +101,12 @@ namespace DiyFfb.TieredConfig
         }
 
         /// <summary>
-        /// Check if a field is hardware-level (should rarely be overridden).
+        /// Check if a field is baseline-level (should rarely be overridden).
         /// </summary>
-        public static bool IsHardwareField(string fieldPath)
+        public static bool IsBaselineField(string fieldPath)
         {
             var layer = GetTargetLayer(fieldPath);
-            return layer == ConfigLayer.Hardware;
+            return layer == ConfigLayer.Baseline;
         }
 
         /// <summary>

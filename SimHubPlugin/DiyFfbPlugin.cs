@@ -2378,7 +2378,7 @@ namespace DiyFfb
         }
 
         /// <summary>
-        /// Get the function baseline (Hardware layer) for a function.
+        /// Get the function baseline (Baseline layer) for a function.
         /// Returns null if no baseline has been stored.
         /// </summary>
         public FunctionConfig GetFunctionBaseline(int functionId)
@@ -2402,8 +2402,8 @@ namespace DiyFfb
         }
 
         /// <summary>
-        /// Set the function baseline (Hardware layer) for a function.
-        /// This stores a complete FunctionConfig snapshot as the hardware default.
+        /// Set the function baseline (Baseline layer) for a function.
+        /// This stores a complete FunctionConfig snapshot as the baseline default.
         /// </summary>
         public void SetFunctionBaseline(int functionId, FunctionConfig config)
         {

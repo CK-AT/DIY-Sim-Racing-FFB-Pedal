@@ -264,7 +264,7 @@ namespace DiyFfb.TieredConfigTests
 
             var merged = ConfigMerger.MergeAllLayers(hardware, profile, user);
 
-            AssertNear(1.0f, merged.Base.OutputMax, 1e-6f, "Hardware should win when no overrides");
+            AssertNear(1.0f, merged.Base.OutputMax, 1e-6f, "Baseline should win when no overrides");
         }
 
         private static void MergeAllLayers_MixedLayers()

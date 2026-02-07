@@ -18,7 +18,7 @@ namespace DiyFfb.TieredConfigTests
                 // Basic tracking tests
                 TestRunner.RunTest("TrackChange_AddsToCorrectLayer", TrackChange_AddsToCorrectLayer),
                 TestRunner.RunTest("TrackChange_AutoRoutes_UserField", TrackChange_AutoRoutes_UserField),
-                TestRunner.RunTest("TrackChange_AutoRoutes_HardwareField", TrackChange_AutoRoutes_HardwareField),
+                TestRunner.RunTest("TrackChange_AutoRoutes_BaselineField", TrackChange_AutoRoutes_BaselineField),
                 TestRunner.RunTest("TrackChange_AutoRoutes_ProfileField", TrackChange_AutoRoutes_ProfileField),
                 TestRunner.RunTest("TrackChange_OverwritesSameField", TrackChange_OverwritesSameField),
 
@@ -78,16 +78,16 @@ namespace DiyFfb.TieredConfigTests
 
             AssertTrue(tracker.HasUnsavedChangesForLayer(ConfigLayer.User), "output_min should route to User layer");
             AssertFalse(tracker.HasUnsavedChangesForLayer(ConfigLayer.Profile), "Should not be in Profile");
-            AssertFalse(tracker.HasUnsavedChangesForLayer(ConfigLayer.Hardware), "Should not be in Hardware");
+            AssertFalse(tracker.HasUnsavedChangesForLayer(ConfigLayer.Baseline), "Should not be in Baseline");
         }
 
-        private static void TrackChange_AutoRoutes_HardwareField()
+        private static void TrackChange_AutoRoutes_BaselineField()
         {
             var tracker = new ChangeTracker();
 
             tracker.TrackChange(1, "kinematic_parameters", new object());
 
-            AssertTrue(tracker.HasUnsavedChangesForLayer(ConfigLayer.Hardware), "kinematic_parameters should route to Hardware");
+            AssertTrue(tracker.HasUnsavedChangesForLayer(ConfigLayer.Baseline), "kinematic_parameters should route to Baseline");
             AssertFalse(tracker.HasUnsavedChangesForLayer(ConfigLayer.User), "Should not be in User");
         }
 
@@ -138,7 +138,7 @@ namespace DiyFfb.TieredConfigTests
 
             AssertTrue(tracker.HasUnsavedChangesForLayer(ConfigLayer.User), "User layer should have changes");
             AssertTrue(tracker.HasUnsavedChangesForLayer(ConfigLayer.Profile), "Profile layer should have changes");
-            AssertFalse(tracker.HasUnsavedChangesForLayer(ConfigLayer.Hardware), "Hardware layer should be empty");
+            AssertFalse(tracker.HasUnsavedChangesForLayer(ConfigLayer.Baseline), "Baseline layer should be empty");
         }
 
         private static void HasUnsavedChangesForFunction_Specific()
@@ -173,14 +173,14 @@ namespace DiyFfb.TieredConfigTests
             var tracker = new ChangeTracker();
             tracker.TrackChange(1, "output_min", 0.5f, ConfigLayer.User);
             tracker.TrackChange(1, "gate_width", 10.0f, ConfigLayer.Profile);
-            tracker.TrackChange(1, "steps_per_mm", 100, ConfigLayer.Hardware);
+            tracker.TrackChange(1, "steps_per_mm", 100, ConfigLayer.Baseline);
 
             var changes = tracker.GetPendingChanges(1);
 
             AssertEqual(3, changes.Count, "Should have changes in 3 layers");
             AssertTrue(changes.ContainsKey(ConfigLayer.User), "Should have User layer");
             AssertTrue(changes.ContainsKey(ConfigLayer.Profile), "Should have Profile layer");
-            AssertTrue(changes.ContainsKey(ConfigLayer.Hardware), "Should have Hardware layer");
+            AssertTrue(changes.ContainsKey(ConfigLayer.Baseline), "Should have Baseline layer");
         }
 
         private static void GetAllPendingChanges_ReturnsAll()
@@ -249,7 +249,7 @@ namespace DiyFfb.TieredConfigTests
             var tracker = new ChangeTracker();
             tracker.TrackChange(1, "output_min", 0.5f, ConfigLayer.User);
             tracker.TrackChange(2, "gate_width", 10.0f, ConfigLayer.Profile);
-            tracker.TrackChange(3, "steps_per_mm", 100, ConfigLayer.Hardware);
+            tracker.TrackChange(3, "steps_per_mm", 100, ConfigLayer.Baseline);
 
             tracker.DiscardAll();
 

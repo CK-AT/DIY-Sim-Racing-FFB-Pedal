@@ -4,11 +4,11 @@ namespace DiyFfb.TieredConfig
 {
     /// <summary>
     /// Configuration layer in the override hierarchy.
-    /// Resolution order: User > Profile > Hardware (first non-null wins).
+    /// Resolution order: User > Profile > Baseline (first non-null wins).
     /// </summary>
     public enum ConfigLayer
     {
-        Hardware,   // ESP32 EEPROM defaults
+        Baseline,   // ESP32 EEPROM defaults
         Profile,    // Vehicle-specific settings (AircraftFfbProfile)
         User        // Personal preferences (UserPreferences)
     }

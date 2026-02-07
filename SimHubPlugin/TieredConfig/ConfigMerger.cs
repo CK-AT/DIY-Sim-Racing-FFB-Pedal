@@ -4,7 +4,7 @@ namespace DiyFfb.TieredConfig
 {
     /// <summary>
     /// Pure functions for merging config overrides into base configs.
-    /// Resolution: User > Profile > Hardware (first non-null wins).
+    /// Resolution: User > Profile > Baseline (first non-null wins).
     /// </summary>
     public static class ConfigMerger
     {
@@ -105,19 +105,19 @@ namespace DiyFfb.TieredConfig
         }
 
         /// <summary>
-        /// Merge all three layers: Hardware (base) -> Profile -> User.
+        /// Merge all three layers: Baseline -> Profile -> User.
         /// Returns a new config; does not mutate any original.
         /// </summary>
         public static FunctionConfig MergeAllLayers(
-            FunctionConfig hardware,
+            FunctionConfig baseline,
             FunctionConfigOverrides profile,
             FunctionConfigOverrides user)
         {
-            if (hardware == null)
-                throw new ArgumentNullException(nameof(hardware));
+            if (baseline == null)
+                throw new ArgumentNullException(nameof(baseline));
 
-            // Start with hardware base
-            var merged = hardware.Clone();
+            // Start with baseline
+            var merged = baseline.Clone();
 
             // Apply profile overrides (if any)
             if (profile != null && !profile.IsEmpty)
