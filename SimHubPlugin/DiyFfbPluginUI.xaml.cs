@@ -1457,6 +1457,7 @@ namespace DiyFfb
                 Width = 520,
                 Height = 220,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Topmost = true,
                 ResizeMode = ResizeMode.NoResize,
                 Background = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x25)),
                 Foreground = Brushes.White,
