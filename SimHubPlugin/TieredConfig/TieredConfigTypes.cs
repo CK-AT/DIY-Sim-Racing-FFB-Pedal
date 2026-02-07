@@ -150,6 +150,13 @@ namespace DiyFfb.TieredConfig
         public KinematicParameters Kinematics { get; set; }
 
         /// <summary>
+        /// The GeneralKinematicConfig geometry that produced these Kinematics.
+        /// Stored as JSON string because protobuf RepeatedField doesn't round-trip through JSON.NET.
+        /// Used to restore the kinematics editor when switching functions.
+        /// </summary>
+        public string GeometryJson { get; set; }
+
+        /// <summary>
         /// Static balance config override (position-dependent force compensation).
         /// If non-null, replaces the axis's static_balance_config entirely.
         /// </summary>
