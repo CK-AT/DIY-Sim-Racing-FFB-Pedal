@@ -2194,6 +2194,7 @@ namespace DiyFfb
             // Clear existing overrides first
             _functionConfigManager.ClearAllProfileOverrides();
             _axisConfigManager.Reset(); // Clear function overrides for axes
+            InitializeAxisManagerFromSettings(); // Re-populate base configs from stored baselines
 
             var userOverrides = GetCurrentUserOverrides();
 

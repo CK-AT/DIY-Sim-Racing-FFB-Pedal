@@ -2279,10 +2279,10 @@ namespace DiyFfb
                     break;
                 case Message.PayloadOneofCase.AxisConfig:
                     RegisterAxisChannel(msg.AxisConfig.AxisId, port);
-                    OnAxisConfigUpdate(msg.AxisConfig);
+                    OnAxisConfigUpdate(msg.AxisConfig, fromEsp32: true);
                     break;
                 case Message.PayloadOneofCase.FunctionConfig:
-                    OnFunctionConfigUpdate(msg.FunctionConfig);
+                    OnFunctionConfigUpdate(msg.FunctionConfig, fromEsp32: true);
                     break;
                 case Message.PayloadOneofCase.AxisLogMessage:
                     int? axisSourceId = msg.AxisLogMessage.AxisId != AxisID.AxisUndefined ? (int)msg.AxisLogMessage.AxisId : (int?)null;
@@ -2641,7 +2641,7 @@ namespace DiyFfb
             EnqueueFunctionConfigUpload(functionConfig, store);
         }
 
-        private void OnFunctionConfigUpdate(FunctionConfig newFunctionConfig)
+        private void OnFunctionConfigUpdate(FunctionConfig newFunctionConfig, bool fromEsp32 = false)
         {
             FunctionID newFunctionId = newFunctionConfig.Base.FunctionId;
             if (newFunctionId == FunctionID.Undefined)
@@ -2652,7 +2652,22 @@ namespace DiyFfb
 
             int funcId = (int)newFunctionId;
 
-            // Store base config
+            // If ESP32 is reporting config and we have a stored baseline, the plugin
+            // is the authority. Ignore the incoming config and push ours back.
+            if (fromEsp32 && Plugin.HasFunctionBaseline(funcId))
+            {
+                var mergedConfig = Plugin.FunctionConfigManager.GetCurrentConfig(funcId);
+                if (mergedConfig != null)
+                {
+                    EnqueueFunctionConfigUpload(mergedConfig, store: false);
+                    Plugin.FunctionConfigManager.MarkAsSent(funcId, mergedConfig);
+                    return;
+                }
+                // Fall through if manager state was unexpectedly lost
+            }
+
+            // No stored baseline (first-time or after clear) or file import:
+            // accept incoming config as the new base.
             Plugin.FunctionConfigManager.SetBaseConfig(funcId, newFunctionConfig);
 
             // Apply overrides through manager for consistent state tracking
@@ -2682,28 +2697,48 @@ namespace DiyFfb
             }
         }
 
-        private void OnAxisConfigUpdate(AxisConfig newAxisConfig)
+        private void OnAxisConfigUpdate(AxisConfig newAxisConfig, bool fromEsp32 = false)
         {
             AxisID newAxisId = newAxisConfig.AxisId;
             if (newAxisId != AxisID.AxisUndefined && newAxisId <= AxisID._8)
             {
                 int axisIdInt = (int)newAxisId;
 
-                // Use stored baseline if available (ESP32 may echo back overridden values)
-                AxisConfig baseConfig;
-                if (Plugin.HasAxisBaseline(axisIdInt))
+                // If ESP32 is reporting config and we have a stored baseline, the plugin
+                // is the authority. Ignore the incoming config and push ours back.
+                if (fromEsp32 && Plugin.HasAxisBaseline(axisIdInt))
                 {
-                    baseConfig = Plugin.GetAxisBaseline(axisIdInt);
-                    // Preserve axis ID from ESP32
-                    baseConfig.AxisId = newAxisId;
-                }
-                else
-                {
-                    baseConfig = newAxisConfig;
+                    // Re-init from settings if manager state was lost (axis manager
+                    // is Reset() on vehicle change, which clears base configs)
+                    if (!Plugin.AxisConfigManager.HasBaseConfig(axisIdInt))
+                    {
+                        var baseline = Plugin.GetAxisBaseline(axisIdInt);
+                        if (baseline != null)
+                        {
+                            baseline.AxisId = newAxisId;
+                            Plugin.AxisConfigManager.SetBaseConfig(axisIdInt, baseline);
+                        }
+                    }
+
+                    var mergedConfig = Plugin.AxisConfigManager.GetCurrentConfig(axisIdInt);
+                    if (mergedConfig != null)
+                    {
+                        axes[newAxisId].Config = mergedConfig;
+                        axes[newAxisId].HasAxisConfig = true;
+                        if (newAxisId == selected_axis_id)
+                            uc_axis_config.UpdateConfig(mergedConfig);
+                        RefreshKinematicParametersIfAffected(newAxisId, mergedConfig);
+
+                        EnqueueAxisConfigUpload(newAxisId, mergedConfig, store: false);
+                        Plugin.AxisConfigManager.MarkAsSent(axisIdInt, mergedConfig);
+                        return;
+                    }
+                    // Fall through if manager state was unexpectedly lost
                 }
 
-                // Update manager's base config (also sets _currentConfigs)
-                Plugin.AxisConfigManager.SetBaseConfig(axisIdInt, baseConfig);
+                // No stored baseline (first-time or after clear) or file import:
+                // accept incoming config as the new base.
+                Plugin.AxisConfigManager.SetBaseConfig(axisIdInt, newAxisConfig);
 
                 // Re-apply active function override if one exists
                 int? overridingFunc = Plugin.AxisConfigManager.GetOverridingFunction(axisIdInt);
@@ -2718,48 +2753,58 @@ namespace DiyFfb
                 }
 
                 // Use manager's current config (base or overridden)
-                var currentConfig = Plugin.AxisConfigManager.GetCurrentConfig(axisIdInt) ?? baseConfig;
+                var currentConfig = Plugin.AxisConfigManager.GetCurrentConfig(axisIdInt) ?? newAxisConfig;
                 axes[newAxisId].Config = currentConfig;
                 axes[newAxisId].HasAxisConfig = true;
                 if (newAxisId == selected_axis_id)
                 {
                     uc_axis_config.UpdateConfig(axes[newAxisId].Config);
                 }
-                if (selected_function_id != FunctionID.Undefined && functions.TryGetValue(selected_function_id, out Function function))
-                {
-                    FunctionConfig cfg = function.Config;
-                    bool affectsSelected = false;
-                    if (cfg?.Base != null)
-                    {
-                        foreach (var axis in cfg.Base.LinkedAxes)
-                        {
-                            if ((axis & AxisID.Mask) == newAxisId)
-                            {
-                                affectsSelected = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!affectsSelected && cfg?.AuxFunction != null)
-                    {
-                        foreach (var axis in cfg.AuxFunction.LinkedAxes)
-                        {
-                            if ((axis & AxisID.Mask) == newAxisId)
-                            {
-                                affectsSelected = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (affectsSelected)
-                    {
-                        uc_function_config.OnKinematicParametersChanged(newAxisConfig.KinematicParameters);
-                    }
-                }
+                RefreshKinematicParametersIfAffected(newAxisId, currentConfig);
             }
             else
             {
                 SetDebugOutput($"Invalid axis ID ({(int)newAxisId})", UiLogLevel.Warning);
+            }
+        }
+
+        /// <summary>
+        /// Refresh kinematic parameters in the function config UI if the given axis
+        /// is linked to the currently selected function.
+        /// </summary>
+        private void RefreshKinematicParametersIfAffected(AxisID axisId, AxisConfig axisConfig)
+        {
+            if (selected_function_id == FunctionID.Undefined ||
+                !functions.TryGetValue(selected_function_id, out Function function))
+                return;
+
+            FunctionConfig cfg = function.Config;
+            bool affectsSelected = false;
+            if (cfg?.Base != null)
+            {
+                foreach (var axis in cfg.Base.LinkedAxes)
+                {
+                    if ((axis & AxisID.Mask) == axisId)
+                    {
+                        affectsSelected = true;
+                        break;
+                    }
+                }
+            }
+            if (!affectsSelected && cfg?.AuxFunction != null)
+            {
+                foreach (var axis in cfg.AuxFunction.LinkedAxes)
+                {
+                    if ((axis & AxisID.Mask) == axisId)
+                    {
+                        affectsSelected = true;
+                        break;
+                    }
+                }
+            }
+            if (affectsSelected)
+            {
+                uc_function_config.OnKinematicParametersChanged(axisConfig.KinematicParameters);
             }
         }
 
