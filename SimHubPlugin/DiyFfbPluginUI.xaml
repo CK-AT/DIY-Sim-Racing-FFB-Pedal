@@ -521,6 +521,7 @@
                                     <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Margin="0,0,0,3">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                             <styles:SHButtonPrimary x:Name="btn_save_function_baseline" Click="OnSaveFunctionBaselineClicked" Width="160" Height="28" Content="Save as Baseline" Margin="5,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Save current function configuration as hardware baseline for this function." />
+                                            <styles:SHButtonPrimary x:Name="btn_clear_function_baseline" Click="OnClearFunctionBaselineClicked" Width="160" Height="28" Content="Clear Baseline" Margin="5,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Remove stored baseline so the next ESP32 upload or import establishes a new one. Overrides are preserved." />
                                         </StackPanel>
                                     </Border>
                                     <ScrollViewer Height="764" >
@@ -688,6 +689,10 @@
                                                 Content="Save as Baseline" Margin="5,0,0,0" FontSize="10"
                                                 VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0"
                                                 ToolTip="Save current axis configuration as the hardware baseline.&#x0a;This baseline is preserved across ESP32 reconnects and restarts."/>
+                                        <styles:SHButtonPrimary x:Name="btn_clear_axis_baseline" Click="OnClearAxisBaselineClicked" Width="130" Height="22"
+                                                Content="Clear Baseline" Margin="5,0,0,0" FontSize="10"
+                                                VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0"
+                                                ToolTip="Remove stored axis baseline.&#x0a;The next ESP32 upload or import establishes a new one. Overrides are preserved."/>
                                     </StackPanel>
                                     </StackPanel>
                                 </Border>

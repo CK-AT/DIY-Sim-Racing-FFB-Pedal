@@ -3034,6 +3034,31 @@ namespace DiyFfb
             }
         }
 
+        private void OnClearFunctionBaselineClicked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || !functions.TryGetValue(selected_function_id, out var function) || function == null)
+                return;
+
+            int funcId = (int)function.ID;
+            if (!Plugin.HasFunctionBaseline(funcId))
+                return;
+
+            var result = ThemedMessageBox.Show(
+                $"Clear stored baseline for {function.Name}?\n\nThe next ESP32 upload, import, or manual edit will establish a new baseline.\nOverrides are preserved.",
+                "Clear Baseline",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            Plugin.ClearFunctionBaseline(funcId);
+
+            Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                uc_function_config.RefreshAllBadges();
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
         #region Axis Function Selector
 
         private bool _updatingAxisFunctionSelector = false;
@@ -3161,6 +3186,30 @@ namespace DiyFfb
             }
 
             uc_axis_config.UpdateConfig(axis.Config);
+            RefreshAxisFunctionSelector();
+        }
+
+        private void OnClearAxisBaselineClicked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || selected_axis_id == AxisID.AxisUndefined)
+                return;
+
+            int axisIdInt = (int)selected_axis_id;
+            if (!Plugin.HasAxisBaseline(axisIdInt))
+                return;
+
+            var result = Controls.ThemedMessageBox.Show(
+                $"Clear stored baseline for Axis {axisIdInt}?\n\nThe next ESP32 upload or import will establish a new baseline.\nOverrides are preserved.",
+                "Clear Baseline",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            Plugin.ClearAxisBaseline(axisIdInt);
+
+            if (axes.TryGetValue(selected_axis_id, out var axis) && axis.Config != null)
+                uc_axis_config.UpdateConfig(axis.Config);
             RefreshAxisFunctionSelector();
         }
 

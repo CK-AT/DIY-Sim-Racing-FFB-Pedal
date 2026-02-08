@@ -2446,6 +2446,17 @@ namespace DiyFfb
         }
 
         /// <summary>
+        /// Clear stored function baseline. Overrides are preserved and re-apply
+        /// when a new baseline arrives (ESP32 upload, import, or manual edit).
+        /// </summary>
+        public void ClearFunctionBaseline(int functionId)
+        {
+            Settings.FunctionBaselines?.Remove(functionId);
+            _functionConfigManager.ResetFunction(functionId);
+            this.SaveCommonSettings("GeneralSettings", Settings);
+        }
+
+        /// <summary>
         /// Get the axis baseline (Baseline layer) for an axis.
         /// Returns null if no baseline has been stored.
         /// </summary>
@@ -2497,6 +2508,17 @@ namespace DiyFfb
         public bool HasAxisBaseline(int axisId)
         {
             return Settings.AxisBaselines?.ContainsKey(axisId) == true;
+        }
+
+        /// <summary>
+        /// Clear stored axis baseline. Overrides are preserved and re-apply
+        /// when a new baseline arrives.
+        /// </summary>
+        public void ClearAxisBaseline(int axisId)
+        {
+            Settings.AxisBaselines?.Remove(axisId);
+            _axisConfigManager.ResetAxis(axisId);
+            this.SaveCommonSettings("GeneralSettings", Settings);
         }
 
         /// <summary>
