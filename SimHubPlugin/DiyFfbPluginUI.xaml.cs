@@ -534,6 +534,12 @@ namespace DiyFfb
             {
                 ComboBox_UserProfile.SelectedIndex = 0;
             }
+
+            if (ComboBox_UserProfileHeader != null)
+            {
+                ComboBox_UserProfileHeader.ItemsSource = ordered;
+                ComboBox_UserProfileHeader.SelectedItem = ComboBox_UserProfile.SelectedItem;
+            }
             suppressUserProfileSelectionChange = false;
 
             if (TextBlock_UserProfileInfo != null)
@@ -1004,6 +1010,19 @@ namespace DiyFfb
             }
 
             if (ComboBox_UserProfile.SelectedItem is string profileName)
+            {
+                SetCurrentUserProfile(profileName);
+            }
+        }
+
+        private void ComboBox_UserProfileHeader_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (suppressUserProfileSelectionChange)
+            {
+                return;
+            }
+
+            if (ComboBox_UserProfileHeader.SelectedItem is string profileName)
             {
                 SetCurrentUserProfile(profileName);
             }
