@@ -2823,8 +2823,18 @@ namespace DiyFfb
             // are present. Non-override-tracked fields come from the base config unchanged.
             functions[funcId].Config = e.NewConfig;
 
-            // Send to ESP32 (don't store to EEPROM - these are runtime overrides)
-            EnqueueFunctionConfigUpload(e.NewConfig, store: false);
+            // Only upload to ESP32 if the function is checked/active for the current profile.
+            // Non-active functions still get their internal state updated but don't push to ESP32.
+            if (Plugin.IsFunctionActive(e.FunctionId))
+            {
+                EnqueueFunctionConfigUpload(e.NewConfig, store: false);
+            }
+            else
+            {
+                // Upload suppressed — invalidate last-sent tracking so the next
+                // activation will re-send regardless of diff check.
+                Plugin.FunctionConfigManager.InvalidateLastSent(e.FunctionId);
+            }
 
             // Update UI if this is the selected function
             if (funcId == selected_function_id)

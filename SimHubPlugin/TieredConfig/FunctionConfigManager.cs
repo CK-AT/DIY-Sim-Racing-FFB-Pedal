@@ -237,6 +237,15 @@ namespace DiyFfb.TieredConfig
         }
 
         /// <summary>
+        /// Clear last-sent tracking for a function.
+        /// Call when an upload is suppressed so the next activation re-sends.
+        /// </summary>
+        public void InvalidateLastSent(int functionId)
+        {
+            _lastSentConfigs.Remove(functionId);
+        }
+
+        /// <summary>
         /// Reset manager state. Call on disconnect or restart.
         /// </summary>
         public void Reset()

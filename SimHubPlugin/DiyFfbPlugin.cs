@@ -2091,8 +2091,10 @@ namespace DiyFfb
                 hasPendingFfbProfile = false;
             }
 
-            ApplyAircraftProfile(gameId, carId);
+            // Set activeCarId before applying profile so IsFunctionActive()
+            // checks the NEW profile during config-changed event handling.
             activeCarId = carId;
+            ApplyAircraftProfile(gameId, carId);
             activeCarName = !string.IsNullOrWhiteSpace(data.NewData?.CarModel) ? data.NewData.CarModel : carId;
             ResolveActiveGraph(gameId, carId);
             BuildGraphParams();
