@@ -246,9 +246,10 @@ namespace DiyFfb
                 ConnectToPort(Plugin.Settings.ESPNow_port);
             }
 
-            // Populate function configs from stored baselines BEFORE selecting initial function,
-            // so SwitchFunction displays merged values instead of defaults
+            // Populate configs from stored baselines BEFORE selecting initial tabs,
+            // so SwitchFunction/axis displays merged values instead of defaults
             PopulateFunctionConfigsFromBaselines();
+            PopulateAxisConfigsFromBaselines();
 
             SetInitialSelections();
 
@@ -274,6 +275,29 @@ namespace DiyFfb
                 if (config != null)
                 {
                     function.Config = config;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Populate Axis.Config from stored baselines in the manager.
+        /// Called after InitializeManagerFromSettings() has loaded baselines.
+        /// </summary>
+        public void PopulateAxisConfigsFromBaselines()
+        {
+            if (Plugin == null)
+                return;
+
+            foreach (var kvp in axes)
+            {
+                var axisId = (int)kvp.Key;
+                var axis = kvp.Value;
+
+                var config = Plugin.GetInitialAxisConfig(axisId);
+                if (config != null)
+                {
+                    axis.Config = config;
+                    axis.HasAxisConfig = true;
                 }
             }
         }
@@ -1937,6 +1961,12 @@ namespace DiyFfb
             UpdateFunctionSelection();
         }
 
+        /// <summary>
+        /// Per-axis memory of which function was last selected in the axis function selector.
+        /// -1 means baseline. Persists across axis tab switches within the session.
+        /// </summary>
+        private readonly Dictionary<AxisID, int> _lastSelectedFunctionPerAxis = new Dictionary<AxisID, int>();
+
         private void UpdateAxisSelection()
         {
             if (tc_axis_selection == null)
@@ -1946,12 +1976,30 @@ namespace DiyFfb
 
             if (tc_axis_selection.SelectedItem is KeyValuePair<AxisID, Axis> axisEntry)
             {
+                // Save the outgoing axis's function selection
+                if (selected_axis_id != AxisID.AxisUndefined)
+                {
+                    _lastSelectedFunctionPerAxis[selected_axis_id] = uc_axis_config.SelectedFunctionId;
+                }
+
                 selected_axis_id = axisEntry.Key;
                 if (Plugin != null)
                 {
                     Plugin.Settings.axis_tab_selected = (uint)Math.Max(0, (int)selected_axis_id - 1);
                 }
                 uc_axis_config.UpdateConfig(axisEntry.Value.Config);
+
+                // Restore the incoming axis's last function selection
+                if (_lastSelectedFunctionPerAxis.TryGetValue(selected_axis_id, out int funcId)
+                    && funcId >= 0 && AxisFunctionSelector?.ItemsSource != null)
+                {
+                    var items = AxisFunctionSelector.ItemsSource as List<FunctionSelectorItem>;
+                    var match = items?.FirstOrDefault(i => i.FunctionId == funcId);
+                    if (match != null)
+                    {
+                        AxisFunctionSelector.SelectedItem = match;
+                    }
+                }
             }
         }
 
@@ -2848,11 +2896,24 @@ namespace DiyFfb
                 return;
             }
 
+            // Check if the axis tab is editing a function override
+            bool axisInOverrideMode = uc_axis_config.EditingMode == AxisEditingMode.FunctionOverride
+                                      && uc_axis_config.SelectedFunctionId >= 0;
+
             foreach (var axis in axes.Values)
             {
                 if (loadSelectionDialog.LoadRequested && axis.SelectedToLoad && loadSelectionDialog.axis_configs.TryGetValue(axis.ID, out AxisConfig cfg))
                 {
-                    OnAxisConfigUpdate(cfg);
+                    // If the selected axis is in function override mode, store imported
+                    // config as that function's axis override instead of updating baseline
+                    if (axisInOverrideMode && axis.ID == selected_axis_id)
+                    {
+                        ImportAxisConfigAsOverride(cfg, uc_axis_config.SelectedFunctionId);
+                    }
+                    else
+                    {
+                        OnAxisConfigUpdate(cfg);
+                    }
                 }
                 if (loadSelectionDialog.UploadRequested && axis.SelectedToLoad && loadSelectionDialog.axis_configs.TryGetValue(axis.ID, out AxisConfig uploadCfg))
                 {
@@ -2878,6 +2939,38 @@ namespace DiyFfb
             btn_load_function_config_from_file.IsEnabled = true;
             btn_store_function_config_to_file.IsEnabled = true;
             btn_store_axis_config_to_file.IsEnabled = true;
+        }
+
+        /// <summary>
+        /// Import an axis config as a function override for the selected axis.
+        /// Extracts kinematics, geometry, and static balance from the imported config
+        /// and stores them as the function's axis parameter overrides.
+        /// </summary>
+        private void ImportAxisConfigAsOverride(AxisConfig importedConfig, int functionId)
+        {
+            int axisId = (int)importedConfig.AxisId;
+            var formatter = new Google.Protobuf.JsonFormatter(Google.Protobuf.JsonFormatter.Settings.Default);
+
+            Plugin.UpdateAxisParameterOverride(functionId, axisId, overrides =>
+            {
+                if (importedConfig.KinematicParameters != null)
+                    overrides.Kinematics = importedConfig.KinematicParameters.Clone();
+
+                if (importedConfig.GeneralKinematic != null)
+                {
+                    try { overrides.GeometryJson = formatter.Format(importedConfig.GeneralKinematic); }
+                    catch { /* best-effort */ }
+                }
+
+                if (importedConfig.StaticBalanceConfig != null)
+                    overrides.StaticBalance = importedConfig.StaticBalanceConfig.Clone();
+            });
+
+            // Update UI to show the imported override
+            axes[importedConfig.AxisId].Config = Plugin.AxisConfigManager.GetCurrentConfig(axisId)
+                                                 ?? axes[importedConfig.AxisId].Config;
+            uc_axis_config.SwitchToFunction(functionId);
+            RefreshAxisFunctionSelector();
         }
 
         private void OnSaveSelectionClosed(object sender, EventArgs e)

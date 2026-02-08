@@ -2597,6 +2597,19 @@ namespace DiyFfb
         }
 
         /// <summary>
+        /// Get initial axis config from manager (for UI initialization).
+        /// Returns base config if available, otherwise null.
+        /// </summary>
+        public AxisConfig GetInitialAxisConfig(int axisId)
+        {
+            if (_axisConfigManager.HasBaseConfig(axisId))
+            {
+                return _axisConfigManager.GetCurrentConfig(axisId);
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Get or create the function config overrides for a function in the current vehicle profile.
         /// </summary>
         public FunctionConfigOverrides GetOrCreateFunctionOverrides(int functionId)
@@ -4062,10 +4075,11 @@ namespace DiyFfb
             // Initialize manager with stored baselines and overrides (Phase 7)
             InitializeManagerFromSettings();
 
-            // Populate function configs from manager
+            // Populate function and axis configs from manager
             if (ui != null)
             {
                 ui.PopulateFunctionConfigsFromBaselines();
+                ui.PopulateAxisConfigsFromBaselines();
             }
 
             Simhub_version = (String)pluginManager.GetPropertyValue("DataCorePlugin.SimHubVersion");
