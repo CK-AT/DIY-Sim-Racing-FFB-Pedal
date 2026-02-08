@@ -2788,9 +2788,10 @@ namespace DiyFfb
             if (funcId == FunctionID.Undefined || !functions.ContainsKey(funcId))
                 return;
 
-            // DON'T overwrite function.Config - it contains direct edits to non-wrapped fields
-            // The merged config only includes override-tracked fields and would lose those edits
-            // functions[funcId].Config = e.NewConfig; // <-- REMOVED: causes loss of non-wrapped field edits
+            // Update UI working copy with merged config so SwitchFunction shows correct values.
+            // The merged config = base (full ESP32 config) + profile/user overrides, so all fields
+            // are present. Non-override-tracked fields come from the base config unchanged.
+            functions[funcId].Config = e.NewConfig;
 
             // Send to ESP32 (don't store to EEPROM - these are runtime overrides)
             EnqueueFunctionConfigUpload(e.NewConfig, store: false);
