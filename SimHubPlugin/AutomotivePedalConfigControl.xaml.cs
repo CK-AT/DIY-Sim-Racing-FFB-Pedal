@@ -259,7 +259,9 @@ namespace DiyFfb
             }
 
             Slider_simulated_mass.Value = function_config.SimulatedMass;
+            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", function_config.SimulatedMass);
             Slider_friction.Value = function_config.Friction;
+            label_friction.Content = String.Format("Friction: {0:F1}N", function_config.Friction);
 
             switch (function_config.Base.OutputMode)
             {
@@ -284,7 +286,9 @@ namespace DiyFfb
                 config.DamperConfig.NegativeFactor = 0.25f;
             }
             Slider_damping_push.Value = config.DamperConfig.PositiveFactor;
+            label_damping_push.Content = String.Format("Damping (Push): {0:F3}N*mm/s", config.DamperConfig.PositiveFactor);
             Slider_damping_pull.Value = config.DamperConfig.NegativeFactor;
+            label_damping_pull.Content = String.Format("Damping (Pull): {0:F3}N*mm/s", config.DamperConfig.NegativeFactor);
 
             if (config.RoadImpactEffectConfig == null) config.RoadImpactEffectConfig = new RoadImpactEffectConfig();
             Slider_impact_smoothness.Value = config.RoadImpactEffectConfig.Window;

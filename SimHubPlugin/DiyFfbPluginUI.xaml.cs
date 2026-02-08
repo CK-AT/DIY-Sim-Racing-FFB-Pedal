@@ -558,6 +558,9 @@ namespace DiyFfb
             Plugin.SetCurrentUserProfile(userProfile);
             RefreshUserProfileUi();
             RefreshVehicleParams();
+
+            // Re-render the currently selected function so sliders/labels show new user's values
+            UpdateFunctionSelection();
         }
 
         private void RefreshGraphSelectionUI()

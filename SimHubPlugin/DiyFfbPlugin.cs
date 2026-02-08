@@ -2093,7 +2093,7 @@ namespace DiyFfb
 
             ApplyAircraftProfile(gameId, carId);
             activeCarId = carId;
-            activeCarName = data.NewData?.CarModel;
+            activeCarName = !string.IsNullOrWhiteSpace(data.NewData?.CarModel) ? data.NewData.CarModel : carId;
             ResolveActiveGraph(gameId, carId);
             BuildGraphParams();
 
@@ -2233,6 +2233,24 @@ namespace DiyFfb
                     _axisConfigManager.ApplyFunctionOverrides(functionId, axisOverrides);
                 }
             }
+
+            // Apply user overrides for functions NOT in activeFunctions.
+            // User-layer overrides (output range, friction, force curve, etc.) follow the
+            // user across vehicles and must always be applied regardless of profile settings.
+            if (userOverrides?.FunctionOverrides != null)
+            {
+                foreach (var functionId in _functionConfigManager.GetKnownFunctionIds())
+                {
+                    if (activeFunctions.Contains(functionId))
+                        continue; // already handled above
+
+                    userOverrides.FunctionOverrides.TryGetValue(functionId, out var userDelta);
+                    if (userDelta != null && !userDelta.IsEmpty)
+                    {
+                        _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -2321,10 +2339,22 @@ namespace DiyFfb
             else
             {
                 profile.ActiveFunctionIds.Remove(functionId);
-                // Clear overrides - restore base config
+                // Clear profile overrides - restore base config
                 _functionConfigManager.ClearProfileOverride(functionId);
                 // Clear axis overrides for this function
                 _axisConfigManager.ClearFunctionOverrides(functionId);
+
+                // Re-apply user overrides (they follow the user, not the profile)
+                if (_functionConfigManager.HasBaseConfig(functionId))
+                {
+                    var userOverrides = GetCurrentUserOverrides();
+                    FunctionConfigOverrides userDelta = null;
+                    userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
+                    if (userDelta != null && !userDelta.IsEmpty)
+                    {
+                        _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta);
+                    }
+                }
             }
         }
 
@@ -2965,6 +2995,9 @@ namespace DiyFfb
                 Settings.UserPreferencesProfiles[normalized] = new UserPreferences();
 
             ApplyCurrentProfileOverrides();
+
+            // Notify UI to refresh badges and labels
+            OnContextChanged();
         }
 
         /// <summary>
