@@ -7,7 +7,7 @@
              xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins" mc:Ignorable="d" 
              xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins" 
              xmlns:controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
-             PreviewKeyDown="OnPreviewKeyDown" PreviewKeyUp="OnPreviewKeyUp" Height="858">
+             PreviewKeyDown="OnPreviewKeyDown" PreviewKeyUp="OnPreviewKeyUp" Height="1096">
 
 
     <UserControl.Resources>
@@ -375,170 +375,171 @@
 
 
 
-        <Grid RenderTransformOrigin="0,0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <Border Grid.Row="0" Background="#7F4E4E4E" CornerRadius="5" HorizontalAlignment="Center" Width="820" Margin="0,0,0,3">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,10,4">
-                    <Label Content="User:" FontFamily="Arial" FontSize="10" Foreground="#CCCCCC" VerticalContentAlignment="Center" Padding="0" Height="15" Margin="0,0,4,0"/>
-                    <ComboBox x:Name="ComboBox_UserProfileHeader" SelectionChanged="ComboBox_UserProfileHeader_SelectionChanged" Width="200" Height="20" FontSize="10"/>
-                </StackPanel>
-            </Border>
-            <TabControl Grid.Row="1" x:Name="Function_Tab_seleciton"  SelectionChanged="Function_Tab_seleciton_SelectionChanged" Width="820" HorizontalContentAlignment="Left" HorizontalAlignment="Center" VerticalAlignment="Top" RenderTransformOrigin="0,0">
-                <TabControl.Resources>
-                    <Style TargetType="TabItem">
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="TabItem">
-                                    <!--The four values of CornerRadius represent the four corners of the TabItem.-->
-                                    <Border Name="Border" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5" Margin="0,0,2,0">
-                                        <ContentPresenter x:Name="ContentSite" VerticalAlignment="Center" HorizontalAlignment="Left" ContentSource="Header" Margin="0,0"/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter TargetName="Border" Property="Background" Value="#9F4E4E4E" />
-                                            <Setter Property="TextElement.Foreground" Value="#FFFFFFFF" />
-                                        </Trigger>
-                                        <Trigger Property="IsSelected" Value="False">
-                                            <Setter TargetName="Border" Property="Background" Value="#004E4E4E" />
-                                            <Setter Property="TextElement.Foreground" Value="#7FFFFFFF" />
-                                        </Trigger>
-                                        <MultiTrigger>
-                                            <MultiTrigger.Conditions>
-                                                <Condition Property="IsMouseOver" SourceName="Border" Value="True"/>
-                                                <Condition Property="IsSelected" Value="False"/>
-                                            </MultiTrigger.Conditions>
-                                            <Setter TargetName="Border" Property="Background" Value="#3C4E4E4E" />
-                                        </MultiTrigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                    </Style>
-                </TabControl.Resources>
-                <TabControl.Background>
-                    <SolidColorBrush Color="#FF252525" Opacity="0"/>
-                </TabControl.Background>
-                <TabItem x:Name="Tab_Pedals" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
-                    <TabItem.Header>
-                        <Border Height="40" Margin="0,0,0,0" Padding="10,0,10,0" >
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Image Width="24" Height="24" Source="{StaticResource FunctionSymbol}" Margin="0,5,0,5" />
-                                <Label Content="FUNCTIONS"  FontFamily="Arial Black" FontSize="26" Height="40" Width="182" Padding="0,0,0,0" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"  />
-                            </StackPanel>
-                        </Border>
-                    </TabItem.Header>
-                    <Border CornerRadius="5,5,5,5" Margin="0,3,0,0">
-                        <StackPanel Grid.RowSpan="3" Grid.ColumnSpan="4">
-                            <Canvas x:Name="canvas_Header_Tab" Height="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1" >
-                                <Line x:Name="Line_H_HeaderTab" X1="2" Y1="3" X2="796" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
+    <Grid RenderTransformOrigin="0,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="5*"/>
+            <RowDefinition Height="406*"/>
+        </Grid.RowDefinitions>
+        <Border Grid.Row="0" Background="#7F4E4E4E" CornerRadius="5" HorizontalAlignment="Center" Width="820" Margin="0,0,0,3">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,10,4">
+                <Label Content="User:" FontFamily="Arial" FontSize="10" Foreground="#CCCCCC" VerticalContentAlignment="Center" Padding="0" Height="15" Margin="0,0,4,0"/>
+                <ComboBox x:Name="ComboBox_UserProfileHeader" SelectionChanged="ComboBox_UserProfileHeader_SelectionChanged" Width="200" Height="20" FontSize="10"/>
+            </StackPanel>
+        </Border>
+        <TabControl Grid.Row="1" x:Name="Function_Tab_seleciton"  SelectionChanged="Function_Tab_seleciton_SelectionChanged" Width="820" HorizontalContentAlignment="Left" HorizontalAlignment="Center" VerticalAlignment="Top" RenderTransformOrigin="0,0" Grid.RowSpan="2">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TabItem">
+                                <!--The four values of CornerRadius represent the four corners of the TabItem.-->
+                                <Border Name="Border" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5" Margin="0,0,2,0">
+                                    <ContentPresenter x:Name="ContentSite" VerticalAlignment="Center" HorizontalAlignment="Left" ContentSource="Header" Margin="0,0"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Border" Property="Background" Value="#9F4E4E4E" />
+                                        <Setter Property="TextElement.Foreground" Value="#FFFFFFFF" />
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="False">
+                                        <Setter TargetName="Border" Property="Background" Value="#004E4E4E" />
+                                        <Setter Property="TextElement.Foreground" Value="#7FFFFFFF" />
+                                    </Trigger>
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="IsMouseOver" SourceName="Border" Value="True"/>
+                                            <Condition Property="IsSelected" Value="False"/>
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="Border" Property="Background" Value="#3C4E4E4E" />
+                                    </MultiTrigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </TabControl.Resources>
+            <TabControl.Background>
+                <SolidColorBrush Color="#FF252525" Opacity="0"/>
+            </TabControl.Background>
+            <TabItem x:Name="Tab_Pedals" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
+                <TabItem.Header>
+                    <Border Height="40" Margin="0,0,0,0" Padding="10,0,10,0" >
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Image Width="24" Height="24" Source="{StaticResource FunctionSymbol}" Margin="0,5,0,5" />
+                            <Label Content="FUNCTIONS"  FontFamily="Arial Black" FontSize="26" Height="40" Width="182" Padding="0,0,0,0" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"  />
+                        </StackPanel>
+                    </Border>
+                </TabItem.Header>
+                <Border CornerRadius="5,5,5,5" Margin="0,3,0,0">
+                    <StackPanel Grid.RowSpan="3" Grid.ColumnSpan="4">
+                        <Canvas x:Name="canvas_Header_Tab" Height="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1" >
+                            <Line x:Name="Line_H_HeaderTab" X1="2" Y1="3" X2="796" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
+                        </Canvas>
+                        <StackPanel Grid.RowSpan="3" Orientation="Horizontal" Grid.ColumnSpan="4" Height="1002">
+                            <TabControl ItemsSource="{Binding functions}" x:Name="tc_function_selection" TabStripPlacement="Left" SelectionChanged="OnFunctionSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="110" VerticalAlignment="Top" Height="998">
+                                <TabControl.Resources>
+                                    <Style TargetType="{x:Type TabItem}">
+                                        <Setter Property="Padding" Value="4" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="TabItem">
+                                                    <!--The four values of CornerRadius represent the four corners of the TabItem.-->
+                                                    <Border Name="Border" ToolTip="{Binding Value.StatusMessage}" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding Value.Name}" IsEnabled="{Binding Value.IsOnline}" FontFamily="Arial Black" FontSize="26" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="2,2,2,2" Padding="10,0,10,0" >
+                                                            </TextBlock>
+                                                            <StackPanel.LayoutTransform>
+                                                                <RotateTransform Angle="90" />
+                                                            </StackPanel.LayoutTransform>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter TargetName="Border" Property="Background" Value="#9F4E4E4E" />
+                                                            <Setter Property="TextBlock.Foreground" Value="#FFFFFFFF" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsSelected" Value="False">
+                                                            <Setter TargetName="Border" Property="Background" Value="#004E4E4E" />
+                                                            <Setter Property="TextBlock.Foreground" Value="#7FFFFFFF" />
+                                                        </Trigger>
+                                                        <MultiTrigger>
+                                                            <MultiTrigger.Conditions>
+                                                                <Condition Property="IsMouseOver" SourceName="Border" Value="True"/>
+                                                                <Condition Property="IsSelected" Value="False"/>
+                                                            </MultiTrigger.Conditions>
+                                                            <Setter TargetName="Border" Property="Background" Value="#3C4E4E4E" />
+                                                        </MultiTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding Value.IsOnline}" Value="True"/>
+                                                                <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="TextBlock.Foreground" Value="#FF41E813" />
+                                                        </MultiDataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding Value.IsOnline}" Value="True"/>
+                                                                <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="False" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="TextBlock.Foreground" Value="#7F41E813" />
+                                                        </MultiDataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding Value.IsDirty}" Value="True"/>
+                                                                <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="TextBlock.Foreground" Value="#FFC7C807" />
+                                                        </MultiDataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding Value.IsDirty}" Value="True"/>
+                                                                <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="False" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="TextBlock.Foreground" Value="#7FC7C807" />
+                                                        </MultiDataTrigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                    <Style TargetType="{x:Type TabControl}">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="TabControl">
+                                                    <WrapPanel IsItemsHost="True" Orientation="Vertical"/>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </TabControl.Resources>
+                                <TabControl.Background>
+                                    <SolidColorBrush Color="#FF252525" Opacity="0"/>
+                                </TabControl.Background>
+                            </TabControl>
+                            <Canvas x:Name="canvas_Header_Tab_sub" Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" VerticalAlignment="Top" Height="1000" >
+                                <Line  X1="3" Y1="5" X2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" Y2="998" />
                             </Canvas>
-                            <StackPanel Grid.RowSpan="3" Orientation="Horizontal" Grid.ColumnSpan="4" Height="810">
-                                <TabControl ItemsSource="{Binding functions}" x:Name="tc_function_selection" TabStripPlacement="Left" SelectionChanged="OnFunctionSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="110" VerticalAlignment="Top" Height="808">
-                                    <TabControl.Resources>
-                                        <Style TargetType="{x:Type TabItem}">
-                                            <Setter Property="Padding" Value="4" />
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="TabItem">
-                                                        <!--The four values of CornerRadius represent the four corners of the TabItem.-->
-                                                        <Border Name="Border" ToolTip="{Binding Value.StatusMessage}" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="{Binding Value.Name}" IsEnabled="{Binding Value.IsOnline}" FontFamily="Arial Black" FontSize="26" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="2,2,2,2" Padding="10,0,10,0" >
-                                                                </TextBlock>
-                                                                <StackPanel.LayoutTransform>
-                                                                    <RotateTransform Angle="90" />
-                                                                </StackPanel.LayoutTransform>
-                                                            </StackPanel>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsSelected" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#9F4E4E4E" />
-                                                                <Setter Property="TextBlock.Foreground" Value="#FFFFFFFF" />
-                                                            </Trigger>
-                                                            <Trigger Property="IsSelected" Value="False">
-                                                                <Setter TargetName="Border" Property="Background" Value="#004E4E4E" />
-                                                                <Setter Property="TextBlock.Foreground" Value="#7FFFFFFF" />
-                                                            </Trigger>
-                                                            <MultiTrigger>
-                                                                <MultiTrigger.Conditions>
-                                                                    <Condition Property="IsMouseOver" SourceName="Border" Value="True"/>
-                                                                    <Condition Property="IsSelected" Value="False"/>
-                                                                </MultiTrigger.Conditions>
-                                                                <Setter TargetName="Border" Property="Background" Value="#3C4E4E4E" />
-                                                            </MultiTrigger>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding Value.IsOnline}" Value="True"/>
-                                                                    <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="TextBlock.Foreground" Value="#FF41E813" />
-                                                            </MultiDataTrigger>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding Value.IsOnline}" Value="True"/>
-                                                                    <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="False" />
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="TextBlock.Foreground" Value="#7F41E813" />
-                                                            </MultiDataTrigger>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding Value.IsDirty}" Value="True"/>
-                                                                    <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="TextBlock.Foreground" Value="#FFC7C807" />
-                                                            </MultiDataTrigger>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding Value.IsDirty}" Value="True"/>
-                                                                    <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="False" />
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="TextBlock.Foreground" Value="#7FC7C807" />
-                                                            </MultiDataTrigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                        <Style TargetType="{x:Type TabControl}">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="TabControl">
-                                                        <WrapPanel IsItemsHost="True" Orientation="Vertical"/>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </TabControl.Resources>
-                                    <TabControl.Background>
-                                        <SolidColorBrush Color="#FF252525" Opacity="0"/>
-                                    </TabControl.Background>
-                                </TabControl>
-                                <Canvas x:Name="canvas_Header_Tab_sub" Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" VerticalAlignment="Top" Height="807" >
-                                    <Line  X1="3" Y1="5" X2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" Y2="904" Height="808" />
-                                </Canvas>
-                                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
-                                    <Border  HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5"  Margin="0,0,0,3">
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                            <styles:SHButtonPrimary x:Name="btn_upload_function_config" Click="OnUploadFunctionConfigClicked" Width="125"  Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends this function configuration to the affected axes.&#x0a;Hold CTRL while clicking to store it into the axes' persistent memory as well." />
-                                            <styles:SHButtonPrimary x:Name="btn_download_function_config" Click="OnDownloadFunctionConfigClicked" Width="125" Height="28" Content="Download" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Request the function config from a connected axis." />
-                                            <styles:SHButtonPrimary x:Name="btn_load_function_config_from_file" Click="OnLoadConfigClick" Width="125" Height="28" Content="Load" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Load a function config from a .json file." />
-                                            <styles:SHButtonPrimary x:Name="btn_store_function_config_to_file" Click="btn_store_function_config_to_file_Click" Width="125" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this function config to a .json file." />
-                                        </StackPanel>
-                                    </Border>
-                                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Margin="0,0,0,3">
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                            <styles:SHButtonPrimary x:Name="btn_save_function_baseline" Click="OnSaveFunctionBaselineClicked" Width="160" Height="28" Content="Save as Baseline" Margin="5,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Save current function configuration as hardware baseline for this function." />
-                                            <styles:SHButtonPrimary x:Name="btn_clear_function_baseline" Click="OnClearFunctionBaselineClicked" Width="160" Height="28" Content="Clear Baseline" Margin="5,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Remove stored baseline so the next ESP32 upload or import establishes a new one. Overrides are preserved." />
-                                        </StackPanel>
-                                    </Border>
-                                    <ScrollViewer Height="684" >
-                                        <local:FunctionConfigControl x:Name="uc_function_config" VerticalAlignment="Top" Margin="0,0,0,5" ></local:FunctionConfigControl>
-                                    </ScrollViewer>
-                                </StackPanel>
-                                <!--<StackPanel Height="900" Width="360" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-2,0,0,0">
+                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
+                                <Border  HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5"  Margin="0,0,0,3">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <styles:SHButtonPrimary x:Name="btn_upload_function_config" Click="OnUploadFunctionConfigClicked" Width="125"  Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends this function configuration to the affected axes.&#x0a;Hold CTRL while clicking to store it into the axes' persistent memory as well." />
+                                        <styles:SHButtonPrimary x:Name="btn_download_function_config" Click="OnDownloadFunctionConfigClicked" Width="125" Height="28" Content="Download" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Request the function config from a connected axis." />
+                                        <styles:SHButtonPrimary x:Name="btn_load_function_config_from_file" Click="OnLoadConfigClick" Width="125" Height="28" Content="Load" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Load a function config from a .json file." />
+                                        <styles:SHButtonPrimary x:Name="btn_store_function_config_to_file" Click="btn_store_function_config_to_file_Click" Width="125" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this function config to a .json file." />
+                                    </StackPanel>
+                                </Border>
+                                <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Margin="0,0,0,3">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <styles:SHButtonPrimary x:Name="btn_save_function_baseline" Click="OnSaveFunctionBaselineClicked" Width="160" Height="28" Content="Save as Baseline" Margin="5,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Save current function configuration as hardware baseline for this function." />
+                                        <styles:SHButtonPrimary x:Name="btn_clear_function_baseline" Click="OnClearFunctionBaselineClicked" Width="160" Height="28" Content="Clear Baseline" Margin="5,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Remove stored baseline so the next ESP32 upload or import establishes a new one. Overrides are preserved." />
+                                    </StackPanel>
+                                </Border>
+                                <ScrollViewer Height="917" >
+                                    <local:FunctionConfigControl x:Name="uc_function_config" VerticalAlignment="Top" Margin="0,0,0,5" ></local:FunctionConfigControl>
+                                </ScrollViewer>
+                            </StackPanel>
+                            <!--<StackPanel Height="900" Width="360" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-2,0,0,0">
                                     <Border x:Name="Border_serial_monitor" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Height="808" BorderThickness="0,0,0,0" Grid.Row="3" Grid.Column="2" Width="360" HorizontalAlignment="Center" VerticalAlignment="Top" Grid.RowSpan="3" >
                                         <StackPanel HorizontalAlignment="Center" Height="807" VerticalAlignment="Top" Width="356">
                                             <StackPanel HorizontalAlignment="Center" Height="25" VerticalAlignment="Top" Width="356" Orientation="Horizontal">
@@ -553,123 +554,123 @@
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>-->
-                            </StackPanel>
-
                         </StackPanel>
 
+                    </StackPanel>
+
+                </Border>
+            </TabItem>
+            <TabItem x:Name="Tab_Axes" Height="40" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
+                <TabItem.Header>
+                    <Border  Height="40" Margin="0,0,0,0" Padding="10,0,10,0" >
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Image Width="24" Height="24" Source="{StaticResource AxisSymbol}" Margin="5,5,10,5" />
+                            <Label Content="AXES"  FontFamily="Arial Black" FontSize="26" Height="40" Padding="0,0,0,0" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,0,4,0"  />
+                            <ItemsControl ItemsSource="{Binding axes}" BorderThickness="0" Width="48" VerticalAlignment="Center">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="4"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Ellipse Width="9" Height="9" Margin="1,1,1,1" IsEnabled="{Binding Value.IsOnline}">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsEnabled" Value="True">
+                                                            <Setter Property="Fill" Value="{StaticResource AxisOnlineBrush}" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsEnabled" Value="False">
+                                                            <Setter Property="Fill" Value="{StaticResource AxisOfflineBrush}" />
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                     </Border>
-                </TabItem>
-                <TabItem x:Name="Tab_Axes" Height="40" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
-                    <TabItem.Header>
-                        <Border  Height="40" Margin="0,0,0,0" Padding="10,0,10,0" >
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Image Width="24" Height="24" Source="{StaticResource AxisSymbol}" Margin="5,5,10,5" />
-                                <Label Content="AXES"  FontFamily="Arial Black" FontSize="26" Height="40" Padding="0,0,0,0" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,0,4,0"  />
-                                <ItemsControl ItemsSource="{Binding axes}" BorderThickness="0" Width="48" VerticalAlignment="Center">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <UniformGrid Columns="4"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Ellipse Width="9" Height="9" Margin="1,1,1,1" IsEnabled="{Binding Value.IsOnline}">
-                                                <Ellipse.Style>
-                                                    <Style TargetType="Ellipse">
-                                                        <Style.Triggers>
-                                                            <Trigger Property="IsEnabled" Value="True">
-                                                                <Setter Property="Fill" Value="{StaticResource AxisOnlineBrush}" />
-                                                            </Trigger>
-                                                            <Trigger Property="IsEnabled" Value="False">
-                                                                <Setter Property="Fill" Value="{StaticResource AxisOfflineBrush}" />
-                                                            </Trigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Ellipse.Style>
-                                            </Ellipse>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
-                    </TabItem.Header>
-                    <Border CornerRadius="5,5,5,5" Margin="0,3,0,0">
-                        <StackPanel Grid.RowSpan="3" Grid.ColumnSpan="4">
-                            <Canvas Height="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1" >
-                                <Line X1="2" Y1="3" X2="796" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
+                </TabItem.Header>
+                <Border CornerRadius="5,5,5,5" Margin="0,3,0,0">
+                    <StackPanel Grid.RowSpan="3" Grid.ColumnSpan="4">
+                        <Canvas Height="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1" >
+                            <Line X1="2" Y1="3" X2="796" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
+                        </Canvas>
+                        <StackPanel Grid.RowSpan="3" Orientation="Horizontal" Grid.ColumnSpan="4">
+                            <TabControl  x:Name="tc_axis_selection" ItemsSource="{Binding axes}" TabStripPlacement="Left" SelectionChanged="OnAxisSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="80" Height="999" VerticalAlignment="Top">
+                                <TabControl.Resources>
+                                    <Style TargetType="{x:Type TabItem}">
+                                        <Setter Property="Padding" Value="4" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="TabItem">
+                                                    <!--The four values of CornerRadius represent the four corners of the TabItem.-->
+                                                    <Border Name="Border" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding Value.Name}" IsEnabled="{Binding Value.IsOnline}" FontFamily="Arial Black" FontSize="26" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="2,2,2,2" Padding="10,0,10,0" ScrollViewer.CanContentScroll="False" >
+                                                            </TextBlock>
+                                                            <StackPanel.LayoutTransform>
+                                                                <RotateTransform Angle="90" />
+                                                            </StackPanel.LayoutTransform>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter TargetName="Border" Property="Background" Value="#9F4E4E4E" />
+                                                            <Setter Property="TextBlock.Foreground" Value="#FFFFFFFF" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsSelected" Value="False">
+                                                            <Setter TargetName="Border" Property="Background" Value="#004E4E4E" />
+                                                            <Setter Property="TextBlock.Foreground" Value="#7FFFFFFF" />
+                                                        </Trigger>
+                                                        <MultiTrigger>
+                                                            <MultiTrigger.Conditions>
+                                                                <Condition Property="IsMouseOver" SourceName="Border" Value="True"/>
+                                                                <Condition Property="IsSelected" Value="False"/>
+                                                            </MultiTrigger.Conditions>
+                                                            <Setter TargetName="Border" Property="Background" Value="#3C4E4E4E" />
+                                                        </MultiTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding Value.IsOnline}" Value="True"/>
+                                                                <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="TextBlock.Foreground" Value="#FF41E813" />
+                                                        </MultiDataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding Value.IsOnline}" Value="True"/>
+                                                                <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="False" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="TextBlock.Foreground" Value="#7F41E813" />
+                                                        </MultiDataTrigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                    <Style TargetType="{x:Type TabControl}">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="TabControl">
+                                                    <WrapPanel IsItemsHost="True" Orientation="Vertical"/>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </TabControl.Resources>
+                                <TabControl.Background>
+                                    <SolidColorBrush Color="#FF252525" Opacity="0"/>
+                                </TabControl.Background>
+                            </TabControl>
+                            <Canvas Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" VerticalAlignment="Top" >
+                                <Line  X1="3" Y1="2" X2="3" Y2="1002" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
                             </Canvas>
-                            <StackPanel Grid.RowSpan="3" Orientation="Horizontal" Grid.ColumnSpan="4">
-                                <TabControl  x:Name="tc_axis_selection" ItemsSource="{Binding axes}" TabStripPlacement="Left" SelectionChanged="OnAxisSelectionChanged" HorizontalContentAlignment="Left" FlowDirection="RightToLeft" Width="80" Height="836" VerticalAlignment="Top">
-                                    <TabControl.Resources>
-                                        <Style TargetType="{x:Type TabItem}">
-                                            <Setter Property="Padding" Value="4" />
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="TabItem">
-                                                        <!--The four values of CornerRadius represent the four corners of the TabItem.-->
-                                                        <Border Name="Border" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="{Binding Value.Name}" IsEnabled="{Binding Value.IsOnline}" FontFamily="Arial Black" FontSize="26" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="2,2,2,2" Padding="10,0,10,0" ScrollViewer.CanContentScroll="False" >
-                                                                </TextBlock>
-                                                                <StackPanel.LayoutTransform>
-                                                                    <RotateTransform Angle="90" />
-                                                                </StackPanel.LayoutTransform>
-                                                            </StackPanel>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsSelected" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#9F4E4E4E" />
-                                                                <Setter Property="TextBlock.Foreground" Value="#FFFFFFFF" />
-                                                            </Trigger>
-                                                            <Trigger Property="IsSelected" Value="False">
-                                                                <Setter TargetName="Border" Property="Background" Value="#004E4E4E" />
-                                                                <Setter Property="TextBlock.Foreground" Value="#7FFFFFFF" />
-                                                            </Trigger>
-                                                            <MultiTrigger>
-                                                                <MultiTrigger.Conditions>
-                                                                    <Condition Property="IsMouseOver" SourceName="Border" Value="True"/>
-                                                                    <Condition Property="IsSelected" Value="False"/>
-                                                                </MultiTrigger.Conditions>
-                                                                <Setter TargetName="Border" Property="Background" Value="#3C4E4E4E" />
-                                                            </MultiTrigger>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding Value.IsOnline}" Value="True"/>
-                                                                    <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="TextBlock.Foreground" Value="#FF41E813" />
-                                                            </MultiDataTrigger>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding Value.IsOnline}" Value="True"/>
-                                                                    <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="False" />
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="TextBlock.Foreground" Value="#7F41E813" />
-                                                            </MultiDataTrigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                        <Style TargetType="{x:Type TabControl}">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="TabControl">
-                                                        <WrapPanel IsItemsHost="True" Orientation="Vertical"/>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </TabControl.Resources>
-                                    <TabControl.Background>
-                                        <SolidColorBrush Color="#FF252525" Opacity="0"/>
-                                    </TabControl.Background>
-                                </TabControl>
-                                <Canvas Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" VerticalAlignment="Top" >
-                                    <Line  X1="3" Y1="2" X2="3" Y2="836" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
-                                </Canvas>
-                                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
-                                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="580" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Margin="0,0,0,3">
+                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
+                                <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="580" Background="#7F4E4E4E" CornerRadius="5,5,5,5" Margin="0,0,0,3">
                                     <StackPanel Orientation="Vertical">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                             <styles:SHButtonPrimary x:Name="btn_upload_axis_config" Click="OnUploadAxisConfigClicked" Width="110" Height="28" Content="Upload" HorizontalAlignment="Center" Margin="5,5,5,5" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Sends the axis configuration to the axis currently selected.&#x0a;Hold CTRL while clicking to store it into the axis' persistent memory as well." />
@@ -678,313 +679,313 @@
                                             <styles:SHButtonPrimary x:Name="btn_store_axis_config_to_file" Click="btn_store_axis_config_to_file_Click" Width="110" Height="28" Content="Store" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Store this axis config to a .json file." />
                                             <styles:SHButtonPrimary x:Name="btn_home_axis" Click="btn_home_axis_Click" Width="110" Height="28" Content="Home" Margin="0,5,5,5" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0" ToolTip="Run the homing routine on the selected axis." />
                                         </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,3" HorizontalAlignment="Left" Width="580">
-                                        <Label Content="Editing:" FontFamily="Arial" FontSize="10" VerticalContentAlignment="Center" Padding="0,0,5,0" Margin="6,0,0,0"/>
-                                        <ComboBox x:Name="AxisFunctionSelector" Width="200" Height="22" FontSize="10" SelectionChanged="AxisFunctionSelector_SelectionChanged">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
-                                                        <TextBlock Text=" [F]" Foreground="#FF8B5CF6" FontWeight="Bold"
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,3" HorizontalAlignment="Left" Width="580">
+                                            <Label Content="Editing:" FontFamily="Arial" FontSize="10" VerticalContentAlignment="Center" Padding="0,0,5,0" Margin="6,0,0,0"/>
+                                            <ComboBox x:Name="AxisFunctionSelector" Width="200" Height="22" FontSize="10" SelectionChanged="AxisFunctionSelector_SelectionChanged">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                                            <TextBlock Text=" [F]" Foreground="#FF8B5CF6" FontWeight="Bold"
                                                                    Visibility="{Binding HasOverride, Converter={StaticResource BoolToVisibilityConverter}}"
                                                                    VerticalAlignment="Center" Margin="2,0,0,0"/>
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
-                                        <Button x:Name="BtnClearAxisOverride" Content="Clear Override" Width="100" Height="22" FontSize="10"
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                            <Button x:Name="BtnClearAxisOverride" Content="Clear Override" Width="100" Height="22" FontSize="10"
                                                 Margin="8,0,0,0" Click="OnClearAxisOverrideClicked" Visibility="Collapsed"
                                                 ToolTip="Remove axis parameter override for this function"/>
-                                        <styles:SHButtonPrimary x:Name="btn_save_axis_baseline" Click="OnSaveAxisBaselineClicked" Width="130" Height="22"
+                                            <styles:SHButtonPrimary x:Name="btn_save_axis_baseline" Click="OnSaveAxisBaselineClicked" Width="130" Height="22"
                                                 Content="Save as Baseline" Margin="5,0,0,0" FontSize="10"
                                                 VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0"
                                                 ToolTip="Save current axis configuration as the hardware baseline.&#x0a;This baseline is preserved across ESP32 reconnects and restarts."/>
-                                        <styles:SHButtonPrimary x:Name="btn_clear_axis_baseline" Click="OnClearAxisBaselineClicked" Width="130" Height="22"
+                                            <styles:SHButtonPrimary x:Name="btn_clear_axis_baseline" Click="OnClearAxisBaselineClicked" Width="130" Height="22"
                                                 Content="Clear Baseline" Margin="5,0,0,0" FontSize="10"
                                                 VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0"
                                                 ToolTip="Remove stored axis baseline.&#x0a;The next ESP32 upload or import establishes a new one. Overrides are preserved."/>
-                                    </StackPanel>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
-                                    <local:AxisConfigControl x:Name="uc_axis_config" VerticalAlignment="Center" Height="695"></local:AxisConfigControl>
-                                </StackPanel>
+                                <local:AxisConfigControl x:Name="uc_axis_config" VerticalAlignment="Center" Height="930"></local:AxisConfigControl>
                             </StackPanel>
-
                         </StackPanel>
 
+                    </StackPanel>
+
+                </Border>
+            </TabItem>
+            <TabItem x:Name="Tab_Vehicle" Height="40" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
+                <TabItem.Header>
+                    <Border Height="40" Margin="0,0,0,0" Padding="10,0,10,0">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Image x:Name="VehicleTabIcon" Width="24" Height="24" Source="{StaticResource VehicleSymbol}" Margin="5,5,5,5" />
+                            <Label x:Name="VehicleTabLabel" Content="VEHICLE"  FontFamily="Arial Black" FontSize="26" Height="40" Width="160" Padding="0,0,0,0" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"  />
+                        </StackPanel>
                     </Border>
-                </TabItem>
-                <TabItem x:Name="Tab_Vehicle" Height="40" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
-                    <TabItem.Header>
-                        <Border Height="40" Margin="0,0,0,0" Padding="10,0,10,0">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Image x:Name="VehicleTabIcon" Width="24" Height="24" Source="{StaticResource VehicleSymbol}" Margin="5,5,5,5" />
-                                <Label x:Name="VehicleTabLabel" Content="VEHICLE"  FontFamily="Arial Black" FontSize="26" Height="40" Width="160" Padding="0,0,0,0" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"  />
-                            </StackPanel>
-                        </Border>
-                    </TabItem.Header>
-                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="800" CornerRadius="5,5,5,5" Margin="0,3,0,0">
-                        <StackPanel Width="780" Grid.RowSpan="3" HorizontalAlignment="Left" VerticalAlignment="Top" Grid.ColumnSpan="4">
-                            <Canvas Height="6" Width="779" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1">
-                                <Line X1="2" Y1="3" X2="806" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
-                            </Canvas>
-                            <!-- Vehicle info display -->
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="90,3,10,3">
-                                <Label Content="Vehicle:" Height="16" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Foreground="#CCCCCC"/>
-                                <TextBlock x:Name="TextBlock_VehicleTabVehicleId" Text="-" Height="14" Width="500" Padding="0,0,0,0" FontFamily="Arial" FontSize="10" TextTrimming="CharacterEllipsis" Foreground="White" VerticalAlignment="Bottom"/>
-                            </StackPanel>
+                </TabItem.Header>
+                <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="800" CornerRadius="5,5,5,5" Margin="0,3,0,0">
+                    <StackPanel Width="780" Grid.RowSpan="3" HorizontalAlignment="Left" VerticalAlignment="Top" Grid.ColumnSpan="4">
+                        <Canvas Height="6" Width="779" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1">
+                            <Line X1="2" Y1="3" X2="806" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
+                        </Canvas>
+                        <!-- Vehicle info display -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="90,3,10,3">
+                            <Label Content="Vehicle:" Height="16" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Foreground="#CCCCCC"/>
+                            <TextBlock x:Name="TextBlock_VehicleTabVehicleId" Text="-" Height="14" Width="500" Padding="0,0,0,0" FontFamily="Arial" FontSize="10" TextTrimming="CharacterEllipsis" Foreground="White" VerticalAlignment="Bottom"/>
+                        </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="90,3,10,3">
                             <Label Content="Graph:" Height="16" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Foreground="#CCCCCC"/>
                             <TextBlock x:Name="TextBlock_VehicleTabActiveGraph" Text="(none)" Height="14" Width="500" Padding="0,0,0,0" VerticalAlignment="Bottom" FontFamily="Arial" FontSize="10" TextTrimming="CharacterEllipsis" Foreground="White"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10,5,10,5">
-                                <styles:SHButtonPrimary x:Name="btn_manage_profiles" Click="btn_manage_profiles_Click" Width="110" Content="Manage Profiles" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
-                                <styles:SHButtonPrimary x:Name="btn_review_params" Click="btn_review_params_Click" Width="100" Content="Review Params" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
-                                <styles:SHButtonPrimary x:Name="btn_store_profile" Click="btn_store_profile_Click" Width="90" Content="Store Profile" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
-                                <styles:SHButtonPrimary x:Name="btn_save_aircraft_ffb" Click="btn_save_aircraft_ffb_Click" Width="90" Content="Export Profile" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
-                                <styles:SHButtonPrimary x:Name="btn_load_aircraft_ffb" Click="btn_load_aircraft_ffb_Click" Width="90" Content="Import Profile" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
-                                <styles:SHButtonPrimary x:Name="btn_open_graph_editor_vehicle" Click="OnOpenGraphEditorClicked" Width="90" Content="Graph Editor" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
-                            </StackPanel>
-                            <ScrollViewer VerticalScrollBarVisibility="Visible" Height="697" Margin="10,5,10,5">
-                                <StackPanel x:Name="VehicleParamsContainer" Orientation="Vertical" Width="600" Margin="11,0,0,0"/>
-                            </ScrollViewer>
+                            <styles:SHButtonPrimary x:Name="btn_manage_profiles" Click="btn_manage_profiles_Click" Width="110" Content="Manage Profiles" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
+                            <styles:SHButtonPrimary x:Name="btn_review_params" Click="btn_review_params_Click" Width="100" Content="Review Params" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
+                            <styles:SHButtonPrimary x:Name="btn_store_profile" Click="btn_store_profile_Click" Width="90" Content="Store Profile" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
+                            <styles:SHButtonPrimary x:Name="btn_save_aircraft_ffb" Click="btn_save_aircraft_ffb_Click" Width="90" Content="Export Profile" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
+                            <styles:SHButtonPrimary x:Name="btn_load_aircraft_ffb" Click="btn_load_aircraft_ffb_Click" Width="90" Content="Import Profile" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" Margin="0,0,6,0" />
+                            <styles:SHButtonPrimary x:Name="btn_open_graph_editor_vehicle" Click="OnOpenGraphEditorClicked" Width="90" Content="Graph Editor" Height="24" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                        </StackPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Visible" Height="903" Margin="10,5,10,5">
+                            <StackPanel x:Name="VehicleParamsContainer" Orientation="Vertical" Width="600" Margin="11,0,0,0"/>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+            </TabItem>
+            <TabItem x:Name="Tab_System" Height="40" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
+                <TabItem.Header>
+                    <Border Height="40" Margin="0,0,0,0" Padding="10,0,10,0" >
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Image Width="24" Height="24" Source="{StaticResource CogSymbol}" Margin="5,5,5,5" />
+                            <Label Content="SYSTEM"  FontFamily="Arial Black" FontSize="26" Height="40" Width="126" Padding="0,0,0,0" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"  />
                         </StackPanel>
                     </Border>
-                </TabItem>
-                <TabItem x:Name="Tab_System" Height="40" Padding="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
-                    <TabItem.Header>
-                        <Border Height="40" Margin="0,0,0,0" Padding="10,0,10,0" >
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Image Width="24" Height="24" Source="{StaticResource CogSymbol}" Margin="5,5,5,5" />
-                                <Label Content="SYSTEM"  FontFamily="Arial Black" FontSize="26" Height="40" Width="126" Padding="0,0,0,0" RenderTransformOrigin="0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"  />
-                            </StackPanel>
-                        </Border>
-                    </TabItem.Header>
-                    <Border  HorizontalAlignment="Left" Height="860" VerticalAlignment="Top" Width="1200" CornerRadius="5,5,5,5" Margin="0,3,0,0">
-                        <StackPanel Height="905" Width="1180" Grid.RowSpan="3" HorizontalAlignment="Left" VerticalAlignment="Top" Grid.ColumnSpan="4">
-                            <Canvas  Height="6" Width="725" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1" >
-                                <Line  X1="2" Y1="3" X2="763" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
+                </TabItem.Header>
+                <Border  HorizontalAlignment="Left" VerticalAlignment="Top" CornerRadius="5,5,5,5" Margin="0,3,0,0">
+                    <StackPanel Grid.RowSpan="3" HorizontalAlignment="Left" VerticalAlignment="Top" Grid.ColumnSpan="4">
+                        <Canvas  Height="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="2" Grid.ColumnSpan="3" Margin="0,1,0,1" >
+                            <Line  X1="2" Y1="3" X2="808" Y2="3" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="2" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
+                        </Canvas>
+                        <StackPanel Grid.RowSpan="3" HorizontalAlignment="Left" VerticalAlignment="Top" Orientation="Horizontal" Grid.ColumnSpan="4">
+                            <Canvas  Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" Margin="43,0,0,0" VerticalAlignment="Top" >
+                                <Line  X1="3" Y1="2" X2="3" Y2="498" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
                             </Canvas>
-                            <StackPanel Height="900" Width="1180" Grid.RowSpan="3" HorizontalAlignment="Left" VerticalAlignment="Top" Orientation="Horizontal" Grid.ColumnSpan="4">
-                                <Canvas  Height="900" Width="6" Background="#00333333" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Left" Grid.Row="0" Grid.ColumnSpan="3" Margin="43,0,0,0" VerticalAlignment="Top" >
-                                    <Line  X1="3" Y1="2" X2="3" Y2="498" Stroke="{DynamicResource AccentColorBrush}" StrokeThickness="1" StrokeEndLineCap="Round" StrokeStartLineCap="Round" />
-                                </Canvas>
-                                <StackPanel HorizontalAlignment="Center" Height="900" Grid.Row="3" VerticalAlignment="Top" Width="168" Grid.RowSpan="3" Margin="2,0,0,0">
-                                    <Border Background="#7F4E4E4E" Height="498" CornerRadius="5,5,5,5" BorderThickness="0,0,0,0" Width="168" HorizontalAlignment="Center" >
-                                        <StackPanel HorizontalAlignment="Left" Height="498" VerticalAlignment="Top" Width="160" Margin="0,5,0,0">
-                                            <StackPanel Height="15" Width="160" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                                <Label Content="Gateway" FontFamily="Arial Black" FontSize="12" Height="15" Width="80" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" />
-                                            </StackPanel>
-                                            <StackPanel HorizontalAlignment="Left" Height="22" VerticalAlignment="Top" Width="160" Orientation="Horizontal" Margin="0,2,0,0">
-                                                <ComboBox x:Name="SerialPortSelection_ESPNow" SelectionChanged="ESPNow_SerialPortSelectionChanged" Width="100" Height="20" FontSize="8" HorizontalAlignment="Left" MinHeight="20"/>
-                                                <styles:SHButtonPrimary x:Name="btn_connect_espnow_port" Click="btn_connect_espnow_port_Click" Width="55" Content="Connect" Height="20" Margin="3,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
-                                            </StackPanel>
-                                            <styles:SHButtonPrimary x:Name="btn_update_system" Click="UpdateSerialPortList_click" Width="160" Height="25" Content="Update Serial Port List" HorizontalAlignment="Left" Margin="0,2,0,0" Padding="15,0,15,0" VerticalContentAlignment="Center" />
-                                            <StackPanel Height="20" Width="160" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,6,0,0">
-                                                <styles:SHToggleButton x:Name="CheckBox_Pedal_ESPNow_autoconnect" Content="" Checked="CheckBox_Pedal_ESPNow_autoconnect_Checked" Unchecked="CheckBox_Pedal_ESPNow_autoconnect_Unchecked" IsChecked="False" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Auto reconnect to gateway" RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />
-                                                <Label Content="Auto Reconnect" Height="20" Width="130" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
-                                            </StackPanel>
-                                            <styles:SHButtonPrimary x:Name="btn_restart_all_axes" Click="btn_restart_all_axes_Click" Width="160" Height="25" Content="Restart All Axes" HorizontalAlignment="Left" Margin="0,6,0,0" Padding="15,0,15,0" VerticalContentAlignment="Center" ToolTip="Send a restart command to every axis." />
-                                            <TextBlock x:Name="Label_Status" Text="Disconnected" FontFamily="Arial" FontSize="10" Margin="0,6,0,0"/>
-                                            <!-- Profile backup -->
-                                            <Label Content="Profile Backup" FontFamily="Arial Black" FontSize="10" Height="20" Width="160" Padding="0,0,0,0" VerticalContentAlignment="Center" HorizontalAlignment="Left" Margin="0,12,0,0"/>
-                                            <styles:SHButtonPrimary x:Name="btn_save_ffb_map" Click="btn_save_ffb_map_Click" Width="160" Height="25" Content="Export All Profiles" HorizontalAlignment="Left" Margin="0,4,0,0" Padding="15,0,15,0" VerticalContentAlignment="Center" ToolTip="Export all FFB profiles to a single file." />
-                                            <styles:SHButtonPrimary x:Name="btn_load_ffb_map" Click="btn_load_ffb_map_Click" Width="160" Height="25" Content="Import All Profiles" HorizontalAlignment="Left" Margin="0,4,0,0" Padding="15,0,15,0" VerticalContentAlignment="Center" ToolTip="Import FFB profiles from a backup file." />
+                            <StackPanel HorizontalAlignment="Center" Height="900" Grid.Row="3" VerticalAlignment="Top" Width="168" Grid.RowSpan="3" Margin="2,0,0,0">
+                                <Border Background="#7F4E4E4E" Height="498" CornerRadius="5,5,5,5" BorderThickness="0,0,0,0" Width="168" HorizontalAlignment="Center" >
+                                    <StackPanel HorizontalAlignment="Left" Height="498" VerticalAlignment="Top" Width="160" Margin="0,5,0,0">
+                                        <StackPanel Height="15" Width="160" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                            <Label Content="Gateway" FontFamily="Arial Black" FontSize="12" Height="15" Width="80" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" />
                                         </StackPanel>
-                                    </Border>
-                                </StackPanel>
-                                <StackPanel Width="540" Height="900" Margin="3,0,0,0">
-                                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5">
-                                        <TabControl Width="540" Padding="0,0,0,0" BorderThickness="0,0,0,0" Background="#00252525" Foreground="Transparent">
-                                            <TabControl.Resources>
-                                                <Style TargetType="TabItem">
-                                                    <Setter Property="Template">
-                                                        <Setter.Value>
-                                                            <ControlTemplate TargetType="TabItem">
-                                                                <Border Name="Border" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5" Margin="0,0,2,0">
-                                                                    <ContentPresenter x:Name="ContentSite" VerticalAlignment="Center" HorizontalAlignment="Left" ContentSource="Header" Margin="0,0"/>
-                                                                </Border>
-                                                                <ControlTemplate.Triggers>
-                                                                    <Trigger Property="IsSelected" Value="True">
-                                                                        <Setter TargetName="Border" Property="Background" Value="#7F4E4E4E" />
-                                                                        <Setter Property="TextElement.Foreground" Value="#FFFFFFFF" />
-                                                                    </Trigger>
-                                                                    <Trigger Property="IsSelected" Value="False">
-                                                                        <Setter TargetName="Border" Property="Background" Value="#334E4E4E" />
-                                                                        <Setter Property="TextElement.Foreground" Value="#33FFFFFF" />
-                                                                    </Trigger>
-                                                                    <MultiTrigger>
-                                                                        <MultiTrigger.Conditions>
-                                                                            <Condition Property="IsMouseOver" SourceName="Border" Value="True"/>
-                                                                            <Condition Property="IsSelected" Value="False"/>
-                                                                        </MultiTrigger.Conditions>
-                                                                        <Setter TargetName="Border" Property="Background" Value="#4C4E4E4E" />
-                                                                    </MultiTrigger>
-                                                                </ControlTemplate.Triggers>
-                                                            </ControlTemplate>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Style>
-                                            </TabControl.Resources>
-                                            <TabItem Width="120" Height="30" Padding="0,0,0,0" ToolTip="OTA settings">
-                                                <TabItem.Header>
-                                                    <Border Width="120" Height="30" Margin="0,0,0,0">
-                                                        <Label Content="OTA" FontFamily="Arial Black" FontSize="10" Height="30" Width="120" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" UseLayoutRounding="True" />
-                                                    </Border>
-                                                </TabItem.Header>
-                                                <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,2,0,0">
-                                                    <StackPanel Width="540" HorizontalAlignment="Left" VerticalAlignment="Top">
-                                                        <Label Content="OTA Setting" Height="15" Width="150" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial Black" HorizontalAlignment="Left" Margin="70,0,0,0"/>
-                                                        <StackPanel HorizontalAlignment="Left" Height="25" VerticalAlignment="Center" Width="540" Orientation="Horizontal">
-                                                            <Label Content="SSID:" Height="15" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
-                                                            <TextBox x:Name="textbox_SSID" TextChanged="textbox_SSID_TextChanged" Height="20" Width="150" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" MaxLength="63" MinHeight="15" FontSize="10"/>
+                                        <StackPanel HorizontalAlignment="Left" Height="22" VerticalAlignment="Top" Width="160" Orientation="Horizontal" Margin="0,2,0,0">
+                                            <ComboBox x:Name="SerialPortSelection_ESPNow" SelectionChanged="ESPNow_SerialPortSelectionChanged" Width="100" Height="20" FontSize="8" HorizontalAlignment="Left" MinHeight="20"/>
+                                            <styles:SHButtonPrimary x:Name="btn_connect_espnow_port" Click="btn_connect_espnow_port_Click" Width="55" Content="Connect" Height="20" Margin="3,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                                        </StackPanel>
+                                        <styles:SHButtonPrimary x:Name="btn_update_system" Click="UpdateSerialPortList_click" Width="160" Height="25" Content="Update Serial Port List" HorizontalAlignment="Left" Margin="0,2,0,0" Padding="15,0,15,0" VerticalContentAlignment="Center" />
+                                        <StackPanel Height="20" Width="160" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,6,0,0">
+                                            <styles:SHToggleButton x:Name="CheckBox_Pedal_ESPNow_autoconnect" Content="" Checked="CheckBox_Pedal_ESPNow_autoconnect_Checked" Unchecked="CheckBox_Pedal_ESPNow_autoconnect_Unchecked" IsChecked="False" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Auto reconnect to gateway" RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />
+                                            <Label Content="Auto Reconnect" Height="20" Width="130" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
+                                        </StackPanel>
+                                        <styles:SHButtonPrimary x:Name="btn_restart_all_axes" Click="btn_restart_all_axes_Click" Width="160" Height="25" Content="Restart All Axes" HorizontalAlignment="Left" Margin="0,6,0,0" Padding="15,0,15,0" VerticalContentAlignment="Center" ToolTip="Send a restart command to every axis." />
+                                        <TextBlock x:Name="Label_Status" Text="Disconnected" FontFamily="Arial" FontSize="10" Margin="0,6,0,0"/>
+                                        <!-- Profile backup -->
+                                        <Label Content="Profile Backup" FontFamily="Arial Black" FontSize="10" Height="20" Width="160" Padding="0,0,0,0" VerticalContentAlignment="Center" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+                                        <styles:SHButtonPrimary x:Name="btn_save_ffb_map" Click="btn_save_ffb_map_Click" Width="160" Height="25" Content="Export All Profiles" HorizontalAlignment="Left" Margin="0,4,0,0" Padding="15,0,15,0" VerticalContentAlignment="Center" ToolTip="Export all FFB profiles to a single file." />
+                                        <styles:SHButtonPrimary x:Name="btn_load_ffb_map" Click="btn_load_ffb_map_Click" Width="160" Height="25" Content="Import All Profiles" HorizontalAlignment="Left" Margin="0,4,0,0" Padding="15,0,15,0" VerticalContentAlignment="Center" ToolTip="Import FFB profiles from a backup file." />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel Width="540" Margin="3,0,0,0">
+                                <Border HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5">
+                                    <TabControl Width="540" Padding="0,0,0,0" BorderThickness="0,0,0,0" Background="#00252525" Foreground="Transparent">
+                                        <TabControl.Resources>
+                                            <Style TargetType="TabItem">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="TabItem">
+                                                            <Border Name="Border" BorderThickness="0,0,0,0" BorderBrush="Gainsboro" CornerRadius="5,5,5,5" Margin="0,0,2,0">
+                                                                <ContentPresenter x:Name="ContentSite" VerticalAlignment="Center" HorizontalAlignment="Left" ContentSource="Header" Margin="0,0"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsSelected" Value="True">
+                                                                    <Setter TargetName="Border" Property="Background" Value="#7F4E4E4E" />
+                                                                    <Setter Property="TextElement.Foreground" Value="#FFFFFFFF" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsSelected" Value="False">
+                                                                    <Setter TargetName="Border" Property="Background" Value="#334E4E4E" />
+                                                                    <Setter Property="TextElement.Foreground" Value="#33FFFFFF" />
+                                                                </Trigger>
+                                                                <MultiTrigger>
+                                                                    <MultiTrigger.Conditions>
+                                                                        <Condition Property="IsMouseOver" SourceName="Border" Value="True"/>
+                                                                        <Condition Property="IsSelected" Value="False"/>
+                                                                    </MultiTrigger.Conditions>
+                                                                    <Setter TargetName="Border" Property="Background" Value="#4C4E4E4E" />
+                                                                </MultiTrigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </TabControl.Resources>
+                                        <TabItem Width="120" Height="30" Padding="0,0,0,0" ToolTip="OTA settings">
+                                            <TabItem.Header>
+                                                <Border Width="120" Height="30" Margin="0,0,0,0">
+                                                    <Label Content="OTA" FontFamily="Arial Black" FontSize="10" Height="30" Width="120" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" UseLayoutRounding="True" />
+                                                </Border>
+                                            </TabItem.Header>
+                                            <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,2,0,0">
+                                                <StackPanel Width="540" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                                    <Label Content="OTA Setting" Height="15" Width="150" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial Black" HorizontalAlignment="Left" Margin="70,0,0,0"/>
+                                                    <StackPanel HorizontalAlignment="Left" Height="25" VerticalAlignment="Center" Width="540" Orientation="Horizontal">
+                                                        <Label Content="SSID:" Height="15" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
+                                                        <TextBox x:Name="textbox_SSID" TextChanged="textbox_SSID_TextChanged" Height="20" Width="150" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" MaxLength="63" MinHeight="15" FontSize="10"/>
+                                                    </StackPanel>
+                                                    <StackPanel HorizontalAlignment="Left" Height="25" VerticalAlignment="Top" Width="540" Orientation="Horizontal">
+                                                        <Label Content="PASS:" Height="15" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
+                                                        <PasswordBox x:Name="textbox_PASS" PasswordChanged="textbox_PASS_PasswordChanged" Height="20" Width="150" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" MaxLength="63" MinHeight="15" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Orientation="Horizontal" Width="540" Height="20" Margin="0,2,0,0">
+                                                        <Label Content="Source:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
+                                                        <RadioButton x:Name="OTASource_Public" Content="Public URL" GroupName="OTASource_options" Width="110" Height="20" BorderThickness="0,0,0,0" IsChecked="True" FontSize="10" Checked="OTASource_Public_Checked" ToolTip="Use a public update_info.json URL"/>
+                                                        <RadioButton x:Name="OTASource_Local" Content="Local .ffbota" GroupName="OTASource_options" Width="110" Height="20" Margin="5,0,0,0" BorderThickness="0,0,0,0" FontSize="10" Checked="OTASource_Local_Checked" ToolTip="Host update_info.json and firmware.bin from a local .ffbota container"/>
+                                                    </StackPanel>
+                                                    <StackPanel x:Name="Panel_OtaPublic" HorizontalAlignment="Left" VerticalAlignment="Top" Orientation="Horizontal" Width="540" Height="20" Margin="0,2,0,0">
+                                                        <Label Content="URL Mode:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
+                                                        <RadioButton x:Name="OTAUrl_Default" Content="Default URL" GroupName="OTAUrl_options" Width="110" Height="20" BorderThickness="0,0,0,0" IsChecked="True" FontSize="10" Checked="OTAUrl_Default_Checked" ToolTip="Use the default project update_info.json"/>
+                                                        <RadioButton x:Name="OTAUrl_Custom" Content="Custom URL" GroupName="OTAUrl_options" Width="110" Height="20" Margin="5,0,0,0" BorderThickness="0,0,0,0" FontSize="10" Checked="OTAUrl_Custom_Checked" ToolTip="Use a custom update_info.json URL"/>
+                                                    </StackPanel>
+                                                    <StackPanel x:Name="Panel_OtaCustomUrl" HorizontalAlignment="Left" Height="25" VerticalAlignment="Top" Width="540" Orientation="Horizontal" Margin="0,2,0,0">
+                                                        <Label Content="Custom URL:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
+                                                        <TextBox x:Name="TextBox_OtaCustomUrl" TextChanged="TextBox_OtaCustomUrl_TextChanged" Height="20" Width="320" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10" ToolTip="Public update_info.json URL"/>
+                                                    </StackPanel>
+                                                    <StackPanel x:Name="Panel_OtaLocal" HorizontalAlignment="Left" Height="25" VerticalAlignment="Top" Width="540" Orientation="Horizontal" Margin="0,2,0,0">
+                                                        <Label Content=".ffbota:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
+                                                        <TextBox x:Name="TextBox_OtaFfbotaPath" Height="20" Width="250" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10" IsReadOnly="True" ToolTip="Selected .ffbota file"/>
+                                                        <styles:SHButtonPrimary x:Name="btn_browse_ota_ffbota" Click="btn_browse_ota_ffbota_Click" Width="70" Content="Browse" Height="20" HorizontalAlignment="Left" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="6,0,0,0" ToolTip="Pick a .ffbota container"/>
+                                                    </StackPanel>
+                                                    <StackPanel x:Name="Panel_OtaLocalPort" HorizontalAlignment="Left" Height="20" VerticalAlignment="Top" Width="540" Orientation="Horizontal" Margin="0,2,0,0">
+                                                        <Label Content="Port:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
+                                                        <TextBox x:Name="TextBox_OtaLocalPort" TextChanged="TextBox_OtaLocalPort_TextChanged" Height="20" Width="80" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10" ToolTip="Local OTA server port"/>
+                                                    </StackPanel>
+                                                    <StackPanel HorizontalAlignment="Left" Height="20" VerticalAlignment="Top" Width="540" Orientation="Horizontal">
+                                                        <Label Content="Board:" Height="15" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
+                                                        <TextBlock x:Name="TextBlock_OtaBoard" Text="-" Height="15" Width="120" Padding="0,0,0,0" VerticalAlignment="Center" FontFamily="Arial" FontSize="10" Margin="5,0,0,0" ToolTip="Board name from OTA metadata"/>
+                                                        <Label Content="Version:" Height="15" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
+                                                        <TextBlock x:Name="TextBlock_OtaVersion" Text="-" Height="15" Width="50" Padding="0,0,0,0" VerticalAlignment="Center" FontFamily="Arial" FontSize="10" Margin="5,0,0,0" ToolTip="Firmware version from OTA metadata"/>
+                                                        <Label Content="MD5:" Height="15" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
+                                                        <TextBlock x:Name="TextBlock_OtaMd5" Text="-" Height="15" Padding="0,0,0,0" VerticalAlignment="Center" FontFamily="Arial" FontSize="10" TextTrimming="CharacterEllipsis" Margin="5,0,0,0" ToolTip="MD5 from OTA metadata"/>
+                                                    </StackPanel>
+                                                    <StackPanel Height="20" Width="160" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="70,0,0,0">
+                                                        <styles:SHToggleButton x:Name="Checkbox_Force_flash" Content="" IsChecked="False" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Allow downgrades during OTA" RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />
+                                                        <Label Content="Allow Downgrade" Height="20" Width="130" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="70,4,0,0">
+                                                        <styles:SHButtonPrimary x:Name="btn_start_ota" Click="btn_start_ota_Click" Width="160" Content="Begin OTA Update" Height="22" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </TabItem>
+                                        <TabItem Width="120" Height="30" Padding="0,0,0,0" ToolTip="X-Plane system settings">
+                                            <TabItem.Header>
+                                                <Border Width="120" Height="30" Margin="0,0,0,0">
+                                                    <Label Content="X-Plane" FontFamily="Arial Black" FontSize="10" Height="30" Width="120" Padding="0,0,0,0" VerticalAlignment="Bottom" HorizontalAlignment="Center" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" UseLayoutRounding="True" />
+                                                </Border>
+                                            </TabItem.Header>
+                                            <StackPanel Width="540" Margin="1,3,0,0">
+                                                <Border Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5">
+                                                    <StackPanel Width="540">
+                                                        <Label Content="X-Plane System" FontFamily="Arial Black" FontSize="12" Height="25" Width="150" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" Margin="5,0,0,0"/>
+                                                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
+                                                            <styles:SHToggleButton x:Name="CheckBox_XPlaneUdpEnabled" Content="" Checked="CheckBox_XPlaneUdpEnabled_Checked" Unchecked="CheckBox_XPlaneUdpEnabled_Unchecked" IsChecked="True" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Enable X-Plane UDP input" RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />
+                                                            <Label Content="Enable UDP" Height="20" Width="130" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
                                                         </StackPanel>
-                                                        <StackPanel HorizontalAlignment="Left" Height="25" VerticalAlignment="Top" Width="540" Orientation="Horizontal">
-                                                            <Label Content="PASS:" Height="15" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
-                                                            <PasswordBox x:Name="textbox_PASS" PasswordChanged="textbox_PASS_PasswordChanged" Height="20" Width="150" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" MaxLength="63" MinHeight="15" VerticalAlignment="Center"/>
-                                                        </StackPanel>
-                                                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Orientation="Horizontal" Width="540" Height="20" Margin="0,2,0,0">
-                                                            <Label Content="Source:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
-                                                            <RadioButton x:Name="OTASource_Public" Content="Public URL" GroupName="OTASource_options" Width="110" Height="20" BorderThickness="0,0,0,0" IsChecked="True" FontSize="10" Checked="OTASource_Public_Checked" ToolTip="Use a public update_info.json URL"/>
-                                                            <RadioButton x:Name="OTASource_Local" Content="Local .ffbota" GroupName="OTASource_options" Width="110" Height="20" Margin="5,0,0,0" BorderThickness="0,0,0,0" FontSize="10" Checked="OTASource_Local_Checked" ToolTip="Host update_info.json and firmware.bin from a local .ffbota container"/>
-                                                        </StackPanel>
-                                                        <StackPanel x:Name="Panel_OtaPublic" HorizontalAlignment="Left" VerticalAlignment="Top" Orientation="Horizontal" Width="540" Height="20" Margin="0,2,0,0">
-                                                            <Label Content="URL Mode:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
-                                                            <RadioButton x:Name="OTAUrl_Default" Content="Default URL" GroupName="OTAUrl_options" Width="110" Height="20" BorderThickness="0,0,0,0" IsChecked="True" FontSize="10" Checked="OTAUrl_Default_Checked" ToolTip="Use the default project update_info.json"/>
-                                                            <RadioButton x:Name="OTAUrl_Custom" Content="Custom URL" GroupName="OTAUrl_options" Width="110" Height="20" Margin="5,0,0,0" BorderThickness="0,0,0,0" FontSize="10" Checked="OTAUrl_Custom_Checked" ToolTip="Use a custom update_info.json URL"/>
-                                                        </StackPanel>
-                                                        <StackPanel x:Name="Panel_OtaCustomUrl" HorizontalAlignment="Left" Height="25" VerticalAlignment="Top" Width="540" Orientation="Horizontal" Margin="0,2,0,0">
-                                                            <Label Content="Custom URL:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
-                                                            <TextBox x:Name="TextBox_OtaCustomUrl" TextChanged="TextBox_OtaCustomUrl_TextChanged" Height="20" Width="320" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10" ToolTip="Public update_info.json URL"/>
-                                                        </StackPanel>
-                                                        <StackPanel x:Name="Panel_OtaLocal" HorizontalAlignment="Left" Height="25" VerticalAlignment="Top" Width="540" Orientation="Horizontal" Margin="0,2,0,0">
-                                                            <Label Content=".ffbota:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
-                                                            <TextBox x:Name="TextBox_OtaFfbotaPath" Height="20" Width="250" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10" IsReadOnly="True" ToolTip="Selected .ffbota file"/>
-                                                            <styles:SHButtonPrimary x:Name="btn_browse_ota_ffbota" Click="btn_browse_ota_ffbota_Click" Width="70" Content="Browse" Height="20" HorizontalAlignment="Left" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="6,0,0,0" ToolTip="Pick a .ffbota container"/>
-                                                        </StackPanel>
-                                                        <StackPanel x:Name="Panel_OtaLocalPort" HorizontalAlignment="Left" Height="20" VerticalAlignment="Top" Width="540" Orientation="Horizontal" Margin="0,2,0,0">
-                                                            <Label Content="Port:" Height="15" Width="80" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
-                                                            <TextBox x:Name="TextBox_OtaLocalPort" TextChanged="TextBox_OtaLocalPort_TextChanged" Height="20" Width="80" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10" ToolTip="Local OTA server port"/>
-                                                        </StackPanel>
-                                                        <StackPanel HorizontalAlignment="Left" Height="20" VerticalAlignment="Top" Width="540" Orientation="Horizontal">
-                                                            <Label Content="Board:" Height="15" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" Margin="72,0,0,0" FontSize="10"/>
-                                                            <TextBlock x:Name="TextBlock_OtaBoard" Text="-" Height="15" Width="120" Padding="0,0,0,0" VerticalAlignment="Center" FontFamily="Arial" FontSize="10" Margin="5,0,0,0" ToolTip="Board name from OTA metadata"/>
-                                                            <Label Content="Version:" Height="15" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
-                                                            <TextBlock x:Name="TextBlock_OtaVersion" Text="-" Height="15" Width="50" Padding="0,0,0,0" VerticalAlignment="Center" FontFamily="Arial" FontSize="10" Margin="5,0,0,0" ToolTip="Firmware version from OTA metadata"/>
-                                                            <Label Content="MD5:" Height="15" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
-                                                            <TextBlock x:Name="TextBlock_OtaMd5" Text="-" Height="15" Padding="0,0,0,0" VerticalAlignment="Center" FontFamily="Arial" FontSize="10" TextTrimming="CharacterEllipsis" Margin="5,0,0,0" ToolTip="MD5 from OTA metadata"/>
-                                                        </StackPanel>
-                                                        <StackPanel Height="20" Width="160" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="70,0,0,0">
-                                                            <styles:SHToggleButton x:Name="Checkbox_Force_flash" Content="" IsChecked="False" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Allow downgrades during OTA" RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />
-                                                            <Label Content="Allow Downgrade" Height="20" Width="130" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
-                                                        </StackPanel>
-                                                        <StackPanel Orientation="Horizontal" Margin="70,4,0,0">
-                                                            <styles:SHButtonPrimary x:Name="btn_start_ota" Click="btn_start_ota_Click" Width="160" Content="Begin OTA Update" Height="22" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                                                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
+                                                            <Label Content="UDP Port:" Height="15" Width="70" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
+                                                            <TextBox x:Name="TextBox_XPlanePort" TextChanged="TextBox_XPlanePort_TextChanged" Height="20" Width="80" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10"/>
                                                         </StackPanel>
                                                     </StackPanel>
                                                 </Border>
-                                            </TabItem>
-                                            <TabItem Width="120" Height="30" Padding="0,0,0,0" ToolTip="X-Plane system settings">
-                                                <TabItem.Header>
-                                                    <Border Width="120" Height="30" Margin="0,0,0,0">
-                                                        <Label Content="X-Plane" FontFamily="Arial Black" FontSize="10" Height="30" Width="120" Padding="0,0,0,0" VerticalAlignment="Bottom" HorizontalAlignment="Center" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" UseLayoutRounding="True" />
-                                                    </Border>
-                                                </TabItem.Header>
-                                                <StackPanel Width="540" Margin="1,3,0,0">
-                                                    <Border Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5">
-                                                        <StackPanel Width="540">
-                                                            <Label Content="X-Plane System" FontFamily="Arial Black" FontSize="12" Height="25" Width="150" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" Margin="5,0,0,0"/>
-                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
-                                                                <styles:SHToggleButton x:Name="CheckBox_XPlaneUdpEnabled" Content="" Checked="CheckBox_XPlaneUdpEnabled_Checked" Unchecked="CheckBox_XPlaneUdpEnabled_Unchecked" IsChecked="True" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Enable X-Plane UDP input" RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />
-                                                                <Label Content="Enable UDP" Height="20" Width="130" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
-                                                            </StackPanel>
-                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
-                                                                <Label Content="UDP Port:" Height="15" Width="70" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
-                                                                <TextBox x:Name="TextBox_XPlanePort" TextChanged="TextBox_XPlanePort_TextChanged" Height="20" Width="80" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10"/>
-                                                            </StackPanel>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </StackPanel>
-                                            </TabItem>
-                                            <TabItem Width="120" Height="30" Padding="0,0,0,0" ToolTip="User profile settings">
-                                                <TabItem.Header>
-                                                    <Border Width="120" Height="30" Margin="0,0,0,0">
-                                                        <Label Content="User" FontFamily="Arial Black" FontSize="10" Height="30" Width="120" Padding="0,0,0,0" VerticalAlignment="Bottom" HorizontalAlignment="Center" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" UseLayoutRounding="True" />
-                                                    </Border>
-                                                </TabItem.Header>
-                                                <StackPanel Width="540" Margin="1,3,0,0">
-                                                    <Border Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5">
-                                                        <StackPanel Width="540">
-                                                            <Label Content="User Profile" FontFamily="Arial Black" FontSize="12" Height="25" Width="150" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" Margin="5,0,0,0"/>
-                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
-                                                                <Label Content="Current:" Height="15" Width="60" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
-                                                                <ComboBox x:Name="ComboBox_UserProfile" SelectionChanged="ComboBox_UserProfile_SelectionChanged" Width="200" Height="20" FontSize="10"/>
-                                                                <styles:SHButtonPrimary x:Name="btn_user_profile_refresh" Click="btn_user_profile_refresh_Click" Width="60" Content="Refresh" Height="20" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
-                                                            </StackPanel>
-                                                            <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
-                                                                <Label Content="New:" Height="15" Width="60" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
-                                                                <TextBox x:Name="TextBox_UserProfileName" Height="20" Width="200" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10" KeyDown="TextBox_UserProfileName_KeyDown"/>
-                                                                <styles:SHButtonPrimary x:Name="btn_user_profile_create" Click="btn_user_profile_create_Click" Width="70" Content="Create" Height="20" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
-                                                                <styles:SHButtonPrimary x:Name="btn_user_profile_delete" Click="btn_user_profile_delete_Click" Width="70" Content="Delete" Height="20" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
-                                                            </StackPanel>
-                                                            <TextBlock x:Name="TextBlock_UserProfileInfo" Height="18" Width="450" Margin="70,4,0,0" FontFamily="Arial" FontSize="9" Foreground="#B0B0B0" />
-                                                        </StackPanel>
-                                                    </Border>
-                                                </StackPanel>
-                                            </TabItem>
-                                        </TabControl>
-                                    </Border>
-                                    <StackPanel Width="540" Height="281" Margin="1,3,0,0">
-                                        <Border Height="281" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5">
-                                            <StackPanel HorizontalAlignment="Left" Height="281" VerticalAlignment="Top" Width="540" Margin="6,6,6,6">
-                                                <StackPanel Height="18" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                                    <Label Content="Gateway Log" FontFamily="Arial Black" FontSize="12" Height="15" Width="130" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" />
-                                                    <styles:SHButtonPrimary x:Name="btn_clear_log" Click="btn_clear_log_Click" Width="55" Height="15" Content="Clear" HorizontalAlignment="Left" Margin="6,0,0,0" Padding="4,0,4,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="9" />
-                                                </StackPanel>
-                                                <TextBlock x:Name="TextBlock_Status" Height="20" Width="520" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Background="#00252525" FontSize="9" FontFamily="Arial" Padding="4,2,4,0" />
-                                                <StackPanel Orientation="Horizontal" Width="520" Margin="0,4,0,0">
-                                                    <Label Content="Sources:" FontFamily="Arial" FontSize="9" Height="16" Width="55" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" />
-                                                    <ItemsControl ItemsSource="{Binding LogSourceFilters}" Width="465">
-                                                        <ItemsControl.ItemsPanel>
-                                                            <ItemsPanelTemplate>
-                                                                <WrapPanel />
-                                                            </ItemsPanelTemplate>
-                                                        </ItemsControl.ItemsPanel>
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}" Margin="0,0,8,0" FontFamily="Arial" FontSize="9" VerticalAlignment="Center" />
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
-                                                </StackPanel>
-                                                <ListBox x:Name="ListBox_UiLog" Width="520" Height="206" Margin="0,4,0,0" Background="#00252525" BorderThickness="0" ScrollViewer.VerticalScrollBarVisibility="Auto" ItemsSource="{Binding UiLogView}">
-                                                    <ListBox.ItemContainerStyle>
-                                                        <Style TargetType="ListBoxItem">
-                                                            <Setter Property="Padding" Value="0" />
-                                                            <Setter Property="Margin" Value="0" />
-                                                            <Setter Property="MinHeight" Value="0" />
-                                                        </Style>
-                                                    </ListBox.ItemContainerStyle>
-                                                    <ListBox.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <StackPanel Orientation="Horizontal" Margin="1,-4,1,-4">
-                                                                <TextBox Text="{Binding Time}" Width="60" FontSize="8" Foreground="#99FFFFFF" Background="Transparent" BorderThickness="0" Padding="0" Margin="0" MinHeight="0" IsReadOnly="True" VerticalContentAlignment="Center" />
-                                                                <TextBox Text="{Binding Level}" Width="60" FontSize="8" Foreground="#FFB6C3D1" Background="Transparent" BorderThickness="0" Padding="0" Margin="0" MinHeight="0" IsReadOnly="True" VerticalContentAlignment="Center" />
-                                                                <TextBox Text="{Binding Source}" Width="80" FontSize="8" Foreground="#A5D2D2D2" Background="Transparent" BorderThickness="0" Padding="0" Margin="0" MinHeight="0" IsReadOnly="True" VerticalContentAlignment="Center" />
-                                                                <TextBox Text="{Binding Message}" FontSize="8" TextWrapping="Wrap" Width="300" Background="Transparent" BorderThickness="0" Padding="0" Margin="0" MinHeight="0" IsReadOnly="True" />
-                                                            </StackPanel>
-                                                        </DataTemplate>
-                                                    </ListBox.ItemTemplate>
-                                                </ListBox>
                                             </StackPanel>
-                                        </Border>
-                                    </StackPanel>
+                                        </TabItem>
+                                        <TabItem Width="120" Height="30" Padding="0,0,0,0" ToolTip="User profile settings">
+                                            <TabItem.Header>
+                                                <Border Width="120" Height="30" Margin="0,0,0,0">
+                                                    <Label Content="User" FontFamily="Arial Black" FontSize="10" Height="30" Width="120" Padding="0,0,0,0" VerticalAlignment="Bottom" HorizontalAlignment="Center" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" UseLayoutRounding="True" />
+                                                </Border>
+                                            </TabItem.Header>
+                                            <StackPanel Width="540" Margin="1,3,0,0">
+                                                <Border Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5">
+                                                    <StackPanel Width="540">
+                                                        <Label Content="User Profile" FontFamily="Arial Black" FontSize="12" Height="25" Width="150" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" Margin="5,0,0,0"/>
+                                                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
+                                                            <Label Content="Current:" Height="15" Width="60" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
+                                                            <ComboBox x:Name="ComboBox_UserProfile" SelectionChanged="ComboBox_UserProfile_SelectionChanged" Width="200" Height="20" FontSize="10"/>
+                                                            <styles:SHButtonPrimary x:Name="btn_user_profile_refresh" Click="btn_user_profile_refresh_Click" Width="60" Content="Refresh" Height="20" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                                                        </StackPanel>
+                                                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal" Margin="70,4,0,0">
+                                                            <Label Content="New:" Height="15" Width="60" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10"/>
+                                                            <TextBox x:Name="TextBox_UserProfileName" Height="20" Width="200" Padding="0,0,0,0" FontFamily="Arial" HorizontalAlignment="Left" BorderThickness="0,0,0,0" FontSize="10" KeyDown="TextBox_UserProfileName_KeyDown"/>
+                                                            <styles:SHButtonPrimary x:Name="btn_user_profile_create" Click="btn_user_profile_create_Click" Width="70" Content="Create" Height="20" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                                                            <styles:SHButtonPrimary x:Name="btn_user_profile_delete" Click="btn_user_profile_delete_Click" Width="70" Content="Delete" Height="20" Margin="6,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" MinHeight="20" />
+                                                        </StackPanel>
+                                                        <TextBlock x:Name="TextBlock_UserProfileInfo" Height="18" Width="450" Margin="70,4,0,0" FontFamily="Arial" FontSize="9" Foreground="#B0B0B0" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                        </TabItem>
+                                    </TabControl>
+                                </Border>
+                                <StackPanel Width="540" Margin="1,3,0,0">
+                                    <Border Height="704" Width="540" Background="#7F4E4E4E" CornerRadius="5,5,5,5">
+                                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="540" Margin="6,6,6,6">
+                                            <StackPanel Height="18" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                <Label Content="Gateway Log" FontFamily="Arial Black" FontSize="12" Height="15" Width="130" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" />
+                                                <styles:SHButtonPrimary x:Name="btn_clear_log" Click="btn_clear_log_Click" Width="55" Height="15" Content="Clear" HorizontalAlignment="Left" Margin="6,0,0,0" Padding="4,0,4,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="9" />
+                                            </StackPanel>
+                                            <TextBlock x:Name="TextBlock_Status" Height="20" Width="520" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Background="#00252525" FontSize="9" FontFamily="Arial" Padding="4,2,4,0" />
+                                            <StackPanel Orientation="Horizontal" Width="520" Margin="0,4,0,0">
+                                                <Label Content="Sources:" FontFamily="Arial" FontSize="9" Height="16" Width="55" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" />
+                                                <ItemsControl ItemsSource="{Binding LogSourceFilters}" Width="465">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <WrapPanel />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}" Margin="0,0,8,0" FontFamily="Arial" FontSize="9" VerticalAlignment="Center" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                            <ListBox x:Name="ListBox_UiLog" Width="520" Margin="0,4,0,0" Background="#00252525" BorderThickness="0" ScrollViewer.VerticalScrollBarVisibility="Auto" ItemsSource="{Binding UiLogView}" Panel.ZIndex="-3">
+                                                <ListBox.ItemContainerStyle>
+                                                    <Style TargetType="ListBoxItem">
+                                                        <Setter Property="Padding" Value="0" />
+                                                        <Setter Property="Margin" Value="0" />
+                                                        <Setter Property="MinHeight" Value="0" />
+                                                    </Style>
+                                                </ListBox.ItemContainerStyle>
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal" Margin="1,-4,1,-4">
+                                                            <TextBox Text="{Binding Time}" Width="60" FontSize="8" Foreground="#99FFFFFF" Background="Transparent" BorderThickness="0" Padding="0" Margin="0" MinHeight="0" IsReadOnly="True" VerticalContentAlignment="Center" />
+                                                            <TextBox Text="{Binding Level}" Width="60" FontSize="8" Foreground="#FFB6C3D1" Background="Transparent" BorderThickness="0" Padding="0" Margin="0" MinHeight="0" IsReadOnly="True" VerticalContentAlignment="Center" />
+                                                            <TextBox Text="{Binding Source}" Width="80" FontSize="8" Foreground="#A5D2D2D2" Background="Transparent" BorderThickness="0" Padding="0" Margin="0" MinHeight="0" IsReadOnly="True" VerticalContentAlignment="Center" />
+                                                            <TextBox Text="{Binding Message}" FontSize="8" TextWrapping="Wrap" Width="300" Background="Transparent" BorderThickness="0" Padding="0" Margin="0" MinHeight="0" IsReadOnly="True" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>
-                    </Border>
-                </TabItem>
-            </TabControl>
+                    </StackPanel>
+                </Border>
+            </TabItem>
+        </TabControl>
 
-        </Grid>
+    </Grid>
 </UserControl>
