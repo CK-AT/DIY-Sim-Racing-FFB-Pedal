@@ -2195,10 +2195,25 @@ namespace DiyFfb
             _functionConfigManager.ClearAllProfileOverrides();
             _axisConfigManager.Reset(); // Clear function overrides for axes
 
-            if (profile == null)
-                return;
-
             var userOverrides = GetCurrentUserOverrides();
+
+            if (profile == null)
+            {
+                // No profile, but still apply user overrides to all functions with baselines
+                if (userOverrides?.FunctionOverrides != null)
+                {
+                    foreach (var functionId in _functionConfigManager.GetKnownFunctionIds())
+                    {
+                        userOverrides.FunctionOverrides.TryGetValue(functionId, out var userDelta);
+                        if (userDelta != null && !userDelta.IsEmpty)
+                        {
+                            _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta);
+                        }
+                    }
+                }
+                return;
+            }
+
             var activeFunctions = profile.ActiveFunctionIds ?? new HashSet<int>();
 
             foreach (var functionId in activeFunctions)
@@ -3243,6 +3258,11 @@ namespace DiyFfb
         public string GetActiveCarId()
         {
             return activeCarId;
+        }
+
+        public string GetActiveCarName()
+        {
+            return activeCarName;
         }
 
         public string GetActiveGameId()

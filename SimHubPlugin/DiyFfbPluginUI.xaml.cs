@@ -476,7 +476,7 @@ namespace DiyFfb
                 }
             }
 
-            UpdateActiveAircraftLabel(null, null);
+            UpdateActiveAircraftLabel(Plugin.GetActiveCarName(), Plugin.GetActiveCarId(), Plugin.GetActiveGameId());
             RefreshGraphSelectionUI();
             RefreshXPlaneUdpSettings();
             RefreshUserProfileUi();
@@ -2619,33 +2619,33 @@ namespace DiyFfb
 
             int funcId = (int)newFunctionId;
 
-            // Store base config from ESP32
+            // Store base config
             Plugin.FunctionConfigManager.SetBaseConfig(funcId, newFunctionConfig);
 
-            // Check if we should apply profile overrides
+            // Apply overrides through manager for consistent state tracking
             if (Plugin.ShouldApplyProfileOverride(funcId))
             {
-                // ApplyProfileOverridesToFunction will fire FunctionConfigChanged event
-                // which will update UI and send merged config to ESP32
                 Plugin.ApplyProfileOverridesToFunction(funcId);
             }
             else
             {
-                // No profile override - but still apply user overrides if any exist
+                // No profile override, but still apply user overrides through manager
+                // to keep _currentConfigs and _functionsWithUserOverride in sync
                 var userOverrides = Plugin.GetUserFunctionOverrides(funcId);
                 if (userOverrides != null && !userOverrides.IsEmpty)
                 {
-                    var merged = TieredConfig.ConfigMerger.MergeFunctionConfig(newFunctionConfig, userOverrides);
-                    functions[newFunctionId].Config = merged;
+                    Plugin.FunctionConfigManager.ApplyProfileOverrides(funcId, null, userOverrides);
                 }
-                else
-                {
-                    functions[newFunctionId].Config = newFunctionConfig;
-                }
-                if (newFunctionId == selected_function_id)
-                {
-                    uc_function_config.SwitchFunction(functions[newFunctionId]);
-                }
+            }
+
+            // Update UI working copy from manager's authoritative merged config.
+            // This is a fresh base config, so there are no unsaved direct edits to preserve.
+            var currentConfig = Plugin.FunctionConfigManager.GetCurrentConfig(funcId);
+            functions[newFunctionId].Config = currentConfig ?? newFunctionConfig;
+
+            if (newFunctionId == selected_function_id)
+            {
+                uc_function_config.SwitchFunction(functions[newFunctionId]);
             }
         }
 
@@ -3397,6 +3397,7 @@ namespace DiyFfb
             Dispatcher.Invoke(() =>
             {
                 UpdateVehicleTabHeader();
+                RefreshGraphSelectionUI();
                 RefreshVehicleParams();
             });
         }
