@@ -185,6 +185,7 @@
     <Compile Include="Controls\GraphParamHelper.cs" />
     <Compile Include="Controls\KinematicBoundsHelper.cs" />
     <Compile Include="Controls\TravelDisplayHelper.cs" />
+    <Compile Include="IFlightStickSubConfig.cs" />
     <Compile Include="Helpers\DarkTitleBar.cs" />
     <Compile Include="FlightPedalsConfigControl.xaml.cs">
       <DependentUpon>FlightPedalsConfigControl.xaml</DependentUpon>
