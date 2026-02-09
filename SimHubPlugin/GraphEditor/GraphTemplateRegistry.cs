@@ -24,6 +24,27 @@ namespace DiyFfb.GraphEditor
                 Category = "Flight",
                 TemplatePath = "graphs/templates/heli_default.json",
                 GameIds = new[] { "X-Plane", "XPlane", "XPlane11", "XPlane12", "MSFS2020", "MSFS2024" }
+            },
+            new GraphTemplateEntry
+            {
+                Name = "Automotive (Basic)",
+                Description = "Placeholder graph for sim racing vehicles. No signal processing yet \u2014 pedal forces use hardware config only.",
+                Category = "Automotive",
+                TemplatePath = "graphs/templates/vehicle_default.json",
+                GameIds = new[]
+                {
+                    "BeamNGdrive", "BeamNG",
+                    "AssettoCorsa", "AssettoCorsaCompetizione",
+                    "iRacing",
+                    "rFactor2",
+                    "RaceRoom",
+                    "Automobilista2",
+                    "LeMansUltimate",
+                    "F12024", "F12023",
+                    "ProjectCARS2", "ProjectCARS3",
+                    "DirtRally2", "WRC",
+                    "ForzaMotorsport"
+                }
             }
         };
 

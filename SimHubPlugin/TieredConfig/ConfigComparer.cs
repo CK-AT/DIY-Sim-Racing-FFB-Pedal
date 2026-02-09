@@ -45,17 +45,30 @@ namespace DiyFfb.TieredConfig
 
         /// <summary>
         /// Compare two FunctionConfigOverrides for equality.
+        /// Checks all override fields including protobuf-backed ones.
         /// </summary>
         public static bool AreEqual(FunctionConfigOverrides a, FunctionConfigOverrides b)
         {
             if (a == null && b == null) return true;
+            if ((a == null || a.IsEmpty) && (b == null || b.IsEmpty)) return true;
             if (a == null || b == null) return false;
 
             return NullableFloatEqual(a.OutputMin, b.OutputMin) &&
                    NullableFloatEqual(a.OutputMax, b.OutputMax) &&
                    NullableFloatEqual(a.SimulatedMass, b.SimulatedMass) &&
                    NullableFloatEqual(a.Friction, b.Friction) &&
-                   AreEqual(a.StaticBalanceTuning, b.StaticBalanceTuning);
+                   AreEqual(a.StaticBalanceTuning, b.StaticBalanceTuning) &&
+                   AreEqual(a.ForceCurve, b.ForceCurve) &&
+                   AreEqual(a.DamperConfig, b.DamperConfig) &&
+                   AreEqual(a.FlightPedalsMotionRange, b.FlightPedalsMotionRange) &&
+                   NullableFloatEqual(a.FlightPedalsDamping, b.FlightPedalsDamping) &&
+                   NullableFloatEqual(a.FlightPedalsCenteringSpringConst, b.FlightPedalsCenteringSpringConst) &&
+                   AreEqual(a.FlightStickMotionRange, b.FlightStickMotionRange) &&
+                   NullableFloatEqual(a.FlightStickDamping, b.FlightStickDamping) &&
+                   NullableFloatEqual(a.FlightStickCenteringSpringConst, b.FlightStickCenteringSpringConst) &&
+                   AreEqual(a.RudderBrakeForceRange, b.RudderBrakeForceRange) &&
+                   AreEqual(a.ShifterConfig, b.ShifterConfig) &&
+                   AreEqual(a.ShifterDetectConfig, b.ShifterDetectConfig);
         }
 
         /// <summary>
@@ -68,6 +81,47 @@ namespace DiyFfb.TieredConfig
 
             return a.Enabled == b.Enabled &&
                    NullableFloatEqual(a.Gain, b.Gain);
+        }
+
+        /// <summary>
+        /// Compare two DamperConfigOverrides for equality.
+        /// </summary>
+        public static bool AreEqual(DamperConfigOverrides a, DamperConfigOverrides b)
+        {
+            if (a == null && b == null) return true;
+            if ((a == null || a.IsEmpty) && (b == null || b.IsEmpty)) return true;
+            if (a == null || b == null) return false;
+
+            return NullableFloatEqual(a.PositiveFactor, b.PositiveFactor) &&
+                   NullableFloatEqual(a.NegativeFactor, b.NegativeFactor);
+        }
+
+        /// <summary>
+        /// Compare two MotionRangeOverrides for equality.
+        /// </summary>
+        public static bool AreEqual(MotionRangeOverrides a, MotionRangeOverrides b)
+        {
+            if (a == null && b == null) return true;
+            if ((a == null || a.IsEmpty) && (b == null || b.IsEmpty)) return true;
+            if (a == null || b == null) return false;
+
+            return NullableIntEqual(a.NearLim, b.NearLim) &&
+                   NullableIntEqual(a.FarLim, b.FarLim) &&
+                   NullableIntEqual(a.Min, b.Min) &&
+                   NullableIntEqual(a.Max, b.Max);
+        }
+
+        /// <summary>
+        /// Compare two ForceRangeOverrides for equality.
+        /// </summary>
+        public static bool AreEqual(ForceRangeOverrides a, ForceRangeOverrides b)
+        {
+            if (a == null && b == null) return true;
+            if ((a == null || a.IsEmpty) && (b == null || b.IsEmpty)) return true;
+            if (a == null || b == null) return false;
+
+            return NullableFloatEqual(a.Min, b.Min) &&
+                   NullableFloatEqual(a.Max, b.Max);
         }
 
         /// <summary>
@@ -107,6 +161,16 @@ namespace DiyFfb.TieredConfig
             if (!a.HasValue && !b.HasValue) return true;
             if (!a.HasValue || !b.HasValue) return false;
             return FloatEqual(a.Value, b.Value);
+        }
+
+        /// <summary>
+        /// Compare two nullable ints for equality.
+        /// </summary>
+        public static bool NullableIntEqual(int? a, int? b)
+        {
+            if (!a.HasValue && !b.HasValue) return true;
+            if (!a.HasValue || !b.HasValue) return false;
+            return a.Value == b.Value;
         }
 
         /// <summary>

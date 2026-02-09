@@ -50,6 +50,11 @@ namespace DiyFfb
         private const int RetryDelayMs = 250;
         private const int MaxRetries = 3;
 
+        // Minimum delay after sending an upload before processing the next queue item.
+        // Gives ESP32 time to deserialize and apply configs (especially force curve splines).
+        private const int PostUploadCooldownMs = 200;
+        private DateTime _cooldownUntilUtc = DateTime.MinValue;
+
         public AxisRequestQueue(DiyFfbPluginUI ui)
             : this(new PluginUISender(ui), manualTick: false)
         {
@@ -195,6 +200,11 @@ namespace DiyFfb
             RequestItem item = null;
             lock (sync)
             {
+                var now = nowProvider();
+                if (!hasCurrent && now < _cooldownUntilUtc)
+                {
+                    return;
+                }
                 if (!hasCurrent && queue.Count > 0)
                 {
                     current = queue.Dequeue();
@@ -204,7 +214,7 @@ namespace DiyFfb
                 {
                     return;
                 }
-                if (nowProvider() < current.NextSendUtc)
+                if (now < current.NextSendUtc)
                 {
                     return;
                 }
@@ -212,6 +222,11 @@ namespace DiyFfb
             }
 
             bool sent = sender.SendAxisRequest(item.AxisId, item.Type, item.Payload);
+            if (IsUploadType(item.Type))
+            {
+                var funcId = item.Payload?.FunctionConfig?.Base?.FunctionId;
+                SimHub.Logging.Current.Info($"[AxisQueue] Sent {item.Type} axis={item.AxisId} func={funcId} sent={sent} queueRemaining={queue.Count}");
+            }
             lock (sync)
             {
                 if (!hasCurrent)
@@ -232,6 +247,10 @@ namespace DiyFfb
 
                 if (!current.AwaitResponse)
                 {
+                    if (IsUploadType(current.Type))
+                    {
+                        _cooldownUntilUtc = nowProvider().AddMilliseconds(PostUploadCooldownMs);
+                    }
                     hasCurrent = false;
                     return;
                 }
@@ -263,6 +282,12 @@ namespace DiyFfb
                 default:
                     return false;
             }
+        }
+
+        private static bool IsUploadType(AxisRequestType type)
+        {
+            return type == AxisRequestType.AxisConfigUpload ||
+                   type == AxisRequestType.FunctionConfigUpload;
         }
 
         private bool IsDuplicate(AxisID axisId, AxisRequestType type)

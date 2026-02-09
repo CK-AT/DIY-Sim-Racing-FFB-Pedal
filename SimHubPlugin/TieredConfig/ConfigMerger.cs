@@ -101,7 +101,133 @@ namespace DiyFfb.TieredConfig
                 merged.AuxFunction.ShifterDetect = delta.ShifterDetectConfig.Clone();
             }
 
+            // Reconcile derived fields (posIdle/posEnd/outputMin/outputMax)
+            // that depend on merged force curve / motion range values.
+            // TODO: Extract into per-function-type classes to eliminate duplication with UI controls.
+            ReconcileDerivedFields(merged);
+
             return merged;
+        }
+
+        /// <summary>
+        /// Recompute fields derived from force curve / motion range after merge.
+        /// Each function type has its own derivation rules (mirrored from UI controls).
+        /// </summary>
+        public static void ReconcileDerivedFields(FunctionConfig config)
+        {
+            if (config?.Base == null) return;
+
+            switch (config.Base.FunctionId)
+            {
+                case FunctionID.BrakePedal:
+                case FunctionID.AcceleratorPedal:
+                case FunctionID.ClutchPedal:
+                    ReconcileAutomotivePedal(config);
+                    break;
+                case FunctionID.FlightPedals:
+                    ReconcileFlightPedals(config);
+                    break;
+                case FunctionID.FlightStickPitch:
+                case FunctionID.FlightStickRoll:
+                case FunctionID.FlightStickCollective:
+                    ReconcileFlightStick(config);
+                    break;
+                case FunctionID.Shifter:
+                    ReconcileShifter(config);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// AutomotivePedal: posIdle/posEnd from ForceCurveConfig; outputMin/Max mode-dependent.
+        /// Mirrors AutomotivePedalConfigControl.OnRangeSettingsChanged.
+        /// </summary>
+        private static void ReconcileAutomotivePedal(FunctionConfig config)
+        {
+            var ap = config.AutomotivePedal;
+            var fc = ap?.ForceCurveConfig;
+            if (fc == null) return;
+
+            ap.PosIdle = fc.PosMin;
+            ap.PosEnd = fc.PosMax;
+
+            switch (config.Base.OutputMode)
+            {
+                case OutputMode.Force:
+                    config.Base.OutputMin = fc.FMin;
+                    config.Base.OutputMax = fc.FMax;
+                    break;
+                case OutputMode.Travel:
+                    config.Base.OutputMin = fc.PosMin;
+                    config.Base.OutputMax = fc.PosMax;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// FlightPedals: outputMin/Max from PosNearLim/PosFarLim.
+        /// Mirrors FlightPedalsConfigControl.SwitchFunction.
+        /// </summary>
+        private static void ReconcileFlightPedals(FunctionConfig config)
+        {
+            var fp = config.FlightPedals;
+            if (fp == null) return;
+
+            config.Base.OutputMin = fp.PosNearLim;
+            config.Base.OutputMax = fp.PosFarLim;
+        }
+
+        /// <summary>
+        /// FlightStick (Pitch/Roll/Collective): outputMin/Max from PosMin/PosMax.
+        /// Mirrors FlightStickConfigControl.SwitchFunction.
+        /// </summary>
+        private static void ReconcileFlightStick(FunctionConfig config)
+        {
+            switch (config.Base.FunctionId)
+            {
+                case FunctionID.FlightStickPitch:
+                    if (config.FlightStickPitch != null)
+                    {
+                        config.Base.OutputMin = config.FlightStickPitch.PosMin;
+                        config.Base.OutputMax = config.FlightStickPitch.PosMax;
+                    }
+                    break;
+                case FunctionID.FlightStickRoll:
+                    if (config.FlightStickRoll != null)
+                    {
+                        config.Base.OutputMin = config.FlightStickRoll.PosMin;
+                        config.Base.OutputMax = config.FlightStickRoll.PosMax;
+                    }
+                    break;
+                case FunctionID.FlightStickCollective:
+                    if (config.FlightStickCollective != null)
+                    {
+                        config.Base.OutputMin = config.FlightStickCollective.PosMin;
+                        config.Base.OutputMax = config.FlightStickCollective.PosMax;
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Shifter: outputMin/Max from PosX or PosY range based on Sequential flag.
+        /// Mirrors ShifterConfigControl.UpdateOutputRange.
+        /// </summary>
+        private static void ReconcileShifter(FunctionConfig config)
+        {
+            var sh = config.Shifter;
+            if (sh == null) return;
+
+            if (sh.Sequential)
+            {
+                config.Base.OutputMin = sh.PosYMin;
+                config.Base.OutputMax = sh.PosYMax;
+            }
+            else
+            {
+                config.Base.OutputMin = sh.PosXMin;
+                config.Base.OutputMax = sh.PosXMax;
+            }
         }
 
         /// <summary>
@@ -150,7 +276,7 @@ namespace DiyFfb.TieredConfig
 
         /// <summary>
         /// Apply AutomotivePedal-specific overrides.
-        /// NOTE: Does NOT update Base.OutputMin/Max - controls derive these from ForceCurveConfig.
+        /// Base.OutputMin/Max and PosIdle/PosEnd are reconciled by ReconcileDerivedFields.
         /// </summary>
         private static void ApplyAutomotivePedalOverrides(
             AutomotivePedalConfig config,
@@ -177,7 +303,7 @@ namespace DiyFfb.TieredConfig
 
         /// <summary>
         /// Apply FlightPedals-specific overrides.
-        /// NOTE: Does NOT update Base.OutputMin/Max - controls derive these from PosNearLim/PosFarLim.
+        /// Base.OutputMin/Max are reconciled by ReconcileDerivedFields.
         /// </summary>
         private static void ApplyFlightPedalsOverrides(
             FlightPedalsConfig config,
@@ -216,7 +342,7 @@ namespace DiyFfb.TieredConfig
 
         /// <summary>
         /// Apply FlightStick-specific overrides (mode-dependent: Pitch/Roll/Collective).
-        /// NOTE: Does NOT update Base.OutputMin/Max - controls derive these from PosMin/PosMax.
+        /// Base.OutputMin/Max are reconciled by ReconcileDerivedFields.
         /// </summary>
         private static void ApplyFlightStickOverrides(
             FunctionConfig merged,

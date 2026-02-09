@@ -127,13 +127,19 @@ namespace DiyFfb.TieredConfig
             _currentConfigs[functionId] = merged;
 
             // Check if we need to send
-            bool shouldSend = !diffCheck ||
-                              !_lastSentConfigs.TryGetValue(functionId, out var lastSent) ||
-                              ConfigComparer.HasChanges(merged, lastSent);
+            bool hasLastSent = _lastSentConfigs.TryGetValue(functionId, out var lastSent);
+            bool hasChanges = hasLastSent && ConfigComparer.HasChanges(merged, lastSent);
+            bool shouldSend = !diffCheck || !hasLastSent || hasChanges;
+
+            SimHub.Logging.Current.Info($"[FuncCfgMgr] ApplyOverrides func={functionId}: " +
+                $"diffCheck={diffCheck}, hasLastSent={hasLastSent}, hasChanges={hasChanges}, shouldSend={shouldSend}, " +
+                $"hasProfile={hasProfile}, hasUser={hasUser}");
 
             if (shouldSend)
             {
-                _lastSentConfigs[functionId] = merged.Clone();
+                // Note: _lastSentConfigs is NOT updated here. The UI event handler
+                // calls MarkAsSent() after actually enqueuing the upload. This prevents
+                // the tracking from being poisoned during Init (before UI exists).
                 OnFunctionConfigChanged(functionId, merged, hasProfile, hasUser);
             }
         }
@@ -144,7 +150,8 @@ namespace DiyFfb.TieredConfig
         /// </summary>
         /// <param name="functionId">The function to restore.</param>
         /// <param name="diffCheck">If true, only send if config changed.</param>
-        public void ClearProfileOverride(int functionId, bool diffCheck = true)
+        /// <param name="fireEvents">If false, update internal state silently (for batched clear+apply).</param>
+        public void ClearProfileOverride(int functionId, bool diffCheck = true, bool fireEvents = true)
         {
             _functionsWithProfileOverride.Remove(functionId);
             _functionsWithUserOverride.Remove(functionId);
@@ -154,6 +161,9 @@ namespace DiyFfb.TieredConfig
 
             _currentConfigs[functionId] = baseConfig.Clone();
 
+            if (!fireEvents)
+                return;
+
             // Check if we need to send
             bool shouldSend = !diffCheck ||
                               !_lastSentConfigs.TryGetValue(functionId, out var lastSent) ||
@@ -161,8 +171,7 @@ namespace DiyFfb.TieredConfig
 
             if (shouldSend)
             {
-                _lastSentConfigs[functionId] = baseConfig.Clone();
-                OnFunctionConfigChanged(functionId, baseConfig, false, false);
+                OnFunctionConfigChanged(functionId, _currentConfigs[functionId], false, false);
             }
         }
 
@@ -171,7 +180,8 @@ namespace DiyFfb.TieredConfig
         /// Call this on profile/vehicle change to restore all functions to base.
         /// </summary>
         /// <param name="diffCheck">If true, only send if config changed.</param>
-        public void ClearAllProfileOverrides(bool diffCheck = true)
+        /// <param name="fireEvents">If false, update internal state silently (for batched clear+apply).</param>
+        public void ClearAllProfileOverrides(bool diffCheck = true, bool fireEvents = true)
         {
             // Get list of functions to clear before modifying collections
             var functionsToClear = _functionsWithProfileOverride
@@ -180,7 +190,7 @@ namespace DiyFfb.TieredConfig
 
             foreach (var functionId in functionsToClear)
             {
-                ClearProfileOverride(functionId, diffCheck);
+                ClearProfileOverride(functionId, diffCheck, fireEvents);
             }
         }
 
@@ -243,6 +253,26 @@ namespace DiyFfb.TieredConfig
         public void InvalidateLastSent(int functionId)
         {
             _lastSentConfigs.Remove(functionId);
+        }
+
+        /// <summary>
+        /// Fire events for any function whose current config differs from last-sent.
+        /// Call after a batched clear+apply (fireEvents:false) to emit exactly one
+        /// event per changed function with the final merged config.
+        /// </summary>
+        public void SendAllPendingChanges()
+        {
+            foreach (var functionId in _currentConfigs.Keys.ToList())
+            {
+                var current = _currentConfigs[functionId];
+                if (!_lastSentConfigs.TryGetValue(functionId, out var lastSent) ||
+                    ConfigComparer.HasChanges(current, lastSent))
+                {
+                    OnFunctionConfigChanged(functionId, current,
+                        _functionsWithProfileOverride.Contains(functionId),
+                        _functionsWithUserOverride.Contains(functionId));
+                }
+            }
         }
 
         /// <summary>

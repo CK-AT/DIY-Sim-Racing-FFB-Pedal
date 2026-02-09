@@ -216,6 +216,13 @@ namespace DiyFfb
 
             SetInitialSelections();
 
+            // Initialize vehicle label from plugin state (UI may be created after vehicle was detected)
+            string initCarId = Plugin.GetActiveCarId();
+            if (!string.IsNullOrWhiteSpace(initCarId))
+            {
+                UpdateActiveAircraftLabel(Plugin.GetActiveCarName(), initCarId, Plugin.GetActiveGameId());
+            }
+
             InitializeVjoyIfEnabled();
         }
 
@@ -2652,6 +2659,9 @@ namespace DiyFfb
 
             int funcId = (int)newFunctionId;
 
+            SimHub.Logging.Current.Info($"[TieredConfig] OnFunctionConfigUpdate func={newFunctionId}: " +
+                $"fromEsp32={fromEsp32}, hasBaseline={Plugin.HasFunctionBaseline(funcId)}");
+
             // If ESP32 is reporting config and we have a stored baseline, the plugin
             // is the authority. Ignore the incoming config and push ours back.
             if (fromEsp32 && Plugin.HasFunctionBaseline(funcId))
@@ -2659,6 +2669,7 @@ namespace DiyFfb
                 var mergedConfig = Plugin.FunctionConfigManager.GetCurrentConfig(funcId);
                 if (mergedConfig != null)
                 {
+                    SimHub.Logging.Current.Info($"[TieredConfig] ESP32 authority: pushing merged config back for func={newFunctionId}");
                     EnqueueFunctionConfigUpload(mergedConfig, store: false);
                     Plugin.FunctionConfigManager.MarkAsSent(funcId, mergedConfig);
                     return;
@@ -2818,6 +2829,14 @@ namespace DiyFfb
             if (funcId == FunctionID.Undefined || !functions.ContainsKey(funcId))
                 return;
 
+            bool isActive = Plugin.IsFunctionActive(e.FunctionId);
+            var autoPedal = e.NewConfig?.AutomotivePedal;
+            SimHub.Logging.Current.Info($"[TieredConfig] OnMergedFunctionConfigChanged func={funcId}: " +
+                $"isActive={isActive}, hasProfile={e.HasProfileOverride}, hasUser={e.HasUserOverride}, " +
+                $"hasForceCurve={(autoPedal?.ForceCurveConfig != null)}, " +
+                $"hasDamper={(autoPedal?.DamperConfig != null)}, " +
+                $"linkedAxes={e.NewConfig?.Base?.LinkedAxes?.Count ?? 0}");
+
             // Update UI working copy with merged config so SwitchFunction shows correct values.
             // The merged config = base (full ESP32 config) + profile/user overrides, so all fields
             // are present. Non-override-tracked fields come from the base config unchanged.
@@ -2825,9 +2844,10 @@ namespace DiyFfb
 
             // Only upload to ESP32 if the function is checked/active for the current profile.
             // Non-active functions still get their internal state updated but don't push to ESP32.
-            if (Plugin.IsFunctionActive(e.FunctionId))
+            if (isActive)
             {
                 EnqueueFunctionConfigUpload(e.NewConfig, store: false);
+                Plugin.FunctionConfigManager.MarkAsSent(e.FunctionId, e.NewConfig);
             }
             else
             {

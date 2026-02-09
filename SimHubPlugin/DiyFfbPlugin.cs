@@ -2193,8 +2193,14 @@ namespace DiyFfb
         /// </summary>
         private void ApplyProfileFunctionOverrides(DiyFfbPluginSettings.AircraftFfbProfile profile)
         {
-            // Clear existing overrides first
-            _functionConfigManager.ClearAllProfileOverrides();
+            SimHub.Logging.Current.Info($"[TieredConfig] ApplyProfileFunctionOverrides: profile={(profile != null ? "exists" : "null")}, " +
+                $"activeFuncs={(profile?.ActiveFunctionIds?.Count.ToString() ?? "n/a")}, " +
+                $"knownFuncs={string.Join(",", _functionConfigManager.GetKnownFunctionIds())}");
+
+            // Clear existing overrides silently — events are deferred until all overrides
+            // are applied, so the ESP32 gets exactly one upload per changed function
+            // with the final merged config (no intermediate baseline flash).
+            _functionConfigManager.ClearAllProfileOverrides(fireEvents: false);
             _axisConfigManager.Reset(); // Clear function overrides for axes
             InitializeAxisManagerFromSettings(); // Re-populate base configs from stored baselines
 
@@ -2214,6 +2220,8 @@ namespace DiyFfb
                         }
                     }
                 }
+                // Flush: send baseline for functions that lost overrides but weren't re-applied
+                _functionConfigManager.SendAllPendingChanges();
                 return;
             }
 
@@ -2254,6 +2262,9 @@ namespace DiyFfb
                     }
                 }
             }
+
+            // Flush: send baseline for functions that lost overrides but weren't re-applied
+            _functionConfigManager.SendAllPendingChanges();
         }
 
         /// <summary>
@@ -2310,10 +2321,42 @@ namespace DiyFfb
 
         /// <summary>
         /// Check if a function is active for the current vehicle profile.
+        /// When a profile exists, uses its ActiveFunctionIds.
+        /// When no profile exists, uses graph-category defaults:
+        ///   Vehicle:    Brake, Accelerator, Clutch, Shifter
+        ///   Aircraft:   FlightPedals, FlightStickPitch, FlightStickRoll
+        ///   Helicopter: FlightPedals, FlightStickPitch, FlightStickRoll, FlightStickCollective
         /// </summary>
         public bool IsFunctionActive(int functionId)
         {
-            return ShouldApplyProfileOverride(functionId);
+            var profile = GetCurrentAircraftProfile();
+            if (profile == null)
+                return IsDefaultActiveFunction(functionId);
+            return profile.ActiveFunctionIds?.Contains(functionId) == true;
+        }
+
+        private bool IsDefaultActiveFunction(int functionId)
+        {
+            var funcId = (FunctionID)functionId;
+            var category = GetActiveGraphCategory();
+            switch (category)
+            {
+                case GraphCategory.Helicopter:
+                    return funcId == FunctionID.FlightPedals ||
+                           funcId == FunctionID.FlightStickPitch ||
+                           funcId == FunctionID.FlightStickRoll ||
+                           funcId == FunctionID.FlightStickCollective;
+                case GraphCategory.Aircraft:
+                    return funcId == FunctionID.FlightPedals ||
+                           funcId == FunctionID.FlightStickPitch ||
+                           funcId == FunctionID.FlightStickRoll;
+                case GraphCategory.Vehicle:
+                default:
+                    return funcId == FunctionID.BrakePedal ||
+                           funcId == FunctionID.AcceleratorPedal ||
+                           funcId == FunctionID.ClutchPedal ||
+                           funcId == FunctionID.Shifter;
+            }
         }
 
         /// <summary>
@@ -3302,7 +3345,9 @@ namespace DiyFfb
 
             return string.Equals(left.GraphPath, right.GraphPath, System.StringComparison.OrdinalIgnoreCase) &&
                    left.XPlaneRotorIndex == right.XPlaneRotorIndex &&
-                   AreGraphParamValuesEqual(left.GraphParamValues, right.GraphParamValues);
+                   AreGraphParamValuesEqual(left.GraphParamValues, right.GraphParamValues) &&
+                   AreFunctionOverridesEqual(left.FunctionOverrides, right.FunctionOverrides) &&
+                   AreActiveFunctionIdsEqual(left.ActiveFunctionIds, right.ActiveFunctionIds);
         }
 
         private bool AreGraphParamValuesEqual(Dictionary<string, double> left, Dictionary<string, double> right)
@@ -3324,6 +3369,56 @@ namespace DiyFfb
             }
 
             return true;
+        }
+
+        private static bool AreFunctionOverridesEqual(
+            Dictionary<int, FunctionConfigOverrides> left,
+            Dictionary<int, FunctionConfigOverrides> right)
+        {
+            // Collect non-empty entries from each side (null/empty dict treated as equivalent)
+            var leftEffective = new Dictionary<int, FunctionConfigOverrides>();
+            var rightEffective = new Dictionary<int, FunctionConfigOverrides>();
+
+            if (left != null)
+            {
+                foreach (var kvp in left)
+                {
+                    if (kvp.Value != null && !kvp.Value.IsEmpty)
+                        leftEffective[kvp.Key] = kvp.Value;
+                }
+            }
+
+            if (right != null)
+            {
+                foreach (var kvp in right)
+                {
+                    if (kvp.Value != null && !kvp.Value.IsEmpty)
+                        rightEffective[kvp.Key] = kvp.Value;
+                }
+            }
+
+            if (leftEffective.Count != rightEffective.Count) return false;
+
+            foreach (var kvp in leftEffective)
+            {
+                if (!rightEffective.TryGetValue(kvp.Key, out var rightVal))
+                    return false;
+                if (!ConfigComparer.AreEqual(kvp.Value, rightVal))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static bool AreActiveFunctionIdsEqual(HashSet<int> left, HashSet<int> right)
+        {
+            bool leftEmpty = left == null || left.Count == 0;
+            bool rightEmpty = right == null || right.Count == 0;
+
+            if (leftEmpty && rightEmpty) return true;
+            if (leftEmpty || rightEmpty) return false;
+
+            return left.SetEquals(right);
         }
 
         public string GetActiveCarId()
