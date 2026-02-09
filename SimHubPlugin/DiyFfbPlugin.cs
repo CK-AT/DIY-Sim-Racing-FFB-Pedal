@@ -1713,17 +1713,44 @@ namespace DiyFfb
             activeIncludeContextCache = null;
             lastGraphEvaluation = null;
 
+            bool autoAssigned = false;
             if (string.IsNullOrWhiteSpace(activeGraphPath))
             {
-                // No graph configured for this vehicle - prompt user to select a template
-                string templatePath = PromptForGraphTemplate(gameId, carId);
-                if (!string.IsNullOrWhiteSpace(templatePath))
+                // Check if exactly one template matches this game — auto-assign without dialog
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                var templates = GraphEditor.GraphTemplateRegistry.GetTemplates(gameId, baseDir).ToList();
+                if (templates.Count == 1)
                 {
-                    activeGraphPath = templatePath;
+                    string templatePath = GraphEditor.GraphTemplateRegistry.ResolveTemplatePath(
+                        templates[0].TemplatePath, baseDir);
+                    if (!string.IsNullOrWhiteSpace(templatePath))
+                    {
+                        string key = BuildProfileKey(gameId, carId);
+                        if (!string.IsNullOrWhiteSpace(key))
+                        {
+                            if (Settings.AircraftFfbProfiles == null)
+                                Settings.AircraftFfbProfiles = new Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+                            if (!Settings.AircraftFfbProfiles.TryGetValue(key, out var profile))
+                            {
+                                profile = new DiyFfbPluginSettings.AircraftFfbProfile();
+                                Settings.AircraftFfbProfiles[key] = profile;
+                            }
+                            profile.GraphPath = templatePath;
+                        }
+                        activeGraphPath = templatePath;
+                        autoAssigned = true;
+                        SimHub.Logging.Current.Info($"[Graph] Auto-assigned template '{templates[0].Name}' for {gameId}/{carId}");
+                    }
                 }
-                else
+
+                if (string.IsNullOrWhiteSpace(activeGraphPath))
                 {
-                    return;
+                    // Multiple templates or auto-assign failed — prompt user
+                    string templatePath = PromptForGraphTemplate(gameId, carId);
+                    if (!string.IsNullOrWhiteSpace(templatePath))
+                        activeGraphPath = templatePath;
+                    else
+                        return;
                 }
             }
 
@@ -1758,6 +1785,10 @@ namespace DiyFfb
 
                     // Check for param migration needs
                     CheckParamMigration(resolvedPath, gameId, carId);
+
+                    // Seed default active functions for auto-assigned templates
+                    if (autoAssigned)
+                        SeedDefaultActiveFunctionIds(gameId, carId);
                 }
             }
             catch (Exception ex)
@@ -2111,6 +2142,7 @@ namespace DiyFfb
                 {
                     ui.RefreshGraphSelection();
                     ui.UpdateActiveAircraftLabel(carName, carIdLabel, gameIdCapture);
+                    ui.RefreshVehicleParams();
                     ui.RefreshFunctionSelection();
                 }));
             }
@@ -2323,7 +2355,7 @@ namespace DiyFfb
         /// Check if a function is active for the current vehicle profile.
         /// When a profile exists, uses its ActiveFunctionIds.
         /// When no profile exists, uses graph-category defaults:
-        ///   Vehicle:    Brake, Accelerator, Clutch, Shifter
+        ///   Vehicle:    Brake, Accelerator, Clutch
         ///   Aircraft:   FlightPedals, FlightStickPitch, FlightStickRoll
         ///   Helicopter: FlightPedals, FlightStickPitch, FlightStickRoll, FlightStickCollective
         /// </summary>
@@ -2354,9 +2386,31 @@ namespace DiyFfb
                 default:
                     return funcId == FunctionID.BrakePedal ||
                            funcId == FunctionID.AcceleratorPedal ||
-                           funcId == FunctionID.ClutchPedal ||
-                           funcId == FunctionID.Shifter;
+                           funcId == FunctionID.ClutchPedal;
             }
+        }
+
+        /// <summary>
+        /// Populate ActiveFunctionIds on a newly auto-assigned profile with category defaults.
+        /// Called after graph load so GetActiveGraphCategory() returns the correct category.
+        /// </summary>
+        private void SeedDefaultActiveFunctionIds(string gameId, string carId)
+        {
+            string key = BuildProfileKey(gameId, carId);
+            if (string.IsNullOrWhiteSpace(key) ||
+                Settings?.AircraftFfbProfiles == null ||
+                !Settings.AircraftFfbProfiles.TryGetValue(key, out var profile))
+                return;
+
+            var defaults = new HashSet<int>();
+            foreach (FunctionID fid in Enum.GetValues(typeof(FunctionID)))
+            {
+                if (fid == FunctionID.Undefined) continue;
+                int id = (int)fid;
+                if (IsDefaultActiveFunction(id))
+                    defaults.Add(id);
+            }
+            profile.ActiveFunctionIds = defaults;
         }
 
         /// <summary>

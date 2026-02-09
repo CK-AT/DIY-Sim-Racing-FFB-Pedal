@@ -3690,7 +3690,7 @@ namespace DiyFfb
             return true;
         }
 
-        private void RefreshVehicleParams()
+        public void RefreshVehicleParams()
         {
             VehicleParamsContainer.Children.Clear();
             vehicleParamControls.Clear();
