@@ -282,6 +282,7 @@
     <Compile Include="TieredConfig\ConfigLayerProvider.cs" />
     <Compile Include="TieredConfig\AutomotivePedalProcessor.cs" />
     <Compile Include="TieredConfig\FlightPedalsProcessor.cs" />
+    <Compile Include="TieredConfig\FlightStickProcessor.cs" />
     <Compile Include="TieredConfig\ConfigMerger.cs" />
     <Compile Include="TieredConfig\ConflictDetector.cs" />
     <Compile Include="TieredConfig\FieldRouter.cs" />

@@ -159,8 +159,7 @@ namespace DiyFfb
 
                     SetPosMin(posMin);
                     SetPosMax(posMax);
-                    function_config.Base.OutputMin = posMin;
-                    function_config.Base.OutputMax = posMax;
+                    TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
                     if (Label_min_pos != null)
                         Label_min_pos.Content = String.Format("Min\n{0}mm", posMin);
                     if (Label_max_pos != null)
@@ -600,9 +599,8 @@ namespace DiyFfb
             Slider_damping.Value = GetDamping();
 
             Rangeslider_travel_range.LowerValue = GetPosMin();
-            function_config.Base.OutputMin = GetPosMin();
             Rangeslider_travel_range.UpperValue = GetPosMax();
-            function_config.Base.OutputMax = GetPosMax();
+            TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
             UpdateTrimCenter();
             UpdateTravelMarkers();
             is_updating = false;
@@ -659,7 +657,7 @@ namespace DiyFfb
                 var oldValue = GetPosMin();
 
                 SetPosMin(newValue);
-                function_config.Base.OutputMin = newValue;
+                TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
 
                 // Create override for badge system (only after init stabilizes, baseline exists, AND value changed)
                 if (allowOverrideCreation && newValue != oldValue && plugin != null && function != null && plugin.HasFunctionBaseline((int)function.ID))
@@ -693,7 +691,7 @@ namespace DiyFfb
                 var oldValue = GetPosMax();
 
                 SetPosMax(newValue);
-                function_config.Base.OutputMax = newValue;
+                TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
 
                 // Create override for badge system (only after init stabilizes, baseline exists, AND value changed)
                 if (allowOverrideCreation && newValue != oldValue && plugin != null && function != null && plugin.HasFunctionBaseline((int)function.ID))

@@ -89,7 +89,7 @@ namespace DiyFfb.TieredConfig
             }
 
             // Merge FlightStick-specific overrides (mode-specific)
-            ApplyFlightStickOverrides(merged, delta);
+            FlightStickProcessor.ApplyOverrides(merged, delta);
 
             // Merge Shifter-specific overrides
             if (merged.Shifter != null && delta.ShifterConfig != null)
@@ -129,7 +129,7 @@ namespace DiyFfb.TieredConfig
                 case FunctionID.FlightStickPitch:
                 case FunctionID.FlightStickRoll:
                 case FunctionID.FlightStickCollective:
-                    ReconcileFlightStick(config);
+                    FlightStickProcessor.ReconcileDerivedFields(config);
                     break;
                 case FunctionID.Shifter:
                     ReconcileShifter(config);
@@ -137,37 +137,6 @@ namespace DiyFfb.TieredConfig
             }
         }
 
-        /// <summary>
-        /// FlightStick (Pitch/Roll/Collective): outputMin/Max from PosMin/PosMax.
-        /// Mirrors FlightStickConfigControl.SwitchFunction.
-        /// </summary>
-        private static void ReconcileFlightStick(FunctionConfig config)
-        {
-            switch (config.Base.FunctionId)
-            {
-                case FunctionID.FlightStickPitch:
-                    if (config.FlightStickPitch != null)
-                    {
-                        config.Base.OutputMin = config.FlightStickPitch.PosMin;
-                        config.Base.OutputMax = config.FlightStickPitch.PosMax;
-                    }
-                    break;
-                case FunctionID.FlightStickRoll:
-                    if (config.FlightStickRoll != null)
-                    {
-                        config.Base.OutputMin = config.FlightStickRoll.PosMin;
-                        config.Base.OutputMax = config.FlightStickRoll.PosMax;
-                    }
-                    break;
-                case FunctionID.FlightStickCollective:
-                    if (config.FlightStickCollective != null)
-                    {
-                        config.Base.OutputMin = config.FlightStickCollective.PosMin;
-                        config.Base.OutputMax = config.FlightStickCollective.PosMax;
-                    }
-                    break;
-            }
-        }
 
         /// <summary>
         /// Shifter: outputMin/Max from PosX or PosY range based on Sequential flag.
@@ -234,59 +203,5 @@ namespace DiyFfb.TieredConfig
                 tuning.Gain = overrides.Gain.Value;
         }
 
-        /// <summary>
-        /// Apply FlightStick-specific overrides (mode-dependent: Pitch/Roll/Collective).
-        /// Base.OutputMin/Max are reconciled by ReconcileDerivedFields.
-        /// </summary>
-        private static void ApplyFlightStickOverrides(
-            FunctionConfig merged,
-            FunctionConfigOverrides delta)
-        {
-            // Helper to apply overrides to any flight stick config type
-            void ApplyToConfig<T>(T config) where T : class
-            {
-                if (config == null) return;
-
-                // Use dynamic to work with any FlightStick config type
-                dynamic cfg = config;
-
-                // Merge motion range
-                if (delta.FlightStickMotionRange != null && !delta.FlightStickMotionRange.IsEmpty)
-                {
-                    if (delta.FlightStickMotionRange.Min.HasValue)
-                        cfg.PosMin = delta.FlightStickMotionRange.Min.Value;
-                    if (delta.FlightStickMotionRange.Max.HasValue)
-                        cfg.PosMax = delta.FlightStickMotionRange.Max.Value;
-                }
-
-                // Merge damping
-                if (delta.FlightStickDamping.HasValue)
-                    cfg.Damping = delta.FlightStickDamping.Value;
-
-                // Merge centering spring constant
-                if (delta.FlightStickCenteringSpringConst.HasValue)
-                    cfg.CenteringSpringConst = delta.FlightStickCenteringSpringConst.Value;
-            }
-
-            // Apply to the appropriate config based on function type
-            switch (merged.Base.FunctionId)
-            {
-                case FunctionID.FlightStickPitch:
-                    if (merged.FlightStickPitch == null)
-                        merged.FlightStickPitch = new FlightStickPitchConfig();
-                    ApplyToConfig(merged.FlightStickPitch);
-                    break;
-                case FunctionID.FlightStickRoll:
-                    if (merged.FlightStickRoll == null)
-                        merged.FlightStickRoll = new FlightStickRollConfig();
-                    ApplyToConfig(merged.FlightStickRoll);
-                    break;
-                case FunctionID.FlightStickCollective:
-                    if (merged.FlightStickCollective == null)
-                        merged.FlightStickCollective = new FlightStickCollectiveConfig();
-                    ApplyToConfig(merged.FlightStickCollective);
-                    break;
-            }
-        }
     }
 }

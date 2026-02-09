@@ -30,6 +30,13 @@ namespace DiyFfb.TieredConfigTests
             if (!flightPedalsResults.TrueForAll(r => r.Passed))
                 allPassed = false;
 
+            // Run FlightStickProcessor tests
+            var flightStickResults = FlightStickProcessorTests.RunAll();
+            TestRunner.PrintResults("FlightStickProcessor", flightStickResults);
+            allResults.AddRange(flightStickResults);
+            if (!flightStickResults.TrueForAll(r => r.Passed))
+                allPassed = false;
+
             // Run ConfigMerger tests
             var mergerResults = ConfigMergerTests.RunAll();
             TestRunner.PrintResults("ConfigMerger", mergerResults);

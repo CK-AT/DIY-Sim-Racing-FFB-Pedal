@@ -125,11 +125,41 @@ Moved from `ConfigMerger.ApplyFlightPedalsOverrides`:
 | `TieredConfigTests/TieredConfigTests.csproj` | Add Compile Include |
 | `TieredConfigTests/Program.cs` | Register test suite |
 
+## Phase 3: FlightStickProcessor
+
+### New file: `TieredConfig/FlightStickProcessor.cs`
+
+**`ReconcileDerivedFields(FunctionConfig config)`**
+
+Moved from `ConfigMerger.ReconcileFlightStick`:
+- Switch on `FunctionId` (Pitch/Roll/Collective)
+- `OutputMin` = sub-config `PosMin`, `OutputMax` = sub-config `PosMax`
+
+**`ApplyOverrides(FunctionConfig merged, FunctionConfigOverrides delta)`**
+
+Moved from `ConfigMerger.ApplyFlightStickOverrides`:
+- Takes full FunctionConfig (dispatches to sub-config by FunctionId)
+- MotionRange: field-by-field (Min, Max)
+- Damping: scalar replacement
+- CenteringSpringConst: scalar replacement
+- Replaces `dynamic`-based approach with explicit per-type helpers
+
+### Files touched (Phase 3)
+
+| File | Change |
+|---|---|
+| `TieredConfig/FlightStickProcessor.cs` | New — processor class |
+| `TieredConfig/ConfigMerger.cs` | Delete 2 private methods, delegate to processor |
+| `FlightStickConfigControl.xaml.cs` | Replace inline OutputMin/Max with processor calls |
+| `DiyFfbPlugin.csproj` | Add Compile Include |
+| `TieredConfigTests/FlightStickProcessorTests.cs` | New — 19 test cases |
+| `TieredConfigTests/TieredConfigTests.csproj` | Add Compile Include |
+| `TieredConfigTests/Program.cs` | Register test suite |
+
 ## Future phases
 
 | Phase | Processor | Source methods |
 |---|---|---|
-| 3 | `FlightStickProcessor` | `ReconcileFlightStick`, `ApplyFlightStickOverrides` |
 | 4 | `ShifterProcessor` | `ReconcileShifter`, inline shifter override in `MergeFunctionConfig` |
 
 After all 4 phases, `ConfigMerger` contains only the generic merge orchestration
