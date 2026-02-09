@@ -1085,5 +1085,101 @@ namespace DiyFfb.TieredConfig
         }
 
         #endregion
+
+        #region ESP32 Authority
+
+        /// <summary>
+        /// Handle an incoming function config from ESP32 or file import.
+        /// When fromEsp32 is true and a stored baseline exists, the plugin is authoritative:
+        /// the incoming config is ignored and the current merged config is returned for push-back.
+        /// Otherwise, the incoming config becomes the new base and overrides are applied.
+        /// </summary>
+        /// <returns>
+        /// authorityOverride=true when the plugin overrode ESP32; resultConfig is the merged config to push back.
+        /// authorityOverride=false when the incoming config was accepted; resultConfig is the new merged config.
+        /// </returns>
+        public (bool authorityOverride, FunctionConfig resultConfig)
+            HandleIncomingFunctionConfig(int functionId, FunctionConfig incoming, bool fromEsp32)
+        {
+            if (fromEsp32 && HasFunctionBaseline(functionId))
+            {
+                var mergedConfig = _functionConfigManager.GetCurrentConfig(functionId);
+                if (mergedConfig != null)
+                    return (true, mergedConfig);
+                // Fall through if manager state was unexpectedly lost
+            }
+
+            // Accept incoming config as the new base
+            _functionConfigManager.SetBaseConfig(functionId, incoming);
+
+            // Apply overrides through manager for consistent state tracking
+            if (ShouldApplyProfileOverride(functionId))
+            {
+                ApplyProfileOverridesToFunction(functionId);
+            }
+            else
+            {
+                // No profile override, but still apply user overrides through manager
+                // to keep _currentConfigs and _functionsWithUserOverride in sync
+                var userOverrides = GetUserFunctionOverrides(functionId);
+                if (userOverrides != null && !userOverrides.IsEmpty)
+                {
+                    _functionConfigManager.ApplyProfileOverrides(functionId, null, userOverrides);
+                }
+            }
+
+            var currentConfig = _functionConfigManager.GetCurrentConfig(functionId);
+            return (false, currentConfig ?? incoming);
+        }
+
+        /// <summary>
+        /// Handle an incoming axis config from ESP32 or file import.
+        /// When fromEsp32 is true and a stored baseline exists, the plugin is authoritative:
+        /// the incoming config is ignored and the current merged config is returned for push-back.
+        /// Otherwise, the incoming config becomes the new base and function overrides are re-applied.
+        /// </summary>
+        public (bool authorityOverride, AxisConfig resultConfig)
+            HandleIncomingAxisConfig(int axisId, AxisConfig incoming, bool fromEsp32)
+        {
+            if (fromEsp32 && HasAxisBaseline(axisId))
+            {
+                // Re-init from settings if manager state was lost (axis manager
+                // is Reset() on vehicle change, which clears base configs)
+                if (!_axisConfigManager.HasBaseConfig(axisId))
+                {
+                    var baseline = GetAxisBaseline(axisId);
+                    if (baseline != null)
+                    {
+                        baseline.AxisId = incoming.AxisId;
+                        _axisConfigManager.SetBaseConfig(axisId, baseline);
+                    }
+                }
+
+                var mergedConfig = _axisConfigManager.GetCurrentConfig(axisId);
+                if (mergedConfig != null)
+                    return (true, mergedConfig);
+                // Fall through if manager state was unexpectedly lost
+            }
+
+            // Accept incoming config as the new base
+            _axisConfigManager.SetBaseConfig(axisId, incoming);
+
+            // Re-apply active function override if one exists
+            int? overridingFunc = _axisConfigManager.GetOverridingFunction(axisId);
+            if (overridingFunc.HasValue)
+            {
+                var overrides = GetAxisParameterOverride(overridingFunc.Value, axisId);
+                if (overrides != null && !overrides.IsEmpty)
+                {
+                    _axisConfigManager.ApplyFunctionOverride(
+                        axisId, overridingFunc.Value, overrides, diffCheck: false);
+                }
+            }
+
+            var currentConfig = _axisConfigManager.GetCurrentConfig(axisId);
+            return (false, currentConfig ?? incoming);
+        }
+
+        #endregion
     }
 }

@@ -2662,45 +2662,19 @@ namespace DiyFfb
             SimHub.Logging.Current.Info($"[TieredConfig] OnFunctionConfigUpdate func={newFunctionId}: " +
                 $"fromEsp32={fromEsp32}, hasBaseline={Plugin.HasFunctionBaseline(funcId)}");
 
-            // If ESP32 is reporting config and we have a stored baseline, the plugin
-            // is the authority. Ignore the incoming config and push ours back.
-            if (fromEsp32 && Plugin.HasFunctionBaseline(funcId))
+            var (authorityOverride, resultConfig) =
+                Plugin.ConfigOrchestrator.HandleIncomingFunctionConfig(funcId, newFunctionConfig, fromEsp32);
+
+            if (authorityOverride)
             {
-                var mergedConfig = Plugin.FunctionConfigManager.GetCurrentConfig(funcId);
-                if (mergedConfig != null)
-                {
-                    SimHub.Logging.Current.Info($"[TieredConfig] ESP32 authority: pushing merged config back for func={newFunctionId}");
-                    EnqueueFunctionConfigUpload(mergedConfig, store: false);
-                    Plugin.FunctionConfigManager.MarkAsSent(funcId, mergedConfig);
-                    return;
-                }
-                // Fall through if manager state was unexpectedly lost
+                SimHub.Logging.Current.Info($"[TieredConfig] ESP32 authority: pushing merged config back for func={newFunctionId}");
+                EnqueueFunctionConfigUpload(resultConfig, store: false);
+                Plugin.FunctionConfigManager.MarkAsSent(funcId, resultConfig);
+                return;
             }
 
-            // No stored baseline (first-time or after clear) or file import:
-            // accept incoming config as the new base.
-            Plugin.FunctionConfigManager.SetBaseConfig(funcId, newFunctionConfig);
-
-            // Apply overrides through manager for consistent state tracking
-            if (Plugin.ShouldApplyProfileOverride(funcId))
-            {
-                Plugin.ApplyProfileOverridesToFunction(funcId);
-            }
-            else
-            {
-                // No profile override, but still apply user overrides through manager
-                // to keep _currentConfigs and _functionsWithUserOverride in sync
-                var userOverrides = Plugin.GetUserFunctionOverrides(funcId);
-                if (userOverrides != null && !userOverrides.IsEmpty)
-                {
-                    Plugin.FunctionConfigManager.ApplyProfileOverrides(funcId, null, userOverrides);
-                }
-            }
-
-            // Update UI working copy from manager's authoritative merged config.
-            // This is a fresh base config, so there are no unsaved direct edits to preserve.
-            var currentConfig = Plugin.FunctionConfigManager.GetCurrentConfig(funcId);
-            functions[newFunctionId].Config = currentConfig ?? newFunctionConfig;
+            // Update UI working copy from manager's authoritative merged config
+            functions[newFunctionId].Config = resultConfig;
 
             if (newFunctionId == selected_function_id)
             {
@@ -2715,63 +2689,21 @@ namespace DiyFfb
             {
                 int axisIdInt = (int)newAxisId;
 
-                // If ESP32 is reporting config and we have a stored baseline, the plugin
-                // is the authority. Ignore the incoming config and push ours back.
-                if (fromEsp32 && Plugin.HasAxisBaseline(axisIdInt))
-                {
-                    // Re-init from settings if manager state was lost (axis manager
-                    // is Reset() on vehicle change, which clears base configs)
-                    if (!Plugin.AxisConfigManager.HasBaseConfig(axisIdInt))
-                    {
-                        var baseline = Plugin.GetAxisBaseline(axisIdInt);
-                        if (baseline != null)
-                        {
-                            baseline.AxisId = newAxisId;
-                            Plugin.AxisConfigManager.SetBaseConfig(axisIdInt, baseline);
-                        }
-                    }
+                var (authorityOverride, resultConfig) =
+                    Plugin.ConfigOrchestrator.HandleIncomingAxisConfig(axisIdInt, newAxisConfig, fromEsp32);
 
-                    var mergedConfig = Plugin.AxisConfigManager.GetCurrentConfig(axisIdInt);
-                    if (mergedConfig != null)
-                    {
-                        axes[newAxisId].Config = mergedConfig;
-                        axes[newAxisId].HasAxisConfig = true;
-                        if (newAxisId == selected_axis_id)
-                            uc_axis_config.UpdateConfig(mergedConfig);
-                        RefreshKinematicParametersIfAffected(newAxisId, mergedConfig);
-
-                        EnqueueAxisConfigUpload(newAxisId, mergedConfig, store: false);
-                        Plugin.AxisConfigManager.MarkAsSent(axisIdInt, mergedConfig);
-                        return;
-                    }
-                    // Fall through if manager state was unexpectedly lost
-                }
-
-                // No stored baseline (first-time or after clear) or file import:
-                // accept incoming config as the new base.
-                Plugin.AxisConfigManager.SetBaseConfig(axisIdInt, newAxisConfig);
-
-                // Re-apply active function override if one exists
-                int? overridingFunc = Plugin.AxisConfigManager.GetOverridingFunction(axisIdInt);
-                if (overridingFunc.HasValue)
-                {
-                    var overrides = Plugin.GetAxisParameterOverride(overridingFunc.Value, axisIdInt);
-                    if (overrides != null && !overrides.IsEmpty)
-                    {
-                        Plugin.AxisConfigManager.ApplyFunctionOverride(
-                            axisIdInt, overridingFunc.Value, overrides, diffCheck: false);
-                    }
-                }
-
-                // Use manager's current config (base or overridden)
-                var currentConfig = Plugin.AxisConfigManager.GetCurrentConfig(axisIdInt) ?? newAxisConfig;
-                axes[newAxisId].Config = currentConfig;
+                // Update UI state from result
+                axes[newAxisId].Config = resultConfig;
                 axes[newAxisId].HasAxisConfig = true;
                 if (newAxisId == selected_axis_id)
+                    uc_axis_config.UpdateConfig(resultConfig);
+                RefreshKinematicParametersIfAffected(newAxisId, resultConfig);
+
+                if (authorityOverride)
                 {
-                    uc_axis_config.UpdateConfig(axes[newAxisId].Config);
+                    EnqueueAxisConfigUpload(newAxisId, resultConfig, store: false);
+                    Plugin.AxisConfigManager.MarkAsSent(axisIdInt, resultConfig);
                 }
-                RefreshKinematicParametersIfAffected(newAxisId, currentConfig);
             }
             else
             {
