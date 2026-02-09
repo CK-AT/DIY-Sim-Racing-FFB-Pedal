@@ -23,6 +23,13 @@ namespace DiyFfb.TieredConfigTests
             if (!processorResults.TrueForAll(r => r.Passed))
                 allPassed = false;
 
+            // Run FlightPedalsProcessor tests
+            var flightPedalsResults = FlightPedalsProcessorTests.RunAll();
+            TestRunner.PrintResults("FlightPedalsProcessor", flightPedalsResults);
+            allResults.AddRange(flightPedalsResults);
+            if (!flightPedalsResults.TrueForAll(r => r.Passed))
+                allPassed = false;
+
             // Run ConfigMerger tests
             var mergerResults = ConfigMergerTests.RunAll();
             TestRunner.PrintResults("ConfigMerger", mergerResults);

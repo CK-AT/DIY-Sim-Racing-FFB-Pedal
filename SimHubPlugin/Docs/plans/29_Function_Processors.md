@@ -95,11 +95,40 @@ delta, DamperConfig auto-creation).
 | `TieredConfigTests/TieredConfigTests.csproj` | Add Compile Include |
 | `TieredConfigTests/Program.cs` | Register test suite |
 
+## Phase 2: FlightPedalsProcessor
+
+### New file: `TieredConfig/FlightPedalsProcessor.cs`
+
+**`ReconcileDerivedFields(FunctionConfig config)`**
+
+Moved from `ConfigMerger.ReconcileFlightPedals`:
+- `OutputMin` = `PosNearLim`
+- `OutputMax` = `PosFarLim`
+
+**`ApplyOverrides(FlightPedalsConfig config, AuxFunctionConfig auxConfig, FunctionConfigOverrides delta)`**
+
+Moved from `ConfigMerger.ApplyFlightPedalsOverrides`:
+- MotionRange: field-by-field (NearLim, FarLim)
+- Damping: scalar replacement
+- CenteringSpringConst: scalar replacement
+- RudderBrakeForceRange: field-by-field on AuxFunctionConfig (FMin, FMax)
+
+### Files touched (Phase 2)
+
+| File | Change |
+|---|---|
+| `TieredConfig/FlightPedalsProcessor.cs` | New — processor class |
+| `TieredConfig/ConfigMerger.cs` | Delete 2 private methods, delegate to processor |
+| `FlightPedalsConfigControl.xaml.cs` | Replace inline OutputMin/Max with processor calls |
+| `DiyFfbPlugin.csproj` | Add Compile Include |
+| `TieredConfigTests/FlightPedalsProcessorTests.cs` | New — 14 test cases |
+| `TieredConfigTests/TieredConfigTests.csproj` | Add Compile Include |
+| `TieredConfigTests/Program.cs` | Register test suite |
+
 ## Future phases
 
 | Phase | Processor | Source methods |
 |---|---|---|
-| 2 | `FlightPedalsProcessor` | `ReconcileFlightPedals`, `ApplyFlightPedalsOverrides` |
 | 3 | `FlightStickProcessor` | `ReconcileFlightStick`, `ApplyFlightStickOverrides` |
 | 4 | `ShifterProcessor` | `ReconcileShifter`, inline shifter override in `MergeFunctionConfig` |
 

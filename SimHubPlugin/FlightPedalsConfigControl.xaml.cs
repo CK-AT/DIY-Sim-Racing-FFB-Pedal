@@ -129,8 +129,7 @@ namespace DiyFfb
                 case "flight_pedals.motion_range":
                     config.PosNearLim = mergedConfig.FlightPedals.PosNearLim;
                     config.PosFarLim = mergedConfig.FlightPedals.PosFarLim;
-                    function_config.Base.OutputMin = config.PosNearLim;
-                    function_config.Base.OutputMax = config.PosFarLim;
+                    TieredConfig.FlightPedalsProcessor.ReconcileDerivedFields(function_config);
                     Rangeslider_travel_range.LowerValue = config.PosNearLim;
                     Rangeslider_travel_range.UpperValue = config.PosFarLim;
                     if (Label_near_pos != null)
@@ -342,9 +341,8 @@ namespace DiyFfb
             uc_controller_axis_right_brake.Value = function_config.AuxFunction.RudderBrake.ControllerOutputAxisRightPedal;
             uc_controller_axis_left_brake.Value = function_config.AuxFunction.RudderBrake.ControllerOutputAxisLeftPedal;
             Rangeslider_travel_range.UpperValue = config.PosFarLim;
-            function_config.Base.OutputMax = config.PosFarLim;
             Rangeslider_travel_range.LowerValue = config.PosNearLim;
-            function_config.Base.OutputMin = config.PosNearLim;
+            TieredConfig.FlightPedalsProcessor.ReconcileDerivedFields(function_config);
             Rangeslider_brake_force_range.UpperValue = function_config.AuxFunction.RudderBrake.FMax / 9.81f;
             Rangeslider_brake_force_range.LowerValue = function_config.AuxFunction.RudderBrake.FMin / 9.81f;
             UpdateTrimCenter();
@@ -537,7 +535,7 @@ namespace DiyFfb
 
                 var oldValue = config.PosNearLim;
                 config.PosNearLim = newValue;
-                function_config.Base.OutputMin = newValue;
+                TieredConfig.FlightPedalsProcessor.ReconcileDerivedFields(function_config);
 
                 if (allowOverrideCreation && newValue != oldValue &&
                     plugin != null && function != null &&
@@ -572,7 +570,7 @@ namespace DiyFfb
 
                 var oldValue = config.PosFarLim;
                 config.PosFarLim = newValue;
-                function_config.Base.OutputMax = newValue;
+                TieredConfig.FlightPedalsProcessor.ReconcileDerivedFields(function_config);
 
                 if (allowOverrideCreation && newValue != oldValue &&
                     plugin != null && function != null &&

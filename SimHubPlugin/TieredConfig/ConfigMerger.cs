@@ -85,7 +85,7 @@ namespace DiyFfb.TieredConfig
             // Merge FlightPedals-specific overrides
             if (merged.FlightPedals != null)
             {
-                ApplyFlightPedalsOverrides(merged.FlightPedals, merged.AuxFunction, delta);
+                FlightPedalsProcessor.ApplyOverrides(merged.FlightPedals, merged.AuxFunction, delta);
             }
 
             // Merge FlightStick-specific overrides (mode-specific)
@@ -124,7 +124,7 @@ namespace DiyFfb.TieredConfig
                     AutomotivePedalProcessor.ReconcileDerivedFields(config);
                     break;
                 case FunctionID.FlightPedals:
-                    ReconcileFlightPedals(config);
+                    FlightPedalsProcessor.ReconcileDerivedFields(config);
                     break;
                 case FunctionID.FlightStickPitch:
                 case FunctionID.FlightStickRoll:
@@ -135,19 +135,6 @@ namespace DiyFfb.TieredConfig
                     ReconcileShifter(config);
                     break;
             }
-        }
-
-        /// <summary>
-        /// FlightPedals: outputMin/Max from PosNearLim/PosFarLim.
-        /// Mirrors FlightPedalsConfigControl.SwitchFunction.
-        /// </summary>
-        private static void ReconcileFlightPedals(FunctionConfig config)
-        {
-            var fp = config.FlightPedals;
-            if (fp == null) return;
-
-            config.Base.OutputMin = fp.PosNearLim;
-            config.Base.OutputMax = fp.PosFarLim;
         }
 
         /// <summary>
@@ -245,45 +232,6 @@ namespace DiyFfb.TieredConfig
                 tuning.Enabled = overrides.Enabled.Value;
             if (overrides.Gain.HasValue)
                 tuning.Gain = overrides.Gain.Value;
-        }
-
-        /// <summary>
-        /// Apply FlightPedals-specific overrides.
-        /// Base.OutputMin/Max are reconciled by ReconcileDerivedFields.
-        /// </summary>
-        private static void ApplyFlightPedalsOverrides(
-            FlightPedalsConfig config,
-            AuxFunctionConfig auxConfig,
-            FunctionConfigOverrides delta)
-        {
-            // Merge motion range
-            if (delta.FlightPedalsMotionRange != null && !delta.FlightPedalsMotionRange.IsEmpty)
-            {
-                if (delta.FlightPedalsMotionRange.NearLim.HasValue)
-                    config.PosNearLim = delta.FlightPedalsMotionRange.NearLim.Value;
-                if (delta.FlightPedalsMotionRange.FarLim.HasValue)
-                    config.PosFarLim = delta.FlightPedalsMotionRange.FarLim.Value;
-            }
-
-            // Merge damping
-            if (delta.FlightPedalsDamping.HasValue)
-                config.Damping = delta.FlightPedalsDamping.Value;
-
-            // Merge centering spring constant
-            if (delta.FlightPedalsCenteringSpringConst.HasValue)
-                config.CenteringSpringConst = delta.FlightPedalsCenteringSpringConst.Value;
-
-            // Merge rudder brake force range (aux_function)
-            if (auxConfig != null && delta.RudderBrakeForceRange != null && !delta.RudderBrakeForceRange.IsEmpty)
-            {
-                if (auxConfig.RudderBrake == null)
-                    auxConfig.RudderBrake = new RudderBrakeConfig();
-
-                if (delta.RudderBrakeForceRange.Min.HasValue)
-                    auxConfig.RudderBrake.FMin = delta.RudderBrakeForceRange.Min.Value;
-                if (delta.RudderBrakeForceRange.Max.HasValue)
-                    auxConfig.RudderBrake.FMax = delta.RudderBrakeForceRange.Max.Value;
-            }
         }
 
         /// <summary>
