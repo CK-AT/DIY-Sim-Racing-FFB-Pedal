@@ -156,12 +156,36 @@ Moved from `ConfigMerger.ApplyFlightStickOverrides`:
 | `TieredConfigTests/TieredConfigTests.csproj` | Add Compile Include |
 | `TieredConfigTests/Program.cs` | Register test suite |
 
-## Future phases
+## Phase 4: ShifterProcessor
 
-| Phase | Processor | Source methods |
-|---|---|---|
-| 4 | `ShifterProcessor` | `ReconcileShifter`, inline shifter override in `MergeFunctionConfig` |
+### New file: `TieredConfig/ShifterProcessor.cs`
 
-After all 4 phases, `ConfigMerger` contains only the generic merge orchestration
+**`ReconcileDerivedFields(FunctionConfig config)`**
+
+Moved from `ConfigMerger.ReconcileShifter`:
+- If Sequential: `OutputMin` = `PosYMin`, `OutputMax` = `PosYMax`
+- If H-pattern: `OutputMin` = `PosXMin`, `OutputMax` = `PosXMax`
+
+**`ApplyOverrides(FunctionConfig merged, FunctionConfigOverrides delta)`**
+
+Moved from inline code in `ConfigMerger.MergeFunctionConfig`:
+- ShifterConfig: full replacement (clone)
+- ShifterDetectConfig: full replacement (clone) on AuxFunction
+
+### Files touched (Phase 4)
+
+| File | Change |
+|---|---|
+| `TieredConfig/ShifterProcessor.cs` | New — processor class |
+| `TieredConfig/ConfigMerger.cs` | Delete private method, delegate to processor |
+| `ShifterConfigControl.xaml.cs` | Replace inline UpdateOutputRange with processor call |
+| `DiyFfbPlugin.csproj` | Add Compile Include |
+| `TieredConfigTests/ShifterProcessorTests.cs` | New — 13 test cases |
+| `TieredConfigTests/TieredConfigTests.csproj` | Add Compile Include |
+| `TieredConfigTests/Program.cs` | Register test suite |
+
+## Status
+
+All 4 phases complete. `ConfigMerger` contains only the generic merge orchestration
 (clone, apply scalars, delegate to processors, reconcile) with zero
 function-type-specific logic inline.

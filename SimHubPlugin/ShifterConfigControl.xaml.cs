@@ -11,6 +11,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using MahApps.Metro.Controls;
 using DiyFfb.Controls;
+using DiyFfb.TieredConfig;
 
 namespace DiyFfb
 {
@@ -716,16 +717,7 @@ namespace DiyFfb
 
         private void UpdateOutputRange()
         {
-            if (shifter_config.Sequential)
-            {
-                function_config.Base.OutputMin = shifter_config.PosYMin;
-                function_config.Base.OutputMax = shifter_config.PosYMax;
-            }
-            else
-            {
-                function_config.Base.OutputMin = shifter_config.PosXMin;
-                function_config.Base.OutputMax = shifter_config.PosXMax;
-            }
+            ShifterProcessor.ReconcileDerivedFields(function_config);
         }
 
         private void UpdateRangeLabels()

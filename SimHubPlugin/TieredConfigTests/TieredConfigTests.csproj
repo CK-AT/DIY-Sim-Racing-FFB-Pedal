@@ -42,6 +42,7 @@
     <Compile Include="AutomotivePedalProcessorTests.cs" />
     <Compile Include="FlightPedalsProcessorTests.cs" />
     <Compile Include="FlightStickProcessorTests.cs" />
+    <Compile Include="ShifterProcessorTests.cs" />
     <Compile Include="ConfigMergerTests.cs" />
     <Compile Include="ConfigComparerTests.cs" />
     <Compile Include="ConflictDetectorTests.cs" />

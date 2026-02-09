@@ -37,6 +37,13 @@ namespace DiyFfb.TieredConfigTests
             if (!flightStickResults.TrueForAll(r => r.Passed))
                 allPassed = false;
 
+            // Run ShifterProcessor tests
+            var shifterResults = ShifterProcessorTests.RunAll();
+            TestRunner.PrintResults("ShifterProcessor", shifterResults);
+            allResults.AddRange(shifterResults);
+            if (!shifterResults.TrueForAll(r => r.Passed))
+                allPassed = false;
+
             // Run ConfigMerger tests
             var mergerResults = ConfigMergerTests.RunAll();
             TestRunner.PrintResults("ConfigMerger", mergerResults);

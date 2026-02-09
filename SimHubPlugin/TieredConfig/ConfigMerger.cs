@@ -92,14 +92,7 @@ namespace DiyFfb.TieredConfig
             FlightStickProcessor.ApplyOverrides(merged, delta);
 
             // Merge Shifter-specific overrides
-            if (merged.Shifter != null && delta.ShifterConfig != null)
-            {
-                merged.Shifter = delta.ShifterConfig.Clone();
-            }
-            if (merged.AuxFunction?.ShifterDetect != null && delta.ShifterDetectConfig != null)
-            {
-                merged.AuxFunction.ShifterDetect = delta.ShifterDetectConfig.Clone();
-            }
+            ShifterProcessor.ApplyOverrides(merged, delta);
 
             // Reconcile derived fields (posIdle/posEnd/outputMin/outputMax)
             // that depend on merged force curve / motion range values.
@@ -132,32 +125,11 @@ namespace DiyFfb.TieredConfig
                     FlightStickProcessor.ReconcileDerivedFields(config);
                     break;
                 case FunctionID.Shifter:
-                    ReconcileShifter(config);
+                    ShifterProcessor.ReconcileDerivedFields(config);
                     break;
             }
         }
 
-
-        /// <summary>
-        /// Shifter: outputMin/Max from PosX or PosY range based on Sequential flag.
-        /// Mirrors ShifterConfigControl.UpdateOutputRange.
-        /// </summary>
-        private static void ReconcileShifter(FunctionConfig config)
-        {
-            var sh = config.Shifter;
-            if (sh == null) return;
-
-            if (sh.Sequential)
-            {
-                config.Base.OutputMin = sh.PosYMin;
-                config.Base.OutputMax = sh.PosYMax;
-            }
-            else
-            {
-                config.Base.OutputMin = sh.PosXMin;
-                config.Base.OutputMax = sh.PosXMax;
-            }
-        }
 
         /// <summary>
         /// Merge all three layers: Baseline -> Profile -> User.
