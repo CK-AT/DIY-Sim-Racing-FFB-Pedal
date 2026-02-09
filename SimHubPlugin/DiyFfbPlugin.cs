@@ -140,6 +140,12 @@ namespace DiyFfb
         // Tiered config managers for profile/user overrides
         private readonly FunctionConfigManager _functionConfigManager = new FunctionConfigManager();
         private readonly AxisConfigManager _axisConfigManager = new AxisConfigManager();
+        private TieredConfigOrchestrator _configOrchestrator;
+
+        /// <summary>
+        /// Orchestrates tiered config lifecycle (Baseline → Profile → User).
+        /// </summary>
+        public TieredConfigOrchestrator ConfigOrchestrator => _configOrchestrator;
 
         /// <summary>
         /// Manages function config lifecycle for profile/user overrides.
@@ -2225,78 +2231,7 @@ namespace DiyFfb
         /// </summary>
         private void ApplyProfileFunctionOverrides(DiyFfbPluginSettings.AircraftFfbProfile profile)
         {
-            SimHub.Logging.Current.Info($"[TieredConfig] ApplyProfileFunctionOverrides: profile={(profile != null ? "exists" : "null")}, " +
-                $"activeFuncs={(profile?.ActiveFunctionIds?.Count.ToString() ?? "n/a")}, " +
-                $"knownFuncs={string.Join(",", _functionConfigManager.GetKnownFunctionIds())}");
-
-            // Clear existing overrides silently — events are deferred until all overrides
-            // are applied, so the ESP32 gets exactly one upload per changed function
-            // with the final merged config (no intermediate baseline flash).
-            _functionConfigManager.ClearAllProfileOverrides(fireEvents: false);
-            _axisConfigManager.Reset(); // Clear function overrides for axes
-            InitializeAxisManagerFromSettings(); // Re-populate base configs from stored baselines
-
-            var userOverrides = GetCurrentUserOverrides();
-
-            if (profile == null)
-            {
-                // No profile, but still apply user overrides to all functions with baselines
-                if (userOverrides?.FunctionOverrides != null)
-                {
-                    foreach (var functionId in _functionConfigManager.GetKnownFunctionIds())
-                    {
-                        userOverrides.FunctionOverrides.TryGetValue(functionId, out var userDelta);
-                        if (userDelta != null && !userDelta.IsEmpty)
-                        {
-                            _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta);
-                        }
-                    }
-                }
-                // Flush: send baseline for functions that lost overrides but weren't re-applied
-                _functionConfigManager.SendAllPendingChanges();
-                return;
-            }
-
-            var activeFunctions = profile.ActiveFunctionIds ?? new HashSet<int>();
-
-            foreach (var functionId in activeFunctions)
-            {
-                // 1. Apply FunctionConfig overrides
-                if (_functionConfigManager.HasBaseConfig(functionId))
-                {
-                    profile.FunctionOverrides.TryGetValue(functionId, out var profileDelta);
-                    FunctionConfigOverrides userDelta = null;
-                    userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
-                    _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta);
-                }
-
-                // 2. Apply AxisConfig overrides for this function
-                if (Settings.FunctionAxisOverrides.TryGetValue(functionId, out var axisOverrides))
-                {
-                    _axisConfigManager.ApplyFunctionOverrides(functionId, axisOverrides);
-                }
-            }
-
-            // Apply user overrides for functions NOT in activeFunctions.
-            // User-layer overrides (output range, friction, force curve, etc.) follow the
-            // user across vehicles and must always be applied regardless of profile settings.
-            if (userOverrides?.FunctionOverrides != null)
-            {
-                foreach (var functionId in _functionConfigManager.GetKnownFunctionIds())
-                {
-                    if (activeFunctions.Contains(functionId))
-                        continue; // already handled above
-
-                    userOverrides.FunctionOverrides.TryGetValue(functionId, out var userDelta);
-                    if (userDelta != null && !userDelta.IsEmpty)
-                    {
-                        _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta);
-                    }
-                }
-            }
-
-            // Flush: send baseline for functions that lost overrides but weren't re-applied
-            _functionConfigManager.SendAllPendingChanges();
+            _configOrchestrator.ApplyProfileFunctionOverrides(profile);
         }
 
         /// <summary>
@@ -2305,20 +2240,7 @@ namespace DiyFfb
         /// </summary>
         public void ApplyProfileOverridesToFunction(int functionId)
         {
-            var profile = GetCurrentAircraftProfile();
-            if (profile?.ActiveFunctionIds?.Contains(functionId) != true)
-                return;
-
-            // Only apply if we have a base config from the ESP32
-            if (!_functionConfigManager.HasBaseConfig(functionId))
-                return;
-
-            ReapplyMergedOverrides(functionId);
-
-            if (Settings.FunctionAxisOverrides.TryGetValue(functionId, out var axisOverrides))
-            {
-                _axisConfigManager.ApplyFunctionOverrides(functionId, axisOverrides);
-            }
+            _configOrchestrator.ApplyProfileOverridesToFunction(functionId);
         }
 
         /// <summary>
@@ -2327,15 +2249,7 @@ namespace DiyFfb
         /// </summary>
         private void ReapplyMergedOverrides(int functionId, bool diffCheck = true)
         {
-            var profile = GetCurrentAircraftProfile();
-            FunctionConfigOverrides profileDelta = null;
-            profile?.FunctionOverrides?.TryGetValue(functionId, out profileDelta);
-
-            var userOverrides = GetCurrentUserOverrides();
-            FunctionConfigOverrides userDelta = null;
-            userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
-
-            _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: diffCheck);
+            _configOrchestrator.ReapplyMergedOverrides(functionId, diffCheck);
         }
 
         /// <summary>
@@ -2343,15 +2257,7 @@ namespace DiyFfb
         /// </summary>
         private UserPreferences GetCurrentUserOverrides()
         {
-            if (Settings?.UserPreferencesProfiles == null)
-                return null;
-
-            string userProfile = Settings.CurrentUserProfile ?? System.Environment.UserName;
-            if (string.IsNullOrWhiteSpace(userProfile))
-                userProfile = System.Environment.UserName;
-
-            Settings.UserPreferencesProfiles.TryGetValue(userProfile, out var prefs);
-            return prefs;
+            return _configOrchestrator.GetCurrentUserOverrides();
         }
 
         /// <summary>
@@ -2360,47 +2266,17 @@ namespace DiyFfb
         /// </summary>
         public bool ShouldApplyProfileOverride(int functionId)
         {
-            var profile = GetCurrentAircraftProfile();
-            return profile?.ActiveFunctionIds?.Contains(functionId) == true;
+            return _configOrchestrator.ShouldApplyProfileOverride(functionId);
         }
 
         /// <summary>
         /// Check if a function is active for the current vehicle profile.
         /// When a profile exists, uses its ActiveFunctionIds.
-        /// When no profile exists, uses graph-category defaults:
-        ///   Vehicle:    Brake, Accelerator, Clutch
-        ///   Aircraft:   FlightPedals, FlightStickPitch, FlightStickRoll
-        ///   Helicopter: FlightPedals, FlightStickPitch, FlightStickRoll, FlightStickCollective
+        /// When no profile exists, uses graph-category defaults.
         /// </summary>
         public bool IsFunctionActive(int functionId)
         {
-            var profile = GetCurrentAircraftProfile();
-            if (profile == null)
-                return IsDefaultActiveFunction(functionId);
-            return profile.ActiveFunctionIds?.Contains(functionId) == true;
-        }
-
-        private bool IsDefaultActiveFunction(int functionId)
-        {
-            var funcId = (FunctionID)functionId;
-            var category = GetActiveGraphCategory();
-            switch (category)
-            {
-                case GraphCategory.Helicopter:
-                    return funcId == FunctionID.FlightPedals ||
-                           funcId == FunctionID.FlightStickPitch ||
-                           funcId == FunctionID.FlightStickRoll ||
-                           funcId == FunctionID.FlightStickCollective;
-                case GraphCategory.Aircraft:
-                    return funcId == FunctionID.FlightPedals ||
-                           funcId == FunctionID.FlightStickPitch ||
-                           funcId == FunctionID.FlightStickRoll;
-                case GraphCategory.Vehicle:
-                default:
-                    return funcId == FunctionID.BrakePedal ||
-                           funcId == FunctionID.AcceleratorPedal ||
-                           funcId == FunctionID.ClutchPedal;
-            }
+            return _configOrchestrator.IsFunctionActive(functionId);
         }
 
         /// <summary>
@@ -2409,21 +2285,7 @@ namespace DiyFfb
         /// </summary>
         private void SeedDefaultActiveFunctionIds(string gameId, string carId)
         {
-            string key = BuildProfileKey(gameId, carId);
-            if (string.IsNullOrWhiteSpace(key) ||
-                Settings?.AircraftFfbProfiles == null ||
-                !Settings.AircraftFfbProfiles.TryGetValue(key, out var profile))
-                return;
-
-            var defaults = new HashSet<int>();
-            foreach (FunctionID fid in Enum.GetValues(typeof(FunctionID)))
-            {
-                if (fid == FunctionID.Undefined) continue;
-                int id = (int)fid;
-                if (IsDefaultActiveFunction(id))
-                    defaults.Add(id);
-            }
-            profile.ActiveFunctionIds = defaults;
+            _configOrchestrator.SeedDefaultActiveFunctionIds(gameId, carId);
         }
 
         /// <summary>
@@ -2432,43 +2294,7 @@ namespace DiyFfb
         /// </summary>
         public void SetFunctionActive(int functionId, bool active)
         {
-            var profile = GetOrCreateCurrentProfile();
-            if (profile == null)
-                return;
-
-            if (profile.ActiveFunctionIds == null)
-                profile.ActiveFunctionIds = new HashSet<int>();
-
-            bool wasActive = profile.ActiveFunctionIds.Contains(functionId);
-            if (active == wasActive)
-                return;
-
-            if (active)
-            {
-                profile.ActiveFunctionIds.Add(functionId);
-                // Apply overrides for newly activated function
-                ApplyProfileOverridesToFunction(functionId);
-            }
-            else
-            {
-                profile.ActiveFunctionIds.Remove(functionId);
-                // Clear profile overrides - restore base config
-                _functionConfigManager.ClearProfileOverride(functionId);
-                // Clear axis overrides for this function
-                _axisConfigManager.ClearFunctionOverrides(functionId);
-
-                // Re-apply user overrides (they follow the user, not the profile)
-                if (_functionConfigManager.HasBaseConfig(functionId))
-                {
-                    var userOverrides = GetCurrentUserOverrides();
-                    FunctionConfigOverrides userDelta = null;
-                    userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
-                    if (userDelta != null && !userDelta.IsEmpty)
-                    {
-                        _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta);
-                    }
-                }
-            }
+            _configOrchestrator.SetFunctionActive(functionId, active);
         }
 
         /// <summary>
@@ -2541,13 +2367,7 @@ namespace DiyFfb
         /// </summary>
         public FunctionConfig GetFunctionBaseline(int functionId)
         {
-            if (Settings.FunctionBaselines == null)
-                return null;
-
-            if (!Settings.FunctionBaselines.TryGetValue(functionId, out var json) || string.IsNullOrEmpty(json))
-                return null;
-
-            return ProtobufJsonHelper.FromJson<FunctionConfig>(json);
+            return _configOrchestrator.GetFunctionBaseline(functionId);
         }
 
         /// <summary>
@@ -2556,18 +2376,7 @@ namespace DiyFfb
         /// </summary>
         public void SetFunctionBaseline(int functionId, FunctionConfig config)
         {
-            if (config == null)
-                throw new System.ArgumentNullException(nameof(config));
-
-            if (Settings.FunctionBaselines == null)
-                Settings.FunctionBaselines = new Dictionary<int, string>();
-
-            // Convert protobuf to JSON string for storage (protobuf doesn't serialize correctly with JSON.NET)
-            string json = ProtobufJsonHelper.ToJson(config);
-            Settings.FunctionBaselines[functionId] = json;
-
-            // Persist to disk
-            this.SaveCommonSettings("GeneralSettings", Settings);
+            _configOrchestrator.SetFunctionBaseline(functionId, config);
         }
 
         /// <summary>
@@ -2575,7 +2384,7 @@ namespace DiyFfb
         /// </summary>
         public bool HasFunctionBaseline(int functionId)
         {
-            return Settings.FunctionBaselines?.ContainsKey(functionId) == true;
+            return _configOrchestrator.HasFunctionBaseline(functionId);
         }
 
         /// <summary>
@@ -2584,9 +2393,7 @@ namespace DiyFfb
         /// </summary>
         public void ClearFunctionBaseline(int functionId)
         {
-            Settings.FunctionBaselines?.Remove(functionId);
-            _functionConfigManager.ResetFunction(functionId);
-            this.SaveCommonSettings("GeneralSettings", Settings);
+            _configOrchestrator.ClearFunctionBaseline(functionId);
         }
 
         /// <summary>
@@ -2595,13 +2402,7 @@ namespace DiyFfb
         /// </summary>
         public AxisConfig GetAxisBaseline(int axisId)
         {
-            if (Settings.AxisBaselines == null)
-                return null;
-
-            if (!Settings.AxisBaselines.TryGetValue(axisId, out var json) || string.IsNullOrEmpty(json))
-                return null;
-
-            return ProtobufJsonHelper.FromJson<AxisConfig>(json);
+            return _configOrchestrator.GetAxisBaseline(axisId);
         }
 
         /// <summary>
@@ -2610,20 +2411,7 @@ namespace DiyFfb
         /// </summary>
         public void SetAxisBaseline(int axisId, AxisConfig config)
         {
-            if (config == null)
-                throw new System.ArgumentNullException(nameof(config));
-
-            if (Settings.AxisBaselines == null)
-                Settings.AxisBaselines = new Dictionary<int, string>();
-
-            string json = ProtobufJsonHelper.ToJson(config);
-            Settings.AxisBaselines[axisId] = json;
-
-            // Update manager's base config
-            _axisConfigManager.SetBaseConfig(axisId, config);
-
-            // Persist to disk
-            this.SaveCommonSettings("GeneralSettings", Settings);
+            _configOrchestrator.SetAxisBaseline(axisId, config);
         }
 
         /// <summary>
@@ -2631,7 +2419,7 @@ namespace DiyFfb
         /// </summary>
         public bool HasAxisBaseline(int axisId)
         {
-            return Settings.AxisBaselines?.ContainsKey(axisId) == true;
+            return _configOrchestrator.HasAxisBaseline(axisId);
         }
 
         /// <summary>
@@ -2640,9 +2428,7 @@ namespace DiyFfb
         /// </summary>
         public void ClearAxisBaseline(int axisId)
         {
-            Settings.AxisBaselines?.Remove(axisId);
-            _axisConfigManager.ResetAxis(axisId);
-            this.SaveCommonSettings("GeneralSettings", Settings);
+            _configOrchestrator.ClearAxisBaseline(axisId);
         }
 
         /// <summary>
@@ -2651,47 +2437,7 @@ namespace DiyFfb
         /// </summary>
         public void InitializeManagerFromSettings()
         {
-            if (Settings?.FunctionBaselines == null)
-                return;
-
-            // Load all stored baselines into the manager
-            foreach (var kvp in Settings.FunctionBaselines)
-            {
-                int functionId = kvp.Key;
-                string json = kvp.Value;
-
-                var baseline = ProtobufJsonHelper.FromJson<FunctionConfig>(json);
-                if (baseline == null)
-                    continue;
-
-                // Set base config in manager
-                _functionConfigManager.SetBaseConfig(functionId, baseline);
-
-                // Apply stored overrides (profile + user)
-                ReapplyMergedOverrides(functionId, diffCheck: false);
-            }
-
-            // Load axis baselines into the axis config manager
-            InitializeAxisManagerFromSettings();
-        }
-
-        /// <summary>
-        /// Initialize AxisConfigManager with stored axis baselines from settings.
-        /// </summary>
-        private void InitializeAxisManagerFromSettings()
-        {
-            if (Settings?.AxisBaselines == null)
-                return;
-
-            foreach (var kvp in Settings.AxisBaselines)
-            {
-                int axisId = kvp.Key;
-                var baseline = ProtobufJsonHelper.FromJson<AxisConfig>(kvp.Value);
-                if (baseline == null)
-                    continue;
-
-                _axisConfigManager.SetBaseConfig(axisId, baseline);
-            }
+            _configOrchestrator.InitializeManagerFromSettings();
         }
 
         /// <summary>
@@ -2700,11 +2446,7 @@ namespace DiyFfb
         /// </summary>
         public FunctionConfig GetInitialFunctionConfig(int functionId)
         {
-            if (_functionConfigManager.HasBaseConfig(functionId))
-            {
-                return _functionConfigManager.GetCurrentConfig(functionId);
-            }
-            return null;
+            return _configOrchestrator.GetInitialFunctionConfig(functionId);
         }
 
         /// <summary>
@@ -2713,11 +2455,7 @@ namespace DiyFfb
         /// </summary>
         public AxisConfig GetInitialAxisConfig(int axisId)
         {
-            if (_axisConfigManager.HasBaseConfig(axisId))
-            {
-                return _axisConfigManager.GetCurrentConfig(axisId);
-            }
-            return null;
+            return _configOrchestrator.GetInitialAxisConfig(axisId);
         }
 
         /// <summary>
@@ -2970,8 +2708,7 @@ namespace DiyFfb
         /// </summary>
         public void ApplyCurrentProfileOverrides()
         {
-            var profile = GetCurrentAircraftProfile();
-            ApplyProfileFunctionOverrides(profile);
+            _configOrchestrator.ApplyCurrentProfileOverrides();
         }
 
         private static string NormalizeFunctionOverrideFieldPath(string fieldName)
@@ -4134,7 +3871,18 @@ namespace DiyFfb
             // Safety net: backup non-empty profiles, restore if empty
             BackupOrRestoreAircraftProfiles();
 
-            // Initialize manager with stored baselines and overrides (Phase 7)
+            // Create tiered config orchestrator
+            _configOrchestrator = new TieredConfigOrchestrator(
+                _functionConfigManager,
+                _axisConfigManager,
+                Settings,
+                () => this.SaveCommonSettings("GeneralSettings", Settings),
+                GetCurrentAircraftProfile,
+                GetActiveGraphCategory,
+                BuildProfileKey,
+                GetOrCreateCurrentProfile);
+
+            // Initialize manager with stored baselines and overrides
             InitializeManagerFromSettings();
 
             // Populate function and axis configs from manager

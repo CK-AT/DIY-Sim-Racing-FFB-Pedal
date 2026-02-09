@@ -294,6 +294,7 @@
     <Compile Include="TieredConfig\FieldRouter.cs" />
     <Compile Include="TieredConfig\FunctionConfigManager.cs" />
     <Compile Include="TieredConfig\OverrideFieldRegistry.cs" />
+    <Compile Include="TieredConfig\TieredConfigOrchestrator.cs" />
     <Compile Include="TieredConfig\TieredConfigTypes.cs" />
     <Compile Include="DiyFfbProtocol.cs" />
     <Compile Include="FrameSerial.cs" />
