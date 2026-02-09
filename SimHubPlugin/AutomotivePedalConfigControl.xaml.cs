@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using MahApps.Metro.Controls;
@@ -24,6 +23,7 @@ namespace DiyFfb
         private FunctionID current_function_id;
         private bool update_lockout = false;
         private bool allowOverrideCreation = false;
+        private BadgeHelper _badgeHelper;
 
         public AutomotivePedalConfigControl()
         {
@@ -37,43 +37,22 @@ namespace DiyFfb
         {
             this.ui = ui;
             this.plugin = plugin;
+            _badgeHelper = new BadgeHelper(this, () => this.plugin, () => function, OnBadgeOverrideCleared);
             AutomotivePedal_SplineForceCurve.SetGui(ui, plugin);
             AutomotivePedal_SplineForceCurve.RangeSettingsChanged += OnRangeSettingsChanged;
 
-            // Subscribe to plugin events for badge refresh if already loaded
-            if (IsLoaded && plugin != null)
-            {
-                plugin.ContextChanged += OnContextChanged;
-                plugin.OverrideFieldChanged += OnOverrideFieldChanged;
-            }
+            if (IsLoaded)
+                _badgeHelper.Subscribe();
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            if (plugin != null)
-            {
-                plugin.ContextChanged += OnContextChanged;
-                plugin.OverrideFieldChanged += OnOverrideFieldChanged;
-            }
-
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.OverrideCleared += OnBadgeOverrideCleared;
-            }
+            _badgeHelper?.Subscribe();
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
-            if (plugin != null)
-            {
-                plugin.ContextChanged -= OnContextChanged;
-                plugin.OverrideFieldChanged -= OnOverrideFieldChanged;
-            }
-
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.OverrideCleared -= OnBadgeOverrideCleared;
-            }
+            _badgeHelper?.Unsubscribe();
         }
 
         private void OnBadgeOverrideCleared(object sender, LayerBadgeWrapper.OverrideClearedEventArgs e)
@@ -121,59 +100,6 @@ namespace DiyFfb
             update_lockout = false;
         }
 
-        private void OnContextChanged(object sender, EventArgs e)
-        {
-            RefreshAllBadges();
-        }
-
-        private void OnOverrideFieldChanged(object sender, OverrideFieldChangedEventArgs e)
-        {
-            if (function != null && e.FunctionId == (int)function.ID)
-            {
-                RefreshBadgeForField(e.FieldPath);
-            }
-        }
-
-        private void RefreshAllBadges()
-        {
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.UpdateBadge();
-            }
-        }
-
-        private void RefreshBadgeForField(string fieldPath)
-        {
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                if (wrapper.FieldPath == fieldPath)
-                {
-                    wrapper.UpdateBadge();
-                }
-            }
-        }
-
-        private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent) where T : DependencyObject
-        {
-            if (parent == null) yield break;
-            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
-            {
-                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
-                if (child is T t) yield return t;
-                foreach (var descendant in FindVisualChildren<T>(child)) yield return descendant;
-            }
-        }
-
-        private void InitializeBadges()
-        {
-            if (plugin == null || function == null) return;
-            int functionId = (int)function.ID;
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.Plugin = plugin;
-                wrapper.FunctionId = functionId;
-            }
-        }
 
         private void OnRangeSettingsChanged(SplineForceCurve spline_force_curve)
         {
@@ -452,7 +378,7 @@ namespace DiyFfb
             update_plot_WS();
             update_plot_RPM();
 
-            InitializeBadges();
+            _badgeHelper?.InitializeBadges();
 
             update_lockout = false;
 

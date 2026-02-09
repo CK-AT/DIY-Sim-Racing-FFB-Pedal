@@ -41,11 +41,13 @@ namespace DiyFfb
         private FunctionID current_function_id;
         private bool updatingStaticBalanceUi;
         private bool allowOverrideCreation = false;
+        private BadgeHelper _badgeHelper;
 
         public void SetGui(DiyFfbPluginUI ui, DiyFfbPlugin plugin)
         {
             this.ui = ui;
             this.plugin = plugin;
+            _badgeHelper = new BadgeHelper(this, () => this.plugin, () => function, OnBadgeOverrideCleared);
             AutomotivePedalConfig.SetGui(ui, plugin);
             AutomotivePedalConfig.ABSTestStateChange += OnABSTestStateChange;
             AutomotivePedalConfig.DebugMessage += OnDebugMessage;
@@ -53,12 +55,8 @@ namespace DiyFfb
             FlightStickConfig.SetGui(ui, plugin);
             ShifterConfig.SetGui(ui, plugin);
 
-            // Subscribe to plugin events for badge refresh if already loaded
-            if (IsLoaded && plugin != null)
-            {
-                plugin.ContextChanged += OnContextChanged;
-                plugin.OverrideFieldChanged += OnOverrideFieldChanged;
-            }
+            if (IsLoaded)
+                _badgeHelper.Subscribe();
         }
 
         private void OnDebugMessage(string message)
@@ -162,7 +160,7 @@ namespace DiyFfb
             UpdateStaticBalanceTuningUi();
 
             // Defer badge initialization until after the UI has been fully rendered
-            Dispatcher.BeginInvoke(new Action(() => InitializeBadges()), System.Windows.Threading.DispatcherPriority.ContextIdle);
+            Dispatcher.BeginInvoke(new Action(() => _badgeHelper?.InitializeBadges()), System.Windows.Threading.DispatcherPriority.ContextIdle);
 
             // Allow override creation only after all deferred events have been processed
             Dispatcher.BeginInvoke(new Action(() => allowOverrideCreation = true),
@@ -329,33 +327,15 @@ namespace DiyFfb
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            if (plugin != null)
-            {
-                plugin.ContextChanged += OnContextChanged;
-                plugin.OverrideFieldChanged += OnOverrideFieldChanged;
-            }
-
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.OverrideCleared += OnBadgeOverrideCleared;
-            }
+            _badgeHelper?.Subscribe();
 
             // Initialize badges for the currently displayed function after UI is fully loaded
-            Dispatcher.BeginInvoke(new Action(() => InitializeBadges()), System.Windows.Threading.DispatcherPriority.ContextIdle);
+            Dispatcher.BeginInvoke(new Action(() => _badgeHelper?.InitializeBadges()), System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
-            if (plugin != null)
-            {
-                plugin.ContextChanged -= OnContextChanged;
-                plugin.OverrideFieldChanged -= OnOverrideFieldChanged;
-            }
-
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.OverrideCleared -= OnBadgeOverrideCleared;
-            }
+            _badgeHelper?.Unsubscribe();
         }
 
         private void OnBadgeOverrideCleared(object sender, LayerBadgeWrapper.OverrideClearedEventArgs e)
@@ -393,71 +373,9 @@ namespace DiyFfb
             updatingStaticBalanceUi = false;
         }
 
-        private void OnContextChanged(object sender, EventArgs e)
-        {
-            RefreshAllBadges();
-        }
-
-        private void OnOverrideFieldChanged(object sender, OverrideFieldChangedEventArgs e)
-        {
-            // If the changed field is for our current function, refresh that badge
-            if (function != null && e.FunctionId == (int)function.ID)
-            {
-                RefreshBadgeForField(e.FieldPath);
-            }
-        }
-
         public void RefreshAllBadges()
         {
-            // Refresh all LayerBadgeWrapper controls in the visual tree
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.UpdateBadge();
-            }
-        }
-
-        private void RefreshBadgeForField(string fieldPath)
-        {
-            // Find and refresh the badge matching the field path
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                if (wrapper.FieldPath == fieldPath)
-                {
-                    wrapper.UpdateBadge();
-                }
-            }
-        }
-
-        private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent) where T : DependencyObject
-        {
-            if (parent == null) yield break;
-
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T t)
-                {
-                    yield return t;
-                }
-                foreach (var descendant in FindVisualChildren<T>(child))
-                {
-                    yield return descendant;
-                }
-            }
-        }
-
-        private void InitializeBadges()
-        {
-            if (plugin == null || function == null) return;
-
-            int functionId = (int)function.ID;
-
-            // Set Plugin and FunctionId on all badge wrappers found in the visual tree
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.Plugin = plugin;
-                wrapper.FunctionId = functionId;
-            }
+            _badgeHelper?.RefreshAllBadges();
         }
     }
 }

@@ -276,6 +276,7 @@ namespace DiyFfb
         private bool useRelativeGeometry = false;
         private bool isUpdating = true;
         private bool allowOverrideCreation = false;
+        private BadgeHelper _badgeHelper;
 
         private readonly ObservableCollection<GateSegmentRow> gateRows = new ObservableCollection<GateSegmentRow>();
         private readonly ObservableCollection<DetentRow> detentRows = new ObservableCollection<DetentRow>();
@@ -310,30 +311,12 @@ namespace DiyFfb
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            if (plugin != null)
-            {
-                plugin.ContextChanged += OnContextChanged;
-                plugin.OverrideFieldChanged += OnOverrideFieldChanged;
-            }
-
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.OverrideCleared += OnBadgeOverrideCleared;
-            }
+            _badgeHelper?.Subscribe();
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
-            if (plugin != null)
-            {
-                plugin.ContextChanged -= OnContextChanged;
-                plugin.OverrideFieldChanged -= OnOverrideFieldChanged;
-            }
-
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.OverrideCleared -= OnBadgeOverrideCleared;
-            }
+            _badgeHelper?.Unsubscribe();
         }
 
         private void OnBadgeOverrideCleared(object sender, LayerBadgeWrapper.OverrideClearedEventArgs e)
@@ -402,59 +385,6 @@ namespace DiyFfb
                 });
         }
 
-        private void OnContextChanged(object sender, EventArgs e)
-        {
-            RefreshAllBadges();
-        }
-
-        private void OnOverrideFieldChanged(object sender, OverrideFieldChangedEventArgs e)
-        {
-            if (function != null && e.FunctionId == (int)function.ID)
-            {
-                RefreshBadgeForField(e.FieldPath);
-            }
-        }
-
-        private void RefreshAllBadges()
-        {
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.UpdateBadge();
-            }
-        }
-
-        private void RefreshBadgeForField(string fieldPath)
-        {
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                if (wrapper.FieldPath == fieldPath)
-                {
-                    wrapper.UpdateBadge();
-                }
-            }
-        }
-
-        private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent) where T : DependencyObject
-        {
-            if (parent == null) yield break;
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T t) yield return t;
-                foreach (var descendant in FindVisualChildren<T>(child)) yield return descendant;
-            }
-        }
-
-        private void InitializeBadges()
-        {
-            if (plugin == null || function == null) return;
-            int functionId = (int)function.ID;
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.Plugin = plugin;
-                wrapper.FunctionId = functionId;
-            }
-        }
 
         private void ApplyGearOptionsToColumn()
         {
@@ -473,6 +403,7 @@ namespace DiyFfb
         {
             this.ui = ui;
             this.plugin = plugin;
+            _badgeHelper = new BadgeHelper(this, () => this.plugin, () => function, OnBadgeOverrideCleared);
         }
 
         public void OnKinematicParametersChanged(KinematicParameters parameters)
@@ -584,7 +515,7 @@ namespace DiyFfb
             LoadRowsFromConfig();
             isUpdating = false;
             BuildPreview();
-            InitializeBadges();
+            _badgeHelper?.InitializeBadges();
 
             Dispatcher.BeginInvoke(new Action(() => allowOverrideCreation = true),
                 System.Windows.Threading.DispatcherPriority.ContextIdle);

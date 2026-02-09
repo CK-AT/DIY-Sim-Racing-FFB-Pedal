@@ -41,6 +41,7 @@ namespace DiyFfb
         private Dictionary<string, Label> graphParamLabels = new Dictionary<string, Label>();
         private bool isUpdatingGraphParams = false;
         private bool isUpdatingOutputToggle = false;
+        private BadgeHelper _badgeHelper;
 
         public FlightPedalsConfigControl()
         {
@@ -54,18 +55,15 @@ namespace DiyFfb
         {
             this.ui = ui;
             this.plugin = plugin;
+            _badgeHelper = new BadgeHelper(this, () => this.plugin, () => function, OnBadgeOverrideCleared);
 
             if (plugin != null)
             {
                 plugin.ActiveGraphChanged += OnActiveGraphChanged;
                 plugin.GraphParamChanged += OnGraphParamChanged;
 
-                // Subscribe to plugin events for badge refresh if already loaded
                 if (IsLoaded)
-                {
-                    plugin.ContextChanged += OnContextChanged;
-                    plugin.OverrideFieldChanged += OnOverrideFieldChanged;
-                }
+                    _badgeHelper.Subscribe();
             }
 
             is_updating = false;
@@ -75,45 +73,12 @@ namespace DiyFfb
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            if (plugin != null)
-            {
-                plugin.ContextChanged += OnContextChanged;
-                plugin.OverrideFieldChanged += OnOverrideFieldChanged;
-            }
-
-            // Subscribe to badge clear events to update sliders
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.OverrideCleared += OnBadgeOverrideCleared;
-            }
+            _badgeHelper?.Subscribe();
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
-            if (plugin != null)
-            {
-                plugin.ContextChanged -= OnContextChanged;
-                plugin.OverrideFieldChanged -= OnOverrideFieldChanged;
-            }
-
-            // Unsubscribe from badge events
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.OverrideCleared -= OnBadgeOverrideCleared;
-            }
-        }
-
-        private void OnContextChanged(object sender, EventArgs e)
-        {
-            RefreshAllBadges();
-        }
-
-        private void OnOverrideFieldChanged(object sender, OverrideFieldChangedEventArgs e)
-        {
-            if (function != null && e.FunctionId == (int)function.ID)
-            {
-                RefreshBadgeForField(e.FieldPath);
-            }
+            _badgeHelper?.Unsubscribe();
         }
 
         private void OnBadgeOverrideCleared(object sender, LayerBadgeWrapper.OverrideClearedEventArgs e)
@@ -177,46 +142,6 @@ namespace DiyFfb
             is_updating = false;
         }
 
-        private void RefreshAllBadges()
-        {
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.UpdateBadge();
-            }
-        }
-
-        private void RefreshBadgeForField(string fieldPath)
-        {
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                if (wrapper.FieldPath == fieldPath)
-                {
-                    wrapper.UpdateBadge();
-                }
-            }
-        }
-
-        private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent) where T : DependencyObject
-        {
-            if (parent == null) yield break;
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T t) yield return t;
-                foreach (var descendant in FindVisualChildren<T>(child)) yield return descendant;
-            }
-        }
-
-        private void InitializeBadges()
-        {
-            if (plugin == null || function == null) return;
-            int functionId = (int)function.ID;
-            foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(this))
-            {
-                wrapper.Plugin = plugin;
-                wrapper.FunctionId = functionId;
-            }
-        }
 
         private void StartXPlaneTimer()
         {
@@ -356,7 +281,7 @@ namespace DiyFfb
             label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", config.Damping);
             RefreshGraphParams();
             UpdateDisableOutputsToggle();
-            InitializeBadges();
+            _badgeHelper?.InitializeBadges();
 
             // Allow override creation only after all deferred events have been processed
             Dispatcher.BeginInvoke(new Action(() => allowOverrideCreation = true),

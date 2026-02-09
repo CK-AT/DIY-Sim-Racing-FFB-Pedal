@@ -181,6 +181,7 @@
     <Compile Include="Controls\LayerBadgeWrapper.xaml.cs">
       <DependentUpon>LayerBadgeWrapper.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\BadgeHelper.cs" />
     <Compile Include="Helpers\DarkTitleBar.cs" />
     <Compile Include="FlightPedalsConfigControl.xaml.cs">
       <DependentUpon>FlightPedalsConfigControl.xaml</DependentUpon>
