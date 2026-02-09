@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using MahApps.Metro.Controls;
+using DiyFfb.Controls;
 
 namespace DiyFfb
 {
@@ -61,13 +62,7 @@ namespace DiyFfb
         }
         public void OnKinematicParametersChanged(KinematicParameters parameters)
         {
-            double min = parameters.ContactPointPosMinAbs / 10.0;
-            double max = parameters.ContactPointPosMaxAbs / 10.0;
-            double newMin = Math.Min(min, max);
-            double newMax = Math.Max(min, max);
-
-            // Skip degenerate bounds (e.g., from uncomputed ESP32 KinematicParameters)
-            if (newMin >= newMax)
+            if (!KinematicBoundsHelper.TryGetTravelBounds(parameters, out double boundsMin, out double boundsMax))
                 return;
 
             hasAxisRange = true;
@@ -75,12 +70,9 @@ namespace DiyFfb
             bool wasUpdating = is_updating;
             if (!wasUpdating) is_updating = true;
 
-            Rangeslider_travel_range.Minimum = newMin;
-            Rangeslider_travel_range.Maximum = newMax;
-
-            // Restore slider values from config to counteract WPF clamping
-            Rangeslider_travel_range.LowerValue = config.PosMin;
-            Rangeslider_travel_range.UpperValue = config.PosMax;
+            KinematicBoundsHelper.ApplyBoundsToSlider(
+                Rangeslider_travel_range, boundsMin, boundsMax,
+                config.PosMin, config.PosMax);
 
             if (!wasUpdating)
             {

@@ -27,21 +27,21 @@ namespace DiyFfb
         private FunctionID current_function_id;
         bool is_updating = true;
         private bool allowOverrideCreation = false;  // Only true after initial load stabilizes
-        private double latestAxisPosition;
-        private bool hasAxisPosition;
-        private double latestAxisForce;
-        private double latestTrimCenter;
-        private bool hasTrimCenter;
         private DispatcherTimer xplaneTimer;
         private bool hasAxisRange;
         private bool isUpdatingOutputToggle = false;
         private BadgeHelper _badgeHelper;
         private GraphParamHelper _graphParamHelper;
+        private TravelDisplayHelper _travelHelper;
 
         public FlightPedalsConfigControl()
         {
             config = GetDefaultConfig();
             InitializeComponent();
+            _travelHelper = new TravelDisplayHelper(
+                Canvas_travel_markers, Rect_axis_position, Rect_trim_center,
+                Rangeslider_travel_range,
+                () => config.PosNearLim, () => config.PosFarLim);
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
         }
@@ -101,7 +101,7 @@ namespace DiyFfb
                         Label_near_pos.Content = String.Format("Near\n{0}mm", config.PosNearLim);
                     if (Label_far_pos != null)
                         Label_far_pos.Content = String.Format("Far\n{0}mm", config.PosFarLim);
-                    UpdateTravelMarkers();
+                    _travelHelper.UpdateTravelMarkers();
                     break;
 
                 case "flight_pedals.damping":
@@ -160,13 +160,7 @@ namespace DiyFfb
 
         public void OnKinematicParametersChanged(KinematicParameters parameters)
         {
-            double min = parameters.ContactPointPosMinAbs / 10.0f;
-            double max = parameters.ContactPointPosMaxAbs / 10.0f;
-            double newMin = Math.Min(min, max);
-            double newMax = Math.Max(min, max);
-
-            // Skip degenerate bounds (e.g., from uncomputed ESP32 KinematicParameters)
-            if (newMin >= newMax)
+            if (!KinematicBoundsHelper.TryGetTravelBounds(parameters, out double boundsMin, out double boundsMax))
                 return;
 
             hasAxisRange = true;
@@ -174,12 +168,9 @@ namespace DiyFfb
             bool wasUpdating = is_updating;
             if (!wasUpdating) is_updating = true;
 
-            Rangeslider_travel_range.Minimum = newMin;
-            Rangeslider_travel_range.Maximum = newMax;
-
-            // Restore slider values from config to counteract WPF clamping
-            Rangeslider_travel_range.LowerValue = config.PosNearLim;
-            Rangeslider_travel_range.UpperValue = config.PosFarLim;
+            KinematicBoundsHelper.ApplyBoundsToSlider(
+                Rangeslider_travel_range, boundsMin, boundsMax,
+                config.PosNearLim, config.PosFarLim);
 
             if (!wasUpdating)
             {
@@ -190,22 +181,11 @@ namespace DiyFfb
 
         public void OnAxisStateUpdate(global::AxisState axis_state)
         {
-            if (function_config?.Base == null || function_config.Base.LinkedAxes.Count == 0)
+            if (_travelHelper.TryUpdateAxisState(function_config, axis_state))
             {
-                return;
+                _travelHelper.UpdateTrimCenter(plugin, current_function_id);
+                _travelHelper.UpdateTravelMarkers();
             }
-
-            AxisID primaryAxis = function_config.Base.LinkedAxes[0];
-            if (primaryAxis == AxisID.AxisUndefined || (primaryAxis & AxisID.Mask) != axis_state.AxisId)
-            {
-                return;
-            }
-
-            latestAxisPosition = axis_state.Position;
-            hasAxisPosition = true;
-            latestAxisForce = axis_state.Force;
-            UpdateTrimCenter();
-            UpdateTravelMarkers();
         }
 
         public static FlightPedalsConfig GetDefaultConfig()
@@ -270,8 +250,8 @@ namespace DiyFfb
             TieredConfig.FlightPedalsProcessor.ReconcileDerivedFields(function_config);
             Rangeslider_brake_force_range.UpperValue = function_config.AuxFunction.RudderBrake.FMax / 9.81f;
             Rangeslider_brake_force_range.LowerValue = function_config.AuxFunction.RudderBrake.FMin / 9.81f;
-            UpdateTrimCenter();
-            UpdateTravelMarkers();
+            _travelHelper.UpdateTrimCenter(plugin, current_function_id);
+            _travelHelper.UpdateTravelMarkers();
             is_updating = false;
 
             // Update labels with config values (event handlers were blocked by is_updating flag)
@@ -479,7 +459,7 @@ namespace DiyFfb
             {
                 Label_near_pos.Content = String.Format("Near\n{0}mm", config.PosNearLim);
             }
-            UpdateTravelMarkers();
+            _travelHelper.UpdateTravelMarkers();
         }
 
         private void Rangeslider_travel_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -514,7 +494,7 @@ namespace DiyFfb
             {
                 Label_far_pos.Content = String.Format("Far\n{0}mm", config.PosFarLim);
             }
-            UpdateTravelMarkers();
+            _travelHelper.UpdateTravelMarkers();
         }
 
         private void uc_controller_axis_right_brake_ControllerAxisChanged(object sender, ControllerAxisSelector.ControllerAxisChangedEventArgs e)
@@ -539,16 +519,6 @@ namespace DiyFfb
             {
                 plugin.UpdateFunctionOverrideField((int)function.ID, "friction",
                     overrides => overrides.Friction = newValue);
-            }
-        }
-
-        private void UpdateTrimCenter()
-        {
-            float trimMm = 0.0f;
-            hasTrimCenter = plugin != null && plugin.TryGetGraphTrimOffset(current_function_id, out trimMm);
-            if (hasTrimCenter)
-            {
-                latestTrimCenter = trimMm;
             }
         }
 
@@ -607,46 +577,9 @@ namespace DiyFfb
             Label_Output_Buffet.Content = plugin.GetGraphOutputValue($"{prefix}.BuffetAmplitude").ToString("F2", CultureInfo.InvariantCulture);
         }
 
-        private void UpdateTravelMarkers()
-        {
-            if (Canvas_travel_markers == null || Rect_axis_position == null || Rect_trim_center == null)
-            {
-                return;
-            }
-
-            double width = Canvas_travel_markers.ActualWidth;
-            if (width <= 0.0)
-            {
-                return;
-            }
-
-            double posMin = Rangeslider_travel_range?.LowerValue ?? config.PosNearLim;
-            double posMax = Rangeslider_travel_range?.UpperValue ?? config.PosFarLim;
-            double rangeMin = Rangeslider_travel_range?.Minimum ?? config.PosNearLim;
-            double rangeMax = Rangeslider_travel_range?.Maximum ?? config.PosFarLim;
-
-            if (hasAxisPosition)
-            {
-                if (Tools.TryComputeMarkerX(latestAxisPosition, posMin, posMax, rangeMin, rangeMax, width, out double posX))
-                {
-                    Canvas.SetLeft(Rect_axis_position, posX - Rect_axis_position.Width / 2.0);
-                }
-            }
-
-            if (hasTrimCenter)
-            {
-                double center = (posMin + posMax) / 2.0;
-                double trimPos = center + latestTrimCenter;
-                if (Tools.TryComputeMarkerX(trimPos, posMin, posMax, rangeMin, rangeMax, width, out double trimX))
-                {
-                    Canvas.SetLeft(Rect_trim_center, trimX - Rect_trim_center.Width / 2.0);
-                }
-            }
-        }
-
         private void Rangeslider_travel_range_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            UpdateTravelMarkers();
+            _travelHelper.UpdateTravelMarkers();
         }
 
         private void ApplyFallbackTravelRange()

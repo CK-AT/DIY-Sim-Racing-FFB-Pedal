@@ -26,16 +26,12 @@ namespace DiyFfb
         private FlightStickCollectiveConfig collective_config;
         private bool is_updating = true;
         private bool allowOverrideCreation = false;  // Only true after initial load stabilizes
-        private double latestAxisPosition;
-        private bool hasAxisPosition;
-        private double latestAxisForce;
-        private double latestTrimCenter;
-        private bool hasTrimCenter;
         private DispatcherTimer xplaneTimer;
         private bool hasAxisRange;
         private bool isUpdatingOutputToggle = false;
         private BadgeHelper _badgeHelper;
         private GraphParamHelper _graphParamHelper;
+        private TravelDisplayHelper _travelHelper;
 
         public FlightStickConfigControl()
         {
@@ -43,6 +39,10 @@ namespace DiyFfb
             roll_config = GetDefaultRollConfig();
             collective_config = GetDefaultCollectiveConfig();
             InitializeComponent();
+            _travelHelper = new TravelDisplayHelper(
+                Canvas_travel_markers, Rect_axis_position, Rect_trim_center,
+                Rangeslider_travel_range,
+                () => (double)GetPosMin(), () => (double)GetPosMax());
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
         }
@@ -138,7 +138,7 @@ namespace DiyFfb
                         Label_min_pos.Content = String.Format("Min\n{0}mm", posMin);
                     if (Label_max_pos != null)
                         Label_max_pos.Content = String.Format("Max\n{0}mm", posMax);
-                    UpdateTravelMarkers();
+                    _travelHelper.UpdateTravelMarkers();
                     break;
 
                 case "flight_stick.damping":
@@ -194,38 +194,20 @@ namespace DiyFfb
 
         public void OnKinematicParametersChanged(KinematicParameters parameters)
         {
-            double min = parameters.ContactPointPosMinAbs / 10.0f;
-            double max = parameters.ContactPointPosMaxAbs / 10.0f;
-            double newMin = Math.Min(min, max);
-            double newMax = Math.Max(min, max);
-
-            // Skip degenerate bounds (e.g., from uncomputed ESP32 KinematicParameters
-            // where both fields default to 0)
-            if (newMin >= newMax)
+            if (!KinematicBoundsHelper.TryGetTravelBounds(parameters, out double boundsMin, out double boundsMax))
                 return;
 
             hasAxisRange = true;
 
-            // Changing slider bounds can clamp current values, firing ValueChanged events.
-            // When called from SwitchFunction, is_updating is already true (safe).
-            // When called externally (e.g., axis tab timer), we must block those events
-            // to prevent clamped values from overwriting the config.
             bool wasUpdating = is_updating;
             if (!wasUpdating) is_updating = true;
 
-            Rangeslider_travel_range.Minimum = newMin;
-            Rangeslider_travel_range.Maximum = newMax;
-
-            // Restore slider values from config to counteract WPF clamping.
-            // Without this, async bounds changes leave the slider thumbs at
-            // clamped positions even though the config values are correct.
-            Rangeslider_travel_range.LowerValue = GetPosMin();
-            Rangeslider_travel_range.UpperValue = GetPosMax();
+            KinematicBoundsHelper.ApplyBoundsToSlider(
+                Rangeslider_travel_range, boundsMin, boundsMax,
+                GetPosMin(), GetPosMax());
 
             if (!wasUpdating)
             {
-                // Defer clearing is_updating until ContextIdle so that any WPF
-                // deferred clamping events are also suppressed.
                 Dispatcher.BeginInvoke(new Action(() => is_updating = false),
                     System.Windows.Threading.DispatcherPriority.ContextIdle);
             }
@@ -233,22 +215,11 @@ namespace DiyFfb
 
         public void OnAxisStateUpdate(global::AxisState axis_state)
         {
-            if (function_config?.Base == null || function_config.Base.LinkedAxes.Count == 0)
+            if (_travelHelper.TryUpdateAxisState(function_config, axis_state))
             {
-                return;
+                _travelHelper.UpdateTrimCenter(plugin, current_function_id);
+                _travelHelper.UpdateTravelMarkers();
             }
-
-            AxisID primaryAxis = function_config.Base.LinkedAxes[0];
-            if (primaryAxis == AxisID.AxisUndefined || (primaryAxis & AxisID.Mask) != axis_state.AxisId)
-            {
-                return;
-            }
-
-            latestAxisPosition = axis_state.Position;
-            hasAxisPosition = true;
-            latestAxisForce = axis_state.Force;
-            UpdateTrimCenter();
-            UpdateTravelMarkers();
         }
 
         public static FlightStickPitchConfig GetDefaultPitchConfig()
@@ -482,8 +453,8 @@ namespace DiyFfb
             Rangeslider_travel_range.LowerValue = GetPosMin();
             Rangeslider_travel_range.UpperValue = GetPosMax();
             TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
-            UpdateTrimCenter();
-            UpdateTravelMarkers();
+            _travelHelper.UpdateTrimCenter(plugin, current_function_id);
+            _travelHelper.UpdateTravelMarkers();
             is_updating = false;
 
             // Update labels with merged config values (event handlers were blocked by is_updating flag)
@@ -556,7 +527,7 @@ namespace DiyFfb
             {
                 Label_min_pos.Content = String.Format("Min\n{0}mm", GetPosMin());
             }
-            UpdateTravelMarkers();
+            _travelHelper.UpdateTravelMarkers();
         }
 
         private void Rangeslider_travel_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -590,7 +561,7 @@ namespace DiyFfb
             {
                 Label_max_pos.Content = String.Format("Max\n{0}mm", GetPosMax());
             }
-            UpdateTravelMarkers();
+            _travelHelper.UpdateTravelMarkers();
         }
 
         private void OnDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -655,16 +626,6 @@ namespace DiyFfb
             {
                 plugin.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
                     overrides => overrides.SimulatedMass = newValue);
-            }
-        }
-
-        private void UpdateTrimCenter()
-        {
-            float trimMm = 0.0f;
-            hasTrimCenter = plugin != null && plugin.TryGetGraphTrimOffset(current_function_id, out trimMm);
-            if (hasTrimCenter)
-            {
-                latestTrimCenter = trimMm;
             }
         }
 
@@ -739,46 +700,9 @@ namespace DiyFfb
             Label_Output_Buffet.Content = plugin.GetGraphOutputValue($"{prefix}.BuffetAmplitude").ToString("F2", CultureInfo.InvariantCulture);
         }
 
-        private void UpdateTravelMarkers()
-        {
-            if (Canvas_travel_markers == null || Rect_axis_position == null || Rect_trim_center == null)
-            {
-                return;
-            }
-
-            double width = Canvas_travel_markers.ActualWidth;
-            if (width <= 0.0)
-            {
-                return;
-            }
-
-            double posMin = Rangeslider_travel_range?.LowerValue ?? GetPosMin();
-            double posMax = Rangeslider_travel_range?.UpperValue ?? GetPosMax();
-            double rangeMin = Rangeslider_travel_range?.Minimum ?? GetPosMin();
-            double rangeMax = Rangeslider_travel_range?.Maximum ?? GetPosMax();
-
-            if (hasAxisPosition)
-            {
-                if (Tools.TryComputeMarkerX(latestAxisPosition, posMin, posMax, rangeMin, rangeMax, width, out double posX))
-                {
-                    Canvas.SetLeft(Rect_axis_position, posX - Rect_axis_position.Width / 2.0);
-                }
-            }
-
-            if (hasTrimCenter)
-            {
-                double center = (posMin + posMax) / 2.0;
-                double trimPos = center + latestTrimCenter;
-                if (Tools.TryComputeMarkerX(trimPos, posMin, posMax, rangeMin, rangeMax, width, out double trimX))
-                {
-                    Canvas.SetLeft(Rect_trim_center, trimX - Rect_trim_center.Width / 2.0);
-                }
-            }
-        }
-
         private void Rangeslider_travel_range_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            UpdateTravelMarkers();
+            _travelHelper.UpdateTravelMarkers();
         }
 
         private void ApplyFallbackTravelRange()
