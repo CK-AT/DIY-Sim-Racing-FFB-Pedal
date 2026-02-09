@@ -880,5 +880,210 @@ namespace DiyFfb.TieredConfig
         }
 
         #endregion
+
+        #region Axis Parameter Override API
+
+        /// <summary>
+        /// Data structure for functions that link to an axis.
+        /// </summary>
+        public class FunctionAxisLink
+        {
+            public int FunctionId { get; set; }
+            public string FunctionName { get; set; }
+            public bool HasOverride { get; set; }
+        }
+
+        /// <summary>
+        /// Get all functions that link to a specific axis.
+        /// </summary>
+        public List<FunctionAxisLink> GetFunctionsLinkingToAxis(int axisId)
+        {
+            var result = new List<FunctionAxisLink>();
+            var targetAxisId = (AxisID)axisId & AxisID.Mask;
+
+            foreach (var funcId in _functionConfigManager.GetKnownFunctionIds())
+            {
+                var config = _functionConfigManager.GetCurrentConfig(funcId);
+                if (config?.Base?.LinkedAxes == null)
+                    continue;
+
+                foreach (var linkedAxis in config.Base.LinkedAxes)
+                {
+                    var maskedAxis = linkedAxis & AxisID.Mask;
+                    if (maskedAxis == AxisID.AxisUndefined)
+                        break;
+
+                    if (maskedAxis == targetAxisId)
+                    {
+                        var funcEnum = (FunctionID)funcId;
+                        result.Add(new FunctionAxisLink
+                        {
+                            FunctionId = funcId,
+                            FunctionName = funcEnum.ToString().CamelCaseToTitleCase(),
+                            HasOverride = HasAxisParameterOverride(funcId, axisId)
+                        });
+                        break;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Check if an axis parameter override exists for a function.
+        /// </summary>
+        public bool HasAxisParameterOverride(int functionId, int axisId)
+        {
+            if (_settings?.FunctionAxisOverrides == null)
+                return false;
+
+            if (!_settings.FunctionAxisOverrides.TryGetValue(functionId, out var axisOverrides))
+                return false;
+
+            if (!axisOverrides.TryGetValue(axisId, out var overrides))
+                return false;
+
+            return overrides != null && !overrides.IsEmpty;
+        }
+
+        /// <summary>
+        /// Get axis parameter overrides for a function.
+        /// Returns null if no overrides exist.
+        /// </summary>
+        public AxisParameterOverrides GetAxisParameterOverride(int functionId, int axisId)
+        {
+            if (_settings?.FunctionAxisOverrides == null)
+                return null;
+
+            if (!_settings.FunctionAxisOverrides.TryGetValue(functionId, out var axisOverrides))
+                return null;
+
+            axisOverrides.TryGetValue(axisId, out var overrides);
+            return overrides;
+        }
+
+        /// <summary>
+        /// Get or create axis parameter overrides for a function.
+        /// </summary>
+        public AxisParameterOverrides GetOrCreateAxisParameterOverride(int functionId, int axisId)
+        {
+            if (_settings == null)
+                return null;
+
+            if (_settings.FunctionAxisOverrides == null)
+                _settings.FunctionAxisOverrides = new Dictionary<int, Dictionary<int, AxisParameterOverrides>>();
+
+            if (!_settings.FunctionAxisOverrides.TryGetValue(functionId, out var axisOverrides))
+            {
+                axisOverrides = new Dictionary<int, AxisParameterOverrides>();
+                _settings.FunctionAxisOverrides[functionId] = axisOverrides;
+            }
+
+            if (!axisOverrides.TryGetValue(axisId, out var overrides))
+            {
+                overrides = new AxisParameterOverrides();
+                axisOverrides[axisId] = overrides;
+            }
+
+            return overrides;
+        }
+
+        /// <summary>
+        /// Set axis parameter overrides for a function.
+        /// If the function is active, the overrides are applied immediately.
+        /// </summary>
+        public void SetAxisParameterOverride(int functionId, int axisId, AxisParameterOverrides overrides)
+        {
+            if (_settings == null || overrides == null)
+                return;
+
+            if (_settings.FunctionAxisOverrides == null)
+                _settings.FunctionAxisOverrides = new Dictionary<int, Dictionary<int, AxisParameterOverrides>>();
+
+            if (!_settings.FunctionAxisOverrides.TryGetValue(functionId, out var axisOverrides))
+            {
+                axisOverrides = new Dictionary<int, AxisParameterOverrides>();
+                _settings.FunctionAxisOverrides[functionId] = axisOverrides;
+            }
+
+            axisOverrides[axisId] = overrides;
+
+            // If function is active, re-apply overrides
+            if (IsFunctionActive(functionId))
+            {
+                _axisConfigManager.ApplyFunctionOverrides(functionId, axisOverrides);
+            }
+        }
+
+        /// <summary>
+        /// Update axis parameter override and re-apply if function is active.
+        /// </summary>
+        public void UpdateAxisParameterOverride(int functionId, int axisId, Action<AxisParameterOverrides> updateAction)
+        {
+            var overrides = GetOrCreateAxisParameterOverride(functionId, axisId);
+            if (overrides == null)
+                return;
+
+            updateAction(overrides);
+
+            // If function is active, re-apply overrides
+            if (IsFunctionActive(functionId) && _settings.FunctionAxisOverrides.TryGetValue(functionId, out var axisOverrides))
+            {
+                _axisConfigManager.ApplyFunctionOverrides(functionId, axisOverrides);
+            }
+        }
+
+        /// <summary>
+        /// Clear axis parameter overrides for a function on a specific axis.
+        /// </summary>
+        public void ClearAxisParameterOverride(int functionId, int axisId)
+        {
+            if (_settings?.FunctionAxisOverrides == null)
+                return;
+
+            if (!_settings.FunctionAxisOverrides.TryGetValue(functionId, out var axisOverrides))
+                return;
+
+            axisOverrides.Remove(axisId);
+
+            // Clean up empty dictionaries
+            if (axisOverrides.Count == 0)
+            {
+                _settings.FunctionAxisOverrides.Remove(functionId);
+            }
+
+            // If function is active, clear the override from the axis config manager
+            if (IsFunctionActive(functionId))
+            {
+                if (axisOverrides.Count > 0)
+                {
+                    _axisConfigManager.ApplyFunctionOverrides(functionId, axisOverrides);
+                }
+                else
+                {
+                    _axisConfigManager.ClearFunctionOverrides(functionId);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Clear all axis parameter overrides for a function.
+        /// </summary>
+        public void ClearAllAxisParameterOverrides(int functionId)
+        {
+            if (_settings?.FunctionAxisOverrides == null)
+                return;
+
+            _settings.FunctionAxisOverrides.Remove(functionId);
+
+            // If function is active, clear the overrides
+            if (IsFunctionActive(functionId))
+            {
+                _axisConfigManager.ClearFunctionOverrides(functionId);
+            }
+        }
+
+        #endregion
     }
 }
