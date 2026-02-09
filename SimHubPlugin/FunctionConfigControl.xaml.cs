@@ -236,9 +236,9 @@ namespace DiyFfb
             EnsureStaticBalanceTuningConfig().Enabled = true;
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.enabled",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.enabled",
                     overrides =>
                     {
                         if (overrides.StaticBalanceTuning == null)
@@ -254,9 +254,9 @@ namespace DiyFfb
             EnsureStaticBalanceTuningConfig().Enabled = false;
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.enabled",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.enabled",
                     overrides =>
                     {
                         if (overrides.StaticBalanceTuning == null)
@@ -280,9 +280,9 @@ namespace DiyFfb
             updatingStaticBalanceUi = false;
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.gain",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.gain",
                     overrides =>
                     {
                         if (overrides.StaticBalanceTuning == null)
@@ -307,9 +307,9 @@ namespace DiyFfb
                 updatingStaticBalanceUi = false;
 
                 if (allowOverrideCreation && plugin != null && function != null &&
-                    plugin.HasFunctionBaseline((int)function.ID))
+                    plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
                 {
-                    plugin.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.gain",
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.gain",
                         overrides =>
                         {
                             if (overrides.StaticBalanceTuning == null)

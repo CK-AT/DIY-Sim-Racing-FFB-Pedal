@@ -276,9 +276,9 @@ namespace DiyFfb
             label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", newValue);
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.damping",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.damping",
                     overrides => overrides.FlightPedalsDamping = newValue);
             }
         }
@@ -291,9 +291,9 @@ namespace DiyFfb
             label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", newValue);
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.centering_spring_const",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.centering_spring_const",
                     overrides => overrides.FlightPedalsCenteringSpringConst = newValue);
             }
         }
@@ -306,9 +306,9 @@ namespace DiyFfb
             function_config.SimulatedMass = newValue;
 
             if (plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
                     overrides => overrides.SimulatedMass = newValue);
             }
         }
@@ -377,9 +377,9 @@ namespace DiyFfb
 
                 if (allowOverrideCreation && Math.Abs(newValueN - oldValue) > 0.01f &&
                     plugin != null && function != null &&
-                    plugin.HasFunctionBaseline((int)function.ID))
+                    plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
                 {
-                    plugin.UpdateFunctionOverrideField((int)function.ID, "aux_function.rudder_brake.force_range",
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "aux_function.rudder_brake.force_range",
                         overrides =>
                         {
                             if (overrides.RudderBrakeForceRange == null)
@@ -404,9 +404,9 @@ namespace DiyFfb
 
                 if (allowOverrideCreation && Math.Abs(newValueN - oldValue) > 0.01f &&
                     plugin != null && function != null &&
-                    plugin.HasFunctionBaseline((int)function.ID))
+                    plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
                 {
-                    plugin.UpdateFunctionOverrideField((int)function.ID, "aux_function.rudder_brake.force_range",
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "aux_function.rudder_brake.force_range",
                         overrides =>
                         {
                             if (overrides.RudderBrakeForceRange == null)
@@ -444,9 +444,9 @@ namespace DiyFfb
 
                 if (allowOverrideCreation && newValue != oldValue &&
                     plugin != null && function != null &&
-                    plugin.HasFunctionBaseline((int)function.ID))
+                    plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
                 {
-                    plugin.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.motion_range",
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.motion_range",
                         overrides =>
                         {
                             if (overrides.FlightPedalsMotionRange == null)
@@ -479,9 +479,9 @@ namespace DiyFfb
 
                 if (allowOverrideCreation && newValue != oldValue &&
                     plugin != null && function != null &&
-                    plugin.HasFunctionBaseline((int)function.ID))
+                    plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
                 {
-                    plugin.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.motion_range",
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.motion_range",
                         overrides =>
                         {
                             if (overrides.FlightPedalsMotionRange == null)
@@ -515,9 +515,9 @@ namespace DiyFfb
             function_config.Friction = newValue;
 
             if (plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "friction",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "friction",
                     overrides => overrides.Friction = newValue);
             }
         }

@@ -373,10 +373,10 @@ namespace DiyFfb
         private void MaybeCreateShifterConfigOverride()
         {
             if (!allowOverrideCreation || isUpdating || plugin == null || function == null ||
-                !plugin.HasFunctionBaseline((int)function.ID))
+                !plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
                 return;
 
-            plugin.UpdateFunctionOverrideField((int)function.ID, "shifter_config",
+            plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "shifter_config",
                 overrides =>
                 {
                     overrides.ShifterConfig = shifter_config.Clone();
@@ -1157,9 +1157,9 @@ namespace DiyFfb
             label_friction.Content = string.Format(CultureInfo.CurrentCulture, "Friction: {0:F1}N", newValue);
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "friction",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "friction",
                     overrides => overrides.Friction = newValue);
             }
         }
@@ -1172,9 +1172,9 @@ namespace DiyFfb
             label_simulated_mass.Content = string.Format(CultureInfo.CurrentCulture, "Simulated Mass: {0:F2}kg", newValue);
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
                     overrides => overrides.SimulatedMass = newValue);
             }
         }

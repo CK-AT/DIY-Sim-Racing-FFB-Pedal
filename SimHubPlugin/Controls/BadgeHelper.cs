@@ -38,8 +38,8 @@ namespace DiyFfb.Controls
             var plugin = _getPlugin();
             if (plugin != null)
             {
-                plugin.ContextChanged += OnContextChanged;
-                plugin.OverrideFieldChanged += OnOverrideFieldChanged;
+                plugin.ConfigOrchestrator.ContextChanged += OnContextChanged;
+                plugin.ConfigOrchestrator.OverrideFieldChanged += OnOverrideFieldChanged;
             }
 
             foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(_root))
@@ -56,8 +56,8 @@ namespace DiyFfb.Controls
             var plugin = _getPlugin();
             if (plugin != null)
             {
-                plugin.ContextChanged -= OnContextChanged;
-                plugin.OverrideFieldChanged -= OnOverrideFieldChanged;
+                plugin.ConfigOrchestrator.ContextChanged -= OnContextChanged;
+                plugin.ConfigOrchestrator.OverrideFieldChanged -= OnOverrideFieldChanged;
             }
 
             foreach (var wrapper in FindVisualChildren<LayerBadgeWrapper>(_root))

@@ -106,9 +106,9 @@ namespace DiyFfb
             AutomotivePedalProcessor.ReconcileDerivedFields(function_config);
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "force_curve",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "force_curve",
                     overrides => overrides.ForceCurve = config.ForceCurveConfig.Clone());
             }
         }
@@ -970,9 +970,9 @@ namespace DiyFfb
             label_damping_push.Content = String.Format("Damping (Push): {0:F3}N*mm/s", newValue);
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "damper_config.positive_factor",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "damper_config.positive_factor",
                     overrides =>
                     {
                         if (overrides.DamperConfig == null)
@@ -990,9 +990,9 @@ namespace DiyFfb
             label_damping_pull.Content = String.Format("Damping (Pull): {0:F3}N*mm/s", newValue);
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "damper_config.negative_factor",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "damper_config.negative_factor",
                     overrides =>
                     {
                         if (overrides.DamperConfig == null)
@@ -1010,9 +1010,9 @@ namespace DiyFfb
             function_config.SimulatedMass = newValue;
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
                     overrides => overrides.SimulatedMass = newValue);
             }
         }
@@ -1059,9 +1059,9 @@ namespace DiyFfb
             function_config.Friction = newValue;
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "friction",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "friction",
                     overrides => overrides.Friction = newValue);
             }
         }

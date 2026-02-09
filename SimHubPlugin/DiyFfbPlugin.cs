@@ -1794,7 +1794,7 @@ namespace DiyFfb
 
                     // Seed default active functions for auto-assigned templates
                     if (autoAssigned)
-                        SeedDefaultActiveFunctionIds(gameId, carId);
+                        _configOrchestrator.SeedDefaultActiveFunctionIds(gameId, carId);
                 }
             }
             catch (Exception ex)
@@ -2137,7 +2137,7 @@ namespace DiyFfb
             BuildGraphParams();
 
             // Fire ContextChanged event for badge/UI refresh
-            OnContextChanged();
+            _configOrchestrator.OnContextChanged();
 
             if (ui != null)
             {
@@ -2216,265 +2216,14 @@ namespace DiyFfb
             if (Settings.AircraftFfbProfiles.TryGetValue(profileKey, out var profile))
             {
                 Settings.XPlaneRotorIndex = profile.XPlaneRotorIndex;
-                ApplyProfileFunctionOverrides(profile);
+                _configOrchestrator.ApplyProfileFunctionOverrides(profile);
             }
             else
             {
                 // No profile - clear any active overrides
-                ApplyProfileFunctionOverrides(null);
+                _configOrchestrator.ApplyProfileFunctionOverrides(null);
             }
         }
-
-        /// <summary>
-        /// Apply function and axis config overrides from a profile.
-        /// Called on vehicle/aircraft change.
-        /// </summary>
-        private void ApplyProfileFunctionOverrides(DiyFfbPluginSettings.AircraftFfbProfile profile)
-        {
-            _configOrchestrator.ApplyProfileFunctionOverrides(profile);
-        }
-
-        /// <summary>
-        /// Apply profile overrides to a single function.
-        /// Called when a function config is first received from ESP32.
-        /// </summary>
-        public void ApplyProfileOverridesToFunction(int functionId)
-        {
-            _configOrchestrator.ApplyProfileOverridesToFunction(functionId);
-        }
-
-        /// <summary>
-        /// Check if profile overrides should be applied to a function.
-        /// Returns true if the function is in the active profile's function list.
-        /// </summary>
-        public bool ShouldApplyProfileOverride(int functionId)
-        {
-            return _configOrchestrator.ShouldApplyProfileOverride(functionId);
-        }
-
-        /// <summary>
-        /// Check if a function is active for the current vehicle profile.
-        /// When a profile exists, uses its ActiveFunctionIds.
-        /// When no profile exists, uses graph-category defaults.
-        /// </summary>
-        public bool IsFunctionActive(int functionId)
-        {
-            return _configOrchestrator.IsFunctionActive(functionId);
-        }
-
-        /// <summary>
-        /// Populate ActiveFunctionIds on a newly auto-assigned profile with category defaults.
-        /// Called after graph load so GetActiveGraphCategory() returns the correct category.
-        /// </summary>
-        private void SeedDefaultActiveFunctionIds(string gameId, string carId)
-        {
-            _configOrchestrator.SeedDefaultActiveFunctionIds(gameId, carId);
-        }
-
-        /// <summary>
-        /// Set whether a function is active for the current vehicle profile.
-        /// When activated, applies profile/user overrides; when deactivated, restores base config.
-        /// </summary>
-        public void SetFunctionActive(int functionId, bool active)
-        {
-            _configOrchestrator.SetFunctionActive(functionId, active);
-        }
-
-        public DiyFfbPluginSettings.AircraftFfbProfile GetOrCreateCurrentProfile()
-        {
-            return _configOrchestrator.GetOrCreateCurrentProfile();
-        }
-
-        public FunctionConfigOverrides GetFunctionOverrides(int functionId)
-        {
-            return _configOrchestrator.GetFunctionOverrides(functionId);
-        }
-
-        public FunctionConfigOverrides GetUserFunctionOverrides(int functionId)
-        {
-            return _configOrchestrator.GetUserFunctionOverrides(functionId);
-        }
-
-        public TieredConfig.ConfigLayerProvider CreateConfigLayerProvider()
-        {
-            return _configOrchestrator.CreateConfigLayerProvider();
-        }
-
-        /// <summary>
-        /// Get the function baseline (Baseline layer) for a function.
-        /// Returns null if no baseline has been stored.
-        /// </summary>
-        public FunctionConfig GetFunctionBaseline(int functionId)
-        {
-            return _configOrchestrator.GetFunctionBaseline(functionId);
-        }
-
-        /// <summary>
-        /// Set the function baseline (Baseline layer) for a function.
-        /// This stores a complete FunctionConfig snapshot as the baseline default.
-        /// </summary>
-        public void SetFunctionBaseline(int functionId, FunctionConfig config)
-        {
-            _configOrchestrator.SetFunctionBaseline(functionId, config);
-        }
-
-        /// <summary>
-        /// Check if a function has a stored baseline.
-        /// </summary>
-        public bool HasFunctionBaseline(int functionId)
-        {
-            return _configOrchestrator.HasFunctionBaseline(functionId);
-        }
-
-        /// <summary>
-        /// Clear stored function baseline. Overrides are preserved and re-apply
-        /// when a new baseline arrives (ESP32 upload, import, or manual edit).
-        /// </summary>
-        public void ClearFunctionBaseline(int functionId)
-        {
-            _configOrchestrator.ClearFunctionBaseline(functionId);
-        }
-
-        /// <summary>
-        /// Get the axis baseline (Baseline layer) for an axis.
-        /// Returns null if no baseline has been stored.
-        /// </summary>
-        public AxisConfig GetAxisBaseline(int axisId)
-        {
-            return _configOrchestrator.GetAxisBaseline(axisId);
-        }
-
-        /// <summary>
-        /// Set the axis baseline (Baseline layer) for an axis.
-        /// Stores a complete AxisConfig snapshot as the baseline default.
-        /// </summary>
-        public void SetAxisBaseline(int axisId, AxisConfig config)
-        {
-            _configOrchestrator.SetAxisBaseline(axisId, config);
-        }
-
-        /// <summary>
-        /// Check if an axis has a stored baseline.
-        /// </summary>
-        public bool HasAxisBaseline(int axisId)
-        {
-            return _configOrchestrator.HasAxisBaseline(axisId);
-        }
-
-        /// <summary>
-        /// Clear stored axis baseline. Overrides are preserved and re-apply
-        /// when a new baseline arrives.
-        /// </summary>
-        public void ClearAxisBaseline(int axisId)
-        {
-            _configOrchestrator.ClearAxisBaseline(axisId);
-        }
-
-        /// <summary>
-        /// Initialize FunctionConfigManager with stored baselines and overrides from settings.
-        /// Call this during plugin initialization after settings are loaded.
-        /// </summary>
-        public void InitializeManagerFromSettings()
-        {
-            _configOrchestrator.InitializeManagerFromSettings();
-        }
-
-        /// <summary>
-        /// Get initial function config from manager (for UI initialization).
-        /// Returns merged config (baseline + overrides) if available, otherwise null.
-        /// </summary>
-        public FunctionConfig GetInitialFunctionConfig(int functionId)
-        {
-            return _configOrchestrator.GetInitialFunctionConfig(functionId);
-        }
-
-        /// <summary>
-        /// Get initial axis config from manager (for UI initialization).
-        /// Returns base config if available, otherwise null.
-        /// </summary>
-        public AxisConfig GetInitialAxisConfig(int axisId)
-        {
-            return _configOrchestrator.GetInitialAxisConfig(axisId);
-        }
-
-        public FunctionConfigOverrides GetOrCreateFunctionOverrides(int functionId)
-        {
-            return _configOrchestrator.GetOrCreateFunctionOverrides(functionId);
-        }
-
-        public void UpdateFunctionOverride(int functionId, Action<FunctionConfigOverrides> updateAction)
-        {
-            _configOrchestrator.UpdateFunctionOverride(functionId, updateAction);
-        }
-
-        public void UpdateFunctionOverrideField(int functionId, string fieldName, Action<FunctionConfigOverrides> updateAction)
-        {
-            _configOrchestrator.UpdateFunctionOverrideField(functionId, fieldName, updateAction);
-        }
-
-        public void ClearFunctionOverrideField(int functionId, string fieldName, TieredConfig.ConfigLayer? layerOverride = null)
-        {
-            _configOrchestrator.ClearFunctionOverrideField(functionId, fieldName, layerOverride);
-        }
-
-        public void ClearAllFunctionOverrides(int functionId)
-        {
-            _configOrchestrator.ClearAllFunctionOverrides(functionId);
-        }
-
-        public void SetCurrentUserProfile(string userProfile)
-        {
-            _configOrchestrator.SetCurrentUserProfile(userProfile);
-        }
-
-        public void ApplyCurrentProfileOverrides()
-        {
-            _configOrchestrator.ApplyCurrentProfileOverrides();
-        }
-
-        #region Axis Parameter Override API (forwarding to orchestrator)
-
-        public List<TieredConfigOrchestrator.FunctionAxisLink> GetFunctionsLinkingToAxis(int axisId)
-        {
-            return _configOrchestrator.GetFunctionsLinkingToAxis(axisId);
-        }
-
-        public bool HasAxisParameterOverride(int functionId, int axisId)
-        {
-            return _configOrchestrator.HasAxisParameterOverride(functionId, axisId);
-        }
-
-        public TieredConfig.AxisParameterOverrides GetAxisParameterOverride(int functionId, int axisId)
-        {
-            return _configOrchestrator.GetAxisParameterOverride(functionId, axisId);
-        }
-
-        public TieredConfig.AxisParameterOverrides GetOrCreateAxisParameterOverride(int functionId, int axisId)
-        {
-            return _configOrchestrator.GetOrCreateAxisParameterOverride(functionId, axisId);
-        }
-
-        public void SetAxisParameterOverride(int functionId, int axisId, TieredConfig.AxisParameterOverrides overrides)
-        {
-            _configOrchestrator.SetAxisParameterOverride(functionId, axisId, overrides);
-        }
-
-        public void UpdateAxisParameterOverride(int functionId, int axisId, Action<TieredConfig.AxisParameterOverrides> updateAction)
-        {
-            _configOrchestrator.UpdateAxisParameterOverride(functionId, axisId, updateAction);
-        }
-
-        public void ClearAxisParameterOverride(int functionId, int axisId)
-        {
-            _configOrchestrator.ClearAxisParameterOverride(functionId, axisId);
-        }
-
-        public void ClearAllAxisParameterOverrides(int functionId)
-        {
-            _configOrchestrator.ClearAllAxisParameterOverrides(functionId);
-        }
-
-        #endregion
 
         private DiyFfbPluginSettings.AircraftFfbProfile BuildCurrentAircraftProfile()
         {
@@ -3121,23 +2870,6 @@ namespace DiyFfb
         public event EventHandler<GraphParamChangedEventArgs> GraphParamChanged;
         public event EventHandler<ParamMigrationResult> ParamMigrationDetected;
 
-        public event EventHandler ContextChanged
-        {
-            add => _configOrchestrator.ContextChanged += value;
-            remove => _configOrchestrator.ContextChanged -= value;
-        }
-
-        public event EventHandler<OverrideFieldChangedEventArgs> OverrideFieldChanged
-        {
-            add => _configOrchestrator.OverrideFieldChanged += value;
-            remove => _configOrchestrator.OverrideFieldChanged -= value;
-        }
-
-        public void OnContextChanged()
-        {
-            _configOrchestrator.OnContextChanged();
-        }
-
         /// <summary>
         /// Gets the current value of a graph output signal.
         /// </summary>
@@ -3419,7 +3151,7 @@ namespace DiyFfb
                 () => activeCarId);
 
             // Initialize manager with stored baselines and overrides
-            InitializeManagerFromSettings();
+            _configOrchestrator.InitializeManagerFromSettings();
 
             // Populate function and axis configs from manager
             if (ui != null)

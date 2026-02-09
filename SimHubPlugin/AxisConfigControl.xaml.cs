@@ -139,7 +139,7 @@ namespace DiyFfb
             LoadFunctionOverrideConfig();
 
             int axisId = (int)config.AxisId;
-            var overrides = plugin?.GetAxisParameterOverride(functionId, axisId);
+            var overrides = plugin?.ConfigOrchestrator.GetAxisParameterOverride(functionId, axisId);
             return overrides != null && !overrides.IsEmpty;
         }
 
@@ -152,7 +152,7 @@ namespace DiyFfb
                 return;
 
             int axisId = (int)config.AxisId;
-            plugin.ClearAxisParameterOverride(_selectedFunctionId, axisId);
+            plugin.ConfigOrchestrator.ClearAxisParameterOverride(_selectedFunctionId, axisId);
             LoadFunctionOverrideConfig();
             DebugMessage?.Invoke($"Cleared axis override for function {_selectedFunctionId}, axis {axisId}");
         }
@@ -238,7 +238,7 @@ namespace DiyFfb
             _baselineStaticBalance = config.StaticBalanceConfig?.Clone();
 
             int axisId = (int)config.AxisId;
-            var overrides = plugin.GetAxisParameterOverride(_selectedFunctionId, axisId);
+            var overrides = plugin.ConfigOrchestrator.GetAxisParameterOverride(_selectedFunctionId, axisId);
 
             if (overrides != null)
             {
@@ -288,7 +288,7 @@ namespace DiyFfb
                     try { geometryJson = _protoJsonFormatter.Format(config.GeneralKinematic); }
                     catch { /* best-effort */ }
                 }
-                plugin.UpdateAxisParameterOverride(_selectedFunctionId, axisId, overrides =>
+                plugin.ConfigOrchestrator.UpdateAxisParameterOverride(_selectedFunctionId, axisId, overrides =>
                 {
                     overrides.Kinematics = parameters.Clone();
                     overrides.GeometryJson = geometryJson;
@@ -307,7 +307,7 @@ namespace DiyFfb
             if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0 && plugin != null)
             {
                 int axisId = (int)config.AxisId;
-                plugin.UpdateAxisParameterOverride(_selectedFunctionId, axisId, overrides =>
+                plugin.ConfigOrchestrator.UpdateAxisParameterOverride(_selectedFunctionId, axisId, overrides =>
                 {
                     overrides.StaticBalance = staticBalance.Clone();
                 });

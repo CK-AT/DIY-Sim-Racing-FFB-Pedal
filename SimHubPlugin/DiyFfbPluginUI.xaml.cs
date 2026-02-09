@@ -241,7 +241,7 @@ namespace DiyFfb
                 var function = kvp.Value;
 
                 // Get baseline + overrides from manager
-                var config = Plugin.GetInitialFunctionConfig(functionId);
+                var config = Plugin.ConfigOrchestrator.GetInitialFunctionConfig(functionId);
                 if (config != null)
                 {
                     function.Config = config;
@@ -263,7 +263,7 @@ namespace DiyFfb
                 var axisId = (int)kvp.Key;
                 var axis = kvp.Value;
 
-                var config = Plugin.GetInitialAxisConfig(axisId);
+                var config = Plugin.ConfigOrchestrator.GetInitialAxisConfig(axisId);
                 if (config != null)
                 {
                     axis.Config = config;
@@ -562,7 +562,7 @@ namespace DiyFfb
                 return;
             }
 
-            Plugin.SetCurrentUserProfile(userProfile);
+            Plugin.ConfigOrchestrator.SetCurrentUserProfile(userProfile);
             RefreshUserProfileUi();
             RefreshVehicleParams();
 
@@ -2660,7 +2660,7 @@ namespace DiyFfb
             int funcId = (int)newFunctionId;
 
             SimHub.Logging.Current.Info($"[TieredConfig] OnFunctionConfigUpdate func={newFunctionId}: " +
-                $"fromEsp32={fromEsp32}, hasBaseline={Plugin.HasFunctionBaseline(funcId)}");
+                $"fromEsp32={fromEsp32}, hasBaseline={Plugin.ConfigOrchestrator.HasFunctionBaseline(funcId)}");
 
             var (authorityOverride, resultConfig) =
                 Plugin.ConfigOrchestrator.HandleIncomingFunctionConfig(funcId, newFunctionConfig, fromEsp32);
@@ -2761,7 +2761,7 @@ namespace DiyFfb
             if (funcId == FunctionID.Undefined || !functions.ContainsKey(funcId))
                 return;
 
-            bool isActive = Plugin.IsFunctionActive(e.FunctionId);
+            bool isActive = Plugin.ConfigOrchestrator.IsFunctionActive(e.FunctionId);
             var autoPedal = e.NewConfig?.AutomotivePedal;
             SimHub.Logging.Current.Info($"[TieredConfig] OnMergedFunctionConfigChanged func={funcId}: " +
                 $"isActive={isActive}, hasProfile={e.HasProfileOverride}, hasUser={e.HasUserOverride}, " +
@@ -2944,7 +2944,7 @@ namespace DiyFfb
             int axisId = (int)importedConfig.AxisId;
             var formatter = new Google.Protobuf.JsonFormatter(Google.Protobuf.JsonFormatter.Settings.Default);
 
-            Plugin.UpdateAxisParameterOverride(functionId, axisId, overrides =>
+            Plugin.ConfigOrchestrator.UpdateAxisParameterOverride(functionId, axisId, overrides =>
             {
                 if (importedConfig.KinematicParameters != null)
                     overrides.Kinematics = importedConfig.KinematicParameters.Clone();
@@ -3046,14 +3046,14 @@ namespace DiyFfb
                     return;
 
                 // Save as baseline (this "bakes" all overrides AND direct edits into the new baseline)
-                Plugin.SetFunctionBaseline((int)function.ID, configToSave);
+                Plugin.ConfigOrchestrator.SetFunctionBaseline((int)function.ID, configToSave);
 
                 // Clear all overrides since they're now part of the baseline
-                Plugin.ClearAllFunctionOverrides((int)function.ID);
+                Plugin.ConfigOrchestrator.ClearAllFunctionOverrides((int)function.ID);
 
                 // Update manager with new baseline (no overrides)
                 Plugin.FunctionConfigManager.SetBaseConfig((int)function.ID, configToSave);
-                Plugin.ApplyProfileOverridesToFunction((int)function.ID);
+                Plugin.ConfigOrchestrator.ApplyProfileOverridesToFunction((int)function.ID);
 
                 // Refresh badges to remove [U] badge after clearing overrides
                 Dispatcher.BeginInvoke(new System.Action(() =>
@@ -3069,7 +3069,7 @@ namespace DiyFfb
                 return;
 
             int funcId = (int)function.ID;
-            if (!Plugin.HasFunctionBaseline(funcId))
+            if (!Plugin.ConfigOrchestrator.HasFunctionBaseline(funcId))
                 return;
 
             var result = ThemedMessageBox.Show(
@@ -3080,7 +3080,7 @@ namespace DiyFfb
             if (result != MessageBoxResult.Yes)
                 return;
 
-            Plugin.ClearFunctionBaseline(funcId);
+            Plugin.ConfigOrchestrator.ClearFunctionBaseline(funcId);
 
             Dispatcher.BeginInvoke(new System.Action(() =>
             {
@@ -3114,7 +3114,7 @@ namespace DiyFfb
                     IsAxisBase = true
                 });
 
-                var linkedFunctions = Plugin.GetFunctionsLinkingToAxis(axisId);
+                var linkedFunctions = Plugin.ConfigOrchestrator.GetFunctionsLinkingToAxis(axisId);
                 foreach (var func in linkedFunctions)
                 {
                     items.Add(new FunctionSelectorItem
@@ -3146,7 +3146,7 @@ namespace DiyFfb
 
                 // Show/hide clear button based on current override state
                 bool hasOverride = mode == AxisEditingMode.FunctionOverride
-                    && Plugin.GetAxisParameterOverride(funcId, axisId) != null;
+                    && Plugin.ConfigOrchestrator.GetAxisParameterOverride(funcId, axisId) != null;
                 BtnClearAxisOverride.Visibility = hasOverride ? Visibility.Visible : Visibility.Collapsed;
             }
             finally
@@ -3202,7 +3202,7 @@ namespace DiyFfb
                 return;
 
             var configToSave = axis.Config.Clone();
-            Plugin.SetAxisBaseline(axisIdInt, configToSave);
+            Plugin.ConfigOrchestrator.SetAxisBaseline(axisIdInt, configToSave);
 
             // Clear axis overrides for this axis across all functions
             if (Plugin.Settings?.FunctionAxisOverrides != null)
@@ -3210,7 +3210,7 @@ namespace DiyFfb
                 var functionIds = Plugin.Settings.FunctionAxisOverrides.Keys.ToList();
                 foreach (var funcId in functionIds)
                 {
-                    Plugin.ClearAxisParameterOverride(funcId, axisIdInt);
+                    Plugin.ConfigOrchestrator.ClearAxisParameterOverride(funcId, axisIdInt);
                 }
             }
 
@@ -3224,7 +3224,7 @@ namespace DiyFfb
                 return;
 
             int axisIdInt = (int)selected_axis_id;
-            if (!Plugin.HasAxisBaseline(axisIdInt))
+            if (!Plugin.ConfigOrchestrator.HasAxisBaseline(axisIdInt))
                 return;
 
             var result = Controls.ThemedMessageBox.Show(
@@ -3235,7 +3235,7 @@ namespace DiyFfb
             if (result != MessageBoxResult.Yes)
                 return;
 
-            Plugin.ClearAxisBaseline(axisIdInt);
+            Plugin.ConfigOrchestrator.ClearAxisBaseline(axisIdInt);
 
             if (axes.TryGetValue(selected_axis_id, out var axis) && axis.Config != null)
                 uc_axis_config.UpdateConfig(axis.Config);
@@ -3745,7 +3745,7 @@ namespace DiyFfb
                 Height = 24
             };
 
-            bool isActive = Plugin.IsFunctionActive((int)functionId);
+            bool isActive = Plugin.ConfigOrchestrator.IsFunctionActive((int)functionId);
 
             var checkbox = new CheckBox
             {
@@ -3806,11 +3806,11 @@ namespace DiyFfb
         /// </summary>
         private void UpdateFunctionLevelBadge(TextBlock badge, FunctionID functionId)
         {
-            var userOverrides = Plugin.GetUserFunctionOverrides((int)functionId);
-            var profileOverrides = Plugin.GetFunctionOverrides((int)functionId);
+            var userOverrides = Plugin.ConfigOrchestrator.GetUserFunctionOverrides((int)functionId);
+            var profileOverrides = Plugin.ConfigOrchestrator.GetFunctionOverrides((int)functionId);
             bool hasUserOverrides = userOverrides != null && !userOverrides.IsEmpty;
             bool hasProfileOverrides = profileOverrides != null && !profileOverrides.IsEmpty;
-            bool isActive = Plugin.IsFunctionActive((int)functionId);
+            bool isActive = Plugin.ConfigOrchestrator.IsFunctionActive((int)functionId);
 
             if (hasUserOverrides && isActive)
             {
@@ -3858,7 +3858,7 @@ namespace DiyFfb
         {
             if (sender is CheckBox checkbox && checkbox.Tag is FunctionID functionId)
             {
-                Plugin.SetFunctionActive((int)functionId, true);
+                Plugin.ConfigOrchestrator.SetFunctionActive((int)functionId, true);
             }
         }
 
@@ -3866,7 +3866,7 @@ namespace DiyFfb
         {
             if (sender is CheckBox checkbox && checkbox.Tag is FunctionID functionId)
             {
-                Plugin.SetFunctionActive((int)functionId, false);
+                Plugin.ConfigOrchestrator.SetFunctionActive((int)functionId, false);
             }
         }
 

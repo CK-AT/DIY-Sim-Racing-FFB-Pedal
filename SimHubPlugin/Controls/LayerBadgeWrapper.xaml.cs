@@ -174,7 +174,7 @@ namespace DiyFfb.Controls
                 return null;
 
             // Create ConfigLayerProvider on demand using plugin methods
-            var layerProvider = Plugin.CreateConfigLayerProvider();
+            var layerProvider = Plugin.ConfigOrchestrator.CreateConfigLayerProvider();
             return layerProvider.GetFieldSourceLayer(FunctionId, FieldPath);
         }
 
@@ -210,7 +210,7 @@ namespace DiyFfb.Controls
                 return;
             }
 
-            var layerProvider = Plugin.CreateConfigLayerProvider();
+            var layerProvider = Plugin.ConfigOrchestrator.CreateConfigLayerProvider();
             var sourceLayer = layerProvider.GetFieldSourceLayer(FunctionId, FieldPath);
 
             // Build enhanced tooltip showing all layer values
@@ -278,7 +278,7 @@ namespace DiyFfb.Controls
 
             // Build context menu
             var contextMenu = new ContextMenu();
-            var layerProvider = Plugin.CreateConfigLayerProvider();
+            var layerProvider = Plugin.ConfigOrchestrator.CreateConfigLayerProvider();
 
             // Section 1: Layer values (header items, not clickable)
             var userValue = GetLayerValueString(layerProvider, ConfigLayer.User, field);
@@ -340,7 +340,7 @@ namespace DiyFfb.Controls
             if (Plugin == null || FunctionId < 0 || string.IsNullOrEmpty(FieldPath))
                 return;
 
-            Plugin.ClearFunctionOverrideField(FunctionId, FieldPath, layer);
+            Plugin.ConfigOrchestrator.ClearFunctionOverrideField(FunctionId, FieldPath, layer);
             UpdateBadge();
             UpdateTooltip();
 

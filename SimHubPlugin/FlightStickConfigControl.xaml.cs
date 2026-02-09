@@ -390,9 +390,9 @@ namespace DiyFfb
                 TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
 
                 // Create override for badge system (only after init stabilizes, baseline exists, AND value changed)
-                if (allowOverrideCreation && newValue != oldValue && plugin != null && function != null && plugin.HasFunctionBaseline((int)function.ID))
+                if (allowOverrideCreation && newValue != oldValue && plugin != null && function != null && plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
                 {
-                    plugin.UpdateFunctionOverrideField((int)function.ID, "flight_stick.motion_range",
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_stick.motion_range",
                         overrides =>
                         {
                             if (overrides.FlightStickMotionRange == null)
@@ -425,9 +425,9 @@ namespace DiyFfb
                 TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
 
                 // Create override for badge system (only after init stabilizes, baseline exists, AND value changed)
-                if (allowOverrideCreation && newValue != oldValue && plugin != null && function != null && plugin.HasFunctionBaseline((int)function.ID))
+                if (allowOverrideCreation && newValue != oldValue && plugin != null && function != null && plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
                 {
-                    plugin.UpdateFunctionOverrideField((int)function.ID, "flight_stick.motion_range",
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_stick.motion_range",
                         overrides =>
                         {
                             if (overrides.FlightStickMotionRange == null)
@@ -451,9 +451,9 @@ namespace DiyFfb
             label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", newValue);
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "flight_stick.damping",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_stick.damping",
                     overrides => overrides.FlightStickDamping = newValue);
             }
         }
@@ -466,9 +466,9 @@ namespace DiyFfb
             label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", newValue);
 
             if (allowOverrideCreation && plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "flight_stick.centering_spring_const",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_stick.centering_spring_const",
                     overrides => overrides.FlightStickCenteringSpringConst = newValue);
             }
         }
@@ -481,9 +481,9 @@ namespace DiyFfb
             function_config.Friction = newValue;
 
             if (plugin != null && function != null &&
-                plugin.HasFunctionBaseline((int)function.ID))
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "friction",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "friction",
                     overrides => overrides.Friction = newValue);
             }
         }
@@ -501,9 +501,9 @@ namespace DiyFfb
             function_config.SimulatedMass = newValue;
 
             // Create override for badge system (only if baseline exists to avoid config corruption)
-            if (plugin != null && function != null && plugin.HasFunctionBaseline((int)function.ID))
+            if (plugin != null && function != null && plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
                     overrides => overrides.SimulatedMass = newValue);
             }
         }
