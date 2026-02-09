@@ -19,9 +19,8 @@ namespace DiyFfb.TieredConfig
         private readonly Func<DiyFfbPluginSettings.AircraftFfbProfile> _getActiveProfile;
         private readonly Func<GraphCategory> _getActiveGraphCategory;
         private readonly Func<string, string, string> _buildProfileKey;
-
-        // Temporary delegate — replaced when GetOrCreateCurrentProfile moves in (Phase 3).
-        private readonly Func<DiyFfbPluginSettings.AircraftFfbProfile> _getOrCreateProfile;
+        private readonly Func<string> _getActiveGameId;
+        private readonly Func<string> _getActiveCarId;
 
         public TieredConfigOrchestrator(
             FunctionConfigManager functionConfigManager,
@@ -31,7 +30,8 @@ namespace DiyFfb.TieredConfig
             Func<DiyFfbPluginSettings.AircraftFfbProfile> getActiveProfile,
             Func<GraphCategory> getActiveGraphCategory,
             Func<string, string, string> buildProfileKey,
-            Func<DiyFfbPluginSettings.AircraftFfbProfile> getOrCreateProfile)
+            Func<string> getActiveGameId,
+            Func<string> getActiveCarId)
         {
             _functionConfigManager = functionConfigManager ?? throw new ArgumentNullException(nameof(functionConfigManager));
             _axisConfigManager = axisConfigManager ?? throw new ArgumentNullException(nameof(axisConfigManager));
@@ -40,8 +40,42 @@ namespace DiyFfb.TieredConfig
             _getActiveProfile = getActiveProfile ?? throw new ArgumentNullException(nameof(getActiveProfile));
             _getActiveGraphCategory = getActiveGraphCategory ?? throw new ArgumentNullException(nameof(getActiveGraphCategory));
             _buildProfileKey = buildProfileKey ?? throw new ArgumentNullException(nameof(buildProfileKey));
-            _getOrCreateProfile = getOrCreateProfile ?? throw new ArgumentNullException(nameof(getOrCreateProfile));
+            _getActiveGameId = getActiveGameId ?? throw new ArgumentNullException(nameof(getActiveGameId));
+            _getActiveCarId = getActiveCarId ?? throw new ArgumentNullException(nameof(getActiveCarId));
         }
+
+        #region Events
+
+        /// <summary>
+        /// Fired when the active context changes (profile/user/vehicle switch, or Upload Changes).
+        /// Subscribers should perform full refresh and expect ESP32 config send.
+        /// </summary>
+        public event EventHandler ContextChanged;
+
+        /// <summary>
+        /// Fired when a single override field is edited (NO ESP32 send).
+        /// Subscribers should perform targeted badge/UI refresh only.
+        /// </summary>
+        public event EventHandler<OverrideFieldChangedEventArgs> OverrideFieldChanged;
+
+        /// <summary>
+        /// Fires the ContextChanged event to notify subscribers of a full context change.
+        /// Call this on profile/vehicle/user switches, or after "Upload Changes" button.
+        /// </summary>
+        public void OnContextChanged()
+        {
+            ContextChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// Fires the OverrideFieldChanged event for a specific field edit (NO ESP32 send).
+        /// </summary>
+        public void OnOverrideFieldChanged(int functionId, string fieldPath)
+        {
+            OverrideFieldChanged?.Invoke(this, new OverrideFieldChangedEventArgs(functionId, fieldPath));
+        }
+
+        #endregion
 
         #region Baseline Management — Function
 
@@ -469,7 +503,7 @@ namespace DiyFfb.TieredConfig
         /// </summary>
         public void SetFunctionActive(int functionId, bool active)
         {
-            var profile = _getOrCreateProfile();
+            var profile = GetOrCreateCurrentProfile();
             if (profile == null)
                 return;
 
@@ -506,6 +540,343 @@ namespace DiyFfb.TieredConfig
                     }
                 }
             }
+        }
+
+        #endregion
+
+        #region Profile/Override Accessors
+
+        /// <summary>
+        /// Get or create the current vehicle profile.
+        /// </summary>
+        public DiyFfbPluginSettings.AircraftFfbProfile GetOrCreateCurrentProfile()
+        {
+            var activeCarId = _getActiveCarId();
+            if (_settings == null || string.IsNullOrWhiteSpace(activeCarId))
+                return null;
+
+            if (_settings.AircraftFfbProfiles == null)
+                _settings.AircraftFfbProfiles = new Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+
+            string profileKey = _buildProfileKey(_getActiveGameId(), activeCarId);
+            if (string.IsNullOrWhiteSpace(profileKey))
+                return null;
+
+            if (!_settings.AircraftFfbProfiles.TryGetValue(profileKey, out var profile))
+            {
+                profile = new DiyFfbPluginSettings.AircraftFfbProfile();
+                _settings.AircraftFfbProfiles[profileKey] = profile;
+            }
+
+            return profile;
+        }
+
+        /// <summary>
+        /// Get the function config overrides for a function in the current vehicle profile.
+        /// Returns null if no overrides exist.
+        /// </summary>
+        public FunctionConfigOverrides GetFunctionOverrides(int functionId)
+        {
+            var profile = _getActiveProfile();
+            if (profile?.FunctionOverrides == null)
+                return null;
+
+            profile.FunctionOverrides.TryGetValue(functionId, out var overrides);
+            return overrides;
+        }
+
+        /// <summary>
+        /// Get the user preference overrides for a function.
+        /// Returns null if no user overrides exist.
+        /// </summary>
+        public FunctionConfigOverrides GetUserFunctionOverrides(int functionId)
+        {
+            var userPrefs = GetCurrentUserOverrides();
+            if (userPrefs?.FunctionOverrides == null)
+                return null;
+
+            userPrefs.FunctionOverrides.TryGetValue(functionId, out var overrides);
+            return overrides;
+        }
+
+        /// <summary>
+        /// Create a ConfigLayerProvider for UI layer badge display.
+        /// </summary>
+        public ConfigLayerProvider CreateConfigLayerProvider()
+        {
+            return new ConfigLayerProvider(
+                GetFunctionOverrides,
+                GetUserFunctionOverrides,
+                GetFunctionBaseline
+            );
+        }
+
+        #endregion
+
+        #region Override Field Operations
+
+        /// <summary>
+        /// Get or create the function config overrides for a function in the current vehicle profile.
+        /// </summary>
+        public FunctionConfigOverrides GetOrCreateFunctionOverrides(int functionId)
+        {
+            var profile = GetOrCreateCurrentProfile();
+            if (profile == null)
+                return null;
+
+            if (profile.FunctionOverrides == null)
+                profile.FunctionOverrides = new Dictionary<int, FunctionConfigOverrides>();
+
+            if (!profile.FunctionOverrides.TryGetValue(functionId, out var overrides))
+            {
+                overrides = new FunctionConfigOverrides();
+                profile.FunctionOverrides[functionId] = overrides;
+            }
+
+            return overrides;
+        }
+
+        /// <summary>
+        /// Update a function override value and re-apply if the function is active.
+        /// </summary>
+        public void UpdateFunctionOverride(int functionId, Action<FunctionConfigOverrides> updateAction)
+        {
+            var overrides = GetOrCreateFunctionOverrides(functionId);
+            if (overrides == null)
+                return;
+
+            updateAction(overrides);
+
+            // If function is active, re-apply the merged config
+            if (IsFunctionActive(functionId))
+            {
+                ApplyProfileOverridesToFunction(functionId);
+            }
+        }
+
+        /// <summary>
+        /// Update a function override value routed to the default layer for the field.
+        /// </summary>
+        public void UpdateFunctionOverrideField(int functionId, string fieldName, Action<FunctionConfigOverrides> updateAction)
+        {
+            var targetLayer = GetFunctionOverrideTargetLayer(fieldName);
+            if (targetLayer == ConfigLayer.User)
+            {
+                UpdateUserFunctionOverride(functionId, updateAction);
+            }
+            else
+            {
+                UpdateFunctionOverride(functionId, updateAction);
+            }
+
+            // Fire OverrideFieldChanged event for badge refresh (NO ESP32 send, NO manager update to avoid loops)
+            OnOverrideFieldChanged(functionId, fieldName);
+        }
+
+        /// <summary>
+        /// Clear a specific override field for a function.
+        /// </summary>
+        public void ClearFunctionOverrideField(int functionId, string fieldName, ConfigLayer? layerOverride = null)
+        {
+            var targetLayer = layerOverride ?? GetFunctionOverrideTargetLayer(fieldName);
+            if (targetLayer == ConfigLayer.User)
+            {
+                ClearUserFunctionOverrideField(functionId, fieldName);
+            }
+            else
+            {
+                ClearProfileFunctionOverrideField(functionId, fieldName);
+            }
+
+            // Fire OverrideFieldChanged event for badge refresh (NO ESP32 send)
+            OnOverrideFieldChanged(functionId, fieldName);
+        }
+
+        private void ClearProfileFunctionOverrideField(int functionId, string fieldName)
+        {
+            var profile = _getActiveProfile();
+            if (profile?.FunctionOverrides == null)
+                return;
+
+            if (!profile.FunctionOverrides.TryGetValue(functionId, out var overrides))
+                return;
+
+            ClearOverrideFieldValue(overrides, fieldName);
+
+            // Remove the override entry if it's now empty
+            if (overrides.IsEmpty)
+            {
+                profile.FunctionOverrides.Remove(functionId);
+            }
+
+            // Settings auto-save periodically by SimHub
+
+            // Update manager if baseline exists
+            if (_functionConfigManager.HasBaseConfig(functionId))
+            {
+                ReapplyMergedOverrides(functionId, diffCheck: false);
+            }
+        }
+
+        private void UpdateUserFunctionOverride(int functionId, Action<FunctionConfigOverrides> updateAction)
+        {
+            var overrides = GetOrCreateUserFunctionOverrides(functionId);
+            if (overrides == null)
+                return;
+
+            updateAction(overrides);
+
+            // Note: Settings auto-saved periodically by SimHub. Explicit save only for critical operations (baseline save).
+
+            // Always update manager if we have a baseline, even if function not in active profile
+            if (_functionConfigManager.HasBaseConfig(functionId))
+            {
+                ReapplyMergedOverrides(functionId, diffCheck: false);
+            }
+        }
+
+        private void ClearUserFunctionOverrideField(int functionId, string fieldName)
+        {
+            var prefs = GetCurrentUserOverrides();
+            if (prefs?.FunctionOverrides == null)
+                return;
+
+            if (!prefs.FunctionOverrides.TryGetValue(functionId, out var overrides))
+                return;
+
+            ClearOverrideFieldValue(overrides, fieldName);
+
+            if (overrides.IsEmpty)
+            {
+                prefs.FunctionOverrides.Remove(functionId);
+            }
+
+            // Settings auto-save periodically by SimHub
+
+            // Update manager if baseline exists
+            if (_functionConfigManager.HasBaseConfig(functionId))
+            {
+                ReapplyMergedOverrides(functionId, diffCheck: false);
+            }
+        }
+
+        /// <summary>
+        /// Clear all overrides (profile + user) for a function.
+        /// Used when saving baseline to "bake" overrides into the new baseline.
+        /// </summary>
+        public void ClearAllFunctionOverrides(int functionId)
+        {
+            // Clear profile overrides
+            var profile = _getActiveProfile();
+            if (profile?.FunctionOverrides != null)
+            {
+                profile.FunctionOverrides.Remove(functionId);
+            }
+
+            // Clear user overrides
+            var userPrefs = GetCurrentUserOverrides();
+            if (userPrefs?.FunctionOverrides != null)
+            {
+                userPrefs.FunctionOverrides.Remove(functionId);
+            }
+
+            // Re-apply to manager (clears merged overrides)
+            if (IsFunctionActive(functionId))
+            {
+                ApplyProfileOverridesToFunction(functionId);
+            }
+        }
+
+        private static void ClearOverrideFieldValue(FunctionConfigOverrides overrides, string fieldName)
+        {
+            OverrideFieldRegistry.ClearValue(overrides, fieldName);
+        }
+
+        #endregion
+
+        #region User Preference Management
+
+        private FunctionConfigOverrides GetOrCreateUserFunctionOverrides(int functionId)
+        {
+            var prefs = GetOrCreateCurrentUserOverrides();
+            if (prefs == null)
+                return null;
+
+            if (prefs.FunctionOverrides == null)
+                prefs.FunctionOverrides = new Dictionary<int, FunctionConfigOverrides>();
+
+            if (!prefs.FunctionOverrides.TryGetValue(functionId, out var overrides))
+            {
+                overrides = new FunctionConfigOverrides();
+                prefs.FunctionOverrides[functionId] = overrides;
+            }
+
+            return overrides;
+        }
+
+        private UserPreferences GetOrCreateCurrentUserOverrides()
+        {
+            if (_settings == null)
+                return null;
+
+            if (_settings.UserPreferencesProfiles == null)
+                _settings.UserPreferencesProfiles = new Dictionary<string, UserPreferences>();
+
+            string userProfile = _settings.CurrentUserProfile ?? System.Environment.UserName;
+            if (string.IsNullOrWhiteSpace(userProfile))
+                userProfile = System.Environment.UserName;
+
+            if (!_settings.UserPreferencesProfiles.TryGetValue(userProfile, out var prefs))
+            {
+                prefs = new UserPreferences();
+                _settings.UserPreferencesProfiles[userProfile] = prefs;
+            }
+
+            return prefs;
+        }
+
+        /// <summary>
+        /// Set the current user profile name and ensure its preferences entry exists.
+        /// </summary>
+        public void SetCurrentUserProfile(string userProfile)
+        {
+            if (_settings == null)
+                return;
+
+            var normalized = string.IsNullOrWhiteSpace(userProfile)
+                ? System.Environment.UserName
+                : userProfile.Trim();
+
+            if (string.IsNullOrWhiteSpace(normalized))
+                normalized = System.Environment.UserName;
+
+            _settings.CurrentUserProfile = normalized;
+
+            if (_settings.UserPreferencesProfiles == null)
+                _settings.UserPreferencesProfiles = new Dictionary<string, UserPreferences>();
+
+            if (!_settings.UserPreferencesProfiles.ContainsKey(normalized))
+                _settings.UserPreferencesProfiles[normalized] = new UserPreferences();
+
+            ApplyCurrentProfileOverrides();
+
+            // Notify UI to refresh badges and labels
+            OnContextChanged();
+        }
+
+        #endregion
+
+        #region Utility
+
+        private static string NormalizeFunctionOverrideFieldPath(string fieldName)
+        {
+            return OverrideFieldRegistry.NormalizeFieldPath(fieldName);
+        }
+
+        private static ConfigLayer GetFunctionOverrideTargetLayer(string fieldName)
+        {
+            var normalized = NormalizeFunctionOverrideFieldPath(fieldName);
+            return FieldRouter.GetTargetLayer(normalized);
         }
 
         #endregion

@@ -4,41 +4,39 @@ Branch: `ck_tiered_config`
 
 ## Uncommitted Work
 
-Plan 30 Phase 1 (registry consolidation) — ready to commit:
-- `DiyFfbPlugin.cs`: Replaced `ClearOverrideFieldValue` 70-line switch with `OverrideFieldRegistry.ClearValue` delegation
-- `DiyFfbPlugin.cs`: Replaced `NormalizeFunctionOverrideFieldPath` 13-line switch with `OverrideFieldRegistry.NormalizeFieldPath`
-- `DiyFfbPlugin.cs`: Extracted `ReapplyMergedOverrides(functionId, diffCheck)` method, replaced 5 duplicated gather-deltas-then-apply patterns
-- `DiyFfbPlugin.cs`: Replaced 6 `new JsonParser`/`new JsonFormatter` with shared `ProtobufJsonHelper` instances
-- `ConfigLayerProvider.cs`: Replaced `HasFieldValue` 70-line switch with `OverrideFieldRegistry.HasValue` delegation
-
 Planning docs (not committed, not code changes):
-- `SimHubPlugin/Docs/plans/30_Duplication_Cleanup.md` — 5-phase plan to eliminate ~810 lines of duplicated code
+- `SimHubPlugin/Docs/plans/30_Duplication_Cleanup.md` — 5-phase plan (ALL COMPLETE)
 - `SimHubPlugin/Docs/plans/31_TieredConfig_Orchestrator_Extraction.md` — 6-phase plan to extract TieredConfigOrchestrator from the 4,685-line DiyFfbPlugin god class
 
 ## Next Steps
 
-### Plan 30: Duplication Cleanup (phases 2-5 remaining)
+### Plan 30: Duplication Cleanup — COMPLETE
 
-| Phase | What | Effort | Lines saved | Status |
-|-------|------|--------|-------------|--------|
-| 1 | Registry consolidation | ~2h | ~180 | **DONE** |
-| 2 | Badge infrastructure — extract identical code from 5 controls into `BadgeHelper` | ~3h | ~200 | |
-| 3 | Graph parameter UI — extract from 2 controls into `GraphParamHelper` | ~3h | ~200 | |
-| 4 | Kinematic bounds + travel display — extract from 3 controls into helpers | ~3h | ~150 | |
-| 5 | FlightStick mode-dispatch — collapse 8 accessor methods to 1 | ~1h | ~80 | |
+All 5 phases done. ~810 lines eliminated across registry consolidation, BadgeHelper, GraphParamHelper, KinematicBoundsHelper/TravelDisplayHelper, and FlightStick interface dispatch.
 
-Phase 1 complete — **Plan 31 is now unblocked**.
+### Plan 31: TieredConfigOrchestrator Extraction
 
-### Plan 31: TieredConfigOrchestrator Extraction (do after Plan 30 phase 1)
+| Phase | What | Status |
+|-------|------|--------|
+| 1 | Create orchestrator shell, move 12 baseline + initialization methods | DONE |
+| 2 | Move 10 override application + activity query methods | DONE |
+| 3 | Move 15 override field operations + user preference methods + events | DONE |
+| 4 | Move 9 axis parameter override API methods | **NEXT** |
+| 5 | Move ESP32 authority logic from DiyFfbPluginUI into orchestrator | |
+| 6 | Replace forwarding methods with direct `plugin.ConfigOrchestrator.X()` calls | |
 
-| Phase | What |
-|-------|------|
-| 1 | Create orchestrator shell, move 12 baseline + initialization methods |
-| 2 | Move 10 override application + activity query methods |
-| 3 | Move 15 override field operations + user preference methods + events |
-| 4 | Move 9 axis parameter override API methods |
-| 5 | Move ESP32 authority logic from DiyFfbPluginUI into orchestrator |
-| 6 | Replace forwarding methods with direct `plugin.ConfigOrchestrator.X()` calls |
+**Phase 1-2 notes:**
+- Orchestrator constructor takes delegates for cross-boundary calls: `getActiveProfile`, `getActiveGraphCategory`, `buildProfileKey`
+- `ReapplyMergedOverrides` moved in Phase 2 — removed the temporary Phase 1 delegate
+- Unused `InitializeAxisManagerFromSettings` forwarding removed from plugin (both callers now in orchestrator)
+
+**Phase 3 notes:**
+- Replaced `_getOrCreateProfile` temporary delegate with real `GetOrCreateCurrentProfile()` method in orchestrator; added `getActiveGameId`/`getActiveCarId` delegates instead
+- Events (`ContextChanged`, `OverrideFieldChanged`) now owned by orchestrator; plugin forwards via `add`/`remove` accessors
+- `OnContextChanged()` on plugin delegates to orchestrator (called from `HandleAircraftChange` which stays in plugin)
+- Removed now-unused `ReapplyMergedOverrides` and `GetCurrentUserOverrides` forwarding stubs from plugin
+- Plugin: 4,685 → 3,987 lines (-698); Orchestrator: 514 → 884 lines (+370)
+- Plugin keeps forwarding methods for all moved methods; Phase 6 removes them
 
 ## Completed Work
 
@@ -46,6 +44,12 @@ All core tiered config phases are implemented and committed:
 
 | Commit | Description |
 |--------|-------------|
+| `f41320b1` | Extract TieredConfigOrchestrator (Plan 31, Phases 1-2) |
+| `1e3e3270` | Collapse FlightStick 8 mode-dispatch accessors to interface |
+| `dee6284c` | Extract KinematicBoundsHelper and TravelDisplayHelper |
+| `ac02c520` | Extract GraphParamHelper from 2 controls |
+| `5eaaac83` | Extract BadgeHelper from 5 controls |
+| `2a0f0994` | Consolidate registry, extract ReapplyMergedOverrides |
 | `997cae87` | Extract ShifterProcessor from ConfigMerger |
 | `0dfce9ed` | Extract FlightStickProcessor from ConfigMerger |
 | `f6d42b8d` | Extract FlightPedalsProcessor from ConfigMerger |
@@ -78,6 +82,7 @@ All core tiered config phases are implemented and committed:
 - **Tiered config system** — Baseline -> Profile -> User override layers for function configs
 - **Derived field reconciliation** — `ConfigMerger.ReconcileDerivedFields` delegates to per-type processors
 - **All 4 function processor extractions complete** — AutomotivePedal, FlightPedals, FlightStick, Shifter
+- **Duplication cleanup complete** — BadgeHelper, GraphParamHelper, KinematicBoundsHelper, TravelDisplayHelper, IFlightStickSubConfig
 - **Axis parameter overrides** — Per-function kinematics/static-balance overrides, plugin-side merge
 - **Baseline persistence** — Both function and axis baselines survive ESP32 reconnects and restarts
 - **Clear Baseline** — Buttons to remove stored baseline; overrides preserved, re-apply on next baseline
@@ -94,6 +99,7 @@ All core tiered config phases are implemented and committed:
 - ESP32 config authority: when stored baselines exist, incoming ESP32 configs are ignored and merged config is pushed back
 - Batched clear+apply avoids 2N upload race condition
 - Axis overrides use full replacement (not field-level merge)
+- `IFlightStickSubConfig` — interface over 3 protobuf types via partial classes; `GetActiveSubConfig()` dispatches once on mode
 
 ## References
 
