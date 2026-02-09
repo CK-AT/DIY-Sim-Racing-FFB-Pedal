@@ -1,14 +1,11 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using MahApps.Metro.Controls;
-using DiyFfb.GraphEditor;
 using DiyFfb.Controls;
 
 namespace DiyFfb
@@ -37,11 +34,9 @@ namespace DiyFfb
         private bool hasTrimCenter;
         private DispatcherTimer xplaneTimer;
         private bool hasAxisRange;
-        private Dictionary<string, FrameworkElement> graphParamControls = new Dictionary<string, FrameworkElement>();
-        private Dictionary<string, Label> graphParamLabels = new Dictionary<string, Label>();
-        private bool isUpdatingGraphParams = false;
         private bool isUpdatingOutputToggle = false;
         private BadgeHelper _badgeHelper;
+        private GraphParamHelper _graphParamHelper;
 
         public FlightPedalsConfigControl()
         {
@@ -56,11 +51,16 @@ namespace DiyFfb
             this.ui = ui;
             this.plugin = plugin;
             _badgeHelper = new BadgeHelper(this, () => this.plugin, () => function, OnBadgeOverrideCleared);
+            _graphParamHelper = new GraphParamHelper(
+                GraphParamsPanel,
+                () => this.plugin,
+                () => current_function_id == FunctionID.FlightPedals ? "FlightPedals" : "",
+                "FlightPedals",
+                Dispatcher);
 
             if (plugin != null)
             {
-                plugin.ActiveGraphChanged += OnActiveGraphChanged;
-                plugin.GraphParamChanged += OnGraphParamChanged;
+                _graphParamHelper.Subscribe();
 
                 if (IsLoaded)
                     _badgeHelper.Subscribe();
@@ -68,7 +68,7 @@ namespace DiyFfb
 
             is_updating = false;
             StartXPlaneTimer();
-            RefreshGraphParams();
+            _graphParamHelper.Refresh();
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -279,7 +279,7 @@ namespace DiyFfb
             label_friction.Content = String.Format("Friction: {0:F1}N", function_config.Friction);
             label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", config.CenteringSpringConst);
             label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", config.Damping);
-            RefreshGraphParams();
+            _graphParamHelper?.Refresh();
             UpdateDisableOutputsToggle();
             _badgeHelper?.InitializeBadges();
 
@@ -660,206 +660,6 @@ namespace DiyFfb
             double max = Math.Max(config.PosNearLim, config.PosFarLim);
             Rangeslider_travel_range.Minimum = min;
             Rangeslider_travel_range.Maximum = max;
-        }
-
-        private void OnActiveGraphChanged(object sender, EventArgs e)
-        {
-            Dispatcher.Invoke(RefreshGraphParams);
-        }
-
-        private void OnGraphParamChanged(object sender, GraphParamChangedEventArgs e)
-        {
-            if (isUpdatingGraphParams)
-            {
-                return;
-            }
-
-            Dispatcher.Invoke(() =>
-            {
-                isUpdatingGraphParams = true;
-                try
-                {
-                    if (graphParamLabels.TryGetValue(e.ParamName, out var label))
-                    {
-                        var allParams = plugin?.GetActiveGraphParams();
-                        if (allParams != null && allParams.TryGetValue(e.ParamName, out var param))
-                        {
-                            label.Content = FormatParamLabel(param, e.Value);
-                        }
-                    }
-
-                    if (graphParamControls.TryGetValue(e.ParamName, out var control))
-                    {
-                        if (control is Slider slider)
-                        {
-                            slider.Value = e.Value;
-                        }
-                        else if (control is TextBox textBox)
-                        {
-                            int precision = 3;
-                            var allParams = plugin?.GetActiveGraphParams();
-                            if (allParams != null && allParams.TryGetValue(e.ParamName, out var param))
-                            {
-                                precision = param.Ui?.Precision ?? 3;
-                            }
-                            textBox.Text = e.Value.ToString($"F{precision}");
-                        }
-                    }
-                }
-                finally
-                {
-                    isUpdatingGraphParams = false;
-                }
-            });
-        }
-
-        private string FormatParamLabel(GraphParam param, double currentValue)
-        {
-            string label = param.Ui?.Label ?? param.Name;
-            int precision = param.Ui?.Precision ?? 3;
-            string valueStr = currentValue.ToString($"F{precision}");
-
-            if (!string.IsNullOrWhiteSpace(param.Ui?.Units))
-            {
-                return $"{label}: {valueStr}{param.Ui.Units}";
-            }
-            else
-            {
-                return $"{label}: {valueStr}";
-            }
-        }
-
-        private void RefreshGraphParams()
-        {
-            try
-            {
-                GraphParamsPanel.Children.Clear();
-                graphParamControls.Clear();
-                graphParamLabels.Clear();
-
-                if (plugin == null)
-                {
-                    return;
-                }
-
-                var allParams = plugin.GetActiveGraphParams();
-                if (allParams == null || allParams.Count == 0)
-                {
-                    return;
-                }
-
-                string groupFilter = GetGraphParamGroupFilter();
-                var orderedNames = plugin.GetActiveGraphParamOrder();
-                var filteredParams = allParams.Values
-                    .Where(p => MatchesGroup(p.Ui?.Group, groupFilter))
-                    .ToList();
-                var orderedParams = OrderParamsByGraph(orderedNames, filteredParams);
-
-                foreach (var param in orderedParams)
-                {
-                    double currentValue = plugin.GetGraphParamValue(param.Name);
-
-                    var panel = new StackPanel
-                    {
-                        Width = 400,
-                        Height = 40,
-                        Orientation = Orientation.Vertical,
-                        Background = null
-                    };
-
-                    var label = new Label
-                    {
-                        Foreground = Brushes.White,
-                        FontSize = 10,
-                        FontFamily = new FontFamily("Arial"),
-                        HorizontalAlignment = HorizontalAlignment.Left,
-                        VerticalAlignment = VerticalAlignment.Top,
-                        Content = FormatParamLabel(param, currentValue),
-                        Padding = new Thickness(0, 0, 0, 8)
-                    };
-
-                    var control = GraphParamControlBuilder.BuildControl(
-                        param,
-                        value =>
-                        {
-                            if (!isUpdatingGraphParams)
-                            {
-                                try
-                                {
-                                    isUpdatingGraphParams = true;
-                                    plugin.SetGraphParamValue(param.Name, value);
-                                    if (graphParamLabels.TryGetValue(param.Name, out var lbl))
-                                    {
-                                        lbl.Content = FormatParamLabel(param, value);
-                                    }
-                                }
-                                finally
-                                {
-                                    isUpdatingGraphParams = false;
-                                }
-                            }
-                        },
-                        width: 400,
-                        initialValue: currentValue
-                    );
-
-                    panel.Children.Add(label);
-                    panel.Children.Add(control);
-                    GraphParamsPanel.Children.Add(panel);
-                    graphParamControls[param.Name] = control;
-                    graphParamLabels[param.Name] = label;
-                }
-            }
-            catch (Exception ex)
-            {
-                SimHub.Logging.Current.Error($"[FlightPedals] RefreshGraphParams failed: {ex.Message}", ex);
-            }
-        }
-
-        private static List<GraphParam> OrderParamsByGraph(IReadOnlyList<string> orderedNames, IEnumerable<GraphParam> parameters)
-        {
-            var map = new Dictionary<string, GraphParam>(StringComparer.OrdinalIgnoreCase);
-            foreach (var param in parameters)
-            {
-                if (!string.IsNullOrWhiteSpace(param?.Name))
-                {
-                    map[param.Name] = param;
-                }
-            }
-
-            var ordered = new List<GraphParam>();
-            if (orderedNames != null)
-            {
-                foreach (var name in orderedNames)
-                {
-                    if (map.TryGetValue(name, out var param))
-                    {
-                        ordered.Add(param);
-                        map.Remove(name);
-                    }
-                }
-            }
-
-            ordered.AddRange(map.Values.OrderBy(p => p.Ui?.Label ?? p.Name));
-            return ordered;
-        }
-
-        private string GetGraphParamGroupFilter()
-        {
-            if (current_function_id == FunctionID.FlightPedals)
-            {
-                return "FlightPedals";
-            }
-            return "";
-        }
-
-        private bool MatchesGroup(string paramGroup, string filter)
-        {
-            if (string.IsNullOrWhiteSpace(filter))
-                return false;
-            if (string.IsNullOrWhiteSpace(paramGroup))
-                return false;
-            return paramGroup.StartsWith(filter, StringComparison.OrdinalIgnoreCase);
         }
 
     }
