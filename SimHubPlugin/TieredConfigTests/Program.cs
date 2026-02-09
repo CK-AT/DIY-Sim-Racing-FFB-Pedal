@@ -16,6 +16,13 @@ namespace DiyFfb.TieredConfigTests
             var allResults = new List<TestResult>();
             bool allPassed = true;
 
+            // Run AutomotivePedalProcessor tests
+            var processorResults = AutomotivePedalProcessorTests.RunAll();
+            TestRunner.PrintResults("AutomotivePedalProcessor", processorResults);
+            allResults.AddRange(processorResults);
+            if (!processorResults.TrueForAll(r => r.Passed))
+                allPassed = false;
+
             // Run ConfigMerger tests
             var mergerResults = ConfigMergerTests.RunAll();
             TestRunner.PrintResults("ConfigMerger", mergerResults);

@@ -39,6 +39,7 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="AutomotivePedalProcessorTests.cs" />
     <Compile Include="ConfigMergerTests.cs" />
     <Compile Include="ConfigComparerTests.cs" />
     <Compile Include="ConflictDetectorTests.cs" />

@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using MahApps.Metro.Controls;
 using DiyFfb.Controls;
+using DiyFfb.TieredConfig;
 
 namespace DiyFfb
 {
@@ -176,19 +177,7 @@ namespace DiyFfb
 
         private void OnRangeSettingsChanged(SplineForceCurve spline_force_curve)
         {
-            switch (function_config.Base.OutputMode)
-            {
-                case OutputMode.Force:
-                    function_config.Base.OutputMin = config.ForceCurveConfig.FMin;
-                    function_config.Base.OutputMax = config.ForceCurveConfig.FMax;
-                    break;
-                case OutputMode.Travel:
-                    function_config.Base.OutputMin = config.ForceCurveConfig.PosMin;
-                    function_config.Base.OutputMax = config.ForceCurveConfig.PosMax;
-                    break;
-            }
-            config.PosIdle = config.ForceCurveConfig.PosMin;
-            config.PosEnd = config.ForceCurveConfig.PosMax;
+            AutomotivePedalProcessor.ReconcileDerivedFields(function_config);
 
             if (allowOverrideCreation && plugin != null && function != null &&
                 plugin.HasFunctionBaseline((int)function.ID))
@@ -1121,19 +1110,14 @@ namespace DiyFfb
             {
                 case 0:
                     function_config.Base.OutputMode = OutputMode.Force;
-                    function_config.Base.OutputMin = config.ForceCurveConfig.FMin;
-                    function_config.Base.OutputMax = config.ForceCurveConfig.FMax;
                     break;
                 case 1:
                     function_config.Base.OutputMode = OutputMode.Travel;
-                    function_config.Base.OutputMin = config.ForceCurveConfig.PosMin;
-                    function_config.Base.OutputMax = config.ForceCurveConfig.PosMax;
                     break;
                 default:
                     break;
             }
-
-
+            AutomotivePedalProcessor.ReconcileDerivedFields(function_config);
         }
 
         private void AutomotivePedal_ControllerAxisSelector_ControllerAxisChanged(object sender, ControllerAxisSelector.ControllerAxisChangedEventArgs e)

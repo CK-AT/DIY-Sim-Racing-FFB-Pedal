@@ -4,7 +4,18 @@ Branch: `ck_tiered_config`
 
 ## Uncommitted Work
 
-None.
+**AutomotivePedalProcessor extraction (Phase 1)** — ready to commit:
+
+- `SimHubPlugin/TieredConfig/AutomotivePedalProcessor.cs` — new processor class
+- `SimHubPlugin/TieredConfig/ConfigMerger.cs` — delegates to processor, 2 private methods deleted
+- `SimHubPlugin/AutomotivePedalConfigControl.xaml.cs` — uses processor for derived fields
+- `SimHubPlugin/TieredConfigTests/AutomotivePedalProcessorTests.cs` — 12 new tests
+- Both `.csproj` files and `Program.cs` updated
+
+All 184 tests pass (12 new + 172 existing).
+
+Also uncommitted:
+- `SimHubPlugin/Docs/plans/29_Function_Processors.md` — plan doc
 
 ## Completed Work
 
@@ -12,6 +23,13 @@ All core tiered config phases are implemented and committed:
 
 | Commit | Description |
 |--------|-------------|
+| `19eecaea` | Auto-assign graph template for single-match games |
+| `c9a62601` | Fix batched config uploads, derived fields, and profile dirty detection |
+| `18ebc686` | Gate automatic config uploads on active function status |
+| `37e77561` | Ignore ESP32 configs when stored baselines exist; plugin pushes its merged config back |
+| `b1c12b58` | Fix user overrides lost on switch, vehicle label, and stale labels |
+| `0bb69b4a` | Add Clear Baseline plan doc (completed) |
+| `666e1faa` | Layout tweaks for user profile header and updated docs |
 | `56914553` | Promote user profile selector to always-visible header |
 | `15aefff8` | Add Clear Baseline buttons for function and axis configs |
 | `fb34a0cf` | Remove obsolete override editor from Active Functions panel |
@@ -31,27 +49,45 @@ All core tiered config phases are implemented and committed:
 ### Summary of what's in place
 
 - **Tiered config system** — Baseline -> Profile -> User override layers for function configs
+- **Derived field reconciliation** — `ConfigMerger.ReconcileDerivedFields` delegates to per-type processors
+- **AutomotivePedalProcessor** — single source of truth for pedal derived fields and overrides
 - **Axis parameter overrides** — Per-function kinematics/static-balance overrides, plugin-side merge
 - **Baseline persistence** — Both function and axis baselines survive ESP32 reconnects and restarts
 - **Clear Baseline** — Buttons to remove stored baseline; overrides preserved, re-apply on next baseline
 - **Axis function selector** — Dropdown in parent UI to switch between baseline and function override editing
 - **Override badges** — `[F]` markers on function selector items with existing overrides
 - **User profile header** — Always-visible user profile ComboBox above all tabs for quick switching
-- **172 unit tests** — ConfigMerger, ConfigComparer, ConflictDetector, OverrideFieldRegistry, FunctionConfigManager, ChangeTracker, FieldRouter
+- **Auto-assign template** — Single-match games (automotive) get template assigned automatically; seeds ActiveFunctionIds from category defaults; refreshes active-function checkboxes
+- **184 unit tests** — AutomotivePedalProcessor, ConfigMerger, ConfigComparer, ConflictDetector, OverrideFieldRegistry, FunctionConfigManager, ChangeTracker, FieldRouter
 
 ## Key Architecture Notes
 
-- `config` in `AxisConfigControl` IS `axis.Config` (same reference, set at `LoadConfigIntoUi`)
-- `AxisConfigManager.GetBaseConfig()` is the authoritative baseline; `_baselineXxx` fields are fallback before first ESP32 config
-- `OnAxisConfigUpdate` routes through `AxisConfigManager.SetBaseConfig()` and re-applies active function overrides
+- `function.Config` is the UI's working copy; `FunctionConfigManager._currentConfigs` is the authoritative merged config
+- `_lastSentConfigs` is ONLY updated via `MarkAsSent()` in UI event handlers (after actual enqueue), never in FunctionConfigManager event-firing methods
+- `ConfigMerger.ReconcileDerivedFields` runs at the end of every `MergeFunctionConfig` call — both profile and user override layers get reconciled
+- **AutomotivePedalProcessor**: `ReconcileDerivedFields` and `ApplyOverrides` are called by both ConfigMerger (backend) and AutomotivePedalConfigControl (UI), eliminating duplicated logic
+- **ESP32 config authority**: When stored baselines exist, `OnFunctionConfigUpdate` and `OnAxisConfigUpdate` ignore incoming ESP32 configs and push the plugin's merged config back
+- **Active-function upload gate**: `OnMergedFunctionConfigChanged` only uploads to ESP32 if `IsFunctionActive()` returns true. `InvalidateLastSent()` clears diff-check tracking so next activation re-sends.
+- **Batched clear+apply**: `ClearAllProfileOverrides(fireEvents: false)` silently resets, then applies fire events per function, then `SendAllPendingChanges()` flushes cleared-but-not-reapplied functions
+- **Auto-assign flow**: `ResolveActiveGraph` checks `GraphTemplateRegistry.GetTemplates` — if exactly 1 match, stores GraphPath and seeds `ActiveFunctionIds` via `SeedDefaultActiveFunctionIds` after graph load. Multiple matches (flight sims) still prompt.
 - Axis overrides use full replacement (not field-level merge) for kinematics and static balance
-- `AxisConfigControl` exposes `SwitchToBaseline()`, `SwitchToFunction()`, `ClearCurrentOverride()`, `OverrideChanged` event — parent UI owns the selector
-- `UpdateAxisSelection` saves/restores per-axis function selection via `_lastSelectedFunctionPerAxis`
-- User profile header ComboBox (`ComboBox_UserProfileHeader`) syncs with SYSTEM > User tab ComboBox via shared `RefreshUserProfileUi()` and `suppressUserProfileSelectionChange` flag
+- User profile header ComboBox syncs with SYSTEM > User tab ComboBox via shared `RefreshUserProfileUi()` and `suppressUserProfileSelectionChange` flag
+
+## Next Up
+
+**Function Processor extraction — remaining phases** (plan doc: `SimHubPlugin/Docs/plans/29_Function_Processors.md`)
+
+| Phase | Processor | Status |
+|-------|-----------|--------|
+| 1 | `AutomotivePedalProcessor` | Done (uncommitted) |
+| 2 | `FlightPedalsProcessor` | Pending |
+| 3 | `FlightStickProcessor` | Pending |
+| 4 | `ShifterProcessor` | Pending |
 
 ## References
 
 - **Clear Baseline plan**: `SimHubPlugin/Docs/plans/28_Clear_Baseline.md`
+- **Function Processors plan**: `SimHubPlugin/Docs/plans/29_Function_Processors.md`
 - **Resilience plan**: `SimHubPlugin/Docs/plans/27_AircraftFfbProfiles_Resilience.md`
 - **Tiered config design**: `SimHubPlugin/Docs/plans/24_Tiered_Config_Overrides.md`
 - **Memory**: `C:\Users\Christian\.claude\projects\d--Projects-DIY-Sim-Racing-FFB-Pedal\memory\MEMORY.md`

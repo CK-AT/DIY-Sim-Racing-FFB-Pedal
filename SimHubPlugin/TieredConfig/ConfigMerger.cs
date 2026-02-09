@@ -79,7 +79,7 @@ namespace DiyFfb.TieredConfig
             // Merge AutomotivePedals-specific overrides
             if (merged.AutomotivePedal != null)
             {
-                ApplyAutomotivePedalOverrides(merged.AutomotivePedal, delta);
+                AutomotivePedalProcessor.ApplyOverrides(merged.AutomotivePedal, delta);
             }
 
             // Merge FlightPedals-specific overrides
@@ -103,7 +103,6 @@ namespace DiyFfb.TieredConfig
 
             // Reconcile derived fields (posIdle/posEnd/outputMin/outputMax)
             // that depend on merged force curve / motion range values.
-            // TODO: Extract into per-function-type classes to eliminate duplication with UI controls.
             ReconcileDerivedFields(merged);
 
             return merged;
@@ -122,7 +121,7 @@ namespace DiyFfb.TieredConfig
                 case FunctionID.BrakePedal:
                 case FunctionID.AcceleratorPedal:
                 case FunctionID.ClutchPedal:
-                    ReconcileAutomotivePedal(config);
+                    AutomotivePedalProcessor.ReconcileDerivedFields(config);
                     break;
                 case FunctionID.FlightPedals:
                     ReconcileFlightPedals(config);
@@ -134,32 +133,6 @@ namespace DiyFfb.TieredConfig
                     break;
                 case FunctionID.Shifter:
                     ReconcileShifter(config);
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// AutomotivePedal: posIdle/posEnd from ForceCurveConfig; outputMin/Max mode-dependent.
-        /// Mirrors AutomotivePedalConfigControl.OnRangeSettingsChanged.
-        /// </summary>
-        private static void ReconcileAutomotivePedal(FunctionConfig config)
-        {
-            var ap = config.AutomotivePedal;
-            var fc = ap?.ForceCurveConfig;
-            if (fc == null) return;
-
-            ap.PosIdle = fc.PosMin;
-            ap.PosEnd = fc.PosMax;
-
-            switch (config.Base.OutputMode)
-            {
-                case OutputMode.Force:
-                    config.Base.OutputMin = fc.FMin;
-                    config.Base.OutputMax = fc.FMax;
-                    break;
-                case OutputMode.Travel:
-                    config.Base.OutputMin = fc.PosMin;
-                    config.Base.OutputMax = fc.PosMax;
                     break;
             }
         }
@@ -272,33 +245,6 @@ namespace DiyFfb.TieredConfig
                 tuning.Enabled = overrides.Enabled.Value;
             if (overrides.Gain.HasValue)
                 tuning.Gain = overrides.Gain.Value;
-        }
-
-        /// <summary>
-        /// Apply AutomotivePedal-specific overrides.
-        /// Base.OutputMin/Max and PosIdle/PosEnd are reconciled by ReconcileDerivedFields.
-        /// </summary>
-        private static void ApplyAutomotivePedalOverrides(
-            AutomotivePedalConfig config,
-            FunctionConfigOverrides delta)
-        {
-            // Merge damper config
-            if (delta.DamperConfig != null && !delta.DamperConfig.IsEmpty)
-            {
-                if (config.DamperConfig == null)
-                    config.DamperConfig = new DamperConfig();
-
-                if (delta.DamperConfig.PositiveFactor.HasValue)
-                    config.DamperConfig.PositiveFactor = delta.DamperConfig.PositiveFactor.Value;
-                if (delta.DamperConfig.NegativeFactor.HasValue)
-                    config.DamperConfig.NegativeFactor = delta.DamperConfig.NegativeFactor.Value;
-            }
-
-            // Merge force curve (full replacement)
-            if (delta.ForceCurve != null)
-            {
-                config.ForceCurveConfig = delta.ForceCurve.Clone();
-            }
         }
 
         /// <summary>

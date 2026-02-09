@@ -280,6 +280,7 @@
     <Compile Include="TieredConfig\ChangeTracker.cs" />
     <Compile Include="TieredConfig\ConfigComparer.cs" />
     <Compile Include="TieredConfig\ConfigLayerProvider.cs" />
+    <Compile Include="TieredConfig\AutomotivePedalProcessor.cs" />
     <Compile Include="TieredConfig\ConfigMerger.cs" />
     <Compile Include="TieredConfig\ConflictDetector.cs" />
     <Compile Include="TieredConfig\FieldRouter.cs" />
