@@ -57,75 +57,7 @@ namespace DiyFfb.TieredConfig
         /// </summary>
         private static bool HasFieldValue(FunctionConfigOverrides overrides, string fieldName)
         {
-            if (overrides == null)
-                return false;
-
-            switch (fieldName)
-            {
-                case "OutputMin":
-                case "output_min":
-                    return overrides.OutputMin.HasValue;
-
-                case "OutputMax":
-                case "output_max":
-                    return overrides.OutputMax.HasValue;
-
-                case "SimulatedMass":
-                case "simulated_mass":
-                    return overrides.SimulatedMass.HasValue;
-
-                case "Friction":
-                case "friction":
-                    return overrides.Friction.HasValue;
-
-                case "StaticBalanceEnabled":
-                case "static_balance_tuning.enabled":
-                    return overrides.StaticBalanceTuning?.Enabled.HasValue == true;
-
-                case "StaticBalanceGain":
-                case "static_balance_tuning.gain":
-                    return overrides.StaticBalanceTuning?.Gain.HasValue == true;
-
-                case "StaticBalanceTuning":
-                case "static_balance_tuning":
-                    return overrides.StaticBalanceTuning != null && !overrides.StaticBalanceTuning.IsEmpty;
-
-                case "flight_stick.motion_range":
-                    return overrides.FlightStickMotionRange != null && !overrides.FlightStickMotionRange.IsEmpty;
-
-                case "flight_pedals.motion_range":
-                    return overrides.FlightPedalsMotionRange != null && !overrides.FlightPedalsMotionRange.IsEmpty;
-
-                case "flight_stick.damping":
-                    return overrides.FlightStickDamping.HasValue;
-
-                case "flight_stick.centering_spring_const":
-                    return overrides.FlightStickCenteringSpringConst.HasValue;
-
-                case "flight_pedals.damping":
-                    return overrides.FlightPedalsDamping.HasValue;
-
-                case "flight_pedals.centering_spring_const":
-                    return overrides.FlightPedalsCenteringSpringConst.HasValue;
-
-                case "aux_function.rudder_brake.force_range":
-                    return overrides.RudderBrakeForceRange != null && !overrides.RudderBrakeForceRange.IsEmpty;
-
-                case "force_curve":
-                    return overrides.ForceCurve != null;
-
-                case "damper_config.positive_factor":
-                    return overrides.DamperConfig?.PositiveFactor.HasValue == true;
-
-                case "damper_config.negative_factor":
-                    return overrides.DamperConfig?.NegativeFactor.HasValue == true;
-
-                case "shifter_config":
-                    return overrides.ShifterConfig != null || overrides.ShifterDetectConfig != null;
-
-                default:
-                    return false;
-            }
+            return OverrideFieldRegistry.HasValue(overrides, fieldName);
         }
 
         /// <summary>

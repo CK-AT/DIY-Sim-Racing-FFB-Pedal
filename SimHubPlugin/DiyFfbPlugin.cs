@@ -2313,16 +2313,29 @@ namespace DiyFfb
             if (!_functionConfigManager.HasBaseConfig(functionId))
                 return;
 
-            profile.FunctionOverrides.TryGetValue(functionId, out var profileDelta);
-            var userOverrides = GetCurrentUserOverrides();
-            FunctionConfigOverrides userDelta = null;
-            userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
-            _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta);
+            ReapplyMergedOverrides(functionId);
 
             if (Settings.FunctionAxisOverrides.TryGetValue(functionId, out var axisOverrides))
             {
                 _axisConfigManager.ApplyFunctionOverrides(functionId, axisOverrides);
             }
+        }
+
+        /// <summary>
+        /// Gather profile + user deltas and re-apply merged overrides for a function.
+        /// Centralizes the pattern used by override update/clear methods.
+        /// </summary>
+        private void ReapplyMergedOverrides(int functionId, bool diffCheck = true)
+        {
+            var profile = GetCurrentAircraftProfile();
+            FunctionConfigOverrides profileDelta = null;
+            profile?.FunctionOverrides?.TryGetValue(functionId, out profileDelta);
+
+            var userOverrides = GetCurrentUserOverrides();
+            FunctionConfigOverrides userDelta = null;
+            userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
+
+            _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: diffCheck);
         }
 
         /// <summary>
@@ -2534,16 +2547,7 @@ namespace DiyFfb
             if (!Settings.FunctionBaselines.TryGetValue(functionId, out var json) || string.IsNullOrEmpty(json))
                 return null;
 
-            // Parse JSON string back to protobuf
-            try
-            {
-                var parser = new Google.Protobuf.JsonParser(Google.Protobuf.JsonParser.Settings.Default);
-                return parser.Parse<FunctionConfig>(json);
-            }
-            catch
-            {
-                return null;
-            }
+            return ProtobufJsonHelper.FromJson<FunctionConfig>(json);
         }
 
         /// <summary>
@@ -2559,8 +2563,7 @@ namespace DiyFfb
                 Settings.FunctionBaselines = new Dictionary<int, string>();
 
             // Convert protobuf to JSON string for storage (protobuf doesn't serialize correctly with JSON.NET)
-            var jsonFormatter = new Google.Protobuf.JsonFormatter(Google.Protobuf.JsonFormatter.Settings.Default);
-            string json = jsonFormatter.Format(config);
+            string json = ProtobufJsonHelper.ToJson(config);
             Settings.FunctionBaselines[functionId] = json;
 
             // Persist to disk
@@ -2598,15 +2601,7 @@ namespace DiyFfb
             if (!Settings.AxisBaselines.TryGetValue(axisId, out var json) || string.IsNullOrEmpty(json))
                 return null;
 
-            try
-            {
-                var parser = new Google.Protobuf.JsonParser(Google.Protobuf.JsonParser.Settings.Default);
-                return parser.Parse<AxisConfig>(json);
-            }
-            catch
-            {
-                return null;
-            }
+            return ProtobufJsonHelper.FromJson<AxisConfig>(json);
         }
 
         /// <summary>
@@ -2621,8 +2616,7 @@ namespace DiyFfb
             if (Settings.AxisBaselines == null)
                 Settings.AxisBaselines = new Dictionary<int, string>();
 
-            var jsonFormatter = new Google.Protobuf.JsonFormatter(Google.Protobuf.JsonFormatter.Settings.Default);
-            string json = jsonFormatter.Format(config);
+            string json = ProtobufJsonHelper.ToJson(config);
             Settings.AxisBaselines[axisId] = json;
 
             // Update manager's base config
@@ -2661,43 +2655,20 @@ namespace DiyFfb
                 return;
 
             // Load all stored baselines into the manager
-            var parser = new Google.Protobuf.JsonParser(Google.Protobuf.JsonParser.Settings.Default);
             foreach (var kvp in Settings.FunctionBaselines)
             {
                 int functionId = kvp.Key;
                 string json = kvp.Value;
 
-                if (string.IsNullOrEmpty(json))
+                var baseline = ProtobufJsonHelper.FromJson<FunctionConfig>(json);
+                if (baseline == null)
                     continue;
-
-                // Parse JSON string to protobuf
-                FunctionConfig baseline;
-                try
-                {
-                    baseline = parser.Parse<FunctionConfig>(json);
-                }
-                catch
-                {
-                    continue; // Skip corrupted baseline
-                }
 
                 // Set base config in manager
                 _functionConfigManager.SetBaseConfig(functionId, baseline);
 
                 // Apply stored overrides (profile + user)
-                var profile = GetCurrentAircraftProfile();
-                FunctionConfigOverrides profileDelta = null;
-                profile?.FunctionOverrides?.TryGetValue(functionId, out profileDelta);
-
-                var userOverrides = GetCurrentUserOverrides();
-                FunctionConfigOverrides userDelta = null;
-                userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
-
-                // Merge overrides into manager (without sending to ESP32)
-                if (profileDelta != null || userDelta != null)
-                {
-                    _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: false);
-                }
+                ReapplyMergedOverrides(functionId, diffCheck: false);
             }
 
             // Load axis baselines into the axis config manager
@@ -2712,24 +2683,12 @@ namespace DiyFfb
             if (Settings?.AxisBaselines == null)
                 return;
 
-            var parser = new Google.Protobuf.JsonParser(Google.Protobuf.JsonParser.Settings.Default);
             foreach (var kvp in Settings.AxisBaselines)
             {
                 int axisId = kvp.Key;
-                string json = kvp.Value;
-
-                if (string.IsNullOrEmpty(json))
+                var baseline = ProtobufJsonHelper.FromJson<AxisConfig>(kvp.Value);
+                if (baseline == null)
                     continue;
-
-                AxisConfig baseline;
-                try
-                {
-                    baseline = parser.Parse<AxisConfig>(json);
-                }
-                catch
-                {
-                    continue;
-                }
 
                 _axisConfigManager.SetBaseConfig(axisId, baseline);
             }
@@ -2860,14 +2819,7 @@ namespace DiyFfb
             // Update manager if baseline exists
             if (_functionConfigManager.HasBaseConfig(functionId))
             {
-                var profileDelta = profile?.FunctionOverrides?.ContainsKey(functionId) == true
-                    ? profile.FunctionOverrides[functionId] : null;
-
-                var userPrefs = GetCurrentUserOverrides();
-                FunctionConfigOverrides userDelta = null;
-                userPrefs?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
-
-                _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: false);
+                ReapplyMergedOverrides(functionId, diffCheck: false);
             }
         }
 
@@ -2884,15 +2836,7 @@ namespace DiyFfb
             // Always update manager if we have a baseline, even if function not in active profile
             if (_functionConfigManager.HasBaseConfig(functionId))
             {
-                var profile = GetCurrentAircraftProfile();
-                FunctionConfigOverrides profileDelta = null;
-                profile?.FunctionOverrides?.TryGetValue(functionId, out profileDelta);
-
-                var userPrefs = GetCurrentUserOverrides();
-                FunctionConfigOverrides userDelta = null;
-                userPrefs?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
-
-                _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: false);
+                ReapplyMergedOverrides(functionId, diffCheck: false);
             }
         }
 
@@ -2917,15 +2861,7 @@ namespace DiyFfb
             // Update manager if baseline exists
             if (_functionConfigManager.HasBaseConfig(functionId))
             {
-                var profile = GetCurrentAircraftProfile();
-                FunctionConfigOverrides profileDelta = null;
-                profile?.FunctionOverrides?.TryGetValue(functionId, out profileDelta);
-
-                var userPrefs = GetCurrentUserOverrides();
-                FunctionConfigOverrides userDelta = null;
-                userPrefs?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
-
-                _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: false);
+                ReapplyMergedOverrides(functionId, diffCheck: false);
             }
         }
 
@@ -2958,78 +2894,7 @@ namespace DiyFfb
 
         private static void ClearOverrideFieldValue(FunctionConfigOverrides overrides, string fieldName)
         {
-            switch (fieldName)
-            {
-                case "OutputMin":
-                case "output_min":
-                    overrides.OutputMin = null; break;
-                case "OutputMax":
-                case "output_max":
-                    overrides.OutputMax = null; break;
-                case "SimulatedMass":
-                case "simulated_mass":
-                    overrides.SimulatedMass = null; break;
-                case "Friction":
-                case "friction":
-                    overrides.Friction = null; break;
-                case "StaticBalanceEnabled":
-                case "static_balance_tuning.enabled":
-                    if (overrides.StaticBalanceTuning != null)
-                    {
-                        overrides.StaticBalanceTuning.Enabled = null;
-                        if (overrides.StaticBalanceTuning.IsEmpty)
-                            overrides.StaticBalanceTuning = null;
-                    }
-                    break;
-                case "StaticBalanceGain":
-                case "static_balance_tuning.gain":
-                    if (overrides.StaticBalanceTuning != null)
-                    {
-                        overrides.StaticBalanceTuning.Gain = null;
-                        if (overrides.StaticBalanceTuning.IsEmpty)
-                            overrides.StaticBalanceTuning = null;
-                    }
-                    break;
-                case "StaticBalanceTuning":
-                case "static_balance_tuning":
-                    overrides.StaticBalanceTuning = null; break;
-                case "flight_stick.motion_range":
-                    overrides.FlightStickMotionRange = null; break;
-                case "flight_stick.damping":
-                    overrides.FlightStickDamping = null; break;
-                case "flight_stick.centering_spring_const":
-                    overrides.FlightStickCenteringSpringConst = null; break;
-                case "flight_pedals.motion_range":
-                    overrides.FlightPedalsMotionRange = null; break;
-                case "flight_pedals.damping":
-                    overrides.FlightPedalsDamping = null; break;
-                case "flight_pedals.centering_spring_const":
-                    overrides.FlightPedalsCenteringSpringConst = null; break;
-                case "aux_function.rudder_brake.force_range":
-                    overrides.RudderBrakeForceRange = null; break;
-                case "force_curve":
-                    overrides.ForceCurve = null; break;
-                case "DamperPositiveFactor":
-                case "damper_config.positive_factor":
-                    if (overrides.DamperConfig != null)
-                    {
-                        overrides.DamperConfig.PositiveFactor = null;
-                        if (overrides.DamperConfig.IsEmpty) overrides.DamperConfig = null;
-                    }
-                    break;
-                case "DamperNegativeFactor":
-                case "damper_config.negative_factor":
-                    if (overrides.DamperConfig != null)
-                    {
-                        overrides.DamperConfig.NegativeFactor = null;
-                        if (overrides.DamperConfig.IsEmpty) overrides.DamperConfig = null;
-                    }
-                    break;
-                case "shifter_config":
-                    overrides.ShifterConfig = null;
-                    overrides.ShifterDetectConfig = null;
-                    break;
-            }
+            OverrideFieldRegistry.ClearValue(overrides, fieldName);
         }
 
         private FunctionConfigOverrides GetOrCreateUserFunctionOverrides(int functionId)
@@ -3111,17 +2976,7 @@ namespace DiyFfb
 
         private static string NormalizeFunctionOverrideFieldPath(string fieldName)
         {
-            switch (fieldName)
-            {
-                case "OutputMin": return "output_min";
-                case "OutputMax": return "output_max";
-                case "SimulatedMass": return "simulated_mass";
-                case "Friction": return "friction";
-                case "StaticBalanceEnabled": return "static_balance_tuning.enabled";
-                case "StaticBalanceGain": return "static_balance_tuning.gain";
-                case "StaticBalanceTuning": return "static_balance_tuning";
-                default: return fieldName;
-            }
+            return OverrideFieldRegistry.NormalizeFieldPath(fieldName);
         }
 
         private static TieredConfig.ConfigLayer GetFunctionOverrideTargetLayer(string fieldName)
