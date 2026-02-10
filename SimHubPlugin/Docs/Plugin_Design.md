@@ -25,24 +25,33 @@ The DIY FFB Plugin is a SimHub plugin that provides advanced force feedback cont
    - Profile management and persistence
    - FFB frame generation and transmission
 
-2. **FFB Graph System** - Node-based FFB pipeline (see [FFB_Graph_Design.md](FFB_Graph_Design.md))
+2. **TieredConfigOrchestrator** - Config merge-and-apply lifecycle (1,185 lines)
+   - Baseline management (store/clear/query baselines for function and axis configs)
+   - Override application (profile → user override layering via `ConfigMerger`)
+   - ESP32 authority logic (ignore incoming ESP32 configs when baselines exist, push merged config back)
+   - Axis parameter override API (per-function kinematics/static-balance overrides)
+   - User preference management (override field operations, context change events)
+   - Delegates to `FunctionConfigManager` and `AxisConfigManager` for storage
+   - Uses 3 `Func<>` delegates for cross-boundary calls (active profile, graph category, profile key)
+
+3. **FFB Graph System** - Node-based FFB pipeline (see [FFB_Graph_Design.md](FFB_Graph_Design.md))
    - Graph editor UI
    - Runtime evaluator (compiled + interpreted modes)
    - Parameter resolution (three-tier: include → graph → vehicle)
    - Signal catalog and type system
 
-3. **Kinematics System** - Physics solver for linkage-based hardware
+4. **Kinematics System** - Physics solver for linkage-based hardware
    - General kinematics solver (pins, bars, constraints)
    - Force factor calculations
    - Position/velocity mapping
 
-4. **Configuration UI** - WPF-based control panels
+5. **Configuration UI** - WPF-based control panels
    - System settings
    - Function-specific settings (per axis)
    - Graph parameter exposure
    - Device configuration
 
-5. **Protocol Layer** - Device communication
+6. **Protocol Layer** - Device communication
    - USB HID transport
    - Serial transport
    - Protobuf message encoding
@@ -456,10 +465,10 @@ The FFB evaluation runs every frame (120Hz+), so performance is critical:
 
 ### Short Term
 
-- Graph template selector for first-seen vehicles
+- ~~Graph template selector for first-seen vehicles~~ (done: auto-assign template for single-match games)
 - Default graphs (plane_default.json, heli_default.json)
 - FlightPedalsConfigControl param UI
-- Graph template registry
+- ~~Graph template registry~~ (done: `GraphTemplateRegistry`)
 
 ### Medium Term
 
