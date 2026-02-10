@@ -101,7 +101,7 @@ namespace DiyFfb
                         Label_near_pos.Content = String.Format("Near\n{0}mm", config.PosNearLim);
                     if (Label_far_pos != null)
                         Label_far_pos.Content = String.Format("Far\n{0}mm", config.PosFarLim);
-                    _travelHelper.UpdateTravelMarkers();
+                    _travelHelper?.UpdateTravelMarkers();
                     break;
 
                 case "flight_pedals.damping":
@@ -181,7 +181,7 @@ namespace DiyFfb
 
         public void OnAxisStateUpdate(global::AxisState axis_state)
         {
-            if (_travelHelper.TryUpdateAxisState(function_config, axis_state))
+            if (_travelHelper != null && _travelHelper.TryUpdateAxisState(function_config, axis_state))
             {
                 _travelHelper.UpdateTrimCenter(plugin, current_function_id);
                 _travelHelper.UpdateTravelMarkers();
@@ -250,8 +250,8 @@ namespace DiyFfb
             TieredConfig.FlightPedalsProcessor.ReconcileDerivedFields(function_config);
             Rangeslider_brake_force_range.UpperValue = function_config.AuxFunction.RudderBrake.FMax / 9.81f;
             Rangeslider_brake_force_range.LowerValue = function_config.AuxFunction.RudderBrake.FMin / 9.81f;
-            _travelHelper.UpdateTrimCenter(plugin, current_function_id);
-            _travelHelper.UpdateTravelMarkers();
+            _travelHelper?.UpdateTrimCenter(plugin, current_function_id);
+            _travelHelper?.UpdateTravelMarkers();
             is_updating = false;
 
             // Update labels with config values (event handlers were blocked by is_updating flag)
@@ -459,7 +459,7 @@ namespace DiyFfb
             {
                 Label_near_pos.Content = String.Format("Near\n{0}mm", config.PosNearLim);
             }
-            _travelHelper.UpdateTravelMarkers();
+            _travelHelper?.UpdateTravelMarkers();
         }
 
         private void Rangeslider_travel_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -494,7 +494,7 @@ namespace DiyFfb
             {
                 Label_far_pos.Content = String.Format("Far\n{0}mm", config.PosFarLim);
             }
-            _travelHelper.UpdateTravelMarkers();
+            _travelHelper?.UpdateTravelMarkers();
         }
 
         private void uc_controller_axis_right_brake_ControllerAxisChanged(object sender, ControllerAxisSelector.ControllerAxisChangedEventArgs e)
@@ -579,7 +579,7 @@ namespace DiyFfb
 
         private void Rangeslider_travel_range_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            _travelHelper.UpdateTravelMarkers();
+            _travelHelper?.UpdateTravelMarkers();
         }
 
         private void ApplyFallbackTravelRange()

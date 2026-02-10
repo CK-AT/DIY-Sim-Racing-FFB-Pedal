@@ -122,7 +122,7 @@ namespace DiyFfb
                         Label_min_pos.Content = String.Format("Min\n{0}mm", activeSub.PosMin);
                     if (Label_max_pos != null)
                         Label_max_pos.Content = String.Format("Max\n{0}mm", activeSub.PosMax);
-                    _travelHelper.UpdateTravelMarkers();
+                    _travelHelper?.UpdateTravelMarkers();
                     break;
 
                 case "flight_stick.damping":
@@ -187,7 +187,7 @@ namespace DiyFfb
 
         public void OnAxisStateUpdate(global::AxisState axis_state)
         {
-            if (_travelHelper.TryUpdateAxisState(function_config, axis_state))
+            if (_travelHelper != null && _travelHelper.TryUpdateAxisState(function_config, axis_state))
             {
                 _travelHelper.UpdateTrimCenter(plugin, current_function_id);
                 _travelHelper.UpdateTravelMarkers();
@@ -330,8 +330,8 @@ namespace DiyFfb
             Rangeslider_travel_range.LowerValue = sub.PosMin;
             Rangeslider_travel_range.UpperValue = sub.PosMax;
             TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
-            _travelHelper.UpdateTrimCenter(plugin, current_function_id);
-            _travelHelper.UpdateTravelMarkers();
+            _travelHelper?.UpdateTrimCenter(plugin, current_function_id);
+            _travelHelper?.UpdateTravelMarkers();
             is_updating = false;
 
             // Update labels with merged config values (event handlers were blocked by is_updating flag)
@@ -405,7 +405,7 @@ namespace DiyFfb
             {
                 Label_min_pos.Content = String.Format("Min\n{0}mm", GetActiveSubConfig().PosMin);
             }
-            _travelHelper.UpdateTravelMarkers();
+            _travelHelper?.UpdateTravelMarkers();
         }
 
         private void Rangeslider_travel_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -440,7 +440,7 @@ namespace DiyFfb
             {
                 Label_max_pos.Content = String.Format("Max\n{0}mm", GetActiveSubConfig().PosMax);
             }
-            _travelHelper.UpdateTravelMarkers();
+            _travelHelper?.UpdateTravelMarkers();
         }
 
         private void OnDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -581,7 +581,7 @@ namespace DiyFfb
 
         private void Rangeslider_travel_range_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            _travelHelper.UpdateTravelMarkers();
+            _travelHelper?.UpdateTravelMarkers();
         }
 
         private void ApplyFallbackTravelRange()
