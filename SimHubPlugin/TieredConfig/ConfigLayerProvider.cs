@@ -184,5 +184,192 @@ namespace DiyFfb.TieredConfig
                 default: return null;
             }
         }
+
+        /// <summary>
+        /// Write a field value from the source config into the target config.
+        /// Used by BakeFieldToBaseline to copy effective values into baselines.
+        /// Flight stick fields dispatch to the correct sub-config (Pitch/Roll/Collective)
+        /// based on source.Base.FunctionId.
+        /// </summary>
+        public static void WriteFieldToFunctionConfig(
+            FunctionConfig target, string fieldPath, FunctionConfig source)
+        {
+            if (target == null || source == null)
+                return;
+
+            switch (fieldPath)
+            {
+                case "output_min":
+                    if (source.Base != null)
+                    {
+                        if (target.Base == null) target.Base = new FunctionBase();
+                        target.Base.OutputMin = source.Base.OutputMin;
+                    }
+                    break;
+                case "output_max":
+                    if (source.Base != null)
+                    {
+                        if (target.Base == null) target.Base = new FunctionBase();
+                        target.Base.OutputMax = source.Base.OutputMax;
+                    }
+                    break;
+                case "simulated_mass":
+                    target.SimulatedMass = source.SimulatedMass;
+                    break;
+                case "friction":
+                    target.Friction = source.Friction;
+                    break;
+                case "static_balance_tuning.enabled":
+                    if (source.StaticBalanceTuning != null)
+                    {
+                        if (target.StaticBalanceTuning == null)
+                            target.StaticBalanceTuning = new FunctionConfig.Types.StaticBalanceTuning();
+                        target.StaticBalanceTuning.Enabled = source.StaticBalanceTuning.Enabled;
+                    }
+                    break;
+                case "static_balance_tuning.gain":
+                    if (source.StaticBalanceTuning != null)
+                    {
+                        if (target.StaticBalanceTuning == null)
+                            target.StaticBalanceTuning = new FunctionConfig.Types.StaticBalanceTuning();
+                        target.StaticBalanceTuning.Gain = source.StaticBalanceTuning.Gain;
+                    }
+                    break;
+                case "force_curve":
+                    if (source.AutomotivePedal != null)
+                    {
+                        if (target.AutomotivePedal == null)
+                            target.AutomotivePedal = new AutomotivePedalConfig();
+                        target.AutomotivePedal.ForceCurveConfig = source.AutomotivePedal.ForceCurveConfig?.Clone();
+                    }
+                    break;
+                case "damper_config.positive_factor":
+                    if (source.AutomotivePedal?.DamperConfig != null)
+                    {
+                        if (target.AutomotivePedal == null)
+                            target.AutomotivePedal = new AutomotivePedalConfig();
+                        if (target.AutomotivePedal.DamperConfig == null)
+                            target.AutomotivePedal.DamperConfig = new DamperConfig();
+                        target.AutomotivePedal.DamperConfig.PositiveFactor = source.AutomotivePedal.DamperConfig.PositiveFactor;
+                    }
+                    break;
+                case "damper_config.negative_factor":
+                    if (source.AutomotivePedal?.DamperConfig != null)
+                    {
+                        if (target.AutomotivePedal == null)
+                            target.AutomotivePedal = new AutomotivePedalConfig();
+                        if (target.AutomotivePedal.DamperConfig == null)
+                            target.AutomotivePedal.DamperConfig = new DamperConfig();
+                        target.AutomotivePedal.DamperConfig.NegativeFactor = source.AutomotivePedal.DamperConfig.NegativeFactor;
+                    }
+                    break;
+                case "flight_pedals.motion_range":
+                    if (source.FlightPedals != null)
+                    {
+                        if (target.FlightPedals == null)
+                            target.FlightPedals = new FlightPedalsConfig();
+                        target.FlightPedals.PosNearLim = source.FlightPedals.PosNearLim;
+                        target.FlightPedals.PosFarLim = source.FlightPedals.PosFarLim;
+                    }
+                    break;
+                case "flight_pedals.damping":
+                    if (source.FlightPedals != null)
+                    {
+                        if (target.FlightPedals == null)
+                            target.FlightPedals = new FlightPedalsConfig();
+                        target.FlightPedals.Damping = source.FlightPedals.Damping;
+                    }
+                    break;
+                case "flight_pedals.centering_spring_const":
+                    if (source.FlightPedals != null)
+                    {
+                        if (target.FlightPedals == null)
+                            target.FlightPedals = new FlightPedalsConfig();
+                        target.FlightPedals.CenteringSpringConst = source.FlightPedals.CenteringSpringConst;
+                    }
+                    break;
+                case "flight_stick.motion_range":
+                {
+                    var srcSub = GetFlightStickSubConfig(source);
+                    if (srcSub != null)
+                    {
+                        var dstSub = EnsureFlightStickSubConfig(target, source.Base?.FunctionId ?? FunctionID.FlightStickPitch);
+                        dstSub.PosMin = srcSub.PosMin;
+                        dstSub.PosMax = srcSub.PosMax;
+                    }
+                    break;
+                }
+                case "flight_stick.damping":
+                {
+                    var srcSub = GetFlightStickSubConfig(source);
+                    if (srcSub != null)
+                    {
+                        var dstSub = EnsureFlightStickSubConfig(target, source.Base?.FunctionId ?? FunctionID.FlightStickPitch);
+                        dstSub.Damping = srcSub.Damping;
+                    }
+                    break;
+                }
+                case "flight_stick.centering_spring_const":
+                {
+                    var srcSub = GetFlightStickSubConfig(source);
+                    if (srcSub != null)
+                    {
+                        var dstSub = EnsureFlightStickSubConfig(target, source.Base?.FunctionId ?? FunctionID.FlightStickPitch);
+                        dstSub.CenteringSpringConst = srcSub.CenteringSpringConst;
+                    }
+                    break;
+                }
+                case "aux_function.rudder_brake.force_range":
+                    if (source.AuxFunction?.RudderBrake != null)
+                    {
+                        if (target.AuxFunction == null)
+                            target.AuxFunction = new AuxFunctionConfig();
+                        if (target.AuxFunction.RudderBrake == null)
+                            target.AuxFunction.RudderBrake = new RudderBrakeConfig();
+                        target.AuxFunction.RudderBrake.FMin = source.AuxFunction.RudderBrake.FMin;
+                        target.AuxFunction.RudderBrake.FMax = source.AuxFunction.RudderBrake.FMax;
+                    }
+                    break;
+                case "shifter_config":
+                    if (source.Shifter != null)
+                        target.Shifter = source.Shifter.Clone();
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Get the IFlightStickSubConfig for the correct mode based on the config's function ID.
+        /// </summary>
+        private static IFlightStickSubConfig GetFlightStickSubConfig(FunctionConfig config)
+        {
+            switch (config.Base?.FunctionId ?? FunctionID.FlightStickPitch)
+            {
+                case FunctionID.FlightStickRoll: return config.FlightStickRoll;
+                case FunctionID.FlightStickCollective: return config.FlightStickCollective;
+                default: return config.FlightStickPitch;
+            }
+        }
+
+        /// <summary>
+        /// Get or create the IFlightStickSubConfig for the given function ID.
+        /// </summary>
+        private static IFlightStickSubConfig EnsureFlightStickSubConfig(FunctionConfig config, FunctionID functionId)
+        {
+            switch (functionId)
+            {
+                case FunctionID.FlightStickRoll:
+                    if (config.FlightStickRoll == null)
+                        config.FlightStickRoll = new FlightStickRollConfig();
+                    return config.FlightStickRoll;
+                case FunctionID.FlightStickCollective:
+                    if (config.FlightStickCollective == null)
+                        config.FlightStickCollective = new FlightStickCollectiveConfig();
+                    return config.FlightStickCollective;
+                default:
+                    if (config.FlightStickPitch == null)
+                        config.FlightStickPitch = new FlightStickPitchConfig();
+                    return config.FlightStickPitch;
+            }
+        }
     }
 }

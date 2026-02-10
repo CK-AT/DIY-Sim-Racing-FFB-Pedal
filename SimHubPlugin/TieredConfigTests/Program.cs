@@ -93,6 +93,13 @@ namespace DiyFfb.TieredConfigTests
             if (!registryResults.TrueForAll(r => r.Passed))
                 allPassed = false;
 
+            // Run OrchestratorReroute tests
+            var rerouteResults = OrchestratorRerouteTests.RunAll();
+            TestRunner.PrintResults("OrchestratorReroute", rerouteResults);
+            allResults.AddRange(rerouteResults);
+            if (!rerouteResults.TrueForAll(r => r.Passed))
+                allPassed = false;
+
             // Summary
             Console.WriteLine("===================");
             int totalPassed = allResults.Count(r => r.Passed);

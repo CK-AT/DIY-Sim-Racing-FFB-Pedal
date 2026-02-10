@@ -181,6 +181,9 @@
     <Compile Include="Controls\LayerBadgeWrapper.xaml.cs">
       <DependentUpon>LayerBadgeWrapper.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\OverrideReviewDialog.xaml.cs">
+      <DependentUpon>OverrideReviewDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Controls\BadgeHelper.cs" />
     <Compile Include="Controls\GraphParamHelper.cs" />
     <Compile Include="Controls\KinematicBoundsHelper.cs" />
@@ -345,6 +348,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Controls\LayerBadgeWrapper.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\OverrideReviewDialog.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

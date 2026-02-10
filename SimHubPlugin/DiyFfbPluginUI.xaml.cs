@@ -1038,6 +1038,13 @@ namespace DiyFfb
             }
         }
 
+        private void OnReviewOverridesClick(object sender, RoutedEventArgs e)
+        {
+            var dialog = new OverrideReviewDialog(Plugin.ConfigOrchestrator);
+            dialog.Owner = Window.GetWindow(this);
+            dialog.ShowDialog();
+        }
+
         private void btn_user_profile_refresh_Click(object sender, RoutedEventArgs e)
         {
             RefreshUserProfileUi();

@@ -1301,9 +1301,9 @@ All core phases implemented on branch `ck_tiered_config`:
 | Item                         | Priority | Notes                                    |
 | ---------------------------- | -------- | ---------------------------------------- |
 | `DeltaExtractor` class       | Medium   | Not needed for current flow              |
-| `ChangeTracker` tests        | Medium   | Class works, no dedicated tests          |
-| `FieldRouter` tests          | Medium   | Class works, no dedicated tests          |
-| Per-field `[P]`/`[U]` badges | Low      | UI polish                                |
-| Save/Discard Review Dialog   | Low      | UI polish                                |
+| Per-field `[P]`/`[U]` badges | Low      | Implemented in Plan 25 (Phases 1-12)     |
+| `ChangeTracker` tests        | ✅ Done  | 26 tests in ChangeTrackerTests.cs        |
+| `FieldRouter` tests          | ✅ Done  | 26 tests in FieldRouterTests.cs          |
+| Save/Discard Review Dialog   | Planned  | → [Plan 32](32_Badge_Menu_And_Review_Dialog.md) |
 
 See `HANDOFF.md` for full implementation details.

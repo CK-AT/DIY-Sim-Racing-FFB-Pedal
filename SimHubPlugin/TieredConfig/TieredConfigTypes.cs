@@ -181,6 +181,30 @@ namespace DiyFfb.TieredConfig
     }
 
     /// <summary>
+    /// ViewModel row for the override review dialog.
+    /// </summary>
+    public class OverrideReviewItem
+    {
+        public int FunctionId { get; set; }
+        public string FunctionName { get; set; }
+        public string FieldPath { get; set; }
+        public string FieldDisplayName { get; set; }
+        public string ValueDisplay { get; set; }
+        public ConfigLayer CurrentLayer { get; set; }
+        public bool CanMoveToUser { get; set; }
+        public bool CanMoveToProfile { get; set; }
+
+        // Display properties for DataGrid binding
+        public string LayerDisplay => CurrentLayer == ConfigLayer.User ? "[U]" : "[P]";
+        public bool CanMove => CanMoveToUser || CanMoveToProfile;
+        public string MoveTooltip => CanMoveToUser
+            ? "Move to User layer"
+            : CanMoveToProfile
+                ? "Move to Profile layer"
+                : null;
+    }
+
+    /// <summary>
     /// Per-axis parameter overrides for use by functions.
     /// Allows functions to override axis physics without modifying the hardware config.
     /// Uses protobuf types directly for serialization compatibility.

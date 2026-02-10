@@ -794,6 +794,158 @@ namespace DiyFfb.TieredConfig
 
         #endregion
 
+        #region Override Re-routing and Review
+
+        /// <summary>
+        /// Move an override value from one layer to another.
+        /// Reads the value from sourceLayer, writes to targetLayer, clears from sourceLayer.
+        /// Re-applies merged overrides afterward.
+        /// </summary>
+        public void RerouteFunctionOverrideField(
+            int functionId, string fieldPath,
+            ConfigLayer sourceLayer, ConfigLayer targetLayer)
+        {
+            if (sourceLayer == targetLayer)
+                return;
+
+            // 1. Read value from source
+            var sourceOverrides = GetOverridesForLayer(functionId, sourceLayer);
+            if (sourceOverrides == null)
+                return;
+            var value = OverrideFieldRegistry.GetValue(sourceOverrides, fieldPath);
+            if (value == null)
+                return;
+
+            // 2. Write to target
+            var targetOverrides = GetOrCreateOverridesForLayer(functionId, targetLayer);
+            if (targetOverrides == null)
+                return;
+            OverrideFieldRegistry.SetValue(targetOverrides, fieldPath, value);
+
+            // 3. Clear from source
+            OverrideFieldRegistry.ClearValue(sourceOverrides, fieldPath);
+            CleanupEmptyOverrides(functionId, sourceLayer, sourceOverrides);
+
+            // 4. Re-apply merged config
+            if (_functionConfigManager.HasBaseConfig(functionId))
+                ReapplyMergedOverrides(functionId, diffCheck: false);
+
+            // 5. Notify UI
+            OnOverrideFieldChanged(functionId, fieldPath);
+        }
+
+        /// <summary>
+        /// Bake a field's current effective value into the baseline, clearing the override.
+        /// </summary>
+        public void BakeFieldToBaseline(int functionId, string fieldPath)
+        {
+            // 1. Get current effective value from merged FunctionConfig
+            var currentConfig = _functionConfigManager.GetCurrentConfig(functionId);
+            if (currentConfig == null)
+                return;
+
+            // 2. Get baseline, write the field value into it
+            var baseline = GetFunctionBaseline(functionId);
+            if (baseline == null)
+            {
+                SimHub.Logging.Current.Warn($"[TieredConfig] BakeFieldToBaseline: no baseline for function {functionId}");
+                return;
+            }
+
+            var updatedBaseline = baseline.Clone();
+            ConfigLayerProvider.WriteFieldToFunctionConfig(updatedBaseline, fieldPath, currentConfig);
+            SetFunctionBaseline(functionId, updatedBaseline);
+
+            // 3. Clear override from whichever layer had it
+            ClearFunctionOverrideField(functionId, fieldPath, ConfigLayer.User);
+            ClearFunctionOverrideField(functionId, fieldPath, ConfigLayer.Profile);
+        }
+
+        /// <summary>
+        /// Get all active function overrides across all functions and layers.
+        /// Used by the Override Review dialog.
+        /// </summary>
+        public List<OverrideReviewItem> GetAllActiveOverrides()
+        {
+            var result = new List<OverrideReviewItem>();
+            var layerProvider = CreateConfigLayerProvider();
+
+            foreach (var functionId in _functionConfigManager.GetKnownFunctionIds())
+            {
+                var funcEnum = (FunctionID)functionId;
+                var funcName = funcEnum.ToString().CamelCaseToTitleCase();
+
+                foreach (var field in OverrideFieldRegistry.GetAllFields())
+                {
+                    var sourceLayer = layerProvider.GetFieldSourceLayer(functionId, field.FieldPath);
+                    if (sourceLayer == null || sourceLayer == ConfigLayer.Baseline)
+                        continue; // No override
+
+                    var value = layerProvider.GetFieldValue(functionId, field.FieldPath, sourceLayer.Value);
+                    string valueDisplay;
+                    if (field.FieldType == OverrideFieldType.Complex)
+                        valueDisplay = "(configured)";
+                    else if (field.FormatValue != null)
+                        valueDisplay = field.FormatValue(value);
+                    else if (value is float f)
+                        valueDisplay = f.ToString("F2");
+                    else if (value is bool b)
+                        valueDisplay = b ? "Enabled" : "Disabled";
+                    else
+                        valueDisplay = value?.ToString() ?? "(null)";
+
+                    result.Add(new OverrideReviewItem
+                    {
+                        FunctionId = functionId,
+                        FunctionName = funcName,
+                        FieldPath = field.FieldPath,
+                        FieldDisplayName = field.DisplayName,
+                        ValueDisplay = valueDisplay,
+                        CurrentLayer = sourceLayer.Value,
+                        CanMoveToUser = sourceLayer == ConfigLayer.Profile
+                            && !layerProvider.HasFieldValue(functionId, field.FieldPath, ConfigLayer.User),
+                        CanMoveToProfile = sourceLayer == ConfigLayer.User
+                            && !layerProvider.HasFieldValue(functionId, field.FieldPath, ConfigLayer.Profile)
+                    });
+                }
+            }
+
+            return result;
+        }
+
+        private FunctionConfigOverrides GetOverridesForLayer(int functionId, ConfigLayer layer)
+        {
+            return layer == ConfigLayer.User
+                ? GetUserFunctionOverrides(functionId)
+                : GetFunctionOverrides(functionId);
+        }
+
+        private FunctionConfigOverrides GetOrCreateOverridesForLayer(int functionId, ConfigLayer layer)
+        {
+            return layer == ConfigLayer.User
+                ? GetOrCreateUserFunctionOverrides(functionId)
+                : GetOrCreateFunctionOverrides(functionId);
+        }
+
+        private void CleanupEmptyOverrides(int functionId, ConfigLayer layer, FunctionConfigOverrides overrides)
+        {
+            if (!overrides.IsEmpty)
+                return;
+
+            if (layer == ConfigLayer.User)
+            {
+                var prefs = GetCurrentUserOverrides();
+                prefs?.FunctionOverrides?.Remove(functionId);
+            }
+            else
+            {
+                var profile = _getActiveProfile();
+                profile?.FunctionOverrides?.Remove(functionId);
+            }
+        }
+
+        #endregion
+
         #region User Preference Management
 
         private FunctionConfigOverrides GetOrCreateUserFunctionOverrides(int functionId)

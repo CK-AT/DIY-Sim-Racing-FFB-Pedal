@@ -19,10 +19,23 @@ namespace DiyFfb.Controls
         /// </summary>
         public event EventHandler<OverrideClearedEventArgs> OverrideCleared;
 
+        /// <summary>
+        /// Fired when an override is re-routed to a different layer via context menu.
+        /// Parent control should update the UI to reflect the new layer state.
+        /// </summary>
+        public event EventHandler<OverrideReroutedEventArgs> OverrideRerouted;
+
         public class OverrideClearedEventArgs : EventArgs
         {
             public string FieldPath { get; set; }
             public ConfigLayer ClearedLayer { get; set; }
+        }
+
+        public class OverrideReroutedEventArgs : EventArgs
+        {
+            public string FieldPath { get; set; }
+            public ConfigLayer FromLayer { get; set; }
+            public ConfigLayer ToLayer { get; set; }
         }
 
         static LayerBadgeWrapper()
@@ -327,8 +340,29 @@ namespace DiyFfb.Controls
                 contextMenu.Items.Add(new Separator());
             }
 
-            // Section 3: Save to layer operations (disabled for now - requires additional logic)
-            // TODO: Implement "Save to User", "Save to Profile", "Save to Baseline" menu items
+            // Section 3: Re-route and bake operations
+            bool hasUserValue = layerProvider.HasFieldValue(FunctionId, FieldPath, ConfigLayer.User);
+            bool hasProfileValue = layerProvider.HasFieldValue(FunctionId, FieldPath, ConfigLayer.Profile);
+
+            if (sourceLayer == ConfigLayer.User && !hasProfileValue)
+            {
+                var moveToProfile = new MenuItem { Header = "Move to Profile" };
+                moveToProfile.Click += (s, args) => OnRerouteOverride(ConfigLayer.User, ConfigLayer.Profile);
+                contextMenu.Items.Add(moveToProfile);
+            }
+            else if (sourceLayer == ConfigLayer.Profile && !hasUserValue)
+            {
+                var moveToUser = new MenuItem { Header = "Move to User" };
+                moveToUser.Click += (s, args) => OnRerouteOverride(ConfigLayer.Profile, ConfigLayer.User);
+                contextMenu.Items.Add(moveToUser);
+            }
+
+            if (sourceLayer == ConfigLayer.User || sourceLayer == ConfigLayer.Profile)
+            {
+                var saveToBaseline = new MenuItem { Header = "Save to Baseline" };
+                saveToBaseline.Click += (s, args) => OnBakeToBaseline();
+                contextMenu.Items.Add(saveToBaseline);
+            }
 
             _badge.ContextMenu = contextMenu;
             contextMenu.IsOpen = true;
@@ -344,11 +378,43 @@ namespace DiyFfb.Controls
             UpdateBadge();
             UpdateTooltip();
 
-            // Notify parent control so it can update the UI slider to show the new value
             OverrideCleared?.Invoke(this, new OverrideClearedEventArgs
             {
                 FieldPath = FieldPath,
                 ClearedLayer = layer
+            });
+        }
+
+        private void OnRerouteOverride(ConfigLayer fromLayer, ConfigLayer toLayer)
+        {
+            if (Plugin == null || FunctionId < 0 || string.IsNullOrEmpty(FieldPath))
+                return;
+
+            Plugin.ConfigOrchestrator.RerouteFunctionOverrideField(FunctionId, FieldPath, fromLayer, toLayer);
+            UpdateBadge();
+            UpdateTooltip();
+
+            OverrideRerouted?.Invoke(this, new OverrideReroutedEventArgs
+            {
+                FieldPath = FieldPath,
+                FromLayer = fromLayer,
+                ToLayer = toLayer
+            });
+        }
+
+        private void OnBakeToBaseline()
+        {
+            if (Plugin == null || FunctionId < 0 || string.IsNullOrEmpty(FieldPath))
+                return;
+
+            Plugin.ConfigOrchestrator.BakeFieldToBaseline(FunctionId, FieldPath);
+            UpdateBadge();
+            UpdateTooltip();
+
+            OverrideCleared?.Invoke(this, new OverrideClearedEventArgs
+            {
+                FieldPath = FieldPath,
+                ClearedLayer = ConfigLayer.Baseline // signals "baked to baseline"
             });
         }
     }

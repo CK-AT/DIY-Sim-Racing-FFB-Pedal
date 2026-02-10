@@ -50,6 +50,7 @@
     <Compile Include="ChangeTrackerTests.cs" />
     <Compile Include="FieldRouterTests.cs" />
     <Compile Include="OverrideFieldRegistryTests.cs" />
+    <Compile Include="OrchestratorRerouteTests.cs" />
     <Compile Include="..\TestCommon\TestRunner.cs">
       <Link>TestRunner.cs</Link>
     </Compile>

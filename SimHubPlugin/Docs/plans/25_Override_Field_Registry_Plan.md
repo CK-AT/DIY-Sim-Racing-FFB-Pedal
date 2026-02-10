@@ -18,8 +18,8 @@
 | Phase 10  | ✅ **Complete** | Registry structure correction (per-field vs whole-config)|
 | Phase 11  | ✅ **Complete** | ConfigMerger complete (all function types)               |
 | Phase 12  | ✅ **Complete** | Proof-of-concept (simulated_mass with full persistence)  |
-| Phase 13  | ⏳ **Pending**  | Enhanced tooltips (show all layer values)                |
-| Phase 14  | ⏳ **Pending**  | Context menu (clear overrides, save to layer)            |
+| Phase 13  | ✅ **Complete** | Enhanced tooltips (show all layer values)                |
+| Phase 14  | ⏳ **Planned**  | Context menu re-route + review dialog → [Plan 32](32_Badge_Menu_And_Review_Dialog.md) |
 | Phase 15+ | ⏳ **Pending**  | Migrate remaining ~50 event handlers to override pattern |
 
 **Files created:**
@@ -84,16 +84,14 @@ See HANDOFF.md for complete implementation details and all fixes discovered duri
 - ✅ Badge initialization (Plugin/FunctionId setup)
 - ✅ Badge refresh (UpdateBadge() on override changes)
 
-**Missing (deferred to Phase 13-14):**
-- ❌ Enhanced tooltip showing all layer values (User/Profile/Hardware) with active indicator
-- ❌ Context menu (right-click on badge)
-- ❌ "Clear User override" menu item
-- ❌ "Clear Profile override" menu item
-- ❌ "Save to User" menu item
-- ❌ "Save to Profile" menu item
-- ❌ "Save to Hardware" menu item (bake into baseline)
-
-**Reason for deferral:** POC focused on core functionality (badge display, persistence, manager integration). Context menu and enhanced tooltips are UX improvements that can be added after basic system is proven and all fields are migrated.
+**Missing (deferred to Phase 14 → [Plan 32](32_Badge_Menu_And_Review_Dialog.md)):**
+- ✅ Enhanced tooltip showing all layer values (User/Profile/Baseline) with active indicator
+- ✅ Context menu (right-click on badge)
+- ✅ "Clear User override" menu item
+- ✅ "Clear Profile override" menu item
+- ❌ "Move to User" / "Move to Profile" menu items (re-route between layers)
+- ❌ "Save to Baseline" menu item (bake into baseline)
+- ❌ Override Review Dialog (see all overrides, batch re-route/discard)
 
 ---
 
