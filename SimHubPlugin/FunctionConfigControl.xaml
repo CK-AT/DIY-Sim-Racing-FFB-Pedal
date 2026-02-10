@@ -49,7 +49,7 @@
                 <local:FlightPedalsConfigControl x:Name="FlightPedalsConfig" VerticalAlignment="Center"></local:FlightPedalsConfigControl>
             </TabItem>
             <TabItem>
-                <local:FlightStickConfigControl x:Name="FlightStickConfig" VerticalAlignment="Center"></local:FlightStickConfigControl>
+                <local:FlightStickConfigControl x:Name="uc_flight_stick" VerticalAlignment="Center"></local:FlightStickConfigControl>
             </TabItem>
             <TabItem>
                 <local:ShifterConfigControl x:Name="ShifterConfig" VerticalAlignment="Center"></local:ShifterConfigControl>

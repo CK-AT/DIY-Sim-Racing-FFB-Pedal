@@ -41,7 +41,14 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("Apply_NullBase_NoOp", Apply_NullBase_NoOp),
 
                 // Auto-creation of sub-config
-                TestRunner.RunTest("Apply_Pitch_AutoCreatesSubConfig", Apply_Pitch_AutoCreatesSubConfig),
+                TestRunner.RunTest("Apply_AutoCreatesFlightStick", Apply_AutoCreatesFlightStick),
+
+                // Migration tests
+                TestRunner.RunTest("Migrate_PitchJson", Migrate_PitchJson),
+                TestRunner.RunTest("Migrate_RollJson", Migrate_RollJson),
+                TestRunner.RunTest("Migrate_CollectiveJson", Migrate_CollectiveJson),
+                TestRunner.RunTest("Migrate_AlreadyMigrated_NoOp", Migrate_AlreadyMigrated_NoOp),
+                TestRunner.RunTest("Migrate_NullJson_ReturnsNull", Migrate_NullJson_ReturnsNull),
             };
         }
 
@@ -49,7 +56,7 @@ namespace DiyFfb.TieredConfigTests
 
         private static void Reconcile_Pitch_SetsOutputFromPosRange()
         {
-            var config = CreatePitchConfig(posMin: -20, posMax: 20);
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
 
             FlightStickProcessor.ReconcileDerivedFields(config);
 
@@ -59,7 +66,7 @@ namespace DiyFfb.TieredConfigTests
 
         private static void Reconcile_Roll_SetsOutputFromPosRange()
         {
-            var config = CreateRollConfig(posMin: -15, posMax: 15);
+            var config = CreateConfig(FunctionID.FlightStickRoll, posMin: -15, posMax: 15);
 
             FlightStickProcessor.ReconcileDerivedFields(config);
 
@@ -69,7 +76,7 @@ namespace DiyFfb.TieredConfigTests
 
         private static void Reconcile_Collective_SetsOutputFromPosRange()
         {
-            var config = CreateCollectiveConfig(posMin: 0, posMax: 50);
+            var config = CreateConfig(FunctionID.FlightStickCollective, posMin: 0, posMax: 50);
 
             FlightStickProcessor.ReconcileDerivedFields(config);
 
@@ -87,7 +94,7 @@ namespace DiyFfb.TieredConfigTests
                     OutputMin = 1.0f,
                     OutputMax = 2.0f
                 },
-                FlightStickPitch = null
+                FlightStick = null
             };
 
             FlightStickProcessor.ReconcileDerivedFields(config);
@@ -107,7 +114,7 @@ namespace DiyFfb.TieredConfigTests
             var config = new FunctionConfig
             {
                 Base = null,
-                FlightStickPitch = new FlightStickPitchConfig { PosMin = -10, PosMax = 10 }
+                FlightStick = new FlightStickConfig { PosMin = -10, PosMax = 10 }
             };
 
             // Should not throw
@@ -118,7 +125,7 @@ namespace DiyFfb.TieredConfigTests
 
         private static void Apply_Pitch_MotionRange_Min()
         {
-            var config = CreatePitchConfig(posMin: -20, posMax: 20);
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
             var delta = new FunctionConfigOverrides
             {
                 FlightStickMotionRange = new MotionRangeOverrides { Min = -30 }
@@ -126,13 +133,13 @@ namespace DiyFfb.TieredConfigTests
 
             FlightStickProcessor.ApplyOverrides(config, delta);
 
-            AssertEqual(-30, config.FlightStickPitch.PosMin, "PosMin should be overridden");
-            AssertEqual(20, config.FlightStickPitch.PosMax, "PosMax should be preserved");
+            AssertEqual(-30, config.FlightStick.PosMin, "PosMin should be overridden");
+            AssertEqual(20, config.FlightStick.PosMax, "PosMax should be preserved");
         }
 
         private static void Apply_Pitch_MotionRange_Max()
         {
-            var config = CreatePitchConfig(posMin: -20, posMax: 20);
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
             var delta = new FunctionConfigOverrides
             {
                 FlightStickMotionRange = new MotionRangeOverrides { Max = 30 }
@@ -140,13 +147,13 @@ namespace DiyFfb.TieredConfigTests
 
             FlightStickProcessor.ApplyOverrides(config, delta);
 
-            AssertEqual(-20, config.FlightStickPitch.PosMin, "PosMin should be preserved");
-            AssertEqual(30, config.FlightStickPitch.PosMax, "PosMax should be overridden");
+            AssertEqual(-20, config.FlightStick.PosMin, "PosMin should be preserved");
+            AssertEqual(30, config.FlightStick.PosMax, "PosMax should be overridden");
         }
 
         private static void Apply_Pitch_MotionRange_Both()
         {
-            var config = CreatePitchConfig(posMin: -20, posMax: 20);
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
             var delta = new FunctionConfigOverrides
             {
                 FlightStickMotionRange = new MotionRangeOverrides { Min = -25, Max = 25 }
@@ -154,35 +161,35 @@ namespace DiyFfb.TieredConfigTests
 
             FlightStickProcessor.ApplyOverrides(config, delta);
 
-            AssertEqual(-25, config.FlightStickPitch.PosMin, "PosMin should be overridden");
-            AssertEqual(25, config.FlightStickPitch.PosMax, "PosMax should be overridden");
+            AssertEqual(-25, config.FlightStick.PosMin, "PosMin should be overridden");
+            AssertEqual(25, config.FlightStick.PosMax, "PosMax should be overridden");
         }
 
         private static void Apply_Pitch_Damping()
         {
-            var config = CreatePitchConfig(posMin: -20, posMax: 20);
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
             var delta = new FunctionConfigOverrides { FlightStickDamping = 1.5f };
 
             FlightStickProcessor.ApplyOverrides(config, delta);
 
-            AssertNear(1.5f, config.FlightStickPitch.Damping, 1e-6f, "Damping should be overridden");
+            AssertNear(1.5f, config.FlightStick.Damping, 1e-6f, "Damping should be overridden");
         }
 
         private static void Apply_Pitch_CenteringSpringConst()
         {
-            var config = CreatePitchConfig(posMin: -20, posMax: 20);
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
             var delta = new FunctionConfigOverrides { FlightStickCenteringSpringConst = 3.0f };
 
             FlightStickProcessor.ApplyOverrides(config, delta);
 
-            AssertNear(3.0f, config.FlightStickPitch.CenteringSpringConst, 1e-6f, "CenteringSpringConst should be overridden");
+            AssertNear(3.0f, config.FlightStick.CenteringSpringConst, 1e-6f, "CenteringSpringConst should be overridden");
         }
 
         // === Override Application Tests — Roll ===
 
         private static void Apply_Roll_MotionRange()
         {
-            var config = CreateRollConfig(posMin: -15, posMax: 15);
+            var config = CreateConfig(FunctionID.FlightStickRoll, posMin: -15, posMax: 15);
             var delta = new FunctionConfigOverrides
             {
                 FlightStickMotionRange = new MotionRangeOverrides { Min = -10, Max = 10 }
@@ -190,25 +197,25 @@ namespace DiyFfb.TieredConfigTests
 
             FlightStickProcessor.ApplyOverrides(config, delta);
 
-            AssertEqual(-10, config.FlightStickRoll.PosMin, "PosMin should be overridden");
-            AssertEqual(10, config.FlightStickRoll.PosMax, "PosMax should be overridden");
+            AssertEqual(-10, config.FlightStick.PosMin, "PosMin should be overridden");
+            AssertEqual(10, config.FlightStick.PosMax, "PosMax should be overridden");
         }
 
         private static void Apply_Roll_Damping()
         {
-            var config = CreateRollConfig(posMin: -15, posMax: 15);
+            var config = CreateConfig(FunctionID.FlightStickRoll, posMin: -15, posMax: 15);
             var delta = new FunctionConfigOverrides { FlightStickDamping = 2.0f };
 
             FlightStickProcessor.ApplyOverrides(config, delta);
 
-            AssertNear(2.0f, config.FlightStickRoll.Damping, 1e-6f, "Damping should be overridden");
+            AssertNear(2.0f, config.FlightStick.Damping, 1e-6f, "Damping should be overridden");
         }
 
         // === Override Application Tests — Collective ===
 
         private static void Apply_Collective_MotionRange()
         {
-            var config = CreateCollectiveConfig(posMin: 0, posMax: 50);
+            var config = CreateConfig(FunctionID.FlightStickCollective, posMin: 0, posMax: 50);
             var delta = new FunctionConfigOverrides
             {
                 FlightStickMotionRange = new MotionRangeOverrides { Min = 5, Max = 45 }
@@ -216,45 +223,45 @@ namespace DiyFfb.TieredConfigTests
 
             FlightStickProcessor.ApplyOverrides(config, delta);
 
-            AssertEqual(5, config.FlightStickCollective.PosMin, "PosMin should be overridden");
-            AssertEqual(45, config.FlightStickCollective.PosMax, "PosMax should be overridden");
+            AssertEqual(5, config.FlightStick.PosMin, "PosMin should be overridden");
+            AssertEqual(45, config.FlightStick.PosMax, "PosMax should be overridden");
         }
 
         private static void Apply_Collective_CenteringSpringConst()
         {
-            var config = CreateCollectiveConfig(posMin: 0, posMax: 50);
+            var config = CreateConfig(FunctionID.FlightStickCollective, posMin: 0, posMax: 50);
             var delta = new FunctionConfigOverrides { FlightStickCenteringSpringConst = 0.5f };
 
             FlightStickProcessor.ApplyOverrides(config, delta);
 
-            AssertNear(0.5f, config.FlightStickCollective.CenteringSpringConst, 1e-6f, "CenteringSpringConst should be overridden");
+            AssertNear(0.5f, config.FlightStick.CenteringSpringConst, 1e-6f, "CenteringSpringConst should be overridden");
         }
 
         // === Null/Empty Delta Tests ===
 
         private static void Apply_NullDelta_NoOp()
         {
-            var config = CreatePitchConfig(posMin: -20, posMax: 20);
-            config.FlightStickPitch.Damping = 0.5f;
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            config.FlightStick.Damping = 0.5f;
 
             FlightStickProcessor.ApplyOverrides(config, null);
 
-            AssertEqual(-20, config.FlightStickPitch.PosMin, "PosMin should be unchanged");
-            AssertEqual(20, config.FlightStickPitch.PosMax, "PosMax should be unchanged");
-            AssertNear(0.5f, config.FlightStickPitch.Damping, 1e-6f, "Damping should be unchanged");
+            AssertEqual(-20, config.FlightStick.PosMin, "PosMin should be unchanged");
+            AssertEqual(20, config.FlightStick.PosMax, "PosMax should be unchanged");
+            AssertNear(0.5f, config.FlightStick.Damping, 1e-6f, "Damping should be unchanged");
         }
 
         private static void Apply_EmptyDelta_NoOp()
         {
-            var config = CreatePitchConfig(posMin: -20, posMax: 20);
-            config.FlightStickPitch.Damping = 0.5f;
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            config.FlightStick.Damping = 0.5f;
             var delta = new FunctionConfigOverrides();
 
             FlightStickProcessor.ApplyOverrides(config, delta);
 
-            AssertEqual(-20, config.FlightStickPitch.PosMin, "PosMin should be unchanged");
-            AssertEqual(20, config.FlightStickPitch.PosMax, "PosMax should be unchanged");
-            AssertNear(0.5f, config.FlightStickPitch.Damping, 1e-6f, "Damping should be unchanged");
+            AssertEqual(-20, config.FlightStick.PosMin, "PosMin should be unchanged");
+            AssertEqual(20, config.FlightStick.PosMax, "PosMax should be unchanged");
+            AssertNear(0.5f, config.FlightStick.Damping, 1e-6f, "Damping should be unchanged");
         }
 
         private static void Apply_NullBase_NoOp()
@@ -262,7 +269,7 @@ namespace DiyFfb.TieredConfigTests
             var config = new FunctionConfig
             {
                 Base = null,
-                FlightStickPitch = new FlightStickPitchConfig { PosMin = -20, PosMax = 20 }
+                FlightStick = new FlightStickConfig { PosMin = -20, PosMax = 20 }
             };
             var delta = new FunctionConfigOverrides
             {
@@ -273,17 +280,17 @@ namespace DiyFfb.TieredConfigTests
             FlightStickProcessor.ApplyOverrides(config, delta);
 
             // Sub-config unchanged because Base is null — can't dispatch
-            AssertEqual(-20, config.FlightStickPitch.PosMin, "PosMin should be unchanged");
+            AssertEqual(-20, config.FlightStick.PosMin, "PosMin should be unchanged");
         }
 
         // === Auto-creation Tests ===
 
-        private static void Apply_Pitch_AutoCreatesSubConfig()
+        private static void Apply_AutoCreatesFlightStick()
         {
             var config = new FunctionConfig
             {
                 Base = new FunctionBase { FunctionId = FunctionID.FlightStickPitch },
-                FlightStickPitch = null
+                FlightStick = null
             };
             var delta = new FunctionConfigOverrides
             {
@@ -292,64 +299,63 @@ namespace DiyFfb.TieredConfigTests
 
             FlightStickProcessor.ApplyOverrides(config, delta);
 
-            AssertTrue(config.FlightStickPitch != null, "FlightStickPitch should be auto-created");
-            AssertEqual(-10, config.FlightStickPitch.PosMin, "PosMin should be set");
-            AssertEqual(10, config.FlightStickPitch.PosMax, "PosMax should be set");
+            AssertTrue(config.FlightStick != null, "FlightStick should be auto-created");
+            AssertEqual(-10, config.FlightStick.PosMin, "PosMin should be set");
+            AssertEqual(10, config.FlightStick.PosMax, "PosMax should be set");
+        }
+
+        // === Migration Tests ===
+
+        private static void Migrate_PitchJson()
+        {
+            string old = "{\"base\":{\"functionId\":\"FUNCTION_ID_FLIGHT_STICK_PITCH\"},\"flightStickPitch\":{\"posMin\":-20,\"posMax\":20}}";
+            string migrated = TieredConfigOrchestrator.MigrateFlightStickJson(old);
+            AssertTrue(migrated.Contains("\"flightStick\""), "Should contain flightStick");
+            AssertTrue(!migrated.Contains("\"flightStickPitch\""), "Should not contain flightStickPitch");
+        }
+
+        private static void Migrate_RollJson()
+        {
+            string old = "{\"base\":{\"functionId\":\"FUNCTION_ID_FLIGHT_STICK_ROLL\"},\"flightStickRoll\":{\"posMin\":-15,\"posMax\":15}}";
+            string migrated = TieredConfigOrchestrator.MigrateFlightStickJson(old);
+            AssertTrue(migrated.Contains("\"flightStick\""), "Should contain flightStick");
+            AssertTrue(!migrated.Contains("\"flightStickRoll\""), "Should not contain flightStickRoll");
+        }
+
+        private static void Migrate_CollectiveJson()
+        {
+            string old = "{\"base\":{\"functionId\":\"FUNCTION_ID_FLIGHT_STICK_COLLECTIVE\"},\"flightStickCollective\":{\"posMin\":0,\"posMax\":50}}";
+            string migrated = TieredConfigOrchestrator.MigrateFlightStickJson(old);
+            AssertTrue(migrated.Contains("\"flightStick\""), "Should contain flightStick");
+            AssertTrue(!migrated.Contains("\"flightStickCollective\""), "Should not contain flightStickCollective");
+        }
+
+        private static void Migrate_AlreadyMigrated_NoOp()
+        {
+            string current = "{\"base\":{\"functionId\":\"FUNCTION_ID_FLIGHT_STICK_PITCH\"},\"flightStick\":{\"posMin\":-20,\"posMax\":20}}";
+            string migrated = TieredConfigOrchestrator.MigrateFlightStickJson(current);
+            AssertTrue(current == migrated, "Already-migrated JSON should be unchanged");
+        }
+
+        private static void Migrate_NullJson_ReturnsNull()
+        {
+            string migrated = TieredConfigOrchestrator.MigrateFlightStickJson(null);
+            AssertTrue(migrated == null, "Null input should return null");
         }
 
         // === Helper Methods ===
 
-        private static FunctionConfig CreatePitchConfig(int posMin, int posMax)
+        private static FunctionConfig CreateConfig(FunctionID functionId, int posMin, int posMax)
         {
             return new FunctionConfig
             {
                 Base = new FunctionBase
                 {
-                    FunctionId = FunctionID.FlightStickPitch,
+                    FunctionId = functionId,
                     OutputMin = 0,
                     OutputMax = 0
                 },
-                FlightStickPitch = new FlightStickPitchConfig
-                {
-                    PosMin = posMin,
-                    PosMax = posMax,
-                    Damping = 0.5f,
-                    CenteringSpringConst = 1.5f
-                }
-            };
-        }
-
-        private static FunctionConfig CreateRollConfig(int posMin, int posMax)
-        {
-            return new FunctionConfig
-            {
-                Base = new FunctionBase
-                {
-                    FunctionId = FunctionID.FlightStickRoll,
-                    OutputMin = 0,
-                    OutputMax = 0
-                },
-                FlightStickRoll = new FlightStickRollConfig
-                {
-                    PosMin = posMin,
-                    PosMax = posMax,
-                    Damping = 0.5f,
-                    CenteringSpringConst = 1.5f
-                }
-            };
-        }
-
-        private static FunctionConfig CreateCollectiveConfig(int posMin, int posMax)
-        {
-            return new FunctionConfig
-            {
-                Base = new FunctionBase
-                {
-                    FunctionId = FunctionID.FlightStickCollective,
-                    OutputMin = 0,
-                    OutputMax = 0
-                },
-                FlightStickCollective = new FlightStickCollectiveConfig
+                FlightStick = new FlightStickConfig
                 {
                     PosMin = posMin,
                     PosMax = posMax,

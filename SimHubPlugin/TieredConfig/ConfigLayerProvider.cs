@@ -171,10 +171,10 @@ namespace DiyFfb.TieredConfig
                 case "flight_pedals.damping": return config.FlightPedals?.Damping;
                 case "flight_pedals.centering_spring_const": return config.FlightPedals?.CenteringSpringConst;
                 case "flight_stick.motion_range":
-                    if (config.FlightStickPitch != null) return $"{config.FlightStickPitch.PosMin}-{config.FlightStickPitch.PosMax}mm";
+                    if (config.FlightStick != null) return $"{config.FlightStick.PosMin}-{config.FlightStick.PosMax}mm";
                     return null;
-                case "flight_stick.damping": return config.FlightStickPitch?.Damping;
-                case "flight_stick.centering_spring_const": return config.FlightStickPitch?.CenteringSpringConst;
+                case "flight_stick.damping": return config.FlightStick?.Damping;
+                case "flight_stick.centering_spring_const": return config.FlightStick?.CenteringSpringConst;
                 case "aux_function.rudder_brake.force_range":
                     return config.AuxFunction?.RudderBrake != null ? $"{config.AuxFunction.RudderBrake.FMin:F1}-{config.AuxFunction.RudderBrake.FMax:F1}N" : null;
                 case "force_curve": return config.AutomotivePedal?.ForceCurveConfig;
@@ -188,8 +188,6 @@ namespace DiyFfb.TieredConfig
         /// <summary>
         /// Write a field value from the source config into the target config.
         /// Used by BakeFieldToBaseline to copy effective values into baselines.
-        /// Flight stick fields dispatch to the correct sub-config (Pitch/Roll/Collective)
-        /// based on source.Base.FunctionId.
         /// </summary>
         public static void WriteFieldToFunctionConfig(
             FunctionConfig target, string fieldPath, FunctionConfig source)
@@ -289,36 +287,30 @@ namespace DiyFfb.TieredConfig
                     }
                     break;
                 case "flight_stick.motion_range":
-                {
-                    var srcSub = GetFlightStickSubConfig(source);
-                    if (srcSub != null)
+                    if (source.FlightStick != null)
                     {
-                        var dstSub = EnsureFlightStickSubConfig(target, source.Base?.FunctionId ?? FunctionID.FlightStickPitch);
-                        dstSub.PosMin = srcSub.PosMin;
-                        dstSub.PosMax = srcSub.PosMax;
+                        if (target.FlightStick == null)
+                            target.FlightStick = new FlightStickConfig();
+                        target.FlightStick.PosMin = source.FlightStick.PosMin;
+                        target.FlightStick.PosMax = source.FlightStick.PosMax;
                     }
                     break;
-                }
                 case "flight_stick.damping":
-                {
-                    var srcSub = GetFlightStickSubConfig(source);
-                    if (srcSub != null)
+                    if (source.FlightStick != null)
                     {
-                        var dstSub = EnsureFlightStickSubConfig(target, source.Base?.FunctionId ?? FunctionID.FlightStickPitch);
-                        dstSub.Damping = srcSub.Damping;
+                        if (target.FlightStick == null)
+                            target.FlightStick = new FlightStickConfig();
+                        target.FlightStick.Damping = source.FlightStick.Damping;
                     }
                     break;
-                }
                 case "flight_stick.centering_spring_const":
-                {
-                    var srcSub = GetFlightStickSubConfig(source);
-                    if (srcSub != null)
+                    if (source.FlightStick != null)
                     {
-                        var dstSub = EnsureFlightStickSubConfig(target, source.Base?.FunctionId ?? FunctionID.FlightStickPitch);
-                        dstSub.CenteringSpringConst = srcSub.CenteringSpringConst;
+                        if (target.FlightStick == null)
+                            target.FlightStick = new FlightStickConfig();
+                        target.FlightStick.CenteringSpringConst = source.FlightStick.CenteringSpringConst;
                     }
                     break;
-                }
                 case "aux_function.rudder_brake.force_range":
                     if (source.AuxFunction?.RudderBrake != null)
                     {
@@ -337,39 +329,5 @@ namespace DiyFfb.TieredConfig
             }
         }
 
-        /// <summary>
-        /// Get the IFlightStickSubConfig for the correct mode based on the config's function ID.
-        /// </summary>
-        private static IFlightStickSubConfig GetFlightStickSubConfig(FunctionConfig config)
-        {
-            switch (config.Base?.FunctionId ?? FunctionID.FlightStickPitch)
-            {
-                case FunctionID.FlightStickRoll: return config.FlightStickRoll;
-                case FunctionID.FlightStickCollective: return config.FlightStickCollective;
-                default: return config.FlightStickPitch;
-            }
-        }
-
-        /// <summary>
-        /// Get or create the IFlightStickSubConfig for the given function ID.
-        /// </summary>
-        private static IFlightStickSubConfig EnsureFlightStickSubConfig(FunctionConfig config, FunctionID functionId)
-        {
-            switch (functionId)
-            {
-                case FunctionID.FlightStickRoll:
-                    if (config.FlightStickRoll == null)
-                        config.FlightStickRoll = new FlightStickRollConfig();
-                    return config.FlightStickRoll;
-                case FunctionID.FlightStickCollective:
-                    if (config.FlightStickCollective == null)
-                        config.FlightStickCollective = new FlightStickCollectiveConfig();
-                    return config.FlightStickCollective;
-                default:
-                    if (config.FlightStickPitch == null)
-                        config.FlightStickPitch = new FlightStickPitchConfig();
-                    return config.FlightStickPitch;
-            }
-        }
     }
 }

@@ -462,29 +462,7 @@ message FlightPedalsConfig {
   float centering_spring_const = 4;
 }
 
-message FlightStickPitchConfig {
-  // minimum position in mm
-  int32 pos_min = 1;
-  // maximum position in mm
-  int32 pos_max = 2;
-  // damping in (N*s)/mm
-  float damping = 3;
-  // centering spring constant in N/mm
-  float centering_spring_const = 4;
-}
-
-message FlightStickRollConfig {
-  // minimum position in mm
-  int32 pos_min = 1;
-  // maximum position in mm
-  int32 pos_max = 2;
-  // damping in (N*s)/mm
-  float damping = 3;
-  // centering spring constant in N/mm
-  float centering_spring_const = 4;
-}
-
-message FlightStickCollectiveConfig {
+message FlightStickConfig {
   // minimum position in mm
   int32 pos_min = 1;
   // maximum position in mm
@@ -544,11 +522,10 @@ message FunctionConfig {
   oneof specific {
     AutomotivePedalConfig automotive_pedal = 2;
     FlightPedalsConfig flight_pedals = 3;
-    FlightStickPitchConfig flight_stick_pitch = 7;
-    FlightStickRollConfig flight_stick_roll = 8;
+    FlightStickConfig flight_stick = 7;
     ShifterConfig shifter = 9;
-    FlightStickCollectiveConfig flight_stick_collective = 11;
   }
+  reserved 8, 11;
   AuxFunctionConfig aux_function = 4;
   // simulated mass in kg
   float simulated_mass = 5;

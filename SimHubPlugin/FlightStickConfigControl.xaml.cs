@@ -21,9 +21,7 @@ namespace DiyFfb
         private FunctionConfig function_config = new FunctionConfig();
         private Function function;
         private FunctionID current_function_id;
-        private FlightStickPitchConfig pitch_config;
-        private FlightStickRollConfig roll_config;
-        private FlightStickCollectiveConfig collective_config;
+        private FlightStickConfig stick_config;
         private bool is_updating = true;
         private bool allowOverrideCreation = false;  // Only true after initial load stabilizes
         private DispatcherTimer xplaneTimer;
@@ -35,14 +33,12 @@ namespace DiyFfb
 
         public FlightStickConfigControl()
         {
-            pitch_config = GetDefaultPitchConfig();
-            roll_config = GetDefaultRollConfig();
-            collective_config = GetDefaultCollectiveConfig();
+            stick_config = GetDefaultConfig();
             InitializeComponent();
             _travelHelper = new TravelDisplayHelper(
                 Canvas_travel_markers, Rect_axis_position, Rect_trim_center,
                 Rangeslider_travel_range,
-                () => (double)GetActiveSubConfig().PosMin, () => (double)GetActiveSubConfig().PosMax);
+                () => (double)stick_config.PosMin, () => (double)stick_config.PosMax);
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
         }
@@ -113,30 +109,36 @@ namespace DiyFfb
                     break;
 
                 case "flight_stick.motion_range":
-                    var mergedSub = GetSubConfig(mergedConfig, GetMode());
-                    var activeSub = GetActiveSubConfig();
-                    activeSub.PosMin = mergedSub.PosMin;
-                    activeSub.PosMax = mergedSub.PosMax;
+                    var mergedStick = mergedConfig.FlightStick;
+                    if (mergedStick != null)
+                    {
+                        stick_config.PosMin = mergedStick.PosMin;
+                        stick_config.PosMax = mergedStick.PosMax;
+                    }
                     TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
                     if (Label_min_pos != null)
-                        Label_min_pos.Content = String.Format("Min\n{0}mm", activeSub.PosMin);
+                        Label_min_pos.Content = String.Format("Min\n{0}mm", stick_config.PosMin);
                     if (Label_max_pos != null)
-                        Label_max_pos.Content = String.Format("Max\n{0}mm", activeSub.PosMax);
+                        Label_max_pos.Content = String.Format("Max\n{0}mm", stick_config.PosMax);
                     _travelHelper?.UpdateTravelMarkers();
                     break;
 
                 case "flight_stick.damping":
-                    var mergedDamping = GetSubConfig(mergedConfig, GetMode()).Damping;
-                    GetActiveSubConfig().Damping = mergedDamping;
-                    Slider_damping.Value = mergedDamping;
-                    label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", mergedDamping);
+                    if (mergedConfig.FlightStick != null)
+                    {
+                        stick_config.Damping = mergedConfig.FlightStick.Damping;
+                        Slider_damping.Value = mergedConfig.FlightStick.Damping;
+                        label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", mergedConfig.FlightStick.Damping);
+                    }
                     break;
 
                 case "flight_stick.centering_spring_const":
-                    var mergedSpring = GetSubConfig(mergedConfig, GetMode()).CenteringSpringConst;
-                    GetActiveSubConfig().CenteringSpringConst = mergedSpring;
-                    Slider_centering_spring_const.Value = mergedSpring;
-                    label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", mergedSpring);
+                    if (mergedConfig.FlightStick != null)
+                    {
+                        stick_config.CenteringSpringConst = mergedConfig.FlightStick.CenteringSpringConst;
+                        Slider_centering_spring_const.Value = mergedConfig.FlightStick.CenteringSpringConst;
+                        label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", mergedConfig.FlightStick.CenteringSpringConst);
+                    }
                     break;
 
                 case "friction":
@@ -176,7 +178,7 @@ namespace DiyFfb
 
             KinematicBoundsHelper.ApplyBoundsToSlider(
                 Rangeslider_travel_range, boundsMin, boundsMax,
-                GetActiveSubConfig().PosMin, GetActiveSubConfig().PosMax);
+                stick_config.PosMin, stick_config.PosMax);
 
             if (!wasUpdating)
             {
@@ -194,102 +196,22 @@ namespace DiyFfb
             }
         }
 
-        public static FlightStickPitchConfig GetDefaultPitchConfig()
+        public static FlightStickConfig GetDefaultConfig()
         {
-            FlightStickPitchConfig new_config = new FlightStickPitchConfig();
-            new_config.PosMin = -50;
-            new_config.PosMax = 50;
-            new_config.Damping = 0.5f;
-            new_config.CenteringSpringConst = 1.5f;
-            return new_config;
-        }
-
-        public static FlightStickRollConfig GetDefaultRollConfig()
-        {
-            FlightStickRollConfig new_config = new FlightStickRollConfig();
-            new_config.PosMin = -50;
-            new_config.PosMax = 50;
-            new_config.Damping = 0.5f;
-            new_config.CenteringSpringConst = 1.5f;
-            return new_config;
-        }
-
-        public static FlightStickCollectiveConfig GetDefaultCollectiveConfig()
-        {
-            FlightStickCollectiveConfig new_config = new FlightStickCollectiveConfig();
-            new_config.PosMin = -50;
-            new_config.PosMax = 50;
-            new_config.Damping = 0.5f;
-            new_config.CenteringSpringConst = 1.5f;
-            return new_config;
-        }
-
-        private enum FlightStickMode
-        {
-            Pitch,
-            Roll,
-            Collective
-        }
-
-        private FlightStickMode GetMode()
-        {
-            switch (current_function_id)
+            return new FlightStickConfig
             {
-                case FunctionID.FlightStickRoll:
-                    return FlightStickMode.Roll;
-                case FunctionID.FlightStickCollective:
-                    return FlightStickMode.Collective;
-                default:
-                    return FlightStickMode.Pitch;
-            }
+                PosMin = -50,
+                PosMax = 50,
+                Damping = 0.5f,
+                CenteringSpringConst = 1.5f
+            };
         }
 
         private void EnsureConfigInitialized()
         {
-            switch (GetMode())
-            {
-                case FlightStickMode.Roll:
-                    if (function_config.FlightStickRoll == null)
-                    {
-                        function_config.FlightStickRoll = GetDefaultRollConfig();
-                    }
-                    roll_config = function_config.FlightStickRoll;
-                    break;
-                case FlightStickMode.Collective:
-                    if (function_config.FlightStickCollective == null)
-                    {
-                        function_config.FlightStickCollective = GetDefaultCollectiveConfig();
-                    }
-                    collective_config = function_config.FlightStickCollective;
-                    break;
-                default:
-                    if (function_config.FlightStickPitch == null)
-                    {
-                        function_config.FlightStickPitch = GetDefaultPitchConfig();
-                    }
-                    pitch_config = function_config.FlightStickPitch;
-                    break;
-            }
-        }
-
-        private IFlightStickSubConfig GetActiveSubConfig()
-        {
-            switch (GetMode())
-            {
-                case FlightStickMode.Roll: return roll_config;
-                case FlightStickMode.Collective: return collective_config;
-                default: return pitch_config;
-            }
-        }
-
-        private static IFlightStickSubConfig GetSubConfig(FunctionConfig config, FlightStickMode mode)
-        {
-            switch (mode)
-            {
-                case FlightStickMode.Roll: return config.FlightStickRoll;
-                case FlightStickMode.Collective: return config.FlightStickCollective;
-                default: return config.FlightStickPitch;
-            }
+            if (function_config.FlightStick == null)
+                function_config.FlightStick = GetDefaultConfig();
+            stick_config = function_config.FlightStick;
         }
 
         public void SwitchFunction(Function function)
@@ -323,7 +245,7 @@ namespace DiyFfb
 
             Slider_simulated_mass.Value = function_config.SimulatedMass;
             Slider_friction.Value = function_config.Friction;
-            var sub = GetActiveSubConfig();
+            var sub = stick_config;
             Slider_centering_spring_const.Value = sub.CenteringSpringConst;
             Slider_damping.Value = sub.Damping;
 
@@ -383,7 +305,7 @@ namespace DiyFfb
                 if (Rangeslider_travel_range != null && Convert.ToInt16(Rangeslider_travel_range.LowerValue) != newValue)
                     return;
 
-                var activeSub = GetActiveSubConfig();
+                var activeSub = stick_config;
                 var oldValue = activeSub.PosMin;
 
                 activeSub.PosMin = newValue;
@@ -403,7 +325,7 @@ namespace DiyFfb
             }
             if (Label_min_pos != null)
             {
-                Label_min_pos.Content = String.Format("Min\n{0}mm", GetActiveSubConfig().PosMin);
+                Label_min_pos.Content = String.Format("Min\n{0}mm", stick_config.PosMin);
             }
             _travelHelper?.UpdateTravelMarkers();
         }
@@ -418,7 +340,7 @@ namespace DiyFfb
                 if (Rangeslider_travel_range != null && Convert.ToInt16(Rangeslider_travel_range.UpperValue) != newValue)
                     return;
 
-                var activeSub = GetActiveSubConfig();
+                var activeSub = stick_config;
                 var oldValue = activeSub.PosMax;
 
                 activeSub.PosMax = newValue;
@@ -438,7 +360,7 @@ namespace DiyFfb
             }
             if (Label_max_pos != null)
             {
-                Label_max_pos.Content = String.Format("Max\n{0}mm", GetActiveSubConfig().PosMax);
+                Label_max_pos.Content = String.Format("Max\n{0}mm", stick_config.PosMax);
             }
             _travelHelper?.UpdateTravelMarkers();
         }
@@ -447,7 +369,7 @@ namespace DiyFfb
         {
             if (is_updating) return;
             var newValue = (float)e.NewValue;
-            GetActiveSubConfig().Damping = newValue;
+            stick_config.Damping = newValue;
             label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", newValue);
 
             if (allowOverrideCreation && plugin != null && function != null &&
@@ -462,7 +384,7 @@ namespace DiyFfb
         {
             if (is_updating) return;
             var newValue = (float)e.NewValue;
-            GetActiveSubConfig().CenteringSpringConst = newValue;
+            stick_config.CenteringSpringConst = newValue;
             label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", newValue);
 
             if (allowOverrideCreation && plugin != null && function != null &&

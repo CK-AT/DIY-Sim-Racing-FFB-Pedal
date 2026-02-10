@@ -206,6 +206,9 @@ namespace DiyFfb.TieredConfig
             if (_settings?.FunctionBaselines == null)
                 return;
 
+            // Migrate old flight stick baseline field names before deserialization
+            MigrateFlightStickBaselines();
+
             // Load all stored baselines into the manager
             foreach (var kvp in _settings.FunctionBaselines)
             {
@@ -244,6 +247,41 @@ namespace DiyFfb.TieredConfig
 
                 _axisConfigManager.SetBaseConfig(axisId, baseline);
             }
+        }
+
+        /// <summary>
+        /// Migrate stored flight stick baselines from the old 3-field format
+        /// (flightStickPitch/flightStickRoll/flightStickCollective) to the
+        /// consolidated single-field format (flightStick). Idempotent.
+        /// </summary>
+        private void MigrateFlightStickBaselines()
+        {
+            // Flight stick function IDs: Pitch=5, Roll=6, Collective=8
+            int[] flightStickIds = { 5, 6, 8 };
+            foreach (int id in flightStickIds)
+            {
+                if (!_settings.FunctionBaselines.ContainsKey(id))
+                    continue;
+
+                string json = _settings.FunctionBaselines[id];
+                string migrated = MigrateFlightStickJson(json);
+                if (migrated != json)
+                    _settings.FunctionBaselines[id] = migrated;
+            }
+        }
+
+        /// <summary>
+        /// Replace old flight stick oneof field names with consolidated name in JSON.
+        /// </summary>
+        public static string MigrateFlightStickJson(string json)
+        {
+            if (json == null) return null;
+            // Replace old discriminator field names with new unified name
+            // These are mutually exclusive in a oneof, so only one will be present
+            return json
+                .Replace("\"flightStickPitch\"", "\"flightStick\"")
+                .Replace("\"flightStickRoll\"", "\"flightStick\"")
+                .Replace("\"flightStickCollective\"", "\"flightStick\"");
         }
 
         /// <summary>

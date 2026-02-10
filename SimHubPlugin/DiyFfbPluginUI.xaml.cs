@@ -2846,6 +2846,8 @@ namespace DiyFfb
                 try
                 {
                     var content = File.ReadAllText(openFileDialog.FileName);
+                    // Migrate old flight stick field names in imported files
+                    content = DiyFfb.TieredConfig.TieredConfigOrchestrator.MigrateFlightStickJson(content);
                     var jsonParser = new JsonParser(JsonParser.Settings.Default);
                     ConfigItemsList msg = (ConfigItemsList)jsonParser.Parse(content, ConfigItemsList.Descriptor);
                     Dictionary<AxisID, AxisConfig> axisConfigs = new Dictionary<AxisID, AxisConfig>();

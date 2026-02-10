@@ -8,40 +8,13 @@ FlightStickFunction::FlightStickFunction(void) {
     add_element(&load_force);
 }
 
-void FlightStickFunction::update_config_common(const FlightStickConfigCommon &config) {
+void FlightStickFunction::update_config(const FlightStickConfig &config) {
     _config = config;
     damper.set_k(_config.damping);
     centering_spring.set_k(_config.centering_spring_const);
     _base_center = float(_config.pos_min) + (float(_config.pos_max - _config.pos_min) / 2.0f);
     centering_spring.set_offset(_base_center);
     load_force.set_f(0.0f);
-}
-
-void FlightStickFunction::update_config(const FlightStickPitchConfig &config) {
-    FlightStickConfigCommon common;
-    common.pos_min = config.pos_min;
-    common.pos_max = config.pos_max;
-    common.damping = config.damping;
-    common.centering_spring_const = config.centering_spring_const;
-    update_config_common(common);
-}
-
-void FlightStickFunction::update_config(const FlightStickRollConfig &config) {
-    FlightStickConfigCommon common;
-    common.pos_min = config.pos_min;
-    common.pos_max = config.pos_max;
-    common.damping = config.damping;
-    common.centering_spring_const = config.centering_spring_const;
-    update_config_common(common);
-}
-
-void FlightStickFunction::update_config(const FlightStickCollectiveConfig &config) {
-    FlightStickConfigCommon common;
-    common.pos_min = config.pos_min;
-    common.pos_max = config.pos_max;
-    common.damping = config.damping;
-    common.centering_spring_const = config.centering_spring_const;
-    update_config_common(common);
 }
 
 void FlightStickFunction::on_ffb_action(const FFBAction &ffb_action) {

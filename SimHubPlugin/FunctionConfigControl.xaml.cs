@@ -52,7 +52,7 @@ namespace DiyFfb
             AutomotivePedalConfig.ABSTestStateChange += OnABSTestStateChange;
             AutomotivePedalConfig.DebugMessage += OnDebugMessage;
             FlightPedalsConfig.SetGui(ui, plugin);
-            FlightStickConfig.SetGui(ui, plugin);
+            uc_flight_stick.SetGui(ui, plugin);
             ShifterConfig.SetGui(ui, plugin);
 
             if (IsLoaded)
@@ -96,13 +96,9 @@ namespace DiyFfb
                     new_config.AuxFunction = FlightPedalsConfigControl.GetRudderBrakeDefaultConfig(); 
                     break;
                 case FunctionID.FlightStickPitch:
-                    new_config.FlightStickPitch = FlightStickConfigControl.GetDefaultPitchConfig();
-                    break;
                 case FunctionID.FlightStickRoll:
-                    new_config.FlightStickRoll = FlightStickConfigControl.GetDefaultRollConfig();
-                    break;
                 case FunctionID.FlightStickCollective:
-                    new_config.FlightStickCollective = FlightStickConfigControl.GetDefaultCollectiveConfig();
+                    new_config.FlightStick = FlightStickConfigControl.GetDefaultConfig();
                     break;
                 case FunctionID.Shifter:
                     new_config.Shifter = ShifterConfigControl.GetDefaultConfig();
@@ -123,7 +119,7 @@ namespace DiyFfb
                     FlightPedalsConfig.OnKinematicParametersChanged(parameters);
                     break;
                 case 2:
-                    FlightStickConfig.OnKinematicParametersChanged(parameters);
+                    uc_flight_stick.OnKinematicParametersChanged(parameters);
                     break;
                 case 3:
                     ShifterConfig.OnKinematicParametersChanged(parameters);
@@ -142,7 +138,7 @@ namespace DiyFfb
                     FlightPedalsConfig.OnAxisStateUpdate(axis_state);
                     break;
                 case 2:
-                    FlightStickConfig.OnAxisStateUpdate(axis_state);
+                    uc_flight_stick.OnAxisStateUpdate(axis_state);
                     break;
                 case 3:
                     ShifterConfig.OnAxisStateUpdate(axis_state);
@@ -185,15 +181,15 @@ namespace DiyFfb
                     tc_specific_function.SelectedIndex = 1;
                     break;
                 case FunctionID.FlightStickPitch:
-                    FlightStickConfig.SwitchFunction(function);
+                    uc_flight_stick.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 2;
                     break;
                 case FunctionID.FlightStickRoll:
-                    FlightStickConfig.SwitchFunction(function);
+                    uc_flight_stick.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 2;
                     break;
                 case FunctionID.FlightStickCollective:
-                    FlightStickConfig.SwitchFunction(function);
+                    uc_flight_stick.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 2;
                     break;
                 case FunctionID.Shifter:

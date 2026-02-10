@@ -7,9 +7,7 @@
 class FlightStickFunction : public IFunction {
     public:
         FlightStickFunction(void);
-        void update_config(const FlightStickPitchConfig &config);
-        void update_config(const FlightStickRollConfig &config);
-        void update_config(const FlightStickCollectiveConfig &config);
+        void update_config(const FlightStickConfig &config);
         void update(const SimState &state, SimAccumulators &accum) override;
         float get_x_contact_point_min(void) override {
             return _config.pos_min;
@@ -20,18 +18,11 @@ class FlightStickFunction : public IFunction {
         void on_ffb_action(const FFBAction &ffb_action) override;
 
     private:
-        struct FlightStickConfigCommon {
-                int32_t pos_min = 0;
-                int32_t pos_max = 0;
-                float damping = 0.0f;
-                float centering_spring_const = 0.0f;
-        };
-        void update_config_common(const FlightStickConfigCommon &config);
         Spring centering_spring = Spring(0.0f, 0.0f);
         Damper damper = Damper(1.0f);
         Buffet buffet = Buffet(0.0f);
         ConstForce load_force = ConstForce(0.0f);
-        FlightStickConfigCommon _config = {};
+        FlightStickConfig _config = FlightStickConfig_init_zero;
         float _base_center = 0.0f;
         uint32_t _last_ffb_ms = 0;
         bool _ffb_overridden = false;
