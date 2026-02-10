@@ -100,6 +100,13 @@ namespace DiyFfb.TieredConfigTests
             if (!rerouteResults.TrueForAll(r => r.Passed))
                 allPassed = false;
 
+            // Run ProtobufJsonSerialization tests
+            var serializationResults = ProtobufJsonSerializationTests.RunAll();
+            TestRunner.PrintResults("ProtobufJsonSerialization", serializationResults);
+            allResults.AddRange(serializationResults);
+            if (!serializationResults.TrueForAll(r => r.Passed))
+                allPassed = false;
+
             // Summary
             Console.WriteLine("===================");
             int totalPassed = allResults.Count(r => r.Passed);
