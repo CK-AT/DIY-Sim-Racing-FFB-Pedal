@@ -46,6 +46,72 @@ namespace DiyFfb.Controls
                 new FrameworkPropertyMetadata(typeof(LayerBadgeWrapper)));
         }
 
+        // Badge positioning properties (defaults match the standard layout)
+        public static readonly DependencyProperty BadgeHorizontalAlignmentProperty =
+            DependencyProperty.Register(
+                nameof(BadgeHorizontalAlignment),
+                typeof(HorizontalAlignment),
+                typeof(LayerBadgeWrapper),
+                new PropertyMetadata(HorizontalAlignment.Right));
+
+        public static readonly DependencyProperty BadgeVerticalAlignmentProperty =
+            DependencyProperty.Register(
+                nameof(BadgeVerticalAlignment),
+                typeof(VerticalAlignment),
+                typeof(LayerBadgeWrapper),
+                new PropertyMetadata(VerticalAlignment.Top));
+
+        public static readonly DependencyProperty BadgeMarginProperty =
+            DependencyProperty.Register(
+                nameof(BadgeMargin),
+                typeof(Thickness),
+                typeof(LayerBadgeWrapper),
+                new PropertyMetadata(new Thickness(0, 0, 2, 0)));
+
+        public static readonly DependencyProperty BadgeOffsetXProperty =
+            DependencyProperty.Register(
+                nameof(BadgeOffsetX),
+                typeof(double),
+                typeof(LayerBadgeWrapper),
+                new PropertyMetadata(0.0));
+
+        public static readonly DependencyProperty BadgeOffsetYProperty =
+            DependencyProperty.Register(
+                nameof(BadgeOffsetY),
+                typeof(double),
+                typeof(LayerBadgeWrapper),
+                new PropertyMetadata(-14.0));
+
+        public HorizontalAlignment BadgeHorizontalAlignment
+        {
+            get => (HorizontalAlignment)GetValue(BadgeHorizontalAlignmentProperty);
+            set => SetValue(BadgeHorizontalAlignmentProperty, value);
+        }
+
+        public VerticalAlignment BadgeVerticalAlignment
+        {
+            get => (VerticalAlignment)GetValue(BadgeVerticalAlignmentProperty);
+            set => SetValue(BadgeVerticalAlignmentProperty, value);
+        }
+
+        public Thickness BadgeMargin
+        {
+            get => (Thickness)GetValue(BadgeMarginProperty);
+            set => SetValue(BadgeMarginProperty, value);
+        }
+
+        public double BadgeOffsetX
+        {
+            get => (double)GetValue(BadgeOffsetXProperty);
+            set => SetValue(BadgeOffsetXProperty, value);
+        }
+
+        public double BadgeOffsetY
+        {
+            get => (double)GetValue(BadgeOffsetYProperty);
+            set => SetValue(BadgeOffsetYProperty, value);
+        }
+
         // Dependency properties for configuration
         public static readonly DependencyProperty FieldPathProperty =
             DependencyProperty.Register(
