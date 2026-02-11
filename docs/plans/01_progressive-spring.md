@@ -1,5 +1,7 @@
 # Progressive Spring Feature
 
+**Status**: NOT IMPLEMENTED (plan only)
+
 ## Goal
 
 Add a configurable spring exponent to enable progressive/degressive centering spring behavior for flight controls.

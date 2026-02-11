@@ -1,5 +1,7 @@
 # FFB Graph Template Rework Plan
 
+**Status**: COMPLETED
+
 ## Objective
 
 Rework `SimHubPlugin/graphs/templates/` to fully implement the FFB behavior defined in `FFB_Design_Future.md`, using Include graphs for shared calculations.

@@ -1,5 +1,7 @@
 # Vehicle Tab Implementation Plan
 
+**Status**: COMPLETED
+
 ## Overview
 
 Add a new top-level "VEHICLE" tab alongside Functions/Axes/System that provides a central place for tuning non-function, non-system graph parameters. Parameters are organized into collapsible panels by their `Group` property.

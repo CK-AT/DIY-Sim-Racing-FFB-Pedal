@@ -1,6 +1,6 @@
 # Function Processors
 
-**Status: IN PROGRESS** — AutomotivePedal first
+**Status: COMPLETE** — All 4 processors implemented (AutomotivePedal, FlightPedals, FlightStick, Shifter)
 
 ## Problem
 

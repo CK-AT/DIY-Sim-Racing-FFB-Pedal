@@ -1,7 +1,7 @@
 # Badge Context Menu & Override Review Dialog
 
 **Date:** 2026-02-10
-**Status:** Planned
+**Status:** COMPLETE (commit `20ce3c7d`)
 **Branch:** `ck_tiered_config`
 **Depends on:** [Plan 24](24_Tiered_Config_Overrides.md) (tiered config foundation),
 [Plan 25](25_Override_Field_Registry_Plan.md) (override field registry + badge wrapper)

@@ -19,8 +19,8 @@
 | Phase 11  | ✅ **Complete** | ConfigMerger complete (all function types)               |
 | Phase 12  | ✅ **Complete** | Proof-of-concept (simulated_mass with full persistence)  |
 | Phase 13  | ✅ **Complete** | Enhanced tooltips (show all layer values)                |
-| Phase 14  | ⏳ **Planned**  | Context menu re-route + review dialog → [Plan 32](32_Badge_Menu_And_Review_Dialog.md) |
-| Phase 15+ | ⏳ **Pending**  | Migrate remaining ~50 event handlers to override pattern |
+| Phase 14  | ✅ **Complete** | Context menu re-route + review dialog → [Plan 32](32_Badge_Menu_And_Review_Dialog.md) |
+| Phase 15  | ✅ **Complete** | All event handlers migrated to override pattern          |
 
 **Files created:**
 
