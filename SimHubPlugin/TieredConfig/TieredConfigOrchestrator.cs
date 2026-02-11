@@ -320,10 +320,6 @@ namespace DiyFfb.TieredConfig
         /// </summary>
         public void ApplyProfileFunctionOverrides(DiyFfbPluginSettings.AircraftFfbProfile profile)
         {
-            SimHub.Logging.Current.Info($"[TieredConfig] ApplyProfileFunctionOverrides: profile={(profile != null ? "exists" : "null")}, " +
-                $"activeFuncs={(profile?.ActiveFunctionIds?.Count.ToString() ?? "n/a")}, " +
-                $"knownFuncs={string.Join(",", _functionConfigManager.GetKnownFunctionIds())}");
-
             // Clear existing overrides silently — events are deferred until all overrides
             // are applied, so the ESP32 gets exactly one upload per changed function
             // with the final merged config (no intermediate baseline flash).

@@ -222,11 +222,6 @@ namespace DiyFfb
             }
 
             bool sent = sender.SendAxisRequest(item.AxisId, item.Type, item.Payload);
-            if (IsUploadType(item.Type))
-            {
-                var funcId = item.Payload?.FunctionConfig?.Base?.FunctionId;
-                SimHub.Logging.Current.Info($"[AxisQueue] Sent {item.Type} axis={item.AxisId} func={funcId} sent={sent} queueRemaining={queue.Count}");
-            }
             lock (sync)
             {
                 if (!hasCurrent)

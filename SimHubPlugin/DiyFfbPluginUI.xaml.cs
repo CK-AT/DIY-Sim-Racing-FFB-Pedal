@@ -2666,15 +2666,11 @@ namespace DiyFfb
 
             int funcId = (int)newFunctionId;
 
-            SimHub.Logging.Current.Info($"[TieredConfig] OnFunctionConfigUpdate func={newFunctionId}: " +
-                $"fromEsp32={fromEsp32}, hasBaseline={Plugin.ConfigOrchestrator.HasFunctionBaseline(funcId)}");
-
             var (authorityOverride, resultConfig) =
                 Plugin.ConfigOrchestrator.HandleIncomingFunctionConfig(funcId, newFunctionConfig, fromEsp32);
 
             if (authorityOverride)
             {
-                SimHub.Logging.Current.Info($"[TieredConfig] ESP32 authority: pushing merged config back for func={newFunctionId}");
                 EnqueueFunctionConfigUpload(resultConfig, store: false);
                 Plugin.FunctionConfigManager.MarkAsSent(funcId, resultConfig);
                 return;
@@ -2769,12 +2765,6 @@ namespace DiyFfb
                 return;
 
             bool isActive = Plugin.ConfigOrchestrator.IsFunctionActive(e.FunctionId);
-            var autoPedal = e.NewConfig?.AutomotivePedal;
-            SimHub.Logging.Current.Info($"[TieredConfig] OnMergedFunctionConfigChanged func={funcId}: " +
-                $"isActive={isActive}, hasProfile={e.HasProfileOverride}, hasUser={e.HasUserOverride}, " +
-                $"hasForceCurve={(autoPedal?.ForceCurveConfig != null)}, " +
-                $"hasDamper={(autoPedal?.DamperConfig != null)}, " +
-                $"linkedAxes={e.NewConfig?.Base?.LinkedAxes?.Count ?? 0}");
 
             // Update UI working copy with merged config so SwitchFunction shows correct values.
             // The merged config = base (full ESP32 config) + profile/user overrides, so all fields

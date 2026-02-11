@@ -131,10 +131,6 @@ namespace DiyFfb.TieredConfig
             bool hasChanges = hasLastSent && ConfigComparer.HasChanges(merged, lastSent);
             bool shouldSend = !diffCheck || !hasLastSent || hasChanges;
 
-            SimHub.Logging.Current.Info($"[FuncCfgMgr] ApplyOverrides func={functionId}: " +
-                $"diffCheck={diffCheck}, hasLastSent={hasLastSent}, hasChanges={hasChanges}, shouldSend={shouldSend}, " +
-                $"hasProfile={hasProfile}, hasUser={hasUser}");
-
             if (shouldSend)
             {
                 // Note: _lastSentConfigs is NOT updated here. The UI event handler
