@@ -23,7 +23,8 @@ namespace DiyFfb.TieredConfig
             "damper_config",
             "damper_config.positive_factor",
             "damper_config.negative_factor",
-            "force_curve"
+            "force_curve",
+            "abs_effect_config"
         };
 
         // Baseline-level fields: rarely changed, tied to physical hardware

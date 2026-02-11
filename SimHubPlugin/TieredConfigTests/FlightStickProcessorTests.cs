@@ -40,8 +40,8 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("Apply_EmptyDelta_NoOp", Apply_EmptyDelta_NoOp),
                 TestRunner.RunTest("Apply_NullBase_NoOp", Apply_NullBase_NoOp),
 
-                // Auto-creation of sub-config
-                TestRunner.RunTest("Apply_AutoCreatesFlightStick", Apply_AutoCreatesFlightStick),
+                // Null FlightStick is a no-op (don't clobber other oneof arms)
+                TestRunner.RunTest("Apply_NullFlightStick_NoOp", Apply_NullFlightStick_NoOp),
 
                 // Migration tests
                 TestRunner.RunTest("Migrate_PitchJson", Migrate_PitchJson),
@@ -283,14 +283,22 @@ namespace DiyFfb.TieredConfigTests
             AssertEqual(-20, config.FlightStick.PosMin, "PosMin should be unchanged");
         }
 
-        // === Auto-creation Tests ===
+        // === Null FlightStick Tests ===
 
-        private static void Apply_AutoCreatesFlightStick()
+        /// <summary>
+        /// When FlightStick is null (e.g. config is AutomotivePedal), ApplyOverrides
+        /// must be a no-op. Previously it auto-created a FlightStickConfig, which
+        /// clobbered the active oneof arm (AutomotivePedal/FlightPedals/Shifter).
+        /// </summary>
+        private static void Apply_NullFlightStick_NoOp()
         {
             var config = new FunctionConfig
             {
-                Base = new FunctionBase { FunctionId = FunctionID.FlightStickPitch },
-                FlightStick = null
+                Base = new FunctionBase { FunctionId = FunctionID.BrakePedal },
+                AutomotivePedal = new AutomotivePedalConfig
+                {
+                    DamperConfig = new DamperConfig { PositiveFactor = 0.05f }
+                }
             };
             var delta = new FunctionConfigOverrides
             {
@@ -299,9 +307,9 @@ namespace DiyFfb.TieredConfigTests
 
             FlightStickProcessor.ApplyOverrides(config, delta);
 
-            AssertTrue(config.FlightStick != null, "FlightStick should be auto-created");
-            AssertEqual(-10, config.FlightStick.PosMin, "PosMin should be set");
-            AssertEqual(10, config.FlightStick.PosMax, "PosMax should be set");
+            AssertTrue(config.FlightStick == null, "FlightStick should remain null");
+            AssertTrue(config.AutomotivePedal != null, "AutomotivePedal oneof should be preserved");
+            AssertNear(0.05f, config.AutomotivePedal.DamperConfig.PositiveFactor, 1e-6f, "Damper should be unchanged");
         }
 
         // === Migration Tests ===

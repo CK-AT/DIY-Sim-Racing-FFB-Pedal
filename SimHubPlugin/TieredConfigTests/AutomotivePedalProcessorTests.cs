@@ -27,6 +27,11 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("Apply_NullDelta_NoOp", Apply_NullDelta_NoOp),
                 TestRunner.RunTest("Apply_EmptyDelta_NoOp", Apply_EmptyDelta_NoOp),
                 TestRunner.RunTest("Apply_DamperAutoCreated", Apply_DamperAutoCreated),
+
+                // ABS effect override tests
+                TestRunner.RunTest("Apply_AbsEffectReplacement", Apply_AbsEffectReplacement),
+                TestRunner.RunTest("Apply_AbsEffectIsClone", Apply_AbsEffectIsClone),
+                TestRunner.RunTest("Apply_AbsEffectPreservesOtherEffects", Apply_AbsEffectPreservesOtherEffects),
             };
         }
 
@@ -194,6 +199,63 @@ namespace DiyFfb.TieredConfigTests
 
             AssertTrue(apConfig.DamperConfig != null, "DamperConfig should be auto-created");
             AssertNear(0.3f, apConfig.DamperConfig.PositiveFactor, 1e-6f, "PositiveFactor should be set");
+        }
+
+        // === ABS Effect Override Tests ===
+
+        private static void Apply_AbsEffectReplacement()
+        {
+            var apConfig = new AutomotivePedalConfig
+            {
+                AbsEffectConfig = new ABSEffectConfig { Enabled = false, Freq = 10, Ampl = 20 }
+            };
+            var delta = new FunctionConfigOverrides
+            {
+                AbsEffect = new ABSEffectConfig { Enabled = true, Freq = 30, Ampl = 50, Mode = ABSMode.Force }
+            };
+
+            AutomotivePedalProcessor.ApplyOverrides(apConfig, delta);
+
+            AssertTrue(apConfig.AbsEffectConfig.Enabled, "AbsEffect.Enabled should be overridden to true");
+            AssertEqual((int)apConfig.AbsEffectConfig.Freq, 30, "AbsEffect.Freq should be overridden");
+            AssertEqual((int)apConfig.AbsEffectConfig.Ampl, 50, "AbsEffect.Ampl should be overridden");
+            AssertTrue(apConfig.AbsEffectConfig.Mode == ABSMode.Force, "AbsEffect.Mode should be overridden");
+        }
+
+        private static void Apply_AbsEffectIsClone()
+        {
+            var original = new ABSEffectConfig { Freq = 25 };
+            var apConfig = new AutomotivePedalConfig
+            {
+                AbsEffectConfig = new ABSEffectConfig { Freq = 10 }
+            };
+            var delta = new FunctionConfigOverrides { AbsEffect = original };
+
+            AutomotivePedalProcessor.ApplyOverrides(apConfig, delta);
+
+            AssertTrue(!ReferenceEquals(original, apConfig.AbsEffectConfig),
+                "AbsEffectConfig should be a clone, not the same reference");
+            AssertEqual((int)apConfig.AbsEffectConfig.Freq, 25, "Freq should match override value");
+        }
+
+        private static void Apply_AbsEffectPreservesOtherEffects()
+        {
+            var apConfig = new AutomotivePedalConfig
+            {
+                AbsEffectConfig = new ABSEffectConfig { Freq = 10 },
+                RpmEffectConfig = new RPMEffectConfig { Amp = 42 },
+                DamperConfig = new DamperConfig { PositiveFactor = 0.3f }
+            };
+            var delta = new FunctionConfigOverrides
+            {
+                AbsEffect = new ABSEffectConfig { Freq = 99 }
+            };
+
+            AutomotivePedalProcessor.ApplyOverrides(apConfig, delta);
+
+            AssertEqual((int)apConfig.AbsEffectConfig.Freq, 99, "AbsEffect.Freq should be overridden");
+            AssertEqual((int)apConfig.RpmEffectConfig.Amp, 42, "RpmEffect should be preserved");
+            AssertNear(0.3f, apConfig.DamperConfig.PositiveFactor, 1e-6f, "DamperConfig should be preserved");
         }
 
         // === Helper Methods ===

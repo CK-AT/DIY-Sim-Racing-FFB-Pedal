@@ -91,6 +91,16 @@ namespace DiyFfb.TieredConfig
         // RudderBrake overrides (aux_function in FlightPedals)
         public ForceRangeOverrides RudderBrakeForceRange { get; set; }
 
+        // AutomotivePedal effect overrides
+        [JsonIgnore]
+        public ABSEffectConfig AbsEffect { get; set; }
+        [JsonProperty("AbsEffectJson")]
+        public string AbsEffectJson
+        {
+            get => ProtobufJsonHelper.ToJson(AbsEffect);
+            set => AbsEffect = ProtobufJsonHelper.FromJson<ABSEffectConfig>(value);
+        }
+
         // Shifter overrides
         [JsonIgnore]
         public ShifterConfig ShifterConfig { get; set; }
@@ -127,6 +137,7 @@ namespace DiyFfb.TieredConfig
             FlightStickDamping == null &&
             FlightStickCenteringSpringConst == null &&
             (RudderBrakeForceRange == null || RudderBrakeForceRange.IsEmpty) &&
+            AbsEffect == null &&
             ShifterConfig == null &&
             ShifterDetectConfig == null;
     }

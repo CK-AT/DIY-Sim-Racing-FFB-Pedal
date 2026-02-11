@@ -21,7 +21,7 @@ namespace DiyFfb
         private FunctionConfig function_config = new FunctionConfig();
         private Function function;
         private FunctionID current_function_id;
-        private bool update_lockout = false;
+        private bool is_updating = true;
         private bool allowOverrideCreation = false;
         private BadgeHelper _badgeHelper;
 
@@ -43,6 +43,8 @@ namespace DiyFfb
 
             if (IsLoaded)
                 _badgeHelper.Subscribe();
+
+            is_updating = false;
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -62,47 +64,111 @@ namespace DiyFfb
             var mergedConfig = plugin.FunctionConfigManager.GetCurrentConfig((int)function.ID);
             if (mergedConfig == null) return;
 
-            update_lockout = true;
-            switch (e.FieldPath)
+            if (config == null)
+                config = GetDefaultConfig();
+
+            if (config.DamperConfig == null)
+                config.DamperConfig = new DamperConfig();
+
+            var mergedAuto = mergedConfig.AutomotivePedal ?? GetDefaultConfig();
+            var mergedDamper = mergedAuto.DamperConfig ?? new DamperConfig();
+
+            is_updating = true;
+            try
             {
-                case "damper_config.positive_factor":
-                    config.DamperConfig.PositiveFactor = mergedConfig.AutomotivePedal.DamperConfig.PositiveFactor;
-                    Slider_damping_push.Value = config.DamperConfig.PositiveFactor;
-                    label_damping_push.Content = String.Format("Damping (Push): {0:F3}N*mm/s", config.DamperConfig.PositiveFactor);
-                    break;
+                switch (e.FieldPath)
+                {
+                    case "damper_config.positive_factor":
+                        config.DamperConfig.PositiveFactor = mergedDamper.PositiveFactor;
+                        Slider_damping_push.Value = config.DamperConfig.PositiveFactor;
+                        label_damping_push.Content = String.Format("Damping (Push): {0:F3}N*mm/s", config.DamperConfig.PositiveFactor);
+                        break;
 
-                case "damper_config.negative_factor":
-                    config.DamperConfig.NegativeFactor = mergedConfig.AutomotivePedal.DamperConfig.NegativeFactor;
-                    Slider_damping_pull.Value = config.DamperConfig.NegativeFactor;
-                    label_damping_pull.Content = String.Format("Damping (Pull): {0:F3}N*mm/s", config.DamperConfig.NegativeFactor);
-                    break;
+                    case "damper_config.negative_factor":
+                        config.DamperConfig.NegativeFactor = mergedDamper.NegativeFactor;
+                        Slider_damping_pull.Value = config.DamperConfig.NegativeFactor;
+                        label_damping_pull.Content = String.Format("Damping (Pull): {0:F3}N*mm/s", config.DamperConfig.NegativeFactor);
+                        break;
 
-                case "simulated_mass":
-                    function_config.SimulatedMass = mergedConfig.SimulatedMass;
-                    Slider_simulated_mass.Value = mergedConfig.SimulatedMass;
-                    label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
-                    break;
+                    case "simulated_mass":
+                        if (function_config != null)
+                            function_config.SimulatedMass = mergedConfig.SimulatedMass;
+                        Slider_simulated_mass.Value = mergedConfig.SimulatedMass;
+                        label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
+                        break;
 
-                case "friction":
-                    function_config.Friction = mergedConfig.Friction;
-                    Slider_friction.Value = mergedConfig.Friction;
-                    label_friction.Content = String.Format("Friction: {0:F1}N", mergedConfig.Friction);
-                    break;
+                    case "friction":
+                        if (function_config != null)
+                            function_config.Friction = mergedConfig.Friction;
+                        Slider_friction.Value = mergedConfig.Friction;
+                        label_friction.Content = String.Format("Friction: {0:F1}N", mergedConfig.Friction);
+                        break;
 
-                case "force_curve":
-                    config.ForceCurveConfig = mergedConfig.AutomotivePedal.ForceCurveConfig.Clone();
-                    allowOverrideCreation = false;
-                    AutomotivePedal_SplineForceCurve.UpdateConfig(config.ForceCurveConfig);
-                    Dispatcher.BeginInvoke(new Action(() => allowOverrideCreation = true),
-                        System.Windows.Threading.DispatcherPriority.ContextIdle);
-                    break;
+                    case "force_curve":
+                        config.ForceCurveConfig = mergedAuto.ForceCurveConfig?.Clone() ?? SplineForceCurve.GetDefaultConfig();
+                        AutomotivePedal_SplineForceCurve.UpdateConfig(config.ForceCurveConfig);
+                        break;
+
+                    case "abs_effect_config":
+                        config.AbsEffectConfig = mergedAuto.AbsEffectConfig?.Clone()
+                                                 ?? new ABSEffectConfig();
+                        Slider_ABS_freq.Value = config.AbsEffectConfig.Freq;
+                        label_ABS_freq.Content = "ABS/TC Frequency: " + config.AbsEffectConfig.Freq + "Hz";
+                        switch (config.AbsEffectConfig.Mode)
+                        {
+                            case ABSMode.Force:
+                                Slider_ABS_AMP.Value = Math.Round((float)config.AbsEffectConfig.Ampl / 9.81);
+                                label_ABS_AMP.Content = String.Format("ABS/TC Amplitude: {0:F1}kg", config.AbsEffectConfig.Ampl / 9.81f);
+                                EffectAppliedOnForceOrTravel_combobox.SelectedIndex = 0;
+                                break;
+                            case ABSMode.Travel:
+                                Slider_ABS_AMP.Value = (float)config.AbsEffectConfig.Ampl;
+                                label_ABS_AMP.Content = String.Format("ABS/TC Amplitude: {0:F1}mm", config.AbsEffectConfig.Ampl);
+                                EffectAppliedOnForceOrTravel_combobox.SelectedIndex = 1;
+                                break;
+                            default:
+                                Slider_ABS_AMP.Value = Math.Round((float)config.AbsEffectConfig.Ampl / 9.81);
+                                label_ABS_AMP.Content = String.Format("ABS/TC Amplitude: {0:F1}kg", config.AbsEffectConfig.Ampl / 9.81f);
+                                EffectAppliedOnForceOrTravel_combobox.SelectedIndex = 0;
+                                break;
+                        }
+                        checkbox_enable_ABS.IsChecked = config.AbsEffectConfig.Enabled;
+                        checkbox_enable_ABS.Content = config.AbsEffectConfig.Enabled ? "ABS/TC Effect Enabled" : "ABS/TC Effect Disabled";
+                        AbsPattern.SelectedIndex = config.AbsEffectConfig.Pattern == ABSPattern.Sine ? 0 : 1;
+                        Simulate_ABS_check.IsChecked = config.AbsEffectConfig.SimLevel > 0;
+                        update_plot_ABS();
+                        break;
+                }
             }
-            update_lockout = false;
+            finally
+            {
+                is_updating = false;
+            }
         }
 
 
+        /// <summary>
+        /// Creates a whole-config effect override if baseline exists and override creation is allowed.
+        /// Reusable for all effect config types (ABS, RPM, BitePoint, etc.).
+        /// </summary>
+        private void MaybeCreateEffectOverride(string fieldPath, System.Func<Google.Protobuf.IMessage> cloneConfig)
+        {
+            if (is_updating || !allowOverrideCreation || plugin == null || function == null ||
+                !plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+                return;
+
+            var field = OverrideFieldRegistry.GetField(fieldPath);
+            if (field == null) return;
+
+            plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, fieldPath,
+                overrides => field.SetValue(overrides, cloneConfig()));
+        }
+
         private void OnRangeSettingsChanged(SplineForceCurve spline_force_curve)
         {
+            if (is_updating)
+                return;
+
             AutomotivePedalProcessor.ReconcileDerivedFields(function_config);
 
             if (allowOverrideCreation && plugin != null && function != null &&
@@ -115,11 +181,27 @@ namespace DiyFfb
 
         public void OnKinematicParametersChanged(KinematicParameters parameters)
         {
+            if (AutomotivePedal_SplineForceCurve == null)
+                return;
+
+            bool wasUpdating = is_updating;
+            if (!wasUpdating)
+                is_updating = true;
+
             AutomotivePedal_SplineForceCurve.OnKinematicParametersChanged(parameters);
+
+            if (!wasUpdating)
+            {
+                Dispatcher.BeginInvoke(new Action(() => is_updating = false),
+                    System.Windows.Threading.DispatcherPriority.ContextIdle);
+            }
         }
 
         public void OnAxisStateUpdate(global::AxisState axis_state)
         {
+            if (function_config?.Base?.LinkedAxes == null || function_config.Base.LinkedAxes.Count == 0)
+                return;
+
             if (function_config.Base.LinkedAxes[0] == axis_state.AxisId)
             {
                 AutomotivePedal_SplineForceCurve.OnAxisStateUpdate(axis_state);
@@ -151,15 +233,41 @@ namespace DiyFfb
             new_config.Cv2EffectConfig.Enabled = false;
             return new_config;
         }
+
+        private void EnsureConfigInitialized()
+        {
+            if (function_config == null)
+                function_config = new FunctionConfig();
+
+            if (function_config.AutomotivePedal == null)
+                function_config.AutomotivePedal = GetDefaultConfig();
+            config = function_config.AutomotivePedal;
+
+            if (config.DamperConfig == null)
+            {
+                config.DamperConfig = new DamperConfig
+                {
+                    PositiveFactor = 0.25f,
+                    NegativeFactor = 0.25f
+                };
+            }
+
+            if (config.ForceCurveConfig == null)
+                config.ForceCurveConfig = SplineForceCurve.GetDefaultConfig();
+
+            if (config.AbsEffectConfig == null)
+                config.AbsEffectConfig = new ABSEffectConfig();
+        }
         public void SwitchFunction(Function function)
         {
             this.function = function;
             function_config = function.Config;
-            config = function_config.AutomotivePedal;
+
+            EnsureConfigInitialized();
             current_function_id = function_config.Base.FunctionId;
             allowOverrideCreation = false;
 
-            update_lockout = true;
+            is_updating = true;
 
             AutomotivePedal_AxisSelector.Value = function_config.Base.LinkedAxes[0];
             AutomotivePedal_SplineForceCurve.ResetAxisRange();
@@ -380,7 +488,7 @@ namespace DiyFfb
 
             _badgeHelper?.InitializeBadges();
 
-            update_lockout = false;
+            is_updating = false;
 
             Dispatcher.BeginInvoke(new Action(() => allowOverrideCreation = true),
                 System.Windows.Threading.DispatcherPriority.ContextIdle);
@@ -424,7 +532,7 @@ namespace DiyFfb
 
         public void AbsPatternChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (update_lockout) return;
+            if (is_updating) return;
             switch (AbsPattern.SelectedIndex)
             {
                 case 0:
@@ -438,6 +546,7 @@ namespace DiyFfb
                     break;
             }
             update_plot_ABS();
+            MaybeCreateEffectOverride("abs_effect_config", () => config.AbsEffectConfig.Clone());
         }
 
         private void checkbox_enable_G_force_Unchecked(object sender, RoutedEventArgs e)
@@ -510,21 +619,17 @@ namespace DiyFfb
 
         private void Simulate_ABS_check_Checked(object sender, RoutedEventArgs e)
         {
+            if (is_updating) return;
             config.AbsEffectConfig.SimLevel = 1;
             DebugMessage?.Invoke("simulateABS: on");
-            //rect_SABS.Visibility = Visibility.Visible;
-            //rect_SABS_Control.Visibility = Visibility.Visible;
-            //text_SABS.Visibility = Visibility.Visible;
-
+            MaybeCreateEffectOverride("abs_effect_config", () => config.AbsEffectConfig.Clone());
         }
         private void Simulate_ABS_check_Unchecked(object sender, RoutedEventArgs e)
         {
+            if (is_updating) return;
             config.AbsEffectConfig.SimLevel = 0;
             DebugMessage?.Invoke("simulateABS: off");
-            //rect_SABS.Visibility = Visibility.Hidden;
-            //rect_SABS_Control.Visibility = Visibility.Hidden;
-            //text_SABS.Visibility = Visibility.Hidden;
-
+            MaybeCreateEffectOverride("abs_effect_config", () => config.AbsEffectConfig.Clone());
         }
 
 
@@ -617,14 +722,16 @@ namespace DiyFfb
 
         private void Slider_ABS_freq_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            if (is_updating) return;
             config.AbsEffectConfig.Freq = (Byte)(e.NewValue);
             label_ABS_freq.Content = "ABS/TC Frequency: " + config.AbsEffectConfig.Freq + "Hz";
             update_plot_ABS();
+            MaybeCreateEffectOverride("abs_effect_config", () => config.AbsEffectConfig.Clone());
         }
 
         private void Slider_ABS_AMP_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (update_lockout) return;
+            if (is_updating) return;
             switch (config.AbsEffectConfig.Mode)
             {
                 case ABSMode.Force:
@@ -639,6 +746,7 @@ namespace DiyFfb
                     break;
             }
             update_plot_ABS();
+            MaybeCreateEffectOverride("abs_effect_config", () => config.AbsEffectConfig.Clone());
         }
 
         private void Bind_CV1_Click(object sender, RoutedEventArgs e)
@@ -897,15 +1005,19 @@ namespace DiyFfb
 
          private void checkbox_enable_ABS_Checked(object sender, RoutedEventArgs e)
         {
+            if (is_updating) return;
             plugin.Settings.function_settings[ui.indexOfSelectedPedal_u].ABS_enabled = true;
             config.AbsEffectConfig.Enabled = true;
             checkbox_enable_ABS.Content = "ABS/TC Effect Enabled";
+            MaybeCreateEffectOverride("abs_effect_config", () => config.AbsEffectConfig.Clone());
         }
         private void checkbox_enable_ABS_Unchecked(object sender, RoutedEventArgs e)
         {
+            if (is_updating) return;
             plugin.Settings.function_settings[ui.indexOfSelectedPedal_u].ABS_enabled = false;
             config.AbsEffectConfig.Enabled = false;
             checkbox_enable_ABS.Content = "ABS/TC Effect Disabled";
+            MaybeCreateEffectOverride("abs_effect_config", () => config.AbsEffectConfig.Clone());
         }
 
         private void checkbox_enable_RPM_Checked(object sender, RoutedEventArgs e)
@@ -923,7 +1035,7 @@ namespace DiyFfb
         }
         public void EffectAppliedOnForceOrTravel_combobox_changed(object sender, SelectionChangedEventArgs e)
         {
-            if (update_lockout) return;
+            if (is_updating) return;
             try
             {
                 if (EffectAppliedOnForceOrTravel_combobox.SelectedIndex == 0)
@@ -960,11 +1072,12 @@ namespace DiyFfb
                 DebugMessage?.Invoke(errorMessage);
             }
 
+            MaybeCreateEffectOverride("abs_effect_config", () => config.AbsEffectConfig.Clone());
         }
 
         private void OnPushDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (update_lockout) return;
+            if (is_updating) return;
             var newValue = (float)e.NewValue;
             config.DamperConfig.PositiveFactor = newValue;
             label_damping_push.Content = String.Format("Damping (Push): {0:F3}N*mm/s", newValue);
@@ -984,7 +1097,7 @@ namespace DiyFfb
 
         private void OnPullDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (update_lockout) return;
+            if (is_updating) return;
             var newValue = (float)e.NewValue;
             config.DamperConfig.NegativeFactor = newValue;
             label_damping_pull.Content = String.Format("Damping (Pull): {0:F3}N*mm/s", newValue);
@@ -1004,7 +1117,7 @@ namespace DiyFfb
 
         private void OnSimulatedMassChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (update_lockout) return;
+            if (is_updating) return;
             var newValue = (float)e.NewValue;
             label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", newValue);
             function_config.SimulatedMass = newValue;
@@ -1053,7 +1166,7 @@ namespace DiyFfb
         
         private void OnFrictionChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (update_lockout) return;
+            if (is_updating) return;
             var newValue = (float)e.NewValue;
             label_friction.Content = String.Format("Friction: {0:F1}N", newValue);
             function_config.Friction = newValue;

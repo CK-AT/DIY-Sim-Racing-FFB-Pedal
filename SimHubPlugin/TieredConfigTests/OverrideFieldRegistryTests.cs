@@ -71,6 +71,16 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("FieldDefinition_OutputMin_HasCorrectMetadata", FieldDefinition_OutputMin_HasCorrectMetadata),
                 TestRunner.RunTest("FieldDefinition_StaticBalanceEnabled_HasCorrectType", FieldDefinition_StaticBalanceEnabled_HasCorrectType),
 
+                // AbsEffect (complex type) tests
+                TestRunner.RunTest("GetField_AbsEffect_ReturnsDefinition", GetField_AbsEffect_ReturnsDefinition),
+                TestRunner.RunTest("GetFieldsByGroup_Effects_Returns1Field", GetFieldsByGroup_Effects_Returns1Field),
+                TestRunner.RunTest("SetValue_AbsEffect_SetsValue", SetValue_AbsEffect_SetsValue),
+                TestRunner.RunTest("GetValue_AbsEffect_ReturnsValue", GetValue_AbsEffect_ReturnsValue),
+                TestRunner.RunTest("ClearValue_AbsEffect_ClearsValue", ClearValue_AbsEffect_ClearsValue),
+                TestRunner.RunTest("HasValue_AbsEffect_WhenSet_ReturnsTrue", HasValue_AbsEffect_WhenSet_ReturnsTrue),
+                TestRunner.RunTest("HasValue_AbsEffect_WhenNotSet_ReturnsFalse", HasValue_AbsEffect_WhenNotSet_ReturnsFalse),
+                TestRunner.RunTest("GetTargetLayer_AbsEffect_ReturnsUser", GetTargetLayer_AbsEffect_ReturnsUser),
+
                 // Edge case tests
                 TestRunner.RunTest("SetValue_NullOverrides_ThrowsException", SetValue_NullOverrides_ThrowsException),
                 TestRunner.RunTest("SetValue_UnknownField_ThrowsException", SetValue_UnknownField_ThrowsException),
@@ -439,6 +449,81 @@ namespace DiyFfb.TieredConfigTests
         {
             // Should not throw
             OverrideFieldRegistry.ClearValue(null, "output_min");
+        }
+
+        // === AbsEffect (Complex Type) Tests ===
+
+        private static void GetField_AbsEffect_ReturnsDefinition()
+        {
+            var field = OverrideFieldRegistry.GetField("abs_effect_config");
+            AssertNotNull(field, "abs_effect_config field should be registered");
+            AssertEqual("AbsEffect", field.Name, "Field name should match");
+            AssertEqual(OverrideFieldType.Complex, field.FieldType, "Should be Complex type");
+            AssertEqual(OverrideFieldGroup.Effects, field.Group, "Should be Effects group");
+            AssertEqual(ConfigLayer.User, field.DefaultLayer, "Should target User layer");
+        }
+
+        private static void GetFieldsByGroup_Effects_Returns1Field()
+        {
+            var fields = OverrideFieldRegistry.GetFieldsByGroup(OverrideFieldGroup.Effects).ToList();
+            AssertEqual(1, fields.Count, "Effects group should have 1 field");
+            AssertTrue(fields.Any(f => f.Name == "AbsEffect"), "Should contain AbsEffect");
+        }
+
+        private static void SetValue_AbsEffect_SetsValue()
+        {
+            var overrides = new FunctionConfigOverrides();
+            var absConfig = new ABSEffectConfig { Enabled = true, Freq = 30, Ampl = 50 };
+            OverrideFieldRegistry.SetValue(overrides, "abs_effect_config", absConfig);
+
+            AssertNotNull(overrides.AbsEffect, "AbsEffect should be set");
+            AssertTrue(overrides.AbsEffect.Enabled, "AbsEffect.Enabled should be true");
+            AssertEqual(30u, overrides.AbsEffect.Freq, "AbsEffect.Freq should match");
+        }
+
+        private static void GetValue_AbsEffect_ReturnsValue()
+        {
+            var absConfig = new ABSEffectConfig { Freq = 25 };
+            var overrides = new FunctionConfigOverrides { AbsEffect = absConfig };
+            var value = OverrideFieldRegistry.GetValue(overrides, "abs_effect_config");
+
+            AssertNotNull(value, "Value should not be null");
+            var retrieved = (ABSEffectConfig)value;
+            AssertEqual(25u, retrieved.Freq, "Should return correct Freq");
+        }
+
+        private static void ClearValue_AbsEffect_ClearsValue()
+        {
+            var overrides = new FunctionConfigOverrides
+            {
+                AbsEffect = new ABSEffectConfig { Enabled = true }
+            };
+            OverrideFieldRegistry.ClearValue(overrides, "abs_effect_config");
+
+            AssertNull(overrides.AbsEffect, "AbsEffect should be null after clear");
+        }
+
+        private static void HasValue_AbsEffect_WhenSet_ReturnsTrue()
+        {
+            var overrides = new FunctionConfigOverrides
+            {
+                AbsEffect = new ABSEffectConfig { Freq = 10 }
+            };
+            AssertTrue(OverrideFieldRegistry.HasValue(overrides, "abs_effect_config"),
+                "HasValue should return true when AbsEffect is set");
+        }
+
+        private static void HasValue_AbsEffect_WhenNotSet_ReturnsFalse()
+        {
+            var overrides = new FunctionConfigOverrides();
+            AssertFalse(OverrideFieldRegistry.HasValue(overrides, "abs_effect_config"),
+                "HasValue should return false when AbsEffect is not set");
+        }
+
+        private static void GetTargetLayer_AbsEffect_ReturnsUser()
+        {
+            var layer = OverrideFieldRegistry.GetTargetLayer("abs_effect_config");
+            AssertEqual(ConfigLayer.User, layer, "abs_effect_config should target User layer");
         }
 
         // === Helper Methods ===

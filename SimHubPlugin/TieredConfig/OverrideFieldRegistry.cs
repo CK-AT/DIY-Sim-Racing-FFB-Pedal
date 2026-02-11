@@ -28,6 +28,7 @@ namespace DiyFfb.TieredConfig
         FlightPedals,
         FlightStick,
         Shifter,
+        Effects,
         AxisGeometry,
         AxisCalibration
     }
@@ -414,7 +415,28 @@ namespace DiyFfb.TieredConfig
                 ClearValue = o => o.FlightStickCenteringSpringConst = null
             });
 
-            // === Shifter ===
+            // === AutomotivePedal Effects ===
+
+            RegisterField(new OverrideFieldDefinition
+            {
+                Name = "AbsEffect",
+                FieldPath = "abs_effect_config",
+                DisplayName = "ABS/TC Effect",
+                Tooltip = "ABS/TC effect configuration (frequency, amplitude, mode, pattern)",
+                FieldType = OverrideFieldType.Complex,
+                Group = OverrideFieldGroup.Effects,
+                DefaultLayer = ConfigLayer.User,
+                HasValue = o => o.AbsEffect != null,
+                GetValue = o => o.AbsEffect,
+                SetValue = (o, v) => o.AbsEffect = (ABSEffectConfig)v,
+                ClearValue = o => o.AbsEffect = null,
+                FormatValue = val =>
+                {
+                    var cfg = val as ABSEffectConfig;
+                    if (cfg == null) return "(not set)";
+                    return $"{(cfg.Enabled ? "On" : "Off")}, {cfg.Freq}Hz, {cfg.Ampl}N";
+                }
+            });
 
             // === Shifter ===
 

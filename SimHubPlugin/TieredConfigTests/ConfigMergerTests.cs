@@ -31,6 +31,7 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("MergeFunctionConfig_NullDelta_ReturnsBase", MergeFunctionConfig_NullDelta_ReturnsBase),
                 TestRunner.RunTest("MergeFunctionConfig_EmptyDelta_ReturnsBase", MergeFunctionConfig_EmptyDelta_ReturnsBase),
                 TestRunner.RunTest("MergeFunctionConfig_DoesNotMutateOriginal", MergeFunctionConfig_DoesNotMutateOriginal),
+                TestRunner.RunTest("MergeFunctionConfig_FlightPedalsOverrides_PreserveBaseline", MergeFunctionConfig_FlightPedalsOverrides_PreserveBaseline),
 
                 // Three-layer merge tests
                 TestRunner.RunTest("MergeAllLayers_UserWins", MergeAllLayers_UserWins),
@@ -40,6 +41,10 @@ namespace DiyFfb.TieredConfigTests
 
                 // Static balance tuning tests
                 TestRunner.RunTest("MergeFunctionConfig_StaticBalanceTuning", MergeFunctionConfig_StaticBalanceTuning),
+
+                // Oneof preservation tests
+                TestRunner.RunTest("MergeFunctionConfig_AutomotivePedal_PreservesOneof", MergeFunctionConfig_AutomotivePedal_PreservesOneof),
+                TestRunner.RunTest("MergeFunctionConfig_FlightPedals_PreservesOneof", MergeFunctionConfig_FlightPedals_PreservesOneof),
             };
         }
 
@@ -232,6 +237,35 @@ namespace DiyFfb.TieredConfigTests
             AssertNear(originalMin, baseConfig.Base.OutputMin, 1e-6f, "Original base should not be mutated");
         }
 
+        private static void MergeFunctionConfig_FlightPedalsOverrides_PreserveBaseline()
+        {
+            var baseConfig = CreateFunctionConfig(outputMin: 0.0f, outputMax: 1.0f);
+            baseConfig.Base.FunctionId = FunctionID.FlightPedals;
+            baseConfig.FlightPedals = new FlightPedalsConfig
+            {
+                PosNearLim = 41,
+                PosFarLim = 91,
+                Damping = 0.7f,
+                CenteringSpringConst = 2.2f
+            };
+
+            var delta = new FunctionConfigOverrides
+            {
+                FlightPedalsMotionRange = new MotionRangeOverrides
+                {
+                    NearLim = 12
+                }
+            };
+
+            var merged = ConfigMerger.MergeFunctionConfig(baseConfig, delta);
+
+            AssertTrue(merged.FlightPedals != null, "FlightPedals config should be preserved");
+            AssertEqual(12, merged.FlightPedals.PosNearLim, "PosNearLim should be overridden");
+            AssertEqual(91, merged.FlightPedals.PosFarLim, "PosFarLim should remain from baseline");
+            AssertNear(0.7f, merged.FlightPedals.Damping, 1e-6f, "Damping should remain from baseline");
+            AssertNear(2.2f, merged.FlightPedals.CenteringSpringConst, 1e-6f, "Centering spring should remain from baseline");
+        }
+
         // === Three-Layer Merge Tests ===
 
         private static void MergeAllLayers_UserWins()
@@ -317,6 +351,61 @@ namespace DiyFfb.TieredConfigTests
 
             AssertTrue(merged.StaticBalanceTuning.Enabled, "StaticBalanceTuning.Enabled should be overridden");
             AssertNear(0.8f, merged.StaticBalanceTuning.Gain, 1e-6f, "StaticBalanceTuning.Gain should be overridden");
+        }
+
+        // === Oneof Preservation Tests ===
+
+        /// <summary>
+        /// Regression: FlightStickProcessor.ApplyOverrides used to create a new FlightStickConfig
+        /// when merged.FlightStick was null, clobbering the AutomotivePedal oneof arm.
+        /// </summary>
+        private static void MergeFunctionConfig_AutomotivePedal_PreservesOneof()
+        {
+            var baseConfig = new FunctionConfig
+            {
+                Base = new FunctionBase { FunctionId = FunctionID.BrakePedal, OutputMin = 0, OutputMax = 100 },
+                AutomotivePedal = new AutomotivePedalConfig
+                {
+                    DamperConfig = new DamperConfig { PositiveFactor = 0.05f, NegativeFactor = 0.05f },
+                    ForceCurveConfig = new SplineForceCurveConfig { PosMin = 19, PosMax = 70, FMin = 10, FMax = 80 }
+                }
+            };
+
+            var delta = new FunctionConfigOverrides
+            {
+                ForceCurve = new SplineForceCurveConfig { PosMin = 10, PosMax = 80, FMin = 5, FMax = 90 }
+            };
+
+            var merged = ConfigMerger.MergeFunctionConfig(baseConfig, delta);
+
+            AssertTrue(merged.AutomotivePedal != null, "AutomotivePedal oneof should be preserved after merge");
+            AssertTrue(merged.SpecificCase == FunctionConfig.SpecificOneofCase.AutomotivePedal,
+                "SpecificCase should remain AutomotivePedal");
+            AssertTrue(merged.FlightStick == null, "FlightStick should be null for AutomotivePedal config");
+            AssertNear(10f, merged.AutomotivePedal.ForceCurveConfig.PosMin, 1e-6f, "Force curve override PosMin");
+            AssertNear(0.05f, merged.AutomotivePedal.DamperConfig.PositiveFactor, 1e-6f, "Damper should be preserved from base");
+        }
+
+        private static void MergeFunctionConfig_FlightPedals_PreservesOneof()
+        {
+            var baseConfig = new FunctionConfig
+            {
+                Base = new FunctionBase { FunctionId = FunctionID.FlightPedals, OutputMin = 0, OutputMax = 100 },
+                FlightPedals = new FlightPedalsConfig
+                {
+                    PosNearLim = 10, PosFarLim = 90, Damping = 0.1f
+                }
+            };
+
+            var delta = new FunctionConfigOverrides { SimulatedMass = 2.0f };
+
+            var merged = ConfigMerger.MergeFunctionConfig(baseConfig, delta);
+
+            AssertTrue(merged.FlightPedals != null, "FlightPedals oneof should be preserved after merge");
+            AssertTrue(merged.SpecificCase == FunctionConfig.SpecificOneofCase.FlightPedals,
+                "SpecificCase should remain FlightPedals");
+            AssertTrue(merged.FlightStick == null, "FlightStick should be null for FlightPedals config");
+            AssertNear(2.0f, merged.SimulatedMass, 1e-6f, "SimulatedMass override should apply");
         }
 
         // === Helper Methods ===

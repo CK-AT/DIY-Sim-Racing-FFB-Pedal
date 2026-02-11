@@ -61,6 +61,12 @@ namespace DiyFfb.TieredConfig
             {
                 config.ForceCurveConfig = delta.ForceCurve.Clone();
             }
+
+            // Merge ABS effect config (full replacement)
+            if (delta.AbsEffect != null)
+            {
+                config.AbsEffectConfig = delta.AbsEffect.Clone();
+            }
         }
     }
 }

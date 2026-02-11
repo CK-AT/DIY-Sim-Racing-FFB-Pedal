@@ -27,6 +27,7 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("FuncOverrides_ForceCurveRoundTrip", FuncOverrides_ForceCurveRoundTrip),
                 TestRunner.RunTest("FuncOverrides_ShifterConfigRoundTrip", FuncOverrides_ShifterConfigRoundTrip),
                 TestRunner.RunTest("FuncOverrides_ShifterDetectConfigRoundTrip", FuncOverrides_ShifterDetectConfigRoundTrip),
+                TestRunner.RunTest("FuncOverrides_AbsEffectRoundTrip", FuncOverrides_AbsEffectRoundTrip),
             };
         }
 
@@ -218,6 +219,33 @@ namespace DiyFfb.TieredConfigTests
             AssertEqual(ShifterGear._1, restored.ShifterDetectConfig.GearSlots[0].Gear, "Slot[0].Gear");
             AssertEqual(ShifterGear._2, restored.ShifterDetectConfig.GearSlots[1].Gear, "Slot[1].Gear");
             AssertEqual(-40, restored.ShifterDetectConfig.GearSlots[1].CenterY, "Slot[1].CenterY");
+        }
+
+        private static void FuncOverrides_AbsEffectRoundTrip()
+        {
+            var original = new FunctionConfigOverrides
+            {
+                AbsEffect = new ABSEffectConfig
+                {
+                    Enabled = true,
+                    Mode = ABSMode.Force,
+                    Freq = 30,
+                    Ampl = 50,
+                    Pattern = ABSPattern.Sawtooth,
+                    SimLevel = 75,
+                }
+            };
+
+            var json = JsonConvert.SerializeObject(original);
+            var restored = JsonConvert.DeserializeObject<FunctionConfigOverrides>(json);
+
+            AssertNotNull(restored.AbsEffect, "AbsEffect should not be null");
+            AssertTrue(restored.AbsEffect.Enabled, "Enabled");
+            AssertEqual(ABSMode.Force, restored.AbsEffect.Mode, "Mode");
+            AssertEqual(30u, restored.AbsEffect.Freq, "Freq");
+            AssertEqual(50u, restored.AbsEffect.Ampl, "Ampl");
+            AssertEqual(ABSPattern.Sawtooth, restored.AbsEffect.Pattern, "Pattern");
+            AssertEqual(75u, restored.AbsEffect.SimLevel, "SimLevel");
         }
 
         // === Assertion helpers ===

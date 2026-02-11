@@ -67,6 +67,7 @@ namespace DiyFfb.TieredConfig
                    NullableFloatEqual(a.FlightStickDamping, b.FlightStickDamping) &&
                    NullableFloatEqual(a.FlightStickCenteringSpringConst, b.FlightStickCenteringSpringConst) &&
                    AreEqual(a.RudderBrakeForceRange, b.RudderBrakeForceRange) &&
+                   AreEqual(a.AbsEffect, b.AbsEffect) &&
                    AreEqual(a.ShifterConfig, b.ShifterConfig) &&
                    AreEqual(a.ShifterDetectConfig, b.ShifterDetectConfig);
         }
