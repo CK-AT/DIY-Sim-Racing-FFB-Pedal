@@ -49,7 +49,7 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
-            <badge:LayerBadgeWrapper FieldPath="shifter_config">
+            <badge:LayerBadgeWrapper FieldPath="shifter_config" BadgeOffsetX="-20" BadgeOffsetY="20" BadgeMargin="0,0,0,0">
                 <StackPanel Orientation="Vertical">
                     <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,3,0,0">
                         <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="540">

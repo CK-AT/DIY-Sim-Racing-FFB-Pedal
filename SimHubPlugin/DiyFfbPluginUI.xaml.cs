@@ -3146,7 +3146,7 @@ namespace DiyFfb
                 // Show/hide clear button based on current override state
                 bool hasOverride = mode == AxisEditingMode.FunctionOverride
                     && Plugin.ConfigOrchestrator.GetAxisParameterOverride(funcId, axisId) != null;
-                BtnClearAxisOverride.Visibility = hasOverride ? Visibility.Visible : Visibility.Collapsed;
+                BtnClearAxisOverride.IsEnabled = hasOverride;
             }
             finally
             {
@@ -3166,19 +3166,19 @@ namespace DiyFfb
             if (selectedItem.IsAxisBase)
             {
                 uc_axis_config.SwitchToBaseline();
-                BtnClearAxisOverride.Visibility = Visibility.Collapsed;
+                BtnClearAxisOverride.IsEnabled = false;
             }
             else
             {
                 bool hasOverride = uc_axis_config.SwitchToFunction(selectedItem.FunctionId);
-                BtnClearAxisOverride.Visibility = hasOverride ? Visibility.Visible : Visibility.Collapsed;
+                BtnClearAxisOverride.IsEnabled = hasOverride;
             }
         }
 
         private void OnClearAxisOverrideClicked(object sender, RoutedEventArgs e)
         {
             uc_axis_config.ClearCurrentOverride();
-            BtnClearAxisOverride.Visibility = Visibility.Collapsed;
+            BtnClearAxisOverride.IsEnabled = false;
             RefreshAxisFunctionSelector();
         }
 

@@ -685,7 +685,7 @@
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,3" HorizontalAlignment="Left" Width="580">
                                             <Label Content="Editing:" FontFamily="Arial" FontSize="10" VerticalContentAlignment="Center" Padding="0,0,5,0" Margin="6,0,0,0"/>
-                                            <ComboBox x:Name="AxisFunctionSelector" Width="200" Height="22" FontSize="10" SelectionChanged="AxisFunctionSelector_SelectionChanged">
+                                            <ComboBox x:Name="AxisFunctionSelector" Width="170" Height="22" FontSize="10" SelectionChanged="AxisFunctionSelector_SelectionChanged">
                                                 <ComboBox.ItemTemplate>
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Horizontal">
@@ -697,16 +697,16 @@
                                                     </DataTemplate>
                                                 </ComboBox.ItemTemplate>
                                             </ComboBox>
-                                            <Button x:Name="BtnClearAxisOverride" Content="Clear Override" Width="100" Height="22" FontSize="10"
-                                                Margin="8,0,0,0" Click="OnClearAxisOverrideClicked" Visibility="Collapsed"
-                                                ToolTip="Remove axis parameter override for this function"/>
-                                            <styles:SHButtonPrimary x:Name="btn_save_axis_baseline" Click="OnSaveAxisBaselineClicked" Width="130" Height="22"
+                                            <styles:SHButtonPrimary x:Name="BtnClearAxisOverride" Content="Clear Override" Height="22" FontSize="10"
+                                                Margin="5,0,0,0" Click="OnClearAxisOverrideClicked"
+                                                ToolTip="Remove axis parameter override for this function" VerticalContentAlignment="Center" Padding="10,0,10,0"/>
+                                            <styles:SHButtonPrimary x:Name="btn_save_axis_baseline" Click="OnSaveAxisBaselineClicked"
                                                 Content="Save as Baseline" Margin="5,0,0,0" FontSize="10"
-                                                VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0"
-                                                ToolTip="Save current axis configuration as the hardware baseline.&#x0a;This baseline is preserved across ESP32 reconnects and restarts."/>
-                                            <styles:SHButtonPrimary x:Name="btn_clear_axis_baseline" Click="OnClearAxisBaselineClicked" Width="130" Height="22"
+                                                VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="10,0,10,0"
+                                                ToolTip="Save current axis configuration as the hardware baseline.&#x0a;This baseline is preserved across ESP32 reconnects and restarts." Height="22"/>
+                                            <styles:SHButtonPrimary x:Name="btn_clear_axis_baseline" Click="OnClearAxisBaselineClicked" Height="22"
                                                 Content="Clear Baseline" Margin="5,0,0,0" FontSize="10"
-                                                VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="0,0,0,0"
+                                                VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="10,0,10,0"
                                                 ToolTip="Remove stored axis baseline.&#x0a;The next ESP32 upload or import establishes a new one. Overrides are preserved."/>
                                         </StackPanel>
                                     </StackPanel>

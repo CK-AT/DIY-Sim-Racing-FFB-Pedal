@@ -33,7 +33,7 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
-            <badge:LayerBadgeWrapper FieldPath="force_curve">
+            <badge:LayerBadgeWrapper FieldPath="force_curve" BadgeOffsetX="-20" BadgeOffsetY="20" BadgeMargin="0,0,0,0">
                 <local:SplineForceCurve x:Name="AutomotivePedal_SplineForceCurve"/>
             </badge:LayerBadgeWrapper>
             <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,3,0,0" >
@@ -112,7 +112,7 @@
                             <Label Content="ABS/TC"  FontFamily="Arial Black" FontSize="10" Height="30" Width="67.5" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" ToolTip="Parameter of the ABS/TC effect "  />
                         </Border>
                     </TabItem.Header>
-                    <badge:LayerBadgeWrapper FieldPath="abs_effect_config">
+                    <badge:LayerBadgeWrapper FieldPath="abs_effect_config" BadgeOffsetX="-20" BadgeOffsetY="20" BadgeMargin="0,0,0,0">
                         <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" Height="240" BorderThickness="0,2,0,0" >
                             <StackPanel HorizontalAlignment="Left" Height="240" VerticalAlignment="Top" Width="540">
                                 <StackPanel Height="20" Width="540" Orientation="Horizontal">
