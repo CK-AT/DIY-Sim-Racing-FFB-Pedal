@@ -84,7 +84,7 @@ namespace DiyFfb
 
         public void UpdateConfig(SplineForceCurveConfig new_config)
         {
-            config = new_config;
+            config = new_config ?? GetDefaultConfig();
             is_updating = true;
             if (!hasAxisRange)
             {
@@ -488,7 +488,10 @@ namespace DiyFfb
             {
                 Label_min_pos.Content = String.Format("Min\n{0}mm", config.PosMin);
             }
-            RangeSettingsChanged?.Invoke(this);
+            if (!is_updating)
+            {
+                RangeSettingsChanged?.Invoke(this);
+            }
         }
 
         private void Rangeslider_travel_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -501,7 +504,10 @@ namespace DiyFfb
             {
                 Label_max_pos.Content = String.Format("Max\n{0}mm", config.PosMax);
             }
-            RangeSettingsChanged?.Invoke(this);
+            if (!is_updating)
+            {
+                RangeSettingsChanged?.Invoke(this);
+            }
         }
 
         private void Rangeslider_force_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -514,7 +520,10 @@ namespace DiyFfb
             {
                 Label_max_force.Content = String.Format("Max force\n{0:F1}kg", e.NewValue);
             }
-            RangeSettingsChanged?.Invoke(this);
+            if (!is_updating)
+            {
+                RangeSettingsChanged?.Invoke(this);
+            }
         }
 
         private void Rangeslider_force_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -527,7 +536,10 @@ namespace DiyFfb
             {
                 Label_min_force.Content = String.Format("Preload\n{0:F1}kg", e.NewValue);
             }
-            RangeSettingsChanged?.Invoke(this);
+            if (!is_updating)
+            {
+                RangeSettingsChanged?.Invoke(this);
+            }
         }
 
         private void Rectangle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

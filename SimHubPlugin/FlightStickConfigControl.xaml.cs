@@ -99,55 +99,76 @@ namespace DiyFfb
                 return;
 
             // Update function_config and UI based on which field was cleared
+            bool deferUnlock = false;
             is_updating = true;
-            switch (e.FieldPath)
+            try
             {
-                case "simulated_mass":
-                    function_config.SimulatedMass = mergedConfig.SimulatedMass;
-                    Slider_simulated_mass.Value = mergedConfig.SimulatedMass;
-                    label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
-                    break;
+                switch (e.FieldPath)
+                {
+                    case "simulated_mass":
+                        function_config.SimulatedMass = mergedConfig.SimulatedMass;
+                        Slider_simulated_mass.Value = mergedConfig.SimulatedMass;
+                        label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
+                        break;
 
-                case "flight_stick.motion_range":
-                    var mergedStick = mergedConfig.FlightStick;
-                    if (mergedStick != null)
-                    {
-                        stick_config.PosMin = mergedStick.PosMin;
-                        stick_config.PosMax = mergedStick.PosMax;
-                    }
-                    TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
-                    if (Label_min_pos != null)
-                        Label_min_pos.Content = String.Format("Min\n{0}mm", stick_config.PosMin);
-                    if (Label_max_pos != null)
-                        Label_max_pos.Content = String.Format("Max\n{0}mm", stick_config.PosMax);
-                    _travelHelper?.UpdateTravelMarkers();
-                    break;
+                    case "flight_stick.motion_range":
+                        var mergedStick = mergedConfig.FlightStick;
+                        if (mergedStick != null)
+                        {
+                            stick_config.PosMin = mergedStick.PosMin;
+                            stick_config.PosMax = mergedStick.PosMax;
+                            if (Rangeslider_travel_range != null)
+                            {
+                                Rangeslider_travel_range.LowerValue = stick_config.PosMin;
+                                Rangeslider_travel_range.UpperValue = stick_config.PosMax;
+                            }
+                            deferUnlock = true;
+                        }
+                        TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
+                        if (Label_min_pos != null)
+                            Label_min_pos.Content = String.Format("Min\n{0}mm", stick_config.PosMin);
+                        if (Label_max_pos != null)
+                            Label_max_pos.Content = String.Format("Max\n{0}mm", stick_config.PosMax);
+                        _travelHelper?.UpdateTravelMarkers();
+                        break;
 
-                case "flight_stick.damping":
-                    if (mergedConfig.FlightStick != null)
-                    {
-                        stick_config.Damping = mergedConfig.FlightStick.Damping;
-                        Slider_damping.Value = mergedConfig.FlightStick.Damping;
-                        label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", mergedConfig.FlightStick.Damping);
-                    }
-                    break;
+                    case "flight_stick.damping":
+                        if (mergedConfig.FlightStick != null)
+                        {
+                            stick_config.Damping = mergedConfig.FlightStick.Damping;
+                            Slider_damping.Value = mergedConfig.FlightStick.Damping;
+                            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", mergedConfig.FlightStick.Damping);
+                        }
+                        break;
 
-                case "flight_stick.centering_spring_const":
-                    if (mergedConfig.FlightStick != null)
-                    {
-                        stick_config.CenteringSpringConst = mergedConfig.FlightStick.CenteringSpringConst;
-                        Slider_centering_spring_const.Value = mergedConfig.FlightStick.CenteringSpringConst;
-                        label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", mergedConfig.FlightStick.CenteringSpringConst);
-                    }
-                    break;
+                    case "flight_stick.centering_spring_const":
+                        if (mergedConfig.FlightStick != null)
+                        {
+                            stick_config.CenteringSpringConst = mergedConfig.FlightStick.CenteringSpringConst;
+                            Slider_centering_spring_const.Value = mergedConfig.FlightStick.CenteringSpringConst;
+                            label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", mergedConfig.FlightStick.CenteringSpringConst);
+                        }
+                        break;
 
-                case "friction":
-                    function_config.Friction = mergedConfig.Friction;
-                    Slider_friction.Value = mergedConfig.Friction;
-                    label_friction.Content = String.Format("Friction: {0:F1}N", mergedConfig.Friction);
-                    break;
+                    case "friction":
+                        function_config.Friction = mergedConfig.Friction;
+                        Slider_friction.Value = mergedConfig.Friction;
+                        label_friction.Content = String.Format("Friction: {0:F1}N", mergedConfig.Friction);
+                        break;
+                }
             }
-            is_updating = false;
+            finally
+            {
+                if (deferUnlock)
+                {
+                    Dispatcher.BeginInvoke(new Action(() => is_updating = false),
+                        System.Windows.Threading.DispatcherPriority.ContextIdle);
+                }
+                else
+                {
+                    is_updating = false;
+                }
+            }
         }
 
 

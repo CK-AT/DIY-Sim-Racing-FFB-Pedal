@@ -88,58 +88,81 @@ namespace DiyFfb
             var mergedConfig = plugin.FunctionConfigManager.GetCurrentConfig((int)function.ID);
             if (mergedConfig == null) return;
 
+            bool deferUnlock = false;
             is_updating = true;
-            switch (e.FieldPath)
+            try
             {
-                case "flight_pedals.motion_range":
-                    config.PosNearLim = mergedConfig.FlightPedals.PosNearLim;
-                    config.PosFarLim = mergedConfig.FlightPedals.PosFarLim;
-                    TieredConfig.FlightPedalsProcessor.ReconcileDerivedFields(function_config);
-                    Rangeslider_travel_range.LowerValue = config.PosNearLim;
-                    Rangeslider_travel_range.UpperValue = config.PosFarLim;
-                    if (Label_near_pos != null)
-                        Label_near_pos.Content = String.Format("Near\n{0}mm", config.PosNearLim);
-                    if (Label_far_pos != null)
-                        Label_far_pos.Content = String.Format("Far\n{0}mm", config.PosFarLim);
-                    _travelHelper?.UpdateTravelMarkers();
-                    break;
+                switch (e.FieldPath)
+                {
+                    case "flight_pedals.motion_range":
+                        config.PosNearLim = mergedConfig.FlightPedals.PosNearLim;
+                        config.PosFarLim = mergedConfig.FlightPedals.PosFarLim;
+                        TieredConfig.FlightPedalsProcessor.ReconcileDerivedFields(function_config);
+                        if (Rangeslider_travel_range != null)
+                        {
+                            Rangeslider_travel_range.LowerValue = config.PosNearLim;
+                            Rangeslider_travel_range.UpperValue = config.PosFarLim;
+                        }
+                        deferUnlock = true;
+                        if (Label_near_pos != null)
+                            Label_near_pos.Content = String.Format("Near\n{0}mm", config.PosNearLim);
+                        if (Label_far_pos != null)
+                            Label_far_pos.Content = String.Format("Far\n{0}mm", config.PosFarLim);
+                        _travelHelper?.UpdateTravelMarkers();
+                        break;
 
-                case "flight_pedals.damping":
-                    config.Damping = mergedConfig.FlightPedals.Damping;
-                    Slider_damping.Value = config.Damping;
-                    label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", config.Damping);
-                    break;
+                    case "flight_pedals.damping":
+                        config.Damping = mergedConfig.FlightPedals.Damping;
+                        Slider_damping.Value = config.Damping;
+                        label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", config.Damping);
+                        break;
 
-                case "flight_pedals.centering_spring_const":
-                    config.CenteringSpringConst = mergedConfig.FlightPedals.CenteringSpringConst;
-                    Slider_centering_spring_const.Value = config.CenteringSpringConst;
-                    label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", config.CenteringSpringConst);
-                    break;
+                    case "flight_pedals.centering_spring_const":
+                        config.CenteringSpringConst = mergedConfig.FlightPedals.CenteringSpringConst;
+                        Slider_centering_spring_const.Value = config.CenteringSpringConst;
+                        label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", config.CenteringSpringConst);
+                        break;
 
-                case "simulated_mass":
-                    function_config.SimulatedMass = mergedConfig.SimulatedMass;
-                    Slider_simulated_mass.Value = mergedConfig.SimulatedMass;
-                    label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
-                    break;
+                    case "simulated_mass":
+                        function_config.SimulatedMass = mergedConfig.SimulatedMass;
+                        Slider_simulated_mass.Value = mergedConfig.SimulatedMass;
+                        label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
+                        break;
 
-                case "friction":
-                    function_config.Friction = mergedConfig.Friction;
-                    Slider_friction.Value = mergedConfig.Friction;
-                    label_friction.Content = String.Format("Friction: {0:F1}N", mergedConfig.Friction);
-                    break;
+                    case "friction":
+                        function_config.Friction = mergedConfig.Friction;
+                        Slider_friction.Value = mergedConfig.Friction;
+                        label_friction.Content = String.Format("Friction: {0:F1}N", mergedConfig.Friction);
+                        break;
 
-                case "aux_function.rudder_brake.force_range":
-                    function_config.AuxFunction.RudderBrake.FMin = mergedConfig.AuxFunction.RudderBrake.FMin;
-                    function_config.AuxFunction.RudderBrake.FMax = mergedConfig.AuxFunction.RudderBrake.FMax;
-                    Rangeslider_brake_force_range.LowerValue = mergedConfig.AuxFunction.RudderBrake.FMin / 9.81f;
-                    Rangeslider_brake_force_range.UpperValue = mergedConfig.AuxFunction.RudderBrake.FMax / 9.81f;
-                    if (Label_min_brake_force != null)
-                        Label_min_brake_force.Content = String.Format("Preload\n{0:F1}kg", mergedConfig.AuxFunction.RudderBrake.FMin / 9.81f);
-                    if (Label_max_brake_force != null)
-                        Label_max_brake_force.Content = String.Format("Max\n{0:F1}kg", mergedConfig.AuxFunction.RudderBrake.FMax / 9.81f);
-                    break;
+                    case "aux_function.rudder_brake.force_range":
+                        function_config.AuxFunction.RudderBrake.FMin = mergedConfig.AuxFunction.RudderBrake.FMin;
+                        function_config.AuxFunction.RudderBrake.FMax = mergedConfig.AuxFunction.RudderBrake.FMax;
+                        if (Rangeslider_brake_force_range != null)
+                        {
+                            Rangeslider_brake_force_range.LowerValue = mergedConfig.AuxFunction.RudderBrake.FMin / 9.81f;
+                            Rangeslider_brake_force_range.UpperValue = mergedConfig.AuxFunction.RudderBrake.FMax / 9.81f;
+                        }
+                        deferUnlock = true;
+                        if (Label_min_brake_force != null)
+                            Label_min_brake_force.Content = String.Format("Preload\n{0:F1}kg", mergedConfig.AuxFunction.RudderBrake.FMin / 9.81f);
+                        if (Label_max_brake_force != null)
+                            Label_max_brake_force.Content = String.Format("Max\n{0:F1}kg", mergedConfig.AuxFunction.RudderBrake.FMax / 9.81f);
+                        break;
+                }
             }
-            is_updating = false;
+            finally
+            {
+                if (deferUnlock)
+                {
+                    Dispatcher.BeginInvoke(new Action(() => is_updating = false),
+                        System.Windows.Threading.DispatcherPriority.ContextIdle);
+                }
+                else
+                {
+                    is_updating = false;
+                }
+            }
         }
 
 
@@ -160,6 +183,9 @@ namespace DiyFfb
 
         public void OnKinematicParametersChanged(KinematicParameters parameters)
         {
+            if (config == null || Rangeslider_travel_range == null)
+                return;
+
             if (!KinematicBoundsHelper.TryGetTravelBounds(parameters, out double boundsMin, out double boundsMax))
                 return;
 
@@ -208,12 +234,27 @@ namespace DiyFfb
             return new_config;
         }
 
+        private void EnsureConfigInitialized()
+        {
+            if (function_config == null)
+                function_config = new FunctionConfig();
+
+            if (function_config.FlightPedals == null)
+                function_config.FlightPedals = GetDefaultConfig();
+            config = function_config.FlightPedals;
+
+            if (function_config.AuxFunction == null)
+                function_config.AuxFunction = GetRudderBrakeDefaultConfig();
+            if (function_config.AuxFunction.RudderBrake == null)
+                function_config.AuxFunction.RudderBrake = new RudderBrakeConfig();
+            brake_config = function_config.AuxFunction.RudderBrake;
+        }
+
         public void SwitchFunction(Function function)
         {
             this.function = function;
             function_config = function.Config;
-            config = function_config.FlightPedals;
-            brake_config = function_config.AuxFunction.RudderBrake;
+            EnsureConfigInitialized();
             current_function_id = function_config.Base.FunctionId;
             hasAxisRange = false;
             allowOverrideCreation = false;  // Reset until function switch stabilizes
