@@ -31,8 +31,11 @@ namespace DiyFfb.TieredConfig
         {
             if (merged?.Base == null || delta == null) return;
 
+            // Don't create a FlightStickConfig if one doesn't exist — that would
+            // clobber the active oneof arm (e.g. AutomotivePedal) since all function-
+            // specific configs share a protobuf oneof.
             if (merged.FlightStick == null)
-                merged.FlightStick = new FlightStickConfig();
+                return;
 
             var cfg = merged.FlightStick;
 
