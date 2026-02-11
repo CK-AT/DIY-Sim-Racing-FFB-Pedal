@@ -386,6 +386,15 @@ namespace DiyFfb.TieredConfig
                 }
             }
 
+            // Force events for functions transitioning to inactive — even if config
+            // hasn't changed, the gateway needs a cleared config to stop joystick output.
+            var newActiveIds = profile?.ActiveFunctionIds ?? new HashSet<int>();
+            foreach (var functionId in _functionConfigManager.GetKnownFunctionIds())
+            {
+                if (!newActiveIds.Contains(functionId))
+                    _functionConfigManager.InvalidateLastSent(functionId);
+            }
+
             // Flush: send baseline for functions that lost overrides but weren't re-applied
             _functionConfigManager.SendAllPendingChanges();
         }

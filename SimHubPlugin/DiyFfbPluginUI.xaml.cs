@@ -2780,8 +2780,19 @@ namespace DiyFfb
             }
             else
             {
-                // Upload suppressed — invalidate last-sent tracking so the next
-                // activation will re-send regardless of diff check.
+                // Broadcast cleared config so gateway clears its lookup table entry.
+                // Zero both controller_output_axis and linked_axes — keeping linked_axes
+                // would associate those axes with this disabled function, blocking other
+                // functions that share the same physical axes.
+                var clearedConfig = e.NewConfig.Clone();
+                clearedConfig.Base.ControllerOutputAxis = ControllerAxis.Undefined;
+                clearedConfig.Base.LinkedAxes.Clear();
+                clearedConfig.Base.LinkedAxes.AddRange(new[] {
+                    AxisID.AxisUndefined, AxisID.AxisUndefined,
+                    AxisID.AxisUndefined, AxisID.AxisUndefined });
+                clearedConfig.Base.Store = false;
+                var msg = new Message { FunctionConfig = clearedConfig };
+                axisRequestQueue?.Enqueue(AxisID.AxisUndefined, AxisRequestType.FunctionConfigUpload, msg);
                 Plugin.FunctionConfigManager.InvalidateLastSent(e.FunctionId);
             }
 
