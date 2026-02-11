@@ -81,6 +81,11 @@ namespace DiyFfb.Controls
             {
                 wrapper.Plugin = plugin;
                 wrapper.FunctionId = functionId;
+
+                // Ensure event subscription for wrappers that weren't in the visual tree
+                // when Subscribe() ran (e.g., TabControl defers rendering of non-selected tabs).
+                wrapper.OverrideCleared -= _onOverrideCleared;
+                wrapper.OverrideCleared += _onOverrideCleared;
             }
         }
 
@@ -111,7 +116,7 @@ namespace DiyFfb.Controls
 
         private void OnContextChanged(object sender, EventArgs e)
         {
-            RefreshAllBadges();
+            EnsureOnUi(RefreshAllBadges);
         }
 
         private void OnOverrideFieldChanged(object sender, OverrideFieldChangedEventArgs e)
@@ -119,8 +124,19 @@ namespace DiyFfb.Controls
             var function = _getFunction();
             if (function != null && e.FunctionId == (int)function.ID)
             {
-                RefreshBadgeForField(e.FieldPath);
+                EnsureOnUi(() => RefreshBadgeForField(e.FieldPath));
             }
+        }
+
+        private void EnsureOnUi(Action action)
+        {
+            if (_root.Dispatcher.CheckAccess())
+            {
+                action();
+                return;
+            }
+
+            _root.Dispatcher.BeginInvoke(action);
         }
 
         /// <summary>
