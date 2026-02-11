@@ -52,7 +52,9 @@ namespace DiyFfb
 
         // Minimum delay after sending an upload before processing the next queue item.
         // Gives ESP32 time to deserialize and apply configs (especially force curve splines).
-        private const int PostUploadCooldownMs = 200;
+        // Relaxed from 200ms: per-function throttle (~1/sec) in TieredConfigOrchestrator
+        // already limits how fast configs are generated during slider dragging.
+        private const int PostUploadCooldownMs = 100;
         private DateTime _cooldownUntilUtc = DateTime.MinValue;
 
         public AxisRequestQueue(DiyFfbPluginUI ui)

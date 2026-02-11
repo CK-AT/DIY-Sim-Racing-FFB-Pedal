@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows.Threading;
 using ProtbufTest;
 
 namespace DiyFfb.TieredConfig
@@ -21,6 +22,13 @@ namespace DiyFfb.TieredConfig
         private readonly Func<string, string, string> _buildProfileKey;
         private readonly Func<string> _getActiveGameId;
         private readonly Func<string> _getActiveCarId;
+
+        // Per-function throttle for override-driven config merges (~1/sec).
+        // Prevents flooding ESP32 during slider dragging.
+        private const int OverrideThrottleMs = 1000;
+        private readonly Dictionary<int, DispatcherTimer> _throttleTimers = new Dictionary<int, DispatcherTimer>();
+        private readonly HashSet<int> _pendingMerges = new HashSet<int>();
+        private readonly Dictionary<int, DateTime> _lastMergeUtc = new Dictionary<int, DateTime>();
 
         public TieredConfigOrchestrator(
             FunctionConfigManager functionConfigManager,
@@ -320,6 +328,10 @@ namespace DiyFfb.TieredConfig
         /// </summary>
         public void ApplyProfileFunctionOverrides(DiyFfbPluginSettings.AircraftFfbProfile profile)
         {
+            // Cancel any pending throttled merges from slider dragging — the old
+            // override state is about to be replaced by the new profile.
+            CancelAllThrottledMerges();
+
             // Clear existing overrides silently — events are deferred until all overrides
             // are applied, so the ESP32 gets exactly one upload per changed function
             // with the final merged config (no intermediate baseline flash).
@@ -680,40 +692,132 @@ namespace DiyFfb.TieredConfig
         }
 
         /// <summary>
-        /// Update a function override value and re-apply if the function is active.
+        /// Update a function override value routed to the default layer for the field.
+        /// Persists the override immediately but throttles the merge+ESP32 upload to ~1/sec per function.
         /// </summary>
-        public void UpdateFunctionOverride(int functionId, Action<FunctionConfigOverrides> updateAction)
+        public void UpdateFunctionOverrideField(int functionId, string fieldName, Action<FunctionConfigOverrides> updateAction)
+        {
+            // Store override data immediately (no merge/send)
+            var targetLayer = GetFunctionOverrideTargetLayer(fieldName);
+            if (targetLayer == ConfigLayer.User)
+            {
+                StoreUserFunctionOverride(functionId, updateAction);
+            }
+            else
+            {
+                StoreProfileFunctionOverride(functionId, updateAction);
+            }
+
+            // Throttled merge+send to ESP32
+            ScheduleThrottledMerge(functionId);
+
+            // Fire OverrideFieldChanged event for badge refresh (NO ESP32 send, NO manager update to avoid loops)
+            OnOverrideFieldChanged(functionId, fieldName);
+        }
+
+        /// <summary>
+        /// Persist a profile-layer override without triggering merge/send.
+        /// </summary>
+        private void StoreProfileFunctionOverride(int functionId, Action<FunctionConfigOverrides> updateAction)
         {
             var overrides = GetOrCreateFunctionOverrides(functionId);
             if (overrides == null)
                 return;
 
             updateAction(overrides);
+        }
 
-            // If function is active, re-apply the merged config
-            if (IsFunctionActive(functionId))
+        /// <summary>
+        /// Persist a user-layer override without triggering merge/send.
+        /// </summary>
+        private void StoreUserFunctionOverride(int functionId, Action<FunctionConfigOverrides> updateAction)
+        {
+            var overrides = GetOrCreateUserFunctionOverrides(functionId);
+            if (overrides == null)
+                return;
+
+            updateAction(overrides);
+        }
+
+        /// <summary>
+        /// Schedule a throttled merge+send for a function. Leading edge fires immediately;
+        /// subsequent calls within the throttle window are coalesced and fire on the trailing edge.
+        /// </summary>
+        private void ScheduleThrottledMerge(int functionId)
+        {
+            if (!_functionConfigManager.HasBaseConfig(functionId))
+                return;
+
+            var now = DateTime.UtcNow;
+
+            if (!_lastMergeUtc.TryGetValue(functionId, out var lastMerge) ||
+                (now - lastMerge).TotalMilliseconds >= OverrideThrottleMs)
             {
-                ApplyProfileOverridesToFunction(functionId);
+                // Leading edge: send immediately
+                ReapplyMergedOverrides(functionId, diffCheck: false);
+                _lastMergeUtc[functionId] = now;
+                _pendingMerges.Remove(functionId);
+                EnsureThrottleTimer(functionId);
+            }
+            else
+            {
+                // Within throttle window: mark pending, timer will handle trailing edge
+                _pendingMerges.Add(functionId);
+                EnsureThrottleTimer(functionId);
+            }
+        }
+
+        private void EnsureThrottleTimer(int functionId)
+        {
+            if (_throttleTimers.ContainsKey(functionId))
+                return;
+
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(OverrideThrottleMs) };
+            timer.Tick += (s, e) => OnThrottleTimerTick(functionId);
+            _throttleTimers[functionId] = timer;
+            timer.Start();
+        }
+
+        private void OnThrottleTimerTick(int functionId)
+        {
+            if (_pendingMerges.Contains(functionId))
+            {
+                // Trailing edge: send latest state
+                _pendingMerges.Remove(functionId);
+                _lastMergeUtc[functionId] = DateTime.UtcNow;
+                ReapplyMergedOverrides(functionId, diffCheck: false);
+            }
+            else
+            {
+                // No more pending changes, stop timer
+                CancelThrottledMerge(functionId);
             }
         }
 
         /// <summary>
-        /// Update a function override value routed to the default layer for the field.
+        /// Cancel a pending throttled merge for a specific function.
         /// </summary>
-        public void UpdateFunctionOverrideField(int functionId, string fieldName, Action<FunctionConfigOverrides> updateAction)
+        private void CancelThrottledMerge(int functionId)
         {
-            var targetLayer = GetFunctionOverrideTargetLayer(fieldName);
-            if (targetLayer == ConfigLayer.User)
+            if (_throttleTimers.TryGetValue(functionId, out var timer))
             {
-                UpdateUserFunctionOverride(functionId, updateAction);
+                timer.Stop();
+                _throttleTimers.Remove(functionId);
             }
-            else
-            {
-                UpdateFunctionOverride(functionId, updateAction);
-            }
+            _pendingMerges.Remove(functionId);
+            _lastMergeUtc.Remove(functionId);
+        }
 
-            // Fire OverrideFieldChanged event for badge refresh (NO ESP32 send, NO manager update to avoid loops)
-            OnOverrideFieldChanged(functionId, fieldName);
+        /// <summary>
+        /// Cancel all pending throttled merges. Call on profile/vehicle change or disconnect.
+        /// </summary>
+        public void CancelAllThrottledMerges()
+        {
+            foreach (var timer in _throttleTimers.Values)
+                timer.Stop();
+            _throttleTimers.Clear();
+            _pendingMerges.Clear();
+            _lastMergeUtc.Clear();
         }
 
         /// <summary>
@@ -721,6 +825,11 @@ namespace DiyFfb.TieredConfig
         /// </summary>
         public void ClearFunctionOverrideField(int functionId, string fieldName, ConfigLayer? layerOverride = null)
         {
+            // Cancel any pending throttled merge — the clear methods call
+            // ReapplyMergedOverrides immediately, and a stale pending merge
+            // could overwrite the cleared state.
+            CancelThrottledMerge(functionId);
+
             var targetLayer = layerOverride ?? GetFunctionOverrideTargetLayer(fieldName);
             if (targetLayer == ConfigLayer.User)
             {
@@ -755,23 +864,6 @@ namespace DiyFfb.TieredConfig
             // Settings auto-save periodically by SimHub
 
             // Update manager if baseline exists
-            if (_functionConfigManager.HasBaseConfig(functionId))
-            {
-                ReapplyMergedOverrides(functionId, diffCheck: false);
-            }
-        }
-
-        private void UpdateUserFunctionOverride(int functionId, Action<FunctionConfigOverrides> updateAction)
-        {
-            var overrides = GetOrCreateUserFunctionOverrides(functionId);
-            if (overrides == null)
-                return;
-
-            updateAction(overrides);
-
-            // Note: Settings auto-saved periodically by SimHub. Explicit save only for critical operations (baseline save).
-
-            // Always update manager if we have a baseline, even if function not in active profile
             if (_functionConfigManager.HasBaseConfig(functionId))
             {
                 ReapplyMergedOverrides(functionId, diffCheck: false);
