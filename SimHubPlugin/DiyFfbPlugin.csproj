@@ -175,6 +175,7 @@
     <Compile Include="AsyncSerial.cs" />
     <Compile Include="Axis.cs" />
     <Compile Include="AxisRequestQueue.cs" />
+    <Compile Include="GatewayScanner.cs" />
     <Compile Include="Controls\ThemedMessageBox.xaml.cs">
       <DependentUpon>ThemedMessageBox.xaml</DependentUpon>
     </Compile>

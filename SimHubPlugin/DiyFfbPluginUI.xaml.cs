@@ -202,7 +202,46 @@ namespace DiyFfb
             UpdateVehicleTabHeader();
             RefreshVehicleParams();
 
-            if (Plugin.Settings.Pedal_ESPNow_auto_connect_flag
+            // Auto-scan for gateways on startup if enabled
+            if (Plugin.Settings.Pedal_ESPNow_auto_scan_flag)
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        SimHub.Logging.Current.Info("[GatewayScanner] Auto-scanning for gateways on startup...");
+                        var scanner = new GatewayScanner();
+                        var gateways = await scanner.ScanForGateways();
+
+                        await Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            if (gateways.Count > 0)
+                            {
+                                var gateway = gateways[0];
+                                SimHub.Logging.Current.Info($"[GatewayScanner] Auto-detected gateway on {gateway.PortName} (ID: {gateway.GatewayId})");
+
+                                // Update port selection
+                                Plugin.Settings.ESPNow_port = gateway.PortName;
+
+                                // Auto-connect if that flag is also enabled
+                                if (Plugin.Settings.Pedal_ESPNow_auto_connect_flag)
+                                {
+                                    ConnectToPort(gateway.PortName);
+                                }
+                            }
+                            else
+                            {
+                                SimHub.Logging.Current.Info("[GatewayScanner] No gateways found during auto-scan");
+                            }
+                        }));
+                    }
+                    catch (Exception ex)
+                    {
+                        SimHub.Logging.Current.Error($"[GatewayScanner] Auto-scan failed: {ex}");
+                    }
+                });
+            }
+            else if (Plugin.Settings.Pedal_ESPNow_auto_connect_flag
                 && !string.IsNullOrWhiteSpace(Plugin.Settings.ESPNow_port)
                 && SerialPort.GetPortNames().Any(port => string.Equals(port, Plugin.Settings.ESPNow_port, StringComparison.OrdinalIgnoreCase)))
             {
@@ -417,6 +456,11 @@ namespace DiyFfb
                 CheckBox_Pedal_ESPNow_autoconnect.IsChecked = Plugin.Settings.Pedal_ESPNow_auto_connect_flag;
             }
 
+            if (CheckBox_Pedal_ESPNow_autoscan != null)
+            {
+                CheckBox_Pedal_ESPNow_autoscan.IsChecked = Plugin.Settings.Pedal_ESPNow_auto_scan_flag;
+            }
+
             if (textbox_SSID != null)
             {
                 textbox_SSID.Text = Plugin.Settings.SSID_string ?? string.Empty;
@@ -593,6 +637,114 @@ namespace DiyFfb
             UpdateSerialPortList();
         }
 
+        private GatewayScanner gatewayScanner = new GatewayScanner();
+        private CancellationTokenSource scanCancellationTokenSource;
+        private bool isScanning = false;
+
+        private async void btn_scan_gateways_Click(object sender, RoutedEventArgs e)
+        {
+            if (isScanning)
+            {
+                // Cancel ongoing scan
+                scanCancellationTokenSource?.Cancel();
+                return;
+            }
+
+            isScanning = true;
+            scanCancellationTokenSource = new CancellationTokenSource();
+
+            try
+            {
+                // Update button to show scanning state
+                if (btn_scan_gateways != null)
+                {
+                    btn_scan_gateways.Content = "Scanning...";
+                    btn_scan_gateways.IsEnabled = true; // Keep enabled to allow cancel
+                }
+
+                SetDebugOutput("Scanning for gateways...");
+
+                gatewayScanner.OnScanProgress += (portName, current, total) =>
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        SetDebugOutput($"Scanning {portName} ({current}/{total})...");
+                    }));
+                };
+
+                var gateways = await gatewayScanner.ScanForGateways(scanCancellationTokenSource.Token);
+
+                if (scanCancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    SetDebugOutput("Gateway scan cancelled");
+                    return;
+                }
+
+                if (gateways.Count == 0)
+                {
+                    SetDebugOutput("No gateways found");
+                    return;
+                }
+
+                SetDebugOutput($"Found {gateways.Count} gateway(s):");
+                foreach (var gateway in gateways)
+                {
+                    SimHub.Logging.Current.Info($"[Gateway] {gateway}");
+                    SetDebugOutput($"  • {gateway}");
+                }
+
+                // Update ComboBox with discovered gateways
+                var ports = gateways.Select(g => g.PortName).ToList();
+
+                suppressSerialPortSelectionChange = true;
+                SerialPortSelection_ESPNow.ItemsSource = ports;
+
+                if (ports.Count > 0)
+                {
+                    SerialPortSelection_ESPNow.SelectedIndex = 0;
+                    var selectedGateway = gateways[0];
+
+                    // Ask user if they want to auto-connect
+                    var result = System.Windows.MessageBox.Show(
+                        $"Found gateway on {selectedGateway.PortName}\n" +
+                        $"Gateway ID: {selectedGateway.GatewayId}\n" +
+                        $"Firmware: {selectedGateway.FirmwareVersion}\n" +
+                        $"Board: {selectedGateway.Board}\n\n" +
+                        $"Connect now?",
+                        "Gateway Detected",
+                        System.Windows.MessageBoxButton.YesNo,
+                        System.Windows.MessageBoxImage.Question);
+
+                    suppressSerialPortSelectionChange = false;
+
+                    if (result == System.Windows.MessageBoxResult.Yes)
+                    {
+                        Plugin.Settings.ESPNow_port = selectedGateway.PortName;
+                        ConnectToPort(selectedGateway.PortName);
+                    }
+                }
+                else
+                {
+                    suppressSerialPortSelectionChange = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                SetDebugOutput($"Gateway scan error: {ex.Message}");
+                SimHub.Logging.Current.Error($"[GatewayScanner] {ex}");
+            }
+            finally
+            {
+                isScanning = false;
+                if (btn_scan_gateways != null)
+                {
+                    btn_scan_gateways.Content = "Scan for Gateways";
+                }
+                scanCancellationTokenSource?.Dispose();
+                scanCancellationTokenSource = null;
+            }
+        }
+
         private void btn_restart_all_axes_Click(object sender, RoutedEventArgs e)
         {
             int sentCount = 0;
@@ -667,6 +819,22 @@ namespace DiyFfb
             if (Plugin != null)
             {
                 Plugin.Settings.Pedal_ESPNow_auto_connect_flag = false;
+            }
+        }
+
+        private void CheckBox_Pedal_ESPNow_autoscan_Checked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.Pedal_ESPNow_auto_scan_flag = true;
+            }
+        }
+
+        private void CheckBox_Pedal_ESPNow_autoscan_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin != null)
+            {
+                Plugin.Settings.Pedal_ESPNow_auto_scan_flag = false;
             }
         }
 

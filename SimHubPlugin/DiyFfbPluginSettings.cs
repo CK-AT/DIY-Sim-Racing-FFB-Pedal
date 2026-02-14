@@ -128,6 +128,7 @@ namespace DiyFfb
         public double kinematicDiagram_zeroPos_scale = 1.5;
         public string ESPNow_port = "";
         public bool Pedal_ESPNow_auto_connect_flag = false;
+        public bool Pedal_ESPNow_auto_scan_flag = false; // Auto-scan for gateways on startup
         public bool Serial_auto_clean = false; //clean serial monitor
         public bool Serial_auto_clean_bridge = false; //clean serial monitor bridge
         public bool Using_CDC_bridge = false;
