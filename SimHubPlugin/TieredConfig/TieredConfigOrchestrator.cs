@@ -1412,7 +1412,11 @@ namespace DiyFfb.TieredConfig
             {
                 var mergedConfig = _functionConfigManager.GetCurrentConfig(functionId);
                 if (mergedConfig != null)
-                    return (true, mergedConfig);
+                {
+                    // Only push back if merged config actually differs from what ESP32 reported
+                    bool needsPushBack = !ConfigComparer.AreEqual(mergedConfig, incoming);
+                    return (needsPushBack, mergedConfig);
+                }
                 // Fall through if manager state was unexpectedly lost
             }
 
@@ -1464,7 +1468,11 @@ namespace DiyFfb.TieredConfig
 
                 var mergedConfig = _axisConfigManager.GetCurrentConfig(axisId);
                 if (mergedConfig != null)
-                    return (true, mergedConfig);
+                {
+                    // Only push back if merged config actually differs from what ESP32 reported
+                    bool needsPushBack = !ConfigComparer.AreEqual(mergedConfig, incoming);
+                    return (needsPushBack, mergedConfig);
+                }
                 // Fall through if manager state was unexpectedly lost
             }
 
