@@ -2131,9 +2131,17 @@ namespace DiyFfb
             // Set activeCarId before applying profile so IsFunctionActive()
             // checks the NEW profile during config-changed event handling.
             activeCarId = carId;
-            ApplyAircraftProfile(gameId, carId);
             activeCarName = !string.IsNullOrWhiteSpace(data.NewData?.CarModel) ? data.NewData.CarModel : carId;
+
+            // Migrate old-style key before resolving graph so ResolveGraphPath
+            // finds the profile under the new key format.
+            MigrateProfileKeyIfNeeded(gameId, carId);
+
+            // Resolve graph first — auto-assign creates the profile and
+            // SeedDefaultActiveFunctionIds populates ActiveFunctionIds.
+            // ApplyAircraftProfile must run after so it sees populated IDs.
             ResolveActiveGraph(gameId, carId);
+            ApplyAircraftProfile(gameId, carId);
             BuildGraphParams();
 
             // Fire ContextChanged event for badge/UI refresh

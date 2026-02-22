@@ -360,7 +360,13 @@ namespace DiyFfb.TieredConfig
                 return;
             }
 
-            var activeFunctions = profile.ActiveFunctionIds ?? new HashSet<int>();
+            // Null means never initialized (legacy profile) — seed category defaults
+            // so the profile persists them on next save. Empty set means the user
+            // explicitly unchecked all functions — respect that.
+            if (profile.ActiveFunctionIds == null)
+                profile.ActiveFunctionIds = GetDefaultActiveFunctionIds();
+
+            var activeFunctions = profile.ActiveFunctionIds;
 
             foreach (var functionId in activeFunctions)
             {
@@ -400,7 +406,7 @@ namespace DiyFfb.TieredConfig
 
             // Force events for functions transitioning to inactive — even if config
             // hasn't changed, the gateway needs a cleared config to stop joystick output.
-            var newActiveIds = profile?.ActiveFunctionIds ?? new HashSet<int>();
+            var newActiveIds = profile.ActiveFunctionIds;
             foreach (var functionId in _functionConfigManager.GetKnownFunctionIds())
             {
                 if (!newActiveIds.Contains(functionId))
@@ -490,7 +496,11 @@ namespace DiyFfb.TieredConfig
         public bool ShouldApplyProfileOverride(int functionId)
         {
             var profile = _getActiveProfile();
-            return profile?.ActiveFunctionIds?.Contains(functionId) == true;
+            if (profile == null)
+                return false;
+            if (profile.ActiveFunctionIds == null)
+                return IsDefaultActiveFunction(functionId);
+            return profile.ActiveFunctionIds.Contains(functionId);
         }
 
         /// <summary>
@@ -503,7 +513,9 @@ namespace DiyFfb.TieredConfig
             var profile = _getActiveProfile();
             if (profile == null)
                 return IsDefaultActiveFunction(functionId);
-            return profile.ActiveFunctionIds?.Contains(functionId) == true;
+            if (profile.ActiveFunctionIds == null)
+                return IsDefaultActiveFunction(functionId);
+            return profile.ActiveFunctionIds.Contains(functionId);
         }
 
         private bool IsDefaultActiveFunction(int functionId)
@@ -530,6 +542,22 @@ namespace DiyFfb.TieredConfig
         }
 
         /// <summary>
+        /// Build a HashSet of function IDs that are active by default for the current graph category.
+        /// </summary>
+        private HashSet<int> GetDefaultActiveFunctionIds()
+        {
+            var defaults = new HashSet<int>();
+            foreach (FunctionID fid in Enum.GetValues(typeof(FunctionID)))
+            {
+                if (fid == FunctionID.Undefined) continue;
+                int id = (int)fid;
+                if (IsDefaultActiveFunction(id))
+                    defaults.Add(id);
+            }
+            return defaults;
+        }
+
+        /// <summary>
         /// Populate ActiveFunctionIds on a newly auto-assigned profile with category defaults.
         /// Called after graph load so GetActiveGraphCategory() returns the correct category.
         /// </summary>
@@ -541,15 +569,7 @@ namespace DiyFfb.TieredConfig
                 !_settings.AircraftFfbProfiles.TryGetValue(key, out var profile))
                 return;
 
-            var defaults = new HashSet<int>();
-            foreach (FunctionID fid in Enum.GetValues(typeof(FunctionID)))
-            {
-                if (fid == FunctionID.Undefined) continue;
-                int id = (int)fid;
-                if (IsDefaultActiveFunction(id))
-                    defaults.Add(id);
-            }
-            profile.ActiveFunctionIds = defaults;
+            profile.ActiveFunctionIds = GetDefaultActiveFunctionIds();
         }
 
         /// <summary>
