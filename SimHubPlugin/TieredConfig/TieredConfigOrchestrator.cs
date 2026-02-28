@@ -376,7 +376,7 @@ namespace DiyFfb.TieredConfig
                     profile.FunctionOverrides.TryGetValue(functionId, out var profileDelta);
                     FunctionConfigOverrides userDelta = null;
                     userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
-                    _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta);
+                    _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: false);
                 }
 
                 // 2. Apply AxisConfig overrides for this function
@@ -424,7 +424,12 @@ namespace DiyFfb.TieredConfig
         public void ApplyProfileOverridesToFunction(int functionId)
         {
             var profile = _getActiveProfile();
-            if (profile?.ActiveFunctionIds?.Contains(functionId) != true)
+            if (profile == null)
+                return;
+            bool isActive = profile.ActiveFunctionIds == null
+                ? IsDefaultActiveFunction(functionId)
+                : profile.ActiveFunctionIds.Contains(functionId);
+            if (!isActive)
                 return;
 
             // Only apply if we have a base config from the ESP32
