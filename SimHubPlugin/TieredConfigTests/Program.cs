@@ -107,6 +107,13 @@ namespace DiyFfb.TieredConfigTests
             if (!serializationResults.TrueForAll(r => r.Passed))
                 allPassed = false;
 
+            // Run AxisRequestQueue tests
+            var queueResults = AxisRequestQueueTests.RunAll();
+            TestRunner.PrintResults("AxisRequestQueue", queueResults);
+            allResults.AddRange(queueResults);
+            if (!queueResults.TrueForAll(r => r.Passed))
+                allPassed = false;
+
             // Summary
             Console.WriteLine("===================");
             int totalPassed = allResults.Count(r => r.Passed);

@@ -56,6 +56,7 @@
     <Compile Include="OverrideFieldRegistryTests.cs" />
     <Compile Include="OrchestratorRerouteTests.cs" />
     <Compile Include="ProtobufJsonSerializationTests.cs" />
+    <Compile Include="AxisRequestQueueTests.cs" />
     <Compile Include="..\TestCommon\TestRunner.cs">
       <Link>TestRunner.cs</Link>
     </Compile>

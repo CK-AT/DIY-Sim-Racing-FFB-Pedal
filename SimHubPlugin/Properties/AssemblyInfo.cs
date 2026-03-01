@@ -21,6 +21,7 @@ using System.Runtime.InteropServices;
 
 // Allow test projects to access internal types
 [assembly: InternalsVisibleTo("GraphTest")]
+[assembly: InternalsVisibleTo("TieredConfigTests")]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
 [assembly: Guid("833040c9-fe5e-4ccf-b21d-71979e049b6b")]

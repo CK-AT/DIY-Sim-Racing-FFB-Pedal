@@ -2410,7 +2410,8 @@ namespace DiyFfb
             return false;
         }
 
-        private void EnqueueAxisConfigUpload(AxisID axisId, AxisConfig axisConfig, bool store)
+        private void EnqueueAxisConfigUpload(AxisID axisId, AxisConfig axisConfig, bool store,
+            bool verify = false)
         {
             if (axisId == AxisID.AxisUndefined)
             {
@@ -2419,15 +2420,19 @@ namespace DiyFfb
             AxisConfig configToSend = axisConfig.Clone();
             configToSend.Store = store;
             Message msg = new Message { AxisConfig = configToSend };
-            axisRequestQueue?.Enqueue(axisId, AxisRequestType.AxisConfigUpload, msg);
+            axisRequestQueue?.Enqueue(axisId, AxisRequestType.AxisConfigUpload, msg,
+                verifyAfterSend: verify);
         }
 
-        private void EnqueueFunctionConfigUpload(FunctionConfig functionConfig, bool store)
+        private void EnqueueFunctionConfigUpload(FunctionConfig functionConfig, bool store,
+            bool verify = false)
         {
             FunctionConfig configToSend = functionConfig.Clone();
             configToSend.Base.Store = store;
             Message msg = new Message { FunctionConfig = configToSend };
             bool broadcastRequired = false;
+            bool verifiedOne = false;
+            AxisID firstLinkedAxis = AxisID.AxisUndefined;
             HashSet<AxisID> queuedAxes = new HashSet<AxisID>();
             foreach (var linkedAxisId in configToSend.Base.LinkedAxes)
             {
@@ -2435,6 +2440,10 @@ namespace DiyFfb
                 if (axisId == AxisID.AxisUndefined)
                 {
                     continue;
+                }
+                if (firstLinkedAxis == AxisID.AxisUndefined)
+                {
+                    firstLinkedAxis = axisId;
                 }
                 if (!axes.TryGetValue(axisId, out Axis axis))
                 {
@@ -2445,7 +2454,11 @@ namespace DiyFfb
                 {
                     if (queuedAxes.Add(axisId))
                     {
-                        axisRequestQueue?.Enqueue(axisId, AxisRequestType.FunctionConfigUpload, msg);
+                        // Verify on the first per-axis upload only
+                        bool verifyThis = verify && !verifiedOne;
+                        axisRequestQueue?.Enqueue(axisId, AxisRequestType.FunctionConfigUpload,
+                            msg, verifyAfterSend: verifyThis);
+                        if (verifyThis) verifiedOne = true;
                     }
                 }
                 else
@@ -2457,6 +2470,14 @@ namespace DiyFfb
             if (broadcastRequired)
             {
                 axisRequestQueue?.Enqueue(AxisID.AxisUndefined, AxisRequestType.FunctionConfigUpload, msg);
+            }
+
+            // Broadcast uploads can't self-verify (AxisUndefined won't match any ESP32 node).
+            // Enqueue a separate verification query targeting the first known linked axis.
+            if (verify && !verifiedOne && broadcastRequired
+                && firstLinkedAxis != AxisID.AxisUndefined)
+            {
+                axisRequestQueue?.Enqueue(firstLinkedAxis, AxisRequestType.FunctionConfig);
             }
         }
 
@@ -2601,7 +2622,7 @@ namespace DiyFfb
             }
 
             FunctionConfig functionConfig = functions[selected_function_id].Config;
-            EnqueueFunctionConfigUpload(functionConfig, PersistConfig);
+            EnqueueFunctionConfigUpload(functionConfig, PersistConfig, verify: true);
         }
 
         private void OnDownloadFunctionConfigClicked(object sender, RoutedEventArgs e)
@@ -2652,7 +2673,7 @@ namespace DiyFfb
 
         private void UploadFunctionConfig(FunctionConfig functionConfig, bool store)
         {
-            EnqueueFunctionConfigUpload(functionConfig, store);
+            EnqueueFunctionConfigUpload(functionConfig, store, verify: true);
         }
 
         private void OnFunctionConfigUpdate(FunctionConfig newFunctionConfig, bool fromEsp32 = false)
@@ -2671,6 +2692,8 @@ namespace DiyFfb
 
             if (authorityOverride)
             {
+                SetDebugOutput($"Config mismatch for function {funcId}, re-uploading",
+                    UiLogLevel.Warning);
                 EnqueueFunctionConfigUpload(resultConfig, store: false);
                 Plugin.FunctionConfigManager.MarkAsSent(funcId, resultConfig);
                 return;
@@ -2704,6 +2727,8 @@ namespace DiyFfb
 
                 if (authorityOverride)
                 {
+                    SetDebugOutput($"Config mismatch for axis {newAxisId}, re-uploading",
+                        UiLogLevel.Warning);
                     EnqueueAxisConfigUpload(newAxisId, resultConfig, store: false);
                     Plugin.AxisConfigManager.MarkAsSent(axisIdInt, resultConfig);
                 }
@@ -2775,7 +2800,7 @@ namespace DiyFfb
             // Non-active functions still get their internal state updated but don't push to ESP32.
             if (isActive)
             {
-                EnqueueFunctionConfigUpload(e.NewConfig, store: false);
+                EnqueueFunctionConfigUpload(e.NewConfig, store: false, verify: true);
                 Plugin.FunctionConfigManager.MarkAsSent(e.FunctionId, e.NewConfig);
             }
             else
@@ -2821,7 +2846,7 @@ namespace DiyFfb
             axes[axisId].Config = e.NewConfig;
 
             // Send to ESP32 (don't store to EEPROM - these are runtime overrides)
-            EnqueueAxisConfigUpload(axisId, e.NewConfig, store: false);
+            EnqueueAxisConfigUpload(axisId, e.NewConfig, store: false, verify: true);
 
             // Update UI if this is the selected axis
             if (axisId == selected_axis_id)
@@ -2920,7 +2945,7 @@ namespace DiyFfb
                 }
                 if (loadSelectionDialog.UploadRequested && axis.SelectedToLoad && loadSelectionDialog.axis_configs.TryGetValue(axis.ID, out AxisConfig uploadCfg))
                 {
-                    EnqueueAxisConfigUpload(axis.ID, uploadCfg, false);
+                    EnqueueAxisConfigUpload(axis.ID, uploadCfg, false, verify: true);
                 }
                 axis.SelectedToLoad = false;
                 axis.SelectableToLoad = false;
@@ -2933,7 +2958,7 @@ namespace DiyFfb
                 }
                 if (loadSelectionDialog.UploadRequested && function.SelectedToLoad && loadSelectionDialog.function_configs.TryGetValue(function.ID, out FunctionConfig uploadCfg))
                 {
-                    EnqueueFunctionConfigUpload(uploadCfg, false);
+                    EnqueueFunctionConfigUpload(uploadCfg, false, verify: true);
                 }
                 function.SelectedToLoad = false;
                 function.SelectableToLoad = false;
@@ -3292,7 +3317,8 @@ namespace DiyFfb
                 return;
             }
 
-            EnqueueAxisConfigUpload(selected_axis_id, axes[selected_axis_id].Config, PersistConfig);
+            EnqueueAxisConfigUpload(selected_axis_id, axes[selected_axis_id].Config, PersistConfig,
+                verify: true);
         }
 
         private void OnDownloadAxisConfigClicked(object sender, RoutedEventArgs e)

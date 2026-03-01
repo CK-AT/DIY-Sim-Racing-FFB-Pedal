@@ -36,6 +36,7 @@ namespace DiyFfb
             public bool AwaitResponse;
             public DateTime NextSendUtc;
             public Message Payload;
+            public bool VerifyAfterSend;
         }
 
         private readonly IAxisRequestSender sender;
@@ -120,7 +121,8 @@ namespace DiyFfb
                 => ui.SendAxisRequest(axisId, type, payload);
         }
 
-        public void Enqueue(AxisID axisId, AxisRequestType type, Message payload = null)
+        public void Enqueue(AxisID axisId, AxisRequestType type, Message payload = null,
+            bool verifyAfterSend = false)
         {
             lock (sync)
             {
@@ -135,7 +137,8 @@ namespace DiyFfb
                     RemainingRetries = MaxRetries,
                     AwaitResponse = RequiresResponse(type),
                     NextSendUtc = nowProvider(),
-                    Payload = payload
+                    Payload = payload,
+                    VerifyAfterSend = verifyAfterSend && IsUploadType(type)
                 });
             }
         }
@@ -248,7 +251,25 @@ namespace DiyFfb
                     {
                         _cooldownUntilUtc = nowProvider().AddMilliseconds(PostUploadCooldownMs);
                     }
+                    bool verify = current.VerifyAfterSend;
+                    var verifyAxis = current.AxisId;
+                    var verifyType = current.Type == AxisRequestType.AxisConfigUpload
+                        ? AxisRequestType.AxisConfig
+                        : AxisRequestType.FunctionConfig;
                     hasCurrent = false;
+                    if (verify && verifyAxis != AxisID.AxisUndefined
+                        && !IsDuplicate(verifyAxis, verifyType))
+                    {
+                        queue.Enqueue(new RequestItem
+                        {
+                            AxisId = verifyAxis,
+                            Type = verifyType,
+                            RemainingRetries = MaxRetries,
+                            AwaitResponse = true,
+                            NextSendUtc = nowProvider(),
+                            Payload = null
+                        });
+                    }
                     return;
                 }
 
