@@ -3013,8 +3013,13 @@ namespace DiyFfb.GraphEditor
             }
 
             _previewRefreshPending = true;
-            _previewRefreshTimer.Stop();
-            _previewRefreshTimer.Start();
+            // Only start the timer if it isn't already running — don't restart it,
+            // otherwise rapid callers (like TickLiveInputs at 200ms) keep resetting
+            // the 500ms throttle and it never fires.
+            if (!_previewRefreshTimer.IsEnabled)
+            {
+                _previewRefreshTimer.Start();
+            }
         }
 
         private void OnPreviewRefreshTimer(object sender, EventArgs e)
