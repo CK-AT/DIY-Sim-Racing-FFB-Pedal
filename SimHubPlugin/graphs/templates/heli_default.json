@@ -248,7 +248,7 @@
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "Pitch.Position"
+          "SignalSuffix": "FlightStickPitch.Position"
         }
       ],
       "SignalGroup": "Axis"
@@ -261,7 +261,7 @@
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "Roll.Position"
+          "SignalSuffix": "FlightStickRoll.Position"
         }
       ],
       "SignalGroup": "Axis"
@@ -474,13 +474,13 @@
     },
     {
       "FromNodeId": "f4fa245404984790943eaa92c637a6a7",
-      "FromPort": "Pitch.Position",
+      "FromPort": "FlightStickPitch.Position",
       "ToNodeId": "cyclic_pitch_include",
       "ToPort": "axis_position"
     },
     {
       "FromNodeId": "c749716b12c84d4a8439e772e11cf3aa",
-      "FromPort": "Roll.Position",
+      "FromPort": "FlightStickRoll.Position",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "axis_position"
     }

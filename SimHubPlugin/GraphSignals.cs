@@ -103,9 +103,12 @@ namespace DiyFfb
         public static void BuildAxisInputs(DiyFfbPlugin plugin, IDictionary<string, double> inputs)
         {
             if (plugin == null || inputs == null) return;
-            // AxisState.position is already in mm (contact point position from ESP32)
-            inputs["Axis.Pitch.Position"] = plugin.GetLastAxisPosition(AxisID._1);
-            inputs["Axis.Roll.Position"] = plugin.GetLastAxisPosition(AxisID._2);
+            // Position is in mm (contact point position from ESP32).
+            // Resolved via function → linked axis mapping, not hardcoded axis IDs.
+            inputs["Axis.FlightStickPitch.Position"] = plugin.GetFunctionPosition(FunctionID.FlightStickPitch);
+            inputs["Axis.FlightStickRoll.Position"] = plugin.GetFunctionPosition(FunctionID.FlightStickRoll);
+            inputs["Axis.FlightPedals.Position"] = plugin.GetFunctionPosition(FunctionID.FlightPedals);
+            inputs["Axis.FlightStickCollective.Position"] = plugin.GetFunctionPosition(FunctionID.FlightStickCollective);
         }
     }
 }

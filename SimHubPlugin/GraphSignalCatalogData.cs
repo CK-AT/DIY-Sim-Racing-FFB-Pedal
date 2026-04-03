@@ -56,8 +56,10 @@ namespace DiyFfb
             "Grip.TrimHat.Right",
             "Grip.ForceTrimRelease",
             "Grip.TrimReset",
-            "Axis.Pitch.Position",
-            "Axis.Roll.Position"
+            "Axis.FlightStickPitch.Position",
+            "Axis.FlightStickRoll.Position",
+            "Axis.FlightPedals.Position",
+            "Axis.FlightStickCollective.Position"
         };
 
         public static readonly IReadOnlyList<string> OutputNames = new[]

@@ -1941,11 +1941,26 @@ namespace DiyFfb
         }
 
         /// <summary>
-        /// Returns the last known position for the given axis (0.0–1.0), or 0 if unknown.
+        /// Returns the last known position (mm) for the given axis, or 0 if unknown.
         /// </summary>
         internal double GetLastAxisPosition(AxisID axisId)
         {
             return _lastAxisPositions.TryGetValue(axisId, out var pos) ? pos : 0.0;
+        }
+
+        /// <summary>
+        /// Returns the last known position (mm) for the axis linked to the given function.
+        /// Resolves function → primary linked axis → cached AxisState position.
+        /// </summary>
+        internal double GetFunctionPosition(FunctionID functionId)
+        {
+            var config = _functionConfigManager.GetCurrentConfig((int)functionId);
+            if (config?.Base == null || config.Base.LinkedAxes.Count == 0)
+                return 0.0;
+            var axisId = config.Base.LinkedAxes[0];
+            if (axisId == AxisID.AxisUndefined)
+                return 0.0;
+            return GetLastAxisPosition(axisId);
         }
 
         private void BuildGraphInputs(GameData data)
