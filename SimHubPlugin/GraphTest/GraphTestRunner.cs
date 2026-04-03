@@ -190,6 +190,17 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Queue: retry on send failure", TestRetry_OnSendFailure));
             results.Add(TestRunner.RunTest("Queue: max retries exhausted", TestRetry_MaxRetriesExhausted));
 
+            // Stateful graph node tests
+            results.Add(TestRunner.RunTest("Accumulator: basic increment", TestAccumulator_BasicIncrement));
+            results.Add(TestRunner.RunTest("Accumulator: clamp bounds", TestAccumulator_ClampBounds));
+            results.Add(TestRunner.RunTest("Accumulator: reset", TestAccumulator_Reset));
+            results.Add(TestRunner.RunTest("Accumulator: no trigger no change", TestAccumulator_NoTrigger));
+            results.Add(TestRunner.RunTest("SampleHold: capture on falling edge", TestSampleHold_FallingEdge));
+            results.Add(TestRunner.RunTest("SampleHold: hold during trigger high", TestSampleHold_HoldDuringHigh));
+            results.Add(TestRunner.RunTest("EdgeDetect: rising edge pulse", TestEdgeDetect_RisingEdge));
+            results.Add(TestRunner.RunTest("EdgeDetect: no pulse on sustained", TestEdgeDetect_NoPulseOnSustained));
+            results.Add(TestRunner.RunTest("ResetState: clears accumulator", TestResetState_ClearsAccumulator));
+
             TestRunner.PrintResults("FFB Graph Tests", results);
         }
 
@@ -4392,6 +4403,178 @@ namespace DiyFfb.GraphTest
 
             // Should have dropped the request after max retries
             return !queue.HasCurrentRequest && sender.Requests.Count == 3;
+        }
+
+        #endregion
+
+        #region Stateful graph node tests
+
+        /// <summary>Helper: build a graph with a single stateful Func node and evaluate it.</summary>
+        private static GraphCompiledEvaluator BuildStatefulGraph(string func, string[] argNodeIds, Dictionary<string, double> constNodes = null)
+        {
+            var graph = new GraphDefinition();
+            if (constNodes != null)
+            {
+                foreach (var kv in constNodes)
+                {
+                    graph.Nodes[kv.Key] = new GraphNode { Id = kv.Key, Type = NodeType.Const, ConstValue = kv.Value };
+                }
+            }
+            foreach (var id in argNodeIds)
+            {
+                if (!graph.Nodes.ContainsKey(id))
+                {
+                    graph.Nodes[id] = new GraphNode { Id = id, Type = NodeType.Input, Name = id };
+                }
+            }
+            graph.Nodes["func"] = new GraphNode
+            {
+                Id = "func",
+                Type = NodeType.Func,
+                Func = func,
+                Args = new List<string>(argNodeIds)
+            };
+            graph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "func" };
+            return new GraphCompiledEvaluator(graph);
+        }
+
+        private static double Eval(GraphCompiledEvaluator eval, Dictionary<string, double> inputs, double dt = 0.0)
+        {
+            var outputs = eval.Evaluate(inputs, new Dictionary<string, double>(), dt);
+            return outputs.TryGetValue("result", out var v) ? v : double.NaN;
+        }
+
+        private static bool TestAccumulator_BasicIncrement()
+        {
+            // accumulator(trigger, step, min, max) — step is in units/sec, dt = 1.0s per tick
+            var eval = BuildStatefulGraph("accumulator",
+                new[] { "trigger", "step", "min", "max" },
+                new Dictionary<string, double> { ["step"] = 2.0, ["min"] = -100.0, ["max"] = 100.0 });
+
+            var on = new Dictionary<string, double> { ["trigger"] = 1.0 };
+            double v1 = Eval(eval, on, 1.0);  // 0 + 2*1 = 2
+            double v2 = Eval(eval, on, 1.0);  // 2 + 2*1 = 4
+            double v3 = Eval(eval, on, 0.5);  // 4 + 2*0.5 = 5
+            return Math.Abs(v1 - 2.0) < 1e-9 && Math.Abs(v2 - 4.0) < 1e-9 && Math.Abs(v3 - 5.0) < 1e-9;
+        }
+
+        private static bool TestAccumulator_ClampBounds()
+        {
+            var eval = BuildStatefulGraph("accumulator",
+                new[] { "trigger", "step", "min", "max" },
+                new Dictionary<string, double> { ["step"] = 50.0, ["min"] = -10.0, ["max"] = 10.0 });
+
+            var on = new Dictionary<string, double> { ["trigger"] = 1.0 };
+            for (int i = 0; i < 10; i++) Eval(eval, on, 1.0);  // Would be 500, but clamped
+            double v = Eval(eval, on, 1.0);
+            return Math.Abs(v - 10.0) < 1e-9;
+        }
+
+        private static bool TestAccumulator_Reset()
+        {
+            var eval = BuildStatefulGraph("accumulator",
+                new[] { "trigger", "step", "min", "max", "reset" },
+                new Dictionary<string, double> { ["step"] = 3.0, ["min"] = -100.0, ["max"] = 100.0 });
+
+            var on = new Dictionary<string, double> { ["trigger"] = 1.0, ["reset"] = 0.0 };
+            Eval(eval, on, 1.0);  // 3
+            Eval(eval, on, 1.0);  // 6
+            double before = Eval(eval, on, 1.0);  // 9
+
+            var resetInputs = new Dictionary<string, double> { ["trigger"] = 0.0, ["reset"] = 1.0 };
+            double after = Eval(eval, resetInputs, 1.0);  // should be 0
+
+            return Math.Abs(before - 9.0) < 1e-9 && Math.Abs(after) < 1e-9;
+        }
+
+        private static bool TestAccumulator_NoTrigger()
+        {
+            var eval = BuildStatefulGraph("accumulator",
+                new[] { "trigger", "step", "min", "max" },
+                new Dictionary<string, double> { ["step"] = 5.0, ["min"] = -100.0, ["max"] = 100.0 });
+
+            var off = new Dictionary<string, double> { ["trigger"] = 0.0 };
+            Eval(eval, off, 1.0);
+            Eval(eval, off, 1.0);
+            double v = Eval(eval, off, 1.0);
+            return Math.Abs(v) < 1e-9;
+        }
+
+        private static bool TestSampleHold_FallingEdge()
+        {
+            // sample_hold(input, trigger) — captures on falling edge (1→0)
+            var eval = BuildStatefulGraph("sample_hold", new[] { "input", "trigger" });
+
+            // Trigger high, input = 42
+            Eval(eval, new Dictionary<string, double> { ["input"] = 42.0, ["trigger"] = 1.0 });
+            // Trigger goes low → should capture input
+            double captured = Eval(eval, new Dictionary<string, double> { ["input"] = 42.0, ["trigger"] = 0.0 });
+            // Input changes but trigger stays low → held value unchanged
+            double held = Eval(eval, new Dictionary<string, double> { ["input"] = 99.0, ["trigger"] = 0.0 });
+
+            return Math.Abs(captured - 42.0) < 1e-9 && Math.Abs(held - 42.0) < 1e-9;
+        }
+
+        private static bool TestSampleHold_HoldDuringHigh()
+        {
+            var eval = BuildStatefulGraph("sample_hold", new[] { "input", "trigger" });
+
+            // No falling edge yet — held value should be 0 (initial)
+            double v1 = Eval(eval, new Dictionary<string, double> { ["input"] = 10.0, ["trigger"] = 1.0 });
+            double v2 = Eval(eval, new Dictionary<string, double> { ["input"] = 20.0, ["trigger"] = 1.0 });
+            return Math.Abs(v1) < 1e-9 && Math.Abs(v2) < 1e-9;
+        }
+
+        private static bool TestEdgeDetect_RisingEdge()
+        {
+            // edge_detect(input) — 1.0 for one tick on rising edge, 0.0 otherwise
+            var eval = BuildStatefulGraph("edge_detect", new[] { "input" });
+
+            double v1 = Eval(eval, new Dictionary<string, double> { ["input"] = 0.0 });  // no edge
+            double v2 = Eval(eval, new Dictionary<string, double> { ["input"] = 1.0 });  // rising edge → 1
+            double v3 = Eval(eval, new Dictionary<string, double> { ["input"] = 1.0 });  // sustained → 0
+            double v4 = Eval(eval, new Dictionary<string, double> { ["input"] = 0.0 });  // falling → 0
+            double v5 = Eval(eval, new Dictionary<string, double> { ["input"] = 1.0 });  // rising again → 1
+
+            return Math.Abs(v1) < 1e-9
+                && Math.Abs(v2 - 1.0) < 1e-9
+                && Math.Abs(v3) < 1e-9
+                && Math.Abs(v4) < 1e-9
+                && Math.Abs(v5 - 1.0) < 1e-9;
+        }
+
+        private static bool TestEdgeDetect_NoPulseOnSustained()
+        {
+            var eval = BuildStatefulGraph("edge_detect", new[] { "input" });
+
+            // Start high → no edge (prev was 0, input is 1 → actually this IS a rising edge)
+            double v1 = Eval(eval, new Dictionary<string, double> { ["input"] = 1.0 });
+            // Stay high
+            double v2 = Eval(eval, new Dictionary<string, double> { ["input"] = 1.0 });
+            double v3 = Eval(eval, new Dictionary<string, double> { ["input"] = 1.0 });
+
+            // First tick: prev=0 (initial), input=1 → rising edge → 1.0
+            // Subsequent: prev=1, input=1 → no edge → 0.0
+            return Math.Abs(v1 - 1.0) < 1e-9
+                && Math.Abs(v2) < 1e-9
+                && Math.Abs(v3) < 1e-9;
+        }
+
+        private static bool TestResetState_ClearsAccumulator()
+        {
+            var eval = BuildStatefulGraph("accumulator",
+                new[] { "trigger", "step", "min", "max" },
+                new Dictionary<string, double> { ["step"] = 5.0, ["min"] = -100.0, ["max"] = 100.0 });
+
+            var on = new Dictionary<string, double> { ["trigger"] = 1.0 };
+            Eval(eval, on, 1.0);  // 5
+            Eval(eval, on, 1.0);  // 10
+            double before = Eval(eval, on, 1.0);  // 15
+
+            eval.ResetState();
+
+            double after = Eval(eval, on, 1.0);  // should be 5 (fresh start + one step)
+            return Math.Abs(before - 15.0) < 1e-9 && Math.Abs(after - 5.0) < 1e-9;
         }
 
         #endregion

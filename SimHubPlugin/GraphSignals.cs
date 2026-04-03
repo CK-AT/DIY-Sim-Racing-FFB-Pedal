@@ -67,5 +67,45 @@ namespace DiyFfb
             inputs["XPlane.MainRotor.Speed"] = DiyFfbPlugin.ToRpm((float)omegaRad);
             inputs["XPlane.OnGround"] = packet.OnGround ? 1.0 : 0.0;
         }
+
+        /// <summary>
+        /// All logical grip signal names that can be bound to physical buttons.
+        /// </summary>
+        public static readonly IReadOnlyList<string> GripSignalNames = new[]
+        {
+            "Grip.TrimHat.Up",
+            "Grip.TrimHat.Down",
+            "Grip.TrimHat.Left",
+            "Grip.TrimHat.Right",
+            "Grip.ForceTrimRelease",
+            "Grip.TrimReset"
+        };
+
+        public static void BuildGripInputs(
+            ButtonInputReader reader,
+            Dictionary<string, ButtonBinding> bindings,
+            IDictionary<string, double> inputs)
+        {
+            foreach (var signalName in GripSignalNames)
+            {
+                double value = 0.0;
+                if (reader != null
+                    && bindings != null
+                    && bindings.TryGetValue(signalName, out var binding)
+                    && binding.Type != BindingType.None)
+                {
+                    value = reader.IsPressed(binding) ? 1.0 : 0.0;
+                }
+                inputs[signalName] = value;
+            }
+        }
+
+        public static void BuildAxisInputs(DiyFfbPlugin plugin, IDictionary<string, double> inputs)
+        {
+            if (plugin == null || inputs == null) return;
+            // AxisState.position is already in mm (contact point position from ESP32)
+            inputs["Axis.Pitch.Position"] = plugin.GetLastAxisPosition(AxisID._1);
+            inputs["Axis.Roll.Position"] = plugin.GetLastAxisPosition(AxisID._2);
+        }
     }
 }

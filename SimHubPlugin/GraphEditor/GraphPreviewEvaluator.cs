@@ -1,5 +1,6 @@
 using DiyFfb.GraphTest;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using RuntimeGraphDefinition = DiyFfb.GraphTest.GraphDefinition;
 
@@ -15,6 +16,7 @@ namespace DiyFfb.GraphEditor
         private IGraphResolver _cachedResolver;
         private string _cachedBaseDirectory;
         private bool _cacheDirty = true;
+        private long _lastEvalTicks;
 
         /// <summary>
         /// Enable or disable debug logging for preview evaluation.
@@ -101,7 +103,12 @@ namespace DiyFfb.GraphEditor
                 }
             }
 
-            var result = _cachedEvaluator.EvaluateWithTrace(inputs, parameters);
+            long now = Stopwatch.GetTimestamp();
+            double dt = _lastEvalTicks > 0
+                ? (double)(now - _lastEvalTicks) / Stopwatch.Frequency
+                : 0.0;
+            _lastEvalTicks = now;
+            var result = _cachedEvaluator.EvaluateWithTrace(inputs, parameters, dt);
 
             if (GraphDebugLogger.Enabled)
             {

@@ -329,6 +329,35 @@
         {
           "Name": "load",
           "Kind": "Input"
+        },
+        {
+          "Name": "trim",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "312d7d2a9bce4921b90c99a1cefff2f5",
+      "Title": "HAT Trim",
+      "Kind": "Include",
+      "X": 690.0,
+      "Y": 910.0,
+      "IncludePath": "trim_hat.json"
+    },
+    {
+      "Id": "924eba20d37b41e5be2bd19976fde37c",
+      "Title": "Grip",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 910.0,
+      "Ports": [
+        {
+          "Name": "TrimHatPos",
+          "Kind": "Output"
+        },
+        {
+          "Name": "TrimHatNeg",
+          "Kind": "Output"
         }
       ]
     }
@@ -465,6 +494,24 @@
       "FromPort": "a*b",
       "ToNodeId": "friction",
       "ToPort": "a"
+    },
+    {
+      "FromNodeId": "924eba20d37b41e5be2bd19976fde37c",
+      "FromPort": "TrimHatPos",
+      "ToNodeId": "312d7d2a9bce4921b90c99a1cefff2f5",
+      "ToPort": "hat_pos"
+    },
+    {
+      "FromNodeId": "924eba20d37b41e5be2bd19976fde37c",
+      "FromPort": "TrimHatNeg",
+      "ToNodeId": "312d7d2a9bce4921b90c99a1cefff2f5",
+      "ToPort": "hat_neg"
+    },
+    {
+      "FromNodeId": "312d7d2a9bce4921b90c99a1cefff2f5",
+      "FromPort": "trim",
+      "ToNodeId": "out_spring",
+      "ToPort": "trim"
     }
   ],
   "Params": [
@@ -472,7 +519,7 @@
       "Name": "Aircraft.Rotor.TorqueNom",
       "DefaultValue": 1000.0,
       "Min": 100.0,
-      "Max": 10000.0,
+      "Max": 100000.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Nominal Rotor Torque",

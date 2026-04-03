@@ -190,6 +190,7 @@ namespace DiyFfb
 
             UpdateSerialPortList();
             InitializeSystemSettings();
+            uc_grip_binding.Initialize(plugin?.Settings, plugin?.ButtonInputReader);
 
             if (plugin != null)
             {
@@ -563,6 +564,7 @@ namespace DiyFfb
             }
 
             Plugin.ConfigOrchestrator.SetCurrentUserProfile(userProfile);
+            Plugin.ResetGraphState();
             RefreshUserProfileUi();
             RefreshVehicleParams();
 
@@ -2337,6 +2339,7 @@ namespace DiyFfb
             uc_function_config.OnAxisStateUpdate(axisState);
             uc_axis_config.OnAxisStateUpdate(axisState);
             UpdateVjoy(axisState);
+            Plugin?.UpdateAxisPosition(axisState.AxisId, axisState.Position);
         }
 
         public void RequestStaticBalanceCalibration(AxisID axisId)

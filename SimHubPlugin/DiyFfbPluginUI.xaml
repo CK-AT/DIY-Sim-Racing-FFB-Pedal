@@ -7,6 +7,7 @@
              xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins" mc:Ignorable="d" 
              xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins" 
              xmlns:controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+             xmlns:diycontrols="clr-namespace:DiyFfb.Controls"
              PreviewKeyDown="OnPreviewKeyDown" PreviewKeyUp="OnPreviewKeyUp" Height="1096">
 
 
@@ -936,6 +937,16 @@
                                                     </StackPanel>
                                                 </Border>
                                             </StackPanel>
+                                        </TabItem>
+                                        <TabItem Width="120" Height="30" Padding="0,0,0,0" ToolTip="Grip button bindings for graph inputs">
+                                            <TabItem.Header>
+                                                <Border Width="120" Height="30" Margin="0,0,0,0">
+                                                    <Label Content="INPUT" FontFamily="Arial Black" FontSize="10" Height="30" Width="120" Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" UseLayoutRounding="True" />
+                                                </Border>
+                                            </TabItem.Header>
+                                            <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,2,0,0">
+                                                <diycontrols:GripBindingControl x:Name="uc_grip_binding" Width="530"/>
+                                            </Border>
                                         </TabItem>
                                     </TabControl>
                                 </Border>

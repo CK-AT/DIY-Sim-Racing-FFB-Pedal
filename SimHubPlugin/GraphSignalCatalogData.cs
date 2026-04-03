@@ -7,7 +7,7 @@ namespace DiyFfb
     public static class GraphSignalCatalogData
     {
         // Input signal groups (top-level namespaces)
-        public static readonly IReadOnlyList<string> InputGroups = new[] { "XPlane" };
+        public static readonly IReadOnlyList<string> InputGroups = new[] { "XPlane", "Grip", "Axis" };
 
         // Output signal groups (function names)
         public static readonly IReadOnlyList<string> OutputGroups = new[]
@@ -49,7 +49,15 @@ namespace DiyFfb
             "XPlane.AeroTorque.Yaw",
             "XPlane.MainRotor.Torque",
             "XPlane.MainRotor.Speed",
-            "XPlane.OnGround"
+            "XPlane.OnGround",
+            "Grip.TrimHat.Up",
+            "Grip.TrimHat.Down",
+            "Grip.TrimHat.Left",
+            "Grip.TrimHat.Right",
+            "Grip.ForceTrimRelease",
+            "Grip.TrimReset",
+            "Axis.Pitch.Position",
+            "Axis.Roll.Position"
         };
 
         public static readonly IReadOnlyList<string> OutputNames = new[]

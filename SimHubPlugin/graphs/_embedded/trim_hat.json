@@ -1,0 +1,213 @@
+{
+  "Version": 4,
+  "IsLibraryGraph": true,
+  "Title": "Hat Trim",
+  "Nodes": [
+    {
+      "Id": "in_hat_pos",
+      "Title": "Hat +",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 40.0,
+      "Ports": [
+        { "Name": "hat_pos", "Kind": "Output" }
+      ]
+    },
+    {
+      "Id": "in_hat_neg",
+      "Title": "Hat -",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 120.0,
+      "Ports": [
+        { "Name": "hat_neg", "Kind": "Output" }
+      ]
+    },
+    {
+      "Id": "in_reset",
+      "Title": "Reset",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 200.0,
+      "Ports": [
+        { "Name": "reset", "Kind": "Output" }
+      ]
+    },
+    {
+      "Id": "param_step",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 280.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "TrimStep" }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_min",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 360.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "TrimMin" }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_max",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 440.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "TrimMax" }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "pos_step",
+      "Title": "Pos Step",
+      "Kind": "Op",
+      "X": 280.0,
+      "Y": 40.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "neg_step",
+      "Title": "Neg Step",
+      "Kind": "Op",
+      "X": 280.0,
+      "Y": 140.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "net_step",
+      "Title": "Net Step",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 80.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a-b", "Kind": "Output" }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "trigger",
+      "Title": "Trigger",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 200.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a+b", "Kind": "Output" }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "accum",
+      "Title": "Accumulator",
+      "Kind": "Func",
+      "X": 700.0,
+      "Y": 120.0,
+      "Ports": [
+        { "Name": "trigger", "Kind": "Input" },
+        { "Name": "step", "Kind": "Input" },
+        { "Name": "min", "Kind": "Input" },
+        { "Name": "max", "Kind": "Input" },
+        { "Name": "reset", "Kind": "Input" },
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "Func": "accumulator",
+      "IncludePath": ""
+    },
+    {
+      "Id": "out_trim",
+      "Title": "Trim Offset",
+      "Kind": "Output",
+      "X": 920.0,
+      "Y": 120.0,
+      "Ports": [
+        { "Name": "trim", "Kind": "Input" }
+      ]
+    }
+  ],
+  "Links": [
+    { "FromNodeId": "in_hat_pos", "FromPort": "hat_pos", "ToNodeId": "pos_step", "ToPort": "a" },
+    { "FromNodeId": "param_step", "FromPort": "TrimStep", "ToNodeId": "pos_step", "ToPort": "b" },
+    { "FromNodeId": "in_hat_neg", "FromPort": "hat_neg", "ToNodeId": "neg_step", "ToPort": "a" },
+    { "FromNodeId": "param_step", "FromPort": "TrimStep", "ToNodeId": "neg_step", "ToPort": "b" },
+    { "FromNodeId": "pos_step", "FromPort": "a*b", "ToNodeId": "net_step", "ToPort": "a" },
+    { "FromNodeId": "neg_step", "FromPort": "a*b", "ToNodeId": "net_step", "ToPort": "b" },
+    { "FromNodeId": "in_hat_pos", "FromPort": "hat_pos", "ToNodeId": "trigger", "ToPort": "a" },
+    { "FromNodeId": "in_hat_neg", "FromPort": "hat_neg", "ToNodeId": "trigger", "ToPort": "b" },
+    { "FromNodeId": "trigger", "FromPort": "a+b", "ToNodeId": "accum", "ToPort": "trigger" },
+    { "FromNodeId": "net_step", "FromPort": "a-b", "ToNodeId": "accum", "ToPort": "step" },
+    { "FromNodeId": "param_min", "FromPort": "TrimMin", "ToNodeId": "accum", "ToPort": "min" },
+    { "FromNodeId": "param_max", "FromPort": "TrimMax", "ToNodeId": "accum", "ToPort": "max" },
+    { "FromNodeId": "in_reset", "FromPort": "reset", "ToNodeId": "accum", "ToPort": "reset" },
+    { "FromNodeId": "accum", "FromPort": "out", "ToNodeId": "out_trim", "ToPort": "trim" }
+  ],
+  "Params": [
+    {
+      "Name": "Cyclic.TrimStep",
+      "DefaultValue": 5.0,
+      "Min": 0.1,
+      "Max": 50.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Trim Rate",
+        "Group": "Cyclic",
+        "Units": "mm/s",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.TrimMin",
+      "DefaultValue": -20.0,
+      "Min": -50.0,
+      "Max": 0.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Trim Min",
+        "Group": "Cyclic",
+        "Units": "mm",
+        "Step": 0.5,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.TrimMax",
+      "DefaultValue": 20.0,
+      "Min": 0.0,
+      "Max": 50.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Trim Max",
+        "Group": "Cyclic",
+        "Units": "mm",
+        "Step": 0.5,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    }
+  ],
+  "ParamValues": null
+}

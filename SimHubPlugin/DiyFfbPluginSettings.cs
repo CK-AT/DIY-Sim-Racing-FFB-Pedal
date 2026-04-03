@@ -180,6 +180,12 @@ namespace DiyFfb
         /// Key: axis ID, Value: complete AxisConfig snapshot as JSON.
         /// </summary>
         public Dictionary<int, string> AxisBaselines = new Dictionary<int, string>();
+
+        /// <summary>
+        /// Maps logical grip signal names (e.g., "Grip.TrimHat.Up") to physical
+        /// joystick button or keyboard key bindings for graph input.
+        /// </summary>
+        public Dictionary<string, ButtonBinding> GripButtonBindings = new Dictionary<string, ButtonBinding>();
     }
 
 

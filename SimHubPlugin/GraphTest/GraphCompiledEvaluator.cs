@@ -21,6 +21,8 @@ namespace DiyFfb.GraphTest
             public bool[] IncludeInputIsExtra = Array.Empty<bool>();
             public string[] IncludeOutputNames = Array.Empty<string>();
             public int[] IncludeOutputIndices = Array.Empty<int>();
+            /// <summary>Starting index in _state for this node's persistent state slots. -1 if not stateful.</summary>
+            public int StateBaseIndex = -1;
         }
 
         private readonly GraphDefinition _graph;
@@ -36,6 +38,8 @@ namespace DiyFfb.GraphTest
         private readonly string[] _outputNames;
         private readonly double[] _values;
         private readonly double[] _extraValues;
+        private readonly double[] _state;  // persists across evaluations for stateful Func nodes
+        private double _dt;  // seconds since last evaluation, set each cycle for stateful funcs
 
         public GraphCompiledEvaluator(GraphDefinition graph, IGraphResolver resolver = null)
             : this(graph, resolver, null, null)
@@ -67,6 +71,7 @@ namespace DiyFfb.GraphTest
             _extraValues = new double[_extraIndexById.Count];
 
             var ordered = TopoSort(_graph, includeOutputs);
+            int stateSlotCount = 0;
             foreach (var node in ordered)
             {
                 var compiled = new CompiledNode
@@ -77,8 +82,19 @@ namespace DiyFfb.GraphTest
                 BuildArgs(compiled);
                 BuildSrc(compiled);
                 BuildIncludeBindings(compiled);
+
+                // Assign persistent state slots for stateful Func nodes
+                int slotsNeeded = GetStateSlotsNeeded(node);
+                if (slotsNeeded > 0)
+                {
+                    compiled.StateBaseIndex = stateSlotCount;
+                    stateSlotCount += slotsNeeded;
+                }
+
                 _order.Add(compiled);
             }
+
+            _state = new double[stateSlotCount];
 
             var outputIndices = new List<int>();
             var outputNames = new List<string>();
@@ -99,14 +115,16 @@ namespace DiyFfb.GraphTest
 
         public IReadOnlyDictionary<string, double> Evaluate(
             IReadOnlyDictionary<string, double> inputs,
-            IReadOnlyDictionary<string, double> parameters)
+            IReadOnlyDictionary<string, double> parameters,
+            double dt = 0.0)
         {
-            return EvaluateWithTrace(inputs, parameters).Outputs;
+            return EvaluateWithTrace(inputs, parameters, dt).Outputs;
         }
 
         public GraphEvaluationResult EvaluateWithTrace(
             IReadOnlyDictionary<string, double> inputs,
-            IReadOnlyDictionary<string, double> parameters)
+            IReadOnlyDictionary<string, double> parameters,
+            double dt = 0.0)
         {
             if (GraphDebugLogger.Enabled)
             {
@@ -117,6 +135,7 @@ namespace DiyFfb.GraphTest
             // NOTE: Context cache clearing moved to plugin level (before top-level evaluation)
             // to avoid sub-evaluators clearing parent context during Include evaluation.
 
+            _dt = dt;
             Array.Clear(_values, 0, _values.Length);
             if (_extraValues.Length > 0)
             {
@@ -447,9 +466,94 @@ namespace DiyFfb.GraphTest
                     double t = Math.Max(0.0, Math.Min(1.0, (alpha - start) / (full - start)));
                     return t * gain * qhatEff;
                 }
+
+                // --- Stateful functions (use persistent _state slots) ---
+
+                // accumulator(trigger, step, min, max [, reset])
+                // While trigger > 0.5, adds step * dt each cycle (step is in units/sec).
+                // Optional reset arg: if > 0.5, zeros the accumulator.
+                // State slot 0: accumulated value.
+                case "accumulator":
+                {
+                    int si = node.StateBaseIndex;
+                    double trigger = node.ArgIndices.Length > 0 ? ResolveArg(node, 0) : 0.0;
+                    double step = node.ArgIndices.Length > 1 ? ResolveArg(node, 1) : 0.0;
+                    double min = node.ArgIndices.Length > 2 ? ResolveArg(node, 2) : double.MinValue;
+                    double max = node.ArgIndices.Length > 3 ? ResolveArg(node, 3) : double.MaxValue;
+                    double reset = node.ArgIndices.Length > 4 ? ResolveArg(node, 4) : 0.0;
+                    if (reset > 0.5)
+                    {
+                        _state[si] = 0.0;
+                    }
+                    else if (trigger > 0.5)
+                    {
+                        _state[si] = Math.Min(max, Math.Max(min, _state[si] + step * _dt));
+                    }
+                    return _state[si];
+                }
+
+                // sample_hold(input, trigger)
+                // Captures input on falling edge of trigger (1→0 transition).
+                // State slot 0: previous trigger value. Slot 1: held value.
+                case "sample_hold":
+                {
+                    int si = node.StateBaseIndex;
+                    double input = node.ArgIndices.Length > 0 ? ResolveArg(node, 0) : 0.0;
+                    double trigger = node.ArgIndices.Length > 1 ? ResolveArg(node, 1) : 0.0;
+                    double prevTrigger = _state[si];
+                    _state[si] = trigger;
+                    if (prevTrigger > 0.5 && trigger <= 0.5)
+                    {
+                        _state[si + 1] = input;
+                    }
+                    return _state[si + 1];
+                }
+
+                // edge_detect(input)
+                // Outputs 1.0 for one tick on rising edge (0→1), 0.0 otherwise.
+                // State slot 0: previous input value.
+                case "edge_detect":
+                {
+                    int si = node.StateBaseIndex;
+                    double input = node.ArgIndices.Length > 0 ? ResolveArg(node, 0) : 0.0;
+                    double prev = _state[si];
+                    _state[si] = input;
+                    return (prev <= 0.5 && input > 0.5) ? 1.0 : 0.0;
+                }
             }
 
             return 0.0;
+        }
+
+        /// <summary>
+        /// Returns the number of persistent state slots needed by a node, or 0 if stateless.
+        /// </summary>
+        private static int GetStateSlotsNeeded(GraphNode node)
+        {
+            if (node.Type != NodeType.Func) return 0;
+            switch (node.Func)
+            {
+                case "accumulator":  return 1;  // accumulated value
+                case "sample_hold":  return 2;  // previous trigger + held value
+                case "edge_detect":  return 1;  // previous input value
+                default: return 0;
+            }
+        }
+
+        /// <summary>
+        /// Resets all persistent state to zero. Call on profile/vehicle switch.
+        /// Also resets state in cached sub-graph evaluators (Include nodes).
+        /// </summary>
+        public void ResetState()
+        {
+            if (_state.Length > 0)
+            {
+                Array.Clear(_state, 0, _state.Length);
+            }
+            foreach (var sub in _includeCache.Values)
+            {
+                sub.ResetState();
+            }
         }
 
         private void EvalInclude(CompiledNode node, IReadOnlyDictionary<string, double> inputs,
@@ -468,7 +572,9 @@ namespace DiyFfb.GraphTest
                 // Resolve path relative to current graph's directory for nested include support.
                 // This ensures inner/inner.json in sub/middle.json resolves to sub/inner/inner.json.
                 string resolvedSubGraphPath = ResolveToAbsolutePath(node.Node.Path);
-                key = resolvedSubGraphPath;  // Use absolute path as cache key
+                // Key by node ID + path so each Include node gets its own evaluator
+                // instance (and its own _state for stateful funcs like accumulator).
+                key = node.Node.Id + ":" + resolvedSubGraphPath;
                 if (!_includeCache.TryGetValue(key, out var cached))
                 {
                     subGraph = _resolver.GetGraph(resolvedSubGraphPath);  // Pass absolute path to resolver
@@ -561,7 +667,7 @@ namespace DiyFfb.GraphTest
                 });
             }
 
-            var outputs = evaluator.Evaluate(subInputs, subParams);
+            var outputs = evaluator.Evaluate(subInputs, subParams, _dt);
 
             if (GraphDebugLogger.Enabled)
             {

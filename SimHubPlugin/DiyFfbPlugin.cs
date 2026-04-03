@@ -127,6 +127,9 @@ namespace DiyFfb
         private DiyFfb.GraphTest.IncludeContextCache activeIncludeContextCache;
         private readonly Dictionary<string, double> graphInputs = new Dictionary<string, double>();
         private readonly Dictionary<string, double> graphParams = new Dictionary<string, double>();
+        private ButtonInputReader _buttonInputReader;
+        private long _lastGraphEvalTicks;
+        internal ButtonInputReader ButtonInputReader => _buttonInputReader;
         private DiyFfb.GraphTest.GraphEvaluationResult lastGraphEvaluation;
         private static Func<GameData, string> gameIdGetter;
         private DiyFfbPluginSettings.AircraftFfbProfile pendingFfbProfile;
@@ -831,6 +834,9 @@ namespace DiyFfb
 
             StopGatewayAutoReconnect();
             StopXPlaneUdpReceiver();
+
+            _buttonInputReader?.Dispose();
+            _buttonInputReader = null;
 
             // close serial communication
             if (ui != null)
@@ -1900,7 +1906,12 @@ namespace DiyFfb
                 BuildGraphParams();
                 // Clear context cache before top-level evaluation so include contexts are fresh
                 activeIncludeContextCache?.Clear();
-                lastGraphEvaluation = activeGraphEvaluator.EvaluateWithTrace(graphInputs, graphParams);
+                long now = System.Diagnostics.Stopwatch.GetTimestamp();
+                double dt = _lastGraphEvalTicks > 0
+                    ? (double)(now - _lastGraphEvalTicks) / System.Diagnostics.Stopwatch.Frequency
+                    : 0.0;
+                _lastGraphEvalTicks = now;
+                lastGraphEvaluation = activeGraphEvaluator.EvaluateWithTrace(graphInputs, graphParams, dt);
             }
             catch
             {
@@ -1908,16 +1919,57 @@ namespace DiyFfb
             }
         }
 
+        /// <summary>
+        /// Resets persistent state in the active graph evaluator (accumulators, sample-holds, etc.).
+        /// Call on profile or vehicle switch so trim offsets don't carry over.
+        /// </summary>
+        internal void ResetGraphState()
+        {
+            activeGraphEvaluator?.ResetState();
+        }
+
+        // --- Axis position tracking for graph inputs ---
+        private readonly Dictionary<AxisID, float> _lastAxisPositions = new Dictionary<AxisID, float>();
+
+        /// <summary>
+        /// Called from UI layer when AxisState message is received.
+        /// Caches position for use as graph input.
+        /// </summary>
+        internal void UpdateAxisPosition(AxisID axisId, float position)
+        {
+            _lastAxisPositions[axisId] = position;
+        }
+
+        /// <summary>
+        /// Returns the last known position for the given axis (0.0–1.0), or 0 if unknown.
+        /// </summary>
+        internal double GetLastAxisPosition(AxisID axisId)
+        {
+            return _lastAxisPositions.TryGetValue(axisId, out var pos) ? pos : 0.0;
+        }
+
         private void BuildGraphInputs(GameData data)
         {
             graphInputs.Clear();
             GraphSignalCatalog.BuildXPlaneInputs(this, data, graphInputs);
+            _buttonInputReader?.SetActiveBindings(Settings?.GripButtonBindings);
+            try { _buttonInputReader?.Poll(); } catch { }
+            GraphSignalCatalog.BuildGripInputs(_buttonInputReader, Settings?.GripButtonBindings, graphInputs);
+            GraphSignalCatalog.BuildAxisInputs(this, graphInputs);
         }
 
         internal Dictionary<string, double> GetLiveGraphInputs()
         {
             var inputs = new Dictionary<string, double>();
             GraphSignalCatalog.BuildXPlaneInputs(this, null, inputs);
+            // Grip/Axis inputs: only include cached values, no COM calls.
+            // These may be zero if no bindings are configured — that's fine.
+            try
+            {
+                GraphSignalCatalog.BuildGripInputs(_buttonInputReader, Settings?.GripButtonBindings, inputs);
+                GraphSignalCatalog.BuildAxisInputs(this, inputs);
+            }
+            catch { }
             return inputs;
         }
 
@@ -1971,6 +2023,15 @@ namespace DiyFfb
             GraphEditor.GraphDefinition graph,
             DiyFfb.GraphTest.GraphIncludeResolver resolver)
         {
+            string baseDir = GetActiveGraphBaseDirectory();
+            return CollectAllGraphParams(graph, resolver, baseDir);
+        }
+
+        private List<GraphParam> CollectAllGraphParams(
+            GraphEditor.GraphDefinition graph,
+            DiyFfb.GraphTest.GraphIncludeResolver resolver,
+            string baseDir)
+        {
             var result = new Dictionary<string, GraphEditor.GraphParam>();
 
             if (graph == null)
@@ -1986,10 +2047,12 @@ namespace DiyFfb
                     if (node.Kind == GraphEditor.GraphNodeKind.Include
                         && !string.IsNullOrWhiteSpace(node.IncludePath))
                     {
-                        var includedGraph = LoadIncludeGraphForParams(node.IncludePath);
+                        string resolvedPath = ResolveIncludePath(baseDir, node.IncludePath);
+                        var includedGraph = LoadIncludeGraphFromPath(resolvedPath);
                         if (includedGraph != null)
                         {
-                            var includeParams = CollectAllGraphParams(includedGraph, resolver);
+                            string includeDir = Path.GetDirectoryName(resolvedPath) ?? baseDir;
+                            var includeParams = CollectAllGraphParams(includedGraph, resolver, includeDir);
                             foreach (var param in includeParams)
                             {
                                 // Add if not already present (parent can override)
@@ -2012,34 +2075,16 @@ namespace DiyFfb
             return result.Values.ToList();
         }
 
-        private GraphEditor.GraphDefinition LoadIncludeGraphForParams(string includePath)
+        private GraphEditor.GraphDefinition LoadIncludeGraphFromPath(string resolvedPath)
         {
-            if (string.IsNullOrWhiteSpace(includePath))
-            {
-                return null;
-            }
-
-            // Resolve path relative to active graph
-            string resolved = includePath;
-            if (!Path.IsPathRooted(includePath) && !string.IsNullOrWhiteSpace(activeGraphPath))
-            {
-                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                string graphFullPath = Path.Combine(baseDir, activeGraphPath);
-                string graphDir = Path.GetDirectoryName(graphFullPath);
-                if (!string.IsNullOrWhiteSpace(graphDir))
-                {
-                    resolved = Path.Combine(graphDir, includePath);
-                }
-            }
-
-            if (!File.Exists(resolved))
+            if (string.IsNullOrWhiteSpace(resolvedPath) || !File.Exists(resolvedPath))
             {
                 return null;
             }
 
             try
             {
-                string json = File.ReadAllText(resolved);
+                string json = File.ReadAllText(resolvedPath);
                 return GraphEditor.GraphSerializer.Deserialize(json, out _);
             }
             catch
@@ -3160,6 +3205,9 @@ namespace DiyFfb
 
             // Initialize manager with stored baselines and overrides
             _configOrchestrator.InitializeManagerFromSettings();
+
+            // Initialize DirectInput reader for grip button graph inputs
+            _buttonInputReader = new ButtonInputReader();
 
             // Populate function and axis configs from manager
             if (ui != null)
