@@ -1963,6 +1963,22 @@ namespace DiyFfb
             return GetLastAxisPosition(axisId);
         }
 
+        /// <summary>
+        /// Returns the center position (mm) for the given function, computed from its
+        /// FlightStick/FlightPedals config's (pos_min + pos_max) / 2.
+        /// </summary>
+        internal double GetFunctionCenter(FunctionID functionId)
+        {
+            var config = _functionConfigManager.GetCurrentConfig((int)functionId);
+            if (config == null) return 0.0;
+
+            if (config.FlightStick != null)
+                return (config.FlightStick.PosMin + config.FlightStick.PosMax) / 2.0;
+            if (config.FlightPedals != null)
+                return (config.FlightPedals.PosNearLim + config.FlightPedals.PosFarLim) / 2.0;
+            return 0.0;
+        }
+
         private void BuildGraphInputs(GameData data)
         {
             graphInputs.Clear();

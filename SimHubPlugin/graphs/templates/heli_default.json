@@ -210,11 +210,11 @@
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "TrimHat.Up"
+          "SignalSuffix": "TrimHat.Down"
         },
         {
           "Kind": "Output",
-          "SignalSuffix": "TrimHat.Down"
+          "SignalSuffix": "TrimHat.Up"
         },
         {
           "Kind": "Output",
@@ -249,6 +249,10 @@
         {
           "Kind": "Output",
           "SignalSuffix": "FlightStickPitch.Position"
+        },
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FlightStickPitch.Center"
         }
       ],
       "SignalGroup": "Axis"
@@ -262,6 +266,10 @@
         {
           "Kind": "Output",
           "SignalSuffix": "FlightStickRoll.Position"
+        },
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FlightStickRoll.Center"
         }
       ],
       "SignalGroup": "Axis"
@@ -438,13 +446,13 @@
     },
     {
       "FromNodeId": "0124d0a7bc494c42817b09f04bf31043",
-      "FromPort": "TrimHat.Up",
+      "FromPort": "TrimHat.Down",
       "ToNodeId": "cyclic_pitch_include",
       "ToPort": "hat_pos"
     },
     {
       "FromNodeId": "0124d0a7bc494c42817b09f04bf31043",
-      "FromPort": "TrimHat.Down",
+      "FromPort": "TrimHat.Up",
       "ToNodeId": "cyclic_pitch_include",
       "ToPort": "hat_neg"
     },
@@ -479,10 +487,22 @@
       "ToPort": "axis_position"
     },
     {
+      "FromNodeId": "f4fa245404984790943eaa92c637a6a7",
+      "FromPort": "FlightStickPitch.Center",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "axis_center"
+    },
+    {
       "FromNodeId": "c749716b12c84d4a8439e772e11cf3aa",
       "FromPort": "FlightStickRoll.Position",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "axis_position"
+    },
+    {
+      "FromNodeId": "c749716b12c84d4a8439e772e11cf3aa",
+      "FromPort": "FlightStickRoll.Center",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "axis_center"
     }
   ],
   "Params": [],

@@ -63,6 +63,10 @@
         {
           "Name": "axis_position",
           "Kind": "Output"
+        },
+        {
+          "Name": "axis_center",
+          "Kind": "Output"
         }
       ]
     },
@@ -538,6 +542,12 @@
       "FromPort": "axis_position",
       "ToNodeId": "trim_include",
       "ToPort": "axis_position"
+    },
+    {
+      "FromNodeId": "in_axis_pos",
+      "FromPort": "axis_center",
+      "ToNodeId": "trim_include",
+      "ToPort": "axis_center"
     },
     {
       "FromNodeId": "in_grip",

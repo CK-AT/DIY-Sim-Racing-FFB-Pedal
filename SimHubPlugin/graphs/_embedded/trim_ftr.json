@@ -20,13 +20,48 @@
       "Title": "Axis Position",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 200.0,
+      "Y": 170.0,
       "Ports": [
         {
           "Name": "axis_position",
           "Kind": "Output"
         }
       ]
+    },
+    {
+      "Id": "in_center",
+      "Title": "Axis Center",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 240.0,
+      "Ports": [
+        {
+          "Name": "axis_center",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "pos_rel",
+      "Title": "Pos - Center",
+      "Kind": "Op",
+      "X": 280.0,
+      "Y": 170.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "sub"
     },
     {
       "Id": "in_spring",
@@ -154,6 +189,18 @@
     {
       "FromNodeId": "in_pos",
       "FromPort": "axis_position",
+      "ToNodeId": "pos_rel",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_center",
+      "FromPort": "axis_center",
+      "ToNodeId": "pos_rel",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "pos_rel",
+      "FromPort": "a-b",
       "ToNodeId": "sample_hold",
       "ToPort": "input"
     },

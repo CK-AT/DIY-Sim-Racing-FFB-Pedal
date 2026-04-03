@@ -189,11 +189,11 @@
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "TrimHat.Up"
+          "SignalSuffix": "TrimHat.Down"
         },
         {
           "Kind": "Output",
-          "SignalSuffix": "TrimHat.Down"
+          "SignalSuffix": "TrimHat.Up"
         }
       ],
       "SignalGroup": "Grip"
@@ -346,13 +346,13 @@
     },
     {
       "FromNodeId": "601b507dd2cb41aba55bf2f4acf8ca61",
-      "FromPort": "TrimHat.Up",
+      "FromPort": "TrimHat.Down",
       "ToNodeId": "pitch_include",
       "ToPort": "hat_pos"
     },
     {
       "FromNodeId": "601b507dd2cb41aba55bf2f4acf8ca61",
-      "FromPort": "TrimHat.Down",
+      "FromPort": "TrimHat.Up",
       "ToNodeId": "pitch_include",
       "ToPort": "hat_neg"
     },

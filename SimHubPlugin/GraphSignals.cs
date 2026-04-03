@@ -104,11 +104,16 @@ namespace DiyFfb
         {
             if (plugin == null || inputs == null) return;
             // Position is in mm (contact point position from ESP32).
-            // Resolved via function → linked axis mapping, not hardcoded axis IDs.
+            // Center is (pos_min + pos_max) / 2 from the function's config.
+            // Both resolved via function → linked axis / config mapping.
             inputs["Axis.FlightStickPitch.Position"] = plugin.GetFunctionPosition(FunctionID.FlightStickPitch);
+            inputs["Axis.FlightStickPitch.Center"] = plugin.GetFunctionCenter(FunctionID.FlightStickPitch);
             inputs["Axis.FlightStickRoll.Position"] = plugin.GetFunctionPosition(FunctionID.FlightStickRoll);
+            inputs["Axis.FlightStickRoll.Center"] = plugin.GetFunctionCenter(FunctionID.FlightStickRoll);
             inputs["Axis.FlightPedals.Position"] = plugin.GetFunctionPosition(FunctionID.FlightPedals);
+            inputs["Axis.FlightPedals.Center"] = plugin.GetFunctionCenter(FunctionID.FlightPedals);
             inputs["Axis.FlightStickCollective.Position"] = plugin.GetFunctionPosition(FunctionID.FlightStickCollective);
+            inputs["Axis.FlightStickCollective.Center"] = plugin.GetFunctionCenter(FunctionID.FlightStickCollective);
         }
     }
 }
