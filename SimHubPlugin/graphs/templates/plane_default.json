@@ -31,7 +31,7 @@
       "Id": "in_aero_pitch",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 240.0,
+      "Y": 220.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -44,7 +44,7 @@
       "Id": "in_aero_roll",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 420.0,
+      "Y": 440.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -57,7 +57,7 @@
       "Id": "in_aero_yaw",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 600.0,
+      "Y": 620.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -79,7 +79,7 @@
       "Title": "Roll Axis",
       "Kind": "Include",
       "X": 400.0,
-      "Y": 370.0,
+      "Y": 390.0,
       "IncludePath": "..\\_embedded\\plane_roll.json"
     },
     {
@@ -87,7 +87,7 @@
       "Title": "Yaw Axis",
       "Kind": "Include",
       "X": 400.0,
-      "Y": 550.0,
+      "Y": 570.0,
       "IncludePath": "..\\_embedded\\plane_yaw.json"
     },
     {
@@ -115,6 +115,10 @@
         {
           "Kind": "Input",
           "SignalSuffix": "BuffetAmplitude"
+        },
+        {
+          "Kind": "Input",
+          "SignalSuffix": "TrimOffset"
         }
       ],
       "SignalGroup": "FlightStickPitch"
@@ -123,7 +127,7 @@
       "Id": "out_roll_spring",
       "Kind": "Output",
       "X": 560.0,
-      "Y": 370.0,
+      "Y": 390.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -152,7 +156,7 @@
       "Id": "out_yaw_spring",
       "Kind": "Output",
       "X": 560.0,
-      "Y": 550.0,
+      "Y": 570.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -176,6 +180,23 @@
         }
       ],
       "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "601b507dd2cb41aba55bf2f4acf8ca61",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 300.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimHat.Up"
+        },
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimHat.Down"
+        }
+      ],
+      "SignalGroup": "Grip"
     }
   ],
   "Links": [
@@ -322,6 +343,24 @@
       "FromPort": "buffet",
       "ToNodeId": "out_yaw_spring",
       "ToPort": "BuffetAmplitude"
+    },
+    {
+      "FromNodeId": "601b507dd2cb41aba55bf2f4acf8ca61",
+      "FromPort": "TrimHat.Up",
+      "ToNodeId": "pitch_include",
+      "ToPort": "hat_pos"
+    },
+    {
+      "FromNodeId": "601b507dd2cb41aba55bf2f4acf8ca61",
+      "FromPort": "TrimHat.Down",
+      "ToNodeId": "pitch_include",
+      "ToPort": "hat_neg"
+    },
+    {
+      "FromNodeId": "pitch_include",
+      "FromPort": "trim",
+      "ToNodeId": "out_pitch_spring",
+      "ToPort": "TrimOffset"
     }
   ],
   "Params": [],

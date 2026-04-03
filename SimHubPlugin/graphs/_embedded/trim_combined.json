@@ -1,0 +1,530 @@
+{
+  "Version": 4,
+  "IsLibraryGraph": true,
+  "Nodes": [
+    {
+      "Id": "in_ftr",
+      "Title": "FTR Button",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 80.0,
+      "Ports": [
+        {
+          "Name": "ftr_button",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_pos",
+      "Title": "Axis Position",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Name": "axis_position",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_spring",
+      "Title": "Spring In",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 780.0,
+      "Ports": [
+        {
+          "Name": "spring_in",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_hat_pos",
+      "Title": "Hat +",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 320.0,
+      "Ports": [
+        {
+          "Name": "hat_pos",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_hat_neg",
+      "Title": "Hat -",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 400.0,
+      "Ports": [
+        {
+          "Name": "hat_neg",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_step",
+      "Title": "Trim Rate",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 480.0,
+      "Ports": [
+        {
+          "Name": "trim_step",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_min",
+      "Title": "Trim Min",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 550.0,
+      "Ports": [
+        {
+          "Name": "trim_min",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_max",
+      "Title": "Trim Max",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 620.0,
+      "Ports": [
+        {
+          "Name": "trim_max",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "const_one",
+      "Title": "1.0",
+      "Kind": "Const",
+      "X": 220.0,
+      "Y": 730.0,
+      "Ports": [
+        {
+          "Name": "value",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
+    },
+    {
+      "Id": "sample_hold",
+      "Title": "FTR Capture",
+      "Kind": "Func",
+      "X": 450.0,
+      "Y": 80.0,
+      "Ports": [
+        {
+          "Name": "input",
+          "Kind": "Input"
+        },
+        {
+          "Name": "trigger",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Func": "sample_hold",
+      "IncludePath": ""
+    },
+    {
+      "Id": "ftr_edge",
+      "Title": "FTR Release",
+      "Kind": "Func",
+      "X": 450.0,
+      "Y": 190.0,
+      "Ports": [
+        {
+          "Name": "input",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Func": "edge_detect",
+      "IncludePath": ""
+    },
+    {
+      "Id": "not_ftr",
+      "Title": "Not FTR",
+      "Kind": "Op",
+      "X": 340.0,
+      "Y": 700.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input",
+          "Negate": true
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "-a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "pos_step",
+      "Title": "Pos Step",
+      "Kind": "Op",
+      "X": 370.0,
+      "Y": 390.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "neg_step",
+      "Title": "Neg Step",
+      "Kind": "Op",
+      "X": 370.0,
+      "Y": 490.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "net_step",
+      "Title": "Net Step",
+      "Kind": "Op",
+      "X": 540.0,
+      "Y": 470.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "hat_trigger",
+      "Title": "Hat Trigger",
+      "Kind": "Op",
+      "X": 450.0,
+      "Y": 280.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "accum",
+      "Title": "Hat Accum",
+      "Kind": "Func",
+      "X": 780.0,
+      "Y": 520.0,
+      "Ports": [
+        {
+          "Name": "trigger",
+          "Kind": "Input"
+        },
+        {
+          "Name": "step",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "reset",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Func": "accumulator",
+      "IncludePath": ""
+    },
+    {
+      "Id": "total_trim",
+      "Title": "Total Trim",
+      "Kind": "Op",
+      "X": 920.0,
+      "Y": 160.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "spring_gated",
+      "Title": "Spring Gated",
+      "Kind": "Op",
+      "X": 480.0,
+      "Y": 750.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "out_trim",
+      "Title": "Trim Offset",
+      "Kind": "Output",
+      "X": 1120.0,
+      "Y": 160.0,
+      "Ports": [
+        {
+          "Name": "trim",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "out_spring",
+      "Title": "Spring Out",
+      "Kind": "Output",
+      "X": 1120.0,
+      "Y": 750.0,
+      "Ports": [
+        {
+          "Name": "spring",
+          "Kind": "Input"
+        }
+      ]
+    }
+  ],
+  "Links": [
+    {
+      "FromNodeId": "in_pos",
+      "FromPort": "axis_position",
+      "ToNodeId": "sample_hold",
+      "ToPort": "input"
+    },
+    {
+      "FromNodeId": "in_ftr",
+      "FromPort": "ftr_button",
+      "ToNodeId": "sample_hold",
+      "ToPort": "trigger"
+    },
+    {
+      "FromNodeId": "in_ftr",
+      "FromPort": "ftr_button",
+      "ToNodeId": "ftr_edge",
+      "ToPort": "input"
+    },
+    {
+      "FromNodeId": "in_hat_pos",
+      "FromPort": "hat_pos",
+      "ToNodeId": "pos_step",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_step",
+      "FromPort": "trim_step",
+      "ToNodeId": "pos_step",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_hat_neg",
+      "FromPort": "hat_neg",
+      "ToNodeId": "neg_step",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_step",
+      "FromPort": "trim_step",
+      "ToNodeId": "neg_step",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "pos_step",
+      "FromPort": "a*b",
+      "ToNodeId": "net_step",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "neg_step",
+      "FromPort": "a*b",
+      "ToNodeId": "net_step",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_hat_pos",
+      "FromPort": "hat_pos",
+      "ToNodeId": "hat_trigger",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_hat_neg",
+      "FromPort": "hat_neg",
+      "ToNodeId": "hat_trigger",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "hat_trigger",
+      "FromPort": "a+b",
+      "ToNodeId": "accum",
+      "ToPort": "trigger"
+    },
+    {
+      "FromNodeId": "net_step",
+      "FromPort": "a-b",
+      "ToNodeId": "accum",
+      "ToPort": "step"
+    },
+    {
+      "FromNodeId": "in_min",
+      "FromPort": "trim_min",
+      "ToNodeId": "accum",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "in_max",
+      "FromPort": "trim_max",
+      "ToNodeId": "accum",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "ftr_edge",
+      "FromPort": "out",
+      "ToNodeId": "accum",
+      "ToPort": "reset"
+    },
+    {
+      "FromNodeId": "sample_hold",
+      "FromPort": "out",
+      "ToNodeId": "total_trim",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "accum",
+      "FromPort": "out",
+      "ToNodeId": "total_trim",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_ftr",
+      "FromPort": "ftr_button",
+      "ToNodeId": "not_ftr",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "not_ftr",
+      "FromPort": "-a+b",
+      "ToNodeId": "spring_gated",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "total_trim",
+      "FromPort": "a+b",
+      "ToNodeId": "out_trim",
+      "ToPort": "trim"
+    },
+    {
+      "FromNodeId": "spring_gated",
+      "FromPort": "a*b",
+      "ToNodeId": "out_spring",
+      "ToPort": "spring"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "value",
+      "ToNodeId": "not_ftr",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_spring",
+      "FromPort": "spring_in",
+      "ToNodeId": "spring_gated",
+      "ToPort": "b"
+    }
+  ],
+  "Params": [],
+  "ParamValues": null
+}

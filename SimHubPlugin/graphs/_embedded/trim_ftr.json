@@ -1,7 +1,6 @@
 {
   "Version": 4,
   "IsLibraryGraph": true,
-  "Title": "Force Trim Release",
   "Nodes": [
     {
       "Id": "in_ftr",
@@ -10,7 +9,10 @@
       "X": 40.0,
       "Y": 80.0,
       "Ports": [
-        { "Name": "ftr_button", "Kind": "Output" }
+        {
+          "Name": "ftr_button",
+          "Kind": "Output"
+        }
       ]
     },
     {
@@ -20,7 +22,10 @@
       "X": 40.0,
       "Y": 200.0,
       "Ports": [
-        { "Name": "axis_position", "Kind": "Output" }
+        {
+          "Name": "axis_position",
+          "Kind": "Output"
+        }
       ]
     },
     {
@@ -30,19 +35,25 @@
       "X": 40.0,
       "Y": 320.0,
       "Ports": [
-        { "Name": "spring_in", "Kind": "Output" }
+        {
+          "Name": "spring_in",
+          "Kind": "Output"
+        }
       ]
     },
     {
       "Id": "const_one",
       "Title": "1.0",
       "Kind": "Const",
-      "X": 280.0,
-      "Y": 320.0,
+      "X": 210.0,
+      "Y": 260.0,
       "Ports": [
-        { "Name": "value", "Kind": "Output" }
+        {
+          "Name": "value",
+          "Kind": "Output"
+        }
       ],
-      "Value": 1.0
+      "ConstValue": 1.0
     },
     {
       "Id": "sample_hold",
@@ -51,9 +62,18 @@
       "X": 500.0,
       "Y": 80.0,
       "Ports": [
-        { "Name": "input", "Kind": "Input" },
-        { "Name": "trigger", "Kind": "Input" },
-        { "Name": "out", "Kind": "Output" }
+        {
+          "Name": "input",
+          "Kind": "Input"
+        },
+        {
+          "Name": "trigger",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
       ],
       "Func": "sample_hold",
       "IncludePath": ""
@@ -62,25 +82,44 @@
       "Id": "not_ftr",
       "Title": "Not FTR",
       "Kind": "Op",
-      "X": 500.0,
-      "Y": 320.0,
+      "X": 350.0,
+      "Y": 220.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a-b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input",
+          "Negate": true
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "-a+b",
+          "Kind": "Output"
+        }
       ],
-      "Op": "sub"
+      "Op": "add"
     },
     {
       "Id": "spring_gated",
       "Title": "Spring Gated",
       "Kind": "Op",
-      "X": 700.0,
-      "Y": 320.0,
+      "X": 480.0,
+      "Y": 290.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -91,29 +130,75 @@
       "X": 700.0,
       "Y": 80.0,
       "Ports": [
-        { "Name": "trim", "Kind": "Input" }
+        {
+          "Name": "trim",
+          "Kind": "Input"
+        }
       ]
     },
     {
       "Id": "out_spring",
       "Title": "Spring Out",
       "Kind": "Output",
-      "X": 920.0,
-      "Y": 320.0,
+      "X": 710.0,
+      "Y": 290.0,
       "Ports": [
-        { "Name": "spring", "Kind": "Input" }
+        {
+          "Name": "spring",
+          "Kind": "Input"
+        }
       ]
     }
   ],
   "Links": [
-    { "FromNodeId": "in_pos", "FromPort": "axis_position", "ToNodeId": "sample_hold", "ToPort": "input" },
-    { "FromNodeId": "in_ftr", "FromPort": "ftr_button", "ToNodeId": "sample_hold", "ToPort": "trigger" },
-    { "FromNodeId": "const_one", "FromPort": "value", "ToNodeId": "not_ftr", "ToPort": "a" },
-    { "FromNodeId": "in_ftr", "FromPort": "ftr_button", "ToNodeId": "not_ftr", "ToPort": "b" },
-    { "FromNodeId": "in_spring", "FromPort": "spring_in", "ToNodeId": "spring_gated", "ToPort": "a" },
-    { "FromNodeId": "not_ftr", "FromPort": "a-b", "ToNodeId": "spring_gated", "ToPort": "b" },
-    { "FromNodeId": "sample_hold", "FromPort": "out", "ToNodeId": "out_trim", "ToPort": "trim" },
-    { "FromNodeId": "spring_gated", "FromPort": "a*b", "ToNodeId": "out_spring", "ToPort": "spring" }
+    {
+      "FromNodeId": "in_pos",
+      "FromPort": "axis_position",
+      "ToNodeId": "sample_hold",
+      "ToPort": "input"
+    },
+    {
+      "FromNodeId": "in_ftr",
+      "FromPort": "ftr_button",
+      "ToNodeId": "sample_hold",
+      "ToPort": "trigger"
+    },
+    {
+      "FromNodeId": "in_ftr",
+      "FromPort": "ftr_button",
+      "ToNodeId": "not_ftr",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_spring",
+      "FromPort": "spring_in",
+      "ToNodeId": "spring_gated",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sample_hold",
+      "FromPort": "out",
+      "ToNodeId": "out_trim",
+      "ToPort": "trim"
+    },
+    {
+      "FromNodeId": "spring_gated",
+      "FromPort": "a*b",
+      "ToNodeId": "out_spring",
+      "ToPort": "spring"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "value",
+      "ToNodeId": "not_ftr",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "not_ftr",
+      "FromPort": "-a+b",
+      "ToNodeId": "spring_gated",
+      "ToPort": "a"
+    }
   ],
   "Params": [],
   "ParamValues": null

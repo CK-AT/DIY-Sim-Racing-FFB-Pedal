@@ -44,7 +44,7 @@
       "Id": "in_aero_roll",
       "Kind": "Input",
       "X": 20.0,
-      "Y": 380.0,
+      "Y": 480.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -57,7 +57,7 @@
       "Id": "in_aero_yaw",
       "Kind": "Input",
       "X": 20.0,
-      "Y": 560.0,
+      "Y": 750.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -87,7 +87,7 @@
       "Title": "Cyclic Roll",
       "Kind": "Include",
       "X": 300.0,
-      "Y": 330.0,
+      "Y": 430.0,
       "IncludePath": "..\\_embedded\\heli_cyclic.json"
     },
     {
@@ -95,7 +95,7 @@
       "Title": "Pedals",
       "Kind": "Include",
       "X": 300.0,
-      "Y": 510.0,
+      "Y": 700.0,
       "IncludePath": "..\\_embedded\\heli_pedals.json"
     },
     {
@@ -152,7 +152,7 @@
       "Id": "out_cyc_roll_spring",
       "Kind": "Output",
       "X": 510.0,
-      "Y": 330.0,
+      "Y": 430.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -181,7 +181,7 @@
       "Id": "out_pedals_spring",
       "Kind": "Output",
       "X": 510.0,
-      "Y": 510.0,
+      "Y": 700.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -206,7 +206,7 @@
       "Id": "0124d0a7bc494c42817b09f04bf31043",
       "Kind": "Input",
       "X": 20.0,
-      "Y": 280.0,
+      "Y": 270.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -215,6 +215,10 @@
         {
           "Kind": "Output",
           "SignalSuffix": "TrimHat.Down"
+        },
+        {
+          "Kind": "Output",
+          "SignalSuffix": "ForceTrimRelease"
         }
       ],
       "SignalGroup": "Grip"
@@ -223,7 +227,7 @@
       "Id": "b631996ff419435aba288140e780b91c",
       "Kind": "Input",
       "X": 20.0,
-      "Y": 450.0,
+      "Y": 550.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -235,6 +239,32 @@
         }
       ],
       "SignalGroup": "Grip"
+    },
+    {
+      "Id": "f4fa245404984790943eaa92c637a6a7",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 390.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Pitch.Position"
+        }
+      ],
+      "SignalGroup": "Axis"
+    },
+    {
+      "Id": "c749716b12c84d4a8439e772e11cf3aa",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 650.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Roll.Position"
+        }
+      ],
+      "SignalGroup": "Axis"
     }
   ],
   "Links": [
@@ -410,25 +440,49 @@
       "FromNodeId": "0124d0a7bc494c42817b09f04bf31043",
       "FromPort": "TrimHat.Up",
       "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "TrimHatPos"
+      "ToPort": "hat_pos"
     },
     {
       "FromNodeId": "0124d0a7bc494c42817b09f04bf31043",
       "FromPort": "TrimHat.Down",
       "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "TrimHatNeg"
+      "ToPort": "hat_neg"
+    },
+    {
+      "FromNodeId": "0124d0a7bc494c42817b09f04bf31043",
+      "FromPort": "ForceTrimRelease",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "ftr_button"
     },
     {
       "FromNodeId": "b631996ff419435aba288140e780b91c",
       "FromPort": "TrimHat.Right",
       "ToNodeId": "cyclic_roll_include",
-      "ToPort": "TrimHatPos"
+      "ToPort": "hat_pos"
     },
     {
       "FromNodeId": "b631996ff419435aba288140e780b91c",
       "FromPort": "TrimHat.Left",
       "ToNodeId": "cyclic_roll_include",
-      "ToPort": "TrimHatNeg"
+      "ToPort": "hat_neg"
+    },
+    {
+      "FromNodeId": "0124d0a7bc494c42817b09f04bf31043",
+      "FromPort": "ForceTrimRelease",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "ftr_button"
+    },
+    {
+      "FromNodeId": "f4fa245404984790943eaa92c637a6a7",
+      "FromPort": "Pitch.Position",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "axis_position"
+    },
+    {
+      "FromNodeId": "c749716b12c84d4a8439e772e11cf3aa",
+      "FromPort": "Roll.Position",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "axis_position"
     }
   ],
   "Params": [],

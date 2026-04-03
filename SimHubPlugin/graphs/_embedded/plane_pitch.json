@@ -426,6 +426,83 @@
           "Kind": "Input"
         }
       ]
+    },
+    {
+      "Id": "f7c853be9880429fb2fc17fad59d73f5",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 1050.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimStep"
+        }
+      ],
+      "SignalGroup": "FlightStickPitch"
+    },
+    {
+      "Id": "e03cdfbdfd5b47009a732be4eaa85376",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 1120.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimMin"
+        }
+      ],
+      "SignalGroup": "FlightStickPitch"
+    },
+    {
+      "Id": "f9646b773f2a432191c0e52b9689a408",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 1190.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimMax"
+        }
+      ],
+      "SignalGroup": "FlightStickPitch"
+    },
+    {
+      "Id": "8e49d8e1d67040b6ae7ae293d2299479",
+      "Title": "Grip",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 950.0,
+      "Ports": [
+        {
+          "Name": "hat_pos",
+          "Kind": "Output"
+        },
+        {
+          "Name": "hat_neg",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "Title": "Hat Trim",
+      "Kind": "Include",
+      "X": 660.0,
+      "Y": 890.0,
+      "IncludePath": "trim_hat.json"
+    },
+    {
+      "Id": "5cd8768a44d74689a18200b9f4076995",
+      "Title": "Trim Out",
+      "Kind": "Output",
+      "X": 990.0,
+      "Y": 890.0,
+      "Ports": [
+        {
+          "Name": "trim",
+          "Kind": "Input"
+        }
+      ]
     }
   ],
   "Links": [
@@ -572,6 +649,42 @@
       "FromPort": "a*b",
       "ToNodeId": "friction",
       "ToPort": "a"
+    },
+    {
+      "FromNodeId": "8e49d8e1d67040b6ae7ae293d2299479",
+      "FromPort": "hat_pos",
+      "ToNodeId": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "ToPort": "hat_pos"
+    },
+    {
+      "FromNodeId": "8e49d8e1d67040b6ae7ae293d2299479",
+      "FromPort": "hat_neg",
+      "ToNodeId": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "ToPort": "hat_neg"
+    },
+    {
+      "FromNodeId": "f7c853be9880429fb2fc17fad59d73f5",
+      "FromPort": "TrimStep",
+      "ToNodeId": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "ToPort": "trim_step"
+    },
+    {
+      "FromNodeId": "e03cdfbdfd5b47009a732be4eaa85376",
+      "FromPort": "TrimMin",
+      "ToNodeId": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "ToPort": "trim_min"
+    },
+    {
+      "FromNodeId": "f9646b773f2a432191c0e52b9689a408",
+      "FromPort": "TrimMax",
+      "ToNodeId": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "ToPort": "trim_max"
+    },
+    {
+      "FromNodeId": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "FromPort": "trim",
+      "ToNodeId": "5cd8768a44d74689a18200b9f4076995",
+      "ToPort": "trim"
     }
   ],
   "Params": [
@@ -731,6 +844,54 @@
         "Units": "N @ Vref",
         "Step": 0.01,
         "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickPitch.TrimStep",
+      "DefaultValue": 5.0,
+      "Min": 0.1,
+      "Max": 50.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Trim Rate",
+        "Group": "FlightStickPitch",
+        "Units": "mm/s",
+        "Step": 0.1,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickPitch.TrimMin",
+      "DefaultValue": -20.0,
+      "Min": -50.0,
+      "Max": 0.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Hat Trim Min",
+        "Group": "FlightStickPitch",
+        "Units": "mm",
+        "Step": 0.5,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickPitch.TrimMax",
+      "DefaultValue": 20.0,
+      "Min": 0.0,
+      "Max": 50.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Hat Trim Max",
+        "Group": "FlightStickPitch",
+        "Units": "mm",
+        "Step": 0.5,
+        "Precision": 1,
         "LogScale": false,
         "Options": []
       }
