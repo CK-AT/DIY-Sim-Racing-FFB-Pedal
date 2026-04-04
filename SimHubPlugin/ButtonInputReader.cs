@@ -13,6 +13,7 @@ namespace DiyFfb
         private readonly DirectInput _directInput;
         private readonly Dictionary<string, Joystick> _joysticks = new Dictionary<string, Joystick>();
         private readonly Dictionary<string, bool[]> _joystickStates = new Dictionary<string, bool[]>();
+        private readonly Dictionary<string, int[]> _joystickPovs = new Dictionary<string, int[]>();
         private Keyboard _keyboard;
         private KeyboardState _keyboardState;
         private bool _disposed;
@@ -58,6 +59,7 @@ namespace DiyFfb
                     kv.Value.Poll();
                     var state = kv.Value.GetCurrentState();
                     _joystickStates[kv.Key] = state.Buttons;
+                    _joystickPovs[kv.Key] = state.PointOfViewControllers;
                 }
                 catch
                 {
@@ -69,6 +71,7 @@ namespace DiyFfb
                 _joysticks[guid]?.Dispose();
                 _joysticks.Remove(guid);
                 _joystickStates.Remove(guid);
+                _joystickPovs.Remove(guid);
             }
         }
 
@@ -85,6 +88,8 @@ namespace DiyFfb
                     return GetJoystickButton(binding.DeviceInstanceGuid, binding.ButtonIndex);
                 case BindingType.KeyboardKey:
                     return GetKeyboardKey(binding.KeyCode);
+                case BindingType.HatDirection:
+                    return GetHatDirection(binding.DeviceInstanceGuid, binding.HatIndex, binding.HatDirection);
                 default:
                     return false;
             }
@@ -119,6 +124,23 @@ namespace DiyFfb
             {
                 return false;
             }
+        }
+
+        private bool GetHatDirection(string deviceGuid, int hatIndex, HatDir direction)
+        {
+            if (string.IsNullOrEmpty(deviceGuid)) return false;
+
+            if (!_joystickPovs.TryGetValue(deviceGuid, out var povs)
+                || hatIndex < 0 || hatIndex >= povs.Length)
+                return false;
+
+            int value = povs[hatIndex];
+            if (value < 0) return false;  // centered
+
+            // Match within ±4500 (45 degrees) to handle diagonals
+            int diff = Math.Abs(value - (int)direction);
+            if (diff > 18000) diff = 36000 - diff;  // wrap around
+            return diff <= 4500;
         }
 
         private Dictionary<string, ButtonBinding> _activeBindings;
@@ -221,11 +243,38 @@ namespace DiyFfb
                 }
             }
 
-            // Check all connected joysticks
+            // Check all connected joysticks (buttons + hat switches)
             foreach (var device in _directInput.GetDevices(DeviceClass.GameControl, DeviceEnumerationFlags.AttachedOnly))
             {
                 var guidStr = device.InstanceGuid.ToString();
                 EnsureJoystick(guidStr);
+                string name = device.ProductName ?? device.InstanceName ?? "Unknown";
+
+                // Check hat switches first (more specific than buttons)
+                if (_joystickPovs.TryGetValue(guidStr, out var povs))
+                {
+                    for (int h = 0; h < povs.Length; h++)
+                    {
+                        int pov = povs[h];
+                        if (pov < 0) continue;  // centered
+                        // Snap to nearest cardinal direction
+                        HatDir dir;
+                        if (pov >= 31500 || pov < 4500) dir = HatDir.Up;
+                        else if (pov >= 4500 && pov < 13500) dir = HatDir.Right;
+                        else if (pov >= 13500 && pov < 22500) dir = HatDir.Down;
+                        else dir = HatDir.Left;
+
+                        return new ButtonBinding
+                        {
+                            Type = BindingType.HatDirection,
+                            DeviceInstanceGuid = guidStr,
+                            DeviceName = name,
+                            HatIndex = h,
+                            HatDirection = dir
+                        };
+                    }
+                }
+
                 if (_joystickStates.TryGetValue(guidStr, out var buttons))
                 {
                     for (int i = 0; i < buttons.Length; i++)
@@ -236,7 +285,7 @@ namespace DiyFfb
                             {
                                 Type = BindingType.JoystickButton,
                                 DeviceInstanceGuid = guidStr,
-                                DeviceName = device.ProductName ?? device.InstanceName ?? "Unknown",
+                                DeviceName = name,
                                 ButtonIndex = i
                             };
                         }
