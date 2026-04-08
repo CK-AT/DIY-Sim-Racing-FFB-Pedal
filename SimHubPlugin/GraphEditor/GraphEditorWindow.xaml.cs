@@ -313,6 +313,12 @@ namespace DiyFfb.GraphEditor
                 tab.EditorControl.LiveInputProvider = liveInputProvider;
             }
 
+            // Provide runtime state snapshot for active graph tabs (top-level state sync)
+            if (tab.IsActiveGraph)
+            {
+                tab.EditorControl.LiveStateProvider = () => plugin?.GetActiveGraphStateSnapshot();
+            }
+
             // Set context provider for include context preview
             tab.EditorControl.ContextProvider = path => plugin?.ActiveIncludeContextCache?.GetContexts(path);
 

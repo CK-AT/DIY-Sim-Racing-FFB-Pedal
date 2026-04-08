@@ -713,7 +713,9 @@ namespace DiyFfb.GraphTest
                 }
             }
 
-            // Capture context for sub-graph preview
+            var outputs = evaluator.Evaluate(subInputs, subParams, _dt);
+
+            // Capture context for sub-graph preview (after evaluate so state is current)
             if (_contextCache != null && !string.IsNullOrEmpty(key) && !key.StartsWith("inline:"))
             {
                 string resolvedPath = ResolveToAbsolutePath(node.Node.Path);
@@ -724,11 +726,10 @@ namespace DiyFfb.GraphTest
                     IncludeNodeTitle = !string.IsNullOrEmpty(node.Node.Name) ? node.Node.Name : node.Node.Id,
                     IncludePath = resolvedPath,
                     Inputs = new Dictionary<string, double>(subInputs),
-                    Parameters = new Dictionary<string, double>(subParams)
+                    Parameters = new Dictionary<string, double>(subParams),
+                    StateSnapshot = evaluator.GetStateSnapshot()
                 });
             }
-
-            var outputs = evaluator.Evaluate(subInputs, subParams, _dt);
 
             if (GraphDebugLogger.Enabled)
             {

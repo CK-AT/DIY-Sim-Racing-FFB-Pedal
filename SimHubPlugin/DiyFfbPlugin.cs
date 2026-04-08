@@ -2682,6 +2682,15 @@ namespace DiyFfb
         /// </summary>
         public DiyFfb.GraphTest.IncludeContextCache ActiveIncludeContextCache => activeIncludeContextCache;
 
+        /// <summary>
+        /// Returns a state snapshot from the active runtime graph evaluator.
+        /// Used to sync top-level preview stateful nodes with runtime values.
+        /// </summary>
+        public Dictionary<string, double[]> GetActiveGraphStateSnapshot()
+        {
+            return activeGraphEvaluator?.GetStateSnapshot();
+        }
+
         public IReadOnlyDictionary<string, GraphParam> GetActiveGraphParams()
         {
             if (activeVehicleGraph == null)

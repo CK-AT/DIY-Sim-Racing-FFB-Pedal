@@ -221,6 +221,7 @@ namespace DiyFfb.GraphEditor
             }
         }
         public Func<IDictionary<string, double>> LiveInputProvider { get; set; }
+        public Func<Dictionary<string, double[]>> LiveStateProvider { get; set; }
         public Action<string, double> ParamValueChanged { get; set; }
 
         /// <summary>
@@ -2763,6 +2764,9 @@ namespace DiyFfb.GraphEditor
                                 parameters[entry.Name] = entry.Value;
                             }
                         }
+
+                        // Sync stateful nodes (accumulators, sample_holds) from runtime
+                        _previewEvaluator.SetStateSnapshot(ctx.StateSnapshot);
                     }
                     else
                     {
@@ -2793,6 +2797,12 @@ namespace DiyFfb.GraphEditor
                     foreach (var entry in _previewParamEntries)
                     {
                         parameters[entry.Name] = entry.Value;
+                    }
+
+                    // Sync stateful nodes from runtime for top-level graph
+                    if (LiveStateProvider != null)
+                    {
+                        _previewEvaluator.SetStateSnapshot(LiveStateProvider());
                     }
                 }
 
