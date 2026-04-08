@@ -829,6 +829,12 @@ namespace DiyFfb
                 }
             }
 
+            // Save graph state for current vehicle before shutdown
+            if (!string.IsNullOrWhiteSpace(activeCarId))
+            {
+                SaveGraphState(BuildProfileKey(activeGameId, activeCarId));
+            }
+
             // Save settings
             this.SaveCommonSettings("GeneralSettings", Settings);
 
@@ -1472,6 +1478,7 @@ namespace DiyFfb
             {
                 ResolveActiveGraph(activeGameId, activeCarId);
                 BuildGraphParams();
+                RestoreGraphState(BuildProfileKey(activeGameId, activeCarId));
             }
         }
 
@@ -1912,6 +1919,7 @@ namespace DiyFfb
                     : 0.0;
                 _lastGraphEvalTicks = now;
                 lastGraphEvaluation = activeGraphEvaluator.EvaluateWithTrace(graphInputs, graphParams, dt);
+                ApplyPendingStateRestore();
             }
             catch
             {
@@ -1921,11 +1929,48 @@ namespace DiyFfb
 
         /// <summary>
         /// Resets persistent state in the active graph evaluator (accumulators, sample-holds, etc.).
-        /// Call on profile or vehicle switch so trim offsets don't carry over.
+        /// Call on user profile switch.
         /// </summary>
         internal void ResetGraphState()
         {
             activeGraphEvaluator?.ResetState();
+        }
+
+        /// <summary>
+        /// Saves the current graph state (trim accumulators etc.) for the given vehicle key.
+        /// </summary>
+        private void SaveGraphState(string vehicleKey)
+        {
+            if (string.IsNullOrWhiteSpace(vehicleKey) || activeGraphEvaluator == null) return;
+            if (Settings.GraphStateSnapshots == null)
+                Settings.GraphStateSnapshots = new Dictionary<string, Dictionary<string, double[]>>();
+            Settings.GraphStateSnapshots[vehicleKey] = activeGraphEvaluator.GetStateSnapshot();
+        }
+
+        /// <summary>
+        /// Queues a graph state restore for the given vehicle key.
+        /// The actual restore is deferred until after the first evaluation cycle,
+        /// because sub-graph evaluators (Include cache) are lazily created and
+        /// don't exist yet when the evaluator is first constructed.
+        /// </summary>
+        private Dictionary<string, double[]> _pendingStateRestore;
+
+        private void RestoreGraphState(string vehicleKey)
+        {
+            _pendingStateRestore = null;
+            if (string.IsNullOrWhiteSpace(vehicleKey)) return;
+            if (Settings.GraphStateSnapshots != null
+                && Settings.GraphStateSnapshots.TryGetValue(vehicleKey, out var snapshot))
+            {
+                _pendingStateRestore = snapshot;
+            }
+        }
+
+        private void ApplyPendingStateRestore()
+        {
+            if (_pendingStateRestore == null || activeGraphEvaluator == null) return;
+            activeGraphEvaluator.RestoreStateSnapshot(_pendingStateRestore);
+            _pendingStateRestore = null;
         }
 
         // --- Axis position tracking for graph inputs ---
@@ -2158,6 +2203,13 @@ namespace DiyFfb
                 return;
             }
 
+            // Save graph state (trim accumulators etc.) for the outgoing vehicle
+            if (!string.IsNullOrWhiteSpace(activeCarId))
+            {
+                string outgoingKey = BuildProfileKey(activeGameId, activeCarId);
+                SaveGraphState(outgoingKey);
+            }
+
             if (!string.IsNullOrWhiteSpace(activeCarId) && HasUnsavedProfileChanges(activeGameId, activeCarId))
             {
                 bool saveCurrent = false;
@@ -2219,6 +2271,9 @@ namespace DiyFfb
             ResolveActiveGraph(gameId, carId);
             ApplyAircraftProfile(gameId, carId);
             BuildGraphParams();
+
+            // Restore graph state (trim accumulators etc.) for the incoming vehicle
+            RestoreGraphState(BuildProfileKey(gameId, carId));
 
             // Fire ContextChanged event for badge/UI refresh
             _configOrchestrator.OnContextChanged();

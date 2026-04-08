@@ -186,6 +186,14 @@ namespace DiyFfb
         /// joystick button or keyboard key bindings for graph input.
         /// </summary>
         public Dictionary<string, ButtonBinding> GripButtonBindings = new Dictionary<string, ButtonBinding>();
+
+        /// <summary>
+        /// Persisted graph state (trim accumulators, sample-holds, etc.) per vehicle.
+        /// Key: vehicle profile key (gameId/carId), Value: flattened state snapshot.
+        /// Survives SimHub restarts so trim is preserved across sessions.
+        /// </summary>
+        public Dictionary<string, Dictionary<string, double[]>> GraphStateSnapshots
+            = new Dictionary<string, Dictionary<string, double[]>>();
     }
 
 

@@ -556,6 +556,67 @@ namespace DiyFfb.GraphTest
             }
         }
 
+        /// <summary>
+        /// Captures all persistent state (this evaluator + sub-evaluators) as a flat dictionary.
+        /// Keys are scoped by include cache key to disambiguate sub-graph state.
+        /// </summary>
+        public Dictionary<string, double[]> GetStateSnapshot()
+        {
+            var snapshot = new Dictionary<string, double[]>();
+            if (_state.Length > 0)
+            {
+                snapshot[""] = (double[])_state.Clone();
+            }
+            foreach (var kv in _includeCache)
+            {
+                var subSnapshot = kv.Value.GetStateSnapshot();
+                foreach (var sub in subSnapshot)
+                {
+                    string key = string.IsNullOrEmpty(sub.Key)
+                        ? kv.Key
+                        : kv.Key + "|" + sub.Key;
+                    snapshot[key] = sub.Value;
+                }
+            }
+            return snapshot;
+        }
+
+        /// <summary>
+        /// Restores persistent state from a snapshot previously captured by GetStateSnapshot().
+        /// Mismatched keys or array lengths are silently skipped (graph structure may have changed).
+        /// </summary>
+        public void RestoreStateSnapshot(Dictionary<string, double[]> snapshot)
+        {
+            if (snapshot == null) return;
+
+            if (snapshot.TryGetValue("", out var root) && root.Length == _state.Length)
+            {
+                Array.Copy(root, _state, _state.Length);
+            }
+
+            foreach (var kv in _includeCache)
+            {
+                // Build the sub-snapshot for this include by stripping our prefix
+                var subSnapshot = new Dictionary<string, double[]>();
+                string prefix = kv.Key + "|";
+                foreach (var entry in snapshot)
+                {
+                    if (entry.Key == kv.Key)
+                    {
+                        subSnapshot[""] = entry.Value;
+                    }
+                    else if (entry.Key.StartsWith(prefix, StringComparison.Ordinal))
+                    {
+                        subSnapshot[entry.Key.Substring(prefix.Length)] = entry.Value;
+                    }
+                }
+                if (subSnapshot.Count > 0)
+                {
+                    kv.Value.RestoreStateSnapshot(subSnapshot);
+                }
+            }
+        }
+
         private void EvalInclude(CompiledNode node, IReadOnlyDictionary<string, double> inputs,
             IReadOnlyDictionary<string, double> parameters, List<string> warnings = null)
         {
