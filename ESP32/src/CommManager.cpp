@@ -96,11 +96,15 @@ void CommManager::periodic_task_func(void) {
 }
 
 void CommManager::setup_joystick() {
-    USB.PID(0x8211);
+    // Unique PID per device so the OS distinguishes them reliably.
+    // Gateway N: 0x8210 + N  (gateway 1 = 0x8211 for backward compat)
+    // Axis N:    0x8220 + N
     USB.VID(0x303b);
     if (_is_gateway) {
+        USB.PID(0x8210 + get_gateway_id());
         snprintf(_usb_product_name, sizeof(_usb_product_name) - 1, "DIY-FFB-Gateway-%d", get_gateway_id());
     } else {
+        USB.PID(0x8220 + get_axis_id());
         snprintf(_usb_product_name, sizeof(_usb_product_name) - 1, "DIY-FFB-Axis-%d", get_axis_id());
     }
     USB.productName(_usb_product_name);
