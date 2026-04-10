@@ -277,11 +277,12 @@ void CommManager::build_device_info_message(Message &msg) {
 }
 
 void CommManager::setup(Stream *serial, CANConfig &can_config, ConfigManager *config_manager, OnFFBAction on_ffb_action,
-                        OnAxisAction on_axis_action) {
+                        OnAxisAction on_axis_action, GripReader *grip_reader) {
     _config_manager = config_manager;
     _on_ffb_action = on_ffb_action;
     _on_axis_action = on_axis_action;
     _can_config = can_config;
+    _grip_reader = grip_reader;
     _log_queue_data = xQueueCreate(20, MAX_LOG_LINE_LENGTH);
     setup_serial(serial);
     xTaskCreatePinnedToCore(this->periodic_task, "CommManagerTask", 8000, this, 1, nullptr, 0);
@@ -811,6 +812,18 @@ void CommManager::send_joystick_values(void) {
         ControllerAxis controller_axis = MessageTools::controller_axis_id_from_index(controller_axis_idx);
         set_controller_axis(controller_axis, controller_axis_values[controller_axis_idx]);
     }
+    // Read grip shift registers into the upper 24 buttons (indices 24–47).
+    // Lower indices (0–23) are reserved for function outputs (e.g., shifter gears).
+    if (_grip_reader && _grip_reader->isReady()) {
+        _grip_reader->poll();
+        for (uint8_t bit = 0; bit < _grip_reader->getNumBits(); bit++) {
+            uint8_t buttonIdx = 24 + bit;
+            if (buttonIdx < JOYSTICK_BUTTON_COUNT) {
+                controller_button_values[buttonIdx] = _grip_reader->isPressed(bit) ? 1 : 0;
+            }
+        }
+    }
+
     for (uint8_t button_idx = 0; button_idx < CommManager::JOYSTICK_BUTTON_COUNT; button_idx++) {
         _joystick.setButton(button_idx, controller_button_values[button_idx]);
     }

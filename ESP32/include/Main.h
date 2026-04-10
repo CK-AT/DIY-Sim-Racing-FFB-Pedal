@@ -458,6 +458,13 @@ static const uint32_t STEPS_PER_MOTOR_REVOLUTION = 6400;
     #define CAN_TX 34
     #define CAN_RX 33
 
+    // Grip SPI (74HC165 shift registers, second SPI bus)
+    #define HAS_GRIP_SPI
+    #define GRIP_CS   8
+    #define GRIP_SCK  9
+    #define GRIP_MISO 10
+    #define GRIP_BYTES 3  // 3x 74HC165 = 24 bits
+
     // RGB LED
     #define RGB_LED 38
     #define NUM_LEDS 1

@@ -35,6 +35,7 @@ void physics_task_func(void *pv_parameters);
 #include "RudderBrake.h"
 #include "ShifterDetect.h"
 #include "ShifterFunction.h"
+#include "GripReader.h"
 
 AutomotivePedalFunction automotive_pedal_function = {};
 FlightPedalsFunction flight_pedals_function = {};
@@ -298,7 +299,13 @@ void setup() {
 
     CommManager::CANConfig can_config = {.baud_rate = 1000, .tx_pin = CAN_TX, .rx_pin = CAN_RX};
 
+#ifdef HAS_GRIP_SPI
+    static GripReader gripReader;
+    gripReader.setup(GRIP_CS, GRIP_SCK, GRIP_MISO, GRIP_BYTES);
+    comm_manager.setup(&Serial, can_config, &config_manager, on_ffb_action, on_axis_action, &gripReader);
+#else
     comm_manager.setup(&Serial, can_config, &config_manager, on_ffb_action, on_axis_action);
+#endif
     comm_manager.set_ota_state_callback(on_ota_state_change);
 
     LogOutput::printf("**************************************************************************************************************");
