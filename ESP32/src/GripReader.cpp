@@ -5,7 +5,7 @@
 // ESP32-S3: FSPI=0 (default, used by ADC), HSPI=1.
 #define GRIP_SPI_BUS HSPI
 
-static constexpr uint32_t GRIP_SPI_FREQ = 2000000;  // 2 MHz — well within 74HC165 specs at 3.3V
+static constexpr uint32_t GRIP_SPI_FREQ = 500000;  // 500 kHz — conservative for noise immunity over longer wires
 
 void GripReader::setup(uint8_t cs, uint8_t sck, uint8_t miso, uint8_t numBytes) {
     if (numBytes == 0 || numBytes > MAX_BYTES) return;
@@ -40,7 +40,7 @@ void GripReader::poll() {
     for (uint8_t i = 0; i < _numBytes; i++) {
         uint8_t raw = _spi->transfer(0x00);
         if (raw != 0x00) allZeros = false;
-        _data[i] = ~raw;
+        _raw[i] = ~raw;
     }
 
     digitalWrite(_csPin, HIGH);
@@ -48,7 +48,27 @@ void GripReader::poll() {
 
     // All 0x00 raw = floating MISO (grip disconnected) → zero all buttons
     if (allZeros) {
-        memset(_data, 0, sizeof(_data));
+        memset(_raw, 0, sizeof(_raw));
+    }
+
+    // Per-bit debounce: only update _data when a bit reads the same
+    // value for DEBOUNCE_COUNT consecutive polls.
+    uint8_t totalBits = _numBytes * 8;
+    for (uint8_t bit = 0; bit < totalBits; bit++) {
+        uint8_t byteIdx = bit / 8;
+        uint8_t bitMask = 1 << (7 - (bit % 8));
+        bool rawBit = (_raw[byteIdx] & bitMask) != 0;
+        bool curBit = (_data[byteIdx] & bitMask) != 0;
+
+        if (rawBit == curBit) {
+            _counters[bit] = 0;
+        } else {
+            _counters[bit]++;
+            if (_counters[bit] >= DEBOUNCE_COUNT) {
+                _data[byteIdx] ^= bitMask;  // flip the output bit
+                _counters[bit] = 0;
+            }
+        }
     }
 }
 

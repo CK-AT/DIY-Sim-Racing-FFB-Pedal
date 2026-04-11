@@ -8,7 +8,9 @@
 /// Call setup() once, then poll() at ~100 Hz to update cached button states.
 class GripReader {
 public:
-    static constexpr uint8_t MAX_BYTES = 4;  // max supported chain length
+    static constexpr uint8_t MAX_BYTES = 4;   // max supported chain length
+    static constexpr uint8_t MAX_BITS = MAX_BYTES * 8;
+    static constexpr uint8_t DEBOUNCE_COUNT = 3;  // consecutive matching polls before state changes
 
     /// Initialize the SPI bus and CS pin.
     /// @param cs   chip select GPIO
@@ -37,6 +39,8 @@ private:
     SPIClass *_spi = nullptr;
     uint8_t _csPin = 0;
     uint8_t _numBytes = 0;
-    uint8_t _data[MAX_BYTES] = {};
+    uint8_t _data[MAX_BYTES] = {};       // debounced output
+    uint8_t _raw[MAX_BYTES] = {};        // latest SPI read (inverted)
+    uint8_t _counters[MAX_BITS] = {};    // per-bit debounce counters
     bool _ready = false;
 };
