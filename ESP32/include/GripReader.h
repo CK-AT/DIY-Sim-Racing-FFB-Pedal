@@ -9,8 +9,7 @@
 class GripReader {
 public:
     static constexpr uint8_t MAX_BYTES = 4;   // max supported chain length
-    static constexpr uint8_t MAX_BITS = MAX_BYTES * 8;
-    static constexpr uint8_t DEBOUNCE_COUNT = 3;  // consecutive matching polls before state changes
+    static constexpr uint8_t MAJORITY_SAMPLES = 5;  // SPI captures per poll() for majority vote
 
     /// Initialize the SPI bus and CS pin.
     /// @param cs   chip select GPIO
@@ -39,8 +38,6 @@ private:
     SPIClass *_spi = nullptr;
     uint8_t _csPin = 0;
     uint8_t _numBytes = 0;
-    uint8_t _data[MAX_BYTES] = {};       // debounced output
-    uint8_t _raw[MAX_BYTES] = {};        // latest SPI read (inverted)
-    uint8_t _counters[MAX_BITS] = {};    // per-bit debounce counters
+    uint8_t _data[MAX_BYTES] = {};       // majority-voted output
     bool _ready = false;
 };

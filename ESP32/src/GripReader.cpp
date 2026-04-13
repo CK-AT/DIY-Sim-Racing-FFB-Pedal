@@ -26,49 +26,48 @@ void GripReader::setup(uint8_t cs, uint8_t sck, uint8_t miso, uint8_t numBytes) 
 void GripReader::poll() {
     if (!_ready) return;
 
-    // Warthog grip: CS directly controls CE (clock enable), active low.
-    // PL (parallel load) is active low but directly controlled by a separate
-    // pull mechanism on the connector.
-    //
-    // Sequence: CS LOW (enable clock) → clock out data → CS HIGH.
-    _spi->beginTransaction(SPISettings(GRIP_SPI_FREQ, MSBFIRST, SPI_MODE0));
+    // Take NUM_SAMPLES captures and majority-vote each bit to reject SPI noise.
+    static constexpr uint8_t NUM_SAMPLES = 5;
+    static constexpr uint8_t MAJORITY    = (NUM_SAMPLES / 2) + 1;  // 3
 
-    digitalWrite(_csPin, LOW);
-    delayMicroseconds(5);
+    uint8_t samples[NUM_SAMPLES][MAX_BYTES] = {};
 
-    bool allZeros = true;
-    for (uint8_t i = 0; i < _numBytes; i++) {
-        uint8_t raw = _spi->transfer(0x00);
-        if (raw != 0x00) allZeros = false;
-        _raw[i] = ~raw;
-    }
+    for (uint8_t s = 0; s < NUM_SAMPLES; s++) {
+        // Warthog grip: CS directly controls CE (clock enable), active low.
+        // Sequence: CS LOW → clock out data → CS HIGH.
+        _spi->beginTransaction(SPISettings(GRIP_SPI_FREQ, MSBFIRST, SPI_MODE2));
 
-    digitalWrite(_csPin, HIGH);
-    _spi->endTransaction();
+        digitalWrite(_csPin, LOW);
+        delayMicroseconds(5);
 
-    // All 0x00 raw = floating MISO (grip disconnected) → zero all buttons
-    if (allZeros) {
-        memset(_raw, 0, sizeof(_raw));
-    }
-
-    // Per-bit debounce: only update _data when a bit reads the same
-    // value for DEBOUNCE_COUNT consecutive polls.
-    uint8_t totalBits = _numBytes * 8;
-    for (uint8_t bit = 0; bit < totalBits; bit++) {
-        uint8_t byteIdx = bit / 8;
-        uint8_t bitMask = 1 << (7 - (bit % 8));
-        bool rawBit = (_raw[byteIdx] & bitMask) != 0;
-        bool curBit = (_data[byteIdx] & bitMask) != 0;
-
-        if (rawBit == curBit) {
-            _counters[bit] = 0;
-        } else {
-            _counters[bit]++;
-            if (_counters[bit] >= DEBOUNCE_COUNT) {
-                _data[byteIdx] ^= bitMask;  // flip the output bit
-                _counters[bit] = 0;
-            }
+        bool allZeros = true;
+        for (uint8_t i = 0; i < _numBytes; i++) {
+            uint8_t raw = _spi->transfer(0x00);
+            if (raw != 0x00) allZeros = false;
+            samples[s][i] = ~raw;
         }
+
+        digitalWrite(_csPin, HIGH);
+        _spi->endTransaction();
+
+        // All 0x00 raw = floating MISO (grip disconnected) → zero this sample
+        if (allZeros) {
+            memset(samples[s], 0, MAX_BYTES);
+        }
+    }
+
+    // Per-bit majority vote across samples
+    for (uint8_t i = 0; i < _numBytes; i++) {
+        uint8_t result = 0;
+        for (uint8_t bit = 0; bit < 8; bit++) {
+            uint8_t mask = 1 << bit;
+            uint8_t count = 0;
+            for (uint8_t s = 0; s < NUM_SAMPLES; s++) {
+                if (samples[s][i] & mask) count++;
+            }
+            if (count >= MAJORITY) result |= mask;
+        }
+        _data[i] = result;
     }
 }
 
