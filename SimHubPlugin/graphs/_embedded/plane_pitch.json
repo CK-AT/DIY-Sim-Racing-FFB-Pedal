@@ -820,7 +820,7 @@
       "Name": "FlightStickPitch.LoadGain",
       "DefaultValue": 0.5,
       "Min": 0.0,
-      "Max": 5.0,
+      "Max": 50.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Load Gain",
@@ -836,7 +836,7 @@
       "Name": "FlightStickPitch.BuffetGain",
       "DefaultValue": 0.5,
       "Min": 0.0,
-      "Max": 5.0,
+      "Max": 100.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Buffet Gain",
