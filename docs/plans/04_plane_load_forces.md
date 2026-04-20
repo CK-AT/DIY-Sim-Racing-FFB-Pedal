@@ -111,7 +111,7 @@ applies to the roll and yaw rate terms below.
 | Param | Default | Range | Unit | Description |
 | --- | --- | --- | --- | --- |
 | `FlightStickPitch.LoadGGain` | 5.0 | 0 - 30 | N/g | Force per g increment |
-| `FlightStickPitch.LoadRateGain` | 1.0 | 0 - 10 | N/(rad/s) | Force per pitch rate |
+| `FlightStickPitch.LoadRateGain` | 0.0 | 0 - 10 | N/(rad/s) | Force per pitch rate |
 
 **Expected feel:**
 
@@ -141,7 +141,7 @@ LoadForce_roll = p_gain * P_rad_s * qhat
 
 | Param | Default | Range | Unit | Description |
 | --- | --- | --- | --- | --- |
-| `FlightStickRoll.LoadRateGain` | 0.5 | 0 - 5 | N/(rad/s) | Force per roll rate at Vref |
+| `FlightStickRoll.LoadRateGain` | 0.0 | 0 - 5 | N/(rad/s) | Force per roll rate at Vref |
 
 At low speed (`qhat` < 1), roll forces are light. At high speed, they
 increase — matching the heavier aileron feel of real aircraft.
@@ -175,7 +175,7 @@ feel (sideslip creates a restoring pedal force).
 | Param | Default | Range | Unit | Description |
 | --- | --- | --- | --- | --- |
 | `FlightPedals.LoadBetaGain` | 0.3 | 0 - 2 | N/deg | Force per degree sideslip |
-| `FlightPedals.LoadRateGain` | 0.5 | 0 - 5 | N/(rad/s) | Force per yaw rate |
+| `FlightPedals.LoadRateGain` | 0.0 | 0 - 5 | N/(rad/s) | Force per yaw rate |
 
 **Expected feel:**
 
@@ -459,8 +459,9 @@ offset.
 | DDS 2 | Engine or tail rotor | Engine 2 (1-2 harmonics, free-run) |
 
 Each DDS receives its own `fundamental_hz` and amplitude set via
-`FlightFfbAction`. The gateway sync frame drives DDS 1 only (helicopters);
-DDS 2 always free-runs.
+`FlightFfbAction`. The gateway sync frame carries both DDS 1 and DDS 2
+frequencies and phases; axes PLL-lock both local oscillators. For engine
+vibration the phase sync is not physically necessary but comes for free.
 
 Protocol: both DDS frequencies and phases are carried in the gateway
 `0x0F0` sync frame (see helicopter vibration plan section 3). Per-axis

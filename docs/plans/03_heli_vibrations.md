@@ -1164,6 +1164,24 @@ the see-saw flapping. `rotor_slap` should be the primary 2/rev driver.
    phase error over 60 seconds.
 7. **PLL during RPM sweep**: sweep fundamental 5-12 Hz over 10 s, verify
    no clicks and inter-axis error stays <5 degrees during transient.
+8. **PLL integral clamp under RPM transient**: verify that the integral
+   anti-windup clamp (`PLL_INT_MAX / PLL_KI = 0.25 rad·s`) does not
+   cause convergence problems during realistic RPM transients. Test
+   scenarios:
+   * **Governor droop**: step fundamental from 8.2 Hz to 7.5 Hz (100%
+     to ~91% RPM) over 500 ms. Verify PLL tracks without overshoot or
+     sustained phase error after the transient settles.
+   * **Autorotation entry**: ramp fundamental from 8.2 Hz to 6.5 Hz
+     over 2 s (governor failure, RPM decaying). Verify integrator does
+     not saturate — if it does, the PLL cannot eliminate steady-state
+     frequency error from crystal offset during the transient.
+   * **Startup from zero**: ramp fundamental 0 → 8.2 Hz over 5 s.
+     Verify smooth phase lock acquisition with no overshoot or
+     oscillation at the integrator clamp boundary.
+   * **Measurement**: log `_error_integral` alongside phase error. If
+     the integral hits the clamp rail during any realistic transient,
+     increase `PLL_INT_MAX` (e.g., 10.0) and re-test steady-state
+     to ensure no overshoot is introduced.
 
 ### In-sim validation
 
@@ -1441,7 +1459,6 @@ Friction = base_friction * rpm_norm
 ## 11. Non-goals
 
 * Buffet replacement. Band-limited noise stays for incoherent cues.
-* Tail rotor vibration modelling (phase 5+).
 * Acoustic output / cabin noise simulation.
 * Non-sinusoidal waveshapes (triangle, saw). Stick to fundamentals
   + harmonics; any waveshape can be approximated with enough harmonics.
