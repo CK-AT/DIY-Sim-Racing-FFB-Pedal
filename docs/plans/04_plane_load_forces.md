@@ -11,8 +11,19 @@ datarefs, no ESP32 changes.
 
 The current plane graphs (`plane_pitch.json`, `plane_roll.json`,
 `plane_yaw.json`) produce `SpringGain`, `DamperGain`, `Friction`, and
-`BuffetAmplitude` — but `LoadForce` is always zero. This means the stick
-feels the same whether flying straight-and-level or pulling 3g in a turn.
+`BuffetAmplitude`. `LoadForce` is wired but driven by whole-airframe
+aerodynamic moments (`XPlane.AeroTorque.Pitch/Roll/Yaw` = `L_aero`,
+`M_aero`, `N_aero`), normalized by a per-aircraft max and scaled by
+`LoadGain`. However, these are NOT control hinge moments — they
+represent total aerodynamic torque about the CG, dominated by
+wing/tail/rotor disc forces. The relationship to stick force varies
+with control geometry per aircraft, and the data analysis in plan 03
+section 10.2 shows that the underlying datarefs don't track manoeuvre
+loads correctly (e.g., `blade_alph_pitch` decreases when pulling g).
+
+This plan replaces the aero-torque approach with a force model based
+on flight state signals (g-load, body rates, sideslip) that map more
+directly to what a pilot feels through the controls.
 
 Real aircraft have control surface hinge moments that the pilot feels
 through the stick/yoke. The dominant effects:
@@ -87,6 +98,16 @@ LoadForce_pitch = g_gain * (g_nrml - 1.0)
                 + q_gain * Q_rad_s
 ```
 
+**Rate-term interaction with DamperGain:** The `q_gain * Q_rad_s` term
+is functionally a damper (opposes pitch rate) but applied as a constant
+force offset rather than velocity-proportional resistance. At high
+`LoadRateGain` values this can interact with the existing `DamperGain`
+and cause oscillation — the load force opposes the rate, the spring
+pulls the stick back, generating a new rate, which generates more load
+force. Start with conservative defaults and increase only if the damper
+alone doesn't provide sufficient pitch rate cue. The same interaction
+applies to the roll and yaw rate terms below.
+
 | Param | Default | Range | Unit | Description |
 | --- | --- | --- | --- | --- |
 | `FlightStickPitch.LoadGGain` | 5.0 | 0 - 30 | N/g | Force per g increment |
@@ -143,6 +164,13 @@ Pedal `LoadForce` provides two cues:
 LoadForce_yaw = beta_gain * beta_deg
               + r_gain * R_rad_s
 ```
+
+Sign convention: positive `LoadForce` pushes the pedal axis in the
+positive direction (right pedal forward / left pedal aft, matching the
+existing `ConstForce` convention on `FlightPedalsFunction`). Positive
+beta (nose right) produces positive load force — the pilot must push
+left rudder to return to coordinated flight, which matches real aircraft
+feel (sideslip creates a restoring pedal force).
 
 | Param | Default | Range | Unit | Description |
 | --- | --- | --- | --- | --- |
@@ -371,7 +399,7 @@ speed-dependent, not periodic.
 `OnGround` and scaled by groundspeed.
 
 ```
-BuffetAmplitude = ground_gain * groundspeed * OnGround
+BuffetAmplitude = Min(ground_gain * groundspeed * OnGround, ground_max)
 ```
 
 * `XPlane.OnGround` — already in UDP packet (0/1)
@@ -410,14 +438,25 @@ thresholds. Combined with stall buffet via `Max` or `Add`.
 
 ### 7.7 Architecture: dual DDS per axis
 
-The helicopter plan defines a single `RotorVib` per axis with 5 harmonics
-and gateway PLL sync. For fixed-wing we need a second independent DDS.
-The cleanest approach: `FlightStickFunction` holds two `RotorVib` instances.
+See **plan 03 section 5a** for the full vibration slot assignment concept,
+including standard profiles, the axis split rule, and the `ConfigOut`
+node type that keeps harmonic ratios in sync with graph templates.
+Shared aircraft Params (blade count, gear ratio) flow through graph
+computation nodes into per-function ConfigOut terminals — no separate
+config to maintain.
+
+Fixed-wing aircraft use the `plane_single` or `plane_twin` slot profiles.
+Key difference from helicopters: `rotation_sign = 0`, which disables the
+1/rev sin/cos axis split — engine vibration is isotropic (same phase on
+all axes), unlike rotor disc tilt which requires the 90-degree pitch/roll
+offset.
+
+`FlightStickFunction` holds two `RotorVib` instances:
 
 | Slot | Helicopter use | Fixed-wing use |
 | --- | --- | --- |
 | DDS 1 | Main rotor (5 harmonics, PLL-synced) | Engine 1 (1-2 harmonics, free-run) |
-| DDS 2 | Future: tail rotor or engine | Engine 2 (1-2 harmonics, free-run) |
+| DDS 2 | Engine or tail rotor | Engine 2 (1-2 harmonics, free-run) |
 
 Each DDS receives its own `fundamental_hz` and amplitude set via
 `FlightFfbAction`. The gateway sync frame drives DDS 1 only (helicopters);
@@ -430,15 +469,15 @@ Protocol: both DDS frequencies and phases are carried in the gateway
 ```protobuf
 message FlightFfbAction {
   // ... existing fields 1-6 ...
-  // DDS 1 amplitudes (rotor or engine 1)
-  float vib_amp_1rev = 7;
-  float vib_amp_2rev = 8;
-  float vib_amp_3rev = 9;
-  float vib_amp_nrev = 10;
-  float vib_amp_2nrev = 11;
-  // DDS 2 amplitudes (engine 2)
-  float vib2_amp_1rev = 12;
-  float vib2_amp_2rev = 13;
+  // DDS 1 amplitudes (per axis, slot semantics set by vib_harmonic_ratios)
+  float vib_amp_slot1 = 7;
+  float vib_amp_slot2 = 8;
+  float vib_amp_slot3 = 9;
+  float vib_amp_slot4 = 10;
+  float vib_amp_slot5 = 11;
+  // DDS 2 amplitudes (engine 2 or tail rotor)
+  float vib2_amp_slot1 = 12;
+  float vib2_amp_slot2 = 13;
 }
 ```
 

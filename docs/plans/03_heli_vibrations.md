@@ -176,15 +176,15 @@ message FlightFfbAction {
   float buffet_amp = 4;
   float load_force = 5;
   float k_friction = 6;
-  // NEW: DDS 1 amplitudes (rotor or engine 1, per axis)
-  float vib_amp_1rev = 7;        // 1/rev amplitude (N)
-  float vib_amp_2rev = 8;        // 2/rev amplitude (N)
-  float vib_amp_3rev = 9;        // 3/rev amplitude (N)
-  float vib_amp_nrev = 10;       // N/rev amplitude (N)
-  float vib_amp_2nrev = 11;      // 2N/rev amplitude (N)
-  // NEW: DDS 2 amplitudes (engine 2, per axis)
-  float vib2_amp_1rev = 12;      // 1/rev amplitude (N)
-  float vib2_amp_2rev = 13;      // 2/rev amplitude (N)
+  // NEW: DDS 1 amplitudes (per axis, slot semantics set by vib_harmonic_ratios)
+  float vib_amp_slot1 = 7;       // DDS 1 slot 1 amplitude (N)
+  float vib_amp_slot2 = 8;       // DDS 1 slot 2 amplitude (N)
+  float vib_amp_slot3 = 9;       // DDS 1 slot 3 amplitude (N)
+  float vib_amp_slot4 = 10;      // DDS 1 slot 4 amplitude (N)
+  float vib_amp_slot5 = 11;      // DDS 1 slot 5 amplitude (N)
+  // NEW: DDS 2 amplitudes (engine 2 or tail rotor)
+  float vib2_amp_slot1 = 12;     // DDS 2 slot 1 amplitude (N)
+  float vib2_amp_slot2 = 13;     // DDS 2 slot 2 amplitude (N)
 }
 ```
 
@@ -192,9 +192,10 @@ Both DDS frequencies and phases come from the gateway sync frame (`0x0F0`),
 not from FlightFfbAction. This keeps all timing in one place and the per-axis
 message carries only amplitudes.
 
-Slot semantics are fixed: slot 2 is always 2/rev, slot N is always N/rev
-(as defined by blade_count). For 2-blade rotors slots 2 and N render the
-same frequency and their amplitudes sum -- graph can assign to either.
+Slot semantics are determined by `vib_harmonic_ratios` in the config.
+Typical mapping: slot 1 = 1/rev, slot 2 = 2/rev, etc., but the graph
+can assign any ratio to any slot. For 2-blade rotors slots 2 and 4
+render the same frequency (ratio 2.0) and their amplitudes sum.
 
 Amplitudes of zero disable the respective harmonic. All amplitudes zero
 effectively disables the oscillator for that axis.
@@ -357,9 +358,9 @@ void RotorVib::on_sync(float gateway_phase, float gateway_hz) {
 }
 
 float RotorVib::wrap_pm_pi(float x) {
-    while (x > M_PI)  x -= 2.0f * M_PI;
-    while (x < -M_PI) x += 2.0f * M_PI;
-    return x;
+    x = fmodf(x + (float)M_PI, 2.0f * (float)M_PI);
+    if (x < 0.0f) x += 2.0f * (float)M_PI;
+    return x - (float)M_PI;
 }
 ```
 
@@ -392,11 +393,11 @@ void RotorVib::update(const SimState &state, SimAccumulators &accum) {
     float f = 0.0f;
     for (int i = 0; i < _num_slots; i++) {
         float h = _ratios[i];
-        if (h == 1.0f && _axis == ROLL) {
-            // 1/rev on roll axis: cos with rotation sign (90-deg offset for disc tilt ellipse)
+        if (_rotation_sign != 0 && fabsf(h - 1.0f) < 0.01f && _axis == ROLL) {
+            // 1/rev on roll axis with rotor: cos with rotation sign (disc tilt ellipse)
             f += _rotation_sign * _amp[i] * cosf(_phase);
         } else {
-            // All other slots: sin, same phase on both axes (isotropic)
+            // All other cases: sin, same phase on both axes (isotropic)
             f += _amp[i] * sinf(h * _phase);
         }
     }
@@ -432,13 +433,13 @@ Optimisations (apply if 1 kHz loop budget is tight):
 
 | Output | Proto field | DDS | Unit |
 | --- | --- | --- | --- |
-| `Vib1Rev` | `vib_amp_1rev` | 1 | N |
-| `Vib2Rev` | `vib_amp_2rev` | 1 | N |
-| `Vib3Rev` | `vib_amp_3rev` | 1 | N |
-| `VibNRev` | `vib_amp_nrev` | 1 | N |
-| `Vib2NRev` | `vib_amp_2nrev` | 1 | N |
-| `Vib2Amp1Rev` | `vib2_amp_1rev` | 2 | N |
-| `Vib2Amp2Rev` | `vib2_amp_2rev` | 2 | N |
+| `VibSlot1` | `vib_amp_slot1` | 1 | N |
+| `VibSlot2` | `vib_amp_slot2` | 1 | N |
+| `VibSlot3` | `vib_amp_slot3` | 1 | N |
+| `VibSlot4` | `vib_amp_slot4` | 1 | N |
+| `VibSlot5` | `vib_amp_slot5` | 1 | N |
+| `Vib2Slot1` | `vib2_amp_slot1` | 2 | N |
+| `Vib2Slot2` | `vib2_amp_slot2` | 2 | N |
 
 **Shared (routed to gateway for sync frame broadcast):**
 
@@ -591,6 +592,503 @@ set once on profile load.
 
 ---
 
+## 5a. Vibration Slot Assignment Concept
+
+The DDS subsystem provides **5 + 2 amplitude slots** across two oscillators.
+Each slot is a "voice" — a sine wave at `fundamental_hz × ratio` with an
+independently controllable amplitude. The ESP32 has no knowledge of what
+physical source a slot represents; it just runs `sin(ratio * phase)` with
+a smoothed amplitude. All meaning is established by the coordination of
+two things set at profile load time:
+
+1. **Harmonic ratios** in `FlightStickConfig` — what frequency each slot runs at
+2. **Graph template** — what telemetry signal drives each slot's amplitude
+
+These two must match. A profile bundles both: it writes the ratios to config
+and uses a graph template that knows which envelope signal goes to which slot.
+
+### Slot assignment profiles
+
+Five standard profiles cover all current aircraft types:
+
+#### `heli_cyclic` — helicopter pitch/roll axes
+
+DDS 1 fundamental: main rotor RPM / 60 (gateway-synced).
+DDS 2 fundamental: engine RPM / 60 (free-running, no sync needed).
+
+| DDS | Slot | Ratio | Source | Envelope driver |
+| --- | --- | --- | --- | --- |
+| 1 | 1 | 1.0 | Rotor 1/rev (disc tilt) | `blade_alph_pitch/roll` — **axis-split** |
+| 1 | 2 | 2.0 | Rotor 2/rev (ETL + high-speed) | `vrs` + `slap_rat` |
+| 1 | 3 | 3.0 | Rotor 3/rev (retreating blade stall) | `blade_alpha` threshold |
+| 1 | 4 | N | Blade-passing N/rev | RPM-proportional constant |
+| 1 | 5 | 2N | Blade-passing 2nd harmonic | RPM-proportional constant |
+| 2 | 1 | 1.0 | Engine 1/rev | base + `torque_norm` |
+| 2 | 2 | 2.0 | Engine 2/rev | base constant |
+
+`rotation_sign = +1` (US/CCW) or `-1` (EU/CW).
+
+Graph template: `heli_vibration.json` (cyclic variant).
+
+#### `heli_pedal` — helicopter yaw axis
+
+DDS 1 fundamental: main rotor RPM / 60 (gateway-synced).
+DDS 2: disabled (fundamental = 0).
+
+| DDS | Slot | Ratio | Source | Envelope driver |
+| --- | --- | --- | --- | --- |
+| 1 | 1 | 1.0 | Main rotor 1/rev (weak on pedals) | RPM-proportional |
+| 1 | 2 | 2.0 | Main rotor 2/rev | `vrs` + `slap_rat` |
+| 1 | 3 | gear | Tail rotor blade-passing | RPM-proportional |
+| 1 | 4 | 2×gear | Tail rotor 2nd harmonic | RPM-proportional |
+| 1 | 5 | — | Unused | amplitude = 0 |
+
+Gear ratio is aircraft-specific (e.g., 4.62 for MD 500E). Tail rotor
+vibration rides on the main rotor DDS — no second oscillator needed.
+
+`rotation_sign = 0` (no axis split on pedals — single axis).
+
+Graph template: `heli_vibration.json` (pedal variant, parameterized by
+gear ratio).
+
+#### `plane_single` — single-engine fixed-wing
+
+DDS 1 fundamental: prop RPM / 60.
+DDS 2: disabled (fundamental = 0).
+
+| DDS | Slot | Ratio | Source | Envelope driver |
+| --- | --- | --- | --- | --- |
+| 1 | 1 | 1.0 | Engine 1/rev | base + `torque_norm` |
+| 1 | 2 | 2.0 | Engine 2/rev | base constant |
+| 1 | 3-5 | — | Unused | amplitude = 0 |
+
+`rotation_sign = 0` (no axis split — engine vibration is isotropic).
+
+Graph template: `plane_engine_vib.json`.
+
+#### `plane_twin` — twin-engine fixed-wing
+
+DDS 1 fundamental: prop 1 RPM / 60.
+DDS 2 fundamental: prop 2 RPM / 60.
+
+| DDS | Slot | Ratio | Source | Envelope driver |
+| --- | --- | --- | --- | --- |
+| 1 | 1 | 1.0 | Engine 1 — 1/rev | base + `torque_norm` eng 1 |
+| 1 | 2 | 2.0 | Engine 1 — 2/rev | base constant |
+| 1 | 3-5 | — | Unused | amplitude = 0 |
+| 2 | 1 | 1.0 | Engine 2 — 1/rev | base + `torque_norm` eng 2 |
+| 2 | 2 | 2.0 | Engine 2 — 2/rev | base constant |
+
+`rotation_sign = 0`.
+
+Beat frequency between engines emerges naturally from DDS interference —
+no special logic. Prop sync → beat disappears. Engine failure → one DDS
+goes silent.
+
+Graph template: `plane_engine_vib.json` (twin variant).
+
+#### `heli_cyclic_with_engine` — helicopter with engine vibration on DDS 2
+
+Same as `heli_cyclic` above. The DDS 2 engine slots are optional — set
+amplitudes to zero if engine vibration is not desired (e.g., turbine
+helicopters where the engine is too smooth to feel).
+
+### Axis split rule
+
+The 1/rev sin/cos axis split (disc tilt ellipse) is gated by
+`rotation_sign != 0`:
+
+```
+if rotation_sign != 0 AND ratio ≈ 1.0 AND axis == ROLL:
+    force = rotation_sign * amplitude * cos(phase)
+else:
+    force = amplitude * sin(ratio * phase)
+```
+
+This ensures:
+
+* **Helicopter rotor** (`rotation_sign = ±1`): 1/rev slot produces
+  sin on pitch, cos on roll → elliptical disc tilt feel
+* **Engine vibration** (`rotation_sign = 0`): 1/rev slot produces
+  sin on both axes → isotropic vibration (no ellipse)
+* **Pedal axis** (`rotation_sign = 0`): single axis, no split needed
+
+Each `RotorVib` instance carries its own `rotation_sign`. DDS 2's instance
+always uses `rotation_sign = 0` (engine vibration is never directional).
+
+### Config coordination — ConfigOut node type
+
+The consistency problem: `FlightStickConfig.vib_harmonic_ratios` (what
+frequency each slot runs at) and the graph template (what signal drives
+each slot's amplitude) must agree. If they diverge, vibration is
+physically wrong — e.g., a "tail rotor blade-passing" amplitude driving
+a slot whose ratio is set to "3/rev retreating blade stall."
+
+**Solution: a new `ConfigOut` graph node type.** A terminal node (like
+`Output`) that receives a graph-computed value and writes it to a
+`FlightStickConfig` proto field. The graph computes everything — shared
+Params like blade count flow through normal graph nodes (Mul, Const,
+etc.) into ConfigOut terminals. When a ConfigOut value changes, the
+plugin triggers a config upload to the ESP32.
+
+Key properties:
+
+* **Computed, not static** — ConfigOut receives its value from the graph,
+  so derived config (e.g., `2 × blade_count` for the 2N/rev ratio) is
+  computed by the graph, not by plugin code.
+* **Change-triggered upload** — plugin compares ConfigOut values to the
+  last-sent config each evaluation cycle. If any changed, it re-sends
+  `FlightStickConfig`. In steady state (no Param edits), no uploads.
+* **Shared Params work naturally** — `Aircraft.BladeCount` is a regular
+  shared Param. Each function's sub-graph wires it through computation
+  nodes to per-function ConfigOut terminals. No new sharing mechanism.
+
+#### ConfigOut node and FunctionScope on Include
+
+Adding ConfigOut with the existing generic-port-in-sub-graph +
+function-scoped-in-parent pattern would require ~10 extra links per
+function in the parent template (ratio ports + rotation_sign). The
+parent already has ~14 links per cyclic include; tripling that is
+untenable.
+
+**Solution: two changes.**
+
+1. **`FunctionScope` dropdown on Include nodes** — tells the runtime
+   which function the sub-graph's scoped outputs target
+2. **`ConfigOut` node type** — a new terminal (like Output) whose
+   ports write to proto config fields instead of streaming outputs
+
+When an Include has `FunctionScope` set, scoped Output and ConfigOut
+nodes inside the sub-graph inherit it as their function group. The
+parent only wires inputs — all output and config routing is implicit.
+
+**Include node with FunctionScope:**
+
+```json
+{
+  "Id": "cyclic_pitch_include",
+  "Title": "Cyclic Pitch",
+  "Kind": "Include",
+  "IncludePath": "..\\_embedded\\heli_cyclic.json",
+  "FunctionScope": "FlightStickPitch"
+}
+```
+
+**Editor UI:** `FunctionScope` appears as a dropdown on the Include
+node inspector (below IncludePath, above the port lists). Options:
+
+```
+(none)                      ← default, generic mode
+FlightStickPitch
+FlightStickRoll
+FlightPedals
+FlightStickCollective
+```
+
+The dropdown values come from `GraphSignalCatalogData`. `(none)` means
+all outputs use the existing generic-port pattern (no scoping).
+
+**Scoped Output node in sub-graph** (replaces generic output ports):
+
+```json
+{
+  "Id": "out_ffb",
+  "Title": "FFB Outputs",
+  "Kind": "Output",
+  "Ports": [
+    { "Name": "spring", "Kind": "Input", "SignalSuffix": "SpringGain" },
+    { "Name": "damper", "Kind": "Input", "SignalSuffix": "DamperGain" },
+    { "Name": "friction", "Kind": "Input", "SignalSuffix": "Friction" },
+    { "Name": "load", "Kind": "Input", "SignalSuffix": "LoadForce" },
+    { "Name": "trim", "Kind": "Input", "SignalSuffix": "TrimOffset" }
+  ]
+}
+```
+
+An Output node is scoped when its ports have `SignalSuffix` AND the
+Include that contains it has a `FunctionScope`. The runtime converter
+registers `FlightStickPitch.SpringGain` etc. — identical to what the
+parent's explicit Output node produced before.
+
+Without `FunctionScope` on the Include, these ports are treated as
+generic output ports (by `Name`), same as today. So an Output node
+with `SignalSuffix` on its ports works in both modes.
+
+**ConfigOut node in sub-graph:**
+
+```json
+{
+  "Id": "cfg_out",
+  "Title": "Vib Config",
+  "Kind": "ConfigOut",
+  "Ports": [
+    { "Name": "rotation_sign", "Kind": "Input",
+      "ConfigField": "rotation_sign" },
+    { "Name": "ratio_0", "Kind": "Input",
+      "ConfigField": "vib_harmonic_ratios[0]" },
+    { "Name": "ratio_1", "Kind": "Input",
+      "ConfigField": "vib_harmonic_ratios[1]" },
+    { "Name": "ratio_2", "Kind": "Input",
+      "ConfigField": "vib_harmonic_ratios[2]" },
+    { "Name": "ratio_3", "Kind": "Input",
+      "ConfigField": "vib_harmonic_ratios[3]" },
+    { "Name": "ratio_4", "Kind": "Input",
+      "ConfigField": "vib_harmonic_ratios[4]" }
+  ]
+}
+```
+
+ConfigOut always requires `FunctionScope` on its Include — without it,
+ConfigOut nodes are ignored (no function → don't know which config to
+write to). The editor can warn when a sub-graph with ConfigOut nodes is
+included without a FunctionScope.
+
+**SignalGroup usage rules:**
+
+| Node type | SignalGroup | Constraint |
+| --- | --- | --- |
+| Param | freeform string | Any group name (e.g., `Aircraft`, `Vib`) |
+| Input (unscoped) | freeform string | Any group (e.g., `XPlane`, `Grip`) |
+| Output (unscoped) | function dropdown | Must be a valid function group |
+| Output (scoped, in sub-graph) | not set | Inherited from Include's `FunctionScope` |
+| ConfigOut (in sub-graph) | not set | Inherited from Include's `FunctionScope` |
+| Include | `FunctionScope` dropdown | `(none)` or valid function group |
+
+Unscoped Output nodes in the parent template still use the existing
+`SignalGroup` dropdown (shown as the function group selector) — this
+is unchanged. Scoped Output/ConfigOut nodes inside sub-graphs have no
+`SignalGroup` of their own; they inherit from their Include site.
+
+**Runtime conversion:**
+
+`GraphRuntimeConverter` already builds Output nodes with
+`BuildFullSignalName(node.SignalGroup, port.SignalSuffix, port.Name)`.
+The change: when recursing into an included graph, if the Include node
+has `FunctionScope`, pass it as the `SignalGroup` for any Output node
+that has `SignalSuffix` on its ports, and for any ConfigOut node.
+
+```
+Existing (unscoped):
+  sub-graph Output port "spring" → Include output port → parent link →
+  parent Output(SignalGroup="FlightStickPitch", SignalSuffix="SpringGain")
+  → runtime: FlightStickPitch.SpringGain
+
+Scoped:
+  sub-graph Output(port SignalSuffix="SpringGain") →
+  Include(FunctionScope="FlightStickPitch") →
+  runtime: FlightStickPitch.SpringGain
+
+Same runtime result, no parent Output node, no link.
+```
+
+**Backward compatibility:** `FunctionScope` defaults to `(none)`.
+Existing sub-graphs with generic ports continue to work unchanged.
+Both modes can coexist in the same parent template.
+
+#### Sharing across functions
+
+Aircraft-level values like blade count are regular `Aircraft.*` Params,
+shared across all functions by the existing Param system. They flow
+into each sub-graph include as Input wiring (this already exists — no
+new links needed). Inside the sub-graph, computation nodes derive
+ratios and wire them to the scoped ConfigOut terminal:
+
+```
+heli_default.json (parent template)
+
+  Aircraft.BladeCount   [Param = 5]     ← shared, one slider
+  Aircraft.RotationSign [Param = 1]     ← shared
+  Aircraft.TRGearRatio  [Param = 4.62]  ← shared
+
+  cyclic_pitch_include
+    Kind: Include, FunctionScope: "FlightStickPitch"
+    Inputs wired: torque, rpm, aero_trq, blade_count, rotation_sign
+    (no output links — scoped nodes handle it)
+
+  cyclic_roll_include
+    Kind: Include, FunctionScope: "FlightStickRoll"
+    Inputs wired: torque, rpm, aero_trq, blade_count, rotation_sign
+
+  pedals_include
+    Kind: Include, FunctionScope: "FlightPedals"
+    Inputs wired: torque, rpm, aero_trq, tr_gear_ratio
+```
+
+Same `Aircraft.BladeCount` Param feeds both cyclic includes. Changing
+blade count → graph re-evaluates → scoped ConfigOut values change for
+pitch and roll → plugin detects → config upload for both functions.
+
+The parent template only has input links (already needed for telemetry
+signals) — zero output or config links. Compare:
+
+| | Before (generic) | After (scoped) |
+| --- | --- | --- |
+| Links per cyclic include | ~14 (7 in + 7 out) | ~7 (7 in, 0 out) |
+| ConfigOut links per include | ~10 (new) | 0 |
+| Parent Output nodes | 4 (one per function) | 0 |
+| Parent ConfigOut nodes | 4 | 0 |
+
+#### Sub-graph structure
+
+```
+heli_vibration_cyclic.json (sub-graph, IsLibraryGraph: true)
+
+  Inputs:                        (wired from parent)
+    blade_count                    ← Aircraft.BladeCount
+    rotation_sign                  ← Aircraft.RotationSign
+    blade_alph_pitch, slap_rat...  ← telemetry signals
+
+  Scoped ConfigOut:              → FunctionScope's FlightStickConfig
+    rotation_sign     → ConfigField "rotation_sign"
+    Const(1.0)        → ConfigField "vib_harmonic_ratios[0]"
+    Const(2.0)        → ConfigField "vib_harmonic_ratios[1]"
+    Const(3.0)        → ConfigField "vib_harmonic_ratios[2]"
+    blade_count       → ConfigField "vib_harmonic_ratios[3]"
+    blade_count × 2   → ConfigField "vib_harmonic_ratios[4]"
+
+  Params (regular):              → graph evaluation
+    Vib.Gain1Rev        = 0.5
+    Vib.ETLGain         = 1.0
+
+  Internal logic:                (amplitude envelopes)
+    slot 1 amplitude ← blade_alph * Gain1Rev
+    slot 2 amplitude ← vrs + slap_rat * ETLGain
+    ...
+
+  Scoped Output:                 → FunctionScope's FlightFfbAction
+    SpringGain, DamperGain, Friction, LoadForce, TrimOffset,
+    VibSlot1..5, Vib2Slot1..2
+```
+
+Ratios and amplitude wiring live in the same sub-graph — they cannot
+diverge. The sub-graph knows that slot 4 is "N/rev blade-passing" and
+both computes its ratio from `blade_count` AND drives its amplitude
+from the RPM-proportional envelope.
+
+#### Per-aircraft tuning
+
+Tuning happens through the shared Params in the parent template:
+
+* **R22** (2-blade): profile overrides `Aircraft.BladeCount = 2`.
+  Graph computes: ratio[3] = 2, ratio[4] = 4. ConfigOut detects
+  change → uploads new config. Amplitude envelopes unchanged (still
+  "blade-passing" source, just at different frequency).
+* **MD 500E**: default `Aircraft.BladeCount = 5`, no override needed.
+* **Gear ratio**: profile overrides `Aircraft.TRGearRatio = 4.62`.
+  Pedal sub-graph computes: ratio[2] = 4.62, ratio[3] = 9.24.
+
+**Key rule: ratios that change the physical source need a different
+sub-graph.** Changing blade count (same source, different frequency)
+is safe via Param override. Changing a slot from "retreating blade
+stall" to "tail rotor" requires the pedal sub-graph variant where the
+internal amplitude wiring matches.
+
+In practice this means a small number of sub-graph variants:
+
+| Sub-graph variant | Slot semantics |
+| --- | --- |
+| `heli_vibration_cyclic` | 1/rev disc tilt, 2/rev ETL, 3/rev RBS, N/rev, 2N/rev |
+| `heli_vibration_pedal` | 1/rev rotor, 2/rev rotor, TR blade-pass, TR 2nd harmonic |
+| `plane_engine_vib` | Engine 1/rev, engine 2/rev (per DDS) |
+
+#### Plugin implementation
+
+**Runtime converter changes:** When processing an Include node with
+`FunctionScope`, recurse into the included graph. For each scoped
+Output node, register it as `NodeType.Output` with name =
+`BuildFullSignalName(functionScope, port.SignalSuffix, port.Name)`.
+For each scoped ConfigOut node, register it as `NodeType.ConfigOut`
+(new enum value) with the function scope and ConfigField.
+
+This mirrors the existing Output registration at
+[GraphRuntimeConverter.cs:100-117](SimHubPlugin/GraphEditor/GraphRuntimeConverter.cs#L100-L117)
+— same `BuildFullSignalName`, just with the scope inherited from the
+Include node instead of from the Output node's own `SignalGroup`.
+
+**Config change detection:** after each graph evaluation cycle (20 Hz),
+the plugin reads all ConfigOut values per function and compares to the
+last-sent config. Upload only on change:
+
+```csharp
+void CheckConfigOutChanges()
+{
+    foreach (var functionId in flightFunctionIds)
+    {
+        string prefix = GetGraphFunctionPrefix(functionId);
+        if (prefix == null) continue;
+
+        var config = currentConfigs[functionId];
+        bool changed = false;
+
+        // ConfigOut nodes are registered with names like
+        // "FlightStickPitch.cfg.vib_harmonic_ratios[3]"
+        foreach (var (field, value) in GetConfigOutputs(prefix))
+        {
+            changed |= SetConfigField(config, field, value);
+        }
+
+        if (changed)
+        {
+            EnqueueConfigUpload(functionId, config);
+        }
+    }
+}
+```
+
+In steady state (no Param edits), ConfigOut values are constant and
+no uploads occur — this is a cheap comparison, not a real upload.
+
+**Startup**: on profile load, ConfigOut values are evaluated and
+uploaded as part of the initial config send. No special path needed.
+
+**User edits Param slider**: next graph evaluation cycle picks up the
+new Param value → flows through computation nodes → ConfigOut value
+changes → plugin detects → config upload. Latency: one eval cycle
+(50 ms at 20 Hz). Acceptable for static config changes.
+
+#### Migrating existing graphs to scoped mode
+
+Scoped Output is optional — existing graphs with generic Output nodes
+and explicit parent wiring continue to work. But scoped mode can
+simplify existing templates too. Migration per sub-graph:
+
+1. Add `"Scoped": true` and `SignalSuffix` to Output node ports
+2. Add `"FunctionScope"` to Include nodes in parent template
+3. Remove Output nodes and output links from parent template
+
+This is backward-compatible: new sub-graphs default to scoped,
+existing ones stay generic until migrated. Both modes can coexist
+in the same parent template (some includes scoped, others generic).
+
+#### Safe defaults
+
+* Graph without ConfigOut nodes → no config fields modified →
+  existing graphs completely unaffected.
+* ConfigOut with computed value 0 for ratios → DDS slot disabled
+  (zero ratio = skip). Safe fallback.
+* Disconnected ConfigOut input port → value = 0 → safe default.
+
+#### Generality beyond vibration
+
+ConfigOut is not vibration-specific. Any static config field that
+should be graph-computed can use it. Future candidates:
+
+* `FlightStickConfig.damping` — per-aircraft damping from graph
+* `FlightStickConfig.centering_spring_const` — same
+
+For now, only vibration config uses ConfigOut. Existing fields
+(`pos_min`, `pos_max`, `damping`, `centering_spring_const`) continue
+to be set from the function config UI as before.
+
+**Custom profiles**: the slot system is fully generic. A community
+contributor can create a custom sub-graph with non-standard slot
+semantics (e.g., coaxial helicopter with contra-rotating rotors on
+DDS 1 and DDS 2) — the ConfigOut wiring and amplitude computation
+simply reflect the new physical model.
+
+
+---
+
 ## 6. Per-aircraft tuning
 
 ### MD500E (reference implementation)
@@ -731,7 +1229,8 @@ the see-saw flapping. `rotor_slap` should be the primary 2/rev driver.
 ### Phase 5 -- refinements (deferred)
 
 1. Collective-axis vibration (separate amplitude set)
-2. Pedal-axis vibration from tail rotor (separate fundamental = TR RPM)
+2. Independent tail rotor DDS for aircraft where gear ratio approximation
+   is insufficient (main plan handles tail rotor via harmonic ratio slots)
 3. Per-harmonic phase control if specific aircraft need it
 4. Sine LUT optimisation if CPU budget requires
 
