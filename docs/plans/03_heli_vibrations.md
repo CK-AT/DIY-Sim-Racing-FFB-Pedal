@@ -148,14 +148,21 @@ message FlightFfbAction {
   float buffet_amp = 4;
   float load_force = 5;
   float k_friction = 6;
-  // NEW: rotor vibration amplitudes (per axis)
+  // NEW: DDS 1 amplitudes (rotor or engine 1, per axis)
   float vib_amp_1rev = 7;        // 1/rev amplitude (N)
   float vib_amp_2rev = 8;        // 2/rev amplitude (N)
   float vib_amp_3rev = 9;        // 3/rev amplitude (N)
   float vib_amp_nrev = 10;       // N/rev amplitude (N)
   float vib_amp_2nrev = 11;      // 2N/rev amplitude (N)
+  // NEW: DDS 2 amplitudes (engine 2, per axis)
+  float vib2_amp_1rev = 12;      // 1/rev amplitude (N)
+  float vib2_amp_2rev = 13;      // 2/rev amplitude (N)
 }
 ```
+
+Both DDS frequencies and phases come from the gateway sync frame (`0x0F0`),
+not from FlightFfbAction. This keeps all timing in one place and the per-axis
+message carries only amplitudes.
 
 Slot semantics are fixed: slot 2 is always 2/rev, slot N is always N/rev
 (as defined by blade_count). For 2-blade rotors slots 2 and N render the
@@ -167,8 +174,9 @@ effectively disables the oscillator for that axis.
 ### Gateway sync message (dedicated CAN frame)
 
 A new high-priority CAN frame at **`0x0F0`**, broadcast by the gateway at
-**100 Hz** (10 ms interval). Carries the authoritative rotor DDS state for
-inter-axis phase synchronisation.
+**100 Hz** (10 ms interval). Carries the authoritative DDS state for both
+oscillator slots — used for rotor vibration (helicopters) and engine
+vibration (fixed-wing, including dual-engine beat).
 
 ```
 CAN ID: 0x0F0 (high priority — above FFB actions, below axis state)
@@ -176,15 +184,19 @@ Rate:   100 Hz (10 ms)
 
 Byte  Field                  Type     Encoding
 ----  ---------------------  ------   ---------------------------
-0-3   rotor_fundamental_hz   float    IEEE 754, Hz (RPM/60), 0 = disabled
-4-5   rotor_phase            uint16   0..65535 maps to 0..2*pi
-6-7   reserved               uint16   0 (future use)
+0-1   dds1_fundamental_hz    uint16   0.001 Hz/LSB (0..65.535 Hz), 0 = disabled
+2-3   dds1_phase             uint16   0..65535 maps to 0..2*pi
+4-5   dds2_fundamental_hz    uint16   0.001 Hz/LSB, 0 = disabled
+6-7   dds2_phase             uint16   0..65535 maps to 0..2*pi
 ```
+
+Exactly 8 bytes — fits standard CAN frame with no waste. Frequency
+resolution: 0.001 Hz = 0.06 RPM, adequate for both rotor and engine tracking.
 
 CAN bus ID allocation after this change:
 
 ```
-0x0F0           Gateway → All    Rotor DDS sync (NEW, 100 Hz)
+0x0F0           Gateway → All    DDS sync, dual oscillator (NEW, 100 Hz)
 0x100 + axis    Axis → Gateway   High-prio axis frames
 0x200 + func    Gateway → Axis   FFB action frames
 0x300 + axis    Axis → Gateway   Low-prio axis frames
@@ -192,15 +204,23 @@ CAN bus ID allocation after this change:
 0x7FE           Gateway → All    Ping (presence detection, 10 Hz)
 ```
 
-The gateway computes its master DDS from the `VibFundamental` graph output
-(extracted from any active flight function's FlightFfbAction — they all
-produce the same value since fundamental = RPM/60 is shared).
-`rotor_fundamental_hz = 0` disables all oscillators (fixed-wing, ground
-before spool-up).
+**DDS slot assignment:**
 
-Each axis feeds both values into its local PLL (see section 2, Phase sync
-across axes). The frequency from the sync message takes precedence over any
-per-axis value — this guarantees all axes run the same DDS at all times.
+| Slot | Helicopter | Fixed-wing single | Fixed-wing twin |
+| --- | --- | --- | --- |
+| DDS 1 | Main rotor (5 harmonics) | Engine 1 (1-2 harmonics) | Engine 1 |
+| DDS 2 | Engine or tail rotor | Disabled (freq = 0) | Engine 2 |
+
+The gateway maintains two master DDS phase accumulators. It extracts
+`VibFundamental` (DDS 1) and `Vib2Fundamental` (DDS 2) from the
+FlightFfbAction stream and broadcasts both frequencies and phases.
+
+Each axis PLL-locks both local oscillators to the sync frame. For engine
+vibration the phase sync is not physically necessary but comes for free
+and adds no overhead (one PI loop per DDS per tick).
+
+`dds1_fundamental_hz = 0` disables DDS 1; `dds2_fundamental_hz = 0`
+disables DDS 2. Both zero = no periodic vibration (pure spring/damper mode).
 
 The existing ping frame (`0x7FE`, 10 Hz) is unchanged — it continues to
 serve gateway presence detection only.
@@ -384,30 +404,33 @@ Optimisations (apply if 1 kHz loop budget is tight):
 
 ### New graph outputs
 
-**Per flight function** (amplitude only — frequency comes from gateway sync):
+**Per flight function** (amplitudes only — frequencies come from gateway sync):
 
-| Output | Proto field | ESP32 element | Unit |
+| Output | Proto field | DDS | Unit |
 | --- | --- | --- | --- |
-| `Vib1Rev` | `vib_amp_1rev` | RotorVib amp[0] | N |
-| `Vib2Rev` | `vib_amp_2rev` | RotorVib amp[1] | N |
-| `Vib3Rev` | `vib_amp_3rev` | RotorVib amp[2] | N |
-| `VibNRev` | `vib_amp_nrev` | RotorVib amp[3] | N |
-| `Vib2NRev` | `vib_amp_2nrev` | RotorVib amp[4] | N |
+| `Vib1Rev` | `vib_amp_1rev` | 1 | N |
+| `Vib2Rev` | `vib_amp_2rev` | 1 | N |
+| `Vib3Rev` | `vib_amp_3rev` | 1 | N |
+| `VibNRev` | `vib_amp_nrev` | 1 | N |
+| `Vib2NRev` | `vib_amp_2nrev` | 1 | N |
+| `Vib2Amp1Rev` | `vib2_amp_1rev` | 2 | N |
+| `Vib2Amp2Rev` | `vib2_amp_2rev` | 2 | N |
 
-**Shared (one output, routed to gateway for sync broadcast):**
+**Shared (routed to gateway for sync frame broadcast):**
 
-| Output | Gateway sync field | Unit |
+| Output | Sync frame field | Unit |
 | --- | --- | --- |
-| `VibFundamental` | `rotor_fundamental_hz` | Hz |
+| `VibFundamental` | `dds1_fundamental_hz` | Hz |
+| `Vib2Fundamental` | `dds2_fundamental_hz` | Hz |
 
-The plugin sends `VibFundamental` to the gateway (via any one FlightFfbAction
-or a dedicated message). The gateway uses it to drive its master DDS and
-broadcasts frequency + phase to all axes. Axes ignore any per-axis fundamental
-and use only the gateway sync value.
+The plugin sends both fundamentals to the gateway (via any one
+FlightFfbAction or a dedicated path). The gateway runs two master DDS
+accumulators and broadcasts both frequency/phase pairs in the `0x0F0`
+sync frame. Axes PLL-lock both local oscillators.
 
-Add amplitude outputs to `GraphSignalCatalogData.OutputNames` for each function
-group. Follow the protocol extension checklist in Flight_FFB_Architecture.md
-section 9.
+Add amplitude outputs to `GraphSignalCatalogData.OutputNames` for each
+function group. Follow the protocol extension checklist in
+Flight_FFB_Architecture.md section 9.
 
 ### New telemetry signals
 
