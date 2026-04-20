@@ -126,13 +126,41 @@ message FlightStickConfig {
   float damping = 3;
   float centering_spring_const = 4;
   // NEW: rotor vibration config
-  uint32 blade_count = 5;   // N, valid range 2..9
-  int32 rotation_sign = 6;  // +1 CCW-from-above (US), -1 CW (EU)
+  int32 rotation_sign = 5;              // +1 CCW-from-above (US), -1 CW (EU)
+  repeated float vib_harmonic_ratios = 6;  // multipliers on fundamental per DDS 1 slot
+  repeated float vib2_harmonic_ratios = 7; // multipliers on fundamental per DDS 2 slot
 }
 ```
 
-Set once when aircraft profile is loaded. Blade count determines which
-harmonic slots map to which multiples of the fundamental.
+Set once when aircraft profile is loaded. Each slot's frequency is
+`fundamental_hz * harmonic_ratio`. The number of active slots is
+determined by the array length (up to 5 per DDS).
+
+**Harmonic ratios replace `blade_count`.** The graph or profile sets the
+ratios directly — a 5-blade helicopter uses `[1.0, 2.0, 3.0, 5.0, 10.0]`,
+a 2-blade uses `[1.0, 2.0, 3.0, 2.0, 4.0]`. This is more general and
+enables non-integer ratios for geared systems.
+
+**Examples:**
+
+| Aircraft | DDS 1 ratios | DDS 2 ratios | Notes |
+| --- | --- | --- | --- |
+| MD 500E cyclic | [1.0, 2.0, 3.0, 5.0, 10.0] | — | 5-blade, 1/2/3/N/2N |
+| MD 500E pedals | [1.0, 2.0, 4.62, 9.24] | — | Slot 3-4: tail rotor at 4.62:1 gear ratio |
+| R22 cyclic | [1.0, 2.0, 3.0, 2.0, 4.0] | — | 2-blade, slots 4-5 = N/2N = 2/4 |
+| Baron 58 pitch | [1.0, 2.0] | [1.0, 2.0] | Twin piston, 1/rev + 2/rev per engine |
+| PT6 turboprop | [1.0] | — | Smooth turbine, 1/rev only |
+
+**Tail rotor vibration via gear ratio:** for helicopter pedals, the tail
+rotor frequency is `main_rotor_fundamental * gear_ratio`. By setting a
+harmonic slot to the gear ratio (e.g., 4.62 for MD 500E), the tail rotor
+blade-passing vibration rides on the main rotor's phase-synced DDS. No
+second DDS needed for tail rotor — it's just another harmonic of the
+fundamental.
+
+The 1/rev sin/cos axis split (for disc tilt ellipse) applies ONLY to
+slots with ratio = 1.0. All other ratios are evaluated identically on
+both pitch and roll axes (isotropic vibration).
 
 ### Streaming (per FlightFfbAction, ~20 Hz)
 
@@ -277,14 +305,14 @@ New `SimElement` registered in `FlightStickFunction`:
 ```cpp
 class RotorVib : public SimElement {
 public:
-    void set_config(uint8_t blade_count, int8_t rotation_sign);
-    void set_fundamental_hz(float hz);
-    void set_amplitudes(float a1, float a2, float a3, float aN, float a2N);
-    void on_sync(float gateway_phase);  // called on gateway CAN sync receipt
+    static constexpr uint8_t MAX_SLOTS = 5;
+
+    void set_config(int8_t rotation_sign, const float *ratios, uint8_t num_slots);
+    void set_amplitudes(const float *targets, uint8_t count);
+    void on_sync(float gateway_phase, float gateway_hz);
 
     void update(const SimState &state, SimAccumulators &accum) override;
 
-    // Which axis this instance represents (determines sin vs cos for 1/rev)
     enum Axis { PITCH, ROLL };
     void set_axis(Axis axis);
 
@@ -292,20 +320,23 @@ private:
     // Local DDS
     float _phase = 0.0f;
     float _fundamental_hz = 0.0f;
-    uint8_t _blade_count = 0;
     int8_t _rotation_sign = 1;
     Axis _axis = PITCH;
 
-    // PLL state (steers local DDS toward gateway phase reference)
+    // Configurable harmonic ratios (set once per aircraft load)
+    float _ratios[MAX_SLOTS] = {};
+    uint8_t _num_slots = 0;
+
+    // PLL state
     float _phase_error = 0.0f;
     float _error_integral = 0.0f;
-    static constexpr float PLL_KP = 10.0f;   // Hz/rad — proportional gain
-    static constexpr float PLL_KI = 20.0f;   // Hz/rad/s — integral gain
-    static constexpr float PLL_INT_MAX = 5.0f; // Hz — anti-windup clamp
+    static constexpr float PLL_KP = 10.0f;
+    static constexpr float PLL_KI = 20.0f;
+    static constexpr float PLL_INT_MAX = 5.0f;
 
     // Smoothed amplitudes (first-order LPF, tau ~50 ms)
-    float _amp_1 = 0, _amp_2 = 0, _amp_3 = 0, _amp_N = 0, _amp_2N = 0;
-    float _target_1 = 0, _target_2 = 0, _target_3 = 0, _target_N = 0, _target_2N = 0;
+    float _amp[MAX_SLOTS] = {};
+    float _target[MAX_SLOTS] = {};
 
     static float wrap_pm_pi(float x);
 };
@@ -313,10 +344,11 @@ private:
 
 ### PLL sync
 
-Called on each gateway CAN sync receipt (~10 Hz):
+Called on each gateway CAN sync receipt (~100 Hz):
 
 ```cpp
-void RotorVib::on_sync(float gateway_phase) {
+void RotorVib::on_sync(float gateway_phase, float gateway_hz) {
+    _fundamental_hz = gateway_hz;
     _phase_error = wrap_pm_pi(gateway_phase - _phase);
     _error_integral += _phase_error * 0.01f;  // dt_sync ~ 10 ms
     // Anti-windup: clamp integral to prevent overshoot on large transients
@@ -351,30 +383,22 @@ void RotorVib::update(const SimState &state, SimAccumulators &accum) {
     if (_phase < 0.0f) _phase += 2.0f * M_PI;
 
     // Smooth amplitudes (first-order LPF, tau = 50 ms)
-    float alpha = dt_s / (0.05f + dt_s);
-    _amp_1 += (_target_1 - _amp_1) * alpha;
-    _amp_2 += (_target_2 - _amp_2) * alpha;
-    _amp_3 += (_target_3 - _amp_3) * alpha;
-    _amp_N += (_target_N - _amp_N) * alpha;
-    _amp_2N += (_target_2N - _amp_2N) * alpha;
+    float a = dt_s / (0.05f + dt_s);
+    for (int i = 0; i < _num_slots; i++) {
+        _amp[i] += (_target[i] - _amp[i]) * a;
+    }
 
-    // Evaluate harmonics
-    float N = (float)_blade_count;
-    float f;
-
-    if (_axis == PITCH) {
-        f = _amp_1  * sinf(_phase)
-          + _amp_2  * sinf(2.0f * _phase)
-          + _amp_3  * sinf(3.0f * _phase)
-          + _amp_N  * sinf(N * _phase)
-          + _amp_2N * sinf(2.0f * N * _phase);
-    } else {
-        // Roll: 1/rev uses cos with rotation sign; higher harmonics isotropic
-        f = _rotation_sign * _amp_1 * cosf(_phase)
-          + _amp_2  * sinf(2.0f * _phase)
-          + _amp_3  * sinf(3.0f * _phase)
-          + _amp_N  * sinf(N * _phase)
-          + _amp_2N * sinf(2.0f * N * _phase);
+    // Evaluate harmonics — each slot has a configurable ratio
+    float f = 0.0f;
+    for (int i = 0; i < _num_slots; i++) {
+        float h = _ratios[i];
+        if (h == 1.0f && _axis == ROLL) {
+            // 1/rev on roll axis: cos with rotation sign (90-deg offset for disc tilt ellipse)
+            f += _rotation_sign * _amp[i] * cosf(_phase);
+        } else {
+            // All other slots: sin, same phase on both axes (isotropic)
+            f += _amp[i] * sinf(h * _phase);
+        }
     }
 
     accum.f_vib += f;  // bypass damping and friction
@@ -544,15 +568,25 @@ Vib2NRev = base_2nrev * rpm_norm
 Exposed as Param nodes for the vehicle tab UI:
 
 ```
-1/rev  gain
-2/rev  etl_gain | slap_gain
-3/rev  rbs_gain | rbs_threshold
-N/rev  base
-2N/rev base
+slot 1 (ratio 1.0)   gain_1rev
+slot 2 (ratio 2.0)   etl_gain | slap_gain
+slot 3 (ratio 3.0)   rbs_gain | rbs_threshold
+slot 4 (ratio N)     base
+slot 5 (ratio 2N)    base
+```
+
+For pedals with tail rotor vibration, the graph sets different ratios:
+
+```
+slot 1 (ratio 1.0)   main rotor 1/rev (weak on pedals)
+slot 2 (ratio 2.0)   main rotor 2/rev
+slot 3 (ratio 4.62)  tail rotor blade-passing (2-blade TR at 4.62:1 gear)
+slot 4 (ratio 9.24)  tail rotor 2nd harmonic
 ```
 
 All envelope drivers come from live X-Plane datarefs — no synthetic
-IAS-based approximations needed.
+IAS-based approximations needed. Harmonic ratios are per-aircraft config,
+set once on profile load.
 
 
 ---
@@ -561,15 +595,25 @@ IAS-based approximations needed.
 
 ### MD500E (reference implementation)
 
-Static config: `blade_count = 5`, `rotation_sign = +1` (CCW, US)
+Static config: `rotation_sign = +1` (CCW, US)
 
-| Harmonic | Freq at 100% RPM | Dataref driver | Physical cue |
+Cyclic ratios: `[1.0, 2.0, 3.0, 5.0, 10.0]`
+Pedal ratios: `[1.0, 2.0, 4.62, 9.24]` (tail rotor gear ratio 4.62:1, 2-blade TR)
+
+| Slot | Ratio | Freq at 100% RPM | Dataref driver | Physical cue |
+| --- | --- | --- | --- | --- |
+| 1 | 1.0 | 8.2 Hz | `cyclic_elev_blad_alph` | Disc-loading "alive" feel |
+| 2 | 2.0 | 16.4 Hz | `vortex_ring_state` + `blade_slap_rat` | ETL + high-speed |
+| 3 | 3.0 | 24.6 Hz | `rotor_blade_alpha_deg` | Retreating blade stall |
+| 4 | 5.0 (N) | 41.0 Hz | RPM-proportional | Blade-passing "whirr" |
+| 5 | 10.0 (2N) | 82.0 Hz | RPM-proportional | 2nd blade-passing |
+
+Pedal-specific slots:
+
+| Slot | Ratio | Freq at 100% RPM | Physical cue |
 | --- | --- | --- | --- |
-| 1/rev | 8.2 Hz | `cyclic_elev_blad_alph` | Disc-loading "alive" feel, scales with IAS |
-| 2/rev | 16.4 Hz | `vortex_ring_state` (ETL) + `blade_slap_rat` (speed) | ETL thumping + high-speed buzz |
-| 3/rev | 24.6 Hz | `rotor_blade_alpha_deg` near stall | Retreating blade stall onset |
-| 5/rev (N) | 41.0 Hz | RPM-proportional base | Blade-passing "whirr" |
-| 10/rev (2N) | 82.0 Hz | RPM-proportional base | 2nd blade-passing, subtle |
+| 3 | 4.62 | 37.9 Hz | Tail rotor blade-passing (2-blade × 4.62:1) |
+| 4 | 9.24 | 75.8 Hz | Tail rotor 2nd harmonic |
 
 Observed dataref ranges (MD 500E, from dataref logger flight):
 
@@ -655,11 +699,11 @@ the see-saw flapping. `rotor_slap` should be the primary 2/rev driver.
 
 1. Add `f_vib` field to `SimAccumulators`, inject after damping/friction in `Sim::update()`
 2. Migrate existing `Buffet` element to use `f_vib` instead of `f_sum`
-3. `RotorVib` class on ESP32 (DDS, PLL, amplitude smoothing, force eval → `f_vib`)
-4. Wire into `FlightStickFunction` as new force element
-5. Extend `FlightFfbAction` protobuf with vibration amplitude fields
-6. Extend `FlightStickConfig` with blade_count and rotation_sign
-7. Bench test with fixed amplitudes (no graph integration yet)
+3. `RotorVib` class on ESP32 (DDS, PLL, configurable ratio slots, amplitude smoothing → `f_vib`)
+4. Wire two `RotorVib` instances into `FlightStickFunction` (DDS 1 + DDS 2)
+5. Extend `FlightFfbAction` protobuf with DDS 1 + DDS 2 amplitude fields
+6. Extend `FlightStickConfig` with `rotation_sign` and `vib_harmonic_ratios`
+7. Bench test with fixed amplitudes and ratios (no graph integration yet)
 
 ### Phase 2 -- graph integration
 
