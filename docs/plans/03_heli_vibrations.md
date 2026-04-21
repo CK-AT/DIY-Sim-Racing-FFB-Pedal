@@ -467,8 +467,8 @@ logger, ~9000 samples across hover through 170 kt and back).
 
 | Graph signal | X-Plane dataref | Type | Range (MD 500E) | Purpose |
 | --- | --- | --- | --- | --- |
-| `XPlane.Rotor.BladeAlphPitch` | `sim/flightmodel/cyclic/cyclic_elev_blad_alph[N]` | float[16] | -0.2 (hover) to -6.2 (170 kt) | **1/rev lateral amplitude** — per-axis blade alpha, scales with IAS like flapping |
-| `XPlane.Rotor.BladeAlphRoll` | `sim/flightmodel/cyclic/cyclic_ailn_blad_alph[N]` | float[16] | -0.3 to +0.1 | 1/rev longitudinal amplitude — weak |
+| `XPlane.Rotor.BladeAlphPitch` | `sim/flightmodel/cyclic/cyclic_elev_blad_alph[N]` | float[16] | -0.2 (hover) to -6.2 (170 kt) | **1/rev pitch amplitude + longitudinal load force** — dominant, scales with IAS |
+| `XPlane.Rotor.BladeAlphRoll` | `sim/flightmodel/cyclic/cyclic_ailn_blad_alph[N]` | float[16] | -0.3 to +0.1 | 1/rev roll amplitude + lateral load force — weak |
 | `XPlane.Rotor.Slap` | `sim/flightmodel2/engines/rotor_blade_slap_rat[N]` | float[16] | 0 (hover) to 0.27 (high speed) | **2/rev high-speed envelope** |
 | `XPlane.Rotor.VRS` | `sim/flightmodel/engine/vortex_ring_state[N]` | float[16][10] | 0.50 (hover) to 0.25 (60+ kt) | **2/rev ETL envelope** — transition zone 0.50->0.25 IS the ETL |
 | `XPlane.Rotor.BladeAlpha` | `sim/flightmodel2/engines/rotor_blade_alpha_deg[N]` | float[16] | 2.3 to 4.7 | Retreating blade stall indicator |
@@ -485,10 +485,12 @@ logger, ~9000 samples across hover through 170 kt and back).
 
 **Key observations from dataref logger flight data (MD 500E):**
 
-* **`blade_alph_pitch` is the 1/rev driver.** Scales from -0.2 (hover) to
-  -6.2 (170 kt), matching the `pitch_flap` envelope from the data export.
-  This is the per-axis decomposition of blade AoA — it tracks flapping
-  because flapping IS the blade's response to airspeed asymmetry.
+* **`blade_alph_pitch` is the dominant rotor signal.** Scales from -0.2
+  (hover) to -6.2 (170 kt). This is the elevator-axis (longitudinal)
+  decomposition of blade AoA — X-Plane has already resolved it into the
+  cyclic axis frame. No 90-degree precession mapping needed. Drives both
+  **pitch-axis 1/rev vibration** and **longitudinal load force** (aft
+  stick force building with airspeed).
 
 * **`vortex_ring_state` is the ETL indicator.** Value 0.50 in hover (full
   recirculation), decays through 0.47 (20 kt) → 0.36 (40 kt) → 0.25
@@ -545,9 +547,10 @@ Internal computation — amplitude envelopes driven by X-Plane datarefs:
 ```
 VibFundamental = rpm / 60
 
--- 1/rev: from per-axis blade alpha (proxy for flapping)
-Vib1Rev_roll  = gain_1rev * abs(blade_alph_pitch)   # lateral (dominant)
-Vib1Rev_pitch = gain_1rev * abs(blade_alph_roll)     # longitudinal (weak)
+-- 1/rev: from per-axis blade alpha (already in cyclic axis frame)
+--   No axis swap — X-Plane's elev/ailn decomposition matches our axes
+Vib1Rev_pitch = gain_1rev * abs(blade_alph_pitch)   # longitudinal (dominant)
+Vib1Rev_roll  = gain_1rev * abs(blade_alph_roll)     # lateral (weak)
 
 -- 2/rev: two components summed
 --   ETL component: vrs transition zone (0.50 -> 0.25) IS the ETL
@@ -1267,8 +1270,8 @@ the see-saw flapping. `rotor_slap` should be the primary 2/rev driver.
 
    | Data export field | Dataref (verified) | Vibration role |
    | --- | --- | --- |
-   | `pitch,_flap` | NOT exposed — use `cyclic_elev_blad_alph[N]` instead | 1/rev lateral |
-   | `_roll,_flap` | NOT exposed — use `cyclic_ailn_blad_alph[N]` instead | 1/rev longitudinal |
+   | `pitch,_flap` | NOT exposed — use `cyclic_elev_blad_alph[N]` instead | 1/rev pitch (dominant) + lon load force |
+   | `_roll,_flap` | NOT exposed — use `cyclic_ailn_blad_alph[N]` instead | 1/rev roll (weak) + lat load force |
    | `rotor,_slap` | `rotor_blade_slap_rat[N]` | 2/rev high-speed |
    | `swirl,maxkt` | NOT exposed — use `vortex_ring_state[N]` instead | 2/rev ETL |
    | `blade,alpha` | `rotor_blade_alpha_deg[N]` | 3/rev RBS |
@@ -1307,10 +1310,13 @@ drivers requires extreme scaling (~0.005 N/Nm) and the relationship to
 stick force varies with control geometry per aircraft.
 
 **`blade_alph_pitch` / `blade_alph_roll`** (per-axis blade alpha, degrees):
-Better proxy for hinge moments on unboosted rotors. Blade AoA directly
-determines blade lift, which determines the flapping hinge moment the pilot
-resists. Scales linearly with IAS (-0.2 hover to -6.2 at 170 kt). Already
-used for 1/rev vibration — can double as the load force envelope.
+Better proxy for hinge moments on unboosted rotors. X-Plane has already
+decomposed blade AoA into the elevator (longitudinal) and aileron (lateral)
+cyclic axes — no precession mapping needed. `blade_alph_pitch` drives
+**longitudinal** load force (aft stick force building with IAS), while
+`blade_alph_roll` drives **lateral** load force (weak). Scales linearly
+with IAS (-0.2 hover to -6.2 at 170 kt). Also used for 1/rev vibration
+amplitude on the corresponding axis.
 
 **`torque_main`** (main rotor torque, Nm):
 Drives collective/pedal coupling but not cyclic forces directly.
@@ -1352,22 +1358,21 @@ Cyclic load force requires two separate components:
 
 1. **Speed stability** (from `blade_alph_pitch/roll`): stick gets heavier
    with airspeed. Physically correct — advancing blade asymmetry increases
-   hinge moments at higher IAS.
+   hinge moments at higher IAS. X-Plane's per-axis decomposition means
+   `blade_alph_pitch` maps directly to longitudinal load force and
+   `blade_alph_roll` to lateral — no axis swap needed.
 
 2. **Manoeuvre stability** (from `g_nrml`): stick gets heavier when pulling
    g. Must be added as a separate term since blade alpha doesn't capture
    this effect.
 
 ```
-LoadForce_roll  = speed_gain * abs(blade_alph_pitch)   # IAS-dependent
+LoadForce_pitch = speed_gain * abs(blade_alph_pitch)   # lon: dominant, aft force
                 + g_gain * (g_nrml - 1.0)               # manoeuvre cue
 
-LoadForce_pitch = speed_gain * abs(blade_alph_roll)    # weak IAS component
+LoadForce_roll  = speed_gain * abs(blade_alph_roll)    # lat: weak
                 + g_gain * (g_nrml - 1.0)               # manoeuvre cue
 ```
-
-Note the axis swap: pitch flapping (advancing blade effect) produces lateral
-disc tilt → lateral stick force, and vice versa. Same 90-degree precession.
 
 For OWL (one-way lock, longitudinal axis only): clamp pitch `LoadForce` to
 negative values only (resist aft creep, don't resist forward input):
