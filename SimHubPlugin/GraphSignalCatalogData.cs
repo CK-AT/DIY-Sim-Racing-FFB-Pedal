@@ -18,6 +18,16 @@ namespace DiyFfb
             "FlightStickCollective"
         };
 
+        // FunctionScope options for Include nodes: empty string = "(none)" / unscoped
+        public static readonly IReadOnlyList<string> FunctionScopeOptions = new[]
+        {
+            "",
+            "FlightStickPitch",
+            "FlightStickRoll",
+            "FlightPedals",
+            "FlightStickCollective"
+        };
+
         // Parameter groups (from signal catalog spec)
         public static readonly IReadOnlyList<string> ParamGroups = new[]
         {
@@ -92,6 +102,44 @@ namespace DiyFfb
             "FlightStickCollective.LoadForce",
             "FlightStickCollective.TrimOffset"
         };
+
+        // ConfigType options for ConfigOut nodes
+        public static readonly IReadOnlyList<string> ConfigTypeOptions = new[]
+        {
+            "",
+            "FlightStick",
+            "FlightPedals"
+        };
+
+        /// <summary>
+        /// Maps a FunctionScope value to the config type it implies.
+        /// E.g., "FlightStickPitch" → "FlightStick", "FlightPedals" → "FlightPedals".
+        /// </summary>
+        public static string GetConfigTypeForScope(string functionScope)
+        {
+            switch (functionScope ?? "")
+            {
+                case "FlightStickPitch":
+                case "FlightStickRoll":
+                case "FlightStickCollective":
+                    return "FlightStick";
+                case "FlightPedals":
+                    return "FlightPedals";
+                default:
+                    return "";
+            }
+        }
+
+        /// <summary>
+        /// All distinct output signal suffixes across all function groups.
+        /// Used by scoped Output nodes where the group is determined by the parent Include's FunctionScope.
+        /// </summary>
+        public static readonly IReadOnlyList<string> OutputSuffixes =
+            OutputNames
+                .Select(n => n.Substring(n.IndexOf('.') + 1))
+                .Distinct()
+                .OrderBy(s => s)
+                .ToArray();
 
         /// <summary>
         /// Gets signal suffixes for a given input group.

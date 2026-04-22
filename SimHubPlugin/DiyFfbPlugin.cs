@@ -131,6 +131,7 @@ namespace DiyFfb
         private long _lastGraphEvalTicks;
         internal ButtonInputReader ButtonInputReader => _buttonInputReader;
         private DiyFfb.GraphTest.GraphEvaluationResult lastGraphEvaluation;
+        private readonly Dictionary<string, double> _lastConfigOutValues = new Dictionary<string, double>();
         private static Func<GameData, string> gameIdGetter;
         private DiyFfbPluginSettings.AircraftFfbProfile pendingFfbProfile;
         private bool hasPendingFfbProfile;
@@ -1194,6 +1195,8 @@ namespace DiyFfb
             SendGraphFfbForFunction(FunctionID.FlightStickRoll);
             SendGraphFfbForFunction(FunctionID.FlightPedals);
             SendGraphFfbForFunction(FunctionID.FlightStickCollective);
+
+            CheckConfigOutChanges();
         }
 
         private int ResolveXPlaneRotorIndex(XPlaneUdpPacket packet)
@@ -1305,6 +1308,106 @@ namespace DiyFfb
             }
 
             SendFlightFfb(functionId, spring, damper, friction, trim, buffet, load);
+        }
+
+        /// <summary>
+        /// Checks ConfigOut values from the graph evaluation and triggers config uploads
+        /// when any value changes. ConfigOut keys use the format "FunctionScope:FieldPath"
+        /// (e.g., "FlightStickPitch:flight_stick.damping").
+        /// </summary>
+        private void CheckConfigOutChanges()
+        {
+            var configOutputs = lastGraphEvaluation?.ConfigOutputs;
+            if (configOutputs == null || configOutputs.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var kvp in configOutputs)
+            {
+                string key = kvp.Key;
+                double newValue = kvp.Value;
+
+                // Check if value changed (with tolerance for floating point)
+                if (_lastConfigOutValues.TryGetValue(key, out double oldValue) &&
+                    Math.Abs(newValue - oldValue) < 1e-6)
+                {
+                    continue;
+                }
+
+                _lastConfigOutValues[key] = newValue;
+
+                // Parse "FunctionScope:FieldPath" format
+                int sepIndex = key.IndexOf(':');
+                if (sepIndex <= 0 || sepIndex >= key.Length - 1)
+                {
+                    continue;
+                }
+
+                string scopeName = key.Substring(0, sepIndex);
+                string fieldPath = key.Substring(sepIndex + 1);
+
+                // Resolve function ID from scope name
+                FunctionID? functionId = ResolveFunctionIdFromScope(scopeName);
+                if (functionId == null)
+                {
+                    continue;
+                }
+
+                // Validate the field belongs to the correct config type for this function
+                var field = TieredConfig.OverrideFieldRegistry.GetField(fieldPath);
+                if (field == null)
+                {
+                    continue;
+                }
+
+                // Validate: field must be either shared (Physics, OutputScaling, etc.)
+                // or belong to the config type matching this scope
+                string expectedConfigType = GraphSignalCatalogData.GetConfigTypeForScope(scopeName);
+                if (!string.IsNullOrEmpty(expectedConfigType) && !IsSharedFieldGroup(field.Group))
+                {
+                    string fieldGroup = field.Group.ToString();
+                    if (!string.Equals(fieldGroup, expectedConfigType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // ConfigType mismatch — skip silently (editor should have warned)
+                        continue;
+                    }
+                }
+
+                if (ConfigOrchestrator != null)
+                {
+                    ConfigOrchestrator.UpdateFunctionOverrideField(
+                        (int)functionId.Value,
+                        fieldPath,
+                        overrides => OverrideFieldRegistry.SetValue(overrides, fieldPath, (float)newValue));
+                }
+            }
+        }
+
+        private static bool IsSharedFieldGroup(TieredConfig.OverrideFieldGroup group)
+        {
+            switch (group)
+            {
+                case TieredConfig.OverrideFieldGroup.OutputScaling:
+                case TieredConfig.OverrideFieldGroup.Physics:
+                case TieredConfig.OverrideFieldGroup.StaticBalanceTuning:
+                case TieredConfig.OverrideFieldGroup.ForceFeedback:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static FunctionID? ResolveFunctionIdFromScope(string scopeName)
+        {
+            switch (scopeName)
+            {
+                case "FlightStickPitch": return FunctionID.FlightStickPitch;
+                case "FlightStickRoll": return FunctionID.FlightStickRoll;
+                case "FlightPedals": return FunctionID.FlightPedals;
+                case "FlightStickCollective": return FunctionID.FlightStickCollective;
+                default: return null;
+            }
         }
 
         private bool TryGetGraphFlightOutputs(FunctionID functionId, out float spring, out float damper, out float friction,
@@ -1731,6 +1834,7 @@ namespace DiyFfb
             activeGraphResolver = null;
             activeIncludeContextCache = null;
             lastGraphEvaluation = null;
+            _lastConfigOutValues.Clear();
 
             bool autoAssigned = false;
             if (string.IsNullOrWhiteSpace(activeGraphPath))

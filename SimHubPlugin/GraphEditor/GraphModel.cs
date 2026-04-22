@@ -11,7 +11,8 @@ namespace DiyFfb.GraphEditor
         Op,
         Func,
         Include,
-        Output
+        Output,
+        ConfigOut
     }
 
     public enum GraphPortKind
@@ -55,6 +56,29 @@ namespace DiyFfb.GraphEditor
         public string SignalGroup { get; set; } = "";
 
         /// <summary>
+        /// Function scope for Include nodes. When set, scoped Output and ConfigOut nodes
+        /// inside the included sub-graph are auto-registered using this as their function group.
+        /// E.g., "FlightStickPitch", "FlightStickRoll", "FlightPedals".
+        /// Empty string means unscoped (default, backward-compatible behavior).
+        /// </summary>
+        public string FunctionScope { get; set; } = "";
+
+        /// <summary>
+        /// Marks an Output node as scoped. When true, ports use SignalSuffix (dropdown)
+        /// instead of freeform Name, and the output is auto-registered by the parent
+        /// Include's FunctionScope. When false, the output appears as a normal port on
+        /// the Include node. Only meaningful on Output nodes in library graphs.
+        /// </summary>
+        public bool Scoped { get; set; }
+
+        /// <summary>
+        /// Config type for ConfigOut nodes. Determines which OverrideFieldRegistry fields
+        /// are available in the dropdown (e.g., "FlightStick" or "FlightPedals").
+        /// Must match the function type implied by the parent Include's FunctionScope.
+        /// </summary>
+        public string ConfigType { get; set; } = "";
+
+        /// <summary>
         /// Cached interface from the included graph. Not serialized.
         /// Populated by SyncIncludePorts() when IncludePath changes.
         /// </summary>
@@ -74,10 +98,24 @@ namespace DiyFfb.GraphEditor
         public List<string> Inputs { get; } = new List<string>();
 
         /// <summary>
-        /// Names of Output node ports in the included graph (provided outputs).
+        /// Names of unscoped Output node ports (provided outputs).
         /// These become output ports on the Include node.
         /// </summary>
         public List<string> Outputs { get; } = new List<string>();
+
+        /// <summary>
+        /// Scoped Output node ports. These do NOT become ports on the Include node —
+        /// they are auto-registered by the converter when FunctionScope is set.
+        /// Name is the internal port name (for OutputMap), SignalSuffix is the catalog suffix.
+        /// </summary>
+        public List<ScopedOutputPort> ScopedOutputs { get; } = new List<ScopedOutputPort>();
+
+        /// <summary>
+        /// ConfigOut node ports in the included graph.
+        /// These do NOT become ports on the Include node — they are only used
+        /// when the Include has a FunctionScope, to register scoped config outputs.
+        /// </summary>
+        public List<ConfigOutputPort> ConfigOutputs { get; } = new List<ConfigOutputPort>();
 
         /// <summary>
         /// True if the interface was successfully extracted.
@@ -106,6 +144,40 @@ namespace DiyFfb.GraphEditor
         /// Per-input negation flag for Op nodes (only meaningful on Op input ports).
         /// </summary>
         public bool Negate { get; set; }
+
+        /// <summary>
+        /// Config field path for ConfigOut input ports. Stores the OverrideFieldRegistry
+        /// FieldPath (e.g., "flight_stick.damping", "flight_stick.vib_harmonic_ratios.0").
+        /// Only meaningful on ConfigOut node input ports.
+        /// </summary>
+        public string ConfigField { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Describes a scoped Output port extracted from an included sub-graph.
+    /// </summary>
+    public sealed class ScopedOutputPort
+    {
+        /// <summary>Port name in the sub-graph (used for OutputMap lookup).</summary>
+        public string Name { get; set; } = "";
+
+        /// <summary>Signal suffix (e.g., "SpringGain") used to build the scoped name.</summary>
+        public string SignalSuffix { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Describes a ConfigOut port extracted from an included sub-graph.
+    /// </summary>
+    public sealed class ConfigOutputPort
+    {
+        /// <summary>Port name in the sub-graph (used for OutputMap lookup).</summary>
+        public string Name { get; set; } = "";
+
+        /// <summary>OverrideFieldRegistry FieldPath (e.g., "flight_stick.damping").</summary>
+        public string ConfigField { get; set; } = "";
+
+        /// <summary>Config type from the ConfigOut node (e.g., "FlightStick").</summary>
+        public string ConfigType { get; set; } = "";
     }
 
     public sealed class GraphLink

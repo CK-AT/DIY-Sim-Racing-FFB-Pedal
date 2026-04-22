@@ -39,6 +39,7 @@ namespace DiyFfb.GraphEditor
         private string _previewStatusText = "";
         private readonly GraphPreviewEvaluator _previewEvaluator = new GraphPreviewEvaluator();
         private readonly ObservableCollection<PortEditEntry> _portEntries = new ObservableCollection<PortEditEntry>();
+        private readonly Dictionary<string, IReadOnlyList<string>> _configFieldOptionsCache = new Dictionary<string, IReadOnlyList<string>>();
         private bool _isPanning;
         private bool _panWasDragged;
         private bool _hasUserPanned;
@@ -120,6 +121,33 @@ namespace DiyFfb.GraphEditor
 
         public ObservableCollection<string> IncludeInputNames { get; } = new ObservableCollection<string>();
         public ObservableCollection<string> IncludeOutputNames { get; } = new ObservableCollection<string>();
+
+        /// <summary>
+        /// FunctionScope dropdown options for Include nodes.
+        /// </summary>
+        public IReadOnlyList<string> FunctionScopeOptions => GraphSignalCatalogData.FunctionScopeOptions;
+
+        public IReadOnlyList<string> ConfigTypeOptions => GraphSignalCatalogData.ConfigTypeOptions;
+
+        public static readonly DependencyProperty ConfigTypeMismatchMessageProperty =
+            DependencyProperty.Register(nameof(ConfigTypeMismatchMessage), typeof(string), typeof(GraphEditorControl),
+                new PropertyMetadata(""));
+
+        public string ConfigTypeMismatchMessage
+        {
+            get => (string)GetValue(ConfigTypeMismatchMessageProperty);
+            private set => SetValue(ConfigTypeMismatchMessageProperty, value ?? "");
+        }
+
+        public static readonly DependencyProperty ConfigTypeMismatchVisibleProperty =
+            DependencyProperty.Register(nameof(ConfigTypeMismatchVisible), typeof(bool), typeof(GraphEditorControl),
+                new PropertyMetadata(false));
+
+        public bool ConfigTypeMismatchVisible
+        {
+            get => (bool)GetValue(ConfigTypeMismatchVisibleProperty);
+            private set => SetValue(ConfigTypeMismatchVisibleProperty, value);
+        }
 
         public static readonly DependencyProperty IncludeErrorMessageProperty =
             DependencyProperty.Register(nameof(IncludeErrorMessage), typeof(string), typeof(GraphEditorControl),
@@ -1544,6 +1572,7 @@ namespace DiyFfb.GraphEditor
             menu.Items.Add(BuildMenuItem("Add Func", () => AddNode(GraphNodeKind.Func, position)));
             menu.Items.Add(BuildMenuItem("Add Include", () => AddNode(GraphNodeKind.Include, position)));
             menu.Items.Add(BuildMenuItem("Add Output", () => AddNode(GraphNodeKind.Output, position)));
+            menu.Items.Add(BuildMenuItem("Add ConfigOut", () => AddNode(GraphNodeKind.ConfigOut, position)));
             menu.Items.Add(new Separator());
             menu.Items.Add(BuildMenuItem("Zoom to Fit", ZoomToFit));
             menu.Items.Add(BuildMenuItem("Align Left", AlignSelectedLeft));
@@ -1606,6 +1635,10 @@ namespace DiyFfb.GraphEditor
             {
                 node.Ports.Add(new GraphPort { Name = "in", Kind = GraphPortKind.Input });
             }
+            else if (kind == GraphNodeKind.ConfigOut)
+            {
+                node.Ports.Add(new GraphPort { Name = "cfg_0", Kind = GraphPortKind.Input });
+            }
 
             _graph.Nodes.Add(node);
             var visual = BuildNodeVisual(node);
@@ -1640,6 +1673,7 @@ namespace DiyFfb.GraphEditor
             TextNoSelection.Visibility = Visibility.Collapsed;
             if (UsesTemplateInspector(node) && (node.Kind == GraphNodeKind.Input ||
                                                 node.Kind == GraphNodeKind.Output ||
+                                                node.Kind == GraphNodeKind.ConfigOut ||
                                                 node.Kind == GraphNodeKind.Param ||
                                                 node.Kind == GraphNodeKind.Op))
             {
@@ -3231,7 +3265,11 @@ namespace DiyFfb.GraphEditor
                 IsNegateSupportedOp(node.Op);
 
             // In library graphs, Input/Output nodes use Name directly (freeform)
-            if (isLibraryGraph && (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output))
+            // Exception: Scoped Output nodes use SignalSuffix even in library graphs
+            // ConfigOut nodes always use freeform Names
+            if (node.Kind == GraphNodeKind.ConfigOut ||
+                (isLibraryGraph && (node.Kind == GraphNodeKind.Input ||
+                                    (node.Kind == GraphNodeKind.Output && !node.Scoped))))
             {
                 return isNegatedOpInput ? "-" + port.Name : port.Name;
             }
@@ -3281,13 +3319,18 @@ namespace DiyFfb.GraphEditor
                     label = BuildSignalNodeHeader("Input", node);
                     break;
                 case GraphNodeKind.Output:
-                    label = BuildSignalNodeHeader("Output", node);
+                    label = node.Scoped
+                        ? $"Output (Scoped, Ports: {node.Ports?.Count ?? 0})"
+                        : BuildSignalNodeHeader("Output", node);
                     break;
                 case GraphNodeKind.Param:
                     label = BuildSignalNodeHeader("Param", node);
                     break;
                 case GraphNodeKind.Include:
                     label = BuildIncludeHeader(node);
+                    break;
+                case GraphNodeKind.ConfigOut:
+                    label = string.IsNullOrWhiteSpace(node.Title) ? "ConfigOut" : $"ConfigOut ({node.Title})";
                     break;
                 default:
                     label = node.Kind.ToString();
@@ -3346,6 +3389,7 @@ namespace DiyFfb.GraphEditor
                    || node.Kind == GraphNodeKind.Func
                    || node.Kind == GraphNodeKind.Input
                    || node.Kind == GraphNodeKind.Output
+                   || node.Kind == GraphNodeKind.ConfigOut
                    || node.Kind == GraphNodeKind.Param
                    || node.Kind == GraphNodeKind.Include;
         }
@@ -3469,6 +3513,165 @@ namespace DiyFfb.GraphEditor
             SyncPortEntries(node);
 
             GraphChanged?.Invoke();
+        }
+
+        private void InspectorFunctionScope_Loaded(object sender, RoutedEventArgs e)
+        {
+            SyncFunctionScopeComboBox(sender as ComboBox);
+        }
+
+        private void InspectorFunctionScope_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            SyncFunctionScopeComboBox(sender as ComboBox);
+        }
+
+        private void SyncFunctionScopeComboBox(ComboBox comboBox)
+        {
+            if (comboBox?.DataContext is GraphNode node)
+            {
+                _isInspectorUpdating = true;
+                comboBox.SelectedItem = string.IsNullOrEmpty(node.FunctionScope) ? "" : node.FunctionScope;
+                _isInspectorUpdating = false;
+            }
+        }
+
+        private void InspectorFunctionScope_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null)
+            {
+                return;
+            }
+
+            if (sender is ComboBox comboBox &&
+                comboBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
+            {
+                string selected = comboBox.SelectedItem as string ?? "";
+                if (node.FunctionScope != selected)
+                {
+                    node.FunctionScope = selected;
+                    // Re-sync ports: scoped includes hide output ports
+                    SyncIncludePorts(node);
+                    RebuildSurface();
+                    if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+                    {
+                        _selectedNode = visual;
+                        _selectedNodes.Clear();
+                        _selectedNodes.Add(visual);
+                    }
+                    UpdateSelectionVisuals();
+                    UpdateInspector();
+                    CheckConfigTypeMismatch(node);
+                    GraphChanged?.Invoke();
+                }
+            }
+        }
+
+        private void InspectorConfigType_Loaded(object sender, RoutedEventArgs e)
+        {
+            SyncConfigTypeComboBox(sender as ComboBox);
+        }
+
+        private void InspectorConfigType_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            SyncConfigTypeComboBox(sender as ComboBox);
+        }
+
+        private void SyncConfigTypeComboBox(ComboBox comboBox)
+        {
+            if (comboBox?.DataContext is GraphNode node)
+            {
+                _isInspectorUpdating = true;
+                comboBox.SelectedItem = string.IsNullOrEmpty(node.ConfigType) ? "" : node.ConfigType;
+                _isInspectorUpdating = false;
+            }
+        }
+
+        private void InspectorConfigType_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null)
+            {
+                return;
+            }
+
+            if (sender is ComboBox comboBox &&
+                comboBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
+            {
+                string selected = comboBox.SelectedItem as string ?? "";
+                if (node.ConfigType != selected)
+                {
+                    node.ConfigType = selected;
+                    // Re-sync port entries to update field dropdown options
+                    SyncPortEntries(node);
+                    GraphChanged?.Invoke();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks if an Include node's FunctionScope is compatible with the ConfigType
+        /// of any ConfigOut nodes in the included sub-graph. Shows a warning if not.
+        /// </summary>
+        private void CheckConfigTypeMismatch(GraphNode node)
+        {
+            ConfigTypeMismatchVisible = false;
+            ConfigTypeMismatchMessage = "";
+
+            if (node == null || node.Kind != GraphNodeKind.Include ||
+                string.IsNullOrEmpty(node.FunctionScope) || node.CachedInterface == null)
+            {
+                return;
+            }
+
+            string expectedType = GraphSignalCatalogData.GetConfigTypeForScope(node.FunctionScope);
+            if (string.IsNullOrEmpty(expectedType))
+            {
+                return;
+            }
+
+            foreach (var cfgOut in node.CachedInterface.ConfigOutputs)
+            {
+                if (!string.IsNullOrEmpty(cfgOut.ConfigType) && cfgOut.ConfigType != expectedType)
+                {
+                    ConfigTypeMismatchVisible = true;
+                    ConfigTypeMismatchMessage =
+                        $"ConfigOut type mismatch: sub-graph has ConfigType '{cfgOut.ConfigType}' " +
+                        $"but FunctionScope '{node.FunctionScope}' expects '{expectedType}'.";
+                    return;
+                }
+            }
+        }
+
+        private void InspectorScoped_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null)
+            {
+                return;
+            }
+
+            if (sender is System.Windows.Controls.CheckBox checkBox &&
+                checkBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
+            {
+                bool isScoped = checkBox.IsChecked == true;
+                if (node.Scoped != isScoped)
+                {
+                    node.Scoped = isScoped;
+                    // When toggling Scoped, ports switch between freeform and signal-bound.
+                    // Rebuild the node visual and re-sync port entries.
+                    RebuildSurface();
+                    if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+                    {
+                        _selectedNode = visual;
+                        _selectedNodes.Clear();
+                        _selectedNodes.Add(visual);
+                    }
+                    UpdateSelectionVisuals();
+                    SyncPortEntries(node);
+                    GraphChanged?.Invoke();
+                }
+            }
         }
 
         private void ButtonAddInputPort_Click(object sender, RoutedEventArgs e)
@@ -4139,12 +4342,30 @@ namespace DiyFfb.GraphEditor
                 }
                 else if (node.Kind == GraphNodeKind.Output && port.Kind == GraphPortKind.Input)
                 {
-                    // Library graphs use freeform port names; top-level graphs use signal catalog
-                    if (!isLibraryGraph)
+                    if (node.Scoped)
                     {
+                        // Scoped Output: group-independent suffix dropdown
+                        useSignalOptions = true;
+                        signalOptions = GraphSignalCatalogData.OutputSuffixes;
+                    }
+                    else if (!isLibraryGraph)
+                    {
+                        // Top-level graph Output: group-specific suffix dropdown
                         useSignalOptions = true;
                         signalOptions = GraphSignalCatalog.GetOutputSignalsForGroup(effectiveSignalGroup);
                         MigratePortSignalSuffix(port, effectiveSignalGroup);
+                    }
+                }
+                else if (node.Kind == GraphNodeKind.ConfigOut && port.Kind == GraphPortKind.Input)
+                {
+                    // ConfigOut ports select from OverrideFieldRegistry field paths,
+                    // filtered by the node's ConfigType
+                    useSignalOptions = true;
+                    signalOptions = GetConfigFieldOptionsForType(node.ConfigType);
+                    // Use ConfigField as the display name if set
+                    if (!string.IsNullOrEmpty(port.ConfigField) && string.IsNullOrEmpty(port.Name))
+                    {
+                        port.Name = port.ConfigField;
                     }
                 }
                 else if (node.Kind == GraphNodeKind.Param && port.Kind == GraphPortKind.Output)
@@ -4215,6 +4436,51 @@ namespace DiyFfb.GraphEditor
             }
         }
 
+        // Groups that are shared across all function types (not tied to a specific config type)
+        private static readonly HashSet<TieredConfig.OverrideFieldGroup> SharedFieldGroups = new HashSet<TieredConfig.OverrideFieldGroup>
+        {
+            TieredConfig.OverrideFieldGroup.OutputScaling,
+            TieredConfig.OverrideFieldGroup.Physics,
+            TieredConfig.OverrideFieldGroup.StaticBalanceTuning,
+            TieredConfig.OverrideFieldGroup.ForceFeedback,
+        };
+
+        private IReadOnlyList<string> GetConfigFieldOptionsForType(string configType)
+        {
+            string key = configType ?? "";
+            if (_configFieldOptionsCache.TryGetValue(key, out var cached))
+            {
+                return cached;
+            }
+
+            IEnumerable<TieredConfig.OverrideFieldDefinition> fields;
+            if (!string.IsNullOrEmpty(key))
+            {
+                // Map ConfigType string to OverrideFieldGroup enum
+                TieredConfig.OverrideFieldGroup? typeGroup = null;
+                if (key == "FlightStick") typeGroup = TieredConfig.OverrideFieldGroup.FlightStick;
+                else if (key == "FlightPedals") typeGroup = TieredConfig.OverrideFieldGroup.FlightPedals;
+
+                // Include type-specific fields + shared fields
+                fields = TieredConfig.OverrideFieldRegistry.GetAllFields()
+                    .Where(f => SharedFieldGroups.Contains(f.Group) ||
+                                (typeGroup.HasValue && f.Group == typeGroup.Value));
+            }
+            else
+            {
+                fields = TieredConfig.OverrideFieldRegistry.GetAllFields();
+            }
+
+            var options = fields
+                .Where(f => f.FieldType == TieredConfig.OverrideFieldType.Float)
+                .Select(f => f.FieldPath)
+                .OrderBy(p => p)
+                .ToArray();
+
+            _configFieldOptionsCache[key] = options;
+            return options;
+        }
+
         private void OnPortNameChanged(object sender, EventArgs e)
         {
             if (_isInspectorUpdating || _selectedNode == null)
@@ -4245,11 +4511,17 @@ namespace DiyFfb.GraphEditor
 
                 // For signal-bound Input/Output nodes, also update SignalSuffix
                 // Library graph Input/Output nodes use freeform Name, not SignalSuffix
+                // Exception: Scoped Output nodes use SignalSuffix even in library graphs
                 bool isLibraryGraph = _graph != null && _graph.IsLibraryGraph;
                 if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output) &&
-                    entry.UseSignalOptions && !isLibraryGraph)
+                    entry.UseSignalOptions && (!isLibraryGraph || node.Scoped))
                 {
                     entry.Port.SignalSuffix = unique;
+                }
+                else if (node.Kind == GraphNodeKind.ConfigOut && entry.UseSignalOptions)
+                {
+                    // ConfigOut ports: the selected field path IS the ConfigField
+                    entry.Port.ConfigField = unique;
                 }
                 else if (node.Kind == GraphNodeKind.Param && entry.Port.Kind == GraphPortKind.Output)
                 {
@@ -4468,6 +4740,24 @@ namespace DiyFfb.GraphEditor
                 SyncPreviewEntries();
                 RefreshPreview();
                 GraphChanged?.Invoke();
+            }
+        }
+
+        private void SignalPickerCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isInspectorUpdating)
+            {
+                return;
+            }
+
+            if (sender is ComboBox comboBox && comboBox.SelectedItem is string selected && !string.IsNullOrEmpty(selected))
+            {
+                // Walk up to find the PortEditEntry DataContext
+                var entry = comboBox.DataContext as PortEditEntry;
+                if (entry != null && entry.Name != selected)
+                {
+                    entry.Name = selected;
+                }
             }
         }
 
@@ -4695,6 +4985,7 @@ namespace DiyFfb.GraphEditor
             {
                 case GraphNodeKind.Input: return TitleBarInput;
                 case GraphNodeKind.Output: return TitleBarOutput;
+                case GraphNodeKind.ConfigOut: return TitleBarOutput;
                 case GraphNodeKind.Param: return TitleBarParam;
                 case GraphNodeKind.Const: return TitleBarConst;
                 case GraphNodeKind.Op: return TitleBarOp;
@@ -4885,6 +5176,7 @@ namespace DiyFfb.GraphEditor
 
             if (node.Kind == GraphNodeKind.Include ||
                 node.Kind == GraphNodeKind.Output ||
+                node.Kind == GraphNodeKind.ConfigOut ||
                 node.Kind == GraphNodeKind.Input ||
                 node.Kind == GraphNodeKind.Param)
             {
@@ -5117,6 +5409,8 @@ namespace DiyFfb.GraphEditor
             }
 
             // Legacy panel removed; collections drive the template.
+
+            CheckConfigTypeMismatch(node);
         }
 
         /// <summary>
@@ -5153,7 +5447,8 @@ namespace DiyFfb.GraphEditor
                 node.Ports.Add(new GraphPort { Name = inputName, Kind = GraphPortKind.Input });
             }
 
-            // Add output ports from interface
+            // Add output ports for unscoped outputs only.
+            // Scoped outputs are in iface.ScopedOutputs — they don't appear as Include node ports.
             foreach (var outputName in iface.Outputs)
             {
                 node.Ports.Add(new GraphPort { Name = outputName, Kind = GraphPortKind.Output });
@@ -5444,10 +5739,14 @@ namespace DiyFfb.GraphEditor
             {
                 Port = port;
                 // For Input/Output nodes with signal options, use SignalSuffix for display
+                // For ConfigOut nodes, use ConfigField for display
                 // For Param nodes or other cases, use Name
-                _name = useSignalOptions && !string.IsNullOrEmpty(port.SignalSuffix)
-                    ? port.SignalSuffix
-                    : port.Name;
+                if (useSignalOptions && !string.IsNullOrEmpty(port.ConfigField))
+                    _name = port.ConfigField;
+                else if (useSignalOptions && !string.IsNullOrEmpty(port.SignalSuffix))
+                    _name = port.SignalSuffix;
+                else
+                    _name = port.Name;
                 _isNegated = port.Negate;
                 UseSignalOptions = useSignalOptions;
                 SignalOptions = signalOptions ?? Array.Empty<string>();
@@ -6004,6 +6303,7 @@ namespace DiyFfb.GraphEditor
         public DataTemplate OutputTemplate { get; set; }
         public DataTemplate ParamTemplate { get; set; }
         public DataTemplate IncludeTemplate { get; set; }
+        public DataTemplate ConfigOutTemplate { get; set; }
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
@@ -6025,6 +6325,8 @@ namespace DiyFfb.GraphEditor
                         return ParamTemplate;
                     case GraphNodeKind.Include:
                         return IncludeTemplate;
+                    case GraphNodeKind.ConfigOut:
+                        return ConfigOutTemplate;
                 }
             }
 

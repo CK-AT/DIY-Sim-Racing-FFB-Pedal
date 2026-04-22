@@ -12,7 +12,8 @@ namespace DiyFfb.GraphTest
         Op,
         Func,
         Include,
-        Output
+        Output,
+        ConfigOut
     }
 
     public enum OpType
@@ -55,6 +56,7 @@ namespace DiyFfb.GraphTest
     public sealed class GraphEvaluationResult
     {
         public Dictionary<string, double> Outputs { get; } = new Dictionary<string, double>();
+        public Dictionary<string, double> ConfigOutputs { get; } = new Dictionary<string, double>();
         public Dictionary<string, double> NodeValues { get; } = new Dictionary<string, double>();
         public List<string> Warnings { get; } = new List<string>();
     }
@@ -116,6 +118,9 @@ namespace DiyFfb.GraphTest
                     case NodeType.Output:
                         _values[node.Id] = Resolve(node.Src);
                         break;
+                    case NodeType.ConfigOut:
+                        _values[node.Id] = Resolve(node.Src);
+                        break;
                 }
             }
 
@@ -128,6 +133,11 @@ namespace DiyFfb.GraphTest
             foreach (var node in _order.Where(n => n.Type == NodeType.Output))
             {
                 result.Outputs[node.Name] = _values[node.Id];
+            }
+
+            foreach (var node in _order.Where(n => n.Type == NodeType.ConfigOut))
+            {
+                result.ConfigOutputs[node.Name] = _values[node.Id];
             }
 
             return result;

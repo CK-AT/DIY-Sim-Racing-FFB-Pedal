@@ -179,6 +179,16 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Converter: editor JSON detects links", TestConvertEditorJson_DetectsLinks));
             results.Add(TestRunner.RunTest("Converter: editor JSON detects kind", TestConvertEditorJson_DetectsKind));
 
+            // FunctionScope / ConfigOut / Scoped Output tests
+            results.Add(TestRunner.RunTest("Converter: scoped output creates runtime output", TestConvert_ScopedOutput));
+            results.Add(TestRunner.RunTest("Converter: unscoped output still appears as include port", TestConvert_UnscopedOutputWithFunctionScope));
+            results.Add(TestRunner.RunTest("Converter: ConfigOut creates runtime config output", TestConvert_ConfigOut));
+            results.Add(TestRunner.RunTest("Converter: ConfigOut scoped via FunctionScope", TestConvert_ConfigOutScoped));
+            results.Add(TestRunner.RunTest("Evaluator: ConfigOut values in ConfigOutputs", TestEval_ConfigOutValues));
+            results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigOut values in ConfigOutputs", TestCompiledEval_ConfigOutValues));
+            results.Add(TestRunner.RunTest("ExtractInterface: scoped vs unscoped outputs", TestExtractInterface_ScopedOutputs));
+            results.Add(TestRunner.RunTest("ExtractInterface: ConfigOut with ConfigType", TestExtractInterface_ConfigOutputs));
+
             // AxisRequestQueue tests
             results.Add(TestRunner.RunTest("Queue: enqueue adds to queue", TestEnqueue_AddsToQueue));
             results.Add(TestRunner.RunTest("Queue: duplicate ignored", TestEnqueue_DuplicateIgnored));
@@ -4575,6 +4585,247 @@ namespace DiyFfb.GraphTest
 
             double after = Eval(eval, on, 1.0);  // should be 5 (fresh start + one step)
             return Math.Abs(before - 15.0) < 1e-9 && Math.Abs(after - 5.0) < 1e-9;
+        }
+
+        #endregion
+
+        #region FunctionScope / ConfigOut / Scoped Output tests
+
+        private static bool TestConvert_ScopedOutput()
+        {
+            // A scoped Output in a sub-graph should create a runtime Output node
+            // with Name = FunctionScope + "." + SignalSuffix when the Include has FunctionScope.
+            var graph = new GraphEditor.GraphDefinition();
+
+            var constNode = new GraphEditor.GraphNode { Id = "k", Kind = GraphEditor.GraphNodeKind.Const, ConstValue = 7.0 };
+            graph.Nodes.Add(constNode);
+
+            var includeNode = new GraphEditor.GraphNode
+            {
+                Id = "inc",
+                Kind = GraphEditor.GraphNodeKind.Include,
+                IncludePath = "sub.json",
+                FunctionScope = "FlightStickPitch"
+            };
+            // Simulate CachedInterface with one scoped output
+            includeNode.CachedInterface = new GraphEditor.IncludedGraphInterface { IsValid = true };
+            includeNode.CachedInterface.ScopedOutputs.Add(new GraphEditor.ScopedOutputPort
+            {
+                Name = "spring",
+                SignalSuffix = "SpringGain"
+            });
+            // No output ports on the Include node (scoped outputs are hidden)
+            graph.Nodes.Add(includeNode);
+
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+
+            // Should have created a scoped runtime Output node
+            return runtime.Nodes.TryGetValue("inc:scoped:spring", out var rOut) &&
+                   rOut.Type.ToString() == "Output" &&
+                   rOut.Name == "FlightStickPitch.SpringGain" &&
+                   rOut.Src == "inc:spring";
+        }
+
+        private static bool TestConvert_UnscopedOutputWithFunctionScope()
+        {
+            // An unscoped output should still appear in the Include's OutputMap
+            // even when FunctionScope is set — only scoped outputs are auto-registered.
+            var graph = new GraphEditor.GraphDefinition();
+
+            var includeNode = new GraphEditor.GraphNode
+            {
+                Id = "inc",
+                Kind = GraphEditor.GraphNodeKind.Include,
+                IncludePath = "sub.json",
+                FunctionScope = "FlightStickPitch"
+            };
+            includeNode.CachedInterface = new GraphEditor.IncludedGraphInterface { IsValid = true };
+            // Unscoped output appears as a regular port on the Include node
+            includeNode.Ports.Add(new GraphEditor.GraphPort { Name = "custom_out", Kind = GraphEditor.GraphPortKind.Output });
+            graph.Nodes.Add(includeNode);
+
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+
+            // Unscoped output should be in OutputMap, NOT auto-registered as a scoped output
+            bool hasOutputMap = runtime.Nodes.TryGetValue("inc", out var rInc) &&
+                                rInc.OutputMap.ContainsKey("custom_out");
+            bool noScopedNode = !runtime.Nodes.ContainsKey("inc:scoped:custom_out");
+            return hasOutputMap && noScopedNode;
+        }
+
+        private static bool TestConvert_ConfigOut()
+        {
+            // A ConfigOut node in a graph should create a runtime ConfigOut node
+            // with Name = ConfigField and Type = ConfigOut.
+            var graph = new GraphEditor.GraphDefinition();
+
+            var constNode = new GraphEditor.GraphNode { Id = "k", Kind = GraphEditor.GraphNodeKind.Const, ConstValue = 5.0 };
+            graph.Nodes.Add(constNode);
+
+            var cfgOutNode = new GraphEditor.GraphNode
+            {
+                Id = "cfg",
+                Kind = GraphEditor.GraphNodeKind.ConfigOut,
+                ConfigType = "FlightStick"
+            };
+            cfgOutNode.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "ratio_0",
+                Kind = GraphEditor.GraphPortKind.Input,
+                ConfigField = "flight_stick.damping"
+            });
+            graph.Nodes.Add(cfgOutNode);
+
+            graph.Links.Add(new GraphEditor.GraphLink
+            {
+                FromNodeId = "k",
+                ToNodeId = "cfg",
+                ToPort = "ratio_0"
+            });
+
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+
+            return runtime.Nodes.TryGetValue("cfg:ratio_0", out var rCfg) &&
+                   rCfg.Type.ToString() == "ConfigOut" &&
+                   rCfg.Name == "flight_stick.damping" &&
+                   rCfg.Src == "k";
+        }
+
+        private static bool TestConvert_ConfigOutScoped()
+        {
+            // ConfigOut in a sub-graph should create a scoped runtime ConfigOut node
+            // with Name = FunctionScope + ":" + ConfigField when Include has FunctionScope.
+            var graph = new GraphEditor.GraphDefinition();
+
+            var includeNode = new GraphEditor.GraphNode
+            {
+                Id = "inc",
+                Kind = GraphEditor.GraphNodeKind.Include,
+                IncludePath = "sub.json",
+                FunctionScope = "FlightStickRoll"
+            };
+            includeNode.CachedInterface = new GraphEditor.IncludedGraphInterface { IsValid = true };
+            includeNode.CachedInterface.ConfigOutputs.Add(new GraphEditor.ConfigOutputPort
+            {
+                Name = "ratio_0",
+                ConfigField = "flight_stick.damping",
+                ConfigType = "FlightStick"
+            });
+            graph.Nodes.Add(includeNode);
+
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+
+            return runtime.Nodes.TryGetValue("inc:scoped_cfg:ratio_0", out var rCfg) &&
+                   rCfg.Type.ToString() == "ConfigOut" &&
+                   rCfg.Name == "FlightStickRoll:flight_stick.damping" &&
+                   rCfg.Src == "inc:ratio_0";
+        }
+
+        private static bool TestEval_ConfigOutValues()
+        {
+            // ConfigOut runtime nodes should appear in result.ConfigOutputs, not result.Outputs.
+            var runtime = new GraphDefinition();
+
+            runtime.Nodes["k"] = new GraphNode { Id = "k", Type = NodeType.Const, ConstValue = 3.14 };
+            runtime.Nodes["cfg"] = new GraphNode { Id = "cfg", Type = NodeType.ConfigOut, Name = "FlightStickPitch:flight_stick.damping", Src = "k" };
+            runtime.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "FlightStickPitch.SpringGain", Src = "k" };
+
+            var eval = new GraphEvaluator(runtime);
+            var result = eval.EvaluateWithTrace(null, null);
+
+            bool cfgInConfigOutputs = result.ConfigOutputs.TryGetValue("FlightStickPitch:flight_stick.damping", out var cfgVal) &&
+                                      Math.Abs(cfgVal - 3.14) < 1e-9;
+            bool cfgNotInOutputs = !result.Outputs.ContainsKey("FlightStickPitch:flight_stick.damping");
+            bool outInOutputs = result.Outputs.TryGetValue("FlightStickPitch.SpringGain", out var outVal) &&
+                                Math.Abs(outVal - 3.14) < 1e-9;
+            bool outNotInConfigOutputs = !result.ConfigOutputs.ContainsKey("FlightStickPitch.SpringGain");
+
+            return cfgInConfigOutputs && cfgNotInOutputs && outInOutputs && outNotInConfigOutputs;
+        }
+
+        private static bool TestCompiledEval_ConfigOutValues()
+        {
+            // Same as above but using GraphCompiledEvaluator.
+            var runtime = new GraphDefinition();
+
+            runtime.Nodes["k"] = new GraphNode { Id = "k", Type = NodeType.Const, ConstValue = 2.72 };
+            runtime.Nodes["cfg"] = new GraphNode { Id = "cfg", Type = NodeType.ConfigOut, Name = "FlightPedals:flight_pedals.damping", Src = "k" };
+            runtime.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "FlightPedals.SpringGain", Src = "k" };
+
+            var eval = new GraphCompiledEvaluator(runtime);
+            var result = eval.EvaluateWithTrace(null, null);
+
+            bool cfgInConfigOutputs = result.ConfigOutputs.TryGetValue("FlightPedals:flight_pedals.damping", out var cfgVal) &&
+                                      Math.Abs(cfgVal - 2.72) < 1e-9;
+            bool cfgNotInOutputs = !result.Outputs.ContainsKey("FlightPedals:flight_pedals.damping");
+            bool outInOutputs = result.Outputs.TryGetValue("FlightPedals.SpringGain", out var outVal) &&
+                                Math.Abs(outVal - 2.72) < 1e-9;
+
+            return cfgInConfigOutputs && cfgNotInOutputs && outInOutputs;
+        }
+
+        private static bool TestExtractInterface_ScopedOutputs()
+        {
+            // ExtractInterface should separate scoped and unscoped outputs.
+            var graph = new GraphEditor.GraphDefinition { IsLibraryGraph = true };
+
+            // Unscoped Output node
+            var unscopedOut = new GraphEditor.GraphNode { Id = "out1", Kind = GraphEditor.GraphNodeKind.Output };
+            unscopedOut.Ports.Add(new GraphEditor.GraphPort { Name = "custom", Kind = GraphEditor.GraphPortKind.Input });
+            graph.Nodes.Add(unscopedOut);
+
+            // Scoped Output node
+            var scopedOut = new GraphEditor.GraphNode { Id = "out2", Kind = GraphEditor.GraphNodeKind.Output, Scoped = true };
+            scopedOut.Ports.Add(new GraphEditor.GraphPort { Name = "SpringGain", Kind = GraphEditor.GraphPortKind.Input, SignalSuffix = "SpringGain" });
+            scopedOut.Ports.Add(new GraphEditor.GraphPort { Name = "DamperGain", Kind = GraphEditor.GraphPortKind.Input, SignalSuffix = "DamperGain" });
+            graph.Nodes.Add(scopedOut);
+
+            var iface = GraphEditor.GraphSerializer.ExtractInterface(graph);
+
+            bool unscopedCorrect = iface.Outputs.Count == 1 && iface.Outputs[0] == "custom";
+            bool scopedCorrect = iface.ScopedOutputs.Count == 2 &&
+                                 iface.ScopedOutputs[0].Name == "SpringGain" &&
+                                 iface.ScopedOutputs[0].SignalSuffix == "SpringGain" &&
+                                 iface.ScopedOutputs[1].Name == "DamperGain" &&
+                                 iface.ScopedOutputs[1].SignalSuffix == "DamperGain";
+
+            return iface.IsValid && unscopedCorrect && scopedCorrect;
+        }
+
+        private static bool TestExtractInterface_ConfigOutputs()
+        {
+            // ExtractInterface should extract ConfigOut ports with ConfigType.
+            var graph = new GraphEditor.GraphDefinition { IsLibraryGraph = true };
+
+            var cfgOut = new GraphEditor.GraphNode
+            {
+                Id = "cfg",
+                Kind = GraphEditor.GraphNodeKind.ConfigOut,
+                ConfigType = "FlightStick"
+            };
+            cfgOut.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "ratio_0",
+                Kind = GraphEditor.GraphPortKind.Input,
+                ConfigField = "flight_stick.damping"
+            });
+            cfgOut.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "spring",
+                Kind = GraphEditor.GraphPortKind.Input,
+                ConfigField = "flight_stick.centering_spring_const"
+            });
+            graph.Nodes.Add(cfgOut);
+
+            var iface = GraphEditor.GraphSerializer.ExtractInterface(graph);
+
+            return iface.IsValid &&
+                   iface.ConfigOutputs.Count == 2 &&
+                   iface.ConfigOutputs[0].Name == "ratio_0" &&
+                   iface.ConfigOutputs[0].ConfigField == "flight_stick.damping" &&
+                   iface.ConfigOutputs[0].ConfigType == "FlightStick" &&
+                   iface.ConfigOutputs[1].Name == "spring" &&
+                   iface.ConfigOutputs[1].ConfigField == "flight_stick.centering_spring_const";
         }
 
         #endregion

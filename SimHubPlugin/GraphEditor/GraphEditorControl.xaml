@@ -69,6 +69,7 @@
                                   StaysOpenOnEdit="True"
                                   ItemsSource="{Binding SignalOptions}"
                                   Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
+                                  SelectionChanged="SignalPickerCombo_SelectionChanged"
                                   KeyDown="PortName_KeyDown">
                             <ComboBox.Template>
                                 <ControlTemplate TargetType="ComboBox">
@@ -306,6 +307,7 @@
         </DataTemplate>
         <DataTemplate x:Key="InspectorOutputTemplate">
             <StackPanel>
+                <!-- Signal Group: shown only in top-level graphs (scoped nodes inherit group from FunctionScope) -->
                 <StackPanel>
                     <StackPanel.Style>
                         <Style TargetType="StackPanel">
@@ -329,15 +331,19 @@
                               Loaded="InspectorSignalGroup_Loaded"
                               SelectionChanged="InspectorSignalGroup_SelectionChanged" />
                 </StackPanel>
+                <!-- Title: shown in library graphs when NOT scoped -->
                 <StackPanel>
                     <StackPanel.Style>
                         <Style TargetType="StackPanel">
                             <Setter Property="Visibility" Value="Collapsed" />
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsLibraryGraph}"
-                                             Value="True">
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsLibraryGraph}" Value="True" />
+                                        <Condition Binding="{Binding Scoped}" Value="False" />
+                                    </MultiDataTrigger.Conditions>
                                     <Setter Property="Visibility" Value="Visible" />
-                                </DataTrigger>
+                                </MultiDataTrigger>
                             </Style.Triggers>
                         </Style>
                     </StackPanel.Style>
@@ -350,6 +356,26 @@
                              Padding="3,2,3,2"
                              Text="{Binding Title, Mode=OneWay}"
                              TextChanged="InspectorTitle_TextChanged" />
+                </StackPanel>
+                <!-- Scoped checkbox: only visible in library graphs -->
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsLibraryGraph}"
+                                             Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <CheckBox Content="Scoped"
+                              Foreground="#BBBBBB"
+                              Margin="0,0,0,6"
+                              IsChecked="{Binding Scoped, Mode=OneWay}"
+                              Checked="InspectorScoped_Changed"
+                              Unchecked="InspectorScoped_Changed" />
                 </StackPanel>
                 <TextBlock Text="Ports" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
@@ -614,6 +640,23 @@
                            Margin="0,0,0,6"
                            Visibility="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IncludeErrorVisible, Converter={StaticResource BoolToVisibility}}"
                            Text="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IncludeErrorMessage}" />
+                <TextBlock Text="Function Scope" Foreground="#BBBBBB" FontSize="10" />
+                <ComboBox Margin="0,2,0,6"
+                          Background="#1E1E1E"
+                          Foreground="White"
+                          BorderBrush="#4A4A4A"
+                          BorderThickness="1"
+                          ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=FunctionScopeOptions}"
+                          SelectedItem="{Binding FunctionScope, Mode=OneWay}"
+                          Loaded="InspectorFunctionScope_Loaded"
+                          DataContextChanged="InspectorFunctionScope_DataContextChanged"
+                          SelectionChanged="InspectorFunctionScope_SelectionChanged" />
+                <TextBlock Foreground="#FFAA00"
+                           FontSize="10"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,6"
+                           Visibility="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=ConfigTypeMismatchVisible, Converter={StaticResource BoolToVisibility}}"
+                           Text="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=ConfigTypeMismatchMessage}" />
                 <TextBlock Text="Inputs (from included graph)" Foreground="#BBBBBB" FontSize="10" />
                 <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IncludeInputNames}">
                     <ItemsControl.ItemTemplate>
@@ -632,6 +675,42 @@
                 </ItemsControl>
             </StackPanel>
         </DataTemplate>
+        <DataTemplate x:Key="InspectorConfigOutTemplate">
+            <StackPanel>
+                <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
+                <TextBox Margin="0,2,0,6"
+                         Background="#1E1E1E"
+                         Foreground="White"
+                         BorderBrush="#4A4A4A"
+                         BorderThickness="1"
+                         Padding="3,2,3,2"
+                         Text="{Binding Title, Mode=OneWay}"
+                         TextChanged="InspectorTitle_TextChanged" />
+                <TextBlock Text="Config Type" Foreground="#BBBBBB" FontSize="10" />
+                <ComboBox Margin="0,2,0,6"
+                          Background="#1E1E1E"
+                          Foreground="White"
+                          BorderBrush="#4A4A4A"
+                          BorderThickness="1"
+                          ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=ConfigTypeOptions}"
+                          SelectedItem="{Binding ConfigType, Mode=OneWay}"
+                          Loaded="InspectorConfigType_Loaded"
+                          DataContextChanged="InspectorConfigType_DataContextChanged"
+                          SelectionChanged="InspectorConfigType_SelectionChanged" />
+                <TextBlock Text="Config Ports" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <Button Content="Add Port"
+                            Background="#1E1E1E"
+                            Foreground="White"
+                            BorderBrush="#4A4A4A"
+                            BorderThickness="1"
+                            Padding="2,2,2,2"
+                            Click="ButtonAddInputPort_Click" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=PortEntries}"
+                              ItemTemplate="{StaticResource PortEntryTemplate}" />
+            </StackPanel>
+        </DataTemplate>
         <local:InspectorTemplateSelector x:Key="InspectorTemplateSelector"
                                          ConstTemplate="{StaticResource InspectorConstTemplate}"
                                          OpTemplate="{StaticResource InspectorOpTemplate}"
@@ -639,7 +718,8 @@
                                          InputTemplate="{StaticResource InspectorInputTemplate}"
                                          OutputTemplate="{StaticResource InspectorOutputTemplate}"
                                          ParamTemplate="{StaticResource InspectorParamTemplate}"
-                                         IncludeTemplate="{StaticResource InspectorIncludeTemplate}" />
+                                         IncludeTemplate="{StaticResource InspectorIncludeTemplate}"
+                                         ConfigOutTemplate="{StaticResource InspectorConfigOutTemplate}" />
         <DrawingBrush x:Key="GraphGridBrush" TileMode="Tile" Viewport="0,0,20,20" ViewportUnits="Absolute">
             <DrawingBrush.Drawing>
                 <DrawingGroup>

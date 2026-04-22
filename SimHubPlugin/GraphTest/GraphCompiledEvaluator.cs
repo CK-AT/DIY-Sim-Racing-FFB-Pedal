@@ -36,6 +36,8 @@ namespace DiyFfb.GraphTest
         private readonly Dictionary<string, IncludeNameMap> _includeNameMapCache = new Dictionary<string, IncludeNameMap>();
         private readonly int[] _outputIndices;
         private readonly string[] _outputNames;
+        private readonly int[] _configOutIndices;
+        private readonly string[] _configOutNames;
         private readonly double[] _values;
         private readonly double[] _extraValues;
         private readonly double[] _state;  // persists across evaluations for stateful Func nodes
@@ -111,6 +113,22 @@ namespace DiyFfb.GraphTest
 
             _outputIndices = outputIndices.ToArray();
             _outputNames = outputNames.ToArray();
+
+            var configOutIndices = new List<int>();
+            var configOutNames = new List<string>();
+            foreach (var node in _order)
+            {
+                if (node.Node.Type != NodeType.ConfigOut)
+                {
+                    continue;
+                }
+
+                configOutIndices.Add(node.Index);
+                configOutNames.Add(node.Node.Name ?? "");
+            }
+
+            _configOutIndices = configOutIndices.ToArray();
+            _configOutNames = configOutNames.ToArray();
         }
 
         public IReadOnlyDictionary<string, double> Evaluate(
@@ -169,6 +187,9 @@ namespace DiyFfb.GraphTest
                     case NodeType.Output:
                         _values[compiled.Index] = Resolve(compiled.SrcIndex, compiled.SrcIsExtra);
                         break;
+                    case NodeType.ConfigOut:
+                        _values[compiled.Index] = Resolve(compiled.SrcIndex, compiled.SrcIsExtra);
+                        break;
                 }
             }
 
@@ -192,6 +213,10 @@ namespace DiyFfb.GraphTest
             for (int i = 0; i < _outputIndices.Length; i++)
             {
                 result.Outputs[_outputNames[i]] = _values[_outputIndices[i]];
+            }
+            for (int i = 0; i < _configOutIndices.Length; i++)
+            {
+                result.ConfigOutputs[_configOutNames[i]] = _values[_configOutIndices[i]];
             }
             foreach (var w in warnings)
             {

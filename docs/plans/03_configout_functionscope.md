@@ -4,16 +4,20 @@ Two new graph features that simplify multi-function templates and enable
 graph-computed config fields.
 
 **FunctionScope** on Include nodes eliminates output wiring — sub-graphs
-declare their outputs with `SignalSuffix` and the runtime auto-routes them
-to the correct function. Cuts link count in half for multi-function
-templates and removes parent Output nodes entirely.
+with Scoped Output nodes declare their outputs with `SignalSuffix` and
+the runtime auto-routes them to the correct function. Cuts link count
+in half for multi-function templates and removes parent Output nodes
+entirely.
 
 **ConfigOut** is a new terminal node type (like Output) that writes
-graph-computed values to `FlightStickConfig` proto fields. Keeps config
+graph-computed values to proto config fields. Each ConfigOut node has a
+`ConfigType` that determines which fields are available. Keeps config
 and graph logic in sync — the graph computes both amplitudes AND the
 config that controls how those amplitudes are interpreted.
 
 **Prerequisites:** None (pure plugin/graph infrastructure)
+
+**Status:** Implemented.
 
 
 ---
@@ -28,10 +32,10 @@ output ports from the sub-graph and routes them to the signal catalog.
 With 4 function axes, that's 4 Output nodes + 28 output links in the
 parent template — pure boilerplate.
 
-With FunctionScope, the sub-graph's Output node declares
-`SignalSuffix` on its ports, and the Include's `FunctionScope` tells
-the runtime which function to route to. Result: zero output links,
-zero parent Output nodes.
+With FunctionScope + Scoped Output nodes, the sub-graph's Output node
+declares `SignalSuffix` on its ports via a dropdown, and the Include's
+`FunctionScope` tells the runtime which function to route to. Result:
+zero output links, zero parent Output nodes.
 
 | | Before (generic) | After (scoped) |
 | --- | --- | --- |
@@ -76,7 +80,7 @@ function the sub-graph's scoped outputs target.
 **Editor UI:** `FunctionScope` appears as a dropdown on the Include
 node inspector (below IncludePath, above the port lists). Options:
 
-```
+```text
 (none)                      ← default, generic mode
 FlightStickPitch
 FlightStickRoll
@@ -84,43 +88,72 @@ FlightPedals
 FlightStickCollective
 ```
 
-The dropdown values come from `GraphSignalCatalogData`. `(none)` means
-all outputs use the existing generic-port pattern (no scoping).
+The dropdown values come from `GraphSignalCatalogData.FunctionScopeOptions`.
+`(none)` means all outputs use the existing generic-port pattern (no
+scoping).
 
-When an Include has `FunctionScope` set, scoped Output and ConfigOut
+When an Include has `FunctionScope` set, Scoped Output and ConfigOut
 nodes inside the sub-graph inherit it as their function group. The
 parent only wires inputs — all output and config routing is implicit.
+
+**ConfigType mismatch warning:** If the included sub-graph has ConfigOut
+nodes whose `ConfigType` doesn't match the function type implied by the
+`FunctionScope` (e.g., ConfigType "FlightPedals" on an Include with
+FunctionScope "FlightStickPitch"), the Include inspector shows an orange
+warning. The mapping is:
+
+| FunctionScope | Expected ConfigType |
+| --- | --- |
+| FlightStickPitch | FlightStick |
+| FlightStickRoll | FlightStick |
+| FlightStickCollective | FlightStick |
+| FlightPedals | FlightPedals |
 
 
 ---
 
 ## 3. Scoped Output Nodes
 
-**Scoped Output node in sub-graph** (replaces generic output ports):
+Output nodes in library sub-graphs have a **Scoped checkbox**. When
+checked, the node switches from freeform port names to signal-suffix
+dropdowns, and its outputs are auto-registered by the parent Include's
+FunctionScope instead of appearing as ports on the Include node.
+
+**Scoped = false (default, unscoped):**
+- Ports use freeform `Name` (e.g., "spring", "my_output")
+- Appear as output ports on the parent Include node
+- Must be wired to a parent Output node explicitly
+- Fully backward compatible
+
+**Scoped = true:**
+- Ports use a **SignalSuffix dropdown** populated from
+  `GraphSignalCatalogData.OutputSuffixes` (BuffetAmplitude, DamperGain,
+  Friction, LoadForce, SpringGain, TrimOffset)
+- No SignalGroup dropdown — the group is determined by the parent
+  Include's FunctionScope at runtime
+- Do NOT appear as ports on the parent Include node
+- Converter auto-registers `FunctionScope + "." + SignalSuffix`
+- Node header shows "Output (Scoped, Ports: N)"
+
+Both scoped and unscoped Output nodes can coexist in the same sub-graph.
+
+**Example (scoped Output node in a library sub-graph):**
 
 ```json
 {
   "Id": "out_ffb",
   "Title": "FFB Outputs",
   "Kind": "Output",
+  "Scoped": true,
   "Ports": [
-    { "Name": "spring", "Kind": "Input", "SignalSuffix": "SpringGain" },
-    { "Name": "damper", "Kind": "Input", "SignalSuffix": "DamperGain" },
-    { "Name": "friction", "Kind": "Input", "SignalSuffix": "Friction" },
-    { "Name": "load", "Kind": "Input", "SignalSuffix": "LoadForce" },
-    { "Name": "trim", "Kind": "Input", "SignalSuffix": "TrimOffset" }
+    { "SignalSuffix": "SpringGain", "Kind": "Input" },
+    { "SignalSuffix": "DamperGain", "Kind": "Input" },
+    { "SignalSuffix": "Friction", "Kind": "Input" },
+    { "SignalSuffix": "LoadForce", "Kind": "Input" },
+    { "SignalSuffix": "TrimOffset", "Kind": "Input" }
   ]
 }
 ```
-
-An Output node is scoped when its ports have `SignalSuffix` AND the
-Include that contains it has a `FunctionScope`. The runtime converter
-registers `FlightStickPitch.SpringGain` etc. — identical to what the
-parent's explicit Output node produced before.
-
-Without `FunctionScope` on the Include, these ports are treated as
-generic output ports (by `Name`), same as today. So an Output node
-with `SignalSuffix` on its ports works in both modes.
 
 
 ---
@@ -128,33 +161,30 @@ with `SignalSuffix` on its ports works in both modes.
 ## 4. ConfigOut Node Type
 
 A new terminal node (like Output) whose ports write to proto config
-fields instead of streaming outputs. Each port's `ConfigField` is a
-**dropdown** populated from the `OverrideFieldRegistry`, using the same
-`FieldPath` naming and `DisplayName` labels that appear in the function
-config UIs.
+fields instead of streaming outputs.
+
+### ConfigType
+
+Each ConfigOut node has a **ConfigType dropdown** that determines which
+`OverrideFieldRegistry` fields are available for its ports:
+
+```text
+(none)          ← shows all float fields
+FlightStick     ← shows FlightStick fields + shared fields
+FlightPedals    ← shows FlightPedals fields + shared fields
+```
+
+**Shared field groups** (available regardless of ConfigType):
+OutputScaling, Physics, StaticBalanceTuning, ForceFeedback.
+
+**Function-specific groups** (only available when ConfigType matches):
+FlightStick, FlightPedals, AutomotivePedals, Shifter, Damper.
 
 ### ConfigField dropdown
 
-The editor presents `ConfigField` as a dropdown on each ConfigOut port.
-The dropdown shows `DisplayName` (what the user sees), stores `FieldPath`
-(what the runtime uses). Options are filtered by the function type
-implied by the parent Include's `FunctionScope`:
-
-```text
-FunctionScope = FlightStickPitch  →  shows FlightStick fields:
-  "Motion Range"              (flight_stick.motion_range)
-  "Damping"                   (flight_stick.damping)
-  "Centering Spring Constant" (flight_stick.centering_spring_const)
-  "Rotation Sign"             (flight_stick.rotation_sign)         ← NEW
-  "DDS 1 Harmonic Ratio 1"   (flight_stick.vib_harmonic_ratios.0) ← NEW
-  "DDS 1 Harmonic Ratio 2"   (flight_stick.vib_harmonic_ratios.1) ← NEW
-  ...
-```
-
-New vibration config fields must be registered in the
-`OverrideFieldRegistry` (with the `FlightStick` group) before ConfigOut
-can target them. This keeps a single source of truth for what config
-fields exist and how they're named.
+Each ConfigOut port has a `ConfigField` dropdown populated from the
+`OverrideFieldRegistry`, filtered by `ConfigType`. The dropdown shows
+`FieldPath` values (e.g., `flight_stick.damping`, `simulated_mass`).
 
 ### Example
 
@@ -163,27 +193,23 @@ fields exist and how they're named.
   "Id": "cfg_out",
   "Title": "Vib Config",
   "Kind": "ConfigOut",
+  "ConfigType": "FlightStick",
   "Ports": [
     { "Name": "rotation_sign", "Kind": "Input",
       "ConfigField": "flight_stick.rotation_sign" },
     { "Name": "ratio_0", "Kind": "Input",
       "ConfigField": "flight_stick.vib_harmonic_ratios.0" },
     { "Name": "ratio_1", "Kind": "Input",
-      "ConfigField": "flight_stick.vib_harmonic_ratios.1" },
-    { "Name": "ratio_2", "Kind": "Input",
-      "ConfigField": "flight_stick.vib_harmonic_ratios.2" },
-    { "Name": "ratio_3", "Kind": "Input",
-      "ConfigField": "flight_stick.vib_harmonic_ratios.3" },
-    { "Name": "ratio_4", "Kind": "Input",
-      "ConfigField": "flight_stick.vib_harmonic_ratios.4" }
+      "ConfigField": "flight_stick.vib_harmonic_ratios.1" }
   ]
 }
 ```
 
 ConfigOut always requires `FunctionScope` on its Include — without it,
 ConfigOut nodes are ignored (no function → don't know which config to
-write to). The editor can warn when a sub-graph with ConfigOut nodes is
-included without a FunctionScope.
+write to). The Include inspector shows a warning when `FunctionScope`
+implies a different config type than the sub-graph's ConfigOut nodes
+declare.
 
 
 ---
@@ -199,6 +225,10 @@ included without a FunctionScope.
 | ConfigOut (in sub-graph) | not set | Inherited from Include's `FunctionScope` |
 | Include | `FunctionScope` dropdown | `(none)` or valid function group |
 
+**ConfigOut** additionally has a `ConfigType` dropdown (FlightStick /
+FlightPedals) that filters its port field options. This is independent
+of `SignalGroup`.
+
 Unscoped Output nodes in the parent template still use the existing
 `SignalGroup` dropdown (shown as the function group selector) — this
 is unchanged. Scoped Output/ConfigOut nodes inside sub-graphs have no
@@ -209,69 +239,62 @@ is unchanged. Scoped Output/ConfigOut nodes inside sub-graphs have no
 
 ## 6. Runtime Conversion
 
-`GraphRuntimeConverter` already builds Output nodes with
-`BuildFullSignalName(node.SignalGroup, port.SignalSuffix, port.Name)`.
-The change: when recursing into an included graph, if the Include node
-has `FunctionScope`, pass it as the `SignalGroup` for any Output node
-that has `SignalSuffix` on its ports, and for any ConfigOut node.
+The converter handles three cases for Include nodes with `FunctionScope`:
 
-```
+**Scoped Outputs:** For each `ScopedOutput` in the `CachedInterface`,
+create a top-level `NodeType.Output` runtime node with
+`Name = FunctionScope + "." + SignalSuffix`. Source is the Include's
+OutputMap entry for that port.
+
+**Scoped ConfigOuts:** For each `ConfigOutput` in the `CachedInterface`,
+create a top-level `NodeType.ConfigOut` runtime node with
+`Name = FunctionScope + ":" + ConfigField`. Source is the Include's
+OutputMap entry for that port.
+
+**Unscoped Outputs:** Continue to appear as ports on the Include node
+and are wired to parent Output nodes explicitly — no change from today.
+
+```text
 Existing (unscoped):
   sub-graph Output port "spring" → Include output port → parent link →
   parent Output(SignalGroup="FlightStickPitch", SignalSuffix="SpringGain")
   → runtime: FlightStickPitch.SpringGain
 
 Scoped:
-  sub-graph Output(port SignalSuffix="SpringGain") →
+  sub-graph Output(Scoped=true, port SignalSuffix="SpringGain") →
   Include(FunctionScope="FlightStickPitch") →
   runtime: FlightStickPitch.SpringGain
 
 Same runtime result, no parent Output node, no link.
 ```
 
-This mirrors the existing Output registration at
-`GraphRuntimeConverter.cs:100-117` — same `BuildFullSignalName`, just
-with the scope inherited from the Include node instead of from the
-Output node's own `SignalGroup`.
-
-**Backward compatibility:** `FunctionScope` defaults to `(none)`.
-Existing sub-graphs with generic ports continue to work unchanged.
-Both modes can coexist in the same parent template.
+**Backward compatibility:** `FunctionScope` defaults to `(none)`,
+`Scoped` defaults to `false`. Existing sub-graphs with generic ports
+continue to work unchanged. Both modes can coexist in the same parent
+template.
 
 
 ---
 
 ## 7. Plugin Config Change Detection
 
-After each graph evaluation cycle (20 Hz), the plugin reads all ConfigOut
-values per function and compares to the last-sent config. Upload only on
-change:
+After each graph evaluation cycle (20 Hz), the plugin reads ConfigOut
+values from `GraphEvaluationResult.ConfigOutputs` and compares to the
+last-sent values. ConfigOut keys use the format
+`"FunctionScope:FieldPath"` (e.g., `"FlightStickPitch:flight_stick.damping"`).
 
-```csharp
-void CheckConfigOutChanges()
-{
-    foreach (var functionId in flightFunctionIds)
-    {
-        string prefix = GetGraphFunctionPrefix(functionId);
-        if (prefix == null) continue;
+On change, the plugin:
 
-        var config = currentConfigs[functionId];
-        bool changed = false;
+1. Parses the key into scope name + field path
+2. Resolves the function ID from the scope name
+3. Validates the field belongs to the correct config type (or a shared
+   group) — mismatches are silently skipped
+4. Applies the new value via `OverrideFieldRegistry.SetValue()` through
+   the `ConfigOrchestrator`
 
-        // ConfigOut nodes use OverrideFieldRegistry FieldPaths like
-        // "flight_stick.vib_harmonic_ratios.3"
-        foreach (var (field, value) in GetConfigOutputs(prefix))
-        {
-            changed |= SetConfigField(config, field, value);
-        }
-
-        if (changed)
-        {
-            EnqueueConfigUpload(functionId, config);
-        }
-    }
-}
-```
+**Shared field groups** (OutputScaling, Physics, StaticBalanceTuning,
+ForceFeedback) are valid for any function scope. Function-specific
+groups (FlightStick, FlightPedals, etc.) must match the scope.
 
 In steady state (no Param edits), ConfigOut values are constant and
 no uploads occur — this is a cheap comparison, not a real upload.
@@ -279,10 +302,8 @@ no uploads occur — this is a cheap comparison, not a real upload.
 **Startup**: on profile load, ConfigOut values are evaluated and
 uploaded as part of the initial config send. No special path needed.
 
-**User edits Param slider**: next graph evaluation cycle picks up the
-new Param value → flows through computation nodes → ConfigOut value
-changes → plugin detects → config upload. Latency: one eval cycle
-(50 ms at 20 Hz). Acceptable for static config changes.
+**Graph reload**: `_lastConfigOutValues` is cleared, forcing a full
+re-evaluation on the next cycle.
 
 
 ---
@@ -304,9 +325,10 @@ Scoped Output is optional — existing graphs with generic Output nodes
 and explicit parent wiring continue to work. But scoped mode can
 simplify existing templates too. Migration per sub-graph:
 
-1. Add `SignalSuffix` to Output node ports in the sub-graph
-2. Add `FunctionScope` to Include nodes in parent template
-3. Remove Output nodes and output links from parent template
+1. Check `Scoped` on the Output node in the sub-graph
+2. Select appropriate `SignalSuffix` for each port from the dropdown
+3. Add `FunctionScope` to Include nodes in parent template
+4. Remove the now-redundant parent Output nodes and output links
 
 This is backward-compatible: new sub-graphs default to scoped,
 existing ones stay generic until migrated. Both modes can coexist
@@ -320,7 +342,7 @@ into each sub-graph include as Input wiring (this already exists — no
 new links needed). Inside the sub-graph, computation nodes derive
 ratios and wire them to the scoped ConfigOut terminal:
 
-```
+```text
 heli_default.json (parent template)
 
   Aircraft.BladeCount   [Param = 5]     ← shared, one slider
@@ -350,20 +372,28 @@ pitch and roll → plugin detects → config upload for both functions.
 
 ## 10. Implementation
 
-1. Register new vibration config fields in `OverrideFieldRegistry`
-   (`flight_stick.rotation_sign`, `flight_stick.vib_harmonic_ratios.0`..`.4`,
-   `flight_stick.vib2_harmonic_ratios.0`..`.1`, same for `flight_pedals.*`)
-2. Add `FunctionScope` property to Include node JSON schema
-3. Add `SignalSuffix` property to port JSON schema
-4. Add `FunctionScope` dropdown to Include node inspector in editor UI
-5. Add `ConfigOut` node type to graph node schema (`NodeType.ConfigOut`)
-6. Add `ConfigField` dropdown to ConfigOut port inspector, populated from
-   `OverrideFieldRegistry` filtered by the config type implied by `FunctionScope`
-7. Implement scoped output registration in `GraphRuntimeConverter`
-   (inherit `FunctionScope` as `SignalGroup` for Output nodes with `SignalSuffix`)
-8. Implement ConfigOut evaluation in `GraphRuntimeConverter`
-   (register as `NodeType.ConfigOut` with function scope and `ConfigField`)
-9. Implement `CheckConfigOutChanges()` in plugin — config change detection
-   and upload on change
-10. Migrate existing heli template to use FunctionScope (eliminate output links)
-11. Test backward compatibility (existing graphs without FunctionScope unchanged)
+1. Add `ConfigOut` to `GraphNodeKind` enum, `FunctionScope` and `Scoped`
+   to `GraphNode`, `ConfigField` to `GraphPort`, `ConfigType` to
+   `GraphNode` — `GraphModel.cs`
+2. Add `ConfigOut` to `NodeType` enum, `ConfigOutputs` dict to
+   `GraphEvaluationResult` — `GraphEvaluator.cs`, `GraphCompiledEvaluator.cs`
+3. Serialize `FunctionScope`, `Scoped`, `ConfigType`, `ConfigField` in
+   DTOs — `GraphSerializer.cs`
+4. `ExtractInterface`: split Output nodes into `Outputs` (unscoped) and
+   `ScopedOutputs` (with SignalSuffix); extract `ConfigOutputs` from
+   ConfigOut nodes — `GraphSerializer.cs`
+5. Converter: ConfigOut node conversion, FunctionScope scoped output +
+   config output registration — `GraphRuntimeConverter.cs`
+6. Add `FunctionScopeOptions`, `ConfigTypeOptions`, `OutputSuffixes`,
+   `GetConfigTypeForScope()` — `GraphSignalCatalogData.cs`
+7. Editor UI: FunctionScope dropdown on Include, Scoped checkbox on
+   Output, ConfigType dropdown on ConfigOut, ConfigField dropdown on
+   ConfigOut ports, ConfigType mismatch warning on Include —
+   `GraphEditorControl.xaml` + `.xaml.cs`
+8. `CheckConfigOutChanges()` in plugin eval loop with ConfigType
+   validation and shared field group handling — `DiyFfbPlugin.cs`
+9. Register new vibration config fields in `OverrideFieldRegistry`
+   (deferred to plan 07 — fields must exist before ConfigOut can
+   target them)
+10. Migrate existing heli template to use FunctionScope + Scoped
+    (validation step)

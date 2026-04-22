@@ -116,6 +116,29 @@ namespace DiyFfb.GraphEditor
                     }
                     continue;
                 }
+                else if (node.Kind == GraphNodeKind.ConfigOut)
+                {
+                    // ConfigOut nodes are like Output but write to config fields.
+                    // In a sub-graph: converted normally using ConfigField as the name.
+                    // In a parent graph with FunctionScope: converter creates scoped ConfigOut
+                    // nodes from the Include's CachedInterface (see Include handling below).
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
+                    {
+                        if (!string.IsNullOrEmpty(port.ConfigField) &&
+                            TryGetInputSource(nodes, graph.Links, node.Id, port.Name, out var source))
+                        {
+                            var configOutNode = new DiyFfb.GraphTest.GraphNode
+                            {
+                                Id = BuildPortId(node.Id, port.Name),
+                                Name = port.ConfigField,
+                                Type = NodeType.ConfigOut,
+                                Src = source
+                            };
+                            runtime.Nodes[configOutNode.Id] = configOutNode;
+                        }
+                    }
+                    continue;
+                }
                 else if (node.Kind == GraphNodeKind.Include)
                 {
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
@@ -131,6 +154,52 @@ namespace DiyFfb.GraphEditor
                         if (!runtimeNode.OutputMap.ContainsKey(port.Name))
                         {
                             runtimeNode.OutputMap[port.Name] = BuildIncludeOutputId(node.Id, port.Name);
+                        }
+                    }
+
+                    // FunctionScope: auto-register scoped outputs and config outputs
+                    if (!string.IsNullOrEmpty(node.FunctionScope) && node.CachedInterface != null)
+                    {
+                        string scope = node.FunctionScope;
+
+                        // Scoped outputs: sub-graph Scoped Output ports → top-level Output nodes
+                        foreach (var scopedOut in node.CachedInterface.ScopedOutputs)
+                        {
+                            string includeOutputId = BuildIncludeOutputId(node.Id, scopedOut.Name);
+                            // Ensure the OutputMap entry exists for the sub-graph evaluator
+                            if (!runtimeNode.OutputMap.ContainsKey(scopedOut.Name))
+                            {
+                                runtimeNode.OutputMap[scopedOut.Name] = includeOutputId;
+                            }
+                            string scopedName = scope + "." + scopedOut.SignalSuffix;
+                            var scopedOutput = new DiyFfb.GraphTest.GraphNode
+                            {
+                                Id = node.Id + ":scoped:" + scopedOut.Name,
+                                Name = scopedName,
+                                Type = NodeType.Output,
+                                Src = includeOutputId
+                            };
+                            runtime.Nodes[scopedOutput.Id] = scopedOutput;
+                        }
+
+                        // Scoped config outputs: sub-graph ConfigOut ports → top-level ConfigOut nodes
+                        foreach (var cfgOut in node.CachedInterface.ConfigOutputs)
+                        {
+                            string includeOutputId = BuildIncludeOutputId(node.Id, cfgOut.Name);
+                            // Add OutputMap entry so the sub-graph's ConfigOut value flows through
+                            if (!runtimeNode.OutputMap.ContainsKey(cfgOut.Name))
+                            {
+                                runtimeNode.OutputMap[cfgOut.Name] = includeOutputId;
+                            }
+                            string scopedName = scope + ":" + cfgOut.ConfigField;
+                            var scopedConfigOut = new DiyFfb.GraphTest.GraphNode
+                            {
+                                Id = node.Id + ":scoped_cfg:" + cfgOut.Name,
+                                Name = scopedName,
+                                Type = NodeType.ConfigOut,
+                                Src = includeOutputId
+                            };
+                            runtime.Nodes[scopedConfigOut.Id] = scopedConfigOut;
                         }
                     }
                 }
@@ -175,6 +244,7 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.Func: return NodeType.Func;
                 case GraphNodeKind.Include: return NodeType.Include;
                 case GraphNodeKind.Output: return NodeType.Output;
+                case GraphNodeKind.ConfigOut: return NodeType.ConfigOut;
                 default: return NodeType.Const;
             }
         }
