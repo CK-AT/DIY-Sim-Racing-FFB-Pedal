@@ -10,12 +10,12 @@ All computation happens in the graph system — no ESP32 changes needed.
 
 ## 1. Overview
 
-| Heli type | Cyclic load force | Pedal load force |
-| --- | --- | --- |
-| MD 500E (unboosted) | Aero hinge moments reach pilot | Tail rotor blade loads reach pilot |
-| Bell 206 (boosted) | Zero — irreversible | Zero — irreversible |
-| H125 (boosted) | Zero — irreversible | Zero — irreversible |
-| Bell 222 (boosted + SAS) | SAS-injected forces | Zero — irreversible |
+| Heli type | Cyclic | Pedals | Collective |
+| --- | --- | --- | --- |
+| MD 500E (unboosted) | LoadForce from blade alpha | RPM-scaled spring (new) | LoadForce from torque (existing) |
+| Bell 206 (boosted) | Zero — irreversible | RPM-scaled spring (new) | Zero — friction lock only |
+| H125 (boosted) | Zero — irreversible | RPM-scaled spring (new) | Zero — friction lock only |
+| Bell 222 (boosted + SAS) | SAS-injected LoadForce | RPM-scaled spring (new) | Zero — friction lock only |
 
 
 ---
@@ -40,56 +40,55 @@ See plan 04 section 3 for the blade_alph_pitch vs g-load analysis showing
 it is primarily an airspeed signal, not a g-load signal.
 
 **`torque_main`** (main rotor torque, Nm):
-Drives collective/pedal coupling but not cyclic forces directly.
+Used for collective `LoadForce` on unboosted types (existing).
+Not used for cyclic or pedal forces.
 
 
 ---
 
 ## 3. Cyclic Load Force
 
-### MD 500E (unboosted) — two-component model
+### MD 500E (unboosted) — speed-dependent model
 
-Cyclic load force requires two separate components:
+Unboosted helicopter cyclic force comes from blade flapping hinge moments,
+which are about *asymmetry* between advancing and retreating blades. This
+asymmetry scales with airspeed, not with g-load. There is no natural
+"stick force per g" on helicopter cyclic — the pilot feels g through their
+body, not through the stick.
 
-1. **Speed stability** (from `blade_alph_pitch/roll`): stick gets heavier
-   with airspeed. Physically correct — advancing blade asymmetry increases
-   hinge moments at higher IAS. X-Plane's per-axis decomposition means
-   `blade_alph_pitch` maps directly to longitudinal load force and
-   `blade_alph_roll` to lateral — no axis swap needed.
+The data confirms this: `blade_alph_pitch` actually *decreases* when
+pulling g at cruise speeds (see plan 04 section 3). Physically, pulling
+back tilts the disc aft, reducing the advancing blade's encounter angle.
 
-2. **Manoeuvre stability** (from `g_nrml`): stick gets heavier when pulling
-   g. Must be added as a separate term since blade alpha doesn't capture
-   this effect (see plan 04 section 3 g-load analysis).
+`blade_alph_pitch` is always negative in forward flight (-0.2 hover →
+-6.2 at 170 kt). Using `gain * (-alpha)` preserves the physical sign
+relationship: negative alpha → positive aft stick force.
 
-```
-LoadForce_pitch = speed_gain * abs(blade_alph_pitch)   # lon: dominant, aft force
-                + g_gain * (g_nrml - 1.0)               # manoeuvre cue
-
-LoadForce_roll  = speed_gain * abs(blade_alph_roll)    # lat: weak
-                + g_gain * (g_nrml - 1.0)               # manoeuvre cue
+```text
+LoadForce_pitch = speed_gain * (-blade_alph_pitch)  # lon: dominant, aft force
+LoadForce_roll  = speed_gain * (-blade_alph_roll)   # lat: weak
 ```
 
 For OWL (one-way lock, longitudinal axis only): clamp pitch `LoadForce` to
 negative values only (resist aft creep, don't resist forward input):
 
-```
+```text
 LoadForce_pitch = Min(0, LoadForce_pitch)
 ```
 
 Graph params:
 
-```
+```text
 Cyclic.LoadSpeedGain    — N per degree of blade alpha
-Cyclic.LoadGGain        — N per g increment above 1.0
 ```
 
-### Bell 222 (SAS) — same two-component pattern
+### Bell 222 (SAS) — artificially injected g-cue
 
-The SAS model uses `g_nrml` and body rates. The data analysis confirms
-this is the right approach — `blade_alph_pitch` would not provide the
-manoeuvre cue that the SAS is specifically designed to inject.
+The SAS *artificially injects* a g-load cue that doesn't exist naturally
+on unboosted cyclic. This is the correct model for SAS-equipped aircraft
+— the SAS system is specifically designed to provide manoeuvre stability.
 
-```
+```text
 LoadForce_pitch = sas_g_gain * (g_nrml - 1.0)     # manoeuvre cue
                 + sas_q_gain * Q_rad_s              # pitch rate damping
 
@@ -106,58 +105,53 @@ SAS engage/disengage would need a new input signal (future work).
 
 ---
 
-## 4. Pedal Load Force
+## 4. Pedal Spring Scaling
 
-### RPM-scaled spring (all types)
+No `LoadForce` term needed for pedals — torque changes cause the pilot
+to *reposition* the pedals to maintain yaw equilibrium, and the spring
+force at the new position is what they feel.
 
-Rather than computing a tail rotor hinge moment (no good dataref), scale
-the pedal `SpringGain` by normalized rotor RPM:
+However, **RPM-scaled spring stiffness** is new and important:
 
-```
+```text
 SpringGain = base_spring * rpm_norm
 ```
 
-Physical rationale: tail rotor blade loads scale with RPM (more RPM = more
-aerodynamic force per degree of pitch = stiffer pedals). This captures:
+Physical rationale: tail rotor blade loads scale with RPM (more RPM =
+more aerodynamic force per degree of pitch = stiffer pedals). This
+captures:
 
 * **Normal flight**: full RPM → firm pedals
-* **Autorotation**: RPM drops → pedals lighten (less TR authority)
+* **Overtorque / RPM droop**: RPM drops → pedals lighten
 * **Shutdown**: RPM → 0 → pedals free
-* **Engine failure**: same as autorotation — immediate lightening
 
-Works for both boosted and unboosted types — even hydraulically boosted
-systems have an artificial spring that should feel lighter when the tail
-rotor has less authority.
+Works for both boosted and unboosted types.
 
-### MD 500E pedal load force (optional refinement)
-
-For enhanced realism on the unboosted MD 500E, add a small `LoadForce`
-component proportional to main rotor torque (more torque = more anti-torque
-pedal demand = more force to hold position):
-
-```
-LoadForce_pedal = pedal_load_gain * torque_norm
-```
-
-This is a secondary effect on top of the RPM-scaled spring. Defer to tuning
-phase — the RPM-scaled spring alone may be sufficient.
+`assist_loss` friction (hydraulic fade at low RPM) is already implemented
+in the existing graphs.
 
 
 ---
 
 ## 5. Collective Load Force
 
-The collective on most helicopters has a friction lock — the pilot adjusts
-friction to hold the collective in position. Model as constant friction
-with no speed-dependent load. For the unboosted MD 500E, collective
-forces scale with RPM and blade pitch, but the dominant feel is the
-friction lock. `SpringGain = 0`, `Friction = user-adjustable`.
+On unboosted helicopters, the pilot holds the collective against
+aerodynamic blade pitch loads through the pitch links. More collective
+pitch = more torque = more force trying to push the lever down.
 
-RPM-scaled friction is a possible refinement:
+A torque-proportional `LoadForce` is already implemented in the existing
+collective graph:
 
+```text
+LoadForce_collective = load_gain * torque_norm
 ```
-Friction = base_friction * rpm_norm
-```
+
+This gives the "heavier when pulling power" feel. On boosted types
+(Bell 206, H125), `LoadForce = 0` — the hydraulics absorb blade loads
+and the pilot feels only the friction lock.
+
+`assist_loss` friction (hydraulic fade at low RPM) is also already
+implemented. No new collective work needed.
 
 
 ---
@@ -168,14 +162,11 @@ Friction = base_friction * rpm_norm
 2. Wire `LoadForce` outputs per axis in heli template
 3. Add pedal RPM-scaled spring to `heli_pedal.json` sub-graph
 4. Test MD 500E — verify speed stability cue builds with IAS
-5. Test MD 500E — verify g-load cue in turns
-6. Tune default params
+5. Tune default params
 
 
 ---
 
 ## 7. Open Questions
 
-1. **Collective coupling**: collective-axis vibration has physically distinct
-   amplitudes (vertical blade-passing dominates). Defer to later or include
-   in initial implementation?
+(None remaining — collective vibration moved to plan 08.)
