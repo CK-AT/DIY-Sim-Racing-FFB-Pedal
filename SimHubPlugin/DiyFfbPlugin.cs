@@ -100,9 +100,9 @@ namespace DiyFfb
         private Timer gatewayReconnectTimer;
         private int gatewayReconnectBusy = 0;
         private const uint XPlanePacketMagic = 0x46464244;
-        private const ushort XPlanePacketVersion = 3;
+        private const ushort XPlanePacketVersion = 4;
         private const int XPlaneMaxRotors = 4;
-        private const int XPlanePacketSizeBytes = 132;
+        private const int XPlanePacketSizeBytes = 212;
         private const double XPlaneTelemetryFreshnessMs = 200.0;
         private const double XPlaneRotorWindowSeconds = 3.0;
         private readonly object xplaneLock = new object();
@@ -185,6 +185,12 @@ namespace DiyFfb
             public float MAero;
             public float NAero;
             public bool OnGround;
+            // v4: rotor vibration signals
+            public float[] CyclicElevBladAlph = new float[XPlaneMaxRotors];
+            public float[] CyclicAilnBladAlph = new float[XPlaneMaxRotors];
+            public float[] RotorBladeSlapRat = new float[XPlaneMaxRotors];
+            public float[] VortexRingState = new float[XPlaneMaxRotors];
+            public float[] PropwashMtrSec = new float[XPlaneMaxRotors];
             public DateTime ReceivedUtc;
         }
 
@@ -1051,6 +1057,27 @@ namespace DiyFfb
             packet.NAero = ReadSingle(data, ref offset);
             packet.OnGround = ReadByte(data, ref offset) != 0;
             offset += 3;
+            // v4: rotor vibration signals
+            for (int idx = 0; idx < XPlaneMaxRotors; idx++)
+            {
+                packet.CyclicElevBladAlph[idx] = ReadSingle(data, ref offset);
+            }
+            for (int idx = 0; idx < XPlaneMaxRotors; idx++)
+            {
+                packet.CyclicAilnBladAlph[idx] = ReadSingle(data, ref offset);
+            }
+            for (int idx = 0; idx < XPlaneMaxRotors; idx++)
+            {
+                packet.RotorBladeSlapRat[idx] = ReadSingle(data, ref offset);
+            }
+            for (int idx = 0; idx < XPlaneMaxRotors; idx++)
+            {
+                packet.VortexRingState[idx] = ReadSingle(data, ref offset);
+            }
+            for (int idx = 0; idx < XPlaneMaxRotors; idx++)
+            {
+                packet.PropwashMtrSec[idx] = ReadSingle(data, ref offset);
+            }
 
             lock (xplaneLock)
             {

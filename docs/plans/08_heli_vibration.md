@@ -31,8 +31,9 @@ Vib1Rev_roll  = gain_1rev * abs(blade_alph_roll)     # lateral (weak)
 etl_factor = max(0, (vrs - 0.25) / 0.25)    # 1.0 at hover, 0.0 at 60+ kt
 Vib2Rev = etl_gain * etl_factor + slap_gain * slap_rat
 
--- 3/rev: retreating blade stall onset
+-- 3/rev: retreating blade stall onset (DEFERRED — blade_alpha_deg not yet in UDP)
 --   blade_alpha approaching stall values
+--   Requires adding XPlane.Rotor.BladeAlpha to a future UDP packet version
 Vib3Rev = rbs_gain * max(0, blade_alpha - rbs_threshold)
 
 -- N/rev: blade-passing, relatively constant when rotor is turning
@@ -107,7 +108,7 @@ Reusable sub-graph that takes rotor state and produces all vibration outputs.
 * `blade_alph_roll` ← `XPlane.Rotor.BladeAlphRoll`
 * `slap_rat` ← `XPlane.Rotor.Slap`
 * `vrs` ← `XPlane.Rotor.VRS`
-* `blade_alpha` ← `XPlane.Rotor.BladeAlpha`
+* `blade_alpha` ← `XPlane.Rotor.BladeAlpha` (DEFERRED — not yet in UDP v4)
 * `rpm` ← `XPlane.MainRotor.Speed`
 * `torque` ← engine torque signal
 
@@ -127,7 +128,7 @@ blade_count × 2   → ConfigField "flight_stick.vib_harmonic_ratios.4"
 ```
 slot 1 (ratio 1.0)   gain_1rev
 slot 2 (ratio 2.0)   etl_gain | slap_gain
-slot 3 (ratio 3.0)   rbs_gain | rbs_threshold
+slot 3 (ratio 3.0)   rbs_gain | rbs_threshold  (DEFERRED — needs BladeAlpha)
 slot 4 (ratio N)     base
 slot 5 (ratio 2N)    base
 ```

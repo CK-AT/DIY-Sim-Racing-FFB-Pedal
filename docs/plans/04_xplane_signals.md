@@ -3,6 +3,8 @@
 New X-Plane datarefs for helicopter and fixed-wing FFB. These signals
 feed vibration envelopes (plans 08-09) and helicopter load forces (plan 05).
 
+**Status:** Implemented (UDP v4). `BladeAlpha` and `DiscAlpha` deferred.
+
 
 ---
 
@@ -20,9 +22,14 @@ logger, ~9000 samples across hover through 170 kt and back).
 | `XPlane.Rotor.BladeAlphRoll` | `sim/flightmodel/cyclic/cyclic_ailn_blad_alph[N]` | float[16] | -0.3 to +0.1 | 1/rev roll amplitude + lateral load force — weak |
 | `XPlane.Rotor.Slap` | `sim/flightmodel2/engines/rotor_blade_slap_rat[N]` | float[16] | 0 (hover) to 0.27 (high speed) | **2/rev high-speed envelope** |
 | `XPlane.Rotor.VRS` | `sim/flightmodel/engine/vortex_ring_state[N]` | float[16][10] | 0.50 (hover) to 0.25 (60+ kt) | **2/rev ETL envelope** — transition zone 0.50->0.25 IS the ETL |
-| `XPlane.Rotor.BladeAlpha` | `sim/flightmodel2/engines/rotor_blade_alpha_deg[N]` | float[16] | 2.3 to 4.7 | Retreating blade stall indicator |
-| `XPlane.Rotor.DiscAlpha` | `sim/flightmodel2/engines/rotor_disc_alpha_deg[N]` | float[16] | -73 (hover) to -0.2 (90 kt) | Disc AoA — context for blade slap |
 | `XPlane.Rotor.Propwash` | `sim/flightmodel2/engines/propwash_mtr_sec[N]` | float[16] | 19 (hover) to 2.5 (170 kt) | Downwash velocity — ground effect proxy |
+
+### Deferred datarefs (add in a future UDP version)
+
+| Graph signal | X-Plane dataref | Type | Range (MD 500E) | Purpose |
+| --- | --- | --- | --- | --- |
+| `XPlane.Rotor.BladeAlpha` | `sim/flightmodel2/engines/rotor_blade_alpha_deg[N]` | float[16] | 2.3 to 4.7 | Retreating blade stall indicator (3/rev) |
+| `XPlane.Rotor.DiscAlpha` | `sim/flightmodel2/engines/rotor_disc_alpha_deg[N]` | float[16] | -73 (hover) to -0.2 (90 kt) | Disc AoA — context for blade slap |
 
 ### NOT available as datarefs
 
@@ -117,33 +124,36 @@ driver (see plan 05 for the two-component model that adds a g-load term).
 
 ## 4. Implementation
 
-### UDP packet extension
+### UDP packet v4
 
-Add the following fields to the X-Plane UDP request packet, using the
-rotor index from `XPlane.RotorIndex` (existing per-function config):
+Added 5 new `float[4]` arrays to `FfbDataPacket` (80 bytes, total 212):
 
 * `cyclic_elev_blad_alph[N]`
 * `cyclic_ailn_blad_alph[N]`
 * `rotor_blade_slap_rat[N]`
-* `vortex_ring_state[N]`
-* `rotor_blade_alpha_deg[N]`
-* `rotor_disc_alpha_deg[N]`
+* `vortex_ring_state[N]` — element `[0]` per rotor from `float[16][10]`
 * `propwash_mtr_sec[N]`
+
+VRS uses stride-10 indexing: reads `[0], [10], [20], [30]` individually.
 
 ### Plugin signal registration
 
-Register graph input signals in `GraphSignalCatalogData`:
+Registered 6 graph input signals in `GraphSignalCatalogData.InputNames`:
 
-```
+```text
 XPlane.Rotor.BladeAlphPitch
 XPlane.Rotor.BladeAlphRoll
 XPlane.Rotor.Slap
 XPlane.Rotor.VRS
-XPlane.Rotor.BladeAlpha
-XPlane.Rotor.DiscAlpha
 XPlane.Rotor.Propwash
-XPlane.Rotor.FundamentalHz   (derived: rpm / 60)
+XPlane.Rotor.FundamentalHz   (derived: MainRotor.Speed / 60)
 ```
 
-Follow the protocol extension checklist in Flight_FFB_Architecture.md
-section 9.
+All indexed by `rotorIndex` (same as existing torque/speed signals).
+
+### Files modified
+
+* `XPlanePlugin/DiyFfbDataProvider.cpp` — datarefs, packet struct, version 4
+* `SimHubPlugin/DiyFfbPlugin.cs` — `XPlaneUdpPacket`, `ParseXPlanePacket`, version/size
+* `SimHubPlugin/GraphSignalCatalogData.cs` — `InputNames`
+* `SimHubPlugin/GraphSignals.cs` — `BuildXPlaneInputs`
