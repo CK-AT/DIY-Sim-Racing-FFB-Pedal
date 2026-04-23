@@ -5,21 +5,12 @@
       "Id": "in_torque",
       "Kind": "Input",
       "X": 20.0,
-      "Y": 20.0,
+      "Y": 60.0,
       "Ports": [
         {
           "Kind": "Output",
           "SignalSuffix": "MainRotor.Torque"
-        }
-      ],
-      "SignalGroup": "XPlane"
-    },
-    {
-      "Id": "in_rpm",
-      "Kind": "Input",
-      "X": 20.0,
-      "Y": 110.0,
-      "Ports": [
+        },
         {
           "Kind": "Output",
           "SignalSuffix": "MainRotor.Speed"
@@ -28,7 +19,7 @@
       "SignalGroup": "XPlane"
     },
     {
-      "Id": "in_aero_pitch",
+      "Id": "in_blade_alph_pitch",
       "Kind": "Input",
       "X": 20.0,
       "Y": 200.0,
@@ -41,10 +32,10 @@
       "SignalGroup": "XPlane"
     },
     {
-      "Id": "in_aero_roll",
+      "Id": "in_blade_alph_roll",
       "Kind": "Input",
       "X": 20.0,
-      "Y": 630.0,
+      "Y": 710.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -54,11 +45,58 @@
       "SignalGroup": "XPlane"
     },
     {
+      "Id": "in_g_nrml",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 290.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "G_Nrml"
+        }
+      ],
+      "SignalGroup": "XPlane"
+    },
+    {
+      "Id": "in_rate_pitch",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 360.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Rate.Pitch"
+        }
+      ],
+      "SignalGroup": "XPlane"
+    },
+    {
+      "Id": "in_rate_roll",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 780.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Rate.Roll"
+        }
+      ],
+      "SignalGroup": "XPlane"
+    },
+    {
+      "Id": "scale_include",
+      "Title": "Heli Scale",
+      "Kind": "Include",
+      "X": 200.0,
+      "Y": 60.0,
+      "IncludePath": "..\\_embedded\\common\\heli_scale.json"
+    },
+    {
       "Id": "collective_include",
       "Title": "Collective",
       "Kind": "Include",
       "X": 570.0,
-      "Y": 20.0,
+      "Y": 10.0,
       "IncludePath": "..\\_embedded\\heli_collective.json",
       "FunctionScope": "FlightStickCollective"
     },
@@ -67,7 +105,7 @@
       "Title": "Cyclic Pitch",
       "Kind": "Include",
       "X": 570.0,
-      "Y": 180.0,
+      "Y": 300.0,
       "IncludePath": "..\\_embedded\\heli_cyclic.json",
       "FunctionScope": "FlightStickPitch"
     },
@@ -76,7 +114,7 @@
       "Title": "Cyclic Roll",
       "Kind": "Include",
       "X": 570.0,
-      "Y": 510.0,
+      "Y": 660.0,
       "IncludePath": "..\\_embedded\\heli_cyclic.json",
       "FunctionScope": "FlightStickRoll"
     },
@@ -85,12 +123,12 @@
       "Title": "Pedals",
       "Kind": "Include",
       "X": 570.0,
-      "Y": 850.0,
+      "Y": 140.0,
       "IncludePath": "..\\_embedded\\heli_pedals.json",
       "FunctionScope": "FlightPedals"
     },
     {
-      "Id": "0124d0a7bc494c42817b09f04bf31043",
+      "Id": "in_grip_pitch",
       "Kind": "Input",
       "X": 20.0,
       "Y": 420.0,
@@ -111,7 +149,7 @@
       "SignalGroup": "Grip"
     },
     {
-      "Id": "b631996ff419435aba288140e780b91c",
+      "Id": "in_grip_roll",
       "Kind": "Input",
       "X": 20.0,
       "Y": 860.0,
@@ -128,7 +166,7 @@
       "SignalGroup": "Grip"
     },
     {
-      "Id": "f4fa245404984790943eaa92c637a6a7",
+      "Id": "in_axis_pitch",
       "Kind": "Input",
       "X": 20.0,
       "Y": 540.0,
@@ -145,7 +183,34 @@
       "SignalGroup": "Axis"
     },
     {
-      "Id": "c749716b12c84d4a8439e772e11cf3aa",
+      "Id": "param_owl",
+      "Kind": "Param",
+      "X": 20.0,
+      "Y": 640.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "OWL"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "const_owl_off",
+      "Title": "0",
+      "Kind": "Const",
+      "X": 430.0,
+      "Y": 990.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "in_axis_roll",
       "Kind": "Input",
       "X": 20.0,
       "Y": 960.0,
@@ -160,274 +225,232 @@
         }
       ],
       "SignalGroup": "Axis"
-    },
-    {
-      "Id": "f3df8adb41f943849240714ca642cd5f",
-      "Title": "Include",
-      "Kind": "Include",
-      "X": 200.0,
-      "Y": 60.0,
-      "IncludePath": "..\\_embedded\\common\\heli_scale.json"
-    },
-    {
-      "Id": "a6f71d8d063a4c21b8cf792b536fee21",
-      "Title": "-100",
-      "Kind": "Const",
-      "X": 20.0,
-      "Y": 700.0,
-      "Ports": [
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "ConstValue": -100.0
-    },
-    {
-      "Id": "08d36b1e98834efcace7ef48d1473731",
-      "Title": "100",
-      "Kind": "Const",
-      "X": 20.0,
-      "Y": 770.0,
-      "Ports": [
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "ConstValue": 100.0
-    },
-    {
-      "Id": "55b9c35141dc43eda59744fbd8c5ac6f",
-      "Title": "-100",
-      "Kind": "Const",
-      "X": 20.0,
-      "Y": 270.0,
-      "Ports": [
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "ConstValue": -100.0
-    },
-    {
-      "Id": "0da83e04df2f464885652d3da835e9ca",
-      "Kind": "Param",
-      "X": 20.0,
-      "Y": 340.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "f_max_load_pitch"
-        }
-      ],
-      "SignalGroup": ""
     }
   ],
   "Links": [
     {
-      "FromNodeId": "0124d0a7bc494c42817b09f04bf31043",
-      "FromPort": "TrimHat.Down",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "hat_pos"
-    },
-    {
-      "FromNodeId": "0124d0a7bc494c42817b09f04bf31043",
-      "FromPort": "TrimHat.Up",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "hat_neg"
-    },
-    {
-      "FromNodeId": "0124d0a7bc494c42817b09f04bf31043",
-      "FromPort": "ForceTrimRelease",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "ftr_button"
-    },
-    {
-      "FromNodeId": "b631996ff419435aba288140e780b91c",
-      "FromPort": "TrimHat.Right",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "hat_pos"
-    },
-    {
-      "FromNodeId": "b631996ff419435aba288140e780b91c",
-      "FromPort": "TrimHat.Left",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "hat_neg"
-    },
-    {
-      "FromNodeId": "0124d0a7bc494c42817b09f04bf31043",
-      "FromPort": "ForceTrimRelease",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "ftr_button"
-    },
-    {
-      "FromNodeId": "f4fa245404984790943eaa92c637a6a7",
-      "FromPort": "FlightStickPitch.Position",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "axis_position"
-    },
-    {
-      "FromNodeId": "f4fa245404984790943eaa92c637a6a7",
-      "FromPort": "FlightStickPitch.Center",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "axis_center"
-    },
-    {
-      "FromNodeId": "c749716b12c84d4a8439e772e11cf3aa",
-      "FromPort": "FlightStickRoll.Position",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "axis_position"
-    },
-    {
-      "FromNodeId": "c749716b12c84d4a8439e772e11cf3aa",
-      "FromPort": "FlightStickRoll.Center",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "axis_center"
-    },
-    {
       "FromNodeId": "in_torque",
       "FromPort": "MainRotor.Torque",
-      "ToNodeId": "f3df8adb41f943849240714ca642cd5f",
+      "ToNodeId": "scale_include",
       "ToPort": "torque"
     },
     {
-      "FromNodeId": "in_rpm",
-      "FromPort": "MainRotor.Speed",
-      "ToNodeId": "f3df8adb41f943849240714ca642cd5f",
-      "ToPort": "rpm"
-    },
-    {
-      "FromNodeId": "f3df8adb41f943849240714ca642cd5f",
+      "FromNodeId": "scale_include",
       "FromPort": "torque_norm",
       "ToNodeId": "collective_include",
       "ToPort": "torque_norm"
     },
     {
-      "FromNodeId": "f3df8adb41f943849240714ca642cd5f",
-      "FromPort": "torque_norm",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "torque_norm"
-    },
-    {
-      "FromNodeId": "f3df8adb41f943849240714ca642cd5f",
-      "FromPort": "torque_norm",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "torque_norm"
-    },
-    {
-      "FromNodeId": "f3df8adb41f943849240714ca642cd5f",
-      "FromPort": "torque_norm",
-      "ToNodeId": "pedals_include",
-      "ToPort": "torque_norm"
-    },
-    {
-      "FromNodeId": "f3df8adb41f943849240714ca642cd5f",
+      "FromNodeId": "scale_include",
       "FromPort": "assist_loss",
       "ToNodeId": "collective_include",
       "ToPort": "assist_loss"
     },
     {
-      "FromNodeId": "f3df8adb41f943849240714ca642cd5f",
-      "FromPort": "assist_loss",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "assist_loss"
-    },
-    {
-      "FromNodeId": "f3df8adb41f943849240714ca642cd5f",
-      "FromPort": "assist_loss",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "assist_loss"
-    },
-    {
-      "FromNodeId": "f3df8adb41f943849240714ca642cd5f",
-      "FromPort": "assist_loss",
-      "ToNodeId": "pedals_include",
-      "ToPort": "assist_loss"
-    },
-    {
-      "FromNodeId": "f3df8adb41f943849240714ca642cd5f",
+      "FromNodeId": "scale_include",
       "FromPort": "damp_scale",
       "ToNodeId": "collective_include",
       "ToPort": "damp_scale"
     },
     {
-      "FromNodeId": "f3df8adb41f943849240714ca642cd5f",
+      "FromNodeId": "scale_include",
+      "FromPort": "torque_norm",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "torque_norm"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "assist_loss",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "assist_loss"
+    },
+    {
+      "FromNodeId": "scale_include",
       "FromPort": "damp_scale",
       "ToNodeId": "cyclic_pitch_include",
       "ToPort": "damp_scale"
     },
     {
-      "FromNodeId": "f3df8adb41f943849240714ca642cd5f",
-      "FromPort": "damp_scale",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "damp_scale"
-    },
-    {
-      "FromNodeId": "f3df8adb41f943849240714ca642cd5f",
-      "FromPort": "rpm_norm",
-      "ToNodeId": "pedals_include",
-      "ToPort": "rpm_norm"
-    },
-    {
-      "FromNodeId": "f3df8adb41f943849240714ca642cd5f",
-      "FromPort": "damp_scale",
-      "ToNodeId": "pedals_include",
-      "ToPort": "damp_scale"
-    },
-    {
-      "FromNodeId": "in_aero_pitch",
+      "FromNodeId": "in_blade_alph_pitch",
       "FromPort": "Rotor.BladeAlphPitch",
       "ToNodeId": "cyclic_pitch_include",
       "ToPort": "blade_alph"
     },
     {
-      "FromNodeId": "in_aero_roll",
+      "FromNodeId": "in_g_nrml",
+      "FromPort": "G_Nrml",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "g_nrml"
+    },
+    {
+      "FromNodeId": "in_rate_pitch",
+      "FromPort": "Rate.Pitch",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "rate"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "torque_norm",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "torque_norm"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "assist_loss",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "assist_loss"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "damp_scale",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "damp_scale"
+    },
+    {
+      "FromNodeId": "in_blade_alph_roll",
       "FromPort": "Rotor.BladeAlphRoll",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "blade_alph"
     },
     {
-      "FromNodeId": "a6f71d8d063a4c21b8cf792b536fee21",
+      "FromNodeId": "in_g_nrml",
+      "FromPort": "G_Nrml",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "g_nrml"
+    },
+    {
+      "FromNodeId": "in_rate_roll",
+      "FromPort": "Rate.Roll",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "rate"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "torque_norm",
+      "ToNodeId": "pedals_include",
+      "ToPort": "torque_norm"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "assist_loss",
+      "ToNodeId": "pedals_include",
+      "ToPort": "assist_loss"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "damp_scale",
+      "ToNodeId": "pedals_include",
+      "ToPort": "damp_scale"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "pedals_include",
+      "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "in_grip_pitch",
+      "FromPort": "TrimHat.Down",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "hat_pos"
+    },
+    {
+      "FromNodeId": "in_grip_pitch",
+      "FromPort": "TrimHat.Up",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "hat_neg"
+    },
+    {
+      "FromNodeId": "in_grip_pitch",
+      "FromPort": "ForceTrimRelease",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "ftr_button"
+    },
+    {
+      "FromNodeId": "in_grip_roll",
+      "FromPort": "TrimHat.Right",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "hat_pos"
+    },
+    {
+      "FromNodeId": "in_grip_roll",
+      "FromPort": "TrimHat.Left",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "hat_neg"
+    },
+    {
+      "FromNodeId": "in_grip_pitch",
+      "FromPort": "ForceTrimRelease",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "ftr_button"
+    },
+    {
+      "FromNodeId": "in_axis_pitch",
+      "FromPort": "FlightStickPitch.Position",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "axis_position"
+    },
+    {
+      "FromNodeId": "in_axis_pitch",
+      "FromPort": "FlightStickPitch.Center",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "axis_center"
+    },
+    {
+      "FromNodeId": "in_axis_roll",
+      "FromPort": "FlightStickRoll.Position",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "axis_position"
+    },
+    {
+      "FromNodeId": "in_axis_roll",
+      "FromPort": "FlightStickRoll.Center",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "axis_center"
+    },
+    {
+      "FromNodeId": "param_owl",
+      "FromPort": "OWL",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "owl"
+    },
+    {
+      "FromNodeId": "const_owl_off",
       "FromPort": "out",
       "ToNodeId": "cyclic_roll_include",
-      "ToPort": "f_min_load"
+      "ToPort": "owl"
     },
     {
-      "FromNodeId": "08d36b1e98834efcace7ef48d1473731",
-      "FromPort": "out",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "f_max_load"
-    },
-    {
-      "FromNodeId": "55b9c35141dc43eda59744fbd8c5ac6f",
-      "FromPort": "out",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "f_min_load"
-    },
-    {
-      "FromNodeId": "0da83e04df2f464885652d3da835e9ca",
-      "FromPort": "f_max_load_pitch",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "f_max_load"
+      "FromNodeId": "in_torque",
+      "FromPort": "MainRotor.Speed",
+      "ToNodeId": "scale_include",
+      "ToPort": "rpm"
     }
   ],
   "Params": [
     {
-      "Name": "f_max_load_pitch",
-      "DefaultValue": 100.0,
+      "Name": "Cyclic.OWL",
+      "DefaultValue": 0.0,
       "Min": 0.0,
-      "Max": 100.0,
+      "Max": 1.0,
       "Ui": {
-        "Widget": "slider",
-        "Label": "Max Pitch Load Force",
-        "Group": "Aircraft",
-        "Units": "N (zero for OAL-equipped aircraft)",
-        "Step": 0.1,
-        "Precision": 1,
+        "Widget": "enum",
+        "Label": "One-Way Lock (Pitch)",
+        "Group": "Cyclic",
+        "Units": "",
+        "Step": null,
+        "Precision": null,
         "LogScale": false,
-        "Options": []
+        "Options": [
+          {
+            "Value": "0",
+            "Label": "Off"
+          },
+          {
+            "Value": "1",
+            "Label": "On"
+          }
+        ]
       }
     }
   ],
