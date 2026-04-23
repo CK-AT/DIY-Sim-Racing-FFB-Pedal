@@ -267,6 +267,9 @@ namespace DiyFfb.GraphEditor
                 case "neg": return OpType.Neg;
                 case "clamp": return OpType.Clamp;
                 case "lerp": return OpType.Lerp;
+                case "select": return OpType.Select;
+                case "eq": return OpType.Eq;
+                case "gt": return OpType.Gt;
                 default: return OpType.Add;
             }
         }

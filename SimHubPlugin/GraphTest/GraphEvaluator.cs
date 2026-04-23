@@ -27,7 +27,10 @@ namespace DiyFfb.GraphTest
         Abs,
         Neg,
         Clamp,
-        Lerp
+        Lerp,
+        Select,
+        Eq,
+        Gt
     }
 
     public sealed class GraphNode
@@ -239,6 +242,25 @@ namespace DiyFfb.GraphTest
                     double b = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
                     double t = node.Args.Count > 2 ? Resolve(node.Args[2]) : 0.0;
                     return a + (b - a) * t;
+                }
+                case OpType.Select:
+                {
+                    double cond = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    double a = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
+                    double b = node.Args.Count > 2 ? Resolve(node.Args[2]) : 0.0;
+                    return cond > 0.5 ? a : b;
+                }
+                case OpType.Eq:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    double b = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
+                    return Math.Abs(a - b) < 0.001 ? 1.0 : 0.0;
+                }
+                case OpType.Gt:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    double b = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
+                    return a > b ? 1.0 : 0.0;
                 }
             }
 

@@ -189,6 +189,18 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("ExtractInterface: scoped vs unscoped outputs", TestExtractInterface_ScopedOutputs));
             results.Add(TestRunner.RunTest("ExtractInterface: ConfigOut with ConfigType", TestExtractInterface_ConfigOutputs));
 
+            // Conditional op tests
+            results.Add(TestRunner.RunTest("Select: true branch", TestSelect_TrueBranch));
+            results.Add(TestRunner.RunTest("Select: false branch", TestSelect_FalseBranch));
+            results.Add(TestRunner.RunTest("Select: boundary at 0.5", TestSelect_Boundary));
+            results.Add(TestRunner.RunTest("Eq: equal values", TestEq_Equal));
+            results.Add(TestRunner.RunTest("Eq: unequal values", TestEq_Unequal));
+            results.Add(TestRunner.RunTest("Eq: near tolerance", TestEq_NearTolerance));
+            results.Add(TestRunner.RunTest("Gt: greater", TestGt_Greater));
+            results.Add(TestRunner.RunTest("Gt: less", TestGt_Less));
+            results.Add(TestRunner.RunTest("Gt: equal", TestGt_Equal));
+            results.Add(TestRunner.RunTest("Tri-state routing via select+eq", TestTriStateRouting));
+
             // AxisRequestQueue tests
             results.Add(TestRunner.RunTest("Queue: enqueue adds to queue", TestEnqueue_AddsToQueue));
             results.Add(TestRunner.RunTest("Queue: duplicate ignored", TestEnqueue_DuplicateIgnored));
@@ -4585,6 +4597,146 @@ namespace DiyFfb.GraphTest
 
             double after = Eval(eval, on, 1.0);  // should be 5 (fresh start + one step)
             return Math.Abs(before - 15.0) < 1e-9 && Math.Abs(after - 5.0) < 1e-9;
+        }
+
+        #endregion
+
+        #region Conditional op tests
+
+        private static bool TestSelect_TrueBranch()
+        {
+            var g = new GraphDefinition();
+            g.Nodes["cond"] = new GraphNode { Id = "cond", Type = NodeType.Const, ConstValue = 1.0 };
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 10.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 20.0 };
+            g.Nodes["sel"] = new GraphNode { Id = "sel", Type = NodeType.Op, Op = OpType.Select, Args = { "cond", "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "sel" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v - 10.0) < 1e-9;
+        }
+
+        private static bool TestSelect_FalseBranch()
+        {
+            var g = new GraphDefinition();
+            g.Nodes["cond"] = new GraphNode { Id = "cond", Type = NodeType.Const, ConstValue = 0.0 };
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 10.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 20.0 };
+            g.Nodes["sel"] = new GraphNode { Id = "sel", Type = NodeType.Op, Op = OpType.Select, Args = { "cond", "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "sel" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v - 20.0) < 1e-9;
+        }
+
+        private static bool TestSelect_Boundary()
+        {
+            // Exactly 0.5 should select false branch (> 0.5, not >=)
+            var g = new GraphDefinition();
+            g.Nodes["cond"] = new GraphNode { Id = "cond", Type = NodeType.Const, ConstValue = 0.5 };
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 10.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 20.0 };
+            g.Nodes["sel"] = new GraphNode { Id = "sel", Type = NodeType.Op, Op = OpType.Select, Args = { "cond", "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "sel" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v - 20.0) < 1e-9;
+        }
+
+        private static bool TestEq_Equal()
+        {
+            var g = new GraphDefinition();
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["eq"] = new GraphNode { Id = "eq", Type = NodeType.Op, Op = OpType.Eq, Args = { "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "eq" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v - 1.0) < 1e-9;
+        }
+
+        private static bool TestEq_Unequal()
+        {
+            var g = new GraphDefinition();
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 6.0 };
+            g.Nodes["eq"] = new GraphNode { Id = "eq", Type = NodeType.Op, Op = OpType.Eq, Args = { "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "eq" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v) < 1e-9;
+        }
+
+        private static bool TestEq_NearTolerance()
+        {
+            // 0.0005 apart — within 0.001 tolerance, should be equal
+            var g = new GraphDefinition();
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 1.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 1.0005 };
+            g.Nodes["eq"] = new GraphNode { Id = "eq", Type = NodeType.Op, Op = OpType.Eq, Args = { "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "eq" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v - 1.0) < 1e-9;
+        }
+
+        private static bool TestGt_Greater()
+        {
+            var g = new GraphDefinition();
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 10.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["gt"] = new GraphNode { Id = "gt", Type = NodeType.Op, Op = OpType.Gt, Args = { "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "gt" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v - 1.0) < 1e-9;
+        }
+
+        private static bool TestGt_Less()
+        {
+            var g = new GraphDefinition();
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 3.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["gt"] = new GraphNode { Id = "gt", Type = NodeType.Op, Op = OpType.Gt, Args = { "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "gt" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v) < 1e-9;
+        }
+
+        private static bool TestGt_Equal()
+        {
+            // Equal values: gt should return 0 (strict greater-than)
+            var g = new GraphDefinition();
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["gt"] = new GraphNode { Id = "gt", Type = NodeType.Op, Op = OpType.Gt, Args = { "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "gt" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v) < 1e-9;
+        }
+
+        private static bool TestTriStateRouting()
+        {
+            // type=0 → 100, type=1 → 200, type=2 → 300
+            // select(eq(type, 0), 100, select(eq(type, 1), 200, 300))
+            var g = new GraphDefinition();
+            g.Nodes["type"] = new GraphNode { Id = "type", Type = NodeType.Param, Name = "type" };
+            g.Nodes["c0"] = new GraphNode { Id = "c0", Type = NodeType.Const, ConstValue = 0.0 };
+            g.Nodes["c1"] = new GraphNode { Id = "c1", Type = NodeType.Const, ConstValue = 1.0 };
+            g.Nodes["v0"] = new GraphNode { Id = "v0", Type = NodeType.Const, ConstValue = 100.0 };
+            g.Nodes["v1"] = new GraphNode { Id = "v1", Type = NodeType.Const, ConstValue = 200.0 };
+            g.Nodes["v2"] = new GraphNode { Id = "v2", Type = NodeType.Const, ConstValue = 300.0 };
+            g.Nodes["eq0"] = new GraphNode { Id = "eq0", Type = NodeType.Op, Op = OpType.Eq, Args = { "type", "c0" } };
+            g.Nodes["eq1"] = new GraphNode { Id = "eq1", Type = NodeType.Op, Op = OpType.Eq, Args = { "type", "c1" } };
+            g.Nodes["sel1"] = new GraphNode { Id = "sel1", Type = NodeType.Op, Op = OpType.Select, Args = { "eq1", "v1", "v2" } };
+            g.Nodes["sel0"] = new GraphNode { Id = "sel0", Type = NodeType.Op, Op = OpType.Select, Args = { "eq0", "v0", "sel1" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "sel0" };
+
+            var eval = new GraphEvaluator(g);
+            var params0 = new Dictionary<string, double> { { "type", 0.0 } };
+            var params1 = new Dictionary<string, double> { { "type", 1.0 } };
+            var params2 = new Dictionary<string, double> { { "type", 2.0 } };
+
+            double r0 = eval.Evaluate(null, params0).TryGetValue("result", out var v0) ? v0 : -1;
+            double r1 = eval.Evaluate(null, params1).TryGetValue("result", out var v1) ? v1 : -1;
+            double r2 = eval.Evaluate(null, params2).TryGetValue("result", out var v2) ? v2 : -1;
+
+            return Math.Abs(r0 - 100.0) < 1e-9 &&
+                   Math.Abs(r1 - 200.0) < 1e-9 &&
+                   Math.Abs(r2 - 300.0) < 1e-9;
         }
 
         #endregion

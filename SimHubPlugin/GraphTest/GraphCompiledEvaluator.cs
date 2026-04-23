@@ -443,6 +443,25 @@ namespace DiyFfb.GraphTest
                     double t = node.ArgIndices.Length > 2 ? Resolve(node.ArgIndices[2], node.ArgIsExtra[2]) : 0.0;
                     return a + (b - a) * t;
                 }
+                case OpType.Select:
+                {
+                    double cond = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    double a = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
+                    double b = node.ArgIndices.Length > 2 ? Resolve(node.ArgIndices[2], node.ArgIsExtra[2]) : 0.0;
+                    return cond > 0.5 ? a : b;
+                }
+                case OpType.Eq:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    double b = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
+                    return Math.Abs(a - b) < 0.001 ? 1.0 : 0.0;
+                }
+                case OpType.Gt:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    double b = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
+                    return a > b ? 1.0 : 0.0;
+                }
             }
 
             return 0.0;
