@@ -19,10 +19,26 @@ namespace DiyFfb.GraphEditor
             },
             new GraphTemplateEntry
             {
-                Name = "Helicopter (Basic)",
-                Description = "Basic FFB graph for helicopters with collective force feedback and rotor dynamics.",
+                Name = "Helicopter \u2014 Unboosted",
+                Description = "Unboosted helicopter (MD 500E, R22). Blade-alpha load force, OWL option, mechanical friction.",
                 Category = "Flight",
-                TemplatePath = "graphs/templates/heli_default.json",
+                TemplatePath = "graphs/templates/heli_unboosted.json",
+                GameIds = new[] { "X-Plane", "XPlane", "XPlane11", "XPlane12", "MSFS2020", "MSFS2024" }
+            },
+            new GraphTemplateEntry
+            {
+                Name = "Helicopter \u2014 Boosted",
+                Description = "Boosted helicopter (Bell 206, H125). No load force, hydraulic friction/damping model.",
+                Category = "Flight",
+                TemplatePath = "graphs/templates/heli_boosted.json",
+                GameIds = new[] { "X-Plane", "XPlane", "XPlane11", "XPlane12", "MSFS2020", "MSFS2024" }
+            },
+            new GraphTemplateEntry
+            {
+                Name = "Helicopter \u2014 SAS",
+                Description = "SAS-equipped helicopter (Bell 222). G-load + rate load force, hydraulic friction/damping.",
+                Category = "Flight",
+                TemplatePath = "graphs/templates/heli_sas.json",
                 GameIds = new[] { "X-Plane", "XPlane", "XPlane11", "XPlane12", "MSFS2020", "MSFS2024" }
             },
             new GraphTemplateEntry

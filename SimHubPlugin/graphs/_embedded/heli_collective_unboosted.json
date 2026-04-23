@@ -1,0 +1,185 @@
+{
+  "Version": 4,
+  "IsLibraryGraph": true,
+  "Nodes": [
+    {
+      "Id": "in_precalc",
+      "Title": "Precalc Inputs",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 210.0,
+      "Ports": [
+        {
+          "Name": "torque_norm",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_k_damper",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 60.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "DamperGain"
+        }
+      ],
+      "SignalGroup": "FlightStickCollective"
+    },
+    {
+      "Id": "param_k_friction",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 130.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Friction"
+        }
+      ],
+      "SignalGroup": "FlightStickCollective"
+    },
+    {
+      "Id": "param_k_load",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 290.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "LoadGain"
+        }
+      ],
+      "SignalGroup": "FlightStickCollective"
+    },
+    {
+      "Id": "load",
+      "Title": "Load",
+      "Kind": "Op",
+      "X": 410.0,
+      "Y": 220.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input",
+          "Negate": true
+        },
+        {
+          "Name": "a*-b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "out_scoped",
+      "Kind": "Output",
+      "X": 650.0,
+      "Y": 80.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "DamperGain"
+        },
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Friction"
+        },
+        {
+          "Kind": "Input",
+          "SignalSuffix": "LoadForce"
+        }
+      ],
+      "Scoped": true
+    }
+  ],
+  "Links": [
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "torque_norm",
+      "ToNodeId": "load",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_k_load",
+      "FromPort": "LoadGain",
+      "ToNodeId": "load",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_k_damper",
+      "FromPort": "DamperGain",
+      "ToNodeId": "out_scoped",
+      "ToPort": "DamperGain"
+    },
+    {
+      "FromNodeId": "param_k_friction",
+      "FromPort": "Friction",
+      "ToNodeId": "out_scoped",
+      "ToPort": "Friction"
+    },
+    {
+      "FromNodeId": "load",
+      "FromPort": "a*-b",
+      "ToNodeId": "out_scoped",
+      "ToPort": "LoadForce"
+    }
+  ],
+  "Params": [
+    {
+      "Name": "FlightStickCollective.DamperGain",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Damper Gain",
+        "Group": "FlightStickCollective",
+        "Units": "N*s/mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickCollective.Friction",
+      "DefaultValue": 0.3,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Friction",
+        "Group": "FlightStickCollective",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickCollective.LoadGain",
+      "DefaultValue": 0.8,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Load Gain",
+        "Group": "FlightStickCollective",
+        "Units": "N @ trq_ref",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    }
+  ],
+  "ParamValues": null
+}

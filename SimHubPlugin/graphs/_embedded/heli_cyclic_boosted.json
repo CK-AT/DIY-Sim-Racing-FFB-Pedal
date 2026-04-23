@@ -1,0 +1,616 @@
+{
+  "Version": 4,
+  "IsLibraryGraph": true,
+  "Nodes": [
+    {
+      "Id": "in_precalc",
+      "Title": "Precalc Inputs",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 150.0,
+      "Ports": [
+        {
+          "Name": "torque_norm",
+          "Kind": "Output"
+        },
+        {
+          "Name": "assist_loss",
+          "Kind": "Output"
+        },
+        {
+          "Name": "damp_scale",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_grip",
+      "Title": "Grip",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 640.0,
+      "Ports": [
+        {
+          "Name": "hat_pos",
+          "Kind": "Output"
+        },
+        {
+          "Name": "hat_neg",
+          "Kind": "Output"
+        },
+        {
+          "Name": "ftr_button",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_axis_pos",
+      "Title": "Axis Pos",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 450.0,
+      "Ports": [
+        {
+          "Name": "axis_position",
+          "Kind": "Output"
+        },
+        {
+          "Name": "axis_center",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_k_spring",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 560.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "SpringGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_k_damper",
+      "Kind": "Param",
+      "X": 220.0,
+      "Y": 0.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "DamperGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_k_friction_base",
+      "Kind": "Param",
+      "X": 400.0,
+      "Y": 350.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FrictionBase"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_k_friction_torque",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 280.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FrictionTorque"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_k_friction_lowrpm",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 360.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FrictionLowRpm"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_trim_step",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 770.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimStep"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_trim_min",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 840.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimMin"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_trim_max",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 910.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimMax"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "damper",
+      "Title": "Damper",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 40.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "fric_torque",
+      "Title": "Fric Torque",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 140.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "fric_lowrpm",
+      "Title": "Fric LowRPM",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 240.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "friction",
+      "Title": "Friction",
+      "Kind": "Op",
+      "X": 700.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b+c",
+          "Kind": "Output"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "trim_include",
+      "Title": "FTR + Hat Trim",
+      "Kind": "Include",
+      "X": 500.0,
+      "Y": 450.0,
+      "IncludePath": "trim_combined.json"
+    },
+    {
+      "Id": "out_scoped",
+      "Kind": "Output",
+      "X": 900.0,
+      "Y": 100.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "DamperGain"
+        },
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Friction"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "59db751f375d4a2e93c1c5f7c2004573",
+      "Kind": "Output",
+      "X": 720.0,
+      "Y": 450.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "TrimOffset"
+        },
+        {
+          "Kind": "Input",
+          "SignalSuffix": "SpringGain"
+        }
+      ],
+      "Scoped": true
+    }
+  ],
+  "Links": [
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "damp_scale",
+      "ToNodeId": "damper",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "torque_norm",
+      "ToNodeId": "fric_torque",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_k_friction_torque",
+      "FromPort": "FrictionTorque",
+      "ToNodeId": "fric_torque",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "assist_loss",
+      "ToNodeId": "fric_lowrpm",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_k_friction_lowrpm",
+      "FromPort": "FrictionLowRpm",
+      "ToNodeId": "fric_lowrpm",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "fric_torque",
+      "FromPort": "a*b",
+      "ToNodeId": "friction",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "fric_lowrpm",
+      "FromPort": "a*b",
+      "ToNodeId": "friction",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_k_friction_base",
+      "FromPort": "FrictionBase",
+      "ToNodeId": "friction",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "in_grip",
+      "FromPort": "ftr_button",
+      "ToNodeId": "trim_include",
+      "ToPort": "ftr_button"
+    },
+    {
+      "FromNodeId": "in_axis_pos",
+      "FromPort": "axis_position",
+      "ToNodeId": "trim_include",
+      "ToPort": "axis_position"
+    },
+    {
+      "FromNodeId": "in_axis_pos",
+      "FromPort": "axis_center",
+      "ToNodeId": "trim_include",
+      "ToPort": "axis_center"
+    },
+    {
+      "FromNodeId": "in_grip",
+      "FromPort": "hat_pos",
+      "ToNodeId": "trim_include",
+      "ToPort": "hat_pos"
+    },
+    {
+      "FromNodeId": "in_grip",
+      "FromPort": "hat_neg",
+      "ToNodeId": "trim_include",
+      "ToPort": "hat_neg"
+    },
+    {
+      "FromNodeId": "param_k_spring",
+      "FromPort": "SpringGain",
+      "ToNodeId": "trim_include",
+      "ToPort": "spring_in"
+    },
+    {
+      "FromNodeId": "param_trim_step",
+      "FromPort": "TrimStep",
+      "ToNodeId": "trim_include",
+      "ToPort": "trim_step"
+    },
+    {
+      "FromNodeId": "param_trim_min",
+      "FromPort": "TrimMin",
+      "ToNodeId": "trim_include",
+      "ToPort": "trim_min"
+    },
+    {
+      "FromNodeId": "param_trim_max",
+      "FromPort": "TrimMax",
+      "ToNodeId": "trim_include",
+      "ToPort": "trim_max"
+    },
+    {
+      "FromNodeId": "damper",
+      "FromPort": "a*b",
+      "ToNodeId": "out_scoped",
+      "ToPort": "DamperGain"
+    },
+    {
+      "FromNodeId": "friction",
+      "FromPort": "a+b+c",
+      "ToNodeId": "out_scoped",
+      "ToPort": "Friction"
+    },
+    {
+      "FromNodeId": "trim_include",
+      "FromPort": "trim",
+      "ToNodeId": "59db751f375d4a2e93c1c5f7c2004573",
+      "ToPort": "TrimOffset"
+    },
+    {
+      "FromNodeId": "trim_include",
+      "FromPort": "spring",
+      "ToNodeId": "59db751f375d4a2e93c1c5f7c2004573",
+      "ToPort": "SpringGain"
+    },
+    {
+      "FromNodeId": "param_k_damper",
+      "FromPort": "DamperGain",
+      "ToNodeId": "damper",
+      "ToPort": "a"
+    }
+  ],
+  "Params": [
+    {
+      "Name": "Aircraft.Rotor.TorqueNom",
+      "DefaultValue": 1000.0,
+      "Min": 100.0,
+      "Max": 100000.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Nominal Rotor Torque",
+        "Group": "Aircraft",
+        "Units": "Nm",
+        "Step": 10.0,
+        "Precision": 0,
+        "LogScale": true,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.Rotor.SpeedNom",
+      "DefaultValue": 400.0,
+      "Min": 100.0,
+      "Max": 1000.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Nominal Rotor Speed",
+        "Group": "Aircraft",
+        "Units": "RPM",
+        "Step": 1.0,
+        "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.RpmBlend",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RPM Blend Factor",
+        "Group": "Aircraft",
+        "Units": "ratio",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.SpringGain",
+      "DefaultValue": 0.45,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Spring Gain",
+        "Group": "Cyclic",
+        "Units": "N/mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.DamperGain",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Damper Gain",
+        "Group": "Cyclic",
+        "Units": "N*s/mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.FrictionBase",
+      "DefaultValue": 0.1,
+      "Min": 0.0,
+      "Max": 2.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Friction Base",
+        "Group": "Cyclic",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.FrictionTorque",
+      "DefaultValue": 0.3,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Friction (Torque)",
+        "Group": "Cyclic",
+        "Units": "N @ trq_ref",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.FrictionLowRpm",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Friction (Low RPM)",
+        "Group": "Cyclic",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.TrimStep",
+      "DefaultValue": 5.0,
+      "Min": 0.1,
+      "Max": 50.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Trim Rate",
+        "Group": "Cyclic",
+        "Units": "mm/s",
+        "Step": 0.1,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.TrimMin",
+      "DefaultValue": -20.0,
+      "Min": -50.0,
+      "Max": 0.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Hat Trim Min",
+        "Group": "Cyclic",
+        "Units": "mm",
+        "Step": 0.5,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.TrimMax",
+      "DefaultValue": 20.0,
+      "Min": 0.0,
+      "Max": 50.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Hat Trim Max",
+        "Group": "Cyclic",
+        "Units": "mm",
+        "Step": 0.5,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    }
+  ],
+  "ParamValues": null
+}

@@ -1,0 +1,329 @@
+{
+  "Version": 4,
+  "Nodes": [
+    {
+      "Id": "in_torque",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 60.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "MainRotor.Torque"
+        },
+        {
+          "Kind": "Output",
+          "SignalSuffix": "MainRotor.Speed"
+        }
+      ],
+      "SignalGroup": "XPlane"
+    },
+    {
+      "Id": "in_blade_alph_pitch",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Rotor.BladeAlphPitch"
+        }
+      ],
+      "SignalGroup": "XPlane"
+    },
+    {
+      "Id": "in_blade_alph_roll",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 660.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Rotor.BladeAlphRoll"
+        }
+      ],
+      "SignalGroup": "XPlane"
+    },
+    {
+      "Id": "scale_include",
+      "Title": "Heli Scale",
+      "Kind": "Include",
+      "X": 200.0,
+      "Y": 60.0,
+      "IncludePath": "..\\_embedded\\common\\heli_scale.json"
+    },
+    {
+      "Id": "cyclic_pitch_include",
+      "Title": "Cyclic Pitch",
+      "Kind": "Include",
+      "X": 370.0,
+      "Y": 280.0,
+      "IncludePath": "..\\_embedded\\heli_cyclic_unboosted.json",
+      "FunctionScope": "FlightStickPitch"
+    },
+    {
+      "Id": "cyclic_roll_include",
+      "Title": "Cyclic Roll",
+      "Kind": "Include",
+      "X": 370.0,
+      "Y": 730.0,
+      "IncludePath": "..\\_embedded\\heli_cyclic_unboosted.json",
+      "FunctionScope": "FlightStickRoll"
+    },
+    {
+      "Id": "collective_include",
+      "Title": "Collective",
+      "Kind": "Include",
+      "X": 430.0,
+      "Y": 50.0,
+      "IncludePath": "..\\_embedded\\heli_collective_unboosted.json",
+      "FunctionScope": "FlightStickCollective"
+    },
+    {
+      "Id": "pedals_include",
+      "Title": "Pedals",
+      "Kind": "Include",
+      "X": 430.0,
+      "Y": 130.0,
+      "IncludePath": "..\\_embedded\\heli_pedals_unboosted.json",
+      "FunctionScope": "FlightPedals"
+    },
+    {
+      "Id": "in_grip_pitch",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 360.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimHat.Down"
+        },
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimHat.Up"
+        },
+        {
+          "Kind": "Output",
+          "SignalSuffix": "ForceTrimRelease"
+        }
+      ],
+      "SignalGroup": "Grip"
+    },
+    {
+      "Id": "in_grip_roll",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 820.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimHat.Right"
+        },
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimHat.Left"
+        }
+      ],
+      "SignalGroup": "Grip"
+    },
+    {
+      "Id": "in_axis_pitch",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 490.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FlightStickPitch.Position"
+        },
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FlightStickPitch.Center"
+        }
+      ],
+      "SignalGroup": "Axis"
+    },
+    {
+      "Id": "in_axis_roll",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 930.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FlightStickRoll.Position"
+        },
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FlightStickRoll.Center"
+        }
+      ],
+      "SignalGroup": "Axis"
+    },
+    {
+      "Id": "param_owl",
+      "Kind": "Param",
+      "X": 20.0,
+      "Y": 280.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "OWL"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "const_owl_off",
+      "Title": "0",
+      "Kind": "Const",
+      "X": 20.0,
+      "Y": 740.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.0
+    }
+  ],
+  "Links": [
+    {
+      "FromNodeId": "in_torque",
+      "FromPort": "MainRotor.Torque",
+      "ToNodeId": "scale_include",
+      "ToPort": "torque"
+    },
+    {
+      "FromNodeId": "in_torque",
+      "FromPort": "MainRotor.Speed",
+      "ToNodeId": "scale_include",
+      "ToPort": "rpm"
+    },
+    {
+      "FromNodeId": "in_blade_alph_pitch",
+      "FromPort": "Rotor.BladeAlphPitch",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "blade_alph"
+    },
+    {
+      "FromNodeId": "param_owl",
+      "FromPort": "OWL",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "owl"
+    },
+    {
+      "FromNodeId": "in_grip_pitch",
+      "FromPort": "TrimHat.Down",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "hat_pos"
+    },
+    {
+      "FromNodeId": "in_grip_pitch",
+      "FromPort": "TrimHat.Up",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "hat_neg"
+    },
+    {
+      "FromNodeId": "in_grip_pitch",
+      "FromPort": "ForceTrimRelease",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "ftr_button"
+    },
+    {
+      "FromNodeId": "in_axis_pitch",
+      "FromPort": "FlightStickPitch.Position",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "axis_position"
+    },
+    {
+      "FromNodeId": "in_axis_pitch",
+      "FromPort": "FlightStickPitch.Center",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "axis_center"
+    },
+    {
+      "FromNodeId": "in_blade_alph_roll",
+      "FromPort": "Rotor.BladeAlphRoll",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "blade_alph"
+    },
+    {
+      "FromNodeId": "const_owl_off",
+      "FromPort": "out",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "owl"
+    },
+    {
+      "FromNodeId": "in_grip_roll",
+      "FromPort": "TrimHat.Right",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "hat_pos"
+    },
+    {
+      "FromNodeId": "in_grip_roll",
+      "FromPort": "TrimHat.Left",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "hat_neg"
+    },
+    {
+      "FromNodeId": "in_grip_pitch",
+      "FromPort": "ForceTrimRelease",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "ftr_button"
+    },
+    {
+      "FromNodeId": "in_axis_roll",
+      "FromPort": "FlightStickRoll.Position",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "axis_position"
+    },
+    {
+      "FromNodeId": "in_axis_roll",
+      "FromPort": "FlightStickRoll.Center",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "axis_center"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "torque_norm",
+      "ToNodeId": "collective_include",
+      "ToPort": "torque_norm"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "pedals_include",
+      "ToPort": "rpm_norm"
+    }
+  ],
+  "Params": [
+    {
+      "Name": "Cyclic.OWL",
+      "DefaultValue": 0.0,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": {
+        "Widget": "enum",
+        "Label": "One-Way Lock (Pitch)",
+        "Group": "Cyclic",
+        "Units": "",
+        "Step": null,
+        "Precision": null,
+        "LogScale": false,
+        "Options": [
+          {
+            "Value": "0",
+            "Label": "Off"
+          },
+          {
+            "Value": "1",
+            "Label": "On"
+          }
+        ]
+      }
+    }
+  ],
+  "ParamValues": null
+}

@@ -1,0 +1,202 @@
+{
+  "Version": 4,
+  "IsLibraryGraph": true,
+  "Nodes": [
+    {
+      "Id": "in_precalc",
+      "Title": "Precalc Inputs",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 40.0,
+      "Ports": [
+        {
+          "Name": "rpm_norm",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_k_spring",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 120.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "SpringGain"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "param_k_damper",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "DamperGain"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "param_k_friction",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 280.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Friction"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "spring_calc",
+      "Title": "Spring * RPM",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 60.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "out_spring",
+      "Kind": "Output",
+      "X": 700.0,
+      "Y": 60.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "SpringGain"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "out_damper",
+      "Kind": "Output",
+      "X": 700.0,
+      "Y": 140.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "DamperGain"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "out_friction",
+      "Kind": "Output",
+      "X": 700.0,
+      "Y": 210.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Friction"
+        }
+      ],
+      "Scoped": true
+    }
+  ],
+  "Links": [
+    {
+      "FromNodeId": "param_k_spring",
+      "FromPort": "SpringGain",
+      "ToNodeId": "spring_calc",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "spring_calc",
+      "FromPort": "a*b",
+      "ToNodeId": "out_spring",
+      "ToPort": "SpringGain"
+    },
+    {
+      "FromNodeId": "param_k_damper",
+      "FromPort": "DamperGain",
+      "ToNodeId": "out_damper",
+      "ToPort": "DamperGain"
+    },
+    {
+      "FromNodeId": "param_k_friction",
+      "FromPort": "Friction",
+      "ToNodeId": "out_friction",
+      "ToPort": "Friction"
+    },
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "spring_calc",
+      "ToPort": "a"
+    }
+  ],
+  "Params": [
+    {
+      "Name": "FlightPedals.SpringGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Spring Gain",
+        "Group": "FlightPedals",
+        "Units": "N/mm @ RPM nom",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.DamperGain",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Damper Gain",
+        "Group": "FlightPedals",
+        "Units": "N*s/mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.Friction",
+      "DefaultValue": 0.1,
+      "Min": 0.0,
+      "Max": 2.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Friction",
+        "Group": "FlightPedals",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    }
+  ],
+  "ParamValues": null
+}

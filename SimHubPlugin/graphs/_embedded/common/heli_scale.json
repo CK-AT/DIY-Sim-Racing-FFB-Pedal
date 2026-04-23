@@ -10,11 +10,7 @@
       "Y": 60.0,
       "Ports": [
         {
-          "Name": "in_torque",
-          "Kind": "Output"
-        },
-        {
-          "Name": "in_torque_ref",
+          "Name": "torque",
           "Kind": "Output"
         }
       ]
@@ -24,27 +20,10 @@
       "Title": "RPM",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 180.0,
+      "Y": 220.0,
       "Ports": [
         {
-          "Name": "in_rpm",
-          "Kind": "Output"
-        },
-        {
-          "Name": "in_rpm_ref",
-          "Kind": "Output"
-        }
-      ]
-    },
-    {
-      "Id": "in_rpm_blend",
-      "Title": "RPM Blend",
-      "Kind": "Input",
-      "X": 40.0,
-      "Y": 330.0,
-      "Ports": [
-        {
-          "Name": "in_rpm_blend",
+          "Name": "rpm",
           "Kind": "Output"
         }
       ]
@@ -53,7 +32,7 @@
       "Id": "torque_norm",
       "Title": "Torque Norm",
       "Kind": "Func",
-      "X": 220.0,
+      "X": 460.0,
       "Y": 60.0,
       "Ports": [
         {
@@ -76,8 +55,8 @@
       "Id": "rpm_norm",
       "Title": "RPM Norm",
       "Kind": "Func",
-      "X": 220.0,
-      "Y": 180.0,
+      "X": 460.0,
+      "Y": 220.0,
       "Ports": [
         {
           "Name": "rpm",
@@ -99,8 +78,8 @@
       "Id": "assist_loss",
       "Title": "Assist Loss",
       "Kind": "Func",
-      "X": 400.0,
-      "Y": 180.0,
+      "X": 630.0,
+      "Y": 300.0,
       "Ports": [
         {
           "Name": "rpm_norm",
@@ -118,8 +97,8 @@
       "Id": "sum",
       "Title": "Sum",
       "Kind": "Op",
-      "X": 580.0,
-      "Y": 260.0,
+      "X": 910.0,
+      "Y": 410.0,
       "Ports": [
         {
           "Name": "a",
@@ -140,8 +119,8 @@
       "Id": "damp_scale",
       "Title": "Damp Scale",
       "Kind": "Op",
-      "X": 800.0,
-      "Y": 280.0,
+      "X": 1080.0,
+      "Y": 400.0,
       "Ports": [
         {
           "Name": "a",
@@ -166,11 +145,11 @@
       "Id": "out_torque_norm",
       "Title": "Torque Norm Out",
       "Kind": "Output",
-      "X": 960.0,
+      "X": 1200.0,
       "Y": 60.0,
       "Ports": [
         {
-          "Name": "out_torque_norm",
+          "Name": "torque_norm",
           "Kind": "Input"
         }
       ]
@@ -179,11 +158,11 @@
       "Id": "out_assist_loss",
       "Title": "Assist Loss Out",
       "Kind": "Output",
-      "X": 960.0,
-      "Y": 180.0,
+      "X": 1200.0,
+      "Y": 300.0,
       "Ports": [
         {
-          "Name": "out_assist_loss",
+          "Name": "assist_loss",
           "Kind": "Input"
         }
       ]
@@ -192,26 +171,78 @@
       "Id": "out_damp_scale",
       "Title": "Damp Scale Out",
       "Kind": "Output",
-      "X": 960.0,
-      "Y": 280.0,
+      "X": 1200.0,
+      "Y": 400.0,
       "Ports": [
         {
-          "Name": "out_damp_scale",
+          "Name": "damp_scale",
           "Kind": "Input"
         }
       ]
+    },
+    {
+      "Id": "4e62c08606a84e42af138845525b5de2",
+      "Title": "RPM Norm Out",
+      "Kind": "Output",
+      "X": 1200.0,
+      "Y": 220.0,
+      "Ports": [
+        {
+          "Name": "rpm_norm",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "dd60fabd8a794a408672ee63e5405ea7",
+      "Kind": "Param",
+      "X": 160.0,
+      "Y": 130.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Rotor.TorqueNom"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "6c4ed55c2262408fb7bbf120ca6b24cd",
+      "Kind": "Param",
+      "X": 160.0,
+      "Y": 290.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Rotor.SpeedNom"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "a5e57e0b08eb40fbb5291ddc9f2e7117",
+      "Kind": "Param",
+      "X": 840.0,
+      "Y": 520.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RpmBlend"
+        }
+      ],
+      "SignalGroup": "Aircraft"
     }
   ],
   "Links": [
     {
       "FromNodeId": "in_torque",
-      "FromPort": "in_torque",
+      "FromPort": "torque",
       "ToNodeId": "torque_norm",
       "ToPort": "trq"
     },
     {
       "FromNodeId": "in_rpm",
-      "FromPort": "in_rpm",
+      "FromPort": "rpm",
       "ToNodeId": "rpm_norm",
       "ToPort": "rpm"
     },
@@ -225,7 +256,7 @@
       "FromNodeId": "torque_norm",
       "FromPort": "out",
       "ToNodeId": "sum",
-      "ToPort": "b"
+      "ToPort": "a"
     },
     {
       "FromNodeId": "torque_norm",
@@ -240,48 +271,103 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "in_rpm_blend",
-      "FromPort": "in_rpm_blend",
-      "ToNodeId": "damp_scale",
-      "ToPort": "t"
-    },
-    {
       "FromNodeId": "torque_norm",
       "FromPort": "out",
       "ToNodeId": "out_torque_norm",
-      "ToPort": "out_torque_norm"
+      "ToPort": "torque_norm"
     },
     {
       "FromNodeId": "assist_loss",
       "FromPort": "out",
       "ToNodeId": "out_assist_loss",
-      "ToPort": "out_assist_loss"
+      "ToPort": "assist_loss"
     },
     {
       "FromNodeId": "damp_scale",
       "FromPort": "lerp(a,b,t)",
       "ToNodeId": "out_damp_scale",
-      "ToPort": "out_damp_scale"
+      "ToPort": "damp_scale"
+    },
+    {
+      "FromNodeId": "rpm_norm",
+      "FromPort": "out",
+      "ToNodeId": "4e62c08606a84e42af138845525b5de2",
+      "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "dd60fabd8a794a408672ee63e5405ea7",
+      "FromPort": "Rotor.TorqueNom",
+      "ToNodeId": "torque_norm",
+      "ToPort": "trq_ref"
+    },
+    {
+      "FromNodeId": "6c4ed55c2262408fb7bbf120ca6b24cd",
+      "FromPort": "Rotor.SpeedNom",
+      "ToNodeId": "rpm_norm",
+      "ToPort": "rpm_ref"
+    },
+    {
+      "FromNodeId": "a5e57e0b08eb40fbb5291ddc9f2e7117",
+      "FromPort": "RpmBlend",
+      "ToNodeId": "damp_scale",
+      "ToPort": "t"
     },
     {
       "FromNodeId": "assist_loss",
       "FromPort": "out",
       "ToNodeId": "sum",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "in_torque",
-      "FromPort": "in_torque_ref",
-      "ToNodeId": "torque_norm",
-      "ToPort": "trq_ref"
-    },
-    {
-      "FromNodeId": "in_rpm",
-      "FromPort": "in_rpm_ref",
-      "ToNodeId": "rpm_norm",
-      "ToPort": "rpm_ref"
+      "ToPort": "b"
     }
   ],
-  "Params": [],
+  "Params": [
+    {
+      "Name": "Aircraft.Rotor.TorqueNom",
+      "DefaultValue": 1000.0,
+      "Min": 100.0,
+      "Max": 100000.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Nominal Rotor Torque",
+        "Group": "Aircraft",
+        "Units": "Nm",
+        "Step": 10.0,
+        "Precision": 0,
+        "LogScale": true,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.Rotor.SpeedNom",
+      "DefaultValue": 400.0,
+      "Min": 100.0,
+      "Max": 1000.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Nominal Rotor Speed",
+        "Group": "Aircraft",
+        "Units": "RPM",
+        "Step": 1.0,
+        "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.RpmBlend",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RPM Blend Factor",
+        "Group": "Aircraft",
+        "Units": "ratio",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    }
+  ],
   "ParamValues": null
 }
