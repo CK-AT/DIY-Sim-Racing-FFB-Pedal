@@ -3,97 +3,6 @@
   "IsLibraryGraph": true,
   "Nodes": [
     {
-      "Id": "in_torque",
-      "Title": "Torque",
-      "Kind": "Input",
-      "X": 40.0,
-      "Y": 40.0,
-      "Ports": [
-        {
-          "Name": "torque",
-          "Kind": "Output"
-        }
-      ]
-    },
-    {
-      "Id": "in_rpm",
-      "Title": "RPM",
-      "Kind": "Input",
-      "X": 40.0,
-      "Y": 180.0,
-      "Ports": [
-        {
-          "Name": "rpm",
-          "Kind": "Output"
-        }
-      ]
-    },
-    {
-      "Id": "in_aero_trq",
-      "Title": "Aero Torque",
-      "Kind": "Input",
-      "X": 40.0,
-      "Y": 390.0,
-      "Ports": [
-        {
-          "Name": "aero_trq",
-          "Kind": "Output"
-        }
-      ]
-    },
-    {
-      "Id": "param_torque_ref",
-      "Kind": "Param",
-      "X": 40.0,
-      "Y": 110.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "Rotor.TorqueNom"
-        }
-      ],
-      "SignalGroup": "Aircraft"
-    },
-    {
-      "Id": "param_rpm_ref",
-      "Kind": "Param",
-      "X": 40.0,
-      "Y": 250.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "Rotor.SpeedNom"
-        }
-      ],
-      "SignalGroup": "Aircraft"
-    },
-    {
-      "Id": "param_rpm_blend",
-      "Kind": "Param",
-      "X": 40.0,
-      "Y": 320.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "RpmBlend"
-        }
-      ],
-      "SignalGroup": "Aircraft"
-    },
-    {
-      "Id": "param_aero_max",
-      "Kind": "Param",
-      "X": 40.0,
-      "Y": 460.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "AeroTorque.YawMax"
-        }
-      ],
-      "SignalGroup": "Aircraft"
-    },
-    {
       "Id": "param_k_spring",
       "Kind": "Param",
       "X": 40.0,
@@ -170,14 +79,6 @@
         }
       ],
       "SignalGroup": "FlightPedals"
-    },
-    {
-      "Id": "scale_include",
-      "Title": "Heli Scale",
-      "Kind": "Include",
-      "X": 390.0,
-      "Y": 90.0,
-      "IncludePath": "common\\heli_scale.json"
     },
     {
       "Id": "damper",
@@ -272,33 +173,75 @@
       "Op": "add"
     },
     {
-      "Id": "load_norm",
-      "Title": "Load Norm",
-      "Kind": "Op",
-      "X": 780.0,
-      "Y": 400.0,
+      "Id": "out_spring",
+      "Kind": "Output",
+      "X": 1160.0,
+      "Y": 530.0,
       "Ports": [
         {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a/b",
-          "Kind": "Output"
+          "Kind": "Input",
+          "SignalSuffix": "SpringGain"
         }
       ],
-      "Op": "div"
+      "Scoped": true
     },
     {
-      "Id": "load",
-      "Title": "Load",
+      "Id": "b320aad0add04c0db1b406bbe021ad7e",
+      "Kind": "Output",
+      "X": 1160.0,
+      "Y": 60.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "DamperGain"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "ec7f1fd2c8c74fd799c936d2c06108f9",
+      "Kind": "Output",
+      "X": 1160.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Friction"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "4dfaa87226c54334911f81a228e7bb08",
+      "Title": "",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 50.0,
+      "Ports": [
+        {
+          "Name": "torque_norm",
+          "Kind": "Output"
+        },
+        {
+          "Name": "assist_loss",
+          "Kind": "Output"
+        },
+        {
+          "Name": "damp_scale",
+          "Kind": "Output"
+        },
+        {
+          "Name": "rpm_norm",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "0e62e6fed2f340e7800dbb02ba441856",
+      "Title": "Spring Calc",
       "Kind": "Op",
-      "X": 970.0,
-      "Y": 400.0,
+      "X": 960.0,
+      "Y": 530.0,
       "Ports": [
         {
           "Name": "a",
@@ -306,85 +249,17 @@
         },
         {
           "Name": "b",
-          "Kind": "Input",
-          "Negate": true
+          "Kind": "Input"
         },
         {
-          "Name": "a*-b",
+          "Name": "a*b",
           "Kind": "Output"
         }
       ],
       "Op": "mul"
-    },
-    {
-      "Id": "out_spring",
-      "Title": "Spring Out",
-      "Kind": "Output",
-      "X": 1190.0,
-      "Y": 40.0,
-      "Ports": [
-        {
-          "Name": "spring",
-          "Kind": "Input"
-        },
-        {
-          "Name": "damper",
-          "Kind": "Input"
-        },
-        {
-          "Name": "friction",
-          "Kind": "Input"
-        },
-        {
-          "Name": "load",
-          "Kind": "Input"
-        }
-      ]
     }
   ],
   "Links": [
-    {
-      "FromNodeId": "in_torque",
-      "FromPort": "torque",
-      "ToNodeId": "scale_include",
-      "ToPort": "in_torque"
-    },
-    {
-      "FromNodeId": "param_torque_ref",
-      "FromPort": "Rotor.TorqueNom",
-      "ToNodeId": "scale_include",
-      "ToPort": "in_torque_ref"
-    },
-    {
-      "FromNodeId": "in_rpm",
-      "FromPort": "rpm",
-      "ToNodeId": "scale_include",
-      "ToPort": "in_rpm"
-    },
-    {
-      "FromNodeId": "param_rpm_ref",
-      "FromPort": "Rotor.SpeedNom",
-      "ToNodeId": "scale_include",
-      "ToPort": "in_rpm_ref"
-    },
-    {
-      "FromNodeId": "param_rpm_blend",
-      "FromPort": "RpmBlend",
-      "ToNodeId": "scale_include",
-      "ToPort": "in_rpm_blend"
-    },
-    {
-      "FromNodeId": "param_k_spring",
-      "FromPort": "SpringGain",
-      "ToNodeId": "out_spring",
-      "ToPort": "spring"
-    },
-    {
-      "FromNodeId": "scale_include",
-      "FromPort": "out_damp_scale",
-      "ToNodeId": "damper",
-      "ToPort": "a"
-    },
     {
       "FromNodeId": "param_k_damper",
       "FromPort": "DamperGain",
@@ -392,22 +267,10 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "scale_include",
-      "FromPort": "out_torque_norm",
-      "ToNodeId": "fric_torque",
-      "ToPort": "a"
-    },
-    {
       "FromNodeId": "param_k_friction_torque",
       "FromPort": "FrictionTorque",
       "ToNodeId": "fric_torque",
       "ToPort": "b"
-    },
-    {
-      "FromNodeId": "scale_include",
-      "FromPort": "out_assist_loss",
-      "ToNodeId": "fric_lowrpm",
-      "ToPort": "a"
     },
     {
       "FromNodeId": "param_k_friction_lowrpm",
@@ -434,46 +297,52 @@
       "ToPort": "c"
     },
     {
-      "FromNodeId": "fric_sum1",
-      "FromPort": "a+b+c",
-      "ToNodeId": "out_spring",
-      "ToPort": "friction"
-    },
-    {
-      "FromNodeId": "in_aero_trq",
-      "FromPort": "aero_trq",
-      "ToNodeId": "load_norm",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "param_aero_max",
-      "FromPort": "AeroTorque.YawMax",
-      "ToNodeId": "load_norm",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "load_norm",
-      "FromPort": "a/b",
-      "ToNodeId": "load",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "param_k_load",
-      "FromPort": "LoadGain",
-      "ToNodeId": "load",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "load",
-      "FromPort": "a*-b",
-      "ToNodeId": "out_spring",
-      "ToPort": "load"
-    },
-    {
       "FromNodeId": "damper",
       "FromPort": "a*b",
+      "ToNodeId": "b320aad0add04c0db1b406bbe021ad7e",
+      "ToPort": "DamperGain"
+    },
+    {
+      "FromNodeId": "fric_sum1",
+      "FromPort": "a+b+c",
+      "ToNodeId": "ec7f1fd2c8c74fd799c936d2c06108f9",
+      "ToPort": "Friction"
+    },
+    {
+      "FromNodeId": "4dfaa87226c54334911f81a228e7bb08",
+      "FromPort": "damp_scale",
+      "ToNodeId": "damper",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "4dfaa87226c54334911f81a228e7bb08",
+      "FromPort": "torque_norm",
+      "ToNodeId": "fric_torque",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "4dfaa87226c54334911f81a228e7bb08",
+      "FromPort": "assist_loss",
+      "ToNodeId": "fric_lowrpm",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "0e62e6fed2f340e7800dbb02ba441856",
+      "FromPort": "a*b",
       "ToNodeId": "out_spring",
-      "ToPort": "damper"
+      "ToPort": "SpringGain"
+    },
+    {
+      "FromNodeId": "param_k_spring",
+      "FromPort": "SpringGain",
+      "ToNodeId": "0e62e6fed2f340e7800dbb02ba441856",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "4dfaa87226c54334911f81a228e7bb08",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "0e62e6fed2f340e7800dbb02ba441856",
+      "ToPort": "b"
     }
   ],
   "Params": [
@@ -481,7 +350,7 @@
       "Name": "Aircraft.Rotor.TorqueNom",
       "DefaultValue": 1000.0,
       "Min": 100.0,
-      "Max": 10000.0,
+      "Max": 100000.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Nominal Rotor Torque",
@@ -526,22 +395,6 @@
       }
     },
     {
-      "Name": "Aircraft.AeroTorque.YawMax",
-      "DefaultValue": 500.0,
-      "Min": 100.0,
-      "Max": 5000.0,
-      "Ui": {
-        "Widget": "slider",
-        "Label": "Max Yaw Torque",
-        "Group": "Aircraft",
-        "Units": "Nm",
-        "Step": 10.0,
-        "Precision": 0,
-        "LogScale": true,
-        "Options": []
-      }
-    },
-    {
       "Name": "FlightPedals.SpringGain",
       "DefaultValue": 1.0,
       "Min": 0.0,
@@ -550,7 +403,7 @@
         "Widget": "slider",
         "Label": "Spring Gain",
         "Group": "FlightPedals",
-        "Units": "N/mm",
+        "Units": "N/mm @ RPM nom",
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
@@ -615,22 +468,6 @@
         "Label": "Friction (Low RPM)",
         "Group": "FlightPedals",
         "Units": "multiplier",
-        "Step": 0.01,
-        "Precision": 2,
-        "LogScale": false,
-        "Options": []
-      }
-    },
-    {
-      "Name": "FlightPedals.LoadGain",
-      "DefaultValue": 0.2,
-      "Min": 0.0,
-      "Max": 5.0,
-      "Ui": {
-        "Widget": "slider",
-        "Label": "Load Gain",
-        "Group": "FlightPedals",
-        "Units": "N @ aero_trq_ref",
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
