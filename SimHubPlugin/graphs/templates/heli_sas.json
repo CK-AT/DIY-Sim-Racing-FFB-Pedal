@@ -172,6 +172,20 @@
         }
       ],
       "SignalGroup": "Axis"
+    },
+    {
+      "Id": "9714ee1a73004208b742e383f31bbe81",
+      "Title": "1",
+      "Kind": "Const",
+      "X": 410.0,
+      "Y": 620.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
     }
   ],
   "Links": [
@@ -266,12 +280,6 @@
       "ToPort": "damp_scale"
     },
     {
-      "FromNodeId": "in_g_nrml",
-      "FromPort": "G_Nrml",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "g_nrml"
-    },
-    {
       "FromNodeId": "in_rate_roll",
       "FromPort": "Rate.Roll",
       "ToNodeId": "cyclic_roll_include",
@@ -348,6 +356,12 @@
       "FromPort": "rpm_norm",
       "ToNodeId": "pedals_include",
       "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "9714ee1a73004208b742e383f31bbe81",
+      "FromPort": "out",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "g_nrml"
     }
   ],
   "Params": [],

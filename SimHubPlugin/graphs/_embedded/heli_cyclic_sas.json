@@ -254,14 +254,15 @@
       "Ports": [
         {
           "Name": "a",
-          "Kind": "Input"
+          "Kind": "Input",
+          "Negate": true
         },
         {
           "Name": "b",
           "Kind": "Input"
         },
         {
-          "Name": "a*b",
+          "Name": "-a*b",
           "Kind": "Output"
         }
       ],
@@ -276,14 +277,15 @@
       "Ports": [
         {
           "Name": "a",
-          "Kind": "Input"
+          "Kind": "Input",
+          "Negate": true
         },
         {
           "Name": "b",
           "Kind": "Input"
         },
         {
-          "Name": "a*b",
+          "Name": "-a*b",
           "Kind": "Output"
         }
       ],
@@ -483,13 +485,13 @@
     },
     {
       "FromNodeId": "sas_g_term",
-      "FromPort": "a*b",
+      "FromPort": "-a*b",
       "ToNodeId": "load_sas",
       "ToPort": "a"
     },
     {
       "FromNodeId": "sas_rate_term",
-      "FromPort": "a*b",
+      "FromPort": "-a*b",
       "ToNodeId": "load_sas",
       "ToPort": "b"
     },
