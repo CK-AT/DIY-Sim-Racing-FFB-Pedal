@@ -108,9 +108,7 @@ namespace DiyFfb.GraphEditor
 
         private DiyFfbPluginSettings.AircraftFfbProfile GetCurrentProfile()
         {
-            return _plugin.GetType()
-                .GetMethod("GetCurrentAircraftProfile", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                ?.Invoke(_plugin, null) as DiyFfbPluginSettings.AircraftFfbProfile;
+            return _plugin.GetCurrentAircraftProfile();
         }
 
         private void OnResetParamClick(object sender, RoutedEventArgs e)
