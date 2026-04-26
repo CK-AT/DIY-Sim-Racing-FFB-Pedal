@@ -145,6 +145,7 @@ void IRAM_ATTR adc_isr(void) {
 
 void on_ffb_action(const FFBAction &ffb_action);
 void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel);
+void on_dds_sync(uint8_t dds_index, float phase, float hz);
 void on_ota_state_change(bool ota_active);
 
 static void apply_oscillation_guard_config(const AxisConfig *axis_cfg) {
@@ -302,9 +303,9 @@ void setup() {
 #ifdef HAS_GRIP_SPI
     static GripReader gripReader;
     gripReader.setup(GRIP_CS, GRIP_SCK, GRIP_MISO, GRIP_BYTES);
-    comm_manager.setup(&Serial, can_config, &config_manager, on_ffb_action, on_axis_action, &gripReader);
+    comm_manager.setup(&Serial, can_config, &config_manager, on_ffb_action, on_axis_action, on_dds_sync, &gripReader);
 #else
-    comm_manager.setup(&Serial, can_config, &config_manager, on_ffb_action, on_axis_action);
+    comm_manager.setup(&Serial, can_config, &config_manager, on_ffb_action, on_axis_action, on_dds_sync);
 #endif
     comm_manager.set_ota_state_callback(on_ota_state_change);
 
@@ -602,6 +603,13 @@ void on_ffb_action(const FFBAction &ffb_action) {
     IFunction *active_function = config_manager.get_active_function();
     if (active_function) {
         active_function->on_ffb_action(ffb_action);
+    }
+}
+
+void on_dds_sync(uint8_t dds_index, float phase, float hz) {
+    IFunction *active_function = config_manager.get_active_function();
+    if (active_function) {
+        active_function->on_dds_sync(dds_index, phase, hz);
     }
 }
 

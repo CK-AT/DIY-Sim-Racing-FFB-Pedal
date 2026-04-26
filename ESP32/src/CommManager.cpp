@@ -86,6 +86,17 @@ void CommManager::periodic_task_func(void) {
             ti_last_joystick_update = now;
             send_joystick_values();
         }
+        if (is_gateway()) {
+            // Master DDS phase advance every periodic tick (~1 ms);
+            // broadcast 0x0F0 sync frame at 100 Hz.
+            _master_dds.tick(now);
+            if ((now - _ti_last_dds_sync) > 10000 && active_downlink_channel != nullptr) {
+                _ti_last_dds_sync = now;
+                active_downlink_channel->send_dds_sync(
+                    _master_dds.get_fundamental(0), _master_dds.get_phase(0),
+                    _master_dds.get_fundamental(1), _master_dds.get_phase(1));
+            }
+        }
         if (!_device_info_sent) {
             _device_info_sent = send_device_info(is_gateway() ? CommChannel::USB_SERIAL : CommChannel::ISOTP);
         }
@@ -281,10 +292,11 @@ void CommManager::build_device_info_message(Message &msg) {
 }
 
 void CommManager::setup(Stream *serial, CANConfig &can_config, ConfigManager *config_manager, OnFFBAction on_ffb_action,
-                        OnAxisAction on_axis_action, GripReader *grip_reader) {
+                        OnAxisAction on_axis_action, OnDdsSync on_dds_sync, GripReader *grip_reader) {
     _config_manager = config_manager;
     _on_ffb_action = on_ffb_action;
     _on_axis_action = on_axis_action;
+    _on_dds_sync = on_dds_sync;
     _can_config = can_config;
     _grip_reader = grip_reader;
     _log_queue_data = xQueueCreate(20, MAX_LOG_LINE_LENGTH);
@@ -382,6 +394,14 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
                 on_ffb_action(msg.payload.ffb_action);
             }
             if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
+                // Snoop fundamentals out of every FlightFfbAction so the master
+                // DDS tracks RPM. Fundamentals are global per spec, so the last
+                // writer wins — SimHub sends the same value across functions.
+                if (msg.payload.ffb_action.which_function == FFBAction_flight_ffb_tag) {
+                    const FlightFfbAction &flight = msg.payload.ffb_action.function.flight_ffb;
+                    _master_dds.set_fundamental(0, flight.vib_fundamental_hz);
+                    _master_dds.set_fundamental(1, flight.vib2_fundamental_hz);
+                }
                 // only the primary axis will process FFB actions, no need to send it to other axes
                 AxisID primary_axis_id = _config_manager->get_primary_axis_id(msg.payload.ffb_action.function_id);
                 if (MessageTools::check_axis_id(primary_axis_id)) {
@@ -541,7 +561,8 @@ bool CommManager::setup_can(CANConfig &config) {
                       std::bind(&CommManager::on_axis_packet_received, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
                                 CommChannel::ISOTP),
                       std::bind(&CommManager::on_axis_state_change, this, std::placeholders::_1, std::placeholders::_2),
-                      std::bind(&CommManager::on_gateway_state_change, this, std::placeholders::_1, std::placeholders::_2));
+                      std::bind(&CommManager::on_gateway_state_change, this, std::placeholders::_1, std::placeholders::_2),
+                      _on_dds_sync);
     active_intercom_channel = &can_manager;
     if (_is_gateway) {
         active_downlink_channel = &can_manager;

@@ -47,6 +47,11 @@ void FlightStickFunction::on_ffb_action(const FFBAction &ffb_action) {
     _ffb_overridden = true;
 }
 
+void FlightStickFunction::on_dds_sync(uint8_t dds_index, float phase, float hz) {
+    if (dds_index == 0) vib1.on_sync(phase, hz);
+    else if (dds_index == 1) vib2.on_sync(phase, hz);
+}
+
 void FlightStickFunction::update(const SimState &state, SimAccumulators &accum) {
     if (_ffb_overridden) {
         uint32_t elapsed = millis() - _last_ffb_ms;

@@ -16,6 +16,7 @@ class FlightStickFunction : public IFunction {
             return _config.pos_max;
         }
         void on_ffb_action(const FFBAction &ffb_action) override;
+        void on_dds_sync(uint8_t dds_index, float phase, float hz) override;
 
     private:
         Spring centering_spring = Spring(0.0f, 0.0f);
