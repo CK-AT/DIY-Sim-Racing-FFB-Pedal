@@ -45,9 +45,28 @@ FlightStickCollective) produces these outputs:
 | `TrimOffset` | `trim_offset` | CenteringSpring offset | mm | Shifts spring center from baseline |
 | `LoadForce` | `load_force` | ConstForce | N | Constant force (aero loads, SAS, etc.) |
 | `BuffetAmplitude` | `buffet_amp` | Buffet | N | Amplitude of band-limited random force |
+| `VibSlot1..5` | `vib_amp_slot1..5` | SyncVib (DDS 1) | N | Coherent vibration amplitude per harmonic slot |
+| `Vib2Slot1..2` | `vib2_amp_slot1..2` | SyncVib (DDS 2) | N | Secondary oscillator amplitudes (engine, tail rotor) |
 
 Output signal names use the function as prefix:
 `FlightStickPitch.SpringGain`, `FlightStickRoll.TrimOffset`, etc.
+
+DDS fundamentals are global, not per-function. They use a separate
+`Shared.*` scope and are sent in their own `DdsFundamentals` message:
+
+| Output | Wire path | Unit | Description |
+| --- | --- | --- | --- |
+| `Shared.VibFundamental` | `DdsFundamentals.dds1_fundamental_hz` → CAN `0x0F0` | Hz | DDS 1 master fundamental |
+| `Shared.Vib2Fundamental` | `DdsFundamentals.dds2_fundamental_hz` → CAN `0x0F0` | Hz | DDS 2 master fundamental |
+
+Wire format detail: amplitude fields are quantized to 8 bits at 0.01 N/LSB
+(0..2.55 N range). The plugin pre-scales (×100) before sending; the ESP32
+multiplies by 0.01 when applying to `SyncVib::set_amplitudes`.
+
+The `FlightStickConfig.phase_offset` ConfigOut field is expressed in
+**degrees** at the override / graph layer (more author-friendly) and
+converted to radians by `FlightStickProcessor.ApplyOverrides` before the
+proto is sent. The wire and firmware stay in radians.
 
 ### How the ESP32 applies them
 

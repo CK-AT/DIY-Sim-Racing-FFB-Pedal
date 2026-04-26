@@ -90,23 +90,56 @@ namespace DiyFfb
             "FlightStickPitch.LoadForce",
             "FlightStickPitch.TrimOffset",
             "FlightStickPitch.BuffetAmplitude",
+            "FlightStickPitch.VibSlot1",
+            "FlightStickPitch.VibSlot2",
+            "FlightStickPitch.VibSlot3",
+            "FlightStickPitch.VibSlot4",
+            "FlightStickPitch.VibSlot5",
+            "FlightStickPitch.Vib2Slot1",
+            "FlightStickPitch.Vib2Slot2",
             "FlightStickRoll.SpringGain",
             "FlightStickRoll.DamperGain",
             "FlightStickRoll.Friction",
             "FlightStickRoll.LoadForce",
             "FlightStickRoll.TrimOffset",
             "FlightStickRoll.BuffetAmplitude",
+            "FlightStickRoll.VibSlot1",
+            "FlightStickRoll.VibSlot2",
+            "FlightStickRoll.VibSlot3",
+            "FlightStickRoll.VibSlot4",
+            "FlightStickRoll.VibSlot5",
+            "FlightStickRoll.Vib2Slot1",
+            "FlightStickRoll.Vib2Slot2",
             "FlightPedals.SpringGain",
             "FlightPedals.DamperGain",
             "FlightPedals.Friction",
             "FlightPedals.LoadForce",
             "FlightPedals.TrimOffset",
             "FlightPedals.BuffetAmplitude",
+            "FlightPedals.VibSlot1",
+            "FlightPedals.VibSlot2",
+            "FlightPedals.VibSlot3",
+            "FlightPedals.VibSlot4",
+            "FlightPedals.VibSlot5",
+            "FlightPedals.Vib2Slot1",
+            "FlightPedals.Vib2Slot2",
             "FlightStickCollective.SpringGain",
             "FlightStickCollective.DamperGain",
             "FlightStickCollective.Friction",
             "FlightStickCollective.LoadForce",
-            "FlightStickCollective.TrimOffset"
+            "FlightStickCollective.TrimOffset",
+            "FlightStickCollective.VibSlot1",
+            "FlightStickCollective.VibSlot2",
+            "FlightStickCollective.VibSlot3",
+            "FlightStickCollective.VibSlot4",
+            "FlightStickCollective.VibSlot5",
+            "FlightStickCollective.Vib2Slot1",
+            "FlightStickCollective.Vib2Slot2",
+            // Shared scope: DDS fundamentals broadcast by gateway to all axes.
+            // Routed via plain (non-scoped) Output node — excluded from
+            // per-function OutputSuffixes filter below.
+            "Shared.VibFundamental",
+            "Shared.Vib2Fundamental"
         };
 
         // ConfigType options for ConfigOut nodes
@@ -142,6 +175,7 @@ namespace DiyFfb
         /// </summary>
         public static readonly IReadOnlyList<string> OutputSuffixes =
             OutputNames
+                .Where(n => !n.StartsWith("Shared.", StringComparison.Ordinal))
                 .Select(n => n.Substring(n.IndexOf('.') + 1))
                 .Distinct()
                 .OrderBy(s => s)

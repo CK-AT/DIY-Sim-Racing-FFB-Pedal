@@ -1223,7 +1223,26 @@ namespace DiyFfb
             SendGraphFfbForFunction(FunctionID.FlightPedals);
             SendGraphFfbForFunction(FunctionID.FlightStickCollective);
 
+            SendDdsFundamentals();
+
             CheckConfigOutChanges();
+        }
+
+        private void SendDdsFundamentals()
+        {
+            // Shared scope: read once, send to gateway. Gateway snoops and
+            // broadcasts via 0x0F0 sync frame to all axes.
+            float dds1Hz = TryGetGraphOutput("Shared.VibFundamental", out float v1) ? v1 : 0.0f;
+            float dds2Hz = TryGetGraphOutput("Shared.Vib2Fundamental", out float v2) ? v2 : 0.0f;
+            Message msg = new Message
+            {
+                DdsFundamentals = new DdsFundamentals
+                {
+                    Dds1FundamentalHz = dds1Hz,
+                    Dds2FundamentalHz = dds2Hz
+                }
+            };
+            ESPsync_serialPort.WriteMessage(msg);
         }
 
         private int ResolveXPlaneRotorIndex(XPlaneUdpPacket packet)
@@ -1301,7 +1320,18 @@ namespace DiyFfb
             return ResolveXPlaneRotorIndex(packet);
         }
 
-        private void SendFlightFfb(FunctionID functionId, float kSpring, float kDamper, float kFriction, float trimOffset, float buffetAmp, float loadForce)
+        // Vib amplitudes go on the wire as uint8 at 0.01 N/LSB (range 0..2.55 N).
+        // Plugin pre-scales here; firmware reads raw and multiplies by 0.01.
+        private static uint PackVibAmp(float amp)
+        {
+            int scaled = (int)Math.Round(amp * 100f);
+            if (scaled < 0) return 0;
+            if (scaled > 255) return 255;
+            return (uint)scaled;
+        }
+
+        private void SendFlightFfb(FunctionID functionId, float kSpring, float kDamper, float kFriction, float trimOffset, float buffetAmp, float loadForce,
+            float[] vibSlots, float[] vib2Slots)
         {
             Message msg = new Message
             {
@@ -1315,7 +1345,14 @@ namespace DiyFfb
                         KFriction = kFriction,
                         TrimOffset = trimOffset,
                         BuffetAmp = buffetAmp,
-                        LoadForce = loadForce
+                        LoadForce = loadForce,
+                        VibAmpSlot1 = PackVibAmp(vibSlots[0]),
+                        VibAmpSlot2 = PackVibAmp(vibSlots[1]),
+                        VibAmpSlot3 = PackVibAmp(vibSlots[2]),
+                        VibAmpSlot4 = PackVibAmp(vibSlots[3]),
+                        VibAmpSlot5 = PackVibAmp(vibSlots[4]),
+                        Vib2AmpSlot1 = PackVibAmp(vib2Slots[0]),
+                        Vib2AmpSlot2 = PackVibAmp(vib2Slots[1])
                     }
                 }
             };
@@ -1329,12 +1366,13 @@ namespace DiyFfb
                 return;
             }
 
-            if (!TryGetGraphFlightOutputs(functionId, out float spring, out float damper, out float friction, out float trim, out float buffet, out float load))
+            if (!TryGetGraphFlightOutputs(functionId, out float spring, out float damper, out float friction, out float trim, out float buffet, out float load,
+                    out float[] vibSlots, out float[] vib2Slots))
             {
                 return;
             }
 
-            SendFlightFfb(functionId, spring, damper, friction, trim, buffet, load);
+            SendFlightFfb(functionId, spring, damper, friction, trim, buffet, load, vibSlots, vib2Slots);
         }
 
         /// <summary>
@@ -1438,7 +1476,7 @@ namespace DiyFfb
         }
 
         private bool TryGetGraphFlightOutputs(FunctionID functionId, out float spring, out float damper, out float friction,
-            out float trimOffset, out float buffetAmp, out float loadForce)
+            out float trimOffset, out float buffetAmp, out float loadForce, out float[] vibSlots, out float[] vib2Slots)
         {
             spring = 0.0f;
             damper = 0.0f;
@@ -1446,6 +1484,8 @@ namespace DiyFfb
             trimOffset = 0.0f;
             buffetAmp = 0.0f;
             loadForce = 0.0f;
+            vibSlots = new float[5];
+            vib2Slots = new float[2];
 
             string prefix = GetGraphFunctionPrefix(functionId);
             if (string.IsNullOrWhiteSpace(prefix))
@@ -1483,6 +1523,22 @@ namespace DiyFfb
             {
                 buffetAmp = value;
                 hasOutput = true;
+            }
+            for (int i = 0; i < 5; i++)
+            {
+                if (TryGetGraphOutput($"{prefix}.VibSlot{i + 1}", out value))
+                {
+                    vibSlots[i] = value;
+                    hasOutput = true;
+                }
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                if (TryGetGraphOutput($"{prefix}.Vib2Slot{i + 1}", out value))
+                {
+                    vib2Slots[i] = value;
+                    hasOutput = true;
+                }
             }
 
             return hasOutput;
