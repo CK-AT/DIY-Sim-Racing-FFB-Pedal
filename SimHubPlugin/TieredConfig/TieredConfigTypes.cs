@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Newtonsoft.Json;
 
 namespace DiyFfb.TieredConfig
@@ -88,6 +89,14 @@ namespace DiyFfb.TieredConfig
         public float? FlightStickDamping { get; set; }
         public float? FlightStickCenteringSpringConst { get; set; }
 
+        // FlightStick DDS vibration overrides (graph-driven via ConfigOut, Profile-tier).
+        // Per-slot scalar decomposition for repeated proto fields (see plan 07b).
+        // Phase offset is stored in DEGREES at this layer; FlightStickProcessor
+        // converts to radians when writing the proto field.
+        public float? FlightStickPhaseOffset { get; set; }
+        public float?[] FlightStickVibHarmonicRatios { get; set; }   // length 5
+        public float?[] FlightStickVib2HarmonicRatios { get; set; }  // length 2
+
         // RudderBrake overrides (aux_function in FlightPedals)
         public ForceRangeOverrides RudderBrakeForceRange { get; set; }
 
@@ -136,6 +145,9 @@ namespace DiyFfb.TieredConfig
             (FlightStickMotionRange == null || FlightStickMotionRange.IsEmpty) &&
             FlightStickDamping == null &&
             FlightStickCenteringSpringConst == null &&
+            FlightStickPhaseOffset == null &&
+            (FlightStickVibHarmonicRatios == null || FlightStickVibHarmonicRatios.All(r => r == null)) &&
+            (FlightStickVib2HarmonicRatios == null || FlightStickVib2HarmonicRatios.All(r => r == null)) &&
             (RudderBrakeForceRange == null || RudderBrakeForceRange.IsEmpty) &&
             AbsEffect == null &&
             ShifterConfig == null &&

@@ -66,6 +66,9 @@ namespace DiyFfb.TieredConfig
                    AreEqual(a.FlightStickMotionRange, b.FlightStickMotionRange) &&
                    NullableFloatEqual(a.FlightStickDamping, b.FlightStickDamping) &&
                    NullableFloatEqual(a.FlightStickCenteringSpringConst, b.FlightStickCenteringSpringConst) &&
+                   NullableFloatEqual(a.FlightStickPhaseOffset, b.FlightStickPhaseOffset) &&
+                   NullableFloatArrayEqual(a.FlightStickVibHarmonicRatios, b.FlightStickVibHarmonicRatios) &&
+                   NullableFloatArrayEqual(a.FlightStickVib2HarmonicRatios, b.FlightStickVib2HarmonicRatios) &&
                    AreEqual(a.RudderBrakeForceRange, b.RudderBrakeForceRange) &&
                    AreEqual(a.AbsEffect, b.AbsEffect) &&
                    AreEqual(a.ShifterConfig, b.ShifterConfig) &&
@@ -162,6 +165,24 @@ namespace DiyFfb.TieredConfig
             if (!a.HasValue && !b.HasValue) return true;
             if (!a.HasValue || !b.HasValue) return false;
             return FloatEqual(a.Value, b.Value);
+        }
+
+        /// <summary>
+        /// Compare two nullable float arrays element-wise with tolerance.
+        /// Both null is equal; one null vs empty/all-null on the other side is also equal.
+        /// </summary>
+        public static bool NullableFloatArrayEqual(float?[] a, float?[] b)
+        {
+            int aLen = a?.Length ?? 0;
+            int bLen = b?.Length ?? 0;
+            int len = aLen > bLen ? aLen : bLen;
+            for (int i = 0; i < len; i++)
+            {
+                float? av = (a != null && i < a.Length) ? a[i] : null;
+                float? bv = (b != null && i < b.Length) ? b[i] : null;
+                if (!NullableFloatEqual(av, bv)) return false;
+            }
+            return true;
         }
 
         /// <summary>

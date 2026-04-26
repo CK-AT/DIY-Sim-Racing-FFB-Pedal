@@ -50,6 +50,25 @@ namespace DiyFfb.TieredConfig
                 cfg.Damping = delta.FlightStickDamping.Value;
             if (delta.FlightStickCenteringSpringConst.HasValue)
                 cfg.CenteringSpringConst = delta.FlightStickCenteringSpringConst.Value;
+            if (delta.FlightStickPhaseOffset.HasValue)
+            {
+                // Plugin-side overrides express phase offset in degrees for
+                // human-friendliness; firmware/proto consume radians.
+                const float kDegToRad = (float)(System.Math.PI / 180.0);
+                cfg.PhaseOffset = delta.FlightStickPhaseOffset.Value * kDegToRad;
+            }
+            if (delta.FlightStickVibHarmonicRatios != null)
+            {
+                cfg.VibHarmonicRatios.Clear();
+                foreach (var r in delta.FlightStickVibHarmonicRatios)
+                    cfg.VibHarmonicRatios.Add(r ?? 0.0f);
+            }
+            if (delta.FlightStickVib2HarmonicRatios != null)
+            {
+                cfg.Vib2HarmonicRatios.Clear();
+                foreach (var r in delta.FlightStickVib2HarmonicRatios)
+                    cfg.Vib2HarmonicRatios.Add(r ?? 0.0f);
+            }
         }
     }
 }

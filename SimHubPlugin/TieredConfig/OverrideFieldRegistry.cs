@@ -415,6 +415,83 @@ namespace DiyFfb.TieredConfig
                 ClearValue = o => o.FlightStickCenteringSpringConst = null
             });
 
+            // === FlightStick DDS vibration (graph-driven, Profile-tier) ===
+
+            RegisterField(new OverrideFieldDefinition
+            {
+                Name = "FlightStickPhaseOffset",
+                FieldPath = "flight_stick.phase_offset",
+                DisplayName = "DDS Phase Offset (deg)",
+                Tooltip = "Vibration phase offset in degrees (encodes axis + rotor handedness; 90° = roll, -90° = inverted)",
+                FieldType = OverrideFieldType.Float,
+                Group = OverrideFieldGroup.FlightStick,
+                DefaultLayer = ConfigLayer.Profile,
+                HasValue = o => o.FlightStickPhaseOffset.HasValue,
+                GetValue = o => o.FlightStickPhaseOffset,
+                SetValue = (o, v) => o.FlightStickPhaseOffset = (float?)v,
+                ClearValue = o => o.FlightStickPhaseOffset = null
+            });
+
+            for (int i = 0; i < 5; i++)
+            {
+                int slot = i;  // capture
+                RegisterField(new OverrideFieldDefinition
+                {
+                    Name = $"FlightStickVibRatio{slot}",
+                    FieldPath = $"flight_stick.vib_harmonic_ratios.{slot}",
+                    DisplayName = $"DDS1 Harmonic Ratio Slot {slot + 1}",
+                    Tooltip = $"DDS 1 slot {slot + 1} frequency ratio (multiplier on fundamental_hz)",
+                    FieldType = OverrideFieldType.Float,
+                    Group = OverrideFieldGroup.FlightStick,
+                    DefaultLayer = ConfigLayer.Profile,
+                    HasValue = o => o.FlightStickVibHarmonicRatios != null
+                                    && slot < o.FlightStickVibHarmonicRatios.Length
+                                    && o.FlightStickVibHarmonicRatios[slot].HasValue,
+                    GetValue = o => (o.FlightStickVibHarmonicRatios != null && slot < o.FlightStickVibHarmonicRatios.Length)
+                                    ? o.FlightStickVibHarmonicRatios[slot]
+                                    : null,
+                    SetValue = (o, v) => {
+                        if (o.FlightStickVibHarmonicRatios == null)
+                            o.FlightStickVibHarmonicRatios = new float?[5];
+                        o.FlightStickVibHarmonicRatios[slot] = (float?)v;
+                    },
+                    ClearValue = o => {
+                        if (o.FlightStickVibHarmonicRatios != null && slot < o.FlightStickVibHarmonicRatios.Length)
+                            o.FlightStickVibHarmonicRatios[slot] = null;
+                    }
+                });
+            }
+
+            for (int i = 0; i < 2; i++)
+            {
+                int slot = i;
+                RegisterField(new OverrideFieldDefinition
+                {
+                    Name = $"FlightStickVib2Ratio{slot}",
+                    FieldPath = $"flight_stick.vib2_harmonic_ratios.{slot}",
+                    DisplayName = $"DDS2 Harmonic Ratio Slot {slot + 1}",
+                    Tooltip = $"DDS 2 slot {slot + 1} frequency ratio (multiplier on fundamental_hz)",
+                    FieldType = OverrideFieldType.Float,
+                    Group = OverrideFieldGroup.FlightStick,
+                    DefaultLayer = ConfigLayer.Profile,
+                    HasValue = o => o.FlightStickVib2HarmonicRatios != null
+                                    && slot < o.FlightStickVib2HarmonicRatios.Length
+                                    && o.FlightStickVib2HarmonicRatios[slot].HasValue,
+                    GetValue = o => (o.FlightStickVib2HarmonicRatios != null && slot < o.FlightStickVib2HarmonicRatios.Length)
+                                    ? o.FlightStickVib2HarmonicRatios[slot]
+                                    : null,
+                    SetValue = (o, v) => {
+                        if (o.FlightStickVib2HarmonicRatios == null)
+                            o.FlightStickVib2HarmonicRatios = new float?[2];
+                        o.FlightStickVib2HarmonicRatios[slot] = (float?)v;
+                    },
+                    ClearValue = o => {
+                        if (o.FlightStickVib2HarmonicRatios != null && slot < o.FlightStickVib2HarmonicRatios.Length)
+                            o.FlightStickVib2HarmonicRatios[slot] = null;
+                    }
+                });
+            }
+
             // === AutomotivePedal Effects ===
 
             RegisterField(new OverrideFieldDefinition
