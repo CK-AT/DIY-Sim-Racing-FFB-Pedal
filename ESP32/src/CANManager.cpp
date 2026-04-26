@@ -151,6 +151,34 @@ namespace {
         load_force = payload.load_force * kFfbScaleLoad;
         k_friction = payload.k_friction * kFfbScaleFriction;
     }
+
+    constexpr uint32_t kDdsSyncCanId = 0x0F0;
+    constexpr float kDdsHzScale = 0.001f;  // 0.001 Hz/LSB → 0..65.535 Hz range
+    constexpr float kTwoPi = 2.0f * (float)M_PI;
+    constexpr float kDdsPhasePackScale = 65536.0f / kTwoPi;
+    constexpr float kDdsPhaseUnpackScale = kTwoPi / 65536.0f;
+
+    // 8 bytes — fits one CAN frame exactly. Both ESP32 ends are little-endian
+    // so memcpy works; spec section 4 byte order matches naturally.
+    struct DdsSyncPayload {
+        uint16_t dds1_hz;
+        uint16_t dds1_phase;
+        uint16_t dds2_hz;
+        uint16_t dds2_phase;
+    };
+    static_assert(sizeof(DdsSyncPayload) == 8, "0x0F0 payload must be 8 bytes");
+
+    uint16_t pack_dds_phase(float phase_rad) {
+        // Wrap to [0, 2π) then scale to uint16
+        while (phase_rad < 0.0f) phase_rad += kTwoPi;
+        while (phase_rad >= kTwoPi) phase_rad -= kTwoPi;
+        int32_t scaled = (int32_t)lroundf(phase_rad * kDdsPhasePackScale);
+        return (uint16_t)(scaled & 0xFFFF);
+    }
+
+    float unpack_dds_phase(uint16_t raw) {
+        return raw * kDdsPhaseUnpackScale;
+    }
 }
 /*****************************************************************************************************************/
 bool CANManager::get_force(AxisID axis_id, float &f_contact_point) {
@@ -309,6 +337,7 @@ void CANManager::process(void) {
         if (ESP32Can.readFrame(&rx_frame, 0)) {
             if (try_process_high_prio_axis_frame(rx_frame, now)) continue;
             if (!_is_gateway) {
+                if (try_process_dds_sync_frame(rx_frame)) continue;
                 if (try_process_ffb_update_frame(rx_frame)) continue;
             }
             if (try_process_low_prio_axis_frame(rx_frame, now)) continue;
@@ -469,7 +498,7 @@ void CANManager::broadcast_state_updates(uint32_t now) {
 
 bool CANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload,
                        OnFFBAction on_ffb_action, OnAxisPayload on_axis_payload, OnAxisStateChange on_axis_state_change,
-                       OnGatewayStateChange on_gateway_state_change) {
+                       OnGatewayStateChange on_gateway_state_change, OnDdsSync on_dds_sync) {
     LogOutput::printf("CANManager: Performing setup...");
     own_axis_id = axis_id;
     own_axis_index = MessageTools::axis_index_from_id(axis_id);
@@ -478,6 +507,7 @@ bool CANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t
     this->on_axis_payload = on_axis_payload;
     this->on_axis_state_change = on_axis_state_change;
     this->on_gateway_state_change = on_gateway_state_change;
+    this->on_dds_sync = on_dds_sync;
     shared_setup(baud_rate, tx_pin, rx_pin);
     broadcast_state_updates();
     LogOutput::printf(" -> done");
@@ -493,6 +523,39 @@ bool CANManager::send_force_and_position(float &f_contact_point, float &x_contac
     tx_frame.identifier = 0x100 + (AxisFrameTypesHS::FORCE_AND_POSITION << 4) + own_axis_index;
     memcpy(tx_frame.data, &(axis_states[own_axis_index].force_and_position), sizeof(ForceAndPosition));
     tx_frame.data_length_code = sizeof(ForceAndPosition);
+    if (!ESP32Can.writeFrame(&tx_frame, 0)) {
+        if (tx_err_cnt < 0xFFFFFFFF) {
+            tx_err_cnt++;
+        }
+        return false;
+    }
+    return true;
+}
+
+bool CANManager::try_process_dds_sync_frame(CanFrame &rx_frame) {
+    if (rx_frame.identifier != kDdsSyncCanId) return false;
+    if (rx_frame.data_length_code < sizeof(DdsSyncPayload)) return true;
+    DdsSyncPayload payload;
+    memcpy(&payload, rx_frame.data, sizeof(payload));
+    if (on_dds_sync) {
+        on_dds_sync(0, unpack_dds_phase(payload.dds1_phase), payload.dds1_hz * kDdsHzScale);
+        on_dds_sync(1, unpack_dds_phase(payload.dds2_phase), payload.dds2_hz * kDdsHzScale);
+    }
+    return true;
+}
+
+bool CANManager::send_dds_sync(float dds1_hz, float dds1_phase,
+                               float dds2_hz, float dds2_phase) {
+    if (!_is_gateway) return false;
+    DdsSyncPayload payload = {};
+    payload.dds1_hz = clamp_ffb_u16(dds1_hz, kDdsHzScale);
+    payload.dds1_phase = pack_dds_phase(dds1_phase);
+    payload.dds2_hz = clamp_ffb_u16(dds2_hz, kDdsHzScale);
+    payload.dds2_phase = pack_dds_phase(dds2_phase);
+    CanFrame tx_frame = {};
+    tx_frame.identifier = kDdsSyncCanId;
+    tx_frame.data_length_code = sizeof(payload);
+    memcpy(tx_frame.data, &payload, sizeof(payload));
     if (!ESP32Can.writeFrame(&tx_frame, 0)) {
         if (tx_err_cnt < 0xFFFFFFFF) {
             tx_err_cnt++;
