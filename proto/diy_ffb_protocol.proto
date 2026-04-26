@@ -471,6 +471,15 @@ message FlightStickConfig {
   float damping = 3;
   // centering spring constant in N/mm
   float centering_spring_const = 4;
+  // phase offset in radians, applied uniformly to all DDS 1 harmonics.
+  // Encodes both axis (pitch=0, roll=+/-pi/2) and rotor handedness.
+  // DDS 2 always uses 0 (engine vibration is isotropic).
+  float phase_offset = 5;
+  // DDS 1 harmonic ratios (multipliers on fundamental_hz per slot, up to 5).
+  // Slot count = array length. Slot semantics paired with FlightFfbAction.vib_amp_slotN.
+  repeated float vib_harmonic_ratios = 6;
+  // DDS 2 harmonic ratios (engine 2 / tail rotor / etc).
+  repeated float vib2_harmonic_ratios = 7;
 }
 
 message ShifterGateSegment {
@@ -608,6 +617,15 @@ message FlightFfbAction {
   float buffet_amp = 4;
   // constant load force in N
   float load_force = 5;
+  // DDS 1 amplitudes per slot (N), slot semantics set by FlightStickConfig.vib_harmonic_ratios
+  float vib_amp_slot1 = 7;
+  float vib_amp_slot2 = 8;
+  float vib_amp_slot3 = 9;
+  float vib_amp_slot4 = 10;
+  float vib_amp_slot5 = 11;
+  // DDS 2 amplitudes per slot (N), slot semantics set by FlightStickConfig.vib2_harmonic_ratios
+  float vib2_amp_slot1 = 12;
+  float vib2_amp_slot2 = 13;
 }
 
 message FFBAction {

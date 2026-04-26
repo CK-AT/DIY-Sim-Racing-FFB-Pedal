@@ -6,6 +6,8 @@ FlightStickFunction::FlightStickFunction(void) {
     add_element(&damper);
     add_element(&buffet);
     add_element(&load_force);
+    add_element(&vib1);
+    add_element(&vib2);
 }
 
 void FlightStickFunction::update_config(const FlightStickConfig &config) {
@@ -15,17 +17,32 @@ void FlightStickFunction::update_config(const FlightStickConfig &config) {
     _base_center = float(_config.pos_min) + (float(_config.pos_max - _config.pos_min) / 2.0f);
     centering_spring.set_offset(_base_center);
     load_force.set_f(0.0f);
+    // DDS 1: phase_offset + ratios from config (encodes axis + rotor handedness)
+    vib1.set_config(_config.phase_offset,
+                    _config.vib_harmonic_ratios,
+                    (uint8_t)_config.vib_harmonic_ratios_count);
+    // DDS 2: engine vibration is isotropic — phase_offset always 0
+    vib2.set_config(0.0f,
+                    _config.vib2_harmonic_ratios,
+                    (uint8_t)_config.vib2_harmonic_ratios_count);
 }
 
 void FlightStickFunction::on_ffb_action(const FFBAction &ffb_action) {
     if (ffb_action.which_function != FFBAction_flight_ffb_tag) {
         return;
     }
-    damper.set_k(max(_config.damping, ffb_action.function.flight_ffb.k_damper));
-    centering_spring.set_k(ffb_action.function.flight_ffb.k_spring);
-    centering_spring.set_offset(_base_center + ffb_action.function.flight_ffb.trim_offset);
-    buffet.set_amplitude(ffb_action.function.flight_ffb.buffet_amp);
-    load_force.set_f(ffb_action.function.flight_ffb.load_force);
+    const FlightFfbAction &flight = ffb_action.function.flight_ffb;
+    damper.set_k(max(_config.damping, flight.k_damper));
+    centering_spring.set_k(flight.k_spring);
+    centering_spring.set_offset(_base_center + flight.trim_offset);
+    buffet.set_amplitude(flight.buffet_amp);
+    load_force.set_f(flight.load_force);
+    float amps1[5] = {flight.vib_amp_slot1, flight.vib_amp_slot2,
+                      flight.vib_amp_slot3, flight.vib_amp_slot4,
+                      flight.vib_amp_slot5};
+    vib1.set_amplitudes(amps1, 5);
+    float amps2[2] = {flight.vib2_amp_slot1, flight.vib2_amp_slot2};
+    vib2.set_amplitudes(amps2, 2);
     _last_ffb_ms = millis();
     _ffb_overridden = true;
 }
@@ -39,6 +56,10 @@ void FlightStickFunction::update(const SimState &state, SimAccumulators &accum) 
             centering_spring.set_offset(_base_center);
             buffet.set_amplitude(0.0f);
             load_force.set_f(0.0f);
+            // Zero amplitudes; SyncVib's internal LPF (50 ms tau) handles fade.
+            float zeros[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+            vib1.set_amplitudes(zeros, 5);
+            vib2.set_amplitudes(zeros, 2);
             _ffb_overridden = false;
         }
     }

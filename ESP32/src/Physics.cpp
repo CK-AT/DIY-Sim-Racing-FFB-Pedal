@@ -251,3 +251,69 @@ float Sim::compute_force_sum(float f_in) {
     return accum.f_sum;
 }
 #endif
+
+void SyncVib::set_config(float phase_offset, const float *ratios, uint8_t num_slots) {
+    _phase_offset = phase_offset;
+    if (num_slots > MAX_SLOTS) num_slots = MAX_SLOTS;
+    _num_slots = num_slots;
+    for (uint8_t i = 0; i < num_slots; i++) {
+        _ratios[i] = (ratios != nullptr) ? ratios[i] : 0.0f;
+    }
+    for (uint8_t i = num_slots; i < MAX_SLOTS; i++) {
+        _ratios[i] = 0.0f;
+    }
+}
+
+void SyncVib::set_amplitudes(const float *targets, uint8_t count) {
+    if (count > MAX_SLOTS) count = MAX_SLOTS;
+    for (uint8_t i = 0; i < count; i++) {
+        _target[i] = (targets != nullptr) ? targets[i] : 0.0f;
+    }
+    for (uint8_t i = count; i < MAX_SLOTS; i++) {
+        _target[i] = 0.0f;
+    }
+}
+
+void SyncVib::on_sync(float gateway_phase, float gateway_hz) {
+    _fundamental_hz = gateway_hz;
+    _phase_error = wrap_pm_pi(gateway_phase - _phase);
+    _error_integral += _phase_error * 0.01f;  // dt_sync ~10 ms
+    // Anti-windup
+    float clamp = PLL_INT_MAX / PLL_KI;
+    if (_error_integral > clamp) _error_integral = clamp;
+    else if (_error_integral < -clamp) _error_integral = -clamp;
+}
+
+void SyncVib::update(const SimState &state, SimAccumulators &accum) {
+    if (!_enabled) return;
+    float dt_s = state.dt_ms * 0.001f;
+
+    // PLL-corrected frequency (PLL terms are zero in phase 1 if on_sync isn't called)
+    float f_adj = _fundamental_hz + PLL_KP * _phase_error + PLL_KI * _error_integral;
+    if (f_adj < 0.0f) f_adj = 0.0f;
+
+    // Advance phase, wrap to [0, 2*pi)
+    _phase += 2.0f * (float)M_PI * f_adj * dt_s;
+    while (_phase >= 2.0f * (float)M_PI) _phase -= 2.0f * (float)M_PI;
+    while (_phase < 0.0f) _phase += 2.0f * (float)M_PI;
+
+    // Smooth amplitudes (first-order LPF, tau = 50 ms)
+    float a = dt_s / (0.05f + dt_s);
+    for (uint8_t i = 0; i < MAX_SLOTS; i++) {
+        _amp[i] += (_target[i] - _amp[i]) * a;
+    }
+
+    // Sum all active slots
+    float f = 0.0f;
+    for (uint8_t i = 0; i < _num_slots; i++) {
+        f += _amp[i] * fastmath::fast_sinf(_ratios[i] * _phase + _phase_offset);
+    }
+
+    accum.f_vib += f;
+}
+
+float SyncVib::wrap_pm_pi(float x) {
+    while (x > (float)M_PI) x -= 2.0f * (float)M_PI;
+    while (x < -(float)M_PI) x += 2.0f * (float)M_PI;
+    return x;
+}

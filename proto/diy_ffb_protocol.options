@@ -67,6 +67,8 @@ AutomotivePedalConfig.*                     int_size:IS_8
 
 FlightPedalsConfig.pos_*                    int_size:IS_16
 FlightStickConfig.pos_*                    int_size:IS_16
+FlightStickConfig.vib_harmonic_ratios       max_count:5 fixed_count:false
+FlightStickConfig.vib2_harmonic_ratios      max_count:5 fixed_count:false
 
 AxisAction.*                                int_size:IS_8
 

@@ -22,6 +22,8 @@ class FlightStickFunction : public IFunction {
         Damper damper = Damper(1.0f);
         Buffet buffet = Buffet(0.0f);
         ConstForce load_force = ConstForce(0.0f);
+        SyncVib vib1;
+        SyncVib vib2;
         FlightStickConfig _config = FlightStickConfig_init_zero;
         float _base_center = 0.0f;
         uint32_t _last_ffb_ms = 0;

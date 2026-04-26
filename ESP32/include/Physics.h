@@ -270,6 +270,56 @@ class Buffet : public SimElement {
         uint32_t _rng_state = 0x6d2b79f5;
 };
 
+// Coherent multi-harmonic vibration oscillator. Phase advances at
+// fundamental_hz, each slot evaluates sin(ratio * phase + phase_offset)
+// with a smoothed amplitude. Output goes to f_vib (bypasses friction).
+//
+// PLL state is present but dormant in phase 1 — until on_sync() is fed
+// from a gateway sync frame (phase 3), the oscillator free-runs at
+// whatever fundamental was last set via on_sync().
+class SyncVib : public SimElement {
+    public:
+        static constexpr uint8_t MAX_SLOTS = 5;
+
+        // Set harmonic ratios (multipliers on fundamental_hz per slot) and
+        // phase offset (radians, applied uniformly to every slot).
+        // Does not reset phase or amplitudes — safe to call on profile reload.
+        void set_config(float phase_offset, const float *ratios, uint8_t num_slots);
+
+        // Set target amplitudes; the LPF in update() smooths to these.
+        // Slots beyond num_slots are forced to zero.
+        void set_amplitudes(const float *targets, uint8_t count);
+
+        // Accept gateway sync — sets fundamental_hz and updates PLL phase
+        // error. In phase 1 callers also use this just to seed fundamental.
+        void on_sync(float gateway_phase, float gateway_hz);
+
+        void update(const SimState &state, SimAccumulators &accum) override;
+
+    private:
+        // Local DDS
+        float _phase = 0.0f;
+        float _fundamental_hz = 0.0f;
+
+        // Configurable harmonic ratios (set once per aircraft load)
+        float _ratios[MAX_SLOTS] = {};
+        uint8_t _num_slots = 0;
+        float _phase_offset = 0.0f;
+
+        // PLL state (dormant in phase 1)
+        float _phase_error = 0.0f;
+        float _error_integral = 0.0f;
+        static constexpr float PLL_KP = 10.0f;
+        static constexpr float PLL_KI = 20.0f;
+        static constexpr float PLL_INT_MAX = 5.0f;
+
+        // Smoothed amplitudes (first-order LPF, tau = 50 ms)
+        float _amp[MAX_SLOTS] = {};
+        float _target[MAX_SLOTS] = {};
+
+        static float wrap_pm_pi(float x);
+};
+
 class Friction : public SimElement {
     public:
         Friction(float f) : _f_static(max(f, 0.0f)), _f_kin(max(f, 0.0f)) {};
