@@ -48,7 +48,7 @@ void Buffet::update(const SimState &state, SimAccumulators &accum) {
     _slow_state += alpha_slow * (noise - _slow_state);
     float band_noise = _fast_state - _slow_state;
 
-    accum.f_sum += band_noise * _amplitude;
+    accum.f_vib += band_noise * _amplitude;
 }
 
 void Friction::update(const SimState &state, SimAccumulators &accum) {
@@ -192,6 +192,11 @@ void Sim::update(float &dt, float &f_in, bool final_f) {
         }
     }
 
+    // Inject vibration force after damping and friction so coherent vibration
+    // is not attenuated. Note: oscillation guard's damping is folded into
+    // k_damp_sum above and has already been applied — vibration bypasses it too.
+    accum.f_sum += accum.f_vib;
+
     _a = accum.f_sum / _m * 1000.0;
     float x_raw = (2.0 * _x) - _x_prev + (((_a * dt * dt) / 1000.0) / 1000.0);
     _x_prev = _x;
@@ -242,6 +247,7 @@ float Sim::compute_force_sum(float f_in) {
             accum.f_sum -= dir * f_kin;
         }
     }
+    accum.f_sum += accum.f_vib;
     return accum.f_sum;
 }
 #endif

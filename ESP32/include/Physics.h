@@ -70,6 +70,9 @@ struct SimAccumulators {
     float f_static_sum = 0.0f;
     float f_kin_sum = 0.0f;
     float v_eps_max = 0.0f;
+    // Vibration force: bypasses damping and friction. Injected into f_sum
+    // post-friction in Sim::update so coherent vibration is not attenuated.
+    float f_vib = 0.0f;
     bool has_limits_override = false;
     bool limits_immediate = false;
     float x_min_override = 0.0f;
