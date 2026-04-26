@@ -3988,8 +3988,8 @@ namespace DiyFfb
             var panel = new StackPanel
             {
                 Width = 400,
-                Height = 40,
-                Orientation = Orientation.Vertical
+                Orientation = Orientation.Vertical,
+                Margin = new Thickness(0, 0, 0, 6)
             };
 
             // Get current value (GetGraphParamValue now does full three-tier resolution)
@@ -4060,6 +4060,20 @@ namespace DiyFfb
                         {
                             checkBox.IsChecked = e.Value > 0.5;
                         }
+                        else if (control is ComboBox comboBox)
+                        {
+                            foreach (var item in comboBox.Items)
+                            {
+                                if (item is GraphParamOption opt
+                                    && double.TryParse(opt.Value, System.Globalization.NumberStyles.Float,
+                                        System.Globalization.CultureInfo.InvariantCulture, out var optVal)
+                                    && Math.Abs(optVal - e.Value) < 1e-6)
+                                {
+                                    comboBox.SelectedItem = item;
+                                    break;
+                                }
+                            }
+                        }
                     }
 
                     // Update label with new value
@@ -4082,20 +4096,48 @@ namespace DiyFfb
         private string FormatVehicleParamLabel(GraphParam param, double currentValue)
         {
             string label = param.Ui?.Label ?? param.Name;
+            string widget = (param.Ui?.Widget ?? "").Trim().ToLowerInvariant();
 
-            // Format value with appropriate precision
-            int precision = param.Ui?.Precision ?? 3;
-            string valueStr = currentValue.ToString($"F{precision}");
+            string valueStr;
+            if (widget == "enum")
+            {
+                valueStr = FormatEnumValue(param.Ui, currentValue);
+            }
+            else if (widget == "checkbox")
+            {
+                valueStr = currentValue > 0.5 ? "On" : "Off";
+            }
+            else
+            {
+                int precision = param.Ui?.Precision ?? 3;
+                valueStr = currentValue.ToString($"F{precision}");
+            }
 
-            // Build label as: <name>: <value><unit>
             if (!string.IsNullOrWhiteSpace(param.Ui?.Units))
             {
                 return $"{label}: {valueStr}{param.Ui.Units}";
             }
-            else
+            return $"{label}: {valueStr}";
+        }
+
+        private static string FormatEnumValue(GraphParamUi ui, double currentValue)
+        {
+            if (ui?.Options == null || ui.Options.Count == 0)
             {
-                return $"{label}: {valueStr}";
+                return currentValue.ToString("F3");
             }
+
+            foreach (var option in ui.Options)
+            {
+                if (double.TryParse(option.Value, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var optVal)
+                    && Math.Abs(optVal - currentValue) < 1e-6)
+                {
+                    return option.Label ?? option.Value;
+                }
+            }
+
+            return currentValue.ToString("F3");
         }
 
         #endregion
