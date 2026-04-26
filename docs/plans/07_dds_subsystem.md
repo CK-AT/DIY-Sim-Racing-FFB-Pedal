@@ -9,6 +9,17 @@ and fixed-wing vibration (plan 09).
 
 **Prerequisites:** Plan 03 (ConfigOut & FunctionScope)
 
+**Status:** Implemented. Phase 1 (firmware-side SyncVib + protobuf), phase 3
+(gateway phase sync), and phase 2 (graph integration) all landed on
+branch `ck_sync_vib`. Sub-plans for the implementation:
+
+* [07a_dds_phase1_implementation.md](07a_dds_phase1_implementation.md)
+* [07b_dds_phase2_implementation.md](07b_dds_phase2_implementation.md)
+* [07c_dds_phase3_implementation.md](07c_dds_phase3_implementation.md)
+
+Several decisions in this spec were superseded during implementation —
+see notes inline below. Hardware end-to-end verification is pending.
+
 
 ---
 
@@ -128,7 +139,8 @@ setups or non-critical applications.
 
 ### Config (static, sent on aircraft load)
 
-Extend `FlightStickConfig` in `diy_ffb_protocol.proto`:
+`FlightStickConfig` carries the per-axis vibration ratios and phase
+offset:
 
 ```protobuf
 message FlightStickConfig {
@@ -136,10 +148,14 @@ message FlightStickConfig {
   int32 pos_max = 2;
   float damping = 3;
   float centering_spring_const = 4;
-  // NEW: rotor vibration config
-  int32 rotation_sign = 5;              // +1 CCW-from-above (US), -1 CW (EU)
-  repeated float vib_harmonic_ratios = 6;  // multipliers on fundamental per DDS 1 slot
-  repeated float vib2_harmonic_ratios = 7; // multipliers on fundamental per DDS 2 slot
+  // Vibration phase offset in radians, applied uniformly to all
+  // harmonics. Encodes both axis (pitch=0, roll=±π/2) and rotor
+  // handedness — replaces the originally-specified rotation_sign field.
+  float phase_offset = 5;
+  // multipliers on fundamental per DDS 1 slot, max 5
+  repeated float vib_harmonic_ratios = 6;
+  // multipliers on fundamental per DDS 2 slot, max 5
+  repeated float vib2_harmonic_ratios = 7;
 }
 ```
 
@@ -152,11 +168,19 @@ ratios directly — a 5-blade helicopter uses `[1.0, 2.0, 3.0, 5.0, 10.0]`,
 a 2-blade uses `[1.0, 2.0, 3.0, 2.0, 4.0]`. This is more general and
 enables non-integer ratios for geared systems (e.g., tail rotor).
 
+> **Implementation divergence — phase offset replaces rotation_sign.**
+> The originally-spec'd `int32 rotation_sign = 5` was dropped during phase 1
+> in favour of `float phase_offset = 5` (radians on the wire, degrees at
+> the plugin override layer). All slots use the uniform expression
+> `sin(ratio·phase + phase_offset)` — no axis-split branch in firmware.
+> The handedness of helicopter rotors is encoded in the sign of phase_offset
+> (+π/2 vs -π/2 for roll). See section 6 below.
+
 ### Streaming (per FlightFfbAction, ~20 Hz)
 
-Extend `FlightFfbAction` with per-axis vibration amplitudes only. The
-fundamental frequency is NOT per-axis — it comes from the gateway sync
-message to ensure all axes use identical DDS parameters.
+`FlightFfbAction` carries per-axis vibration amplitudes only. The
+fundamental frequency is sent in a separate `DdsFundamentals` message
+(see below) — gateway snoop reads it from there.
 
 ```protobuf
 message FlightFfbAction {
@@ -166,17 +190,21 @@ message FlightFfbAction {
   float buffet_amp = 4;
   float load_force = 5;
   float k_friction = 6;
-  // NEW: DDS 1 amplitudes (per axis, slot semantics set by vib_harmonic_ratios)
-  float vib_amp_slot1 = 7;       // DDS 1 slot 1 amplitude (N)
-  float vib_amp_slot2 = 8;       // DDS 1 slot 2 amplitude (N)
-  float vib_amp_slot3 = 9;       // DDS 1 slot 3 amplitude (N)
-  float vib_amp_slot4 = 10;      // DDS 1 slot 4 amplitude (N)
-  float vib_amp_slot5 = 11;      // DDS 1 slot 5 amplitude (N)
-  // NEW: DDS 2 amplitudes (engine 2 or tail rotor)
-  float vib2_amp_slot1 = 12;     // DDS 2 slot 1 amplitude (N)
-  float vib2_amp_slot2 = 13;     // DDS 2 slot 2 amplitude (N)
+  // DDS 1 amplitudes, uint8 at 0.01 N/LSB (range 0..2.55 N).
+  // Plugin pre-scales (×100); firmware reads raw and multiplies by 0.01.
+  uint32 vib_amp_slot1 = 7;
+  uint32 vib_amp_slot2 = 8;
+  uint32 vib_amp_slot3 = 9;
+  uint32 vib_amp_slot4 = 10;
+  uint32 vib_amp_slot5 = 11;
+  // DDS 2 amplitudes, same encoding
+  uint32 vib2_amp_slot1 = 12;
+  uint32 vib2_amp_slot2 = 13;
 }
 ```
+
+The `uint32` fields are constrained to 8-bit storage by
+`int_size:IS_8` in `diy_ffb_protocol.options`.
 
 Both DDS frequencies and phases come from the gateway sync frame (`0x0F0`),
 not from FlightFfbAction. This keeps all timing in one place and the per-axis
@@ -184,6 +212,44 @@ message carries only amplitudes.
 
 Amplitudes of zero disable the respective harmonic. All amplitudes zero
 effectively disables the oscillator for that axis.
+
+### Dedicated fundamentals message (plugin → gateway, ~50 Hz)
+
+The plugin emits a small standalone message every FFB tick carrying
+the master DDS fundamentals. The gateway (in `CommManager::on_gateway_message`)
+snoops this and feeds its `MasterDds`; the gateway never reads the
+fundamental from FFB action messages.
+
+```protobuf
+message DdsFundamentals {
+  float dds1_fundamental_hz = 1;
+  float dds2_fundamental_hz = 2;
+}
+
+// In Message.payload oneof:
+DdsFundamentals dds_fundamentals = 14;
+```
+
+> **Implementation divergence — dedicated message instead of FFB-stamped.**
+> Original spec embedded `vib_fundamental_hz` / `vib2_fundamental_hz` in
+> every FlightFfbAction. That was changed during phase 2 because the
+> fundamentals are global (not per-axis) — stamping them into N FFB messages
+> per tick was redundant. Now: one `DdsFundamentals` message per tick.
+> Tags 14, 15 in `FlightFfbAction` are reserved.
+
+### Gateway → axis CAN frames
+
+Gateway-to-axis FFB transport uses the existing `0x200 + (FFBFrameTypes::X << 4) + func` ID format. Phase 2 adds a third sub-type for vibration amplitudes:
+
+```text
+FFBFrameTypes::FLIGHT_FFB      = 1   spring, damper, trim, buffet     (8 bytes)
+FFBFrameTypes::FLIGHT_FFB_LOAD = 2   load_force, k_friction           (4 bytes)
+FFBFrameTypes::FLIGHT_VIB      = 3   5+2 amps, raw 0.01 N/LSB         (7 bytes)  NEW
+```
+
+The axis-side `FlightFfbCache` stitches the three sub-frames; on each
+arrival the cache emits a fully-assembled `FFBAction` to `on_ffb_action`.
+Vib amps survive across frames via dedicated cache fields.
 
 ### Gateway sync message (dedicated CAN frame)
 
@@ -247,7 +313,10 @@ behaviour.
 
 ## 5. Graph Output Interface
 
-### Per flight function (amplitudes only)
+### Per flight function (amplitudes — Scoped Output)
+
+Wired via Scoped Output nodes; routed by the parent Include's
+`FunctionScope`.
 
 | Output | Proto field | DDS | Unit |
 | --- | --- | --- | --- |
@@ -259,21 +328,43 @@ behaviour.
 | `Vib2Slot1` | `vib2_amp_slot1` | 2 | N |
 | `Vib2Slot2` | `vib2_amp_slot2` | 2 | N |
 
-### Shared (routed to gateway for sync frame broadcast)
+### Shared scope (fundamentals — plain Output node)
 
-| Output | Sync frame field | Unit |
+Fundamentals are global, not per-function. They live in a `Shared.*`
+scope and are wired via the plain (non-Scoped) Output node. The
+plugin reads them once per FFB tick and emits a `DdsFundamentals`
+message; the gateway snoops, advances `MasterDds`, and broadcasts via
+the `0x0F0` sync frame.
+
+| Output | Wire path | Unit |
 | --- | --- | --- |
-| `VibFundamental` | `dds1_fundamental_hz` | Hz |
-| `Vib2Fundamental` | `dds2_fundamental_hz` | Hz |
+| `Shared.VibFundamental` | `DdsFundamentals.dds1_fundamental_hz` → CAN `0x0F0` | Hz |
+| `Shared.Vib2Fundamental` | `DdsFundamentals.dds2_fundamental_hz` → CAN `0x0F0` | Hz |
 
-The plugin sends both fundamentals to the gateway (via any one
-FlightFfbAction or a dedicated path). The gateway runs two master DDS
-accumulators and broadcasts both frequency/phase pairs in the `0x0F0`
-sync frame. Axes PLL-lock both local oscillators.
+`OutputSuffixes` excludes the `Shared.*` prefix so Scoped Output
+dropdowns only show per-function suffixes.
+
+Axes PLL-lock both local oscillators to the shared sync frame.
 
 Add amplitude outputs to `GraphSignalCatalogData.OutputNames` for each
 function group. Follow the protocol extension checklist in
 Flight_FFB_Architecture.md section 9.
+
+### Config writes (ConfigOut, plan 03 infrastructure)
+
+`FlightStickConfig.phase_offset` and the harmonic ratio arrays are
+graph-driven via ConfigOut nodes:
+
+| ConfigOut field path | Proto field | Layer | Unit |
+| --- | --- | --- | --- |
+| `flight_stick.phase_offset` | `phase_offset` | Profile | degrees (override layer); converted to radians at proto-build time |
+| `flight_stick.vib_harmonic_ratios.0..4` | `vib_harmonic_ratios[N]` | Profile | unitless |
+| `flight_stick.vib2_harmonic_ratios.0..1` | `vib2_harmonic_ratios[N]` | Profile | unitless |
+
+Each ratio slot is registered as an independent scalar field
+(`OverrideFieldRegistry` scalar decomposition) — N ConfigOut nodes
+populate N slots. ConfigOut writes coalesce into a single
+`FunctionConfig` upload per function via the throttled merger.
 
 
 ---
@@ -293,28 +384,38 @@ two things set at profile load time:
 These two must match. A profile bundles both: it writes the ratios to config
 and uses a graph template that knows which envelope signal goes to which slot.
 
-### Axis split rule
+### Slot evaluation (uniform expression with phase offset)
 
-The 1/rev sin/cos axis split (disc tilt ellipse) is gated by
-`rotation_sign != 0`:
+All slots evaluate to a single uniform expression — no axis enum, no
+sin/cos branch in firmware:
 
-```
-if rotation_sign != 0 AND ratio ≈ 1.0 AND axis == ROLL:
-    force = rotation_sign * amplitude * cos(phase)
-else:
-    force = amplitude * sin(ratio * phase)
+```text
+force = amplitude[i] * sin(ratio[i] * phase + phase_offset)
 ```
 
-This ensures:
+The 1/rev disc tilt ellipse on a helicopter cyclic is achieved by
+profile config:
 
-* **Helicopter rotor** (`rotation_sign = ±1`): 1/rev slot produces
-  sin on pitch, cos on roll → elliptical disc tilt feel
-* **Engine vibration** (`rotation_sign = 0`): 1/rev slot produces
-  sin on both axes → isotropic vibration (no ellipse)
-* **Pedal axis** (`rotation_sign = 0`): single axis, no split needed
+* Pitch axis: `phase_offset = 0` → `sin(phase)` for 1/rev slot.
+* Roll axis: `phase_offset = ±π/2` → `sin(phase ± π/2) = ±cos(phase)`
+  for 1/rev slot. Sign encodes rotor handedness (CCW from above vs CW).
+* Engine vibration: `phase_offset = 0` on both axes → isotropic.
+* Pedals / collective: `phase_offset = 0` (single-DOF, no ellipse).
 
-Each `SyncVib` instance carries its own `rotation_sign`. DDS 2's instance
-always uses `rotation_sign = 0` (engine vibration is never directional).
+Higher harmonics inherit the same phase offset (`sin(2·phase + π/2)`
+for 2/rev on roll, etc.). For pure rotor tilt modes this is physically
+correct; for blade-passing aerodynamic loads it's a reasonable
+approximation.
+
+DDS 2's `SyncVib` instance always uses `phase_offset = 0` (engine
+vibration is never directional).
+
+> **Implementation divergence — uniform expression replaces axis split.**
+> The originally-spec'd sin/cos axis split rule (gated by `rotation_sign`)
+> was dropped during phase 1 in favour of a single `phase_offset` field.
+> Firmware no longer carries an axis enum; the plugin profile expresses
+> the desired pitch/roll relationship by writing the appropriate
+> `phase_offset` value (in degrees) to each axis's FlightStickConfig.
 
 See plan 08 and plan 09 for specific slot profiles per aircraft type.
 
@@ -366,25 +467,21 @@ class SyncVib : public SimElement {
 public:
     static constexpr uint8_t MAX_SLOTS = 5;
 
-    void set_config(int8_t rotation_sign, const float *ratios, uint8_t num_slots);
+    void set_config(float phase_offset, const float *ratios, uint8_t num_slots);
     void set_amplitudes(const float *targets, uint8_t count);
     void on_sync(float gateway_phase, float gateway_hz);
 
     void update(const SimState &state, SimAccumulators &accum) override;
 
-    enum Axis { PITCH, ROLL };
-    void set_axis(Axis axis);
-
 private:
     // Local DDS
     float _phase = 0.0f;
     float _fundamental_hz = 0.0f;
-    int8_t _rotation_sign = 1;
-    Axis _axis = PITCH;
 
     // Configurable harmonic ratios (set once per aircraft load)
     float _ratios[MAX_SLOTS] = {};
     uint8_t _num_slots = 0;
+    float _phase_offset = 0.0f;
 
     // PLL state
     float _phase_error = 0.0f;
@@ -400,6 +497,10 @@ private:
     static float wrap_pm_pi(float x);
 };
 ```
+
+> **Implementation divergence.** No `_axis` member, no `_rotation_sign`
+> member, no `set_axis()` method. The `phase_offset` field stored on
+> the instance (set via `set_config`) drives the uniform sin expression.
 
 `FlightStickFunction` holds two `SyncVib` instances:
 
@@ -454,17 +555,12 @@ void SyncVib::update(const SimState &state, SimAccumulators &accum) {
         _amp[i] += (_target[i] - _amp[i]) * a;
     }
 
-    // Evaluate harmonics — each slot has a configurable ratio
+    // Evaluate harmonics — each slot has a configurable ratio.
+    // Uniform expression for all slots; axis-vs-axis relationship is
+    // entirely encoded in _phase_offset (set per-axis via FlightStickConfig).
     float f = 0.0f;
     for (int i = 0; i < _num_slots; i++) {
-        float h = _ratios[i];
-        if (_rotation_sign != 0 && fabsf(h - 1.0f) < 0.01f && _axis == ROLL) {
-            // 1/rev on roll axis with rotor: cos with rotation sign (disc tilt ellipse)
-            f += _rotation_sign * _amp[i] * cosf(_phase);
-        } else {
-            // All other cases: sin, same phase on both axes (isotropic)
-            f += _amp[i] * sinf(h * _phase);
-        }
+        f += _amp[i] * fastmath::fast_sinf(_ratios[i] * _phase + _phase_offset);
     }
 
     accum.f_vib += f;  // bypass damping and friction
@@ -531,29 +627,48 @@ Optimisations (apply if 1 kHz loop budget is tight):
 
 ## 9. Implementation
 
-### Phase 1 — core rendering
+All three phases are landed on `ck_sync_vib`. See the per-phase
+sub-plans (07a, 07b, 07c) for the actual file-by-file edit history
+and any divergences from this spec.
+
+### Phase 1 — core rendering ([07a](07a_dds_phase1_implementation.md))
 
 1. Add `f_vib` field to `SimAccumulators`, inject after damping/friction in `Sim::update()`
 2. Migrate existing `Buffet` element to use `f_vib` instead of `f_sum`
 3. `SyncVib` class on ESP32 (DDS, PLL, configurable ratio slots, amplitude smoothing → `f_vib`)
 4. Wire two `SyncVib` instances into `FlightStickFunction` (DDS 1 + DDS 2)
 5. Extend `FlightFfbAction` protobuf with DDS 1 + DDS 2 amplitude fields
-6. Extend `FlightStickConfig` with `rotation_sign` and `vib_harmonic_ratios`
-7. Bench test with fixed amplitudes and ratios (no graph integration yet)
+6. Extend `FlightStickConfig` with `phase_offset` and `vib_harmonic_ratios` /
+   `vib2_harmonic_ratios`
+7. Native unit tests for SyncVib (DDS continuity, phase offset, amplitude smoothing)
 
-### Phase 2 — graph integration
+### Phase 3 — gateway phase sync ([07c](07c_dds_phase3_implementation.md))
 
-1. Add graph outputs (`VibSlot1..5`, `Vib2Slot1..2`) to signal catalog
-2. Add `TryGetGraphVibOutputs()` and `SendFlightFfb()` plumbing
-3. Wire ConfigOut nodes for vibration ratios (uses plan 03 infrastructure)
+1. New `MasterDds` class hosted in `CommManager` (pure model, no transport
+   knowledge)
+2. New `ICommChannel::send_dds_sync` virtual + `OnDdsSync` callback
+3. `CANManager::send_dds_sync` packs and emits `0x0F0` at 100 Hz; axis-side
+   `try_process_dds_sync_frame` parses and fires the callback
+4. `IFunction::on_dds_sync` virtual no-op; `FlightStickFunction` overrides
+   to dispatch into `vib1.on_sync` / `vib2.on_sync`
+5. CommManager periodic_task ticks MasterDds at 1 ms and emits 100 Hz
 
-### Phase 3 — phase sync
+### Phase 2 — graph integration ([07b](07b_dds_phase2_implementation.md))
 
-1. Add `send_rotor_sync_frame()` on gateway at 100 Hz (CAN ID `0x0F0`)
-2. Gateway runs master DDS, packs `fundamental_hz` + `phase` into frame
-3. Add `try_process_rotor_sync_frame()` on axes to extract DDS fields
-4. Wire extracted frequency + phase into axis `SyncVib::on_sync()`
-5. Test inter-axis PLL lock-in and steady-state coherence
+1. Proto reshape: drop fundamentals from `FlightFfbAction` (tags 14, 15 reserved),
+   trim amps to 8-bit (`int_size:IS_8`, 0.01 N/LSB), add new `DdsFundamentals`
+   message
+2. New `FFBFrameTypes::FLIGHT_VIB = 3` CAN frame; gateway packs amps and
+   axis-side cache stitches across FFB / FFB_LOAD / FLIGHT_VIB
+3. Gateway snoop moves from `Message_ffb_action_tag` to `Message_dds_fundamentals_tag`
+4. Plugin signal catalog gains per-function `VibSlot1..5` / `Vib2Slot1..2` and
+   shared `Shared.VibFundamental` / `Shared.Vib2Fundamental`; `OutputSuffixes`
+   filters out `Shared.*`
+5. Plugin `SendDdsFundamentals` emits the new message once per FFB tick;
+   `SendFlightFfb` pre-scales amps (×100, clamped to 0..255)
+6. ConfigOut wiring for `flight_stick.phase_offset` (degrees at the
+   override layer, radians at the proto), `flight_stick.vib_harmonic_ratios.0..4`,
+   `flight_stick.vib2_harmonic_ratios.0..1`
 
 
 ---
