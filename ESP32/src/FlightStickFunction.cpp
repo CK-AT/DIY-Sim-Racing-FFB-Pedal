@@ -37,11 +37,13 @@ void FlightStickFunction::on_ffb_action(const FFBAction &ffb_action) {
     centering_spring.set_offset(_base_center + flight.trim_offset);
     buffet.set_amplitude(flight.buffet_amp);
     load_force.set_f(flight.load_force);
-    float amps1[5] = {flight.vib_amp_slot1, flight.vib_amp_slot2,
-                      flight.vib_amp_slot3, flight.vib_amp_slot4,
-                      flight.vib_amp_slot5};
+    // Wire format: uint8 at 0.01 N/LSB. Decode here.
+    constexpr float kAmpScale = 0.01f;
+    float amps1[5] = {flight.vib_amp_slot1 * kAmpScale, flight.vib_amp_slot2 * kAmpScale,
+                      flight.vib_amp_slot3 * kAmpScale, flight.vib_amp_slot4 * kAmpScale,
+                      flight.vib_amp_slot5 * kAmpScale};
     vib1.set_amplitudes(amps1, 5);
-    float amps2[2] = {flight.vib2_amp_slot1, flight.vib2_amp_slot2};
+    float amps2[2] = {flight.vib2_amp_slot1 * kAmpScale, flight.vib2_amp_slot2 * kAmpScale};
     vib2.set_amplitudes(amps2, 2);
     _last_ffb_ms = millis();
     _ffb_overridden = true;

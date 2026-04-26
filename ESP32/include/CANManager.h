@@ -31,7 +31,8 @@ class CANManager : public ICommChannel {
         enum FFBFrameTypes {
             ABS = 0,
             FLIGHT_FFB = 1,
-            FLIGHT_FFB_LOAD = 2
+            FLIGHT_FFB_LOAD = 2,
+            FLIGHT_VIB = 3
         };
 
         struct ForceAndPosition {
@@ -59,8 +60,11 @@ class CANManager : public ICommChannel {
                 FlightFfbAction base;
                 float load_force;
                 float k_friction;
+                uint8_t vib_amps[5];   // 0.01 N/LSB
+                uint8_t vib2_amps[2];  // 0.01 N/LSB
                 bool has_base;
                 bool has_load;
+                bool has_vib;
         };
 
         struct IsotpState {

@@ -394,19 +394,17 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
                 on_ffb_action(msg.payload.ffb_action);
             }
             if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
-                // Snoop fundamentals out of every FlightFfbAction so the master
-                // DDS tracks RPM. Fundamentals are global per spec, so the last
-                // writer wins — SimHub sends the same value across functions.
-                if (msg.payload.ffb_action.which_function == FFBAction_flight_ffb_tag) {
-                    const FlightFfbAction &flight = msg.payload.ffb_action.function.flight_ffb;
-                    _master_dds.set_fundamental(0, flight.vib_fundamental_hz);
-                    _master_dds.set_fundamental(1, flight.vib2_fundamental_hz);
-                }
                 // only the primary axis will process FFB actions, no need to send it to other axes
                 AxisID primary_axis_id = _config_manager->get_primary_axis_id(msg.payload.ffb_action.function_id);
                 if (MessageTools::check_axis_id(primary_axis_id)) {
                     send_message_to_axis(primary_axis_id, msg, protobuf_msg, len_protobuf_msg);
                 }
+            }
+            break;
+        case Message_dds_fundamentals_tag:
+            if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
+                _master_dds.set_fundamental(0, msg.payload.dds_fundamentals.dds1_fundamental_hz);
+                _master_dds.set_fundamental(1, msg.payload.dds_fundamentals.dds2_fundamental_hz);
             }
             break;
         case Message_axis_action_tag: {

@@ -152,6 +152,28 @@ namespace {
         k_friction = payload.k_friction * kFfbScaleFriction;
     }
 
+    // FLIGHT_VIB CAN frame: 5 DDS1 + 2 DDS2 amps, raw 0.01 N/LSB.
+    // 7 bytes used, 1 byte spare in the 8-byte CAN frame.
+    struct FlightFfbVibPayload {
+        uint8_t vib_amps[5];
+        uint8_t vib2_amps[2];
+    };
+    static_assert(sizeof(FlightFfbVibPayload) == 7, "FLIGHT_VIB payload must be 7 bytes");
+
+    FlightFfbVibPayload pack_flight_ffb_vib(const FlightFfbAction &action) {
+        FlightFfbVibPayload payload = {};
+        // Proto fields are uint32 (with int_size:IS_8 → uint8 storage).
+        // Plugin pre-scales floats × 100 and clamps to 0..255 before sending.
+        payload.vib_amps[0] = (uint8_t)(action.vib_amp_slot1 & 0xFF);
+        payload.vib_amps[1] = (uint8_t)(action.vib_amp_slot2 & 0xFF);
+        payload.vib_amps[2] = (uint8_t)(action.vib_amp_slot3 & 0xFF);
+        payload.vib_amps[3] = (uint8_t)(action.vib_amp_slot4 & 0xFF);
+        payload.vib_amps[4] = (uint8_t)(action.vib_amp_slot5 & 0xFF);
+        payload.vib2_amps[0] = (uint8_t)(action.vib2_amp_slot1 & 0xFF);
+        payload.vib2_amps[1] = (uint8_t)(action.vib2_amp_slot2 & 0xFF);
+        return payload;
+    }
+
     constexpr uint32_t kDdsSyncCanId = 0x0F0;
     constexpr float kDdsHzScale = 0.001f;  // 0.001 Hz/LSB → 0..65.535 Hz range
     constexpr float kTwoPi = 2.0f * (float)M_PI;
@@ -672,6 +694,15 @@ bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
                     cache.base.load_force = cache.load_force;
                     cache.base.k_friction = cache.k_friction;
                 }
+                if (cache.has_vib) {
+                    cache.base.vib_amp_slot1 = cache.vib_amps[0];
+                    cache.base.vib_amp_slot2 = cache.vib_amps[1];
+                    cache.base.vib_amp_slot3 = cache.vib_amps[2];
+                    cache.base.vib_amp_slot4 = cache.vib_amps[3];
+                    cache.base.vib_amp_slot5 = cache.vib_amps[4];
+                    cache.base.vib2_amp_slot1 = cache.vib2_amps[0];
+                    cache.base.vib2_amp_slot2 = cache.vib2_amps[1];
+                }
                 action.function_id = FunctionID(function_id);
                 action.which_function = FFBAction_flight_ffb_tag;
                 action.function.flight_ffb = cache.base;
@@ -698,6 +729,48 @@ bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
                 action.function.flight_ffb = cache.base;
                 action.function.flight_ffb.load_force = cache.load_force;
                 action.function.flight_ffb.k_friction = cache.k_friction;
+                if (cache.has_vib) {
+                    action.function.flight_ffb.vib_amp_slot1 = cache.vib_amps[0];
+                    action.function.flight_ffb.vib_amp_slot2 = cache.vib_amps[1];
+                    action.function.flight_ffb.vib_amp_slot3 = cache.vib_amps[2];
+                    action.function.flight_ffb.vib_amp_slot4 = cache.vib_amps[3];
+                    action.function.flight_ffb.vib_amp_slot5 = cache.vib_amps[4];
+                    action.function.flight_ffb.vib2_amp_slot1 = cache.vib2_amps[0];
+                    action.function.flight_ffb.vib2_amp_slot2 = cache.vib2_amps[1];
+                }
+                on_ffb_action(action);
+                break;
+            }
+            case FFBFrameTypes::FLIGHT_VIB: {
+                if (function_id == 0 || function_id > MessageTools::MAX_AXES_COUNT) {
+                    break;
+                }
+                if (rx_frame.data_length_code < sizeof(FlightFfbVibPayload)) {
+                    break;
+                }
+                FlightFfbVibPayload payload = {};
+                memcpy(&payload, rx_frame.data, sizeof(payload));
+                FlightFfbCache &cache = flight_ffb_cache[function_id - 1];
+                memcpy(cache.vib_amps, payload.vib_amps, sizeof(cache.vib_amps));
+                memcpy(cache.vib2_amps, payload.vib2_amps, sizeof(cache.vib2_amps));
+                cache.has_vib = true;
+                if (!cache.has_base) {
+                    break;
+                }
+                action.function_id = FunctionID(function_id);
+                action.which_function = FFBAction_flight_ffb_tag;
+                action.function.flight_ffb = cache.base;
+                if (cache.has_load) {
+                    action.function.flight_ffb.load_force = cache.load_force;
+                    action.function.flight_ffb.k_friction = cache.k_friction;
+                }
+                action.function.flight_ffb.vib_amp_slot1 = cache.vib_amps[0];
+                action.function.flight_ffb.vib_amp_slot2 = cache.vib_amps[1];
+                action.function.flight_ffb.vib_amp_slot3 = cache.vib_amps[2];
+                action.function.flight_ffb.vib_amp_slot4 = cache.vib_amps[3];
+                action.function.flight_ffb.vib_amp_slot5 = cache.vib_amps[4];
+                action.function.flight_ffb.vib2_amp_slot1 = cache.vib2_amps[0];
+                action.function.flight_ffb.vib2_amp_slot2 = cache.vib2_amps[1];
                 on_ffb_action(action);
                 break;
             }
@@ -795,7 +868,18 @@ bool CANManager::send_flight_ffb(const FFBAction &action) {
             tx_err_cnt++;
         }
     }
-    return base_ok && load_ok;
+    FlightFfbVibPayload vib_payload = pack_flight_ffb_vib(action.function.flight_ffb);
+    CanFrame vib_frame = {};
+    vib_frame.identifier = 0x200 + (FFBFrameTypes::FLIGHT_VIB << 4) + action.function_id;
+    vib_frame.data_length_code = sizeof(vib_payload);
+    memcpy(vib_frame.data, &vib_payload, sizeof(vib_payload));
+    bool vib_ok = ESP32Can.writeFrame(&vib_frame, 0);
+    if (!vib_ok) {
+        if (tx_err_cnt < 0xFFFFFFFF) {
+            tx_err_cnt++;
+        }
+    }
+    return base_ok && load_ok && vib_ok;
 }
 
 bool CANManager::send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {
