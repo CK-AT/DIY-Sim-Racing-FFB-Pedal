@@ -626,6 +626,10 @@ message FlightFfbAction {
   // DDS 2 amplitudes per slot (N), slot semantics set by FlightStickConfig.vib2_harmonic_ratios
   float vib2_amp_slot1 = 12;
   float vib2_amp_slot2 = 13;
+  // DDS fundamentals in Hz, broadcast by gateway to all axes via CAN 0x0F0.
+  // 0 disables the respective DDS. Sourced from the SimHub graph (phase 2).
+  float vib_fundamental_hz = 14;
+  float vib2_fundamental_hz = 15;
 }
 
 message FFBAction {
