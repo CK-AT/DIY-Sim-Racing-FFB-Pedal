@@ -9,13 +9,14 @@ namespace DiyFfb
         // Input signal groups (top-level namespaces)
         public static readonly IReadOnlyList<string> InputGroups = new[] { "XPlane", "Grip", "Axis" };
 
-        // Output signal groups (function names)
+        // Output signal groups (function names + global Shared scope)
         public static readonly IReadOnlyList<string> OutputGroups = new[]
         {
             "FlightStickPitch",
             "FlightStickRoll",
             "FlightPedals",
-            "FlightStickCollective"
+            "FlightStickCollective",
+            "Shared"
         };
 
         // FunctionScope options for Include nodes: empty string = "(none)" / unscoped
