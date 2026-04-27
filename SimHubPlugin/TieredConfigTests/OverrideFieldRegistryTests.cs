@@ -64,7 +64,7 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("HasValue_StaticBalanceGain_WhenSet_ReturnsTrue", HasValue_StaticBalanceGain_WhenSet_ReturnsTrue),
 
                 // Path normalization tests
-                TestRunner.RunTest("NormalizeFieldPath_OutputMin_ReturnsLowercase", NormalizeFieldPath_OutputMin_ReturnsLowercase),
+                TestRunner.RunTest("NormalizeFieldPath_LegacyAlias_ReturnsCanonical", NormalizeFieldPath_LegacyAlias_ReturnsCanonical),
                 TestRunner.RunTest("NormalizeFieldPath_UnknownField_ReturnsLowercase", NormalizeFieldPath_UnknownField_ReturnsLowercase),
 
                 // Field metadata tests
@@ -93,10 +93,11 @@ namespace DiyFfb.TieredConfigTests
 
         private static void GetField_OutputMin_ReturnsDefinition()
         {
+            // Lookup by legacy alias still works
             var field = OverrideFieldRegistry.GetField("output_min");
-            AssertNotNull(field, "output_min field should be registered");
+            AssertNotNull(field, "output_min alias should resolve");
             AssertEqual("OutputMin", field.Name, "Field name should match");
-            AssertEqual("output_min", field.FieldPath, "Field path should match");
+            AssertEqual("OutputMin", field.FieldPath, "Canonical field path should be PascalCase");
         }
 
         private static void GetField_OutputMax_ReturnsDefinition()
@@ -377,10 +378,14 @@ namespace DiyFfb.TieredConfigTests
 
         // === Path Normalization Tests ===
 
-        private static void NormalizeFieldPath_OutputMin_ReturnsLowercase()
+        private static void NormalizeFieldPath_LegacyAlias_ReturnsCanonical()
         {
-            var normalized = OverrideFieldRegistry.NormalizeFieldPath("OutputMin");
-            AssertEqual("output_min", normalized, "Should normalize to lowercase path");
+            // Legacy snake_case alias and canonical PascalCase both
+            // normalize to the canonical FieldPath.
+            AssertEqual("OutputMin", OverrideFieldRegistry.NormalizeFieldPath("output_min"),
+                "Legacy snake_case alias should normalize to PascalCase canonical");
+            AssertEqual("OutputMin", OverrideFieldRegistry.NormalizeFieldPath("OutputMin"),
+                "Canonical PascalCase should normalize to itself");
         }
 
         private static void NormalizeFieldPath_UnknownField_ReturnsLowercase()

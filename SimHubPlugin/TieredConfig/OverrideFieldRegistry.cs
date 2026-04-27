@@ -40,7 +40,11 @@ namespace DiyFfb.TieredConfig
     {
         // Identity
         public string Name { get; internal set; }              // "OutputMin"
-        public string FieldPath { get; internal set; }         // "output_min"
+        public string FieldPath { get; internal set; }         // canonical, PascalCase ("OutputMin")
+        // Legacy paths (e.g. snake_case from earlier conventions) that
+        // GetField() should still resolve. Editor dropdowns show the
+        // canonical FieldPath only.
+        public IReadOnlyList<string> Aliases { get; internal set; }
 
         // Metadata
         public string DisplayName { get; internal set; }       // "Output Min"
@@ -78,6 +82,9 @@ namespace DiyFfb.TieredConfig
         private static readonly Dictionary<string, OverrideFieldDefinition> _fieldsByName
             = new Dictionary<string, OverrideFieldDefinition>(StringComparer.OrdinalIgnoreCase);
 
+        private static readonly Dictionary<string, OverrideFieldDefinition> _fieldsByAlias
+            = new Dictionary<string, OverrideFieldDefinition>(StringComparer.OrdinalIgnoreCase);
+
         static OverrideFieldRegistry()
         {
             RegisterAllFields();
@@ -90,7 +97,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "OutputMin",
-                FieldPath = "output_min",
+                FieldPath = "OutputMin",
+                Aliases = new[] { "output_min" },
                 DisplayName = "Output Min",
                 Tooltip = "Minimum output value (0-1)",
                 FieldType = OverrideFieldType.Float,
@@ -105,7 +113,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "OutputMax",
-                FieldPath = "output_max",
+                FieldPath = "OutputMax",
+                Aliases = new[] { "output_max" },
                 DisplayName = "Output Max",
                 Tooltip = "Maximum output value (0-1)",
                 FieldType = OverrideFieldType.Float,
@@ -122,7 +131,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "SimulatedMass",
-                FieldPath = "simulated_mass",
+                FieldPath = "SimulatedMass",
+                Aliases = new[] { "simulated_mass" },
                 DisplayName = "Simulated Mass",
                 Tooltip = "Simulated mass for physics calculations (kg)",
                 FieldType = OverrideFieldType.Float,
@@ -137,7 +147,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "Friction",
-                FieldPath = "friction",
+                FieldPath = "Friction",
+                Aliases = new[] { "friction" },
                 DisplayName = "Friction",
                 Tooltip = "Friction coefficient for force feedback",
                 FieldType = OverrideFieldType.Float,
@@ -154,7 +165,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "StaticBalanceEnabled",
-                FieldPath = "static_balance_tuning.enabled",
+                FieldPath = "StaticBalanceTuning.Enabled",
+                Aliases = new[] { "static_balance_tuning.enabled" },
                 DisplayName = "Enabled",
                 Tooltip = "Enable static balance compensation",
                 FieldType = OverrideFieldType.Bool,
@@ -182,7 +194,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "StaticBalanceGain",
-                FieldPath = "static_balance_tuning.gain",
+                FieldPath = "StaticBalanceTuning.Gain",
+                Aliases = new[] { "static_balance_tuning.gain" },
                 DisplayName = "Gain",
                 Tooltip = "Static balance compensation gain",
                 FieldType = OverrideFieldType.Float,
@@ -212,7 +225,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "DamperPositiveFactor",
-                FieldPath = "damper_config.positive_factor",
+                FieldPath = "DamperConfig.PositiveFactor",
+                Aliases = new[] { "damper_config.positive_factor" },
                 DisplayName = "Damper Positive Factor",
                 Tooltip = "Damping in positive/pressing direction ((N*s)/mm)",
                 FieldType = OverrideFieldType.Float,
@@ -240,7 +254,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "DamperNegativeFactor",
-                FieldPath = "damper_config.negative_factor",
+                FieldPath = "DamperConfig.NegativeFactor",
+                Aliases = new[] { "damper_config.negative_factor" },
                 DisplayName = "Damper Negative Factor",
                 Tooltip = "Damping in negative/pulling direction ((N*s)/mm)",
                 FieldType = OverrideFieldType.Float,
@@ -268,7 +283,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "ForceCurve",
-                FieldPath = "force_curve",
+                FieldPath = "ForceCurve",
+                Aliases = new[] { "force_curve" },
                 DisplayName = "Force Curve",
                 Tooltip = "Spline force curve configuration",
                 FieldType = OverrideFieldType.Complex,
@@ -291,7 +307,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "FlightPedalsMotionRange",
-                FieldPath = "flight_pedals.motion_range",
+                FieldPath = "FlightPedals.MotionRange",
+                Aliases = new[] { "flight_pedals.motion_range" },
                 DisplayName = "Motion Range",
                 Tooltip = "Flight pedals motion range (near/far position limits in mm)",
                 FieldType = OverrideFieldType.Complex,
@@ -312,7 +329,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "FlightPedalsDamping",
-                FieldPath = "flight_pedals.damping",
+                FieldPath = "FlightPedals.Damping",
+                Aliases = new[] { "flight_pedals.damping" },
                 DisplayName = "Damping",
                 Tooltip = "Flight pedals damping ((N*s)/mm)",
                 FieldType = OverrideFieldType.Float,
@@ -327,7 +345,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "FlightPedalsCenteringSpringConst",
-                FieldPath = "flight_pedals.centering_spring_const",
+                FieldPath = "FlightPedals.CenteringSpringConst",
+                Aliases = new[] { "flight_pedals.centering_spring_const" },
                 DisplayName = "Centering Spring Constant",
                 Tooltip = "Flight pedals centering spring constant (N/mm)",
                 FieldType = OverrideFieldType.Float,
@@ -344,7 +363,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "RudderBrakeForceRange",
-                FieldPath = "aux_function.rudder_brake.force_range",
+                FieldPath = "AuxFunction.RudderBrake.ForceRange",
+                Aliases = new[] { "aux_function.rudder_brake.force_range" },
                 DisplayName = "Rudder Brake Force Range",
                 Tooltip = "Rudder brake force range (min/max threshold in N)",
                 FieldType = OverrideFieldType.Complex,
@@ -367,7 +387,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "FlightStickMotionRange",
-                FieldPath = "flight_stick.motion_range",
+                FieldPath = "FlightStick.MotionRange",
+                Aliases = new[] { "flight_stick.motion_range" },
                 DisplayName = "Motion Range",
                 Tooltip = "Flight stick motion range (min/max position limits in mm)",
                 FieldType = OverrideFieldType.Complex,
@@ -388,7 +409,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "FlightStickDamping",
-                FieldPath = "flight_stick.damping",
+                FieldPath = "FlightStick.Damping",
+                Aliases = new[] { "flight_stick.damping" },
                 DisplayName = "Damping",
                 Tooltip = "Flight stick damping ((N*s)/mm)",
                 FieldType = OverrideFieldType.Float,
@@ -403,7 +425,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "FlightStickCenteringSpringConst",
-                FieldPath = "flight_stick.centering_spring_const",
+                FieldPath = "FlightStick.CenteringSpringConst",
+                Aliases = new[] { "flight_stick.centering_spring_const" },
                 DisplayName = "Centering Spring Constant",
                 Tooltip = "Flight stick centering spring constant (N/mm)",
                 FieldType = OverrideFieldType.Float,
@@ -420,8 +443,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "FlightStickPhaseOffset",
-                FieldPath = "flight_stick.phase_offset",
-                DisplayName = "DDS Phase Offset (deg)",
+                FieldPath = "FlightStick.Vib1Phase",
+                DisplayName = "Vib1 Phase Offset (deg)",
                 Tooltip = "Vibration phase offset in degrees (encodes axis + rotor handedness; 90° = roll, -90° = inverted)",
                 FieldType = OverrideFieldType.Float,
                 Group = OverrideFieldGroup.FlightStick,
@@ -437,9 +460,9 @@ namespace DiyFfb.TieredConfig
                 int slot = i;  // capture
                 RegisterField(new OverrideFieldDefinition
                 {
-                    Name = $"FlightStickVibRatio{slot}",
-                    FieldPath = $"flight_stick.vib_harmonic_ratios.{slot}",
-                    DisplayName = $"DDS1 Harmonic Ratio Slot {slot + 1}",
+                    Name = $"FlightStickVib1HarmRatio{slot + 1}",
+                    FieldPath = $"FlightStick.Vib1HarmRatio{slot + 1}",
+                    DisplayName = $"Vib1 HarmRatio {slot + 1}",
                     Tooltip = $"DDS 1 slot {slot + 1} frequency ratio (multiplier on fundamental_hz)",
                     FieldType = OverrideFieldType.Float,
                     Group = OverrideFieldGroup.FlightStick,
@@ -467,9 +490,9 @@ namespace DiyFfb.TieredConfig
                 int slot = i;
                 RegisterField(new OverrideFieldDefinition
                 {
-                    Name = $"FlightStickVib2Ratio{slot}",
-                    FieldPath = $"flight_stick.vib2_harmonic_ratios.{slot}",
-                    DisplayName = $"DDS2 Harmonic Ratio Slot {slot + 1}",
+                    Name = $"FlightStickVib2HarmRatio{slot + 1}",
+                    FieldPath = $"FlightStick.Vib2HarmRatio{slot + 1}",
+                    DisplayName = $"Vib2 HarmRatio {slot + 1}",
                     Tooltip = $"DDS 2 slot {slot + 1} frequency ratio (multiplier on fundamental_hz)",
                     FieldType = OverrideFieldType.Float,
                     Group = OverrideFieldGroup.FlightStick,
@@ -497,7 +520,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "AbsEffect",
-                FieldPath = "abs_effect_config",
+                FieldPath = "AbsEffectConfig",
+                Aliases = new[] { "abs_effect_config" },
                 DisplayName = "ABS/TC Effect",
                 Tooltip = "ABS/TC effect configuration (frequency, amplitude, mode, pattern)",
                 FieldType = OverrideFieldType.Complex,
@@ -520,7 +544,8 @@ namespace DiyFfb.TieredConfig
             RegisterField(new OverrideFieldDefinition
             {
                 Name = "ShifterConfig",
-                FieldPath = "shifter_config",
+                FieldPath = "ShifterConfig",
+                Aliases = new[] { "shifter_config" },
                 DisplayName = "Shifter Config",
                 Tooltip = "Complete shifter configuration (geometry, gates, detents, detection)",
                 FieldType = OverrideFieldType.Complex,
@@ -543,6 +568,14 @@ namespace DiyFfb.TieredConfig
         {
             _fieldsByPath[field.FieldPath] = field;
             _fieldsByName[field.Name] = field;
+            if (field.Aliases != null)
+            {
+                foreach (var alias in field.Aliases)
+                {
+                    if (!string.IsNullOrEmpty(alias))
+                        _fieldsByAlias[alias] = field;
+                }
+            }
         }
 
         // === Field Definitions ===
@@ -563,6 +596,10 @@ namespace DiyFfb.TieredConfig
 
             // Try name lookup
             if (_fieldsByName.TryGetValue(fieldPath, out field))
+                return field;
+
+            // Try legacy alias lookup (e.g. snake_case from before the PascalCase rename)
+            if (_fieldsByAlias.TryGetValue(fieldPath, out field))
                 return field;
 
             return null;
@@ -683,8 +720,10 @@ namespace DiyFfb.TieredConfig
         // === Path Normalization ===
 
         /// <summary>
-        /// Normalize field name to field path.
-        /// E.g., "OutputMin" -> "output_min"
+        /// Normalize a field identifier (Name, canonical FieldPath, or legacy
+        /// snake_case Alias) to the canonical PascalCase FieldPath.
+        /// E.g., "output_min" or "OutputMin" both -> "OutputMin".
+        /// Unknown identifiers are lowercased.
         /// </summary>
         public static string NormalizeFieldPath(string fieldName)
         {

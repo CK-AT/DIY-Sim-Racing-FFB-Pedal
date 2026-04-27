@@ -285,8 +285,8 @@ namespace DiyFfb.TieredConfigTests
 
             var items = orchestrator.GetAllActiveOverrides();
 
-            var massItem = items.FirstOrDefault(i => i.FieldPath == "simulated_mass");
-            var frictionItem = items.FirstOrDefault(i => i.FieldPath == "friction");
+            var massItem = items.FirstOrDefault(i => i.FieldPath == "SimulatedMass");
+            var frictionItem = items.FirstOrDefault(i => i.FieldPath == "Friction");
 
             if (massItem == null)
                 throw new Exception("Should find simulated_mass override");
@@ -328,7 +328,7 @@ namespace DiyFfb.TieredConfigTests
             userOverrides.SimulatedMass = 12.0f;
 
             var items = orchestrator.GetAllActiveOverrides();
-            var massItem = items.FirstOrDefault(i => i.FieldPath == "simulated_mass");
+            var massItem = items.FirstOrDefault(i => i.FieldPath == "SimulatedMass");
 
             if (massItem == null)
                 throw new Exception("Should find simulated_mass override");

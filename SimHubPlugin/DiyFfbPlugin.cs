@@ -1232,8 +1232,8 @@ namespace DiyFfb
         {
             // Shared scope: read once, send to gateway. Gateway snoops and
             // broadcasts via 0x0F0 sync frame to all axes.
-            float dds1Hz = TryGetGraphOutput("Shared.VibFundamental", out float v1) ? v1 : 0.0f;
-            float dds2Hz = TryGetGraphOutput("Shared.Vib2Fundamental", out float v2) ? v2 : 0.0f;
+            float dds1Hz = TryGetGraphOutput("Shared.Vib1Fund", out float v1) ? v1 : 0.0f;
+            float dds2Hz = TryGetGraphOutput("Shared.Vib2Fund", out float v2) ? v2 : 0.0f;
             Message msg = new Message
             {
                 DdsFundamentals = new DdsFundamentals
@@ -1526,7 +1526,7 @@ namespace DiyFfb
             }
             for (int i = 0; i < 5; i++)
             {
-                if (TryGetGraphOutput($"{prefix}.VibSlot{i + 1}", out value))
+                if (TryGetGraphOutput($"{prefix}.Vib1Ampl{i + 1}", out value))
                 {
                     vibSlots[i] = value;
                     hasOutput = true;
@@ -1534,7 +1534,7 @@ namespace DiyFfb
             }
             for (int i = 0; i < 2; i++)
             {
-                if (TryGetGraphOutput($"{prefix}.Vib2Slot{i + 1}", out value))
+                if (TryGetGraphOutput($"{prefix}.Vib2Ampl{i + 1}", out value))
                 {
                     vib2Slots[i] = value;
                     hasOutput = true;
