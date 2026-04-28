@@ -359,7 +359,7 @@ void CANManager::process(void) {
         if (ESP32Can.readFrame(&rx_frame, 0)) {
             if (try_process_high_prio_axis_frame(rx_frame, now)) continue;
             if (!_is_gateway) {
-                if (try_process_dds_sync_frame(rx_frame)) continue;
+                if (try_process_dds_sync_frame(rx_frame, now)) continue;
                 if (try_process_ffb_update_frame(rx_frame)) continue;
             }
             if (try_process_low_prio_axis_frame(rx_frame, now)) continue;
@@ -483,20 +483,24 @@ void CANManager::shared_setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin) 
 /*****************************************************************************************************************/
 /* AxisCANManager */
 /*****************************************************************************************************************/
+void CANManager::mark_gateway_alive(uint32_t now) {
+    ti_last_ping = now;
+    if (!_gateway_online) {
+        LogOutput::printf("CANManager: Gateway online");
+        _gateway_online = true;
+        if (own_axis_index > 0) {
+            _is_gateway = false;
+            LogOutput::printf(" -> giving up Gateway role");
+        }
+        if (on_gateway_state_change) {
+            on_gateway_state_change(this, true);
+        }
+    }
+}
+
 bool CANManager::try_process_ping_frame(CanFrame &rx_frame, uint32_t now) {
     if (rx_frame.identifier == 0x7FE) {
-        ti_last_ping = now;
-        if (!_gateway_online) {
-            LogOutput::printf("CANManager: Gateway online");
-            _gateway_online = true;
-            if (own_axis_index > 0) {
-                _is_gateway = false;
-                LogOutput::printf(" -> giving up Gateway role");
-            }
-            if (on_gateway_state_change) {
-                on_gateway_state_change(this, true);
-            }
-        }
+        mark_gateway_alive(now);
         return true;
     }
     return false;
@@ -554,8 +558,12 @@ bool CANManager::send_force_and_position(float &f_contact_point, float &x_contac
     return true;
 }
 
-bool CANManager::try_process_dds_sync_frame(CanFrame &rx_frame) {
+bool CANManager::try_process_dds_sync_frame(CanFrame &rx_frame, uint32_t now) {
     if (rx_frame.identifier != kDdsSyncCanId) return false;
+    // Doubles as a gateway liveness signal. 0x7FE remains the primary ping
+    // for now; this is a forward-compat fallback so the 10 Hz ping can be
+    // retired in a later firmware version with no coordinated upgrade.
+    mark_gateway_alive(now);
     if (rx_frame.data_length_code < sizeof(DdsSyncPayload)) return true;
     DdsSyncPayload payload;
     memcpy(&payload, rx_frame.data, sizeof(payload));

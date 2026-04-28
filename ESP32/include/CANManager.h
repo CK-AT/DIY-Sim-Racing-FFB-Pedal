@@ -154,8 +154,13 @@ class CANManager : public ICommChannel {
         /* Axis related */
         bool try_process_gateway_isotp_can_frame(CanFrame &rx_frame);
         bool try_process_ffb_update_frame(CanFrame &rx_frame);
-        bool try_process_dds_sync_frame(CanFrame &rx_frame);
+        bool try_process_dds_sync_frame(CanFrame &rx_frame, uint32_t now);
         bool try_process_ping_frame(CanFrame &rx_frame, uint32_t now);
+        // Mark gateway as online and update last-seen timestamp.
+        // Called from both 0x7FE (legacy ping) and 0x0F0 (DDS sync) receivers.
+        // The DDS sync path is a forward-compat fallback so 0x7FE can be retired
+        // in a future firmware version without a coordinated upgrade.
+        void mark_gateway_alive(uint32_t now);
         bool send_payload_to_gateway(const uint8_t *data, uint32_t len);
         void broadcast_state_updates(void);
         void broadcast_state_updates(uint32_t now);
