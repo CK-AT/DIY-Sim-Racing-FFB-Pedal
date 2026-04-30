@@ -444,6 +444,7 @@ namespace DiyFfb.TieredConfig
             {
                 Name = "FlightStickPhaseOffset",
                 FieldPath = "FlightStick.Vib1Phase",
+                Aliases = new[] { "flight_stick.phase_offset" },
                 DisplayName = "Vib1 Phase Offset (deg)",
                 Tooltip = "Vibration phase offset in degrees (encodes axis + rotor handedness; 90° = roll, -90° = inverted)",
                 FieldType = OverrideFieldType.Float,
@@ -462,6 +463,7 @@ namespace DiyFfb.TieredConfig
                 {
                     Name = $"FlightStickVib1HarmRatio{slot + 1}",
                     FieldPath = $"FlightStick.Vib1HarmRatio{slot + 1}",
+                    Aliases = new[] { $"flight_stick.vib_harmonic_ratios.{slot}" },
                     DisplayName = $"Vib1 HarmRatio {slot + 1}",
                     Tooltip = $"DDS 1 slot {slot + 1} frequency ratio (multiplier on fundamental_hz)",
                     FieldType = OverrideFieldType.Float,
@@ -492,6 +494,7 @@ namespace DiyFfb.TieredConfig
                 {
                     Name = $"FlightStickVib2HarmRatio{slot + 1}",
                     FieldPath = $"FlightStick.Vib2HarmRatio{slot + 1}",
+                    Aliases = new[] { $"flight_stick.vib2_harmonic_ratios.{slot}" },
                     DisplayName = $"Vib2 HarmRatio {slot + 1}",
                     Tooltip = $"DDS 2 slot {slot + 1} frequency ratio (multiplier on fundamental_hz)",
                     FieldType = OverrideFieldType.Float,

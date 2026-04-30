@@ -1377,8 +1377,12 @@ namespace DiyFfb
 
         /// <summary>
         /// Checks ConfigOut values from the graph evaluation and triggers config uploads
-        /// when any value changes. ConfigOut keys use the format "FunctionScope:FieldPath"
-        /// (e.g., "FlightStickPitch:flight_stick.damping").
+        /// when any value changes. ConfigOut keys come in two shapes:
+        ///   - Scoped (inside a FunctionScope Include): "FunctionScope:FieldPath"
+        ///     applies the value to the named function only.
+        ///   - Top-level (no FunctionScope): bare "FieldPath" — fans out to every
+        ///     function whose group matches the field (e.g. a top-level
+        ///     "FlightStick.Vib1HarmRatio1" writes Pitch + Roll + Collective).
         /// </summary>
         private void CheckConfigOutChanges()
         {
@@ -1400,53 +1404,112 @@ namespace DiyFfb
                     continue;
                 }
 
+                bool firstSeen = !_lastConfigOutValues.ContainsKey(key);
                 _lastConfigOutValues[key] = newValue;
 
-                // Parse "FunctionScope:FieldPath" format
                 int sepIndex = key.IndexOf(':');
-                if (sepIndex <= 0 || sepIndex >= key.Length - 1)
+                string scopeName;
+                string fieldPath;
+                if (sepIndex > 0 && sepIndex < key.Length - 1)
                 {
-                    continue;
+                    // Scoped: "FunctionScope:FieldPath"
+                    scopeName = key.Substring(0, sepIndex);
+                    fieldPath = key.Substring(sepIndex + 1);
+                }
+                else
+                {
+                    // Top-level: bare field path. Fan out by ConfigType below.
+                    scopeName = null;
+                    fieldPath = key;
                 }
 
-                string scopeName = key.Substring(0, sepIndex);
-                string fieldPath = key.Substring(sepIndex + 1);
-
-                // Resolve function ID from scope name
-                FunctionID? functionId = ResolveFunctionIdFromScope(scopeName);
-                if (functionId == null)
-                {
-                    continue;
-                }
-
-                // Validate the field belongs to the correct config type for this function
                 var field = TieredConfig.OverrideFieldRegistry.GetField(fieldPath);
                 if (field == null)
                 {
+                    if (firstSeen)
+                    {
+                        SimHub.Logging.Current.Warn(
+                            $"[ConfigOut] '{key}' — unknown field path '{fieldPath}'; ignored");
+                    }
                     continue;
                 }
 
-                // Validate: field must be either shared (Physics, OutputScaling, etc.)
-                // or belong to the config type matching this scope
-                string expectedConfigType = GraphSignalCatalogData.GetConfigTypeForScope(scopeName);
-                if (!string.IsNullOrEmpty(expectedConfigType) && !IsSharedFieldGroup(field.Group))
+                // Determine target functions: explicit scope or fan out by group.
+                var targets = ResolveConfigOutTargets(scopeName, field);
+                if (targets.Count == 0)
                 {
-                    string fieldGroup = field.Group.ToString();
-                    if (!string.Equals(fieldGroup, expectedConfigType, StringComparison.OrdinalIgnoreCase))
+                    if (firstSeen)
                     {
-                        // ConfigType mismatch — skip silently (editor should have warned)
-                        continue;
+                        SimHub.Logging.Current.Warn(
+                            $"[ConfigOut] '{key}' — no matching function for field group '{field.Group}'; ignored");
                     }
+                    continue;
+                }
+
+                if (firstSeen)
+                {
+                    string canonical = field.FieldPath;
+                    string targetList = string.Join(",", targets.Select(f => f.ToString()));
+                    SimHub.Logging.Current.Info(
+                        $"[ConfigOut] '{key}' = {newValue:F3} → field '{canonical}', targets [{targetList}]");
                 }
 
                 if (ConfigOrchestrator != null)
                 {
-                    ConfigOrchestrator.UpdateFunctionOverrideField(
-                        (int)functionId.Value,
-                        fieldPath,
-                        overrides => OverrideFieldRegistry.SetValue(overrides, fieldPath, (float)newValue));
+                    foreach (var fn in targets)
+                    {
+                        ConfigOrchestrator.UpdateFunctionOverrideField(
+                            (int)fn,
+                            field.FieldPath,
+                            overrides => OverrideFieldRegistry.SetValue(overrides, field.FieldPath, (float)newValue));
+                    }
                 }
             }
+        }
+
+        // Map a (scopeName, field) pair to the function IDs that should receive
+        // the override. scopeName == null means top-level — fan out to all
+        // functions whose ConfigType matches the field's group.
+        private static IReadOnlyList<FunctionID> ResolveConfigOutTargets(
+            string scopeName,
+            TieredConfig.OverrideFieldDefinition field)
+        {
+            if (!string.IsNullOrEmpty(scopeName))
+            {
+                FunctionID? functionId = ResolveFunctionIdFromScope(scopeName);
+                if (functionId == null) return Array.Empty<FunctionID>();
+
+                string expectedConfigType = GraphSignalCatalogData.GetConfigTypeForScope(scopeName);
+                if (!string.IsNullOrEmpty(expectedConfigType) && !IsSharedFieldGroup(field.Group))
+                {
+                    if (!string.Equals(field.Group.ToString(), expectedConfigType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return Array.Empty<FunctionID>();
+                    }
+                }
+                return new[] { functionId.Value };
+            }
+
+            // Top-level fan-out: every function in the catalog whose ConfigType
+            // matches the field's group, OR all flight functions for shared groups.
+            var result = new List<FunctionID>();
+            foreach (var scope in GraphSignalCatalogData.OutputGroups)
+            {
+                var fn = ResolveFunctionIdFromScope(scope);
+                if (fn == null) continue;
+                if (IsSharedFieldGroup(field.Group))
+                {
+                    result.Add(fn.Value);
+                    continue;
+                }
+                string scopeType = GraphSignalCatalogData.GetConfigTypeForScope(scope);
+                if (!string.IsNullOrEmpty(scopeType) &&
+                    string.Equals(field.Group.ToString(), scopeType, StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Add(fn.Value);
+                }
+            }
+            return result;
         }
 
         private static bool IsSharedFieldGroup(TieredConfig.OverrideFieldGroup group)
