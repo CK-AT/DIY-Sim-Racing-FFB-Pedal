@@ -1,4 +1,5 @@
 #include "FlightStickFunction.h"
+#include "LogOutput.h"
 
 FlightStickFunction::FlightStickFunction(void) {
     disable();
@@ -25,6 +26,14 @@ void FlightStickFunction::update_config(const FlightStickConfig &config) {
     vib2.set_config(0.0f,
                     _config.vib2_harmonic_ratios,
                     (uint8_t)_config.vib2_harmonic_ratios_count);
+    LogOutput::printf("FlightStick DDS cfg: phase_offset=%.3f rad, vib1 ratios=[%.2f,%.2f,%.2f,%.2f,%.2f] (n=%u), vib2 ratios=[%.2f,%.2f] (n=%u)",
+                      _config.phase_offset,
+                      _config.vib_harmonic_ratios[0], _config.vib_harmonic_ratios[1],
+                      _config.vib_harmonic_ratios[2], _config.vib_harmonic_ratios[3],
+                      _config.vib_harmonic_ratios[4],
+                      (unsigned)_config.vib_harmonic_ratios_count,
+                      _config.vib2_harmonic_ratios[0], _config.vib2_harmonic_ratios[1],
+                      (unsigned)_config.vib2_harmonic_ratios_count);
 }
 
 void FlightStickFunction::on_ffb_action(const FFBAction &ffb_action) {
