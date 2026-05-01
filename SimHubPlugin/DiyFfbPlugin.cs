@@ -1320,11 +1320,11 @@ namespace DiyFfb
             return ResolveXPlaneRotorIndex(packet);
         }
 
-        // Vib amplitudes go on the wire as uint8 at 0.01 N/LSB (range 0..2.55 N).
-        // Plugin pre-scales here; firmware reads raw and multiplies by 0.01.
+        // Vib amplitudes go on the wire as uint8 at 0.05 N/LSB (range 0..12.75 N).
+        // Plugin pre-scales here; firmware reads raw and multiplies by 0.05.
         private static uint PackVibAmp(float amp)
         {
-            int scaled = (int)Math.Round(amp * 100f);
+            int scaled = (int)Math.Round(amp * 20f);
             if (scaled < 0) return 0;
             if (scaled > 255) return 255;
             return (uint)scaled;

@@ -152,7 +152,7 @@ namespace {
         k_friction = payload.k_friction * kFfbScaleFriction;
     }
 
-    // FLIGHT_VIB CAN frame: 5 DDS1 + 2 DDS2 amps, raw 0.01 N/LSB.
+    // FLIGHT_VIB CAN frame: 5 DDS1 + 2 DDS2 amps, raw 0.05 N/LSB.
     // 7 bytes used, 1 byte spare in the 8-byte CAN frame.
     struct FlightFfbVibPayload {
         uint8_t vib_amps[5];
@@ -163,7 +163,7 @@ namespace {
     FlightFfbVibPayload pack_flight_ffb_vib(const FlightFfbAction &action) {
         FlightFfbVibPayload payload = {};
         // Proto fields are uint32 (with int_size:IS_8 → uint8 storage).
-        // Plugin pre-scales floats × 100 and clamps to 0..255 before sending.
+        // Plugin pre-scales floats × 20 and clamps to 0..255 before sending.
         payload.vib_amps[0] = (uint8_t)(action.vib_amp_slot1 & 0xFF);
         payload.vib_amps[1] = (uint8_t)(action.vib_amp_slot2 & 0xFF);
         payload.vib_amps[2] = (uint8_t)(action.vib_amp_slot3 & 0xFF);

@@ -617,14 +617,14 @@ message FlightFfbAction {
   float buffet_amp = 4;
   // constant load force in N
   float load_force = 5;
-  // DDS 1 amplitudes per slot, encoded as uint8 at 0.01 N/LSB (range 0..2.55 N).
+  // DDS 1 amplitudes per slot, encoded as uint8 at 0.05 N/LSB (range 0..12.75 N).
   // Slot semantics set by FlightStickConfig.vib_harmonic_ratios.
   uint32 vib_amp_slot1 = 7;
   uint32 vib_amp_slot2 = 8;
   uint32 vib_amp_slot3 = 9;
   uint32 vib_amp_slot4 = 10;
   uint32 vib_amp_slot5 = 11;
-  // DDS 2 amplitudes per slot, encoded as uint8 at 0.01 N/LSB.
+  // DDS 2 amplitudes per slot, encoded as uint8 at 0.05 N/LSB.
   // Slot semantics set by FlightStickConfig.vib2_harmonic_ratios.
   uint32 vib2_amp_slot1 = 12;
   uint32 vib2_amp_slot2 = 13;

@@ -59,9 +59,9 @@ DDS fundamentals are global, not per-function. They use a separate
 | `Shared.VibFundamental` | `DdsFundamentals.dds1_fundamental_hz` → CAN `0x0F0` | Hz | DDS 1 master fundamental |
 | `Shared.Vib2Fundamental` | `DdsFundamentals.dds2_fundamental_hz` → CAN `0x0F0` | Hz | DDS 2 master fundamental |
 
-Wire format detail: amplitude fields are quantized to 8 bits at 0.01 N/LSB
-(0..2.55 N range). The plugin pre-scales (×100) before sending; the ESP32
-multiplies by 0.01 when applying to `SyncVib::set_amplitudes`.
+Wire format detail: amplitude fields are quantized to 8 bits at 0.05 N/LSB
+(0..12.75 N range). The plugin pre-scales (×20) before sending; the ESP32
+multiplies by 0.05 when applying to `SyncVib::set_amplitudes`.
 
 The `FlightStickConfig.phase_offset` ConfigOut field is expressed in
 **degrees** at the override / graph layer (more author-friendly) and
