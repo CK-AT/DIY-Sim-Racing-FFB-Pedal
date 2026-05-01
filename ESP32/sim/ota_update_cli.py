@@ -11,6 +11,7 @@ import urllib.request
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Callable
 
 import serial_asyncio
 
@@ -141,28 +142,24 @@ def print_device_info_summary(
             print(f"{gateway_name} : {format_device_info(info)}")
 
 
-async def monitor_logs(protocol: OutputProtocol, seconds: float, verbose: bool) -> None:
-    if seconds <= 0:
-        return
-    deadline = time.time() + seconds
-    while time.time() < deadline:
-        timeout = max(0.1, deadline - time.time())
-        try:
-            msg = await asyncio.wait_for(protocol.msg_queue.get(), timeout)
-        except asyncio.TimeoutError:
-            continue
-        log_message(msg, verbose)
-
-
-def build_start_ota_message(args, info_url: str, target: int, target_axis_id: int | None = None) -> ffb_protocol.Message:
+def build_axis_start_ota_message(args, info_url: str, axis_id: int) -> ffb_protocol.Message:
     msg = ffb_protocol.Message()
     msg.start_ota_update.wifi_info.ssid = args.ssid
     msg.start_ota_update.wifi_info.password = args.password
     msg.start_ota_update.info_json_url = info_url
     msg.start_ota_update.allow_downgrades = args.allow_downgrades
-    msg.start_ota_update.target = target
-    if target_axis_id is not None:
-        msg.start_ota_update.target_axis_id = target_axis_id
+    msg.start_ota_update.target = OTA_TARGETS["axes"]
+    msg.start_ota_update.target_axis_id = axis_id
+    return msg
+
+
+def build_gateway_start_ota_message(args, info_url: str) -> ffb_protocol.Message:
+    msg = ffb_protocol.Message()
+    msg.start_ota_update.wifi_info.ssid = args.ssid
+    msg.start_ota_update.wifi_info.password = args.password
+    msg.start_ota_update.info_json_url = info_url
+    msg.start_ota_update.allow_downgrades = args.allow_downgrades
+    msg.start_ota_update.target = OTA_TARGETS["gateway"]
     return msg
 
 
@@ -219,20 +216,6 @@ async def request_device_info(
     return axis_results, gateway_results
 
 
-def find_failed_axes(device_info: dict[int, ffb_protocol.DeviceInfo], axis_ids: list[int], expected_version: str) -> list[int]:
-    if not expected_version:
-        return []
-    failed: list[int] = []
-    for axis_id in axis_ids:
-        info = device_info.get(axis_id)
-        if info is None:
-            failed.append(axis_id)
-            continue
-        if info.fw_version.strip() != expected_version:
-            failed.append(axis_id)
-    return failed
-
-
 def load_ffbota(path: Path) -> tuple[dict, bytes]:
     with zipfile.ZipFile(path, "r") as archive:
         try:
@@ -260,6 +243,84 @@ def resolve_expected_version(info_payload: dict | None) -> str:
             version = configs[0].get("Version", "")
             return version.strip() if isinstance(version, str) else ""
     return ""
+
+
+def _versions_match(actual: str, expected: str) -> bool:
+    return actual.strip().lower() == expected.strip().lower()
+
+
+async def update_target_group(
+    protocol: OutputProtocol,
+    target_ids: list[int],
+    label: str,
+    name_for: Callable[[int], str],
+    expected_version: str,
+    build_update_msg: Callable[[int], ffb_protocol.Message],
+    build_info_request: Callable[[int], ffb_protocol.Message],
+    is_my_device_info: Callable[[ffb_protocol.Message, int], bool],
+    retry_count: int,
+    retry_timeout: float,
+    poll_interval: float,
+    verbose: bool,
+) -> bool:
+    """Send StartOtaUpdate to each target, then poll DeviceInfo until all targets
+    report `expected_version` or `retry_timeout` elapses. Retries up to `retry_count`
+    additional times. Mirrors SimHub `OtaUpdateCoordinator` semantics."""
+    if not target_ids:
+        return True
+
+    if not expected_version or expected_version == "-":
+        print(f"OTA: skipping {label} version checks (no expected version).")
+        for tid in target_ids:
+            protocol.send_message(build_update_msg(tid))
+            await asyncio.sleep(0.02)
+        return True
+
+    for attempt in range(retry_count + 1):
+        print(f"OTA: sending {label} update (attempt {attempt + 1}/{retry_count + 1}).")
+        for tid in target_ids:
+            protocol.send_message(build_update_msg(tid))
+            await asyncio.sleep(0.02)
+
+        versions: dict[int, str] = {}
+        deadline = time.time() + retry_timeout
+        next_poll = 0.0
+        while time.time() < deadline:
+            now = time.time()
+            if now >= next_poll:
+                for tid in target_ids:
+                    if not _versions_match(versions.get(tid, ""), expected_version):
+                        protocol.send_message(build_info_request(tid))
+                        await asyncio.sleep(0.02)
+                next_poll = now + poll_interval
+
+            wait_for = max(0.05, min(deadline, next_poll) - time.time())
+            try:
+                msg = await asyncio.wait_for(protocol.msg_queue.get(), wait_for)
+            except asyncio.TimeoutError:
+                continue
+
+            if msg.WhichOneof("payload") == "device_info":
+                for tid in target_ids:
+                    if is_my_device_info(msg, tid):
+                        versions[tid] = msg.device_info.fw_version.strip()
+                        if verbose:
+                            print(f"{name_for(tid)} : DeviceInfo fw={versions[tid]}")
+                        break
+            else:
+                log_message(msg, verbose)
+
+            if all(_versions_match(versions.get(tid, ""), expected_version) for tid in target_ids):
+                print(f"OTA: all {label} targets at expected version.")
+                return True
+
+        failed = [tid for tid in target_ids if not _versions_match(versions.get(tid, ""), expected_version)]
+        print(f"OTA: {label} attempt {attempt + 1} did not converge ({len(failed)} pending):")
+        for tid in failed:
+            current = versions.get(tid) or "<no response>"
+            print(f"  -> {name_for(tid)} (current: {current})")
+
+    return False
 
 
 async def main_async(args) -> int:
@@ -297,7 +358,7 @@ async def main_async(args) -> int:
     elif args.url:
         info_payload = fetch_update_info(args.url)
 
-    args.expected_version = resolve_expected_version(info_payload)
+    expected_version = resolve_expected_version(info_payload)
 
     loop = asyncio.get_running_loop()
     transport, protocol = await serial_asyncio.create_serial_connection(loop, OutputProtocol, args.port, baudrate=args.baud)
@@ -323,80 +384,86 @@ async def main_async(args) -> int:
             axis_name = ffb_protocol.AxisID.Name(axis_id)
             print(f" -> {axis_name}")
 
-    if args.gateway_last:
+    present_gateways = [gid for gid in GATEWAY_IDS if gid in gateway_info]
+    if args.target == "gateway" and args.axis is not None:
+        raise ValueError("--axis cannot be used with --target gateway")
+
+    axes_targeted = args.target in ("all", "axes")
+    gateway_targeted = args.target in ("all", "gateway")
+
+    def axis_info_request(axis_id: int) -> ffb_protocol.Message:
+        m = ffb_protocol.Message()
+        m.device_info_request.axis_id = axis_id
+        return m
+
+    def axis_matches(msg: ffb_protocol.Message, axis_id: int) -> bool:
+        return (
+            msg.device_info.WhichOneof("source") == "axis_id"
+            and msg.device_info.axis_id == axis_id
+        )
+
+    def gateway_info_request(gateway_id: int) -> ffb_protocol.Message:
+        m = ffb_protocol.Message()
+        m.device_info_request.gateway_id = gateway_id
+        return m
+
+    def gateway_matches(msg: ffb_protocol.Message, gateway_id: int) -> bool:
+        return (
+            msg.device_info.WhichOneof("source") == "gateway_id"
+            and msg.device_info.gateway_id == gateway_id
+        )
+
+    overall_ok = True
+
+    if axes_targeted:
         if axis_ids:
-            print("Starting OTA for axes...")
-            can_broadcast_axes = args.axis is None and len(axis_ids) == len(requested_axis_ids)
-            if can_broadcast_axes:
-                protocol.send_message(build_start_ota_message(args, info_url, OTA_TARGETS["axes"]))
-            else:
-                for axis_id in axis_ids:
-                    protocol.send_message(build_start_ota_message(args, info_url, OTA_TARGETS["axes"], target_axis_id=axis_id))
-                    await asyncio.sleep(0.02)
-            await monitor_logs(protocol, args.monitor, args.verbose)
-            for attempt in range(args.retry):
-                device_info, _ = await request_device_info(protocol, axis_ids, [], args.device_info_timeout, args.verbose)
-                failed_axes = find_failed_axes(device_info, axis_ids, args.expected_version)
-                if not failed_axes:
-                    break
-                print(f"Retrying OTA for {len(failed_axes)} axis(es)...")
-                for axis_id in failed_axes:
-                    axis_name = ffb_protocol.AxisID.Name(axis_id)
-                    print(f" -> {axis_name}")
-                    protocol.send_message(build_start_ota_message(args, info_url, OTA_TARGETS["axes"], target_axis_id=axis_id))
-                    await monitor_logs(protocol, args.retry_monitor, args.verbose)
+            ok = await update_target_group(
+                protocol,
+                axis_ids,
+                "axis",
+                lambda tid: ffb_protocol.AxisID.Name(tid),
+                expected_version,
+                lambda tid: build_axis_start_ota_message(args, info_url, tid),
+                axis_info_request,
+                axis_matches,
+                args.retry,
+                args.retry_timeout,
+                args.poll_interval,
+                args.verbose,
+            )
+            if not ok:
+                overall_ok = False
+                print("OTA: axis update did not reach expected version.")
         else:
             print("No axes responded during assessment; skipping axis OTA.")
-        print("Starting OTA for gateway...")
-        protocol.send_message(build_start_ota_message(args, info_url, OTA_TARGETS["gateway"]))
-        await monitor_logs(protocol, args.monitor, args.verbose)
-    else:
-        target = OTA_TARGETS["axes"] if (args.axis and args.target == "all") else OTA_TARGETS[args.target]
-        if target == OTA_TARGETS["gateway"] and args.axis is not None:
-            raise ValueError("--axis cannot be used with --target gateway")
-        axes_targeted = target in (OTA_TARGETS["all"], OTA_TARGETS["axes"])
-        gateway_targeted = target in (OTA_TARGETS["all"], OTA_TARGETS["gateway"])
-        can_use_combined_all = target == OTA_TARGETS["all"] and args.axis is None and len(axis_ids) == len(requested_axis_ids)
-        if axes_targeted and can_use_combined_all:
-            protocol.send_message(build_start_ota_message(args, info_url, OTA_TARGETS["all"]))
-            await monitor_logs(protocol, args.monitor, args.verbose)
-        else:
-            if axes_targeted:
-                if axis_ids:
-                    can_broadcast_axes = args.axis is None and len(axis_ids) == len(requested_axis_ids)
-                    if can_broadcast_axes:
-                        protocol.send_message(build_start_ota_message(args, info_url, OTA_TARGETS["axes"]))
-                    else:
-                        for axis_id in axis_ids:
-                            protocol.send_message(
-                                build_start_ota_message(args, info_url, OTA_TARGETS["axes"], target_axis_id=axis_id)
-                            )
-                            await asyncio.sleep(0.02)
-                    await monitor_logs(protocol, args.monitor, args.verbose)
-                else:
-                    print("No axes responded during assessment; skipping axis OTA.")
-            if gateway_targeted:
-                protocol.send_message(build_start_ota_message(args, info_url, OTA_TARGETS["gateway"]))
-                await monitor_logs(protocol, args.monitor, args.verbose)
-        if args.retry and axes_targeted and axis_ids:
-            for attempt in range(args.retry):
-                device_info, _ = await request_device_info(protocol, axis_ids, [], args.device_info_timeout, args.verbose)
-                failed_axes = find_failed_axes(device_info, axis_ids, args.expected_version)
-                if not failed_axes:
-                    break
-                print(f"Retrying OTA for {len(failed_axes)} axis(es)...")
-                for axis_id in failed_axes:
-                    axis_name = ffb_protocol.AxisID.Name(axis_id)
-                    print(f" -> {axis_name}")
-                    protocol.send_message(build_start_ota_message(args, info_url, OTA_TARGETS["axes"], target_axis_id=axis_id))
-                    await monitor_logs(protocol, args.retry_monitor, args.verbose)
+
+    if gateway_targeted:
+        gateway_ids_to_update = present_gateways or GATEWAY_IDS
+        ok = await update_target_group(
+            protocol,
+            gateway_ids_to_update,
+            "gateway",
+            lambda tid: ffb_protocol.GatewayID.Name(tid),
+            expected_version,
+            lambda tid: build_gateway_start_ota_message(args, info_url),
+            gateway_info_request,
+            gateway_matches,
+            args.retry,
+            args.retry_timeout,
+            args.poll_interval,
+            args.verbose,
+        )
+        if not ok:
+            overall_ok = False
+            print("OTA: gateway update did not reach expected version.")
+
     transport.close()
     if server:
         server.shutdown()
         server.server_close()
         if thread:
             thread.join(timeout=1.0)
-    return 0
+    return 0 if overall_ok else 2
 
 
 def main() -> int:
@@ -414,15 +481,13 @@ def main() -> int:
     parser.add_argument("--host", default="", help="Host/IP to embed in OTA URLs (auto-detect if empty)")
     parser.add_argument("--serve-port", type=int, default=8000, help="HTTP server port")
     parser.add_argument("--allow-downgrades", action="store_true", help="Allow firmware downgrades")
-    parser.add_argument("--target", choices=("all", "axes", "gateway"), default="all", help="OTA target (default: all)")
+    parser.add_argument("--target", choices=("all", "axes", "gateway"), default="all", help="OTA target scope (default: all). Axes are always updated first, then gateways.")
     parser.add_argument("--axis", type=int, help="Target a specific axis (1..8)")
-    parser.add_argument("--gateway-last", action="store_true", help="Update axes first, then the gateway")
-    parser.add_argument("--retry", type=int, default=1, help="Retry failed axis updates this many times")
-    # expected version is derived from manifest/update JSON
-    parser.add_argument("--device-info-timeout", type=float, default=8.0, help="Seconds to wait for device info replies")
-    parser.add_argument("--retry-monitor", type=float, default=30.0, help="Seconds to watch logs per retry")
+    parser.add_argument("--retry", type=int, default=1, help="Retry attempts after the initial send (default: 1, matching SimHub)")
+    parser.add_argument("--retry-timeout", type=float, default=30.0, help="Seconds to poll DeviceInfo per attempt before retrying (default: 30, matching SimHub)")
+    parser.add_argument("--poll-interval", type=float, default=1.0, help="DeviceInfo poll cadence in seconds (default: 1.0, matching SimHub)")
+    parser.add_argument("--device-info-timeout", type=float, default=8.0, help="Seconds to wait for the startup discovery DeviceInfo replies")
     parser.add_argument("--baud", type=int, default=3000000, help="Serial baud rate")
-    parser.add_argument("--monitor", type=float, default=60.0, help="Log messages for this many seconds")
     parser.add_argument("--verbose", action="store_true", help="Print non-log messages")
     args = parser.parse_args()
 
@@ -443,6 +508,8 @@ def main() -> int:
             parser.error("password is required (pass --password or set WIFI_PASS in your environment or .env)")
     if args.axis is not None and (args.axis < 1 or args.axis > MAX_AXES):
         parser.error(f"--axis must be within 1..{MAX_AXES}")
+    if args.target == "gateway" and args.axis is not None:
+        parser.error("--axis cannot be used with --target gateway")
 
     print("Effective arguments:")
     for (name, value) in args._get_kwargs():

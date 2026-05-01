@@ -13,3 +13,6 @@ matplotlib
 pandas
 bokeh
 pyqtgraph
+
+# HID gamepad capture (resonance sweep, Linux only)
+evdev; sys_platform == "linux"
