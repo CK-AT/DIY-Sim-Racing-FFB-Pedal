@@ -270,6 +270,7 @@
       "outputMode": "OUTPUT_MODE_TRAVEL"
     },
     "flightStick": {
+      "centeringSpringConst": 0.5,
       "damping": 0.14,
       "posMax": 58,
       "posMin": -32
@@ -296,6 +297,7 @@
       "outputMode": "OUTPUT_MODE_TRAVEL"
     },
     "flightStick": {
+      "centeringSpringConst": 0.5,
       "damping": 0.14,
       "posMax": 45,
       "posMin": -45
