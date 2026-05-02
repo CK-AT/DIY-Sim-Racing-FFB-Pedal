@@ -1224,8 +1224,6 @@ namespace DiyFfb
             SendGraphFfbForFunction(FunctionID.FlightStickCollective);
 
             SendDdsFundamentals();
-
-            CheckConfigOutChanges();
         }
 
         private void SendDdsFundamentals()
@@ -2174,6 +2172,11 @@ namespace DiyFfb
                 _lastGraphEvalTicks = now;
                 lastGraphEvaluation = activeGraphEvaluator.EvaluateWithTrace(graphInputs, graphParams, dt);
                 ApplyPendingStateRestore();
+
+                // Propagate ConfigOut values to the in-memory ConfigOut tier on every eval.
+                // These are graph-derived static config (harm ratios, phase, etc.) computed
+                // from params + math nodes — they don't depend on telemetry freshness.
+                CheckConfigOutChanges();
             }
             catch
             {
@@ -3172,6 +3175,33 @@ namespace DiyFfb
 
             // Notify listeners of parameter change
             GraphParamChanged?.Invoke(this, new GraphParamChangedEventArgs(paramName, value));
+
+            // Re-evaluate the graph immediately so ConfigOut changes reach ESP32 even
+            // when no game telemetry tick is firing (e.g. user is tuning in the UI
+            // before launching X-Plane). Graph-derived config (harm ratios, phase, etc.)
+            // depends only on params + constants, so a re-eval with cached inputs is safe.
+            ReevaluateForConfigOut();
+        }
+
+        private void ReevaluateForConfigOut()
+        {
+            if (activeGraphEvaluator == null) return;
+            try
+            {
+                BuildGraphParams();
+                activeIncludeContextCache?.Clear();
+                long now = System.Diagnostics.Stopwatch.GetTimestamp();
+                double dt = _lastGraphEvalTicks > 0
+                    ? (double)(now - _lastGraphEvalTicks) / System.Diagnostics.Stopwatch.Frequency
+                    : 0.0;
+                _lastGraphEvalTicks = now;
+                lastGraphEvaluation = activeGraphEvaluator.EvaluateWithTrace(graphInputs, graphParams, dt);
+                CheckConfigOutChanges();
+            }
+            catch
+            {
+                // Ignore evaluation errors to keep runtime stable.
+            }
         }
 
         /// <summary>
