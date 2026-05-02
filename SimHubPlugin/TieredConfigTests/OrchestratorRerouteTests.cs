@@ -80,6 +80,12 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("GetAllOverrides_ReturnsUserAndProfileItems", GetAllOverrides_ReturnsUserAndProfileItems),
                 TestRunner.RunTest("GetAllOverrides_EmptyWhenNoOverrides", GetAllOverrides_EmptyWhenNoOverrides),
                 TestRunner.RunTest("GetAllOverrides_SetsCanMoveFlags", GetAllOverrides_SetsCanMoveFlags),
+
+                // ConfigOut tier tests
+                TestRunner.RunTest("ConfigOut_DoesNotTouchPersistentOverrides", ConfigOut_DoesNotTouchPersistentOverrides),
+                TestRunner.RunTest("ConfigOut_AffectsMergedConfig", ConfigOut_AffectsMergedConfig),
+                TestRunner.RunTest("ConfigOut_Clear_RemovesValueFromMergedConfig", ConfigOut_Clear_RemovesValueFromMergedConfig),
+                TestRunner.RunTest("ConfigOut_ReapplyMergedOverrides_IncludesConfigOut", ConfigOut_ReapplyMergedOverrides_IncludesConfigOut),
             };
         }
 
@@ -336,6 +342,108 @@ namespace DiyFfb.TieredConfigTests
                 throw new Exception("CanMoveToProfile should be true when only User has value");
             if (massItem.CanMoveToUser)
                 throw new Exception("CanMoveToUser should be false when already in User");
+
+            return true;
+        }
+
+        #endregion
+
+        #region ConfigOut tier
+
+        // ConfigOut writes go to an in-memory tier in the orchestrator. They must NOT
+        // appear in the persisted Profile or User override stores, must show up in the
+        // merged config the manager hands to the UI/ESP32, and must disappear from the
+        // merged config when the tier is cleared (graph reload).
+
+        private static bool ConfigOut_DoesNotTouchPersistentOverrides()
+        {
+            var orchestrator = CreateOrchestrator();
+            orchestrator.SetFunctionBaseline(1, CreateBaseline());
+            orchestrator.InitializeManagerFromSettings();
+
+            orchestrator.UpdateConfigOutField(1, "simulated_mass",
+                ovr => OverrideFieldRegistry.SetValue(ovr, "simulated_mass", 7.0f));
+
+            var profileAfter = orchestrator.GetFunctionOverrides(1);
+            var userAfter = orchestrator.GetUserFunctionOverrides(1);
+
+            bool profileClean = profileAfter == null || profileAfter.IsEmpty;
+            bool userClean = userAfter == null || userAfter.IsEmpty;
+
+            if (!profileClean) throw new Exception($"ConfigOut leaked into profile overrides (SimulatedMass={profileAfter?.SimulatedMass})");
+            if (!userClean) throw new Exception($"ConfigOut leaked into user overrides (SimulatedMass={userAfter?.SimulatedMass})");
+
+            // Round-trip through the orchestrator's own accessor
+            var configOut = orchestrator.GetConfigOutOverrides(1);
+            if (configOut?.SimulatedMass != 7.0f)
+                throw new Exception($"ConfigOut tier should hold SimulatedMass=7.0, got {configOut?.SimulatedMass}");
+
+            return true;
+        }
+
+        private static bool ConfigOut_AffectsMergedConfig()
+        {
+            var orchestrator = CreateOrchestrator();
+            orchestrator.SetFunctionBaseline(1, CreateBaseline());  // SimulatedMass=10 in baseline
+            orchestrator.InitializeManagerFromSettings();
+
+            orchestrator.UpdateConfigOutField(1, "simulated_mass",
+                ovr => OverrideFieldRegistry.SetValue(ovr, "simulated_mass", 7.0f));
+
+            var merged = orchestrator.GetInitialFunctionConfig(1);
+            if (merged == null) throw new Exception("Merged config should be available");
+            if (Math.Abs(merged.SimulatedMass - 7.0f) > 1e-6f)
+                throw new Exception($"Merged config should reflect ConfigOut value 7.0, got {merged.SimulatedMass}");
+
+            return true;
+        }
+
+        private static bool ConfigOut_Clear_RemovesValueFromMergedConfig()
+        {
+            var orchestrator = CreateOrchestrator();
+            orchestrator.SetFunctionBaseline(1, CreateBaseline());  // baseline SimulatedMass=10
+            orchestrator.InitializeManagerFromSettings();
+
+            orchestrator.UpdateConfigOutField(1, "simulated_mass",
+                ovr => OverrideFieldRegistry.SetValue(ovr, "simulated_mass", 7.0f));
+
+            // Sanity: ConfigOut applied
+            var afterApply = orchestrator.GetInitialFunctionConfig(1);
+            if (Math.Abs(afterApply.SimulatedMass - 7.0f) > 1e-6f)
+                throw new Exception("Pre-clear: ConfigOut should drive merged value to 7.0");
+
+            // Clear (graph reload analogue)
+            orchestrator.ClearConfigOutOverrides();
+
+            // The merged config must revert to baseline now that ConfigOut is gone.
+            var afterClear = orchestrator.GetInitialFunctionConfig(1);
+            if (Math.Abs(afterClear.SimulatedMass - 10.0f) > 1e-6f)
+                throw new Exception($"After clear: merged config should revert to baseline 10.0, got {afterClear.SimulatedMass}");
+
+            // Tier itself should be empty
+            var configOut = orchestrator.GetConfigOutOverrides(1);
+            if (configOut != null && !configOut.IsEmpty)
+                throw new Exception("ConfigOut tier should be empty after Clear");
+
+            return true;
+        }
+
+        private static bool ConfigOut_ReapplyMergedOverrides_IncludesConfigOut()
+        {
+            var orchestrator = CreateOrchestrator();
+            orchestrator.SetFunctionBaseline(1, CreateBaseline());
+            orchestrator.InitializeManagerFromSettings();
+
+            orchestrator.UpdateConfigOutField(1, "simulated_mass",
+                ovr => OverrideFieldRegistry.SetValue(ovr, "simulated_mass", 7.0f));
+
+            // An explicit re-apply (e.g. from a profile-tier change elsewhere) must
+            // still include the in-memory ConfigOut layer in the merge.
+            orchestrator.ReapplyMergedOverrides(1, diffCheck: false);
+
+            var merged = orchestrator.GetInitialFunctionConfig(1);
+            if (Math.Abs(merged.SimulatedMass - 7.0f) > 1e-6f)
+                throw new Exception($"ReapplyMergedOverrides dropped ConfigOut: SimulatedMass={merged.SimulatedMass}");
 
             return true;
         }

@@ -39,6 +39,12 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("MergeAllLayers_HardwareWins_WhenNoOverrides", MergeAllLayers_HardwareWins_WhenNoOverrides),
                 TestRunner.RunTest("MergeAllLayers_MixedLayers", MergeAllLayers_MixedLayers),
 
+                // ConfigOut tier merge tests
+                TestRunner.RunTest("MergeAllLayers_ConfigOutAlone_AppliesValue", MergeAllLayers_ConfigOutAlone_AppliesValue),
+                TestRunner.RunTest("MergeAllLayers_ProfileBeatsConfigOut", MergeAllLayers_ProfileBeatsConfigOut),
+                TestRunner.RunTest("MergeAllLayers_UserBeatsConfigOut", MergeAllLayers_UserBeatsConfigOut),
+                TestRunner.RunTest("MergeAllLayers_FourTierStack", MergeAllLayers_FourTierStack),
+
                 // Static balance tuning tests
                 TestRunner.RunTest("MergeFunctionConfig_StaticBalanceTuning", MergeFunctionConfig_StaticBalanceTuning),
 
@@ -325,6 +331,76 @@ namespace DiyFfb.TieredConfigTests
             AssertNear(0.8f, merged.Base.OutputMax, 1e-6f, "User wins for OutputMax");
             AssertNear(2.0f, merged.SimulatedMass, 1e-6f, "Profile wins for SimulatedMass (no user)");
             AssertNear(0.3f, merged.Friction, 1e-6f, "User wins for Friction");
+        }
+
+        // === ConfigOut tier merge tests ===
+        // ConfigOut sits below Profile/User: graph-derived values establish a
+        // baseline-like overlay that explicit user overrides can still beat.
+
+        private static void MergeAllLayers_ConfigOutAlone_AppliesValue()
+        {
+            var hardware = CreateFunctionConfig();
+            hardware.SimulatedMass = 1.0f;
+            var configOut = new FunctionConfigOverrides { SimulatedMass = 7.0f };
+
+            var merged = ConfigMerger.MergeAllLayers(hardware, profile: null, user: null, configOut: configOut);
+
+            AssertNear(7.0f, merged.SimulatedMass, 1e-6f, "ConfigOut should apply when no profile/user override");
+        }
+
+        private static void MergeAllLayers_ProfileBeatsConfigOut()
+        {
+            var hardware = CreateFunctionConfig();
+            hardware.SimulatedMass = 1.0f;
+            var profile = new FunctionConfigOverrides { SimulatedMass = 5.0f };
+            var configOut = new FunctionConfigOverrides { SimulatedMass = 7.0f };
+
+            var merged = ConfigMerger.MergeAllLayers(hardware, profile, user: null, configOut: configOut);
+
+            AssertNear(5.0f, merged.SimulatedMass, 1e-6f, "Profile must override ConfigOut");
+        }
+
+        private static void MergeAllLayers_UserBeatsConfigOut()
+        {
+            var hardware = CreateFunctionConfig();
+            hardware.SimulatedMass = 1.0f;
+            var user = new FunctionConfigOverrides { SimulatedMass = 9.0f };
+            var configOut = new FunctionConfigOverrides { SimulatedMass = 7.0f };
+
+            var merged = ConfigMerger.MergeAllLayers(hardware, profile: null, user: user, configOut: configOut);
+
+            AssertNear(9.0f, merged.SimulatedMass, 1e-6f, "User must override ConfigOut");
+        }
+
+        private static void MergeAllLayers_FourTierStack()
+        {
+            var hardware = CreateFunctionConfig(outputMin: 0.0f, outputMax: 1.0f);
+            hardware.SimulatedMass = 1.0f;
+            hardware.Friction = 0.5f;
+
+            // ConfigOut sets fields the user/profile have not touched
+            var configOut = new FunctionConfigOverrides
+            {
+                Friction = 0.7f,        // No higher-tier override → ConfigOut wins
+                SimulatedMass = 3.0f    // Profile will override
+            };
+            var profile = new FunctionConfigOverrides
+            {
+                SimulatedMass = 2.0f,   // User will override
+                OutputMax = 0.9f        // User will override
+            };
+            var user = new FunctionConfigOverrides
+            {
+                SimulatedMass = 4.0f,   // Top-priority
+                OutputMax = 0.8f
+            };
+
+            var merged = ConfigMerger.MergeAllLayers(hardware, profile, user, configOut);
+
+            AssertNear(0.7f, merged.Friction, 1e-6f, "ConfigOut wins when no profile/user override");
+            AssertNear(4.0f, merged.SimulatedMass, 1e-6f, "User beats profile beats ConfigOut");
+            AssertNear(0.8f, merged.Base.OutputMax, 1e-6f, "User wins for OutputMax (no ConfigOut entry)");
+            AssertNear(0.0f, merged.Base.OutputMin, 1e-6f, "OutputMin untouched");
         }
 
         // === Static Balance Tuning Tests ===
