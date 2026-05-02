@@ -51,6 +51,8 @@ namespace DiyFfb.TieredConfigTests
                 // Oneof preservation tests
                 TestRunner.RunTest("MergeFunctionConfig_AutomotivePedal_PreservesOneof", MergeFunctionConfig_AutomotivePedal_PreservesOneof),
                 TestRunner.RunTest("MergeFunctionConfig_FlightPedals_PreservesOneof", MergeFunctionConfig_FlightPedals_PreservesOneof),
+                TestRunner.RunTest("MergeFunctionConfig_FlightStickArmCreatedWhenOneofNone", MergeFunctionConfig_FlightStickArmCreatedWhenOneofNone),
+                TestRunner.RunTest("MergeFunctionConfig_FlightStickOverride_DoesNotClobberOtherArm", MergeFunctionConfig_FlightStickOverride_DoesNotClobberOtherArm),
             };
         }
 
@@ -482,6 +484,70 @@ namespace DiyFfb.TieredConfigTests
                 "SpecificCase should remain FlightPedals");
             AssertTrue(merged.FlightStick == null, "FlightStick should be null for FlightPedals config");
             AssertNear(2.0f, merged.SimulatedMass, 1e-6f, "SimulatedMass override should apply");
+        }
+
+        // Regression: when ESP32 sends a FlightStickPitch baseline without the FlightStick
+        // oneof arm set (SpecificCase = None), graph-derived ConfigOut overrides for
+        // vibration ratios were silently dropped because the processor refused to create
+        // the arm. The fix creates the arm when the oneof is None and FlightStick-specific
+        // overrides are present.
+        private static void MergeFunctionConfig_FlightStickArmCreatedWhenOneofNone()
+        {
+            var baseConfig = new FunctionConfig
+            {
+                Base = new FunctionBase { FunctionId = FunctionID.FlightStickPitch, OutputMin = -100, OutputMax = 100 }
+                // Note: no FlightStick arm set — SpecificCase == None
+            };
+            AssertTrue(baseConfig.SpecificCase == FunctionConfig.SpecificOneofCase.None,
+                "Baseline must have no oneof arm for this test");
+
+            var delta = new FunctionConfigOverrides
+            {
+                FlightStickVibHarmonicRatios = new float?[] { 1.0f, 2.0f, 3.0f, 5.0f, 10.0f },
+                FlightStickPhaseOffset = 90.0f
+            };
+
+            var merged = ConfigMerger.MergeFunctionConfig(baseConfig, delta);
+
+            AssertTrue(merged.FlightStick != null,
+                "FlightStick arm should be created when oneof is None and overrides present");
+            AssertTrue(merged.SpecificCase == FunctionConfig.SpecificOneofCase.FlightStick,
+                "SpecificCase should be FlightStick after arm creation");
+            AssertEqual(5, merged.FlightStick.VibHarmonicRatios.Count, "All 5 harm ratios should land");
+            AssertNear(1.0f, merged.FlightStick.VibHarmonicRatios[0], 1e-6f, "HarmRatio1");
+            AssertNear(2.0f, merged.FlightStick.VibHarmonicRatios[1], 1e-6f, "HarmRatio2");
+            AssertNear(3.0f, merged.FlightStick.VibHarmonicRatios[2], 1e-6f, "HarmRatio3");
+            AssertNear(5.0f, merged.FlightStick.VibHarmonicRatios[3], 1e-6f, "HarmRatio4");
+            AssertNear(10.0f, merged.FlightStick.VibHarmonicRatios[4], 1e-6f, "HarmRatio5");
+        }
+
+        // Verifies the safety side: FlightStick overrides must NOT clobber a different
+        // active oneof arm (e.g. AutomotivePedal). This case is what motivated the
+        // original "don't create FlightStick" guard — the new logic still respects it.
+        private static void MergeFunctionConfig_FlightStickOverride_DoesNotClobberOtherArm()
+        {
+            var baseConfig = new FunctionConfig
+            {
+                Base = new FunctionBase { FunctionId = FunctionID.BrakePedal, OutputMin = 0, OutputMax = 100 },
+                AutomotivePedal = new AutomotivePedalConfig
+                {
+                    DamperConfig = new DamperConfig { PositiveFactor = 0.05f, NegativeFactor = 0.05f }
+                }
+            };
+
+            // Pathological delta: someone wired a FlightStick override onto a brake-pedal
+            // function (e.g. profile cross-contamination). Must not clobber.
+            var delta = new FunctionConfigOverrides
+            {
+                FlightStickVibHarmonicRatios = new float?[] { 1.0f, 2.0f, 3.0f, 5.0f, 10.0f }
+            };
+
+            var merged = ConfigMerger.MergeFunctionConfig(baseConfig, delta);
+
+            AssertTrue(merged.AutomotivePedal != null, "AutomotivePedal arm must survive");
+            AssertTrue(merged.SpecificCase == FunctionConfig.SpecificOneofCase.AutomotivePedal,
+                "SpecificCase must remain AutomotivePedal");
+            AssertTrue(merged.FlightStick == null, "FlightStick arm must NOT be created over an existing arm");
         }
 
         // === Helper Methods ===
