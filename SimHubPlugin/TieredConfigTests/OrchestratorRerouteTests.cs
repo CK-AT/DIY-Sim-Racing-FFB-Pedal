@@ -86,6 +86,7 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("ConfigOut_AffectsMergedConfig", ConfigOut_AffectsMergedConfig),
                 TestRunner.RunTest("ConfigOut_Clear_RemovesValueFromMergedConfig", ConfigOut_Clear_RemovesValueFromMergedConfig),
                 TestRunner.RunTest("ConfigOut_ReapplyMergedOverrides_IncludesConfigOut", ConfigOut_ReapplyMergedOverrides_IncludesConfigOut),
+                TestRunner.RunTest("ConfigOut_AppliedOnIncomingBaseline_WithEmptyOverrides", ConfigOut_AppliedOnIncomingBaseline_WithEmptyOverrides),
             };
         }
 
@@ -444,6 +445,40 @@ namespace DiyFfb.TieredConfigTests
             var merged = orchestrator.GetInitialFunctionConfig(1);
             if (Math.Abs(merged.SimulatedMass - 7.0f) > 1e-6f)
                 throw new Exception($"ReapplyMergedOverrides dropped ConfigOut: SimulatedMass={merged.SimulatedMass}");
+
+            return true;
+        }
+
+        // Regression: when ESP32 sends a fresh function config and the plugin has
+        // ConfigOut tier values but empty profile/user overrides, the merge path
+        // used to silently drop the ConfigOut tier (gated only on user being
+        // non-empty). Symptom: graph-derived config (vibration ratios, phase, etc.)
+        // never reached the firmware on baseline arrival.
+        private static bool ConfigOut_AppliedOnIncomingBaseline_WithEmptyOverrides()
+        {
+            var orchestrator = CreateOrchestrator();
+
+            // Populate the ConfigOut tier BEFORE any baseline exists — mirrors the
+            // real flow where graph eval starts producing values before firmware
+            // reports its function config.
+            orchestrator.UpdateConfigOutField(1, "simulated_mass",
+                ovr => OverrideFieldRegistry.SetValue(ovr, "simulated_mass", 7.0f));
+
+            // Now firmware sends its baseline. No profile, no user overrides.
+            var incoming = CreateBaseline();   // SimulatedMass = 10 in baseline
+            var (authorityOverride, resultConfig) = orchestrator.HandleIncomingFunctionConfig(1, incoming, fromEsp32: true);
+
+            // The merged config returned to the caller (and stored in the manager)
+            // must reflect the ConfigOut tier, not the bare baseline.
+            if (resultConfig == null)
+                throw new Exception("HandleIncomingFunctionConfig returned null config");
+            if (Math.Abs(resultConfig.SimulatedMass - 7.0f) > 1e-6f)
+                throw new Exception($"Merged config dropped ConfigOut on baseline arrival: SimulatedMass={resultConfig.SimulatedMass} (expected 7.0)");
+
+            // The manager's current config should also reflect the ConfigOut value.
+            var stored = orchestrator.GetInitialFunctionConfig(1);
+            if (Math.Abs(stored.SimulatedMass - 7.0f) > 1e-6f)
+                throw new Exception($"Stored merged config wrong: SimulatedMass={stored.SimulatedMass} (expected 7.0)");
 
             return true;
         }

@@ -348,18 +348,13 @@ namespace DiyFfb.TieredConfig
 
             if (profile == null)
             {
-                // No profile, but still apply user overrides to all functions with baselines
-                if (userOverrides?.FunctionOverrides != null)
+                // No profile — still apply user overrides AND any ConfigOut tier values
+                // to all functions with baselines.
+                foreach (var functionId in _functionConfigManager.GetKnownFunctionIds())
                 {
-                    foreach (var functionId in _functionConfigManager.GetKnownFunctionIds())
-                    {
-                        userOverrides.FunctionOverrides.TryGetValue(functionId, out var userDelta);
-                        if (userDelta != null && !userDelta.IsEmpty)
-                        {
-                            _configOutOverrides.TryGetValue(functionId, out var configOutDelta);
-                            _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta, configOutDelta: configOutDelta);
-                        }
-                    }
+                    FunctionConfigOverrides userDelta = null;
+                    userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
+                    ApplyOverridesIfAnyTier(functionId, profileDelta: null, userDelta: userDelta);
                 }
                 // Flush: send baseline for functions that lost overrides but weren't re-applied
                 _functionConfigManager.SendAllPendingChanges();
@@ -396,20 +391,15 @@ namespace DiyFfb.TieredConfig
             // Apply user overrides for functions NOT in activeFunctions.
             // User-layer overrides (output range, friction, force curve, etc.) follow the
             // user across vehicles and must always be applied regardless of profile settings.
-            if (userOverrides?.FunctionOverrides != null)
+            // Same applies to graph-derived ConfigOut values for those functions.
+            foreach (var functionId in _functionConfigManager.GetKnownFunctionIds())
             {
-                foreach (var functionId in _functionConfigManager.GetKnownFunctionIds())
-                {
-                    if (activeFunctions.Contains(functionId))
-                        continue; // already handled above
+                if (activeFunctions.Contains(functionId))
+                    continue; // already handled above
 
-                    userOverrides.FunctionOverrides.TryGetValue(functionId, out var userDelta);
-                    if (userDelta != null && !userDelta.IsEmpty)
-                    {
-                        _configOutOverrides.TryGetValue(functionId, out var configOutDelta);
-                        _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta, configOutDelta: configOutDelta);
-                    }
-                }
+                FunctionConfigOverrides userDelta = null;
+                userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
+                ApplyOverridesIfAnyTier(functionId, profileDelta: null, userDelta: userDelta);
             }
 
             // Force events for functions transitioning to inactive — even if config
@@ -618,17 +608,14 @@ namespace DiyFfb.TieredConfig
                 // Clear axis overrides for this function
                 _axisConfigManager.ClearFunctionOverrides(functionId);
 
-                // Re-apply user overrides (they follow the user, not the profile)
+                // Re-apply user overrides (they follow the user, not the profile) and
+                // any ConfigOut tier values (graph-derived).
                 if (_functionConfigManager.HasBaseConfig(functionId))
                 {
                     var userOverrides = GetCurrentUserOverrides();
                     FunctionConfigOverrides userDelta = null;
                     userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
-                    if (userDelta != null && !userDelta.IsEmpty)
-                    {
-                        _configOutOverrides.TryGetValue(functionId, out var configOutDelta);
-                        _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta, configOutDelta: configOutDelta);
-                    }
+                    ApplyOverridesIfAnyTier(functionId, profileDelta: null, userDelta: userDelta);
                 }
             }
         }
@@ -779,6 +766,29 @@ namespace DiyFfb.TieredConfig
         {
             _configOutOverrides.TryGetValue(functionId, out var overrides);
             return overrides;
+        }
+
+        /// <summary>
+        /// Apply overrides through the manager when any tier (profile, user, or ConfigOut)
+        /// has data. Always queries the in-memory ConfigOut tier — graph-derived values
+        /// must reach the merged config even when profile/user overrides are empty.
+        /// Returns true if a merge was applied, false if all tiers were empty.
+        /// </summary>
+        private bool ApplyOverridesIfAnyTier(
+            int functionId,
+            FunctionConfigOverrides profileDelta,
+            FunctionConfigOverrides userDelta,
+            bool diffCheck = true)
+        {
+            _configOutOverrides.TryGetValue(functionId, out var configOutDelta);
+            bool hasProfile = profileDelta != null && !profileDelta.IsEmpty;
+            bool hasUser = userDelta != null && !userDelta.IsEmpty;
+            bool hasConfigOut = configOutDelta != null && !configOutDelta.IsEmpty;
+            if (!hasProfile && !hasUser && !hasConfigOut)
+                return false;
+            _functionConfigManager.ApplyProfileOverrides(
+                functionId, profileDelta, userDelta, diffCheck: diffCheck, configOutDelta: configOutDelta);
+            return true;
         }
 
         /// <summary>
@@ -1495,14 +1505,11 @@ namespace DiyFfb.TieredConfig
             }
             else
             {
-                // No profile override, but still apply user overrides through manager
-                // to keep _currentConfigs and _functionsWithUserOverride in sync
+                // No profile override, but apply user overrides AND ConfigOut tier through
+                // the manager so graph-derived config (e.g. vibration ratios) reaches the
+                // merged config even when profile/user are empty.
                 var userOverrides = GetUserFunctionOverrides(functionId);
-                if (userOverrides != null && !userOverrides.IsEmpty)
-                {
-                    _configOutOverrides.TryGetValue(functionId, out var configOutDelta);
-                    _functionConfigManager.ApplyProfileOverrides(functionId, null, userOverrides, configOutDelta: configOutDelta);
-                }
+                ApplyOverridesIfAnyTier(functionId, profileDelta: null, userDelta: userOverrides);
             }
 
             var currentConfig = _functionConfigManager.GetCurrentConfig(functionId);
