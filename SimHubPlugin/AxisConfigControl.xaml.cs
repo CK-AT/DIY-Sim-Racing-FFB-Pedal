@@ -318,6 +318,24 @@ namespace DiyFfb
         }
 
         /// <summary>
+        /// Save oscillation guard changes to the appropriate location (base or override).
+        /// </summary>
+        private void SaveOscillationGuardChange(AxisConfig.Types.OscillationGuard guard)
+        {
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0 && plugin != null)
+            {
+                int axisId = (int)config.AxisId;
+                plugin.ConfigOrchestrator.UpdateAxisParameterOverride(_selectedFunctionId, axisId, overrides =>
+                {
+                    overrides.OscillationGuard = guard.Clone();
+                });
+
+                OverrideChanged?.Invoke();
+            }
+            // In AxisBase mode, the base config is already modified
+        }
+
+        /// <summary>
         /// Get the current editing mode.
         /// </summary>
         public AxisEditingMode EditingMode => _editingMode;
@@ -832,6 +850,13 @@ namespace DiyFfb
                 {
                     guard.RequiredHits = Math.Max(1U, value);
                 }
+            }
+
+            // In FunctionOverride mode, persist to the per-function axis override layer
+            // so the merge pipeline can re-apply on top of baseline.
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0)
+            {
+                SaveOscillationGuardChange(guard);
             }
         }
 

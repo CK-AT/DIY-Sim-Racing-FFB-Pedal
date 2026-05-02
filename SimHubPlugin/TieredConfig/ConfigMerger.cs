@@ -38,6 +38,12 @@ namespace DiyFfb.TieredConfig
                 merged.StaticBalanceConfig = overrides.StaticBalance.Clone();
             }
 
+            // Full replacement for OscillationGuard if override is provided
+            if (overrides.OscillationGuard != null)
+            {
+                merged.OscillationGuard = overrides.OscillationGuard.Clone();
+            }
+
             return merged;
         }
 

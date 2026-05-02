@@ -18,6 +18,8 @@ namespace DiyFfb.TieredConfigTests
                 // Axis override merge tests
                 TestRunner.RunTest("Merge_OnlyKinematics_PreservesStaticBalance", Merge_OnlyKinematics_PreservesStaticBalance),
                 TestRunner.RunTest("Merge_OnlyStaticBalance_PreservesKinematics", Merge_OnlyStaticBalance_PreservesKinematics),
+                TestRunner.RunTest("Merge_OscillationGuardOverride_ReplacesBaseline", Merge_OscillationGuardOverride_ReplacesBaseline),
+                TestRunner.RunTest("Merge_NoOscillationGuardOverride_PreservesBaseline", Merge_NoOscillationGuardOverride_PreservesBaseline),
                 TestRunner.RunTest("Merge_BothOverrides_ReplacesAll", Merge_BothOverrides_ReplacesAll),
                 TestRunner.RunTest("Merge_EmptyOverrides_ReturnsBaseUnchanged", Merge_EmptyOverrides_ReturnsBaseUnchanged),
                 TestRunner.RunTest("Merge_NullOverrides_ReturnsBaseUnchanged", Merge_NullOverrides_ReturnsBaseUnchanged),
@@ -94,6 +96,58 @@ namespace DiyFfb.TieredConfigTests
             AssertTrue(ConfigComparer.AreEqual(originalKinematics, merged.KinematicParameters),
                 "Kinematics should be preserved when not overridden");
             AssertNear(20.0f, merged.StaticBalanceConfig.XCenter, 1e-6f, "Static balance should be overridden");
+        }
+
+        // OscillationGuard is per-function-overridable so different functions sharing
+        // an axis (e.g. heli pitch vs roll cyclic) can have distinct runaway-detector
+        // tuning. The override does full replacement of the OscillationGuard block.
+        private static void Merge_OscillationGuardOverride_ReplacesBaseline()
+        {
+            var baseConfig = CreateAxisConfig();
+            baseConfig.OscillationGuard = new AxisConfig.Types.OscillationGuard
+            {
+                KMax = 1.0f,
+                MinAmplitude = 0.5f,
+                HoldTimeMs = 100
+            };
+
+            var overrides = new AxisParameterOverrides
+            {
+                OscillationGuard = new AxisConfig.Types.OscillationGuard
+                {
+                    KMax = 2.5f,
+                    MinAmplitude = 0.8f,
+                    HoldTimeMs = 250
+                }
+            };
+
+            var merged = ConfigMerger.MergeAxisOverrides(baseConfig, overrides);
+
+            AssertNear(2.5f, merged.OscillationGuard.KMax, 1e-6f, "KMax should reflect override");
+            AssertNear(0.8f, merged.OscillationGuard.MinAmplitude, 1e-6f, "MinAmplitude should reflect override");
+            AssertEqual(250U, merged.OscillationGuard.HoldTimeMs, "HoldTimeMs should reflect override");
+        }
+
+        private static void Merge_NoOscillationGuardOverride_PreservesBaseline()
+        {
+            var baseConfig = CreateAxisConfig();
+            baseConfig.OscillationGuard = new AxisConfig.Types.OscillationGuard
+            {
+                KMax = 1.5f,
+                MinAmplitude = 0.4f
+            };
+            var originalGuard = baseConfig.OscillationGuard.Clone();
+
+            var overrides = new AxisParameterOverrides
+            {
+                Kinematics = CreateKinematics(minPos: -50, maxPos: 50)
+                // OscillationGuard intentionally null
+            };
+
+            var merged = ConfigMerger.MergeAxisOverrides(baseConfig, overrides);
+
+            AssertTrue(ConfigComparer.AreEqual(originalGuard, merged.OscillationGuard),
+                "OscillationGuard should be preserved from baseline when not overridden");
         }
 
         private static void Merge_BothOverrides_ReplacesAll()

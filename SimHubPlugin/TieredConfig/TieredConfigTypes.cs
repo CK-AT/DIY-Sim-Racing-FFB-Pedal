@@ -268,9 +268,23 @@ namespace DiyFfb.TieredConfig
         }
 
         /// <summary>
+        /// Oscillation guard override (per-function tuning of the runaway-detector
+        /// thresholds and ramp behavior). If non-null, replaces the axis's
+        /// oscillation_guard block entirely.
+        /// </summary>
+        [JsonIgnore]
+        public AxisConfig.Types.OscillationGuard OscillationGuard { get; set; }
+        [JsonProperty("OscillationGuardJson")]
+        public string OscillationGuardJson
+        {
+            get => ProtobufJsonHelper.ToJson(OscillationGuard);
+            set => OscillationGuard = ProtobufJsonHelper.FromJson<AxisConfig.Types.OscillationGuard>(value);
+        }
+
+        /// <summary>
         /// Returns true if no overrides are defined.
         /// </summary>
-        public bool IsEmpty => Kinematics == null && StaticBalance == null;
+        public bool IsEmpty => Kinematics == null && StaticBalance == null && OscillationGuard == null;
 
         /// <summary>
         /// Returns true if this override has any effective content.
