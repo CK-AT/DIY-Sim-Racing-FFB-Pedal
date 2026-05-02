@@ -3320,7 +3320,21 @@ namespace DiyFfb
                 return;
             }
 
-            EnqueueAxisConfigUpload(selected_axis_id, axes[selected_axis_id].Config, PersistConfig,
+            var configToUpload = axes[selected_axis_id].Config;
+
+            // In AxisBase mode the user is tuning the canonical axis baseline (not a
+            // per-function override). Persist the working copy as the new baseline
+            // before sending so the verify-readback's authority check sees consistent
+            // state. Otherwise fields that aren't tracked in AxisParameterOverrides
+            // (e.g. OscillationGuard) get reverted because the merged config returned
+            // by HandleIncomingAxisConfig is built from the stale baseline only.
+            if (uc_axis_config?.EditingMode == AxisEditingMode.AxisBase &&
+                Plugin?.ConfigOrchestrator != null)
+            {
+                Plugin.ConfigOrchestrator.SetAxisBaseline((int)selected_axis_id, configToUpload.Clone());
+            }
+
+            EnqueueAxisConfigUpload(selected_axis_id, configToUpload, PersistConfig,
                 verify: true);
         }
 
