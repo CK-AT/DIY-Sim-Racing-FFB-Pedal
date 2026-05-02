@@ -30,6 +30,11 @@ namespace DiyFfb.TieredConfig
         private readonly HashSet<int> _pendingMerges = new HashSet<int>();
         private readonly Dictionary<int, DateTime> _lastMergeUtc = new Dictionary<int, DateTime>();
 
+        // In-memory ConfigOut tier: graph-derived field values that participate in the
+        // merge but are never serialized to the profile JSON. Cleared on graph reload
+        // so a new graph's ConfigOut wiring fully redefines the contents.
+        private readonly Dictionary<int, FunctionConfigOverrides> _configOutOverrides = new Dictionary<int, FunctionConfigOverrides>();
+
         public TieredConfigOrchestrator(
             FunctionConfigManager functionConfigManager,
             AxisConfigManager axisConfigManager,
@@ -351,7 +356,8 @@ namespace DiyFfb.TieredConfig
                         userOverrides.FunctionOverrides.TryGetValue(functionId, out var userDelta);
                         if (userDelta != null && !userDelta.IsEmpty)
                         {
-                            _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta);
+                            _configOutOverrides.TryGetValue(functionId, out var configOutDelta);
+                            _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta, configOutDelta: configOutDelta);
                         }
                     }
                 }
@@ -376,7 +382,8 @@ namespace DiyFfb.TieredConfig
                     profile.FunctionOverrides.TryGetValue(functionId, out var profileDelta);
                     FunctionConfigOverrides userDelta = null;
                     userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
-                    _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: false);
+                    _configOutOverrides.TryGetValue(functionId, out var configOutDelta);
+                    _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: false, configOutDelta: configOutDelta);
                 }
 
                 // 2. Apply AxisConfig overrides for this function
@@ -399,7 +406,8 @@ namespace DiyFfb.TieredConfig
                     userOverrides.FunctionOverrides.TryGetValue(functionId, out var userDelta);
                     if (userDelta != null && !userDelta.IsEmpty)
                     {
-                        _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta);
+                        _configOutOverrides.TryGetValue(functionId, out var configOutDelta);
+                        _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta, configOutDelta: configOutDelta);
                     }
                 }
             }
@@ -458,7 +466,9 @@ namespace DiyFfb.TieredConfig
             FunctionConfigOverrides userDelta = null;
             userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
 
-            _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: diffCheck);
+            _configOutOverrides.TryGetValue(functionId, out var configOutDelta);
+
+            _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: diffCheck, configOutDelta: configOutDelta);
         }
 
         /// <summary>
@@ -616,7 +626,8 @@ namespace DiyFfb.TieredConfig
                     userOverrides?.FunctionOverrides?.TryGetValue(functionId, out userDelta);
                     if (userDelta != null && !userDelta.IsEmpty)
                     {
-                        _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta);
+                        _configOutOverrides.TryGetValue(functionId, out var configOutDelta);
+                        _functionConfigManager.ApplyProfileOverrides(functionId, null, userDelta, configOutDelta: configOutDelta);
                     }
                 }
             }
@@ -738,6 +749,55 @@ namespace DiyFfb.TieredConfig
 
             // Fire OverrideFieldChanged event for badge refresh (NO ESP32 send, NO manager update to avoid loops)
             OnOverrideFieldChanged(functionId, fieldName);
+        }
+
+        /// <summary>
+        /// Update a graph-derived ConfigOut field for a function. Stores the value in
+        /// the in-memory ConfigOut tier (never persisted) and schedules a throttled
+        /// merge+send so the change reaches ESP32. Use for fields written by graph
+        /// ConfigOut nodes — does NOT touch profile/user overrides.
+        /// </summary>
+        public void UpdateConfigOutField(int functionId, string fieldName, Action<FunctionConfigOverrides> updateAction)
+        {
+            if (updateAction == null) return;
+
+            if (!_configOutOverrides.TryGetValue(functionId, out var overrides))
+            {
+                overrides = new FunctionConfigOverrides();
+                _configOutOverrides[functionId] = overrides;
+            }
+            updateAction(overrides);
+
+            // Throttled merge+send to ESP32
+            ScheduleThrottledMerge(functionId);
+        }
+
+        /// <summary>
+        /// Get the ConfigOut overlay for a function, or null if none.
+        /// </summary>
+        public FunctionConfigOverrides GetConfigOutOverrides(int functionId)
+        {
+            _configOutOverrides.TryGetValue(functionId, out var overrides);
+            return overrides;
+        }
+
+        /// <summary>
+        /// Discard all ConfigOut overlays (call on graph reload). Triggers a re-merge
+        /// for affected functions so the merged config drops the graph-derived values
+        /// until the next graph evaluation re-establishes them.
+        /// </summary>
+        public void ClearConfigOutOverrides()
+        {
+            if (_configOutOverrides.Count == 0)
+                return;
+
+            var affected = _configOutOverrides.Keys.ToList();
+            _configOutOverrides.Clear();
+            foreach (var functionId in affected)
+            {
+                if (_functionConfigManager.HasBaseConfig(functionId))
+                    ReapplyMergedOverrides(functionId, diffCheck: false);
+            }
         }
 
         /// <summary>
@@ -1440,7 +1500,8 @@ namespace DiyFfb.TieredConfig
                 var userOverrides = GetUserFunctionOverrides(functionId);
                 if (userOverrides != null && !userOverrides.IsEmpty)
                 {
-                    _functionConfigManager.ApplyProfileOverrides(functionId, null, userOverrides);
+                    _configOutOverrides.TryGetValue(functionId, out var configOutDelta);
+                    _functionConfigManager.ApplyProfileOverrides(functionId, null, userOverrides, configOutDelta: configOutDelta);
                 }
             }
 

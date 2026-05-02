@@ -132,19 +132,26 @@ namespace DiyFfb.TieredConfig
 
 
         /// <summary>
-        /// Merge all three layers: Baseline -> Profile -> User.
+        /// Merge all layers: Baseline -> ConfigOut -> Profile -> User.
         /// Returns a new config; does not mutate any original.
+        /// ConfigOut sits below Profile/User so explicit user overrides win over
+        /// graph-derived values; it is in-memory only and never persisted.
         /// </summary>
         public static FunctionConfig MergeAllLayers(
             FunctionConfig baseline,
             FunctionConfigOverrides profile,
-            FunctionConfigOverrides user)
+            FunctionConfigOverrides user,
+            FunctionConfigOverrides configOut = null)
         {
             if (baseline == null)
                 throw new ArgumentNullException(nameof(baseline));
 
             // Start with baseline
             var merged = baseline.Clone();
+
+            // Apply graph-derived ConfigOut overlay (transient, lowest non-baseline priority)
+            if (configOut != null && !configOut.IsEmpty)
+                merged = MergeFunctionConfig(merged, configOut);
 
             // Apply profile overrides (if any)
             if (profile != null && !profile.IsEmpty)

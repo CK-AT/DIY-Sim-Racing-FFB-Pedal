@@ -95,11 +95,13 @@ namespace DiyFfb.TieredConfig
         /// <param name="profileDelta">Profile-level overrides (may be null).</param>
         /// <param name="userDelta">User-level overrides (may be null).</param>
         /// <param name="diffCheck">If true, only send if config changed.</param>
+        /// <param name="configOutDelta">Graph-derived transient overrides (in-memory only, may be null).</param>
         public void ApplyProfileOverrides(
             int functionId,
             FunctionConfigOverrides profileDelta,
             FunctionConfigOverrides userDelta,
-            bool diffCheck = true)
+            bool diffCheck = true,
+            FunctionConfigOverrides configOutDelta = null)
         {
             // Ensure we have a base config
             if (!_baseConfigs.TryGetValue(functionId, out var baseConfig))
@@ -123,7 +125,7 @@ namespace DiyFfb.TieredConfig
                 _functionsWithUserOverride.Remove(functionId);
 
             // Merge all layers
-            var merged = ConfigMerger.MergeAllLayers(baseConfig, profileDelta, userDelta);
+            var merged = ConfigMerger.MergeAllLayers(baseConfig, profileDelta, userDelta, configOutDelta);
             _currentConfigs[functionId] = merged;
 
             // Check if we need to send

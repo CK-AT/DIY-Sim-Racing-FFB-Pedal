@@ -1454,38 +1454,14 @@ namespace DiyFfb
                         $"[ConfigOut] '{key}' = {newValue:F3} → field '{canonical}', targets [{targetList}]");
                 }
 
-                // First-seen guard: every graph reload clears _lastConfigOutValues, so the
-                // first eval after load would otherwise unconditionally bake the param's
-                // current value into the FunctionOverride — including default-zero values
-                // for params the user never touched, leaving phantom [0, null, ...] entries
-                // in the persisted profile. Skip the write when every target is already in
-                // sync (override unset and value≈0, or override explicitly matches).
-                if (firstSeen && ConfigOrchestrator != null)
-                {
-                    bool allInSync = true;
-                    foreach (var fn in targets)
-                    {
-                        var ovr = ConfigOrchestrator.GetFunctionOverrides((int)fn);
-                        object cur = ovr != null ? OverrideFieldRegistry.GetValue(ovr, field.FieldPath) : null;
-                        if (cur == null)
-                        {
-                            if (Math.Abs(newValue) < 1e-6) continue;  // unset + default-zero ⇒ in sync
-                            allInSync = false;
-                            break;
-                        }
-                        double curVal = Convert.ToDouble(cur);
-                        if (Math.Abs(curVal - newValue) < 1e-6) continue;
-                        allInSync = false;
-                        break;
-                    }
-                    if (allInSync) continue;
-                }
-
+                // ConfigOut writes go to the in-memory ConfigOut tier, never to the
+                // persisted profile/user overrides. The orchestrator clears this tier
+                // on graph reload, so phantom defaults can't leak across sessions.
                 if (ConfigOrchestrator != null)
                 {
                     foreach (var fn in targets)
                     {
-                        ConfigOrchestrator.UpdateFunctionOverrideField(
+                        ConfigOrchestrator.UpdateConfigOutField(
                             (int)fn,
                             field.FieldPath,
                             overrides => OverrideFieldRegistry.SetValue(overrides, field.FieldPath, (float)newValue));
@@ -2008,6 +1984,7 @@ namespace DiyFfb
             activeIncludeContextCache = null;
             lastGraphEvaluation = null;
             _lastConfigOutValues.Clear();
+            ConfigOrchestrator?.ClearConfigOutOverrides();
 
             bool autoAssigned = false;
             if (string.IsNullOrWhiteSpace(activeGraphPath))
