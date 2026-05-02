@@ -22,7 +22,7 @@
       "Id": "in_blade_alph_pitch",
       "Kind": "Input",
       "X": 20.0,
-      "Y": 200.0,
+      "Y": 340.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -35,7 +35,7 @@
       "Id": "in_blade_alph_roll",
       "Kind": "Input",
       "X": 20.0,
-      "Y": 660.0,
+      "Y": 800.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -56,8 +56,8 @@
       "Id": "cyclic_pitch_include",
       "Title": "Cyclic Pitch",
       "Kind": "Include",
-      "X": 370.0,
-      "Y": 280.0,
+      "X": 800.0,
+      "Y": 400.0,
       "IncludePath": "..\\_embedded\\heli_cyclic_unboosted.json",
       "FunctionScope": "FlightStickPitch"
     },
@@ -65,8 +65,8 @@
       "Id": "cyclic_roll_include",
       "Title": "Cyclic Roll",
       "Kind": "Include",
-      "X": 370.0,
-      "Y": 730.0,
+      "X": 800.0,
+      "Y": 830.0,
       "IncludePath": "..\\_embedded\\heli_cyclic_unboosted.json",
       "FunctionScope": "FlightStickRoll"
     },
@@ -74,7 +74,7 @@
       "Id": "collective_include",
       "Title": "Collective",
       "Kind": "Include",
-      "X": 430.0,
+      "X": 480.0,
       "Y": 50.0,
       "IncludePath": "..\\_embedded\\heli_collective_unboosted.json",
       "FunctionScope": "FlightStickCollective"
@@ -83,7 +83,7 @@
       "Id": "pedals_include",
       "Title": "Pedals",
       "Kind": "Include",
-      "X": 430.0,
+      "X": 480.0,
       "Y": 130.0,
       "IncludePath": "..\\_embedded\\heli_pedals_unboosted.json",
       "FunctionScope": "FlightPedals"
@@ -92,7 +92,7 @@
       "Id": "in_grip_pitch",
       "Kind": "Input",
       "X": 20.0,
-      "Y": 360.0,
+      "Y": 500.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -113,7 +113,7 @@
       "Id": "in_grip_roll",
       "Kind": "Input",
       "X": 20.0,
-      "Y": 820.0,
+      "Y": 960.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -130,7 +130,7 @@
       "Id": "in_axis_pitch",
       "Kind": "Input",
       "X": 20.0,
-      "Y": 490.0,
+      "Y": 630.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -147,7 +147,7 @@
       "Id": "in_axis_roll",
       "Kind": "Input",
       "X": 20.0,
-      "Y": 930.0,
+      "Y": 1070.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -164,7 +164,7 @@
       "Id": "param_owl",
       "Kind": "Param",
       "X": 20.0,
-      "Y": 280.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -178,7 +178,7 @@
       "Title": "0",
       "Kind": "Const",
       "X": 20.0,
-      "Y": 740.0,
+      "Y": 880.0,
       "Ports": [
         {
           "Name": "out",
@@ -186,6 +186,175 @@
         }
       ],
       "ConstValue": 0.0
+    },
+    {
+      "Id": "in_vrs",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 1170.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Rotor.VRS"
+        }
+      ],
+      "SignalGroup": "XPlane"
+    },
+    {
+      "Id": "in_slap",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 1240.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Rotor.Slap"
+        }
+      ],
+      "SignalGroup": "XPlane"
+    },
+    {
+      "Id": "param_blade_count",
+      "Kind": "Param",
+      "X": 20.0,
+      "Y": 730.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "BladeCount"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_rotation_sign",
+      "Kind": "Param",
+      "X": 20.0,
+      "Y": 1320.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RotationSign"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "const_phase_zero",
+      "Title": "0 deg",
+      "Kind": "Const",
+      "X": 590.0,
+      "Y": 660.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "const_phase_90",
+      "Title": "90 deg",
+      "Kind": "Const",
+      "X": 380.0,
+      "Y": 1270.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 90.0
+    },
+    {
+      "Id": "mul_phase_roll",
+      "Title": "Roll Phase",
+      "Kind": "Op",
+      "X": 540.0,
+      "Y": 1290.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "vib_pitch_include",
+      "Title": "Vib Pitch",
+      "Kind": "Include",
+      "X": 800.0,
+      "Y": 630.0,
+      "IncludePath": "..\\_embedded\\heli_vibration_cyclic.json",
+      "FunctionScope": "FlightStickPitch"
+    },
+    {
+      "Id": "vib_roll_include",
+      "Title": "Vib Roll",
+      "Kind": "Include",
+      "X": 800.0,
+      "Y": 1060.0,
+      "IncludePath": "..\\_embedded\\heli_vibration_cyclic.json",
+      "FunctionScope": "FlightStickRoll"
+    },
+    {
+      "Id": "540bd050ff4944be849a35b8fa047f7d",
+      "Kind": "Output",
+      "X": 480.0,
+      "Y": 210.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Vib1Fund"
+        }
+      ],
+      "SignalGroup": "Shared"
+    },
+    {
+      "Id": "96841bc9a8204e6285da2eb18b924e0c",
+      "Title": "Calc Fundamental",
+      "Kind": "Op",
+      "X": 200.0,
+      "Y": 210.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "5a3cec22fab74cc09233193cba8135cd",
+      "Title": "1/min -> 1/s",
+      "Kind": "Const",
+      "X": 70.0,
+      "Y": 240.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 60.0
     }
   ],
   "Links": [
@@ -296,6 +465,108 @@
       "FromPort": "rpm_norm",
       "ToNodeId": "pedals_include",
       "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "const_phase_90",
+      "FromPort": "out",
+      "ToNodeId": "mul_phase_roll",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_rotation_sign",
+      "FromPort": "RotationSign",
+      "ToNodeId": "mul_phase_roll",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_blade_alph_pitch",
+      "FromPort": "Rotor.BladeAlphPitch",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "blade_alph"
+    },
+    {
+      "FromNodeId": "in_vrs",
+      "FromPort": "Rotor.VRS",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "vrs"
+    },
+    {
+      "FromNodeId": "in_slap",
+      "FromPort": "Rotor.Slap",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "slap_rat"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "param_blade_count",
+      "FromPort": "BladeCount",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "blade_count"
+    },
+    {
+      "FromNodeId": "const_phase_zero",
+      "FromPort": "out",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "phase"
+    },
+    {
+      "FromNodeId": "in_blade_alph_roll",
+      "FromPort": "Rotor.BladeAlphRoll",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "blade_alph"
+    },
+    {
+      "FromNodeId": "in_vrs",
+      "FromPort": "Rotor.VRS",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "vrs"
+    },
+    {
+      "FromNodeId": "in_slap",
+      "FromPort": "Rotor.Slap",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "slap_rat"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "param_blade_count",
+      "FromPort": "BladeCount",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "blade_count"
+    },
+    {
+      "FromNodeId": "mul_phase_roll",
+      "FromPort": "a*b",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "phase"
+    },
+    {
+      "FromNodeId": "96841bc9a8204e6285da2eb18b924e0c",
+      "FromPort": "a/b",
+      "ToNodeId": "540bd050ff4944be849a35b8fa047f7d",
+      "ToPort": "Vib1Fund"
+    },
+    {
+      "FromNodeId": "in_torque",
+      "FromPort": "MainRotor.Speed",
+      "ToNodeId": "96841bc9a8204e6285da2eb18b924e0c",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "5a3cec22fab74cc09233193cba8135cd",
+      "FromPort": "out",
+      "ToNodeId": "96841bc9a8204e6285da2eb18b924e0c",
+      "ToPort": "b"
     }
   ],
   "Params": [
@@ -320,6 +591,47 @@
           {
             "Value": "1",
             "Label": "On"
+          }
+        ]
+      }
+    },
+    {
+      "Name": "Aircraft.BladeCount",
+      "DefaultValue": 5.0,
+      "Min": 2.0,
+      "Max": 8.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Blade Count",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 1.0,
+        "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.RotationSign",
+      "DefaultValue": 1.0,
+      "Min": -1.0,
+      "Max": 1.0,
+      "Ui": {
+        "Widget": "enum",
+        "Label": "Rotor Direction",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": null,
+        "Precision": null,
+        "LogScale": false,
+        "Options": [
+          {
+            "Value": "1",
+            "Label": "CCW (US)"
+          },
+          {
+            "Value": "-1",
+            "Label": "CW (EU)"
           }
         ]
       }
