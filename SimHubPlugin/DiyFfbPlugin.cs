@@ -1387,6 +1387,7 @@ namespace DiyFfb
             var configOutputs = lastGraphEvaluation?.ConfigOutputs;
             if (configOutputs == null || configOutputs.Count == 0)
             {
+                SimHub.Logging.Current.Info("[ConfigOut/Trace] CheckConfigOutChanges: no ConfigOutputs in last eval");
                 return;
             }
 
@@ -1395,6 +1396,7 @@ namespace DiyFfb
             // first write per function fires the throttled leading-edge merge against
             // a partially-populated tier, sending zeros for slots not yet written.
             HashSet<FunctionID> functionsTouched = null;
+            int changedCount = 0;
 
             foreach (var kvp in configOutputs)
             {
@@ -1410,6 +1412,12 @@ namespace DiyFfb
 
                 bool firstSeen = !_lastConfigOutValues.ContainsKey(key);
                 _lastConfigOutValues[key] = newValue;
+                changedCount++;
+                if (!firstSeen)
+                {
+                    SimHub.Logging.Current.Info(
+                        $"[ConfigOut/Trace] CHANGE '{key}': {oldValue:F4} → {newValue:F4}");
+                }
 
                 int sepIndex = key.IndexOf(':');
                 string scopeName;
@@ -1477,10 +1485,17 @@ namespace DiyFfb
             // merge per affected function so the leading edge sees the full tier.
             if (functionsTouched != null && ConfigOrchestrator != null)
             {
+                SimHub.Logging.Current.Info(
+                    $"[ConfigOut/Trace] CheckConfigOutChanges: {changedCount} change(s), scheduling merge for [{string.Join(",", functionsTouched)}]");
                 foreach (var fn in functionsTouched)
                 {
                     ConfigOrchestrator.ScheduleConfigOutMerge((int)fn);
                 }
+            }
+            else if (changedCount > 0)
+            {
+                SimHub.Logging.Current.Info(
+                    $"[ConfigOut/Trace] CheckConfigOutChanges: {changedCount} change(s) but no functionsTouched (orchestrator?) — no merge scheduled");
             }
         }
 
@@ -3168,6 +3183,8 @@ namespace DiyFfb
 
         public void SetGraphParamValue(string paramName, double value)
         {
+            SimHub.Logging.Current.Info($"[ConfigOut/Trace] SetGraphParamValue {paramName} = {value:F4}");
+
             // Update runtime param for immediate effect
             graphParams[paramName] = value;
 
@@ -3201,7 +3218,11 @@ namespace DiyFfb
 
         private void ReevaluateForConfigOut()
         {
-            if (activeGraphEvaluator == null) return;
+            if (activeGraphEvaluator == null)
+            {
+                SimHub.Logging.Current.Info("[ConfigOut/Trace] ReevaluateForConfigOut: no active evaluator, skipping");
+                return;
+            }
             try
             {
                 BuildGraphParams();
@@ -3212,11 +3233,13 @@ namespace DiyFfb
                     : 0.0;
                 _lastGraphEvalTicks = now;
                 lastGraphEvaluation = activeGraphEvaluator.EvaluateWithTrace(graphInputs, graphParams, dt);
+                int outCount = lastGraphEvaluation?.ConfigOutputs?.Count ?? 0;
+                SimHub.Logging.Current.Info($"[ConfigOut/Trace] ReevaluateForConfigOut: eval done, ConfigOutputs.Count={outCount}");
                 CheckConfigOutChanges();
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore evaluation errors to keep runtime stable.
+                SimHub.Logging.Current.Warn($"[ConfigOut/Trace] ReevaluateForConfigOut threw: {ex.Message}");
             }
         }
 

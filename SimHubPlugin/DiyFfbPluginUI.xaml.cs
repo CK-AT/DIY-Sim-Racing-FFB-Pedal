@@ -2790,9 +2790,18 @@ namespace DiyFfb
         {
             FunctionID funcId = (FunctionID)e.FunctionId;
             if (funcId == FunctionID.Undefined || !functions.ContainsKey(funcId))
+            {
+                SimHub.Logging.Current.Info($"[ConfigOut/Trace] OnMergedFunctionConfigChanged fn={e.FunctionId}: skipped (Undefined or unknown)");
                 return;
+            }
 
             bool isActive = Plugin.ConfigOrchestrator.IsFunctionActive(e.FunctionId);
+
+            string ratios = "null";
+            if (e.NewConfig?.FlightStick != null)
+                ratios = "[" + string.Join(",", e.NewConfig.FlightStick.VibHarmonicRatios.Select(r => r.ToString("F2"))) + "]";
+            SimHub.Logging.Current.Info(
+                $"[ConfigOut/Trace] OnMergedFunctionConfigChanged fn={e.FunctionId}, isActive={isActive}, harmRatios={ratios}");
 
             // Update UI working copy with merged config so SwitchFunction shows correct values.
             // The merged config = base (full ESP32 config) + profile/user overrides, so all fields

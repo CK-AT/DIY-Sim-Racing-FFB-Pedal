@@ -458,6 +458,12 @@ namespace DiyFfb.TieredConfig
 
             _configOutOverrides.TryGetValue(functionId, out var configOutDelta);
 
+            string cfgRatios = "null";
+            if (configOutDelta?.FlightStickVibHarmonicRatios != null)
+                cfgRatios = "[" + string.Join(",", configOutDelta.FlightStickVibHarmonicRatios.Select(r => r.HasValue ? r.Value.ToString("F2") : "null")) + "]";
+            SimHub.Logging.Current.Info(
+                $"[ConfigOut/Trace] ReapplyMergedOverrides fn={functionId}: profile={(profileDelta?.IsEmpty == false ? "set" : "empty")}, user={(userDelta?.IsEmpty == false ? "set" : "empty")}, configOut.harmRatios={cfgRatios}, diffCheck={diffCheck}");
+
             _functionConfigManager.ApplyProfileOverrides(functionId, profileDelta, userDelta, diffCheck: diffCheck, configOutDelta: configOutDelta);
         }
 
@@ -779,6 +785,12 @@ namespace DiyFfb.TieredConfig
         /// </summary>
         public void ScheduleConfigOutMerge(int functionId)
         {
+            var ovr = GetConfigOutOverrides(functionId);
+            string ratiosStr = "null";
+            if (ovr?.FlightStickVibHarmonicRatios != null)
+                ratiosStr = "[" + string.Join(",", ovr.FlightStickVibHarmonicRatios.Select(r => r.HasValue ? r.Value.ToString("F2") : "null")) + "]";
+            SimHub.Logging.Current.Info(
+                $"[ConfigOut/Trace] ScheduleConfigOutMerge fn={functionId}, tier.harmRatios={ratiosStr}, hasBase={_functionConfigManager.HasBaseConfig(functionId)}");
             ScheduleThrottledMerge(functionId);
         }
 
@@ -864,7 +876,10 @@ namespace DiyFfb.TieredConfig
         private void ScheduleThrottledMerge(int functionId)
         {
             if (!_functionConfigManager.HasBaseConfig(functionId))
+            {
+                SimHub.Logging.Current.Info($"[ConfigOut/Trace] ScheduleThrottledMerge fn={functionId}: NO BASELINE — skipped");
                 return;
+            }
 
             var now = DateTime.UtcNow;
 
@@ -872,6 +887,7 @@ namespace DiyFfb.TieredConfig
                 (now - lastMerge).TotalMilliseconds >= OverrideThrottleMs)
             {
                 // Leading edge: send immediately
+                SimHub.Logging.Current.Info($"[ConfigOut/Trace] ScheduleThrottledMerge fn={functionId}: LEADING edge");
                 ReapplyMergedOverrides(functionId, diffCheck: false);
                 _lastMergeUtc[functionId] = now;
                 _pendingMerges.Remove(functionId);
@@ -880,6 +896,7 @@ namespace DiyFfb.TieredConfig
             else
             {
                 // Within throttle window: mark pending, timer will handle trailing edge
+                SimHub.Logging.Current.Info($"[ConfigOut/Trace] ScheduleThrottledMerge fn={functionId}: queued for trailing edge");
                 _pendingMerges.Add(functionId);
                 EnsureThrottleTimer(functionId);
             }

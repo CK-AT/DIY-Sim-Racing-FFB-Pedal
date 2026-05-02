@@ -133,6 +133,12 @@ namespace DiyFfb.TieredConfig
             bool hasChanges = hasLastSent && ConfigComparer.HasChanges(merged, lastSent);
             bool shouldSend = !diffCheck || !hasLastSent || hasChanges;
 
+            string mergedRatios = "null";
+            if (merged.FlightStick != null)
+                mergedRatios = "[" + string.Join(",", merged.FlightStick.VibHarmonicRatios.Select(r => r.ToString("F2"))) + "]";
+            SimHub.Logging.Current.Info(
+                $"[ConfigOut/Trace] ApplyProfileOverrides fn={functionId}: merged.FlightStick={(merged.FlightStick != null ? "set" : "null")}, harmRatios={mergedRatios}, shouldSend={shouldSend} (diffCheck={diffCheck}, hasLastSent={hasLastSent}, hasChanges={hasChanges})");
+
             if (shouldSend)
             {
                 // Note: _lastSentConfigs is NOT updated here. The UI event handler
