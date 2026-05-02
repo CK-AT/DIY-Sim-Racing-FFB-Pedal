@@ -1390,6 +1390,12 @@ namespace DiyFfb
                 return;
             }
 
+            // Collect all functions touched in this pass; schedule a single merge per
+            // function once every value has been written to the tier. Otherwise the
+            // first write per function fires the throttled leading-edge merge against
+            // a partially-populated tier, sending zeros for slots not yet written.
+            HashSet<FunctionID> functionsTouched = null;
+
             foreach (var kvp in configOutputs)
             {
                 string key = kvp.Key;
@@ -1459,11 +1465,21 @@ namespace DiyFfb
                 {
                     foreach (var fn in targets)
                     {
-                        ConfigOrchestrator.UpdateConfigOutField(
+                        ConfigOrchestrator.StoreConfigOutField(
                             (int)fn,
-                            field.FieldPath,
                             overrides => OverrideFieldRegistry.SetValue(overrides, field.FieldPath, (float)newValue));
+                        (functionsTouched ?? (functionsTouched = new HashSet<FunctionID>())).Add(fn);
                     }
+                }
+            }
+
+            // Now that every ConfigOut value has been written, schedule one throttled
+            // merge per affected function so the leading edge sees the full tier.
+            if (functionsTouched != null && ConfigOrchestrator != null)
+            {
+                foreach (var fn in functionsTouched)
+                {
+                    ConfigOrchestrator.ScheduleConfigOutMerge((int)fn);
                 }
             }
         }

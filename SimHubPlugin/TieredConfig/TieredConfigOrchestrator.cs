@@ -743,8 +743,25 @@ namespace DiyFfb.TieredConfig
         /// the in-memory ConfigOut tier (never persisted) and schedules a throttled
         /// merge+send so the change reaches ESP32. Use for fields written by graph
         /// ConfigOut nodes — does NOT touch profile/user overrides.
+        ///
+        /// Convenience wrapper: equivalent to <see cref="StoreConfigOutField"/> followed
+        /// by <see cref="ScheduleConfigOutMerge"/>. Prefer the split form when writing
+        /// multiple fields in a batch (e.g. one eval pass producing several ConfigOut
+        /// values for the same function) so that the throttled merge sees all writes
+        /// at once instead of firing the leading edge after just the first write.
         /// </summary>
-        public void UpdateConfigOutField(int functionId, string fieldName, Action<FunctionConfigOverrides> updateAction)
+        public void UpdateConfigOutField(int functionId, Action<FunctionConfigOverrides> updateAction)
+        {
+            StoreConfigOutField(functionId, updateAction);
+            ScheduleConfigOutMerge(functionId);
+        }
+
+        /// <summary>
+        /// Write a graph-derived ConfigOut field to the in-memory tier without scheduling
+        /// a merge. Pair with <see cref="ScheduleConfigOutMerge"/> after a batch of writes
+        /// to ensure the leading-edge merge sees a fully populated tier.
+        /// </summary>
+        public void StoreConfigOutField(int functionId, Action<FunctionConfigOverrides> updateAction)
         {
             if (updateAction == null) return;
 
@@ -754,8 +771,14 @@ namespace DiyFfb.TieredConfig
                 _configOutOverrides[functionId] = overrides;
             }
             updateAction(overrides);
+        }
 
-            // Throttled merge+send to ESP32
+        /// <summary>
+        /// Schedule the throttled merge+send for a function whose ConfigOut tier was
+        /// just written by <see cref="StoreConfigOutField"/>.
+        /// </summary>
+        public void ScheduleConfigOutMerge(int functionId)
+        {
             ScheduleThrottledMerge(functionId);
         }
 

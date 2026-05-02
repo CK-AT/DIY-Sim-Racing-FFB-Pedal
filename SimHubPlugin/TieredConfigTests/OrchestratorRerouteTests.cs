@@ -87,6 +87,7 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("ConfigOut_Clear_RemovesValueFromMergedConfig", ConfigOut_Clear_RemovesValueFromMergedConfig),
                 TestRunner.RunTest("ConfigOut_ReapplyMergedOverrides_IncludesConfigOut", ConfigOut_ReapplyMergedOverrides_IncludesConfigOut),
                 TestRunner.RunTest("ConfigOut_AppliedOnIncomingBaseline_WithEmptyOverrides", ConfigOut_AppliedOnIncomingBaseline_WithEmptyOverrides),
+                TestRunner.RunTest("ConfigOut_StoreThenSchedule_BatchAvoidsPartialMerge", ConfigOut_StoreThenSchedule_BatchAvoidsPartialMerge),
             };
         }
 
@@ -362,7 +363,7 @@ namespace DiyFfb.TieredConfigTests
             orchestrator.SetFunctionBaseline(1, CreateBaseline());
             orchestrator.InitializeManagerFromSettings();
 
-            orchestrator.UpdateConfigOutField(1, "simulated_mass",
+            orchestrator.UpdateConfigOutField(1,
                 ovr => OverrideFieldRegistry.SetValue(ovr, "simulated_mass", 7.0f));
 
             var profileAfter = orchestrator.GetFunctionOverrides(1);
@@ -388,7 +389,7 @@ namespace DiyFfb.TieredConfigTests
             orchestrator.SetFunctionBaseline(1, CreateBaseline());  // SimulatedMass=10 in baseline
             orchestrator.InitializeManagerFromSettings();
 
-            orchestrator.UpdateConfigOutField(1, "simulated_mass",
+            orchestrator.UpdateConfigOutField(1,
                 ovr => OverrideFieldRegistry.SetValue(ovr, "simulated_mass", 7.0f));
 
             var merged = orchestrator.GetInitialFunctionConfig(1);
@@ -405,7 +406,7 @@ namespace DiyFfb.TieredConfigTests
             orchestrator.SetFunctionBaseline(1, CreateBaseline());  // baseline SimulatedMass=10
             orchestrator.InitializeManagerFromSettings();
 
-            orchestrator.UpdateConfigOutField(1, "simulated_mass",
+            orchestrator.UpdateConfigOutField(1,
                 ovr => OverrideFieldRegistry.SetValue(ovr, "simulated_mass", 7.0f));
 
             // Sanity: ConfigOut applied
@@ -435,7 +436,7 @@ namespace DiyFfb.TieredConfigTests
             orchestrator.SetFunctionBaseline(1, CreateBaseline());
             orchestrator.InitializeManagerFromSettings();
 
-            orchestrator.UpdateConfigOutField(1, "simulated_mass",
+            orchestrator.UpdateConfigOutField(1,
                 ovr => OverrideFieldRegistry.SetValue(ovr, "simulated_mass", 7.0f));
 
             // An explicit re-apply (e.g. from a profile-tier change elsewhere) must
@@ -461,7 +462,7 @@ namespace DiyFfb.TieredConfigTests
             // Populate the ConfigOut tier BEFORE any baseline exists — mirrors the
             // real flow where graph eval starts producing values before firmware
             // reports its function config.
-            orchestrator.UpdateConfigOutField(1, "simulated_mass",
+            orchestrator.UpdateConfigOutField(1,
                 ovr => OverrideFieldRegistry.SetValue(ovr, "simulated_mass", 7.0f));
 
             // Now firmware sends its baseline. No profile, no user overrides.
@@ -479,6 +480,36 @@ namespace DiyFfb.TieredConfigTests
             var stored = orchestrator.GetInitialFunctionConfig(1);
             if (Math.Abs(stored.SimulatedMass - 7.0f) > 1e-6f)
                 throw new Exception($"Stored merged config wrong: SimulatedMass={stored.SimulatedMass} (expected 7.0)");
+
+            return true;
+        }
+
+        // Regression: when a single eval pass writes multiple ConfigOut fields for the
+        // same function, calling UpdateConfigOutField per-field made the throttled
+        // leading-edge merge fire after only the first write — sending a partially-
+        // populated tier (other slots = baseline zeros) to ESP32. The fix splits
+        // store from schedule: callers do all stores first, then schedule once per
+        // affected function so the leading edge sees the full tier.
+        private static bool ConfigOut_StoreThenSchedule_BatchAvoidsPartialMerge()
+        {
+            var orchestrator = CreateOrchestrator();
+            orchestrator.SetFunctionBaseline(1, CreateBaseline());
+            orchestrator.InitializeManagerFromSettings();
+
+            // Batch: write two fields, schedule once.
+            orchestrator.StoreConfigOutField(1,
+                ovr => OverrideFieldRegistry.SetValue(ovr, "simulated_mass", 7.0f));
+            orchestrator.StoreConfigOutField(1,
+                ovr => OverrideFieldRegistry.SetValue(ovr, "friction", 3.0f));
+            orchestrator.ScheduleConfigOutMerge(1);
+
+            var merged = orchestrator.GetInitialFunctionConfig(1);
+            if (merged == null)
+                throw new Exception("Merged config missing after batch schedule");
+            if (Math.Abs(merged.SimulatedMass - 7.0f) > 1e-6f)
+                throw new Exception($"SimulatedMass dropped from batched store: {merged.SimulatedMass}");
+            if (Math.Abs(merged.Friction - 3.0f) > 1e-6f)
+                throw new Exception($"Friction dropped from batched store: {merged.Friction}");
 
             return true;
         }
