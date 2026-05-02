@@ -186,6 +186,8 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Converter: ConfigOut scoped via FunctionScope", TestConvert_ConfigOutScoped));
             results.Add(TestRunner.RunTest("Evaluator: ConfigOut values in ConfigOutputs", TestEval_ConfigOutValues));
             results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigOut values in ConfigOutputs", TestCompiledEval_ConfigOutValues));
+            results.Add(TestRunner.RunTest("Evaluator: ConfigOut bridges through Include", TestEval_ConfigOutBridgesThroughInclude));
+            results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigOut bridges through Include", TestCompiledEval_ConfigOutBridgesThroughInclude));
             results.Add(TestRunner.RunTest("ExtractInterface: scoped vs unscoped outputs", TestExtractInterface_ScopedOutputs));
             results.Add(TestRunner.RunTest("ExtractInterface: ConfigOut with ConfigType", TestExtractInterface_ConfigOutputs));
 
@@ -4914,6 +4916,89 @@ namespace DiyFfb.GraphTest
                                 Math.Abs(outVal - 2.72) < 1e-9;
 
             return cfgInConfigOutputs && cfgNotInOutputs && outInOutputs;
+        }
+
+        // Regression: include's ConfigOut values must propagate through the parent's
+        // OutputMap bridging loop alongside Output values. The bridge used to call
+        // evaluator.Evaluate() which returned only Outputs, silently dropping ConfigOutputs
+        // — leaving the parent's scoped ConfigOut nodes reading 0 even when the sub-graph
+        // produced correct values from Const nodes.
+        private static bool TestEval_ConfigOutBridgesThroughInclude()
+        {
+            // Sub-graph: Const(7.0) → ConfigOut named after the ConfigField.
+            var sub = new GraphDefinition();
+            sub.Nodes["k"] = new GraphNode { Id = "k", Type = NodeType.Const, ConstValue = 7.0 };
+            sub.Nodes["cfg"] = new GraphNode
+            {
+                Id = "cfg",
+                Type = NodeType.ConfigOut,
+                Name = "flight_stick.damping",
+                Src = "k"
+            };
+
+            // Parent: Include with OutputMap bridging the sub's ConfigOut name to a
+            // parent runtime ID, plus a scoped ConfigOut reading from that ID.
+            var parent = new GraphDefinition();
+            var include = new GraphNode
+            {
+                Id = "inc",
+                Type = NodeType.Include,
+                InlineGraph = sub
+            };
+            include.OutputMap["flight_stick.damping"] = "inc_out_damping";
+            parent.Nodes["inc"] = include;
+            parent.Nodes["scoped"] = new GraphNode
+            {
+                Id = "scoped",
+                Type = NodeType.ConfigOut,
+                Name = "FlightStickPitch:flight_stick.damping",
+                Src = "inc_out_damping"
+            };
+
+            // Interpreter requires an IGraphResolver to traverse Include nodes,
+            // even when InlineGraph is set.
+            var resolver = new GraphIncludeResolver(AppContext.BaseDirectory);
+            var result = new GraphEvaluator(parent, resolver).EvaluateWithTrace(null, null);
+
+            return result.ConfigOutputs.TryGetValue("FlightStickPitch:flight_stick.damping", out var v) &&
+                   Math.Abs(v - 7.0) < 1e-9;
+        }
+
+        private static bool TestCompiledEval_ConfigOutBridgesThroughInclude()
+        {
+            // Same shape as the interpreter test, exercised through GraphCompiledEvaluator
+            // (the production path).
+            var sub = new GraphDefinition();
+            sub.Nodes["k"] = new GraphNode { Id = "k", Type = NodeType.Const, ConstValue = 7.0 };
+            sub.Nodes["cfg"] = new GraphNode
+            {
+                Id = "cfg",
+                Type = NodeType.ConfigOut,
+                Name = "flight_stick.damping",
+                Src = "k"
+            };
+
+            var parent = new GraphDefinition();
+            var include = new GraphNode
+            {
+                Id = "inc",
+                Type = NodeType.Include,
+                InlineGraph = sub
+            };
+            include.OutputMap["flight_stick.damping"] = "inc_out_damping";
+            parent.Nodes["inc"] = include;
+            parent.Nodes["scoped"] = new GraphNode
+            {
+                Id = "scoped",
+                Type = NodeType.ConfigOut,
+                Name = "FlightStickPitch:flight_stick.damping",
+                Src = "inc_out_damping"
+            };
+
+            var result = new GraphCompiledEvaluator(parent).EvaluateWithTrace(null, null);
+
+            return result.ConfigOutputs.TryGetValue("FlightStickPitch:flight_stick.damping", out var v) &&
+                   Math.Abs(v - 7.0) < 1e-9;
         }
 
         private static bool TestExtractInterface_ScopedOutputs()

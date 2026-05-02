@@ -365,10 +365,14 @@ namespace DiyFfb.GraphTest
                 subInputs[mapping.Key] = Resolve(mapping.Value);
             }
 
-            var subOutputs = new GraphEvaluator(subGraph, _resolver).Evaluate(subInputs, parameters);
+            // EvaluateWithTrace returns both Outputs and ConfigOutputs. The parent's
+            // OutputMap mixes both kinds (a FunctionScope Include exposes ConfigOut
+            // ports alongside Output ports), so we have to look in both dicts.
+            var subResult = new GraphEvaluator(subGraph, _resolver).EvaluateWithTrace(subInputs, parameters);
             foreach (var mapping in node.OutputMap)
             {
-                if (subOutputs.TryGetValue(mapping.Key, out var value))
+                if (subResult.Outputs.TryGetValue(mapping.Key, out var value) ||
+                    subResult.ConfigOutputs.TryGetValue(mapping.Key, out value))
                 {
                     _values[mapping.Value] = value;
                 }

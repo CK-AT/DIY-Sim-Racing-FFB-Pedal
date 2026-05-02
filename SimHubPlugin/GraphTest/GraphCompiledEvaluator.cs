@@ -757,7 +757,12 @@ namespace DiyFfb.GraphTest
                 }
             }
 
-            var outputs = evaluator.Evaluate(subInputs, subParams, _dt);
+            // Use EvaluateWithTrace so we can bridge BOTH Outputs and ConfigOutputs.
+            // The parent's Include OutputMap mixes both kinds — Evaluate(...) returns
+            // only Outputs, which silently drops sub-graph ConfigOut values and leaves
+            // the parent's scoped ConfigOut nodes reading 0.
+            var subResult = evaluator.EvaluateWithTrace(subInputs, subParams, _dt);
+            var outputs = subResult.Outputs;
 
             // Capture context for sub-graph preview (after evaluate so state is current)
             if (_contextCache != null && !string.IsNullOrEmpty(key) && !key.StartsWith("inline:"))
@@ -794,9 +799,13 @@ namespace DiyFfb.GraphTest
             {
                 string shortName = node.IncludeOutputNames[i];
                 string outputName = shortToFullOutput != null && shortToFullOutput.TryGetValue(shortName, out var fullOutName) ? fullOutName : shortName;
-                if (!outputs.TryGetValue(outputName, out var value))
+                // The OutputMap entry can refer to either an Output or a ConfigOut port
+                // in the sub-graph (parent treats them uniformly when wiring scoped
+                // outputs / config outputs from a FunctionScope Include).
+                if (!outputs.TryGetValue(outputName, out var value) &&
+                    !subResult.ConfigOutputs.TryGetValue(outputName, out value))
                 {
-                    warnings?.Add($"Include '{node.Node.Id}' output '{shortName}': no match for '{outputName}' in sub-graph outputs [{string.Join(", ", outputs.Keys)}]");
+                    warnings?.Add($"Include '{node.Node.Id}' output '{shortName}': no match for '{outputName}' in sub-graph outputs [{string.Join(", ", outputs.Keys)}] or configOutputs [{string.Join(", ", subResult.ConfigOutputs.Keys)}]");
                     continue;
                 }
                 int extraIndex = node.IncludeOutputIndices[i];
