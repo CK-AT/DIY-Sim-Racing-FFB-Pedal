@@ -1958,6 +1958,63 @@ namespace DiyFfb.GraphEditor
                 }
             }
 
+            // Param entries in _graph.Params are keyed by the resolved full signal name
+            // (Group.Suffix). When a Param node is pasted into a graph that already
+            // has an entry under the same key, the merge step below drops the cloned
+            // param — leaving the pasted node sharing the source's GraphParam object,
+            // so editing the copy mutates the source. Detect collisions up front and
+            // give the pasted Param nodes unique suffixes.
+            if (clipboardData.Params != null)
+            {
+                var pasteRemaps = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var node in clipboardData.Nodes.Where(n => n.Kind == GraphNodeKind.Param))
+                {
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
+                    {
+                        string oldFull = GetPortSignalName(node, port);
+                        if (string.IsNullOrEmpty(oldFull) || !_graph.Params.ContainsKey(oldFull))
+                            continue;
+
+                        // Reuse a remap already chosen for this name (e.g., several pasted
+                        // Param nodes share the same key — they should all migrate together).
+                        if (pasteRemaps.TryGetValue(oldFull, out var assigned))
+                        {
+                            string assignedSuffix = string.IsNullOrEmpty(node.SignalGroup)
+                                ? assigned
+                                : assigned.Substring(node.SignalGroup.Length + 1);
+                            port.SignalSuffix = assignedSuffix;
+                            port.Name = assignedSuffix;
+                            continue;
+                        }
+
+                        string baseSuffix = !string.IsNullOrEmpty(port.SignalSuffix) ? port.SignalSuffix : port.Name;
+                        if (string.IsNullOrEmpty(baseSuffix))
+                            continue;
+
+                        string newSuffix;
+                        string newFull;
+                        int n = 2;
+                        do
+                        {
+                            newSuffix = baseSuffix + "_" + n++;
+                            newFull = string.IsNullOrEmpty(node.SignalGroup) ? newSuffix : node.SignalGroup + "." + newSuffix;
+                        } while (_graph.Params.ContainsKey(newFull) || pasteRemaps.ContainsValue(newFull));
+
+                        port.SignalSuffix = newSuffix;
+                        port.Name = newSuffix;
+
+                        if (clipboardData.Params.TryGetValue(oldFull, out var clonedParam))
+                        {
+                            clonedParam.Name = newFull;
+                            clipboardData.Params.Remove(oldFull);
+                            clipboardData.Params[newFull] = clonedParam;
+                        }
+
+                        pasteRemaps[oldFull] = newFull;
+                    }
+                }
+            }
+
             // Merge params (don't overwrite existing params with same name)
             if (clipboardData.Params != null)
             {
@@ -3497,7 +3554,51 @@ namespace DiyFfb.GraphEditor
                 return;
             }
 
+            // For Param nodes, the param entries in _graph.Params are keyed by the
+            // resolved full signal name (Group.Suffix). Changing SignalGroup invalidates
+            // those keys, so rename them in lockstep — otherwise the old entries become
+            // orphans and SyncPortEntries below creates fresh defaulted entries under
+            // the new keys, dropping any user edits to defaults/min/max/UI metadata.
+            List<(string oldFull, string newFull)> paramRenames = null;
+            if (node.Kind == GraphNodeKind.Param)
+            {
+                paramRenames = new List<(string, string)>();
+                foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
+                {
+                    string oldFull = GetPortSignalName(node, port);
+                    string suffix = !string.IsNullOrEmpty(port.SignalSuffix) ? port.SignalSuffix : port.Name;
+                    if (string.IsNullOrEmpty(suffix))
+                        continue;
+                    string newFull = string.IsNullOrEmpty(selectedGroup) ? suffix : selectedGroup + "." + suffix;
+                    if (!string.IsNullOrEmpty(oldFull) && !string.Equals(oldFull, newFull, StringComparison.Ordinal))
+                    {
+                        paramRenames.Add((oldFull, newFull));
+                    }
+                }
+            }
+
             node.SignalGroup = selectedGroup;
+
+            if (paramRenames != null)
+            {
+                foreach (var (oldFull, newFull) in paramRenames)
+                {
+                    if (!_graph.Params.TryGetValue(oldFull, out var oldParam))
+                        continue;
+                    if (_graph.Params.ContainsKey(newFull))
+                    {
+                        // Another Param node already owns the new key — drop the old entry
+                        // rather than overwrite the existing metadata.
+                        _graph.Params.Remove(oldFull);
+                    }
+                    else
+                    {
+                        _graph.Params.Remove(oldFull);
+                        oldParam.Name = newFull;
+                        _graph.Params[newFull] = oldParam;
+                    }
+                }
+            }
 
             // Rebuild node visual to show new group and port labels
             RebuildSurface();
