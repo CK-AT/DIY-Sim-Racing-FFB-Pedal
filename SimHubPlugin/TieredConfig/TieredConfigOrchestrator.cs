@@ -219,8 +219,8 @@ namespace DiyFfb.TieredConfig
             if (_settings?.FunctionBaselines == null)
                 return;
 
-            // Migrate old flight stick baseline field names before deserialization
-            MigrateFlightStickBaselines();
+            // Migrate old flight-function baseline field names before deserialization
+            MigrateFlightFunctionBaselines();
 
             // Load all stored baselines into the manager
             foreach (var kvp in _settings.FunctionBaselines)
@@ -263,39 +263,54 @@ namespace DiyFfb.TieredConfig
         }
 
         /// <summary>
-        /// Migrate stored flight stick baselines from the old 3-field format
-        /// (flightStickPitch/flightStickRoll/flightStickCollective) to the
-        /// consolidated single-field format (flightStick). Idempotent.
+        /// Migrate stored flight-function baselines through every prior shape
+        /// to the current consolidated `flightControl` form. Idempotent.
+        /// History:
+        ///   1. flightStickPitch/flightStickRoll/flightStickCollective →
+        ///      flightStick (plan 02)
+        ///   2. flightStick + flightPedals → flightControl (plan 10)
+        ///   Plus pos_near_lim / pos_far_lim → pos_min / pos_max for the
+        ///   pedal motion range fields.
         /// </summary>
-        private void MigrateFlightStickBaselines()
+        private void MigrateFlightFunctionBaselines()
         {
-            // Flight stick function IDs: Pitch=5, Roll=6, Collective=8
-            int[] flightStickIds = { 5, 6, 8 };
-            foreach (int id in flightStickIds)
+            // All four flight FunctionIDs: FlightPedals=4, Pitch=5, Roll=6, Collective=8
+            int[] flightFunctionIds = { 4, 5, 6, 8 };
+            foreach (int id in flightFunctionIds)
             {
                 if (!_settings.FunctionBaselines.ContainsKey(id))
                     continue;
 
                 string json = _settings.FunctionBaselines[id];
-                string migrated = MigrateFlightStickJson(json);
+                string migrated = MigrateFlightControlJson(json);
                 if (migrated != json)
                     _settings.FunctionBaselines[id] = migrated;
             }
         }
 
         /// <summary>
-        /// Replace old flight stick oneof field names with consolidated name in JSON.
+        /// Rewrite legacy flight-function JSON shapes to the unified
+        /// flightControl form. Public for tests; idempotent.
         /// </summary>
-        public static string MigrateFlightStickJson(string json)
+        public static string MigrateFlightControlJson(string json)
         {
             if (json == null) return null;
-            // Replace old discriminator field names with new unified name
-            // These are mutually exclusive in a oneof, so only one will be present
             return json
-                .Replace("\"flightStickPitch\"", "\"flightStick\"")
-                .Replace("\"flightStickRoll\"", "\"flightStick\"")
-                .Replace("\"flightStickCollective\"", "\"flightStick\"");
+                // Plan 02 collapse (legacy 3-arm form)
+                .Replace("\"flightStickPitch\"", "\"flightControl\"")
+                .Replace("\"flightStickRoll\"", "\"flightControl\"")
+                .Replace("\"flightStickCollective\"", "\"flightControl\"")
+                // Plan 10 consolidation (FlightStick + FlightPedals → FlightControl)
+                .Replace("\"flightStick\"", "\"flightControl\"")
+                .Replace("\"flightPedals\"", "\"flightControl\"")
+                // FlightPedalsConfig used pos_near_lim / pos_far_lim; FlightControlConfig uses pos_min / pos_max
+                .Replace("\"posNearLim\"", "\"posMin\"")
+                .Replace("\"posFarLim\"", "\"posMax\"");
         }
+
+        // Backwards-compatible alias for tests/external callers that referenced
+        // the previous migration helper name.
+        public static string MigrateFlightStickJson(string json) => MigrateFlightControlJson(json);
 
         /// <summary>
         /// Get initial function config from manager (for UI initialization).

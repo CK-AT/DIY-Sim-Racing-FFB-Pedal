@@ -33,7 +33,7 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("MergeFunctionConfig_NullDelta_ReturnsBase", MergeFunctionConfig_NullDelta_ReturnsBase),
                 TestRunner.RunTest("MergeFunctionConfig_EmptyDelta_ReturnsBase", MergeFunctionConfig_EmptyDelta_ReturnsBase),
                 TestRunner.RunTest("MergeFunctionConfig_DoesNotMutateOriginal", MergeFunctionConfig_DoesNotMutateOriginal),
-                TestRunner.RunTest("MergeFunctionConfig_FlightPedalsOverrides_PreserveBaseline", MergeFunctionConfig_FlightPedalsOverrides_PreserveBaseline),
+                TestRunner.RunTest("MergeFunctionConfig_FlightControlOverrides_PreserveBaseline", MergeFunctionConfig_FlightControlOverrides_PreserveBaseline),
 
                 // Three-layer merge tests
                 TestRunner.RunTest("MergeAllLayers_UserWins", MergeAllLayers_UserWins),
@@ -52,9 +52,9 @@ namespace DiyFfb.TieredConfigTests
 
                 // Oneof preservation tests
                 TestRunner.RunTest("MergeFunctionConfig_AutomotivePedal_PreservesOneof", MergeFunctionConfig_AutomotivePedal_PreservesOneof),
-                TestRunner.RunTest("MergeFunctionConfig_FlightPedals_PreservesOneof", MergeFunctionConfig_FlightPedals_PreservesOneof),
-                TestRunner.RunTest("MergeFunctionConfig_FlightStickArmCreatedWhenOneofNone", MergeFunctionConfig_FlightStickArmCreatedWhenOneofNone),
-                TestRunner.RunTest("MergeFunctionConfig_FlightStickOverride_DoesNotClobberOtherArm", MergeFunctionConfig_FlightStickOverride_DoesNotClobberOtherArm),
+                TestRunner.RunTest("MergeFunctionConfig_FlightControl_PreservesOneof", MergeFunctionConfig_FlightControl_PreservesOneof),
+                TestRunner.RunTest("MergeFunctionConfig_FlightControlArmCreatedWhenOneofNone", MergeFunctionConfig_FlightControlArmCreatedWhenOneofNone),
+                TestRunner.RunTest("MergeFunctionConfig_FlightControlOverride_DoesNotClobberOtherArm", MergeFunctionConfig_FlightControlOverride_DoesNotClobberOtherArm),
             };
         }
 
@@ -299,33 +299,33 @@ namespace DiyFfb.TieredConfigTests
             AssertNear(originalMin, baseConfig.Base.OutputMin, 1e-6f, "Original base should not be mutated");
         }
 
-        private static void MergeFunctionConfig_FlightPedalsOverrides_PreserveBaseline()
+        private static void MergeFunctionConfig_FlightControlOverrides_PreserveBaseline()
         {
             var baseConfig = CreateFunctionConfig(outputMin: 0.0f, outputMax: 1.0f);
             baseConfig.Base.FunctionId = FunctionID.FlightPedals;
-            baseConfig.FlightPedals = new FlightPedalsConfig
+            baseConfig.FlightControl = new FlightControlConfig
             {
-                PosNearLim = 41,
-                PosFarLim = 91,
+                PosMin = 41,
+                PosMax = 91,
                 Damping = 0.7f,
                 CenteringSpringConst = 2.2f
             };
 
             var delta = new FunctionConfigOverrides
             {
-                FlightPedalsMotionRange = new MotionRangeOverrides
+                FlightControlMotionRange = new MotionRangeOverrides
                 {
-                    NearLim = 12
+                    Min = 12
                 }
             };
 
             var merged = ConfigMerger.MergeFunctionConfig(baseConfig, delta);
 
-            AssertTrue(merged.FlightPedals != null, "FlightPedals config should be preserved");
-            AssertEqual(12, merged.FlightPedals.PosNearLim, "PosNearLim should be overridden");
-            AssertEqual(91, merged.FlightPedals.PosFarLim, "PosFarLim should remain from baseline");
-            AssertNear(0.7f, merged.FlightPedals.Damping, 1e-6f, "Damping should remain from baseline");
-            AssertNear(2.2f, merged.FlightPedals.CenteringSpringConst, 1e-6f, "Centering spring should remain from baseline");
+            AssertTrue(merged.FlightControl != null, "FlightControl config should be preserved");
+            AssertEqual(12, merged.FlightControl.PosMin, "PosMin should be overridden");
+            AssertEqual(91, merged.FlightControl.PosMax, "PosMax should remain from baseline");
+            AssertNear(0.7f, merged.FlightControl.Damping, 1e-6f, "Damping should remain from baseline");
+            AssertNear(2.2f, merged.FlightControl.CenteringSpringConst, 1e-6f, "Centering spring should remain from baseline");
         }
 
         // === Three-Layer Merge Tests ===
@@ -488,8 +488,8 @@ namespace DiyFfb.TieredConfigTests
         // === Oneof Preservation Tests ===
 
         /// <summary>
-        /// Regression: FlightStickProcessor.ApplyOverrides used to create a new FlightStickConfig
-        /// when merged.FlightStick was null, clobbering the AutomotivePedal oneof arm.
+        /// Regression: FlightControlProcessor.ApplyOverrides used to create a new FlightControlConfig
+        /// when merged.FlightControl was null, clobbering the AutomotivePedal oneof arm.
         /// </summary>
         private static void MergeFunctionConfig_AutomotivePedal_PreservesOneof()
         {
@@ -513,19 +513,19 @@ namespace DiyFfb.TieredConfigTests
             AssertTrue(merged.AutomotivePedal != null, "AutomotivePedal oneof should be preserved after merge");
             AssertTrue(merged.SpecificCase == FunctionConfig.SpecificOneofCase.AutomotivePedal,
                 "SpecificCase should remain AutomotivePedal");
-            AssertTrue(merged.FlightStick == null, "FlightStick should be null for AutomotivePedal config");
+            AssertTrue(merged.FlightControl == null, "FlightControl should be null for AutomotivePedal config");
             AssertNear(10f, merged.AutomotivePedal.ForceCurveConfig.PosMin, 1e-6f, "Force curve override PosMin");
             AssertNear(0.05f, merged.AutomotivePedal.DamperConfig.PositiveFactor, 1e-6f, "Damper should be preserved from base");
         }
 
-        private static void MergeFunctionConfig_FlightPedals_PreservesOneof()
+        private static void MergeFunctionConfig_FlightControl_PreservesOneof()
         {
             var baseConfig = new FunctionConfig
             {
                 Base = new FunctionBase { FunctionId = FunctionID.FlightPedals, OutputMin = 0, OutputMax = 100 },
-                FlightPedals = new FlightPedalsConfig
+                FlightControl = new FlightControlConfig
                 {
-                    PosNearLim = 10, PosFarLim = 90, Damping = 0.1f
+                    PosMin = 10, PosMax = 90, Damping = 0.1f
                 }
             };
 
@@ -533,52 +533,51 @@ namespace DiyFfb.TieredConfigTests
 
             var merged = ConfigMerger.MergeFunctionConfig(baseConfig, delta);
 
-            AssertTrue(merged.FlightPedals != null, "FlightPedals oneof should be preserved after merge");
-            AssertTrue(merged.SpecificCase == FunctionConfig.SpecificOneofCase.FlightPedals,
-                "SpecificCase should remain FlightPedals");
-            AssertTrue(merged.FlightStick == null, "FlightStick should be null for FlightPedals config");
+            AssertTrue(merged.FlightControl != null, "FlightControl oneof should be preserved after merge");
+            AssertTrue(merged.SpecificCase == FunctionConfig.SpecificOneofCase.FlightControl,
+                "SpecificCase should remain FlightControl");
             AssertNear(2.0f, merged.SimulatedMass, 1e-6f, "SimulatedMass override should apply");
         }
 
-        // Regression: when ESP32 sends a FlightStickPitch baseline without the FlightStick
+        // Regression: when ESP32 sends a FlightStickPitch baseline without the FlightControl
         // oneof arm set (SpecificCase = None), graph-derived ConfigOut overrides for
         // vibration ratios were silently dropped because the processor refused to create
-        // the arm. The fix creates the arm when the oneof is None and FlightStick-specific
+        // the arm. The fix creates the arm when the oneof is None and FlightControl-specific
         // overrides are present.
-        private static void MergeFunctionConfig_FlightStickArmCreatedWhenOneofNone()
+        private static void MergeFunctionConfig_FlightControlArmCreatedWhenOneofNone()
         {
             var baseConfig = new FunctionConfig
             {
                 Base = new FunctionBase { FunctionId = FunctionID.FlightStickPitch, OutputMin = -100, OutputMax = 100 }
-                // Note: no FlightStick arm set — SpecificCase == None
+                // Note: no FlightControl arm set — SpecificCase == None
             };
             AssertTrue(baseConfig.SpecificCase == FunctionConfig.SpecificOneofCase.None,
                 "Baseline must have no oneof arm for this test");
 
             var delta = new FunctionConfigOverrides
             {
-                FlightStickVibHarmonicRatios = new float?[] { 1.0f, 2.0f, 3.0f, 5.0f, 10.0f },
-                FlightStickPhaseOffset = 90.0f
+                FlightControlVibHarmonicRatios = new float?[] { 1.0f, 2.0f, 3.0f, 5.0f, 10.0f },
+                FlightControlPhaseOffset = 90.0f
             };
 
             var merged = ConfigMerger.MergeFunctionConfig(baseConfig, delta);
 
-            AssertTrue(merged.FlightStick != null,
-                "FlightStick arm should be created when oneof is None and overrides present");
-            AssertTrue(merged.SpecificCase == FunctionConfig.SpecificOneofCase.FlightStick,
-                "SpecificCase should be FlightStick after arm creation");
-            AssertEqual(5, merged.FlightStick.VibHarmonicRatios.Count, "All 5 harm ratios should land");
-            AssertNear(1.0f, merged.FlightStick.VibHarmonicRatios[0], 1e-6f, "HarmRatio1");
-            AssertNear(2.0f, merged.FlightStick.VibHarmonicRatios[1], 1e-6f, "HarmRatio2");
-            AssertNear(3.0f, merged.FlightStick.VibHarmonicRatios[2], 1e-6f, "HarmRatio3");
-            AssertNear(5.0f, merged.FlightStick.VibHarmonicRatios[3], 1e-6f, "HarmRatio4");
-            AssertNear(10.0f, merged.FlightStick.VibHarmonicRatios[4], 1e-6f, "HarmRatio5");
+            AssertTrue(merged.FlightControl != null,
+                "FlightControl arm should be created when oneof is None and overrides present");
+            AssertTrue(merged.SpecificCase == FunctionConfig.SpecificOneofCase.FlightControl,
+                "SpecificCase should be FlightControl after arm creation");
+            AssertEqual(5, merged.FlightControl.VibHarmonicRatios.Count, "All 5 harm ratios should land");
+            AssertNear(1.0f, merged.FlightControl.VibHarmonicRatios[0], 1e-6f, "HarmRatio1");
+            AssertNear(2.0f, merged.FlightControl.VibHarmonicRatios[1], 1e-6f, "HarmRatio2");
+            AssertNear(3.0f, merged.FlightControl.VibHarmonicRatios[2], 1e-6f, "HarmRatio3");
+            AssertNear(5.0f, merged.FlightControl.VibHarmonicRatios[3], 1e-6f, "HarmRatio4");
+            AssertNear(10.0f, merged.FlightControl.VibHarmonicRatios[4], 1e-6f, "HarmRatio5");
         }
 
-        // Verifies the safety side: FlightStick overrides must NOT clobber a different
+        // Verifies the safety side: FlightControl overrides must NOT clobber a different
         // active oneof arm (e.g. AutomotivePedal). This case is what motivated the
-        // original "don't create FlightStick" guard — the new logic still respects it.
-        private static void MergeFunctionConfig_FlightStickOverride_DoesNotClobberOtherArm()
+        // original "don't create FlightControl" guard — the new logic still respects it.
+        private static void MergeFunctionConfig_FlightControlOverride_DoesNotClobberOtherArm()
         {
             var baseConfig = new FunctionConfig
             {
@@ -589,11 +588,11 @@ namespace DiyFfb.TieredConfigTests
                 }
             };
 
-            // Pathological delta: someone wired a FlightStick override onto a brake-pedal
+            // Pathological delta: someone wired a FlightControl override onto a brake-pedal
             // function (e.g. profile cross-contamination). Must not clobber.
             var delta = new FunctionConfigOverrides
             {
-                FlightStickVibHarmonicRatios = new float?[] { 1.0f, 2.0f, 3.0f, 5.0f, 10.0f }
+                FlightControlVibHarmonicRatios = new float?[] { 1.0f, 2.0f, 3.0f, 5.0f, 10.0f }
             };
 
             var merged = ConfigMerger.MergeFunctionConfig(baseConfig, delta);
@@ -601,7 +600,7 @@ namespace DiyFfb.TieredConfigTests
             AssertTrue(merged.AutomotivePedal != null, "AutomotivePedal arm must survive");
             AssertTrue(merged.SpecificCase == FunctionConfig.SpecificOneofCase.AutomotivePedal,
                 "SpecificCase must remain AutomotivePedal");
-            AssertTrue(merged.FlightStick == null, "FlightStick arm must NOT be created over an existing arm");
+            AssertTrue(merged.FlightControl == null, "FlightControl arm must NOT be created over an existing arm");
         }
 
         // === Helper Methods ===

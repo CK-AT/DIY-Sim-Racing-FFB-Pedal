@@ -136,6 +136,27 @@ namespace DiyFfb
         private DiyFfbPluginSettings.AircraftFfbProfile pendingFfbProfile;
         private bool hasPendingFfbProfile;
         private readonly HashSet<FunctionID> disabledOutputFunctions = new HashSet<FunctionID>();
+
+        // Safety damper state (plan 10 §3.7). Runtime-only, defaults to ENGAGED on every
+        // SimHub start. When engaged, FlightFFB frame emission is gated for all four
+        // flight functions; the ESP32 falls back to FlightControlConfig.damping (rest
+        // value) within ~200ms, holding the stick at safe damping until the user
+        // disengages via the FlightControl.SafetyDamperToggle action.
+        private bool _flightSafetyDamperEngaged = true;
+        private static readonly FunctionID[] _flightFunctionIds = new[] {
+            FunctionID.FlightStickPitch, FunctionID.FlightStickRoll,
+            FunctionID.FlightStickCollective, FunctionID.FlightPedals,
+        };
+        public event System.Action<bool> FlightSafetyDamperChanged;
+        public bool IsFlightSafetyDamperEngaged() => _flightSafetyDamperEngaged;
+        public void SetFlightSafetyDamperEngaged(bool engaged)
+        {
+            if (_flightSafetyDamperEngaged == engaged) return;
+            _flightSafetyDamperEngaged = engaged;
+            foreach (var fid in _flightFunctionIds)
+                SetFunctionOutputDisabled(fid, engaged);
+            try { FlightSafetyDamperChanged?.Invoke(engaged); } catch { }
+        }
         private readonly object outputDisableLock = new object();
         private readonly Queue<RotorRpmSample>[] rotorRpmHistory = new Queue<RotorRpmSample>[XPlaneMaxRotors];
         private int lastAutoRotorIndex = 0;
@@ -2283,17 +2304,15 @@ namespace DiyFfb
 
         /// <summary>
         /// Returns the center position (mm) for the given function, computed from its
-        /// FlightStick/FlightPedals config's (pos_min + pos_max) / 2.
+        /// FlightControl config's (pos_min + pos_max) / 2.
         /// </summary>
         internal double GetFunctionCenter(FunctionID functionId)
         {
             var config = _functionConfigManager.GetCurrentConfig((int)functionId);
             if (config == null) return 0.0;
 
-            if (config.FlightStick != null)
-                return (config.FlightStick.PosMin + config.FlightStick.PosMax) / 2.0;
-            if (config.FlightPedals != null)
-                return (config.FlightPedals.PosNearLim + config.FlightPedals.PosFarLim) / 2.0;
+            if (config.FlightControl != null)
+                return (config.FlightControl.PosMin + config.FlightControl.PosMax) / 2.0;
             return 0.0;
         }
 
@@ -3601,6 +3620,13 @@ namespace DiyFfb
             // Initialize manager with stored baselines and overrides
             _configOrchestrator.InitializeManagerFromSettings();
 
+            // Plan 10 §3.7: safety damper defaults to ENGAGED on every SimHub start.
+            // Force-apply by adding all four flight functions to the disabled-output set
+            // (the engaged-state field already defaults to true; the set is empty so we
+            // need to populate it explicitly here).
+            foreach (var fid in _flightFunctionIds)
+                SetFunctionOutputDisabled(fid, true);
+
             // Initialize DirectInput reader for grip button graph inputs
             _buttonInputReader = new ButtonInputReader();
 
@@ -3781,6 +3807,17 @@ namespace DiyFfb
                 Page_update_flag = true;
                 SimHub.Logging.Current.Info("PreviousPedal");
                 current_action = "Previous Pedal";
+            });
+            // Plan 10 §3.7: safety damper toggle. Single global action that flips
+            // frame-emission gating for all four flight functions together. Engaged
+            // = frames gated, ESP32 falls back to FlightControlConfig.damping (rest
+            // value). Disengaged = frames flow, per-frame k_damper authoritative.
+            this.AddAction("FlightControl.SafetyDamperToggle", (a, b) =>
+            {
+                bool nowEngaged = !_flightSafetyDamperEngaged;
+                SetFlightSafetyDamperEngaged(nowEngaged);
+                SimHub.Logging.Current.Info("FlightControl Safety Damper: " + (nowEngaged ? "ENGAGED" : "Disengaged"));
+                current_action = "Safety Damper " + (nowEngaged ? "On" : "Off");
             });
             this.AddAction("ABStoggle", (a, b) =>
             {

@@ -4565,8 +4565,9 @@ namespace DiyFfb.GraphEditor
             {
                 // Map ConfigType string to OverrideFieldGroup enum
                 TieredConfig.OverrideFieldGroup? typeGroup = null;
-                if (key == "FlightStick") typeGroup = TieredConfig.OverrideFieldGroup.FlightStick;
-                else if (key == "FlightPedals") typeGroup = TieredConfig.OverrideFieldGroup.FlightPedals;
+                if (key == "FlightControl") typeGroup = TieredConfig.OverrideFieldGroup.FlightControl;
+                // Legacy aliases — old saved graphs may still use these ConfigType names
+                else if (key == "FlightStick" || key == "FlightPedals") typeGroup = TieredConfig.OverrideFieldGroup.FlightControl;
 
                 // Include type-specific fields + shared fields
                 fields = TieredConfig.OverrideFieldRegistry.GetAllFields()

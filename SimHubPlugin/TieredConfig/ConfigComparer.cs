@@ -60,15 +60,12 @@ namespace DiyFfb.TieredConfig
                    AreEqual(a.StaticBalanceTuning, b.StaticBalanceTuning) &&
                    AreEqual(a.ForceCurve, b.ForceCurve) &&
                    AreEqual(a.DamperConfig, b.DamperConfig) &&
-                   AreEqual(a.FlightPedalsMotionRange, b.FlightPedalsMotionRange) &&
-                   NullableFloatEqual(a.FlightPedalsDamping, b.FlightPedalsDamping) &&
-                   NullableFloatEqual(a.FlightPedalsCenteringSpringConst, b.FlightPedalsCenteringSpringConst) &&
-                   AreEqual(a.FlightStickMotionRange, b.FlightStickMotionRange) &&
-                   NullableFloatEqual(a.FlightStickDamping, b.FlightStickDamping) &&
-                   NullableFloatEqual(a.FlightStickCenteringSpringConst, b.FlightStickCenteringSpringConst) &&
-                   NullableFloatEqual(a.FlightStickPhaseOffset, b.FlightStickPhaseOffset) &&
-                   NullableFloatArrayEqual(a.FlightStickVibHarmonicRatios, b.FlightStickVibHarmonicRatios) &&
-                   NullableFloatArrayEqual(a.FlightStickVib2HarmonicRatios, b.FlightStickVib2HarmonicRatios) &&
+                   AreEqual(a.FlightControlMotionRange, b.FlightControlMotionRange) &&
+                   NullableFloatEqual(a.FlightControlDamping, b.FlightControlDamping) &&
+                   NullableFloatEqual(a.FlightControlCenteringSpringConst, b.FlightControlCenteringSpringConst) &&
+                   NullableFloatEqual(a.FlightControlPhaseOffset, b.FlightControlPhaseOffset) &&
+                   NullableFloatArrayEqual(a.FlightControlVibHarmonicRatios, b.FlightControlVibHarmonicRatios) &&
+                   NullableFloatArrayEqual(a.FlightControlVib2HarmonicRatios, b.FlightControlVib2HarmonicRatios) &&
                    AreEqual(a.RudderBrakeForceRange, b.RudderBrakeForceRange) &&
                    AreEqual(a.AbsEffect, b.AbsEffect) &&
                    AreEqual(a.ShifterConfig, b.ShifterConfig) &&
@@ -109,9 +106,7 @@ namespace DiyFfb.TieredConfig
             if ((a == null || a.IsEmpty) && (b == null || b.IsEmpty)) return true;
             if (a == null || b == null) return false;
 
-            return NullableIntEqual(a.NearLim, b.NearLim) &&
-                   NullableIntEqual(a.FarLim, b.FarLim) &&
-                   NullableIntEqual(a.Min, b.Min) &&
+            return NullableIntEqual(a.Min, b.Min) &&
                    NullableIntEqual(a.Max, b.Max);
         }
 
@@ -138,7 +133,16 @@ namespace DiyFfb.TieredConfig
             if (a == null || b == null) return false;
 
             return AreEqual(a.Kinematics, b.Kinematics) &&
-                   AreEqual(a.StaticBalance, b.StaticBalance);
+                   AreEqual(a.StaticBalance, b.StaticBalance) &&
+                   AreEqualProto(a.OscillationGuard, b.OscillationGuard) &&
+                   NullableFloatEqual(a.MinDamping, b.MinDamping);
+        }
+
+        private static bool AreEqualProto(AxisConfig.Types.OscillationGuard a, AxisConfig.Types.OscillationGuard b)
+        {
+            if (a == null && b == null) return true;
+            if (a == null || b == null) return false;
+            return a.Equals(b);
         }
 
         /// <summary>

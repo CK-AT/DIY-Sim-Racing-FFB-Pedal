@@ -551,6 +551,7 @@ namespace DiyFfb
             Slider_physics_oversampling.Value = config.PhysicsIterationsPerSample;
 
             UpdateOscillationGuardUi(EnsureOscillationGuardConfig());
+            UpdateMinDampingUi();
             UpdateStaticBalanceUi(EnsureStaticBalanceConfig());
             UpdateStaticBalancePlot();
             if (LabelStaticBalanceStatus != null && staticBalanceSamples.Count == 0)
@@ -868,6 +869,42 @@ namespace DiyFfb
             }
 
             UpdateOscillationGuardUi(EnsureOscillationGuardConfig());
+        }
+
+        // === Min damping (axis-level safety damping floor, plan 10 §3.8) ===
+
+        private void MinDamping_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (config == null) return;
+            if (!TryParseFloat(TextMinDamping.Text, out float value)) return;
+            float clamped = Math.Max(0.0f, value);
+
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0 && plugin != null)
+            {
+                int axisId = (int)config.AxisId;
+                plugin.ConfigOrchestrator.UpdateAxisParameterOverride(_selectedFunctionId, axisId, overrides =>
+                {
+                    overrides.MinDamping = clamped;
+                });
+                OverrideChanged?.Invoke();
+            }
+            else
+            {
+                // AxisBase mode — write into the base config directly.
+                config.MinDamping = clamped;
+            }
+        }
+
+        private void MinDamping_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (config == null) return;
+            UpdateMinDampingUi();
+        }
+
+        private void UpdateMinDampingUi()
+        {
+            if (TextMinDamping == null || config == null) return;
+            TextMinDamping.Text = config.MinDamping.ToString("0.###", CultureInfo.CurrentCulture);
         }
 
         private void UpdateOscillationGuardUi(AxisConfig.Types.OscillationGuard guard)

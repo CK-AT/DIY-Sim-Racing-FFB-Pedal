@@ -191,6 +191,10 @@ message AxisConfig {
   OscillationGuard oscillation_guard = 17;
   // static balance curve and metadata
   StaticBalanceConfig static_balance_config = 18;
+  // axis-level safety damping floor in (N*s)/mm. Applied unconditionally by Sim
+  // at the integrator regardless of which function is active or what frames are
+  // flowing. 0 = no floor (default).
+  float min_damping = 19;
 }
 
 enum ControllerAxis {
@@ -451,23 +455,17 @@ message AuxFunctionConfig {
   }
 }
 
-message FlightPedalsConfig {
-   // pedal near position limit in mm
-  int32 pos_near_lim = 1;
-   // pedal far position limit in mm
-  int32 pos_far_lim = 2;
-  // damping in (N*s)/mm
-  float damping = 3;
-  // centering spring constant in N/mm
-  float centering_spring_const = 4;
-}
-
-message FlightStickConfig {
+// Unified config for all four flight functions: FlightStickPitch, FlightStickRoll,
+// FlightStickCollective, FlightPedals. Differentiated by FunctionID alone.
+// The damping field is the rest/safety value applied when no FlightFFB frames
+// flow; per-frame FlightFfbAction.k_damper is authoritative while frames are
+// flowing. AxisConfig.min_damping is the unconditional axis-level floor.
+message FlightControlConfig {
   // minimum position in mm
   int32 pos_min = 1;
   // maximum position in mm
   int32 pos_max = 2;
-  // damping in (N*s)/mm
+  // rest/safety damping in (N*s)/mm (applied when no FlightFFB frames flow)
   float damping = 3;
   // centering spring constant in N/mm
   float centering_spring_const = 4;
@@ -530,11 +528,14 @@ message FunctionConfig {
   FunctionBase base = 1;
   oneof specific {
     AutomotivePedalConfig automotive_pedal = 2;
-    FlightPedalsConfig flight_pedals = 3;
-    FlightStickConfig flight_stick = 7;
+    FlightControlConfig flight_control = 12;
     ShifterConfig shifter = 9;
   }
-  reserved 8, 11;
+  // Reserved tags from previous proto revisions:
+  //   3 = FlightPedalsConfig (subsumed by flight_control)
+  //   7 = FlightStickConfig (subsumed by flight_control)
+  //   8, 11 = unrelated historical reservations
+  reserved 3, 7, 8, 11;
   AuxFunctionConfig aux_function = 4;
   // simulated mass in kg
   float simulated_mass = 5;
@@ -618,14 +619,14 @@ message FlightFfbAction {
   // constant load force in N
   float load_force = 5;
   // DDS 1 amplitudes per slot, encoded as uint8 at 0.05 N/LSB (range 0..12.75 N).
-  // Slot semantics set by FlightStickConfig.vib_harmonic_ratios.
+  // Slot semantics set by FlightControlConfig.vib_harmonic_ratios.
   uint32 vib_amp_slot1 = 7;
   uint32 vib_amp_slot2 = 8;
   uint32 vib_amp_slot3 = 9;
   uint32 vib_amp_slot4 = 10;
   uint32 vib_amp_slot5 = 11;
   // DDS 2 amplitudes per slot, encoded as uint8 at 0.05 N/LSB.
-  // Slot semantics set by FlightStickConfig.vib2_harmonic_ratios.
+  // Slot semantics set by FlightControlConfig.vib2_harmonic_ratios.
   uint32 vib2_amp_slot1 = 12;
   uint32 vib2_amp_slot2 = 13;
 }

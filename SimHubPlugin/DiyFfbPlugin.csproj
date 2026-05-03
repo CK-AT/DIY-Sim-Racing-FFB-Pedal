@@ -299,8 +299,7 @@
     <Compile Include="TieredConfig\ConfigComparer.cs" />
     <Compile Include="TieredConfig\ConfigLayerProvider.cs" />
     <Compile Include="TieredConfig\AutomotivePedalProcessor.cs" />
-    <Compile Include="TieredConfig\FlightPedalsProcessor.cs" />
-    <Compile Include="TieredConfig\FlightStickProcessor.cs" />
+    <Compile Include="TieredConfig\FlightControlProcessor.cs" />
     <Compile Include="TieredConfig\ShifterProcessor.cs" />
     <Compile Include="TieredConfig\ConfigMerger.cs" />
     <Compile Include="TieredConfig\ConflictDetector.cs" />

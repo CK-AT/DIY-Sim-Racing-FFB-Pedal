@@ -130,6 +130,10 @@
                             <styles:SHToggleButton x:Name="Toggle_disable_outputs" Content="" Checked="Toggle_disable_outputs_Checked" Unchecked="Toggle_disable_outputs_Unchecked" IsChecked="False" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="Disable graph-based FFB outputs for this function (runtime only)" RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />
                             <Label Content="Disable Outputs" Height="20" Width="130" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
                         </StackPanel>
+                        <StackPanel Width="400" Height="30" Orientation="Horizontal">
+                            <styles:SHToggleButton x:Name="Toggle_safety_damper" Content="" Checked="Toggle_safety_damper_Checked" Unchecked="Toggle_safety_damper_Unchecked" IsChecked="True" FontSize="10" Width="35" Height="15" HorizontalAlignment="Left" FontFamily="Arial" ToolTip="When engaged, FlightFFB frame emission is gated for all four flight functions; ESP32 falls back to FlightControl.damping (rest/safety value). Bind FlightControl.SafetyDamperToggle in SimHub for a button." RenderTransformOrigin="0.5,0.5" Margin="-10,0,0,0" />
+                            <Label Content="Safety Damper Engaged (all flight functions)" Height="20" Width="280" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" HorizontalAlignment="Left" FontSize="10" Margin="4,0,0,0"/>
+                        </StackPanel>
                         <Grid Width="400" Margin="0,0,0,5">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="100"/>

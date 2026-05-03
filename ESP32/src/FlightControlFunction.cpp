@@ -1,7 +1,7 @@
-#include "FlightStickFunction.h"
+#include "FlightControlFunction.h"
 #include "LogOutput.h"
 
-FlightStickFunction::FlightStickFunction(void) {
+FlightControlFunction::FlightControlFunction(void) {
     disable();
     add_element(&centering_spring);
     add_element(&damper);
@@ -11,7 +11,7 @@ FlightStickFunction::FlightStickFunction(void) {
     add_element(&vib2);
 }
 
-void FlightStickFunction::update_config(const FlightStickConfig &config) {
+void FlightControlFunction::update_config(const FlightControlConfig &config) {
     _config = config;
     damper.set_k(_config.damping);
     centering_spring.set_k(_config.centering_spring_const);
@@ -26,7 +26,7 @@ void FlightStickFunction::update_config(const FlightStickConfig &config) {
     vib2.set_config(0.0f,
                     _config.vib2_harmonic_ratios,
                     (uint8_t)_config.vib2_harmonic_ratios_count);
-    LogOutput::printf("FlightStick DDS cfg: phase_offset=%.3f rad, vib1 ratios=[%.2f,%.2f,%.2f,%.2f,%.2f] (n=%u), vib2 ratios=[%.2f,%.2f] (n=%u)",
+    LogOutput::printf("FlightControl DDS cfg: phase_offset=%.3f rad, vib1 ratios=[%.2f,%.2f,%.2f,%.2f,%.2f] (n=%u), vib2 ratios=[%.2f,%.2f] (n=%u)",
                       _config.phase_offset,
                       _config.vib_harmonic_ratios[0], _config.vib_harmonic_ratios[1],
                       _config.vib_harmonic_ratios[2], _config.vib_harmonic_ratios[3],
@@ -36,12 +36,14 @@ void FlightStickFunction::update_config(const FlightStickConfig &config) {
                       (unsigned)_config.vib2_harmonic_ratios_count);
 }
 
-void FlightStickFunction::on_ffb_action(const FFBAction &ffb_action) {
+void FlightControlFunction::on_ffb_action(const FFBAction &ffb_action) {
     if (ffb_action.which_function != FFBAction_flight_ffb_tag) {
         return;
     }
     const FlightFfbAction &flight = ffb_action.function.flight_ffb;
-    damper.set_k(max(_config.damping, flight.k_damper));
+    // Frame is authoritative on damping. AxisConfig.min_damping enforces the
+    // unconditional safety floor at the Sim integrator (Physics.cpp).
+    damper.set_k(flight.k_damper);
     centering_spring.set_k(flight.k_spring);
     centering_spring.set_offset(_base_center + flight.trim_offset);
     buffet.set_amplitude(flight.buffet_amp);
@@ -58,12 +60,12 @@ void FlightStickFunction::on_ffb_action(const FFBAction &ffb_action) {
     _ffb_overridden = true;
 }
 
-void FlightStickFunction::on_dds_sync(uint8_t dds_index, float phase, float hz) {
+void FlightControlFunction::on_dds_sync(uint8_t dds_index, float phase, float hz) {
     if (dds_index == 0) vib1.on_sync(phase, hz);
     else if (dds_index == 1) vib2.on_sync(phase, hz);
 }
 
-void FlightStickFunction::update(const SimState &state, SimAccumulators &accum) {
+void FlightControlFunction::update(const SimState &state, SimAccumulators &accum) {
     if (_ffb_overridden) {
         uint32_t elapsed = millis() - _last_ffb_ms;
         if (elapsed > 200) {

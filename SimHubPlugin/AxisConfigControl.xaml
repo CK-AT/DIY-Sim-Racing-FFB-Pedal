@@ -206,6 +206,10 @@
                                         <Label Content="Ramp time (ms):" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0"/>
                                         <TextBox x:Name="TextOscRampMs" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="OscillationGuard_TextChanged" LostFocus="OscillationGuard_LostFocus"/>
                                     </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                        <Label Content="Min damping (N*s/mm):" FontSize="10" Width="140" VerticalContentAlignment="Center" Padding="0,0,5,0" ToolTip="Axis-level safety damping floor. Applied unconditionally by Sim regardless of which function is active or what frames are flowing. 0 = no floor."/>
+                                        <TextBox x:Name="TextMinDamping" Width="80" Height="20" FontSize="10" FontFamily="Arial" BorderThickness="0,0,0,0" Background="#00252525" Foreground="White" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="MinDamping_TextChanged" LostFocus="MinDamping_LostFocus" ToolTip="Axis-level safety damping floor in (N*s)/mm. Applied unconditionally by Sim. 0 = no floor."/>
+                                    </StackPanel>
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>

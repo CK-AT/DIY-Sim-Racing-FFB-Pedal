@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace DiyFfb.TieredConfig
 {
@@ -79,23 +81,82 @@ namespace DiyFfb.TieredConfig
         }
         public DamperConfigOverrides DamperConfig { get; set; }
 
-        // FlightPedals overrides
-        public MotionRangeOverrides FlightPedalsMotionRange { get; set; }
-        public float? FlightPedalsDamping { get; set; }
-        public float? FlightPedalsCenteringSpringConst { get; set; }
+        // FlightControl overrides — applies to all four flight functions
+        // (FlightStickPitch/Roll/Collective + FlightPedals; differentiation by FunctionID).
+        // Replaces the previous parallel FlightStick* / FlightPedals* property pairs.
+        public MotionRangeOverrides FlightControlMotionRange { get; set; }
+        public float? FlightControlDamping { get; set; }
+        public float? FlightControlCenteringSpringConst { get; set; }
 
-        // FlightStick overrides (Pitch/Roll/Collective all use same structure)
-        public MotionRangeOverrides FlightStickMotionRange { get; set; }
-        public float? FlightStickDamping { get; set; }
-        public float? FlightStickCenteringSpringConst { get; set; }
-
-        // FlightStick DDS vibration overrides (graph-driven via ConfigOut, Profile-tier).
+        // FlightControl DDS vibration overrides (graph-driven via ConfigOut, Profile-tier).
         // Per-slot scalar decomposition for repeated proto fields (see plan 07b).
-        // Phase offset is stored in DEGREES at this layer; FlightStickProcessor
+        // Phase offset is stored in DEGREES at this layer; FlightControlProcessor
         // converts to radians when writing the proto field.
-        public float? FlightStickPhaseOffset { get; set; }
-        public float?[] FlightStickVibHarmonicRatios { get; set; }   // length 5
-        public float?[] FlightStickVib2HarmonicRatios { get; set; }  // length 2
+        public float? FlightControlPhaseOffset { get; set; }
+        public float?[] FlightControlVibHarmonicRatios { get; set; }   // length 5
+        public float?[] FlightControlVib2HarmonicRatios { get; set; }  // length 2
+
+        // Legacy JSON property names from before plan 10's FlightControl consolidation.
+        // Captured by JsonExtensionData and migrated by OnDeserialized below.
+        // Setters never fire directly; deserializer routes here only via the extension-data dict.
+        [JsonExtensionData]
+        private IDictionary<string, JToken> _legacyExtensionData;
+
+        [OnDeserialized]
+        private void MigrateLegacyFlightOverrides(StreamingContext ctx)
+        {
+            if (_legacyExtensionData == null) return;
+
+            // Old name → new property assignment (only if the new property is unset,
+            // so a profile that already has both shapes prefers the new one).
+            void TakeMotionRange(string key, ref MotionRangeOverrides target)
+            {
+                if (target != null) return;
+                if (_legacyExtensionData.TryGetValue(key, out var token) && token != null && token.Type != JTokenType.Null)
+                    target = token.ToObject<MotionRangeOverrides>();
+            }
+            void TakeFloat(string key, ref float? target)
+            {
+                if (target.HasValue) return;
+                if (_legacyExtensionData.TryGetValue(key, out var token) && token != null && token.Type != JTokenType.Null)
+                    target = token.ToObject<float?>();
+            }
+            void TakeFloatArray(string key, ref float?[] target)
+            {
+                if (target != null && target.Any(x => x.HasValue)) return;
+                if (_legacyExtensionData.TryGetValue(key, out var token) && token != null && token.Type != JTokenType.Null)
+                    target = token.ToObject<float?[]>();
+            }
+
+            var motion = FlightControlMotionRange;
+            TakeMotionRange("FlightStickMotionRange", ref motion);
+            TakeMotionRange("FlightPedalsMotionRange", ref motion);
+            FlightControlMotionRange = motion;
+
+            var damping = FlightControlDamping;
+            TakeFloat("FlightStickDamping", ref damping);
+            TakeFloat("FlightPedalsDamping", ref damping);
+            FlightControlDamping = damping;
+
+            var spring = FlightControlCenteringSpringConst;
+            TakeFloat("FlightStickCenteringSpringConst", ref spring);
+            TakeFloat("FlightPedalsCenteringSpringConst", ref spring);
+            FlightControlCenteringSpringConst = spring;
+
+            var phase = FlightControlPhaseOffset;
+            TakeFloat("FlightStickPhaseOffset", ref phase);
+            FlightControlPhaseOffset = phase;
+
+            var vib = FlightControlVibHarmonicRatios;
+            TakeFloatArray("FlightStickVibHarmonicRatios", ref vib);
+            FlightControlVibHarmonicRatios = vib;
+
+            var vib2 = FlightControlVib2HarmonicRatios;
+            TakeFloatArray("FlightStickVib2HarmonicRatios", ref vib2);
+            FlightControlVib2HarmonicRatios = vib2;
+
+            _legacyExtensionData = null;  // don't re-serialize
+        }
 
         // RudderBrake overrides (aux_function in FlightPedals)
         public ForceRangeOverrides RudderBrakeForceRange { get; set; }
@@ -139,15 +200,12 @@ namespace DiyFfb.TieredConfig
             (StaticBalanceTuning == null || StaticBalanceTuning.IsEmpty) &&
             ForceCurve == null &&
             (DamperConfig == null || DamperConfig.IsEmpty) &&
-            (FlightPedalsMotionRange == null || FlightPedalsMotionRange.IsEmpty) &&
-            FlightPedalsDamping == null &&
-            FlightPedalsCenteringSpringConst == null &&
-            (FlightStickMotionRange == null || FlightStickMotionRange.IsEmpty) &&
-            FlightStickDamping == null &&
-            FlightStickCenteringSpringConst == null &&
-            FlightStickPhaseOffset == null &&
-            (FlightStickVibHarmonicRatios == null || FlightStickVibHarmonicRatios.All(r => r == null)) &&
-            (FlightStickVib2HarmonicRatios == null || FlightStickVib2HarmonicRatios.All(r => r == null)) &&
+            (FlightControlMotionRange == null || FlightControlMotionRange.IsEmpty) &&
+            FlightControlDamping == null &&
+            FlightControlCenteringSpringConst == null &&
+            FlightControlPhaseOffset == null &&
+            (FlightControlVibHarmonicRatios == null || FlightControlVibHarmonicRatios.All(r => r == null)) &&
+            (FlightControlVib2HarmonicRatios == null || FlightControlVib2HarmonicRatios.All(r => r == null)) &&
             (RudderBrakeForceRange == null || RudderBrakeForceRange.IsEmpty) &&
             AbsEffect == null &&
             ShifterConfig == null &&
@@ -178,18 +236,31 @@ namespace DiyFfb.TieredConfig
     }
 
     /// <summary>
-    /// Delta overlay for motion range (FlightPedals/FlightStick).
-    /// Stores position limits as a pair.
+    /// Delta overlay for FlightControl motion range. Stores position limits
+    /// as a pair (pos_min / pos_max in mm).
     /// </summary>
     public class MotionRangeOverrides
     {
-        public int? NearLim { get; set; }  // FlightPedals: pos_near_lim
-        public int? FarLim { get; set; }   // FlightPedals: pos_far_lim
-
         public int? Min { get; set; }
         public int? Max { get; set; }
 
-        public bool IsEmpty => NearLim == null && FarLim == null && Min == null && Max == null;
+        // Legacy JSON property names (FlightPedalsConfig used pos_near_lim / pos_far_lim).
+        // Captured by JsonExtensionData and migrated to Min / Max in OnDeserialized.
+        [JsonExtensionData]
+        private IDictionary<string, JToken> _legacy;
+
+        [OnDeserialized]
+        private void MigrateLegacy(StreamingContext ctx)
+        {
+            if (_legacy == null) return;
+            if (Min == null && _legacy.TryGetValue("NearLim", out var v) && v != null && v.Type != JTokenType.Null)
+                Min = v.ToObject<int?>();
+            if (Max == null && _legacy.TryGetValue("FarLim", out v) && v != null && v.Type != JTokenType.Null)
+                Max = v.ToObject<int?>();
+            _legacy = null;
+        }
+
+        public bool IsEmpty => Min == null && Max == null;
     }
 
     /// <summary>
@@ -282,9 +353,17 @@ namespace DiyFfb.TieredConfig
         }
 
         /// <summary>
+        /// Per-function override for AxisConfig.min_damping (axis-level safety
+        /// damping floor in (N*s)/mm, applied unconditionally by Sim at the
+        /// integrator). Nullable scalar overlay: non-null replaces the axis
+        /// baseline value when this function is active.
+        /// </summary>
+        public float? MinDamping { get; set; }
+
+        /// <summary>
         /// Returns true if no overrides are defined.
         /// </summary>
-        public bool IsEmpty => Kinematics == null && StaticBalance == null && OscillationGuard == null;
+        public bool IsEmpty => Kinematics == null && StaticBalance == null && OscillationGuard == null && MinDamping == null;
 
         /// <summary>
         /// Returns true if this override has any effective content.

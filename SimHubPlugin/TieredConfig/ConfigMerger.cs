@@ -44,6 +44,12 @@ namespace DiyFfb.TieredConfig
                 merged.OscillationGuard = overrides.OscillationGuard.Clone();
             }
 
+            // Scalar override for axis-level safety damping floor
+            if (overrides.MinDamping.HasValue)
+            {
+                merged.MinDamping = overrides.MinDamping.Value;
+            }
+
             return merged;
         }
 
@@ -88,14 +94,9 @@ namespace DiyFfb.TieredConfig
                 AutomotivePedalProcessor.ApplyOverrides(merged.AutomotivePedal, delta);
             }
 
-            // Merge FlightPedals-specific overrides
-            if (merged.FlightPedals != null)
-            {
-                FlightPedalsProcessor.ApplyOverrides(merged.FlightPedals, merged.AuxFunction, delta);
-            }
-
-            // Merge FlightStick-specific overrides (mode-specific)
-            FlightStickProcessor.ApplyOverrides(merged, delta);
+            // Merge FlightControl-specific overrides — applies to all four flight
+            // functions (FlightStickPitch/Roll/Collective + FlightPedals).
+            FlightControlProcessor.ApplyOverrides(merged, delta);
 
             // Merge Shifter-specific overrides
             ShifterProcessor.ApplyOverrides(merged, delta);
@@ -123,12 +124,10 @@ namespace DiyFfb.TieredConfig
                     AutomotivePedalProcessor.ReconcileDerivedFields(config);
                     break;
                 case FunctionID.FlightPedals:
-                    FlightPedalsProcessor.ReconcileDerivedFields(config);
-                    break;
                 case FunctionID.FlightStickPitch:
                 case FunctionID.FlightStickRoll:
                 case FunctionID.FlightStickCollective:
-                    FlightStickProcessor.ReconcileDerivedFields(config);
+                    FlightControlProcessor.ReconcileDerivedFields(config);
                     break;
                 case FunctionID.Shifter:
                     ShifterProcessor.ReconcileDerivedFields(config);

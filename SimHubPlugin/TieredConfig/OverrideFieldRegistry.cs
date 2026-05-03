@@ -25,8 +25,7 @@ namespace DiyFfb.TieredConfig
         ForceFeedback,
         Damper,
         AutomotivePedals,
-        FlightPedals,
-        FlightStick,
+        FlightControl,
         Shifter,
         Effects,
         AxisGeometry,
@@ -302,63 +301,75 @@ namespace DiyFfb.TieredConfig
                 }
             });
 
-            // === FlightPedals ===
+            // === FlightControl (unified for FlightStickPitch/Roll/Collective + FlightPedals) ===
 
             RegisterField(new OverrideFieldDefinition
             {
-                Name = "FlightPedalsMotionRange",
-                FieldPath = "FlightPedals.MotionRange",
-                Aliases = new[] { "flight_pedals.motion_range" },
+                Name = "FlightControlMotionRange",
+                FieldPath = "FlightControl.MotionRange",
+                Aliases = new[] {
+                    "flight_control.motion_range",
+                    "FlightStick.MotionRange", "flight_stick.motion_range",
+                    "FlightPedals.MotionRange", "flight_pedals.motion_range",
+                },
                 DisplayName = "Motion Range",
-                Tooltip = "Flight pedals motion range (near/far position limits in mm)",
+                Tooltip = "Flight control motion range (min/max position limits in mm)",
                 FieldType = OverrideFieldType.Complex,
-                Group = OverrideFieldGroup.FlightPedals,
+                Group = OverrideFieldGroup.FlightControl,
                 DefaultLayer = ConfigLayer.User,
-                HasValue = o => o.FlightPedalsMotionRange != null && !o.FlightPedalsMotionRange.IsEmpty,
-                GetValue = o => o.FlightPedalsMotionRange,
-                SetValue = (o, v) => o.FlightPedalsMotionRange = (MotionRangeOverrides)v,
-                ClearValue = o => o.FlightPedalsMotionRange = null,
+                HasValue = o => o.FlightControlMotionRange != null && !o.FlightControlMotionRange.IsEmpty,
+                GetValue = o => o.FlightControlMotionRange,
+                SetValue = (o, v) => o.FlightControlMotionRange = (MotionRangeOverrides)v,
+                ClearValue = o => o.FlightControlMotionRange = null,
                 FormatValue = (val) =>
                 {
                     var range = val as MotionRangeOverrides;
                     if (range == null) return "(not set)";
-                    return $"{range.NearLim ?? 0}-{range.FarLim ?? 0}mm";
+                    return $"{range.Min ?? 0}-{range.Max ?? 0}mm";
                 }
             });
 
             RegisterField(new OverrideFieldDefinition
             {
-                Name = "FlightPedalsDamping",
-                FieldPath = "FlightPedals.Damping",
-                Aliases = new[] { "flight_pedals.damping" },
+                Name = "FlightControlDamping",
+                FieldPath = "FlightControl.Damping",
+                Aliases = new[] {
+                    "flight_control.damping",
+                    "FlightStick.Damping", "flight_stick.damping",
+                    "FlightPedals.Damping", "flight_pedals.damping",
+                },
                 DisplayName = "Damping",
-                Tooltip = "Flight pedals damping ((N*s)/mm)",
+                Tooltip = "Flight control rest/safety damping ((N*s)/mm) — applied when no FlightFFB frames flow",
                 FieldType = OverrideFieldType.Float,
-                Group = OverrideFieldGroup.FlightPedals,
+                Group = OverrideFieldGroup.FlightControl,
                 DefaultLayer = ConfigLayer.User,
-                HasValue = o => o.FlightPedalsDamping.HasValue,
-                GetValue = o => o.FlightPedalsDamping,
-                SetValue = (o, v) => o.FlightPedalsDamping = (float?)v,
-                ClearValue = o => o.FlightPedalsDamping = null
+                HasValue = o => o.FlightControlDamping.HasValue,
+                GetValue = o => o.FlightControlDamping,
+                SetValue = (o, v) => o.FlightControlDamping = (float?)v,
+                ClearValue = o => o.FlightControlDamping = null
             });
 
             RegisterField(new OverrideFieldDefinition
             {
-                Name = "FlightPedalsCenteringSpringConst",
-                FieldPath = "FlightPedals.CenteringSpringConst",
-                Aliases = new[] { "flight_pedals.centering_spring_const" },
+                Name = "FlightControlCenteringSpringConst",
+                FieldPath = "FlightControl.CenteringSpringConst",
+                Aliases = new[] {
+                    "flight_control.centering_spring_const",
+                    "FlightStick.CenteringSpringConst", "flight_stick.centering_spring_const",
+                    "FlightPedals.CenteringSpringConst", "flight_pedals.centering_spring_const",
+                },
                 DisplayName = "Centering Spring Constant",
-                Tooltip = "Flight pedals centering spring constant (N/mm)",
+                Tooltip = "Flight control centering spring constant (N/mm)",
                 FieldType = OverrideFieldType.Float,
-                Group = OverrideFieldGroup.FlightPedals,
+                Group = OverrideFieldGroup.FlightControl,
                 DefaultLayer = ConfigLayer.User,
-                HasValue = o => o.FlightPedalsCenteringSpringConst.HasValue,
-                GetValue = o => o.FlightPedalsCenteringSpringConst,
-                SetValue = (o, v) => o.FlightPedalsCenteringSpringConst = (float?)v,
-                ClearValue = o => o.FlightPedalsCenteringSpringConst = null
+                HasValue = o => o.FlightControlCenteringSpringConst.HasValue,
+                GetValue = o => o.FlightControlCenteringSpringConst,
+                SetValue = (o, v) => o.FlightControlCenteringSpringConst = (float?)v,
+                ClearValue = o => o.FlightControlCenteringSpringConst = null
             });
 
-            // === RudderBrake (aux_function) ===
+            // === RudderBrake (aux_function on FlightPedals function) ===
 
             RegisterField(new OverrideFieldDefinition
             {
@@ -368,7 +379,7 @@ namespace DiyFfb.TieredConfig
                 DisplayName = "Rudder Brake Force Range",
                 Tooltip = "Rudder brake force range (min/max threshold in N)",
                 FieldType = OverrideFieldType.Complex,
-                Group = OverrideFieldGroup.FlightPedals,
+                Group = OverrideFieldGroup.FlightControl,
                 DefaultLayer = ConfigLayer.User,
                 HasValue = o => o.RudderBrakeForceRange != null && !o.RudderBrakeForceRange.IsEmpty,
                 GetValue = o => o.RudderBrakeForceRange,
@@ -382,78 +393,25 @@ namespace DiyFfb.TieredConfig
                 }
             });
 
-            // === FlightStick ===
+            // === FlightControl DDS vibration (graph-driven, Profile-tier) ===
 
             RegisterField(new OverrideFieldDefinition
             {
-                Name = "FlightStickMotionRange",
-                FieldPath = "FlightStick.MotionRange",
-                Aliases = new[] { "flight_stick.motion_range" },
-                DisplayName = "Motion Range",
-                Tooltip = "Flight stick motion range (min/max position limits in mm)",
-                FieldType = OverrideFieldType.Complex,
-                Group = OverrideFieldGroup.FlightStick,
-                DefaultLayer = ConfigLayer.User,
-                HasValue = o => o.FlightStickMotionRange != null && !o.FlightStickMotionRange.IsEmpty,
-                GetValue = o => o.FlightStickMotionRange,
-                SetValue = (o, v) => o.FlightStickMotionRange = (MotionRangeOverrides)v,
-                ClearValue = o => o.FlightStickMotionRange = null,
-                FormatValue = (val) =>
-                {
-                    var range = val as MotionRangeOverrides;
-                    if (range == null) return "(not set)";
-                    return $"{range.Min ?? 0}-{range.Max ?? 0}mm";
-                }
-            });
-
-            RegisterField(new OverrideFieldDefinition
-            {
-                Name = "FlightStickDamping",
-                FieldPath = "FlightStick.Damping",
-                Aliases = new[] { "flight_stick.damping" },
-                DisplayName = "Damping",
-                Tooltip = "Flight stick damping ((N*s)/mm)",
-                FieldType = OverrideFieldType.Float,
-                Group = OverrideFieldGroup.FlightStick,
-                DefaultLayer = ConfigLayer.User,
-                HasValue = o => o.FlightStickDamping.HasValue,
-                GetValue = o => o.FlightStickDamping,
-                SetValue = (o, v) => o.FlightStickDamping = (float?)v,
-                ClearValue = o => o.FlightStickDamping = null
-            });
-
-            RegisterField(new OverrideFieldDefinition
-            {
-                Name = "FlightStickCenteringSpringConst",
-                FieldPath = "FlightStick.CenteringSpringConst",
-                Aliases = new[] { "flight_stick.centering_spring_const" },
-                DisplayName = "Centering Spring Constant",
-                Tooltip = "Flight stick centering spring constant (N/mm)",
-                FieldType = OverrideFieldType.Float,
-                Group = OverrideFieldGroup.FlightStick,
-                DefaultLayer = ConfigLayer.User,
-                HasValue = o => o.FlightStickCenteringSpringConst.HasValue,
-                GetValue = o => o.FlightStickCenteringSpringConst,
-                SetValue = (o, v) => o.FlightStickCenteringSpringConst = (float?)v,
-                ClearValue = o => o.FlightStickCenteringSpringConst = null
-            });
-
-            // === FlightStick DDS vibration (graph-driven, Profile-tier) ===
-
-            RegisterField(new OverrideFieldDefinition
-            {
-                Name = "FlightStickPhaseOffset",
-                FieldPath = "FlightStick.Vib1Phase",
-                Aliases = new[] { "flight_stick.phase_offset" },
+                Name = "FlightControlPhaseOffset",
+                FieldPath = "FlightControl.Vib1Phase",
+                Aliases = new[] {
+                    "flight_control.phase_offset",
+                    "FlightStick.Vib1Phase", "flight_stick.phase_offset",
+                },
                 DisplayName = "Vib1 Phase Offset (deg)",
                 Tooltip = "Vibration phase offset in degrees (encodes axis + rotor handedness; 90° = roll, -90° = inverted)",
                 FieldType = OverrideFieldType.Float,
-                Group = OverrideFieldGroup.FlightStick,
+                Group = OverrideFieldGroup.FlightControl,
                 DefaultLayer = ConfigLayer.Profile,
-                HasValue = o => o.FlightStickPhaseOffset.HasValue,
-                GetValue = o => o.FlightStickPhaseOffset,
-                SetValue = (o, v) => o.FlightStickPhaseOffset = (float?)v,
-                ClearValue = o => o.FlightStickPhaseOffset = null
+                HasValue = o => o.FlightControlPhaseOffset.HasValue,
+                GetValue = o => o.FlightControlPhaseOffset,
+                SetValue = (o, v) => o.FlightControlPhaseOffset = (float?)v,
+                ClearValue = o => o.FlightControlPhaseOffset = null
             });
 
             for (int i = 0; i < 5; i++)
@@ -461,28 +419,32 @@ namespace DiyFfb.TieredConfig
                 int slot = i;  // capture
                 RegisterField(new OverrideFieldDefinition
                 {
-                    Name = $"FlightStickVib1HarmRatio{slot + 1}",
-                    FieldPath = $"FlightStick.Vib1HarmRatio{slot + 1}",
-                    Aliases = new[] { $"flight_stick.vib_harmonic_ratios.{slot}" },
+                    Name = $"FlightControlVib1HarmRatio{slot + 1}",
+                    FieldPath = $"FlightControl.Vib1HarmRatio{slot + 1}",
+                    Aliases = new[] {
+                        $"flight_control.vib_harmonic_ratios.{slot}",
+                        $"FlightStick.Vib1HarmRatio{slot + 1}",
+                        $"flight_stick.vib_harmonic_ratios.{slot}",
+                    },
                     DisplayName = $"Vib1 HarmRatio {slot + 1}",
                     Tooltip = $"DDS 1 slot {slot + 1} frequency ratio (multiplier on fundamental_hz)",
                     FieldType = OverrideFieldType.Float,
-                    Group = OverrideFieldGroup.FlightStick,
+                    Group = OverrideFieldGroup.FlightControl,
                     DefaultLayer = ConfigLayer.Profile,
-                    HasValue = o => o.FlightStickVibHarmonicRatios != null
-                                    && slot < o.FlightStickVibHarmonicRatios.Length
-                                    && o.FlightStickVibHarmonicRatios[slot].HasValue,
-                    GetValue = o => (o.FlightStickVibHarmonicRatios != null && slot < o.FlightStickVibHarmonicRatios.Length)
-                                    ? o.FlightStickVibHarmonicRatios[slot]
+                    HasValue = o => o.FlightControlVibHarmonicRatios != null
+                                    && slot < o.FlightControlVibHarmonicRatios.Length
+                                    && o.FlightControlVibHarmonicRatios[slot].HasValue,
+                    GetValue = o => (o.FlightControlVibHarmonicRatios != null && slot < o.FlightControlVibHarmonicRatios.Length)
+                                    ? o.FlightControlVibHarmonicRatios[slot]
                                     : null,
                     SetValue = (o, v) => {
-                        if (o.FlightStickVibHarmonicRatios == null)
-                            o.FlightStickVibHarmonicRatios = new float?[5];
-                        o.FlightStickVibHarmonicRatios[slot] = (float?)v;
+                        if (o.FlightControlVibHarmonicRatios == null)
+                            o.FlightControlVibHarmonicRatios = new float?[5];
+                        o.FlightControlVibHarmonicRatios[slot] = (float?)v;
                     },
                     ClearValue = o => {
-                        if (o.FlightStickVibHarmonicRatios != null && slot < o.FlightStickVibHarmonicRatios.Length)
-                            o.FlightStickVibHarmonicRatios[slot] = null;
+                        if (o.FlightControlVibHarmonicRatios != null && slot < o.FlightControlVibHarmonicRatios.Length)
+                            o.FlightControlVibHarmonicRatios[slot] = null;
                     }
                 });
             }
@@ -492,28 +454,32 @@ namespace DiyFfb.TieredConfig
                 int slot = i;
                 RegisterField(new OverrideFieldDefinition
                 {
-                    Name = $"FlightStickVib2HarmRatio{slot + 1}",
-                    FieldPath = $"FlightStick.Vib2HarmRatio{slot + 1}",
-                    Aliases = new[] { $"flight_stick.vib2_harmonic_ratios.{slot}" },
+                    Name = $"FlightControlVib2HarmRatio{slot + 1}",
+                    FieldPath = $"FlightControl.Vib2HarmRatio{slot + 1}",
+                    Aliases = new[] {
+                        $"flight_control.vib2_harmonic_ratios.{slot}",
+                        $"FlightStick.Vib2HarmRatio{slot + 1}",
+                        $"flight_stick.vib2_harmonic_ratios.{slot}",
+                    },
                     DisplayName = $"Vib2 HarmRatio {slot + 1}",
                     Tooltip = $"DDS 2 slot {slot + 1} frequency ratio (multiplier on fundamental_hz)",
                     FieldType = OverrideFieldType.Float,
-                    Group = OverrideFieldGroup.FlightStick,
+                    Group = OverrideFieldGroup.FlightControl,
                     DefaultLayer = ConfigLayer.Profile,
-                    HasValue = o => o.FlightStickVib2HarmonicRatios != null
-                                    && slot < o.FlightStickVib2HarmonicRatios.Length
-                                    && o.FlightStickVib2HarmonicRatios[slot].HasValue,
-                    GetValue = o => (o.FlightStickVib2HarmonicRatios != null && slot < o.FlightStickVib2HarmonicRatios.Length)
-                                    ? o.FlightStickVib2HarmonicRatios[slot]
+                    HasValue = o => o.FlightControlVib2HarmonicRatios != null
+                                    && slot < o.FlightControlVib2HarmonicRatios.Length
+                                    && o.FlightControlVib2HarmonicRatios[slot].HasValue,
+                    GetValue = o => (o.FlightControlVib2HarmonicRatios != null && slot < o.FlightControlVib2HarmonicRatios.Length)
+                                    ? o.FlightControlVib2HarmonicRatios[slot]
                                     : null,
                     SetValue = (o, v) => {
-                        if (o.FlightStickVib2HarmonicRatios == null)
-                            o.FlightStickVib2HarmonicRatios = new float?[2];
-                        o.FlightStickVib2HarmonicRatios[slot] = (float?)v;
+                        if (o.FlightControlVib2HarmonicRatios == null)
+                            o.FlightControlVib2HarmonicRatios = new float?[2];
+                        o.FlightControlVib2HarmonicRatios[slot] = (float?)v;
                     },
                     ClearValue = o => {
-                        if (o.FlightStickVib2HarmonicRatios != null && slot < o.FlightStickVib2HarmonicRatios.Length)
-                            o.FlightStickVib2HarmonicRatios[slot] = null;
+                        if (o.FlightControlVib2HarmonicRatios != null && slot < o.FlightControlVib2HarmonicRatios.Length)
+                            o.FlightControlVib2HarmonicRatios[slot] = null;
                     }
                 });
             }

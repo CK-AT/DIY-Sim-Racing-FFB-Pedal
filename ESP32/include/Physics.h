@@ -162,6 +162,15 @@ class Sim {
         void set_m(float val) {
             _m = val;
         }
+        // Axis-level safety damping floor in (N*s)/mm. Applied unconditionally
+        // to accum.k_damp_sum at the integrator before the stability cap.
+        // 0 = no floor (default).
+        void set_min_damping(float val) {
+            _min_damping = val < 0.0f ? 0.0f : val;
+        }
+        float get_min_damping(void) const {
+            return _min_damping;
+        }
         void set_x_min(float val, bool immediate = false) {
             _x_min_tgt = val;
             if (immediate) {
@@ -201,6 +210,7 @@ class Sim {
         float _a = 0.0;
         float _f_sum;
         float _dt_ms = 0.0f;
+        float _min_damping = 0.0f;
 };
 
 class CompoundElement : public SimElement {

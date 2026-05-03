@@ -92,13 +92,13 @@ namespace DiyFfb
                     new_config.AutomotivePedal = AutomotivePedalConfigControl.GetDefaultConfig();
                     break;
                 case FunctionID.FlightPedals:
-                    new_config.FlightPedals = FlightPedalsConfigControl.GetDefaultConfig();
-                    new_config.AuxFunction = FlightPedalsConfigControl.GetRudderBrakeDefaultConfig(); 
+                    new_config.FlightControl = FlightPedalsConfigControl.GetDefaultConfig();
+                    new_config.AuxFunction = FlightPedalsConfigControl.GetRudderBrakeDefaultConfig();
                     break;
                 case FunctionID.FlightStickPitch:
                 case FunctionID.FlightStickRoll:
                 case FunctionID.FlightStickCollective:
-                    new_config.FlightStick = FlightStickConfigControl.GetDefaultConfig();
+                    new_config.FlightControl = FlightStickConfigControl.GetDefaultConfig();
                     break;
                 case FunctionID.Shifter:
                     new_config.Shifter = ShifterConfigControl.GetDefaultConfig();

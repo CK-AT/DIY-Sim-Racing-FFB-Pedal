@@ -166,15 +166,17 @@ namespace DiyFfb.TieredConfig
                 case "friction": return config.Friction;
                 case "static_balance_tuning.enabled": return config.StaticBalanceTuning?.Enabled;
                 case "static_balance_tuning.gain": return config.StaticBalanceTuning?.Gain;
+                case "flight_control.motion_range":
                 case "flight_pedals.motion_range":
-                    return config.FlightPedals != null ? $"{config.FlightPedals.PosNearLim}-{config.FlightPedals.PosFarLim}mm" : null;
-                case "flight_pedals.damping": return config.FlightPedals?.Damping;
-                case "flight_pedals.centering_spring_const": return config.FlightPedals?.CenteringSpringConst;
                 case "flight_stick.motion_range":
-                    if (config.FlightStick != null) return $"{config.FlightStick.PosMin}-{config.FlightStick.PosMax}mm";
+                    if (config.FlightControl != null) return $"{config.FlightControl.PosMin}-{config.FlightControl.PosMax}mm";
                     return null;
-                case "flight_stick.damping": return config.FlightStick?.Damping;
-                case "flight_stick.centering_spring_const": return config.FlightStick?.CenteringSpringConst;
+                case "flight_control.damping":
+                case "flight_pedals.damping":
+                case "flight_stick.damping": return config.FlightControl?.Damping;
+                case "flight_control.centering_spring_const":
+                case "flight_pedals.centering_spring_const":
+                case "flight_stick.centering_spring_const": return config.FlightControl?.CenteringSpringConst;
                 case "aux_function.rudder_brake.force_range":
                     return config.AuxFunction?.RudderBrake != null ? $"{config.AuxFunction.RudderBrake.FMin:F1}-{config.AuxFunction.RudderBrake.FMax:F1}N" : null;
                 case "force_curve": return config.AutomotivePedal?.ForceCurveConfig;
@@ -261,54 +263,35 @@ namespace DiyFfb.TieredConfig
                         target.AutomotivePedal.DamperConfig.NegativeFactor = source.AutomotivePedal.DamperConfig.NegativeFactor;
                     }
                     break;
+                case "flight_control.motion_range":
                 case "flight_pedals.motion_range":
-                    if (source.FlightPedals != null)
-                    {
-                        if (target.FlightPedals == null)
-                            target.FlightPedals = new FlightPedalsConfig();
-                        target.FlightPedals.PosNearLim = source.FlightPedals.PosNearLim;
-                        target.FlightPedals.PosFarLim = source.FlightPedals.PosFarLim;
-                    }
-                    break;
-                case "flight_pedals.damping":
-                    if (source.FlightPedals != null)
-                    {
-                        if (target.FlightPedals == null)
-                            target.FlightPedals = new FlightPedalsConfig();
-                        target.FlightPedals.Damping = source.FlightPedals.Damping;
-                    }
-                    break;
-                case "flight_pedals.centering_spring_const":
-                    if (source.FlightPedals != null)
-                    {
-                        if (target.FlightPedals == null)
-                            target.FlightPedals = new FlightPedalsConfig();
-                        target.FlightPedals.CenteringSpringConst = source.FlightPedals.CenteringSpringConst;
-                    }
-                    break;
                 case "flight_stick.motion_range":
-                    if (source.FlightStick != null)
+                    if (source.FlightControl != null)
                     {
-                        if (target.FlightStick == null)
-                            target.FlightStick = new FlightStickConfig();
-                        target.FlightStick.PosMin = source.FlightStick.PosMin;
-                        target.FlightStick.PosMax = source.FlightStick.PosMax;
+                        if (target.FlightControl == null)
+                            target.FlightControl = new FlightControlConfig();
+                        target.FlightControl.PosMin = source.FlightControl.PosMin;
+                        target.FlightControl.PosMax = source.FlightControl.PosMax;
                     }
                     break;
+                case "flight_control.damping":
+                case "flight_pedals.damping":
                 case "flight_stick.damping":
-                    if (source.FlightStick != null)
+                    if (source.FlightControl != null)
                     {
-                        if (target.FlightStick == null)
-                            target.FlightStick = new FlightStickConfig();
-                        target.FlightStick.Damping = source.FlightStick.Damping;
+                        if (target.FlightControl == null)
+                            target.FlightControl = new FlightControlConfig();
+                        target.FlightControl.Damping = source.FlightControl.Damping;
                     }
                     break;
+                case "flight_control.centering_spring_const":
+                case "flight_pedals.centering_spring_const":
                 case "flight_stick.centering_spring_const":
-                    if (source.FlightStick != null)
+                    if (source.FlightControl != null)
                     {
-                        if (target.FlightStick == null)
-                            target.FlightStick = new FlightStickConfig();
-                        target.FlightStick.CenteringSpringConst = source.FlightStick.CenteringSpringConst;
+                        if (target.FlightControl == null)
+                            target.FlightControl = new FlightControlConfig();
+                        target.FlightControl.CenteringSpringConst = source.FlightControl.CenteringSpringConst;
                     }
                     break;
                 case "aux_function.rudder_brake.force_range":

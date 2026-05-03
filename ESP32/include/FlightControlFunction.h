@@ -1,30 +1,31 @@
 #pragma once
-#include "ABSOscillation.h"
 #include "Arduino.h"
 #include "ConfigManager.h"
-#include "ForceCurve.h"
 #include "IFunction.h"
 #include "Physics.h"
 
-class FlightPedalsFunction : public IFunction {
+class FlightControlFunction : public IFunction {
     public:
-        FlightPedalsFunction(void);
-        void update_config(const FlightPedalsConfig &config);
+        FlightControlFunction(void);
+        void update_config(const FlightControlConfig &config);
         void update(const SimState &state, SimAccumulators &accum) override;
         float get_x_contact_point_min(void) override {
-            return _config.pos_near_lim;
+            return _config.pos_min;
         }
         float get_x_contact_point_max(void) override {
-            return _config.pos_far_lim;
+            return _config.pos_max;
         }
         void on_ffb_action(const FFBAction &ffb_action) override;
+        void on_dds_sync(uint8_t dds_index, float phase, float hz) override;
 
     private:
-        Spring centering_spring = Spring(0.0, 0.0);
-        Damper damper = Damper(1.0);
+        Spring centering_spring = Spring(0.0f, 0.0f);
+        Damper damper = Damper(1.0f);
         Buffet buffet = Buffet(0.0f);
         ConstForce load_force = ConstForce(0.0f);
-        FlightPedalsConfig _config = FlightPedalsConfig_init_default;
+        SyncVib vib1;
+        SyncVib vib2;
+        FlightControlConfig _config = FlightControlConfig_init_zero;
         float _base_center = 0.0f;
         uint32_t _last_ffb_ms = 0;
         bool _ffb_overridden = false;

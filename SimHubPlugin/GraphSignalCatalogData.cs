@@ -143,17 +143,17 @@ namespace DiyFfb
             "Shared.Vib2Fund"
         };
 
-        // ConfigType options for ConfigOut nodes
+        // ConfigType options for ConfigOut nodes (post-plan-10 consolidation)
         public static readonly IReadOnlyList<string> ConfigTypeOptions = new[]
         {
             "",
-            "FlightStick",
-            "FlightPedals"
+            "FlightControl"
         };
 
         /// <summary>
-        /// Maps a FunctionScope value to the config type it implies.
-        /// E.g., "FlightStickPitch" → "FlightStick", "FlightPedals" → "FlightPedals".
+        /// Maps a FunctionScope value to the config type it implies. After the
+        /// FlightControl consolidation (plan 10), all four flight scopes share
+        /// the same config type.
         /// </summary>
         public static string GetConfigTypeForScope(string functionScope)
         {
@@ -162,9 +162,8 @@ namespace DiyFfb
                 case "FlightStickPitch":
                 case "FlightStickRoll":
                 case "FlightStickCollective":
-                    return "FlightStick";
                 case "FlightPedals":
-                    return "FlightPedals";
+                    return "FlightControl";
                 default:
                     return "";
             }

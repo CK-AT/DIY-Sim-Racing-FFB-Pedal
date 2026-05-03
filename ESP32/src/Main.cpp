@@ -30,16 +30,14 @@
 void physics_task_func(void *pv_parameters);
 
 #include "AutomotivePedalFunction.h"
-#include "FlightPedalsFunction.h"
-#include "FlightStickFunction.h"
+#include "FlightControlFunction.h"
 #include "RudderBrake.h"
 #include "ShifterDetect.h"
 #include "ShifterFunction.h"
 #include "GripReader.h"
 
 AutomotivePedalFunction automotive_pedal_function = {};
-FlightPedalsFunction flight_pedals_function = {};
-FlightStickFunction flight_stick_function = {};
+FlightControlFunction flight_control_function = {};
 RudderBrake rudder_brake = {};
 ShifterDetect shifter_detect = {};
 ShifterFunction shifter_function = {};
@@ -230,6 +228,7 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
         servo->set_homing_direction(to_homing_direction(axis_cfg));
     }
     apply_oscillation_guard_config(axis_cfg);
+    sim.set_min_damping(axis_cfg ? max(axis_cfg->min_damping, 0.0f) : 0.0f);
 
     if (active_function) {
         active_function->disable();
@@ -241,13 +240,9 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
                 automotive_pedal_function.update_config(function_cfg->specific.automotive_pedal);
                 active_function = &automotive_pedal_function;
                 break;
-            case FunctionConfig_flight_pedals_tag:
-                flight_pedals_function.update_config(function_cfg->specific.flight_pedals);
-                active_function = &flight_pedals_function;
-                break;
-            case FunctionConfig_flight_stick_tag:
-                flight_stick_function.update_config(function_cfg->specific.flight_stick);
-                active_function = &flight_stick_function;
+            case FunctionConfig_flight_control_tag:
+                flight_control_function.update_config(function_cfg->specific.flight_control);
+                active_function = &flight_control_function;
                 break;
             case FunctionConfig_shifter_tag:
                 shifter_function.update_config(function_cfg->specific.shifter, function_cfg->aux_function.specific.shifter_detect, comm_manager, function_cfg->base.linked_axes);
@@ -385,8 +380,7 @@ void setup() {
         }
 
         function_elements.add_element(&automotive_pedal_function);
-        function_elements.add_element(&flight_pedals_function);
-        function_elements.add_element(&flight_stick_function);
+        function_elements.add_element(&flight_control_function);
         function_elements.add_element(&shifter_function);
         sim.add_element(&static_balancer);
         sim.add_element(&function_elements);

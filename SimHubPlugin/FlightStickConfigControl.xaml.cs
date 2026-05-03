@@ -21,7 +21,7 @@ namespace DiyFfb
         private FunctionConfig function_config = new FunctionConfig();
         private Function function;
         private FunctionID current_function_id;
-        private FlightStickConfig stick_config;
+        private FlightControlConfig stick_config;
         private bool is_updating = true;
         private bool allowOverrideCreation = false;  // Only true after initial load stabilizes
         private DispatcherTimer xplaneTimer;
@@ -67,6 +67,7 @@ namespace DiyFfb
             if (plugin != null)
             {
                 _graphParamHelper.Subscribe();
+                plugin.FlightSafetyDamperChanged += OnSafetyDamperChanged;
 
                 if (IsLoaded)
                     _badgeHelper.Subscribe();
@@ -75,6 +76,16 @@ namespace DiyFfb
             is_updating = false;
             StartXPlaneTimer();
             _graphParamHelper.Refresh();
+        }
+
+        private void OnSafetyDamperChanged(bool engaged)
+        {
+            if (Toggle_safety_damper == null) return;
+            Dispatcher.BeginInvoke(new Action(() => {
+                isUpdatingOutputToggle = true;
+                Toggle_safety_damper.IsChecked = engaged;
+                isUpdatingOutputToggle = false;
+            }));
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -111,8 +122,8 @@ namespace DiyFfb
                         label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
                         break;
 
-                    case "flight_stick.motion_range":
-                        var mergedStick = mergedConfig.FlightStick;
+                    case "flight_control.motion_range":
+                        var mergedStick = mergedConfig.FlightControl;
                         if (mergedStick != null)
                         {
                             stick_config.PosMin = mergedStick.PosMin;
@@ -124,7 +135,7 @@ namespace DiyFfb
                             }
                             deferUnlock = true;
                         }
-                        TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
+                        TieredConfig.FlightControlProcessor.ReconcileDerivedFields(function_config);
                         if (Label_min_pos != null)
                             Label_min_pos.Content = String.Format("Min\n{0}mm", stick_config.PosMin);
                         if (Label_max_pos != null)
@@ -132,21 +143,21 @@ namespace DiyFfb
                         _travelHelper?.UpdateTravelMarkers();
                         break;
 
-                    case "flight_stick.damping":
-                        if (mergedConfig.FlightStick != null)
+                    case "flight_control.damping":
+                        if (mergedConfig.FlightControl != null)
                         {
-                            stick_config.Damping = mergedConfig.FlightStick.Damping;
-                            Slider_damping.Value = mergedConfig.FlightStick.Damping;
-                            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", mergedConfig.FlightStick.Damping);
+                            stick_config.Damping = mergedConfig.FlightControl.Damping;
+                            Slider_damping.Value = mergedConfig.FlightControl.Damping;
+                            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", mergedConfig.FlightControl.Damping);
                         }
                         break;
 
-                    case "flight_stick.centering_spring_const":
-                        if (mergedConfig.FlightStick != null)
+                    case "flight_control.centering_spring_const":
+                        if (mergedConfig.FlightControl != null)
                         {
-                            stick_config.CenteringSpringConst = mergedConfig.FlightStick.CenteringSpringConst;
-                            Slider_centering_spring_const.Value = mergedConfig.FlightStick.CenteringSpringConst;
-                            label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", mergedConfig.FlightStick.CenteringSpringConst);
+                            stick_config.CenteringSpringConst = mergedConfig.FlightControl.CenteringSpringConst;
+                            Slider_centering_spring_const.Value = mergedConfig.FlightControl.CenteringSpringConst;
+                            label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", mergedConfig.FlightControl.CenteringSpringConst);
                         }
                         break;
 
@@ -217,9 +228,9 @@ namespace DiyFfb
             }
         }
 
-        public static FlightStickConfig GetDefaultConfig()
+        public static FlightControlConfig GetDefaultConfig()
         {
-            return new FlightStickConfig
+            return new FlightControlConfig
             {
                 PosMin = -50,
                 PosMax = 50,
@@ -230,9 +241,9 @@ namespace DiyFfb
 
         private void EnsureConfigInitialized()
         {
-            if (function_config.FlightStick == null)
-                function_config.FlightStick = GetDefaultConfig();
-            stick_config = function_config.FlightStick;
+            if (function_config.FlightControl == null)
+                function_config.FlightControl = GetDefaultConfig();
+            stick_config = function_config.FlightControl;
         }
 
         public void SwitchFunction(Function function)
@@ -272,7 +283,7 @@ namespace DiyFfb
 
             Rangeslider_travel_range.LowerValue = sub.PosMin;
             Rangeslider_travel_range.UpperValue = sub.PosMax;
-            TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
+            TieredConfig.FlightControlProcessor.ReconcileDerivedFields(function_config);
             _travelHelper?.UpdateTrimCenter(plugin, current_function_id);
             _travelHelper?.UpdateTravelMarkers();
             is_updating = false;
@@ -330,17 +341,17 @@ namespace DiyFfb
                 var oldValue = activeSub.PosMin;
 
                 activeSub.PosMin = newValue;
-                TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
+                TieredConfig.FlightControlProcessor.ReconcileDerivedFields(function_config);
 
                 // Create override for badge system (only after init stabilizes, baseline exists, AND value changed)
                 if (allowOverrideCreation && newValue != oldValue && plugin != null && function != null && plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
                 {
-                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_stick.motion_range",
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_control.motion_range",
                         overrides =>
                         {
-                            if (overrides.FlightStickMotionRange == null)
-                                overrides.FlightStickMotionRange = new TieredConfig.MotionRangeOverrides();
-                            overrides.FlightStickMotionRange.Min = newValue;
+                            if (overrides.FlightControlMotionRange == null)
+                                overrides.FlightControlMotionRange = new TieredConfig.MotionRangeOverrides();
+                            overrides.FlightControlMotionRange.Min = newValue;
                         });
                 }
             }
@@ -365,17 +376,17 @@ namespace DiyFfb
                 var oldValue = activeSub.PosMax;
 
                 activeSub.PosMax = newValue;
-                TieredConfig.FlightStickProcessor.ReconcileDerivedFields(function_config);
+                TieredConfig.FlightControlProcessor.ReconcileDerivedFields(function_config);
 
                 // Create override for badge system (only after init stabilizes, baseline exists, AND value changed)
                 if (allowOverrideCreation && newValue != oldValue && plugin != null && function != null && plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
                 {
-                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_stick.motion_range",
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_control.motion_range",
                         overrides =>
                         {
-                            if (overrides.FlightStickMotionRange == null)
-                                overrides.FlightStickMotionRange = new TieredConfig.MotionRangeOverrides();
-                            overrides.FlightStickMotionRange.Max = newValue;
+                            if (overrides.FlightControlMotionRange == null)
+                                overrides.FlightControlMotionRange = new TieredConfig.MotionRangeOverrides();
+                            overrides.FlightControlMotionRange.Max = newValue;
                         });
                 }
             }
@@ -396,8 +407,8 @@ namespace DiyFfb
             if (allowOverrideCreation && plugin != null && function != null &&
                 plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_stick.damping",
-                    overrides => overrides.FlightStickDamping = newValue);
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_control.damping",
+                    overrides => overrides.FlightControlDamping = newValue);
             }
         }
 
@@ -411,8 +422,8 @@ namespace DiyFfb
             if (allowOverrideCreation && plugin != null && function != null &&
                 plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_stick.centering_spring_const",
-                    overrides => overrides.FlightStickCenteringSpringConst = newValue);
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_control.centering_spring_const",
+                    overrides => overrides.FlightControlCenteringSpringConst = newValue);
             }
         }
 
@@ -461,6 +472,8 @@ namespace DiyFfb
             bool disabled = plugin != null && plugin.IsFunctionOutputDisabled(current_function_id);
             isUpdatingOutputToggle = true;
             Toggle_disable_outputs.IsChecked = disabled;
+            if (Toggle_safety_damper != null && plugin != null)
+                Toggle_safety_damper.IsChecked = plugin.IsFlightSafetyDamperEngaged();
             isUpdatingOutputToggle = false;
         }
 
@@ -482,6 +495,18 @@ namespace DiyFfb
             }
 
             plugin?.SetFunctionOutputDisabled(current_function_id, disabled);
+        }
+
+        private void Toggle_safety_damper_Checked(object sender, RoutedEventArgs e)
+        {
+            if (isUpdatingOutputToggle || is_updating) return;
+            plugin?.SetFlightSafetyDamperEngaged(true);
+        }
+
+        private void Toggle_safety_damper_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (isUpdatingOutputToggle || is_updating) return;
+            plugin?.SetFlightSafetyDamperEngaged(false);
         }
 
         private void UpdateXPlaneTelemetry()

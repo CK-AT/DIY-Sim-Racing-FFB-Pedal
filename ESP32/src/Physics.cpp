@@ -161,10 +161,18 @@ void Sim::update(float &dt, float &f_in, bool final_f) {
     _x_min += constrain(_x_min_tgt - _x_min, -20.0 * dt / 1000.0, 20.0 * dt / 1000.0);
     _x_max += constrain(_x_max_tgt - _x_max, -20.0 * dt / 1000.0, 20.0 * dt / 1000.0);
 
+    // Axis-level safety damping floor (AxisConfig.min_damping). Applied
+    // unconditionally regardless of which function is active or what frames
+    // are flowing — the safety net for resonance-prone setups.
+    if (_min_damping > 0.0f) {
+        accum.k_damp_sum = max(accum.k_damp_sum, _min_damping);
+    }
     float k_limit = 0.0f;
     if (dt > 0.0f && _m > 0.0f) {
         k_limit = 1.9f * _m / dt;
     }
+    // Stability cap comes after the floor so a misconfigured floor cannot
+    // violate the integrator stability bound.
     if (k_limit > 0.0f) {
         accum.k_damp_sum = min(accum.k_damp_sum, k_limit);
     }

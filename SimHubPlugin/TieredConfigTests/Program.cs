@@ -23,18 +23,11 @@ namespace DiyFfb.TieredConfigTests
             if (!processorResults.TrueForAll(r => r.Passed))
                 allPassed = false;
 
-            // Run FlightPedalsProcessor tests
-            var flightPedalsResults = FlightPedalsProcessorTests.RunAll();
-            TestRunner.PrintResults("FlightPedalsProcessor", flightPedalsResults);
-            allResults.AddRange(flightPedalsResults);
-            if (!flightPedalsResults.TrueForAll(r => r.Passed))
-                allPassed = false;
-
-            // Run FlightStickProcessor tests
-            var flightStickResults = FlightStickProcessorTests.RunAll();
-            TestRunner.PrintResults("FlightStickProcessor", flightStickResults);
-            allResults.AddRange(flightStickResults);
-            if (!flightStickResults.TrueForAll(r => r.Passed))
+            // Run FlightControlProcessor tests (covers Pitch/Roll/Collective + Pedals)
+            var flightControlResults = FlightControlProcessorTests.RunAll();
+            TestRunner.PrintResults("FlightControlProcessor", flightControlResults);
+            allResults.AddRange(flightControlResults);
+            if (!flightControlResults.TrueForAll(r => r.Passed))
                 allPassed = false;
 
             // Run ShifterProcessor tests

@@ -20,7 +20,7 @@ namespace DiyFfb
         public event ABSTestStateChangeEventHandler ABSTestStateChange;
         private DiyFfbPluginUI ui;
         private DiyFfbPlugin plugin;
-        private FlightPedalsConfig config;
+        private FlightControlConfig config;
         private RudderBrakeConfig brake_config;
         private FunctionConfig function_config = new FunctionConfig();
         private Function function;
@@ -41,7 +41,7 @@ namespace DiyFfb
             _travelHelper = new TravelDisplayHelper(
                 Canvas_travel_markers, Rect_axis_position, Rect_trim_center,
                 Rangeslider_travel_range,
-                () => config.PosNearLim, () => config.PosFarLim);
+                () => config.PosMin, () => config.PosMax);
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
         }
@@ -61,6 +61,7 @@ namespace DiyFfb
             if (plugin != null)
             {
                 _graphParamHelper.Subscribe();
+                plugin.FlightSafetyDamperChanged += OnSafetyDamperChanged;
 
                 if (IsLoaded)
                     _badgeHelper.Subscribe();
@@ -94,31 +95,31 @@ namespace DiyFfb
             {
                 switch (e.FieldPath)
                 {
-                    case "flight_pedals.motion_range":
-                        config.PosNearLim = mergedConfig.FlightPedals.PosNearLim;
-                        config.PosFarLim = mergedConfig.FlightPedals.PosFarLim;
-                        TieredConfig.FlightPedalsProcessor.ReconcileDerivedFields(function_config);
+                    case "flight_control.motion_range":
+                        config.PosMin = mergedConfig.FlightControl.PosMin;
+                        config.PosMax = mergedConfig.FlightControl.PosMax;
+                        TieredConfig.FlightControlProcessor.ReconcileDerivedFields(function_config);
                         if (Rangeslider_travel_range != null)
                         {
-                            Rangeslider_travel_range.LowerValue = config.PosNearLim;
-                            Rangeslider_travel_range.UpperValue = config.PosFarLim;
+                            Rangeslider_travel_range.LowerValue = config.PosMin;
+                            Rangeslider_travel_range.UpperValue = config.PosMax;
                         }
                         deferUnlock = true;
                         if (Label_near_pos != null)
-                            Label_near_pos.Content = String.Format("Near\n{0}mm", config.PosNearLim);
+                            Label_near_pos.Content = String.Format("Near\n{0}mm", config.PosMin);
                         if (Label_far_pos != null)
-                            Label_far_pos.Content = String.Format("Far\n{0}mm", config.PosFarLim);
+                            Label_far_pos.Content = String.Format("Far\n{0}mm", config.PosMax);
                         _travelHelper?.UpdateTravelMarkers();
                         break;
 
-                    case "flight_pedals.damping":
-                        config.Damping = mergedConfig.FlightPedals.Damping;
+                    case "flight_control.damping":
+                        config.Damping = mergedConfig.FlightControl.Damping;
                         Slider_damping.Value = config.Damping;
                         label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", config.Damping);
                         break;
 
-                    case "flight_pedals.centering_spring_const":
-                        config.CenteringSpringConst = mergedConfig.FlightPedals.CenteringSpringConst;
+                    case "flight_control.centering_spring_const":
+                        config.CenteringSpringConst = mergedConfig.FlightControl.CenteringSpringConst;
                         Slider_centering_spring_const.Value = config.CenteringSpringConst;
                         label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", config.CenteringSpringConst);
                         break;
@@ -196,7 +197,7 @@ namespace DiyFfb
 
             KinematicBoundsHelper.ApplyBoundsToSlider(
                 Rangeslider_travel_range, boundsMin, boundsMax,
-                config.PosNearLim, config.PosFarLim);
+                config.PosMin, config.PosMax);
 
             if (!wasUpdating)
             {
@@ -214,11 +215,11 @@ namespace DiyFfb
             }
         }
 
-        public static FlightPedalsConfig GetDefaultConfig()
+        public static FlightControlConfig GetDefaultConfig()
         {
-            FlightPedalsConfig new_config = new FlightPedalsConfig();
-            new_config.PosNearLim = 0;
-            new_config.PosFarLim = 50;
+            FlightControlConfig new_config = new FlightControlConfig();
+            new_config.PosMin = 0;
+            new_config.PosMax = 50;
             new_config.Damping = 0.5f;
             new_config.CenteringSpringConst = 1.5f;
             return new_config;
@@ -239,9 +240,9 @@ namespace DiyFfb
             if (function_config == null)
                 function_config = new FunctionConfig();
 
-            if (function_config.FlightPedals == null)
-                function_config.FlightPedals = GetDefaultConfig();
-            config = function_config.FlightPedals;
+            if (function_config.FlightControl == null)
+                function_config.FlightControl = GetDefaultConfig();
+            config = function_config.FlightControl;
 
             if (function_config.AuxFunction == null)
                 function_config.AuxFunction = GetRudderBrakeDefaultConfig();
@@ -286,9 +287,9 @@ namespace DiyFfb
             uc_controller_axis_pedals.Value = function_config.Base.ControllerOutputAxis;
             uc_controller_axis_right_brake.Value = function_config.AuxFunction.RudderBrake.ControllerOutputAxisRightPedal;
             uc_controller_axis_left_brake.Value = function_config.AuxFunction.RudderBrake.ControllerOutputAxisLeftPedal;
-            Rangeslider_travel_range.UpperValue = config.PosFarLim;
-            Rangeslider_travel_range.LowerValue = config.PosNearLim;
-            TieredConfig.FlightPedalsProcessor.ReconcileDerivedFields(function_config);
+            Rangeslider_travel_range.UpperValue = config.PosMax;
+            Rangeslider_travel_range.LowerValue = config.PosMin;
+            TieredConfig.FlightControlProcessor.ReconcileDerivedFields(function_config);
             Rangeslider_brake_force_range.UpperValue = function_config.AuxFunction.RudderBrake.FMax / 9.81f;
             Rangeslider_brake_force_range.LowerValue = function_config.AuxFunction.RudderBrake.FMin / 9.81f;
             _travelHelper?.UpdateTrimCenter(plugin, current_function_id);
@@ -319,8 +320,8 @@ namespace DiyFfb
             if (allowOverrideCreation && plugin != null && function != null &&
                 plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.damping",
-                    overrides => overrides.FlightPedalsDamping = newValue);
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_control.damping",
+                    overrides => overrides.FlightControlDamping = newValue);
             }
         }
 
@@ -334,8 +335,8 @@ namespace DiyFfb
             if (allowOverrideCreation && plugin != null && function != null &&
                 plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.centering_spring_const",
-                    overrides => overrides.FlightPedalsCenteringSpringConst = newValue);
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_control.centering_spring_const",
+                    overrides => overrides.FlightControlCenteringSpringConst = newValue);
             }
         }
 
@@ -479,26 +480,26 @@ namespace DiyFfb
                     Convert.ToInt16(Rangeslider_travel_range.LowerValue) != newValue)
                     return;
 
-                var oldValue = config.PosNearLim;
-                config.PosNearLim = newValue;
-                TieredConfig.FlightPedalsProcessor.ReconcileDerivedFields(function_config);
+                var oldValue = config.PosMin;
+                config.PosMin = newValue;
+                TieredConfig.FlightControlProcessor.ReconcileDerivedFields(function_config);
 
                 if (allowOverrideCreation && newValue != oldValue &&
                     plugin != null && function != null &&
                     plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
                 {
-                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.motion_range",
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_control.motion_range",
                         overrides =>
                         {
-                            if (overrides.FlightPedalsMotionRange == null)
-                                overrides.FlightPedalsMotionRange = new TieredConfig.MotionRangeOverrides();
-                            overrides.FlightPedalsMotionRange.NearLim = newValue;
+                            if (overrides.FlightControlMotionRange == null)
+                                overrides.FlightControlMotionRange = new TieredConfig.MotionRangeOverrides();
+                            overrides.FlightControlMotionRange.Min = newValue;
                         });
                 }
             }
             if (Label_near_pos != null)
             {
-                Label_near_pos.Content = String.Format("Near\n{0}mm", config.PosNearLim);
+                Label_near_pos.Content = String.Format("Near\n{0}mm", config.PosMin);
             }
             _travelHelper?.UpdateTravelMarkers();
         }
@@ -514,26 +515,26 @@ namespace DiyFfb
                     Convert.ToInt16(Rangeslider_travel_range.UpperValue) != newValue)
                     return;
 
-                var oldValue = config.PosFarLim;
-                config.PosFarLim = newValue;
-                TieredConfig.FlightPedalsProcessor.ReconcileDerivedFields(function_config);
+                var oldValue = config.PosMax;
+                config.PosMax = newValue;
+                TieredConfig.FlightControlProcessor.ReconcileDerivedFields(function_config);
 
                 if (allowOverrideCreation && newValue != oldValue &&
                     plugin != null && function != null &&
                     plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
                 {
-                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_pedals.motion_range",
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_control.motion_range",
                         overrides =>
                         {
-                            if (overrides.FlightPedalsMotionRange == null)
-                                overrides.FlightPedalsMotionRange = new TieredConfig.MotionRangeOverrides();
-                            overrides.FlightPedalsMotionRange.FarLim = newValue;
+                            if (overrides.FlightControlMotionRange == null)
+                                overrides.FlightControlMotionRange = new TieredConfig.MotionRangeOverrides();
+                            overrides.FlightControlMotionRange.Max = newValue;
                         });
                 }
             }
             if (Label_far_pos != null)
             {
-                Label_far_pos.Content = String.Format("Far\n{0}mm", config.PosFarLim);
+                Label_far_pos.Content = String.Format("Far\n{0}mm", config.PosMax);
             }
             _travelHelper?.UpdateTravelMarkers();
         }
@@ -573,6 +574,8 @@ namespace DiyFfb
             bool disabled = plugin != null && plugin.IsFunctionOutputDisabled(current_function_id);
             isUpdatingOutputToggle = true;
             Toggle_disable_outputs.IsChecked = disabled;
+            if (Toggle_safety_damper != null && plugin != null)
+                Toggle_safety_damper.IsChecked = plugin.IsFlightSafetyDamperEngaged();
             isUpdatingOutputToggle = false;
         }
 
@@ -594,6 +597,28 @@ namespace DiyFfb
             }
 
             plugin?.SetFunctionOutputDisabled(current_function_id, disabled);
+        }
+
+        private void Toggle_safety_damper_Checked(object sender, RoutedEventArgs e)
+        {
+            if (isUpdatingOutputToggle || is_updating) return;
+            plugin?.SetFlightSafetyDamperEngaged(true);
+        }
+
+        private void Toggle_safety_damper_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (isUpdatingOutputToggle || is_updating) return;
+            plugin?.SetFlightSafetyDamperEngaged(false);
+        }
+
+        private void OnSafetyDamperChanged(bool engaged)
+        {
+            if (Toggle_safety_damper == null) return;
+            Dispatcher.BeginInvoke(new Action(() => {
+                isUpdatingOutputToggle = true;
+                Toggle_safety_damper.IsChecked = engaged;
+                isUpdatingOutputToggle = false;
+            }));
         }
 
         private void UpdateXPlaneTelemetry()
@@ -630,8 +655,8 @@ namespace DiyFfb
                 return;
             }
 
-            double min = Math.Min(config.PosNearLim, config.PosFarLim);
-            double max = Math.Max(config.PosNearLim, config.PosFarLim);
+            double min = Math.Min(config.PosMin, config.PosMax);
+            double max = Math.Max(config.PosMin, config.PosMax);
             Rangeslider_travel_range.Minimum = min;
             Rangeslider_travel_range.Maximum = max;
         }
