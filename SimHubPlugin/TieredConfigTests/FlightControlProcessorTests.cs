@@ -43,6 +43,12 @@ namespace DiyFfb.TieredConfigTests
                 // Null FlightStick is a no-op (don't clobber other oneof arms)
                 TestRunner.RunTest("Apply_NullFlightStick_NoOp", Apply_NullFlightStick_NoOp),
 
+                // Per-slot harmonic ratio override semantics
+                TestRunner.RunTest("Apply_VibHarmRatios_AllNullPreservesBaseline", Apply_VibHarmRatios_AllNullPreservesBaseline),
+                TestRunner.RunTest("Apply_VibHarmRatios_PartialPreservesUnsetBaseline", Apply_VibHarmRatios_PartialPreservesUnsetBaseline),
+                TestRunner.RunTest("Apply_Vib2HarmRatios_AllNullPreservesBaseline", Apply_Vib2HarmRatios_AllNullPreservesBaseline),
+                TestRunner.RunTest("Apply_Vib2HarmRatios_PartialPreservesUnsetBaseline", Apply_Vib2HarmRatios_PartialPreservesUnsetBaseline),
+
                 // Migration tests
                 TestRunner.RunTest("Migrate_PitchJson", Migrate_PitchJson),
                 TestRunner.RunTest("Migrate_RollJson", Migrate_RollJson),
@@ -312,6 +318,86 @@ namespace DiyFfb.TieredConfigTests
             AssertTrue(config.FlightControl == null, "FlightStick should remain null");
             AssertTrue(config.AutomotivePedal != null, "AutomotivePedal oneof should be preserved");
             AssertNear(0.05f, config.AutomotivePedal.DamperConfig.PositiveFactor, 1e-6f, "Damper should be unchanged");
+        }
+
+        // === Per-slot harmonic ratio override tests ===
+
+        // Regression: clearing every slot in the harmonic-ratios override array left the
+        // array non-null with all-null entries. The processor used to .Clear() the
+        // baseline RepeatedField and re-add 0.0f for each null slot, silently zeroing
+        // the baseline harmonic ratios. Per-slot semantics: null = preserve baseline.
+        private static void Apply_VibHarmRatios_AllNullPreservesBaseline()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            config.FlightControl.VibHarmonicRatios.Add(1.0f);
+            config.FlightControl.VibHarmonicRatios.Add(2.0f);
+            config.FlightControl.VibHarmonicRatios.Add(3.0f);
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlVibHarmonicRatios = new float?[] { null, null, null, null, null }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(3, config.FlightControl.VibHarmonicRatios.Count, "Baseline count should be preserved");
+            AssertNear(1.0f, config.FlightControl.VibHarmonicRatios[0], 1e-6f, "Slot 0 baseline preserved");
+            AssertNear(2.0f, config.FlightControl.VibHarmonicRatios[1], 1e-6f, "Slot 1 baseline preserved");
+            AssertNear(3.0f, config.FlightControl.VibHarmonicRatios[2], 1e-6f, "Slot 2 baseline preserved");
+        }
+
+        private static void Apply_VibHarmRatios_PartialPreservesUnsetBaseline()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            config.FlightControl.VibHarmonicRatios.Add(1.0f);
+            config.FlightControl.VibHarmonicRatios.Add(2.0f);
+            config.FlightControl.VibHarmonicRatios.Add(3.0f);
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlVibHarmonicRatios = new float?[] { null, 99.0f, null, 7.5f, null }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(5, config.FlightControl.VibHarmonicRatios.Count, "Count grows to override length");
+            AssertNear(1.0f, config.FlightControl.VibHarmonicRatios[0], 1e-6f, "Slot 0 baseline preserved");
+            AssertNear(99.0f, config.FlightControl.VibHarmonicRatios[1], 1e-6f, "Slot 1 overridden");
+            AssertNear(3.0f, config.FlightControl.VibHarmonicRatios[2], 1e-6f, "Slot 2 baseline preserved");
+            AssertNear(7.5f, config.FlightControl.VibHarmonicRatios[3], 1e-6f, "Slot 3 overridden");
+            AssertNear(0.0f, config.FlightControl.VibHarmonicRatios[4], 1e-6f, "Slot 4 padded to 0 (no baseline, no override)");
+        }
+
+        private static void Apply_Vib2HarmRatios_AllNullPreservesBaseline()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            config.FlightControl.Vib2HarmonicRatios.Add(0.5f);
+            config.FlightControl.Vib2HarmonicRatios.Add(1.5f);
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlVib2HarmonicRatios = new float?[] { null, null }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(2, config.FlightControl.Vib2HarmonicRatios.Count, "Baseline count preserved");
+            AssertNear(0.5f, config.FlightControl.Vib2HarmonicRatios[0], 1e-6f, "Slot 0 baseline preserved");
+            AssertNear(1.5f, config.FlightControl.Vib2HarmonicRatios[1], 1e-6f, "Slot 1 baseline preserved");
+        }
+
+        private static void Apply_Vib2HarmRatios_PartialPreservesUnsetBaseline()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            config.FlightControl.Vib2HarmonicRatios.Add(0.5f);
+            config.FlightControl.Vib2HarmonicRatios.Add(1.5f);
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlVib2HarmonicRatios = new float?[] { 4.0f, null }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(2, config.FlightControl.Vib2HarmonicRatios.Count, "Count unchanged");
+            AssertNear(4.0f, config.FlightControl.Vib2HarmonicRatios[0], 1e-6f, "Slot 0 overridden");
+            AssertNear(1.5f, config.FlightControl.Vib2HarmonicRatios[1], 1e-6f, "Slot 1 baseline preserved");
         }
 
         // === Migration Tests ===

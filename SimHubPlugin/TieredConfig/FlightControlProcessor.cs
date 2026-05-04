@@ -81,18 +81,13 @@ namespace DiyFfb.TieredConfig
                         const float kDegToRad = (float)(System.Math.PI / 180.0);
                         cfg.PhaseOffset = delta.FlightControlPhaseOffset.Value * kDegToRad;
                     }
-                    if (delta.FlightControlVibHarmonicRatios != null)
-                    {
-                        cfg.VibHarmonicRatios.Clear();
-                        foreach (var r in delta.FlightControlVibHarmonicRatios)
-                            cfg.VibHarmonicRatios.Add(r ?? 0.0f);
-                    }
-                    if (delta.FlightControlVib2HarmonicRatios != null)
-                    {
-                        cfg.Vib2HarmonicRatios.Clear();
-                        foreach (var r in delta.FlightControlVib2HarmonicRatios)
-                            cfg.Vib2HarmonicRatios.Add(r ?? 0.0f);
-                    }
+                    // Per-slot override semantics: a null slot preserves the baseline at
+                    // that index; a non-null slot replaces it. An all-null override array
+                    // (e.g. produced by clearing every slot via the registry) is a no-op
+                    // — without this guard, .Clear() + repeated 0.0f would silently zero
+                    // baseline harmonic ratios.
+                    ApplyPerSlotRatioOverride(cfg.VibHarmonicRatios, delta.FlightControlVibHarmonicRatios);
+                    ApplyPerSlotRatioOverride(cfg.Vib2HarmonicRatios, delta.FlightControlVib2HarmonicRatios);
                 }
             }
 
@@ -106,6 +101,29 @@ namespace DiyFfb.TieredConfig
                     merged.AuxFunction.RudderBrake.FMin = delta.RudderBrakeForceRange.Min.Value;
                 if (delta.RudderBrakeForceRange.Max.HasValue)
                     merged.AuxFunction.RudderBrake.FMax = delta.RudderBrakeForceRange.Max.Value;
+            }
+        }
+
+        private static void ApplyPerSlotRatioOverride(
+            Google.Protobuf.Collections.RepeatedField<float> baseline,
+            float?[] overrideSlots)
+        {
+            if (overrideSlots == null) return;
+
+            bool anySet = false;
+            for (int i = 0; i < overrideSlots.Length; i++)
+            {
+                if (overrideSlots[i].HasValue) { anySet = true; break; }
+            }
+            if (!anySet) return;
+
+            while (baseline.Count < overrideSlots.Length)
+                baseline.Add(0.0f);
+
+            for (int i = 0; i < overrideSlots.Length; i++)
+            {
+                if (overrideSlots[i].HasValue)
+                    baseline[i] = overrideSlots[i].Value;
             }
         }
     }

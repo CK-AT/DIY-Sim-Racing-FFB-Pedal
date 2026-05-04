@@ -66,6 +66,9 @@ namespace DiyFfb.TieredConfigTests
                 // Path normalization tests
                 TestRunner.RunTest("NormalizeFieldPath_LegacyAlias_ReturnsCanonical", NormalizeFieldPath_LegacyAlias_ReturnsCanonical),
                 TestRunner.RunTest("NormalizeFieldPath_UnknownField_ReturnsLowercase", NormalizeFieldPath_UnknownField_ReturnsLowercase),
+                TestRunner.RunTest("FlightControl_LegacyFlightStickAlias_Resolves", FlightControl_LegacyFlightStickAlias_Resolves),
+                TestRunner.RunTest("FlightControl_LegacyFlightPedalsAlias_Resolves", FlightControl_LegacyFlightPedalsAlias_Resolves),
+                TestRunner.RunTest("FlightControl_LegacySnakeCaseAlias_Resolves", FlightControl_LegacySnakeCaseAlias_Resolves),
 
                 // Field metadata tests
                 TestRunner.RunTest("FieldDefinition_OutputMin_HasCorrectMetadata", FieldDefinition_OutputMin_HasCorrectMetadata),
@@ -392,6 +395,46 @@ namespace DiyFfb.TieredConfigTests
         {
             var normalized = OverrideFieldRegistry.NormalizeFieldPath("UnknownField");
             AssertEqual("unknownfield", normalized, "Unknown field should just be lowercased");
+        }
+
+        // Plan 10 §3.1 aliases: graph templates and saved profile JSONs from before
+        // the FlightControl consolidation reference FlightStick.* / FlightPedals.*
+        // paths. Those must continue to resolve to the canonical FlightControl.* field.
+        private static void FlightControl_LegacyFlightStickAlias_Resolves()
+        {
+            var field = OverrideFieldRegistry.GetField("FlightStick.Vib1HarmRatio1");
+            AssertNotNull(field, "Legacy FlightStick.Vib1HarmRatio1 should resolve via alias");
+            AssertEqual("FlightControl.Vib1HarmRatio1", field.FieldPath, "Should resolve to canonical path");
+
+            var phase = OverrideFieldRegistry.GetField("FlightStick.Vib1Phase");
+            AssertNotNull(phase, "Legacy FlightStick.Vib1Phase should resolve via alias");
+            AssertEqual("FlightControl.Vib1Phase", phase.FieldPath, "Should resolve to canonical path");
+
+            var damping = OverrideFieldRegistry.GetField("FlightStick.Damping");
+            AssertNotNull(damping, "Legacy FlightStick.Damping should resolve via alias");
+            AssertEqual("FlightControl.Damping", damping.FieldPath, "Should resolve to canonical path");
+        }
+
+        private static void FlightControl_LegacyFlightPedalsAlias_Resolves()
+        {
+            var field = OverrideFieldRegistry.GetField("FlightPedals.Damping");
+            AssertNotNull(field, "Legacy FlightPedals.Damping should resolve via alias");
+            AssertEqual("FlightControl.Damping", field.FieldPath, "Should resolve to canonical path");
+
+            var motion = OverrideFieldRegistry.GetField("FlightPedals.MotionRange");
+            AssertNotNull(motion, "Legacy FlightPedals.MotionRange should resolve via alias");
+            AssertEqual("FlightControl.MotionRange", motion.FieldPath, "Should resolve to canonical path");
+        }
+
+        private static void FlightControl_LegacySnakeCaseAlias_Resolves()
+        {
+            var field = OverrideFieldRegistry.GetField("flight_stick.vib_harmonic_ratios.0");
+            AssertNotNull(field, "Legacy snake_case alias should resolve");
+            AssertEqual("FlightControl.Vib1HarmRatio1", field.FieldPath, "Should resolve to canonical path");
+
+            var pedalsField = OverrideFieldRegistry.GetField("flight_pedals.centering_spring_const");
+            AssertNotNull(pedalsField, "Legacy flight_pedals snake_case should resolve");
+            AssertEqual("FlightControl.CenteringSpringConst", pedalsField.FieldPath, "Should resolve to canonical path");
         }
 
         // === Field Metadata Tests ===

@@ -20,6 +20,8 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("Merge_OnlyStaticBalance_PreservesKinematics", Merge_OnlyStaticBalance_PreservesKinematics),
                 TestRunner.RunTest("Merge_OscillationGuardOverride_ReplacesBaseline", Merge_OscillationGuardOverride_ReplacesBaseline),
                 TestRunner.RunTest("Merge_NoOscillationGuardOverride_PreservesBaseline", Merge_NoOscillationGuardOverride_PreservesBaseline),
+                TestRunner.RunTest("Merge_MinDampingOverride_ReplacesBaseline", Merge_MinDampingOverride_ReplacesBaseline),
+                TestRunner.RunTest("Merge_NoMinDampingOverride_PreservesBaseline", Merge_NoMinDampingOverride_PreservesBaseline),
                 TestRunner.RunTest("Merge_BothOverrides_ReplacesAll", Merge_BothOverrides_ReplacesAll),
                 TestRunner.RunTest("Merge_EmptyOverrides_ReturnsBaseUnchanged", Merge_EmptyOverrides_ReturnsBaseUnchanged),
                 TestRunner.RunTest("Merge_NullOverrides_ReturnsBaseUnchanged", Merge_NullOverrides_ReturnsBaseUnchanged),
@@ -148,6 +150,40 @@ namespace DiyFfb.TieredConfigTests
 
             AssertTrue(ConfigComparer.AreEqual(originalGuard, merged.OscillationGuard),
                 "OscillationGuard should be preserved from baseline when not overridden");
+        }
+
+        // AxisConfig.MinDamping (axis-level safety damping floor) is per-function-overridable
+        // via AxisParameterOverrides.MinDamping (nullable scalar). Non-null replaces baseline.
+        private static void Merge_MinDampingOverride_ReplacesBaseline()
+        {
+            var baseConfig = CreateAxisConfig();
+            baseConfig.MinDamping = 0.05f;
+
+            var overrides = new AxisParameterOverrides
+            {
+                MinDamping = 0.20f
+            };
+
+            var merged = ConfigMerger.MergeAxisOverrides(baseConfig, overrides);
+
+            AssertNear(0.20f, merged.MinDamping, 1e-6f, "MinDamping should reflect override");
+        }
+
+        private static void Merge_NoMinDampingOverride_PreservesBaseline()
+        {
+            var baseConfig = CreateAxisConfig();
+            baseConfig.MinDamping = 0.15f;
+
+            var overrides = new AxisParameterOverrides
+            {
+                Kinematics = CreateKinematics(minPos: -50, maxPos: 50)
+                // MinDamping intentionally null
+            };
+
+            var merged = ConfigMerger.MergeAxisOverrides(baseConfig, overrides);
+
+            AssertNear(0.15f, merged.MinDamping, 1e-6f,
+                "MinDamping should be preserved from baseline when not overridden");
         }
 
         private static void Merge_BothOverrides_ReplacesAll()

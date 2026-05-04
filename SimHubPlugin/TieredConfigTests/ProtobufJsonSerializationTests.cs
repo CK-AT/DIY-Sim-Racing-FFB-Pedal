@@ -28,6 +28,12 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("FuncOverrides_ShifterConfigRoundTrip", FuncOverrides_ShifterConfigRoundTrip),
                 TestRunner.RunTest("FuncOverrides_ShifterDetectConfigRoundTrip", FuncOverrides_ShifterDetectConfigRoundTrip),
                 TestRunner.RunTest("FuncOverrides_AbsEffectRoundTrip", FuncOverrides_AbsEffectRoundTrip),
+
+                // Plan 10 legacy JSON migration (FlightStick* / FlightPedals* / NearLim/FarLim)
+                TestRunner.RunTest("FuncOverrides_LegacyFlightStickJsonMigrates", FuncOverrides_LegacyFlightStickJsonMigrates),
+                TestRunner.RunTest("FuncOverrides_LegacyFlightPedalsJsonMigrates", FuncOverrides_LegacyFlightPedalsJsonMigrates),
+                TestRunner.RunTest("FuncOverrides_LegacyJsonRoundTripStripsOldKeys", FuncOverrides_LegacyJsonRoundTripStripsOldKeys),
+                TestRunner.RunTest("MotionRange_LegacyNearFarLimMigrates", MotionRange_LegacyNearFarLimMigrates),
             };
         }
 
@@ -246,6 +252,82 @@ namespace DiyFfb.TieredConfigTests
             AssertEqual(50u, restored.AbsEffect.Ampl, "Ampl");
             AssertEqual(ABSPattern.Sawtooth, restored.AbsEffect.Pattern, "Pattern");
             AssertEqual(75u, restored.AbsEffect.SimLevel, "SimLevel");
+        }
+
+        // === Plan 10 legacy JSON migration ===
+
+        // FunctionConfigOverrides.OnDeserialized routes legacy property names captured
+        // by [JsonExtensionData] into the new FlightControl* properties. Verifies a
+        // saved profile from before Plan 10 deserializes into the new shape.
+        private static void FuncOverrides_LegacyFlightStickJsonMigrates()
+        {
+            string legacyJson = "{\"FlightStickDamping\":1.25,\"FlightStickCenteringSpringConst\":3.5," +
+                                "\"FlightStickPhaseOffset\":90.0," +
+                                "\"FlightStickMotionRange\":{\"Min\":-30,\"Max\":30}," +
+                                "\"FlightStickVibHarmonicRatios\":[1.0,2.0,3.0,null,null]," +
+                                "\"FlightStickVib2HarmonicRatios\":[0.5,1.5]}";
+
+            var restored = JsonConvert.DeserializeObject<FunctionConfigOverrides>(legacyJson);
+
+            AssertEqual(1.25f, restored.FlightControlDamping ?? 0f, "Damping migrated");
+            AssertEqual(3.5f, restored.FlightControlCenteringSpringConst ?? 0f, "Centering spring migrated");
+            AssertEqual(90.0f, restored.FlightControlPhaseOffset ?? 0f, "Phase offset migrated");
+            AssertNotNull(restored.FlightControlMotionRange, "MotionRange migrated");
+            AssertEqual(-30, restored.FlightControlMotionRange.Min ?? 0, "MotionRange.Min");
+            AssertEqual(30, restored.FlightControlMotionRange.Max ?? 0, "MotionRange.Max");
+            AssertNotNull(restored.FlightControlVibHarmonicRatios, "Vib1 harm ratios migrated");
+            AssertEqual(1.0f, restored.FlightControlVibHarmonicRatios[0] ?? 0f, "Vib1 slot 0");
+            AssertEqual(2.0f, restored.FlightControlVibHarmonicRatios[1] ?? 0f, "Vib1 slot 1");
+            AssertEqual(3.0f, restored.FlightControlVibHarmonicRatios[2] ?? 0f, "Vib1 slot 2");
+            AssertNotNull(restored.FlightControlVib2HarmonicRatios, "Vib2 harm ratios migrated");
+            AssertEqual(0.5f, restored.FlightControlVib2HarmonicRatios[0] ?? 0f, "Vib2 slot 0");
+            AssertEqual(1.5f, restored.FlightControlVib2HarmonicRatios[1] ?? 0f, "Vib2 slot 1");
+        }
+
+        private static void FuncOverrides_LegacyFlightPedalsJsonMigrates()
+        {
+            // Pre-Plan 10 pedal profile: FlightPedalsDamping/CenteringSpringConst at top
+            // level, MotionRange uses NearLim/FarLim instead of Min/Max.
+            string legacyJson = "{\"FlightPedalsDamping\":0.75,\"FlightPedalsCenteringSpringConst\":2.1," +
+                                "\"FlightPedalsMotionRange\":{\"NearLim\":5,\"FarLim\":85}}";
+
+            var restored = JsonConvert.DeserializeObject<FunctionConfigOverrides>(legacyJson);
+
+            AssertEqual(0.75f, restored.FlightControlDamping ?? 0f, "Pedal damping migrated");
+            AssertEqual(2.1f, restored.FlightControlCenteringSpringConst ?? 0f, "Pedal centering spring migrated");
+            AssertNotNull(restored.FlightControlMotionRange, "Pedal motion range migrated");
+            AssertEqual(5, restored.FlightControlMotionRange.Min ?? 0, "NearLim migrated to Min");
+            AssertEqual(85, restored.FlightControlMotionRange.Max ?? 0, "FarLim migrated to Max");
+        }
+
+        // After load+resave the JSON should contain only the new property names —
+        // the [JsonExtensionData] dict is set to null in OnDeserialized to prevent
+        // legacy keys from re-emerging.
+        private static void FuncOverrides_LegacyJsonRoundTripStripsOldKeys()
+        {
+            string legacyJson = "{\"FlightStickDamping\":1.0,\"FlightPedalsDamping\":2.0}";
+
+            var restored = JsonConvert.DeserializeObject<FunctionConfigOverrides>(legacyJson);
+            string resaved = JsonConvert.SerializeObject(restored);
+
+            AssertTrue(!resaved.Contains("FlightStickDamping"),
+                "Resaved JSON must not contain legacy FlightStickDamping key");
+            AssertTrue(!resaved.Contains("FlightPedalsDamping"),
+                "Resaved JSON must not contain legacy FlightPedalsDamping key");
+            AssertTrue(resaved.Contains("FlightControlDamping"),
+                "Resaved JSON should contain canonical FlightControlDamping key");
+        }
+
+        // MotionRangeOverrides has its own OnDeserialized that maps NearLim/FarLim
+        // (legacy pedal field names) into Min/Max.
+        private static void MotionRange_LegacyNearFarLimMigrates()
+        {
+            string legacyJson = "{\"NearLim\":12,\"FarLim\":78}";
+
+            var restored = JsonConvert.DeserializeObject<MotionRangeOverrides>(legacyJson);
+
+            AssertEqual(12, restored.Min ?? 0, "NearLim should migrate to Min");
+            AssertEqual(78, restored.Max ?? 0, "FarLim should migrate to Max");
         }
 
         // === Assertion helpers ===

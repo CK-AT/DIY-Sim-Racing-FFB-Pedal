@@ -181,12 +181,19 @@ distinction collapses into config values.
   `FlightControlFunction.h`.
 
 **Risk:** Firmware behavior parity for FlightPedals must remain unchanged
-once the consolidation lands (no functional regression). The vibration path
-is the only new code on the pedal side; it stays inert as long as harm-ratio
-arrays are zeroed (the default for existing pedal profiles). Centering
-spring, damper, friction, buffet, load force, trim offset, and motion-range
-clamp behavior must produce bit-identical motor output for an unchanged
-pedal config compared to the pre-consolidation `FlightPedalsFunction`.
+once the consolidation lands (no functional regression), with **one
+intentional exception**: the per-frame damping-clamp described in Phase 2.1
+is dropped for pedals as well as sticks (the unified `FlightControlFunction`
+has a single damping-application site). Pedals that previously relied on
+`FlightPedalsConfig.damping` as an unconditional minimum will lose that
+guarantee until `AxisConfig.min_damping` is set on the pedal axis — see
+Phase 2.1 + §6 risk note for the migration story. The vibration path is
+the only other new code on the pedal side; it stays inert as long as
+harm-ratio arrays are zeroed (the default for existing pedal profiles).
+Centering spring, friction, buffet, load force, trim offset, and
+motion-range clamp behavior must produce bit-identical motor output for
+an unchanged pedal config compared to the pre-consolidation
+`FlightPedalsFunction`.
 
 ### 2.1 Damping semantic change (safety damper + axis-level floor)
 

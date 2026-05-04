@@ -80,6 +80,8 @@ namespace DiyFfb
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
             _badgeHelper?.Unsubscribe();
+            if (plugin != null)
+                plugin.FlightSafetyDamperChanged -= OnSafetyDamperChanged;
         }
 
         private void OnBadgeOverrideCleared(object sender, LayerBadgeWrapper.OverrideClearedEventArgs e)

@@ -274,8 +274,12 @@ namespace DiyFfb.TieredConfig
         /// </summary>
         private void MigrateFlightFunctionBaselines()
         {
-            // All four flight FunctionIDs: FlightPedals=4, Pitch=5, Roll=6, Collective=8
-            int[] flightFunctionIds = { 4, 5, 6, 8 };
+            int[] flightFunctionIds = {
+                (int)FunctionID.FlightPedals,
+                (int)FunctionID.FlightStickPitch,
+                (int)FunctionID.FlightStickRoll,
+                (int)FunctionID.FlightStickCollective,
+            };
             foreach (int id in flightFunctionIds)
             {
                 if (!_settings.FunctionBaselines.ContainsKey(id))
