@@ -190,7 +190,6 @@ namespace DiyFfb
 
             UpdateSerialPortList();
             InitializeSystemSettings();
-            uc_grip_binding.Initialize(plugin?.Settings, plugin?.ButtonInputReader);
 
             if (plugin != null)
             {

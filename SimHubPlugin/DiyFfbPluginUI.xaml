@@ -7,7 +7,6 @@
              xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins" mc:Ignorable="d" 
              xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins" 
              xmlns:controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
-             xmlns:diycontrols="clr-namespace:DiyFfb.Controls"
              PreviewKeyDown="OnPreviewKeyDown" PreviewKeyUp="OnPreviewKeyUp" Height="1096">
 
 
@@ -945,7 +944,14 @@
                                                 </Border>
                                             </TabItem.Header>
                                             <Border Background="#7F4E4E4E" CornerRadius="5,5,5,5" BorderThickness="0,2,0,0">
-                                                <diycontrols:GripBindingControl x:Name="uc_grip_binding" Width="530"/>
+                                                <StackPanel x:Name="GripBindingHelpPanel" Width="530" Margin="12,12,12,12" HorizontalAlignment="Left">
+                                                    <TextBlock FontFamily="Arial Black" FontSize="12" Foreground="White" Text="Grip controls" Margin="0,0,0,8"/>
+                                                    <TextBlock FontFamily="Arial" FontSize="10" Foreground="White" TextWrapping="Wrap" Margin="0,0,0,10" Text="Grip controls bind through SimHub's standard Controls panel. Search SimHub Controls for input mappings starting with &quot;Grip.&quot; and bind each to your hardware:"/>
+                                                    <TextBlock FontFamily="Arial" FontSize="10" Foreground="White" Margin="0,0,0,4" Text="• Grip.TrimHat.Up / Down / Left / Right"/>
+                                                    <TextBlock FontFamily="Arial" FontSize="10" Foreground="White" Margin="0,0,0,4" Text="• Grip.ForceTrimRelease"/>
+                                                    <TextBlock FontFamily="Arial" FontSize="10" Foreground="White" Margin="0,0,0,10" Text="• Grip.TrimReset"/>
+                                                    <TextBlock FontFamily="Arial" FontSize="10" Foreground="White" TextWrapping="Wrap" Text="These are SimHub Input Mappings (not Actions) — held-state semantics are built in, so you don't need to pick an Input mode. Press the bound control and the graph sees the corresponding signal go high; release and it goes low."/>
+                                                </StackPanel>
                                             </Border>
                                         </TabItem>
                                     </TabControl>

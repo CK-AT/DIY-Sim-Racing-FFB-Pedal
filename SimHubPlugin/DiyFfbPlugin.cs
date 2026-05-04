@@ -127,9 +127,13 @@ namespace DiyFfb
         private DiyFfb.GraphTest.IncludeContextCache activeIncludeContextCache;
         private readonly Dictionary<string, double> graphInputs = new Dictionary<string, double>();
         private readonly Dictionary<string, double> graphParams = new Dictionary<string, double>();
-        private ButtonInputReader _buttonInputReader;
         private long _lastGraphEvalTicks;
-        internal ButtonInputReader ButtonInputReader => _buttonInputReader;
+
+        // Grip-button held-state table (plan 11). Populated by SimHub input-mapping
+        // callbacks: inputPressed → true, inputReleased → false. BuildGripInputs reads
+        // the bool directly. SimHub's AddInputMapping primitive enforces held semantics,
+        // so no heartbeat/timeout heuristic is needed.
+        private readonly Dictionary<string, bool> _gripHeld = new Dictionary<string, bool>();
         private DiyFfb.GraphTest.GraphEvaluationResult lastGraphEvaluation;
         private readonly Dictionary<string, double> _lastConfigOutValues = new Dictionary<string, double>();
         private static Func<GameData, string> gameIdGetter;
@@ -868,9 +872,6 @@ namespace DiyFfb
 
             StopGatewayAutoReconnect();
             StopXPlaneUdpReceiver();
-
-            _buttonInputReader?.Dispose();
-            _buttonInputReader = null;
 
             // close serial communication
             if (ui != null)
@@ -2320,9 +2321,7 @@ namespace DiyFfb
         {
             graphInputs.Clear();
             GraphSignalCatalog.BuildXPlaneInputs(this, data, graphInputs);
-            _buttonInputReader?.SetActiveBindings(Settings?.GripButtonBindings);
-            try { _buttonInputReader?.Poll(); } catch { }
-            GraphSignalCatalog.BuildGripInputs(_buttonInputReader, Settings?.GripButtonBindings, graphInputs);
+            GraphSignalCatalog.BuildGripInputs(_gripHeld, graphInputs);
             GraphSignalCatalog.BuildAxisInputs(this, graphInputs);
         }
 
@@ -2334,7 +2333,7 @@ namespace DiyFfb
             // These may be zero if no bindings are configured — that's fine.
             try
             {
-                GraphSignalCatalog.BuildGripInputs(_buttonInputReader, Settings?.GripButtonBindings, inputs);
+                GraphSignalCatalog.BuildGripInputs(_gripHeld, inputs);
                 GraphSignalCatalog.BuildAxisInputs(this, inputs);
             }
             catch { }
@@ -3627,8 +3626,18 @@ namespace DiyFfb
             foreach (var fid in _flightFunctionIds)
                 SetFunctionOutputDisabled(fid, true);
 
-            // Initialize DirectInput reader for grip button graph inputs
-            _buttonInputReader = new ButtonInputReader();
+            // Plan 11: warn once if a settings.json carries grip bindings from before the
+            // SimHub-actions migration. The dict is no longer read at runtime; users must
+            // rebind in SimHub Controls.
+#pragma warning disable CS0618 // GripButtonBindings is intentionally read here for the migration warning.
+            if (Settings?.GripButtonBindings != null && Settings.GripButtonBindings.Count > 0)
+            {
+                SimHub.Logging.Current.Info(
+                    $"DiyFfb: {Settings.GripButtonBindings.Count} grip binding(s) from a previous version were found in settings.json. " +
+                    "Grip controls now bind through SimHub Controls — search for actions starting with 'Grip.' and rebind. " +
+                    "See the INPUT tab for details.");
+            }
+#pragma warning restore CS0618
 
             // Populate function and axis configs from manager
             if (ui != null)
@@ -3819,6 +3828,21 @@ namespace DiyFfb
                 SimHub.Logging.Current.Info("FlightControl Safety Damper: " + (nowEngaged ? "ENGAGED" : "Disengaged"));
                 current_action = "Safety Damper " + (nowEngaged ? "On" : "Off");
             });
+            // Plan 11: grip-button signals are SimHub input mappings (replacing the
+            // custom DirectInput path). AddInputMapping enforces held-state semantics
+            // — inputPressed/inputReleased fire on the press and release edges of the
+            // bound control, so the plugin keeps a clean held bool per signal. The
+            // graph reads the same 0.0/1.0 booleans it did under the previous polling
+            // path; downstream nodes (trim integration, edge detection on TrimReset)
+            // are unchanged.
+            foreach (var gripSignal in GraphSignalCatalog.GripSignalNames)
+            {
+                string captured = gripSignal;
+                this.AddInputMapping(
+                    captured,
+                    inputPressed: (a, b) => { _gripHeld[captured] = true; },
+                    inputReleased: (a, b) => { _gripHeld[captured] = false; });
+            }
             this.AddAction("ABStoggle", (a, b) =>
             {
                 if (!Settings.function_settings[Settings.function_tab_selected].ABS_enabled)

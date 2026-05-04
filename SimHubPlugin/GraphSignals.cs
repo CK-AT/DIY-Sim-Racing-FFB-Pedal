@@ -89,22 +89,20 @@ namespace DiyFfb
             "Grip.TrimReset"
         };
 
+        // Plan 11: read grip-button signal values from a held-state dict populated by
+        // SimHub AddInputMapping callbacks (inputPressed → true, inputReleased → false).
+        // SimHub enforces "during" semantics on input mappings, so no heartbeat/timeout
+        // heuristic is needed — the bool is authoritative.
         public static void BuildGripInputs(
-            ButtonInputReader reader,
-            Dictionary<string, ButtonBinding> bindings,
+            IReadOnlyDictionary<string, bool> heldState,
             IDictionary<string, double> inputs)
         {
             foreach (var signalName in GripSignalNames)
             {
-                double value = 0.0;
-                if (reader != null
-                    && bindings != null
-                    && bindings.TryGetValue(signalName, out var binding)
-                    && binding.Type != BindingType.None)
-                {
-                    value = reader.IsPressed(binding) ? 1.0 : 0.0;
-                }
-                inputs[signalName] = value;
+                bool held = heldState != null
+                            && heldState.TryGetValue(signalName, out var v)
+                            && v;
+                inputs[signalName] = held ? 1.0 : 0.0;
             }
         }
 

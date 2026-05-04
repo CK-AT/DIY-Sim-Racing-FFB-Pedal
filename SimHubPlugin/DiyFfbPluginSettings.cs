@@ -182,9 +182,13 @@ namespace DiyFfb
         public Dictionary<int, string> AxisBaselines = new Dictionary<int, string>();
 
         /// <summary>
-        /// Maps logical grip signal names (e.g., "Grip.TrimHat.Up") to physical
-        /// joystick button or keyboard key bindings for graph input.
+        /// DEPRECATED (plan 11): grip signals now bind through SimHub's standard
+        /// control panel as named actions (Grip.TrimHat.Up, etc.). Retained only so
+        /// existing settings.json files from older plugin versions still load. The
+        /// runtime ignores this dict; users must rebind once via SimHub Controls.
+        /// Slated for removal one minor release after plan 11 ships.
         /// </summary>
+        [System.Obsolete("Replaced by SimHub control bindings — see plan 11. Kept for one release for settings deserialization.")]
         public Dictionary<string, ButtonBinding> GripButtonBindings = new Dictionary<string, ButtonBinding>();
 
         /// <summary>

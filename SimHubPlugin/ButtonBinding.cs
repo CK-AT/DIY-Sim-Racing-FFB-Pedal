@@ -1,3 +1,5 @@
+using System;
+
 namespace DiyFfb
 {
     public enum BindingType { None, JoystickButton, KeyboardKey, HatDirection }
@@ -5,42 +7,20 @@ namespace DiyFfb
     public enum HatDir { Up = 0, Right = 9000, Down = 18000, Left = 27000 }
 
     /// <summary>
-    /// Maps a logical grip signal to a physical joystick button, keyboard key,
-    /// or hat switch direction.
-    /// Persisted in DiyFfbPluginSettings.GripButtonBindings.
+    /// DEPRECATED (plan 11): grip signals now bind through SimHub's standard control
+    /// panel as named actions (Grip.TrimHat.Up, etc.). This type is retained only so
+    /// existing settings.json files from older plugin versions still deserialize.
+    /// Slated for removal one minor release after plan 11 ships.
     /// </summary>
+    [Obsolete("Replaced by SimHub control bindings — see plan 11. Kept for one release for settings deserialization.")]
     public class ButtonBinding
     {
         public BindingType Type = BindingType.None;
-
-        // Joystick fields (used when Type == JoystickButton or HatDirection)
         public string DeviceInstanceGuid = "";
         public string DeviceName = "";
         public int ButtonIndex = -1;
-
-        // Keyboard field (used when Type == KeyboardKey)
         public int KeyCode = -1;
-
-        // Hat switch fields (used when Type == HatDirection)
         public int HatIndex = 0;
         public HatDir HatDirection = HatDir.Up;
-
-        public string DisplayName
-        {
-            get
-            {
-                switch (Type)
-                {
-                    case BindingType.JoystickButton:
-                        return $"{DeviceName}: Btn {ButtonIndex}";
-                    case BindingType.KeyboardKey:
-                        return $"Keyboard: {((SharpDX.DirectInput.Key)KeyCode)}";
-                    case BindingType.HatDirection:
-                        return $"{DeviceName}: Hat{HatIndex} {HatDirection}";
-                    default:
-                        return "(not bound)";
-                }
-            }
-        }
     }
 }
