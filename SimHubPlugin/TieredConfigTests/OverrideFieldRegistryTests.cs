@@ -42,6 +42,8 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("GetTargetLayer_SimulatedMass_ReturnsUser", GetTargetLayer_SimulatedMass_ReturnsUser),
                 TestRunner.RunTest("GetTargetLayer_StaticBalanceTuning_ReturnsUser", GetTargetLayer_StaticBalanceTuning_ReturnsUser),
                 TestRunner.RunTest("GetTargetLayer_UnknownField_FallbackToRouter", GetTargetLayer_UnknownField_FallbackToRouter),
+                TestRunner.RunTest("GetTargetLayer_FlightControlDamping_ReturnsUser", GetTargetLayer_FlightControlDamping_ReturnsUser),
+                TestRunner.RunTest("GetTargetLayer_FlightControlMotionRange_ReturnsUser", GetTargetLayer_FlightControlMotionRange_ReturnsUser),
 
                 // IsUserTunable tests
                 TestRunner.RunTest("IsUserTunable_OutputMin_ReturnsTrue", IsUserTunable_OutputMin_ReturnsTrue),
@@ -248,6 +250,27 @@ namespace DiyFfb.TieredConfigTests
             // Unknown fields should fallback to FieldRouter
             var layer = OverrideFieldRegistry.GetTargetLayer("unknown_field");
             AssertEqual(ConfigLayer.Profile, layer, "Unknown field should default to Profile via FieldRouter");
+        }
+
+        // Plan 11 regression: flight_control.* paths must report User as the target
+        // layer. Pre-fix, the orchestrator routed via FieldRouter directly which
+        // didn't recognize the new prefix and returned Profile — overrides were lost
+        // when no active vehicle profile existed.
+        private static void GetTargetLayer_FlightControlDamping_ReturnsUser()
+        {
+            // Both legacy snake_case alias and canonical PascalCase resolve.
+            AssertEqual(ConfigLayer.User, OverrideFieldRegistry.GetTargetLayer("flight_control.damping"),
+                "flight_control.damping should target User layer");
+            AssertEqual(ConfigLayer.User, OverrideFieldRegistry.GetTargetLayer("FlightControl.Damping"),
+                "FlightControl.Damping should target User layer");
+        }
+
+        private static void GetTargetLayer_FlightControlMotionRange_ReturnsUser()
+        {
+            AssertEqual(ConfigLayer.User, OverrideFieldRegistry.GetTargetLayer("flight_control.motion_range"),
+                "flight_control.motion_range should target User layer");
+            AssertEqual(ConfigLayer.User, OverrideFieldRegistry.GetTargetLayer("flight_control.centering_spring_const"),
+                "flight_control.centering_spring_const should target User layer");
         }
 
         // === IsUserTunable Tests ===

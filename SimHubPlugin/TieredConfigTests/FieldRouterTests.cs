@@ -23,6 +23,9 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("GetTargetLayer_StaticBalanceTuning_ReturnsUser", GetTargetLayer_StaticBalanceTuning_ReturnsUser),
                 TestRunner.RunTest("GetTargetLayer_StaticBalanceTuningNested_ReturnsUser", GetTargetLayer_StaticBalanceTuningNested_ReturnsUser),
                 TestRunner.RunTest("GetTargetLayer_BaseOutputMin_ReturnsUser", GetTargetLayer_BaseOutputMin_ReturnsUser),
+                TestRunner.RunTest("GetTargetLayer_FlightControl_ReturnsUser", GetTargetLayer_FlightControl_ReturnsUser),
+                TestRunner.RunTest("GetTargetLayer_FlightStickLegacy_ReturnsUser", GetTargetLayer_FlightStickLegacy_ReturnsUser),
+                TestRunner.RunTest("GetTargetLayer_FlightPedalsLegacy_ReturnsUser", GetTargetLayer_FlightPedalsLegacy_ReturnsUser),
 
                 // Baseline field routing tests
                 TestRunner.RunTest("GetTargetLayer_KinematicParameters_ReturnsBaseline", GetTargetLayer_KinematicParameters_ReturnsBaseline),
@@ -105,6 +108,37 @@ namespace DiyFfb.TieredConfigTests
         {
             var layer = FieldRouter.GetTargetLayer("base.output_min");
             AssertEqual(ConfigLayer.User, layer, "base.output_min should route to User");
+        }
+
+        // Plan 10 regression: flight_control.* paths must route to User. Before the
+        // fix, the FieldRouter only knew the legacy flight_stick. / flight_pedals.
+        // prefixes — flight_control.damping fell through to Profile and overrides
+        // were silently dropped when no active vehicle profile existed.
+        private static void GetTargetLayer_FlightControl_ReturnsUser()
+        {
+            AssertEqual(ConfigLayer.User, FieldRouter.GetTargetLayer("flight_control.damping"),
+                "flight_control.damping should route to User");
+            AssertEqual(ConfigLayer.User, FieldRouter.GetTargetLayer("flight_control.centering_spring_const"),
+                "flight_control.centering_spring_const should route to User");
+            AssertEqual(ConfigLayer.User, FieldRouter.GetTargetLayer("flight_control.motion_range"),
+                "flight_control.motion_range should route to User");
+            // PascalCase canonical form (post-NormalizeFieldPath) — also user-routed.
+            AssertEqual(ConfigLayer.User, FieldRouter.GetTargetLayer("FlightControl.Damping"),
+                "FlightControl.Damping (PascalCase) should route to User");
+        }
+
+        // Sanity: legacy paths still route to User. Aliased graphs / profiles must
+        // continue to work after the FieldRouter prefix update.
+        private static void GetTargetLayer_FlightStickLegacy_ReturnsUser()
+        {
+            AssertEqual(ConfigLayer.User, FieldRouter.GetTargetLayer("flight_stick.damping"),
+                "flight_stick.damping (legacy) should still route to User");
+        }
+
+        private static void GetTargetLayer_FlightPedalsLegacy_ReturnsUser()
+        {
+            AssertEqual(ConfigLayer.User, FieldRouter.GetTargetLayer("flight_pedals.damping"),
+                "flight_pedals.damping (legacy) should still route to User");
         }
 
         // === Baseline Field Routing Tests ===

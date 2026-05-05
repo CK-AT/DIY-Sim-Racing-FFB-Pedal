@@ -88,6 +88,13 @@ namespace DiyFfb.TieredConfigTests
                 TestRunner.RunTest("ConfigOut_ReapplyMergedOverrides_IncludesConfigOut", ConfigOut_ReapplyMergedOverrides_IncludesConfigOut),
                 TestRunner.RunTest("ConfigOut_AppliedOnIncomingBaseline_WithEmptyOverrides", ConfigOut_AppliedOnIncomingBaseline_WithEmptyOverrides),
                 TestRunner.RunTest("ConfigOut_StoreThenSchedule_BatchAvoidsPartialMerge", ConfigOut_StoreThenSchedule_BatchAvoidsPartialMerge),
+
+                // Plan 11 regression: flight_control.* paths must persist as User-layer
+                // overrides even when no active vehicle profile exists.
+                TestRunner.RunTest("FlightControlDamping_NoActiveProfile_PersistsAsUserOverride",
+                    FlightControlDamping_NoActiveProfile_PersistsAsUserOverride),
+                TestRunner.RunTest("FlightControlDamping_NoActiveProfile_SurvivesReapply",
+                    FlightControlDamping_NoActiveProfile_SurvivesReapply),
             };
         }
 
@@ -510,6 +517,115 @@ namespace DiyFfb.TieredConfigTests
                 throw new Exception($"SimulatedMass dropped from batched store: {merged.SimulatedMass}");
             if (Math.Abs(merged.Friction - 3.0f) > 1e-6f)
                 throw new Exception($"Friction dropped from batched store: {merged.Friction}");
+
+            return true;
+        }
+
+        #endregion
+
+        #region Plan 11 regression: flight_control.* layer routing
+
+        // Plan 10 introduced the unified flight_control.* field-path scheme, but
+        // FieldRouter only knew the legacy flight_stick. / flight_pedals. prefixes.
+        // flight_control.* fell through to ConfigLayer.Profile; with no active vehicle
+        // profile, GetOrCreateFunctionOverrides returned null and the slider's update
+        // delegate was silently dropped. The slider mutation appeared to "stick" only
+        // because function.Config shares a reference with _currentConfigs, but the
+        // next merge from baseline reverted the value.
+        //
+        // Fix: TieredConfigOrchestrator.GetFunctionOverrideTargetLayer now consults
+        // OverrideFieldRegistry first (each FlightControl* field has DefaultLayer=User
+        // explicitly registered); FieldRouter also gained the flight_control. prefix.
+        private static bool FlightControlDamping_NoActiveProfile_PersistsAsUserOverride()
+        {
+            var orchestrator = CreateOrchestrator();
+            // Simulate "no active profile" — _getActiveProfile returns _activeProfile,
+            // so nulling the field makes the callback return null.
+            _activeProfile = null;
+
+            var baseline = new FunctionConfig
+            {
+                Base = new FunctionBase
+                {
+                    FunctionId = FunctionID.FlightStickRoll,
+                    OutputMin = -50,
+                    OutputMax = 50,
+                },
+                FlightControl = new FlightControlConfig
+                {
+                    PosMin = -50,
+                    PosMax = 50,
+                    Damping = 0.140f,
+                    CenteringSpringConst = 1.5f,
+                },
+            };
+            orchestrator.SetFunctionBaseline((int)FunctionID.FlightStickRoll, baseline);
+            orchestrator.InitializeManagerFromSettings();
+
+            // Slider-equivalent path: store the override via the public update API
+            // exactly as FlightStickConfigControl.OnDampingChanged does.
+            orchestrator.UpdateFunctionOverrideField(
+                (int)FunctionID.FlightStickRoll,
+                "flight_control.damping",
+                overrides => overrides.FlightControlDamping = 0.842f);
+
+            // Override must land in the User layer (the only writable layer when no
+            // profile is active); pre-fix this silently dropped to Profile and was lost.
+            var userOverrides = orchestrator.GetUserFunctionOverrides((int)FunctionID.FlightStickRoll);
+            if (userOverrides == null)
+                throw new Exception("User override missing — flight_control.damping routed away from User layer");
+            if (!userOverrides.FlightControlDamping.HasValue)
+                throw new Exception("FlightControlDamping not set in user overrides");
+            if (Math.Abs(userOverrides.FlightControlDamping.Value - 0.842f) > 1e-6f)
+                throw new Exception($"FlightControlDamping mismatch: {userOverrides.FlightControlDamping.Value} != 0.842");
+
+            return true;
+        }
+
+        // Same scenario but verifying the merge survives a re-apply — guards against
+        // the trailing-edge regression where the slider value visibly reverted to
+        // baseline ~750 ms after the user moved it.
+        private static bool FlightControlDamping_NoActiveProfile_SurvivesReapply()
+        {
+            var orchestrator = CreateOrchestrator();
+            _activeProfile = null;
+
+            var baseline = new FunctionConfig
+            {
+                Base = new FunctionBase
+                {
+                    FunctionId = FunctionID.FlightStickRoll,
+                    OutputMin = -50,
+                    OutputMax = 50,
+                },
+                FlightControl = new FlightControlConfig
+                {
+                    PosMin = -50,
+                    PosMax = 50,
+                    Damping = 0.140f,
+                    CenteringSpringConst = 1.5f,
+                },
+            };
+            orchestrator.SetFunctionBaseline((int)FunctionID.FlightStickRoll, baseline);
+            orchestrator.InitializeManagerFromSettings();
+
+            orchestrator.UpdateFunctionOverrideField(
+                (int)FunctionID.FlightStickRoll,
+                "flight_control.damping",
+                overrides => overrides.FlightControlDamping = 0.842f);
+
+            // Force a fresh merge — this is what the throttle trailing edge does.
+            // Pre-fix: this re-merged from baseline + (no overrides) → 0.140.
+            orchestrator.ReapplyMergedOverrides((int)FunctionID.FlightStickRoll, diffCheck: false);
+
+            var merged = orchestrator.GetInitialFunctionConfig((int)FunctionID.FlightStickRoll);
+            if (merged == null)
+                throw new Exception("Merged config missing after reapply");
+            if (merged.FlightControl == null)
+                throw new Exception("FlightControl arm missing from merged config");
+            if (Math.Abs(merged.FlightControl.Damping - 0.842f) > 1e-6f)
+                throw new Exception(
+                    $"Re-merged damping reverted to baseline: {merged.FlightControl.Damping:F3} (expected 0.842)");
 
             return true;
         }

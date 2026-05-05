@@ -74,6 +74,8 @@ namespace DiyFfb.TieredConfig
                 normalizedPath.StartsWith("damper_config.") ||
                 normalizedPath.StartsWith("flight_pedals.") ||
                 normalizedPath.StartsWith("flight_stick.") ||
+                normalizedPath.StartsWith("flight_control.") ||
+                normalizedPath.StartsWith("flightcontrol.") ||
                 normalizedPath.StartsWith("aux_function."))
                 return ConfigLayer.User;
 

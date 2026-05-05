@@ -1299,8 +1299,14 @@ namespace DiyFfb.TieredConfig
 
         private static ConfigLayer GetFunctionOverrideTargetLayer(string fieldName)
         {
+            // Use the registry's per-field DefaultLayer first (FlightControlDamping etc.
+            // are explicitly registered as User-layer); fall back to FieldRouter's
+            // prefix heuristic only for unregistered fields. Plan 10 broke routing for
+            // flight_control.* paths because FieldRouter only knew flight_stick. /
+            // flight_pedals. prefixes — overrides silently routed to Profile and were
+            // dropped when no active profile existed.
             var normalized = NormalizeFunctionOverrideFieldPath(fieldName);
-            return FieldRouter.GetTargetLayer(normalized);
+            return OverrideFieldRegistry.GetTargetLayer(normalized);
         }
 
         #endregion
