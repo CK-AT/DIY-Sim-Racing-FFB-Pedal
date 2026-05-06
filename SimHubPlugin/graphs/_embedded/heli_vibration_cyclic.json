@@ -648,37 +648,37 @@
       "Y": 990.0,
       "Ports": [
         {
-          "Name": "FlightStick.Vib1HarmRatio1",
+          "Name": "FlightControl.Vib1HarmRatio1",
           "Kind": "Input",
-          "ConfigField": "FlightStick.Vib1HarmRatio1"
+          "ConfigField": "FlightControl.Vib1HarmRatio1"
         },
         {
-          "Name": "FlightStick.Vib1HarmRatio2",
+          "Name": "FlightControl.Vib1HarmRatio2",
           "Kind": "Input",
-          "ConfigField": "FlightStick.Vib1HarmRatio2"
+          "ConfigField": "FlightControl.Vib1HarmRatio2"
         },
         {
-          "Name": "FlightStick.Vib1HarmRatio3",
+          "Name": "FlightControl.Vib1HarmRatio3",
           "Kind": "Input",
-          "ConfigField": "FlightStick.Vib1HarmRatio3"
+          "ConfigField": "FlightControl.Vib1HarmRatio3"
         },
         {
-          "Name": "FlightStick.Vib1HarmRatio4",
+          "Name": "FlightControl.Vib1HarmRatio4",
           "Kind": "Input",
-          "ConfigField": "FlightStick.Vib1HarmRatio4"
+          "ConfigField": "FlightControl.Vib1HarmRatio4"
         },
         {
-          "Name": "FlightStick.Vib1HarmRatio5",
+          "Name": "FlightControl.Vib1HarmRatio5",
           "Kind": "Input",
-          "ConfigField": "FlightStick.Vib1HarmRatio5"
+          "ConfigField": "FlightControl.Vib1HarmRatio5"
         },
         {
-          "Name": "FlightStick.Vib1Phase",
+          "Name": "FlightControl.Vib1Phase",
           "Kind": "Input",
-          "ConfigField": "FlightStick.Vib1Phase"
+          "ConfigField": "FlightControl.Vib1Phase"
         }
       ],
-      "ConfigType": "FlightStick"
+      "ConfigType": "FlightControl"
     },
     {
       "Id": "15a4a84d19424a1d890d0a9abd4a93b9",
@@ -894,37 +894,37 @@
       "FromNodeId": "const_one",
       "FromPort": "out",
       "ToNodeId": "cfg_ratios",
-      "ToPort": "FlightStick.Vib1HarmRatio1"
+      "ToPort": "FlightControl.Vib1HarmRatio1"
     },
     {
       "FromNodeId": "in_blade_count",
       "FromPort": "blade_count",
       "ToNodeId": "cfg_ratios",
-      "ToPort": "FlightStick.Vib1HarmRatio2"
+      "ToPort": "FlightControl.Vib1HarmRatio2"
     },
     {
       "FromNodeId": "mul_bc2",
       "FromPort": "a*b",
       "ToNodeId": "cfg_ratios",
-      "ToPort": "FlightStick.Vib1HarmRatio3"
+      "ToPort": "FlightControl.Vib1HarmRatio3"
     },
     {
       "FromNodeId": "in_phase",
       "FromPort": "phase",
       "ToNodeId": "cfg_ratios",
-      "ToPort": "FlightStick.Vib1Phase"
+      "ToPort": "FlightControl.Vib1Phase"
     },
     {
       "FromNodeId": "15a4a84d19424a1d890d0a9abd4a93b9",
       "FromPort": "out",
       "ToNodeId": "cfg_ratios",
-      "ToPort": "FlightStick.Vib1HarmRatio4"
+      "ToPort": "FlightControl.Vib1HarmRatio4"
     },
     {
       "FromNodeId": "15a4a84d19424a1d890d0a9abd4a93b9",
       "FromPort": "out",
       "ToNodeId": "cfg_ratios",
-      "ToPort": "FlightStick.Vib1HarmRatio5"
+      "ToPort": "FlightControl.Vib1HarmRatio5"
     },
     {
       "FromNodeId": "6bb7b6335f9d4ed2a408a4cbacf5bd83",
