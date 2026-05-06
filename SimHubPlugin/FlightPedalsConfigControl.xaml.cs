@@ -61,10 +61,12 @@ namespace DiyFfb
             if (plugin != null)
             {
                 _graphParamHelper.Subscribe();
-                plugin.FlightSafetyDamperChanged += OnSafetyDamperChanged;
 
                 if (IsLoaded)
+                {
                     _badgeHelper.Subscribe();
+                    plugin.FlightSafetyDamperChanged += OnSafetyDamperChanged;
+                }
             }
 
             is_updating = false;
@@ -75,6 +77,14 @@ namespace DiyFfb
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
             _badgeHelper?.Subscribe();
+            if (plugin != null)
+            {
+                // Re-subscribe on every Load — WPF's TabControl unloads tab content on
+                // switch, so without this the handler dies after the first tab change
+                // and the safety toggle stops reflecting external triggers.
+                plugin.FlightSafetyDamperChanged += OnSafetyDamperChanged;
+            }
+            UpdateDisableOutputsToggle();
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)

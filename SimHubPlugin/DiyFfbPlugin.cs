@@ -3821,13 +3821,41 @@ namespace DiyFfb
             // frame-emission gating for all four flight functions together. Engaged
             // = frames gated, ESP32 falls back to FlightControlConfig.damping (rest
             // value). Disengaged = frames flow, per-frame k_damper authoritative.
-            this.AddAction("FlightControl.SafetyDamperToggle", (a, b) =>
-            {
-                bool nowEngaged = !_flightSafetyDamperEngaged;
-                SetFlightSafetyDamperEngaged(nowEngaged);
-                SimHub.Logging.Current.Info("FlightControl Safety Damper: " + (nowEngaged ? "ENGAGED" : "Disengaged"));
-                current_action = "Safety Damper " + (nowEngaged ? "On" : "Off");
-            });
+            // Registered as an input mapping (not an action) so the user doesn't have
+            // to pick the right Input mode in SimHub Controls — AddInputMapping enforces
+            // press/release semantics. SimHub fires inputPressed repeatedly while the
+            // bound control is held (same "during" cadence as AddAction's During mode),
+            // so a naive toggle inside inputPressed flips rapidly during a hold. Track
+            // held state explicitly so the toggle fires exactly once per press-down
+            // edge regardless of how long the user holds the button.
+            // SimHub treats a held control as a stream of release+press tick events.
+            // The first press fires inputPressed only; ~500 ms later (typical key
+            // auto-repeat delay) SimHub starts firing inputReleased+inputPressed
+            // pairs every ~30 ms. To detect a real new user press without false-
+            // toggling on the first auto-repeat, track the most recent event of
+            // EITHER kind: inputReleased advances the timestamp so the auto-repeat
+            // inputPressed that follows it sees a near-zero gap and is suppressed.
+            // A real user re-press always has at least one tick of silence (>75 ms)
+            // separating it from any prior event.
+            DateTime lastSafetyDamperEventUtc = DateTime.MinValue;
+            const int SafetyDamperGapMs = 75;
+            this.AddInputMapping(
+                "FlightControl.SafetyDamperToggle",
+                inputPressed: (a, b) =>
+                {
+                    var now = DateTime.UtcNow;
+                    bool isNewPress = (now - lastSafetyDamperEventUtc).TotalMilliseconds > SafetyDamperGapMs;
+                    lastSafetyDamperEventUtc = now;
+                    if (!isNewPress) return;
+                    bool nowEngaged = !_flightSafetyDamperEngaged;
+                    SetFlightSafetyDamperEngaged(nowEngaged);
+                    SimHub.Logging.Current.Info("FlightControl Safety Damper: " + (nowEngaged ? "ENGAGED" : "Disengaged"));
+                    current_action = "Safety Damper " + (nowEngaged ? "On" : "Off");
+                },
+                inputReleased: (a, b) =>
+                {
+                    lastSafetyDamperEventUtc = DateTime.UtcNow;
+                });
             // Plan 11: grip-button signals are SimHub input mappings (replacing the
             // custom DirectInput path). AddInputMapping enforces held-state semantics
             // — inputPressed/inputReleased fire on the press and release edges of the
