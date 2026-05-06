@@ -1,0 +1,644 @@
+{
+  "Version": 4,
+  "IsLibraryGraph": true,
+  "Nodes": [
+    {
+      "Id": "in_rpm_norm",
+      "Title": "RPM (norm)",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 70.0,
+      "Ports": [
+        {
+          "Name": "rpm_norm",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_blade_count",
+      "Title": "Main Blade Count",
+      "Kind": "Input",
+      "X": 420.0,
+      "Y": 720.0,
+      "Ports": [
+        {
+          "Name": "blade_count",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_tr_blade_count",
+      "Title": "TR Blade Count",
+      "Kind": "Input",
+      "X": 20.0,
+      "Y": 730.0,
+      "Ports": [
+        {
+          "Name": "tr_blade_count",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_tr_gear",
+      "Title": "TR Gear Ratio",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 820.0,
+      "Ports": [
+        {
+          "Name": "tr_gear",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_gain_1rev",
+      "Kind": "Param",
+      "X": 360.0,
+      "Y": 10.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "gain_1rev"
+        }
+      ],
+      "SignalGroup": "Pedal"
+    },
+    {
+      "Id": "param_gain_nrev",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 190.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "gain_nrev"
+        }
+      ],
+      "SignalGroup": "Pedal"
+    },
+    {
+      "Id": "param_gain_tr_blade",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 340.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "gain_tr_blade"
+        }
+      ],
+      "SignalGroup": "Pedal"
+    },
+    {
+      "Id": "param_gain_tr_2nd",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 450.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "gain_tr_2nd"
+        }
+      ],
+      "SignalGroup": "Pedal"
+    },
+    {
+      "Id": "const_one",
+      "Title": "1.0",
+      "Kind": "Const",
+      "X": 430.0,
+      "Y": 650.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
+    },
+    {
+      "Id": "const_two",
+      "Title": "2.0",
+      "Kind": "Const",
+      "X": 220.0,
+      "Y": 890.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 2.0
+    },
+    {
+      "Id": "const_zero",
+      "Title": "0.0",
+      "Kind": "Const",
+      "X": 740.0,
+      "Y": 550.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "const_phase_zero",
+      "Title": "0 deg",
+      "Kind": "Const",
+      "X": 430.0,
+      "Y": 970.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "mul_rpm_sq",
+      "Title": "rpm × rpm",
+      "Kind": "Op",
+      "X": 460.0,
+      "Y": 80.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_1rev_ampl",
+      "Title": "Vib1Ampl1 = gain_1rev × rpm²",
+      "Kind": "Op",
+      "X": 630.0,
+      "Y": 40.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_nrev_ampl",
+      "Title": "Vib1Ampl2 = gain_nrev × rpm",
+      "Kind": "Op",
+      "X": 630.0,
+      "Y": 190.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_tr_blade_ampl",
+      "Title": "Vib1Ampl3 = gain_tr_blade × rpm",
+      "Kind": "Op",
+      "X": 630.0,
+      "Y": 340.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_tr_2nd_ampl",
+      "Title": "Vib1Ampl4 = gain_tr_2nd × rpm",
+      "Kind": "Op",
+      "X": 630.0,
+      "Y": 450.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_tr_blade_ratio",
+      "Title": "tr_blade × tr_gear",
+      "Kind": "Op",
+      "X": 210.0,
+      "Y": 760.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_tr_2nd_ratio",
+      "Title": "2 × tr_blade × tr_gear",
+      "Kind": "Op",
+      "X": 370.0,
+      "Y": 860.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "out_ampl1",
+      "Kind": "Output",
+      "X": 880.0,
+      "Y": 40.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Vib1Ampl1"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "out_ampl2",
+      "Kind": "Output",
+      "X": 880.0,
+      "Y": 190.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Vib1Ampl2"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "out_ampl3",
+      "Kind": "Output",
+      "X": 880.0,
+      "Y": 340.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Vib1Ampl3"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "out_ampl4",
+      "Kind": "Output",
+      "X": 880.0,
+      "Y": 450.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Vib1Ampl4"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "out_ampl5",
+      "Kind": "Output",
+      "X": 880.0,
+      "Y": 550.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Vib1Ampl5"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "cfg_ratios",
+      "Title": "ConfigOut",
+      "Kind": "ConfigOut",
+      "X": 610.0,
+      "Y": 790.0,
+      "Ports": [
+        {
+          "Name": "FlightControl.Vib1HarmRatio1",
+          "Kind": "Input",
+          "ConfigField": "FlightControl.Vib1HarmRatio1"
+        },
+        {
+          "Name": "FlightControl.Vib1HarmRatio2",
+          "Kind": "Input",
+          "ConfigField": "FlightControl.Vib1HarmRatio2"
+        },
+        {
+          "Name": "FlightControl.Vib1HarmRatio3",
+          "Kind": "Input",
+          "ConfigField": "FlightControl.Vib1HarmRatio3"
+        },
+        {
+          "Name": "FlightControl.Vib1HarmRatio4",
+          "Kind": "Input",
+          "ConfigField": "FlightControl.Vib1HarmRatio4"
+        },
+        {
+          "Name": "FlightControl.Vib1HarmRatio5",
+          "Kind": "Input",
+          "ConfigField": "FlightControl.Vib1HarmRatio5"
+        },
+        {
+          "Name": "FlightControl.Vib1Phase",
+          "Kind": "Input",
+          "ConfigField": "FlightControl.Vib1Phase"
+        }
+      ],
+      "ConfigType": "FlightControl"
+    }
+  ],
+  "Links": [
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_rpm_sq",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_rpm_sq",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_gain_1rev",
+      "FromPort": "gain_1rev",
+      "ToNodeId": "mul_1rev_ampl",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_rpm_sq",
+      "FromPort": "a*b",
+      "ToNodeId": "mul_1rev_ampl",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_1rev_ampl",
+      "FromPort": "a*b",
+      "ToNodeId": "out_ampl1",
+      "ToPort": "Vib1Ampl1"
+    },
+    {
+      "FromNodeId": "param_gain_nrev",
+      "FromPort": "gain_nrev",
+      "ToNodeId": "mul_nrev_ampl",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_nrev_ampl",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_nrev_ampl",
+      "FromPort": "a*b",
+      "ToNodeId": "out_ampl2",
+      "ToPort": "Vib1Ampl2"
+    },
+    {
+      "FromNodeId": "param_gain_tr_blade",
+      "FromPort": "gain_tr_blade",
+      "ToNodeId": "mul_tr_blade_ampl",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_tr_blade_ampl",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_tr_blade_ampl",
+      "FromPort": "a*b",
+      "ToNodeId": "out_ampl3",
+      "ToPort": "Vib1Ampl3"
+    },
+    {
+      "FromNodeId": "param_gain_tr_2nd",
+      "FromPort": "gain_tr_2nd",
+      "ToNodeId": "mul_tr_2nd_ampl",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_tr_2nd_ampl",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_tr_2nd_ampl",
+      "FromPort": "a*b",
+      "ToNodeId": "out_ampl4",
+      "ToPort": "Vib1Ampl4"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "out_ampl5",
+      "ToPort": "Vib1Ampl5"
+    },
+    {
+      "FromNodeId": "in_tr_blade_count",
+      "FromPort": "tr_blade_count",
+      "ToNodeId": "mul_tr_blade_ratio",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_tr_gear",
+      "FromPort": "tr_gear",
+      "ToNodeId": "mul_tr_blade_ratio",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_tr_blade_ratio",
+      "FromPort": "a*b",
+      "ToNodeId": "mul_tr_2nd_ratio",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "cfg_ratios",
+      "ToPort": "FlightControl.Vib1HarmRatio1"
+    },
+    {
+      "FromNodeId": "in_blade_count",
+      "FromPort": "blade_count",
+      "ToNodeId": "cfg_ratios",
+      "ToPort": "FlightControl.Vib1HarmRatio2"
+    },
+    {
+      "FromNodeId": "mul_tr_blade_ratio",
+      "FromPort": "a*b",
+      "ToNodeId": "cfg_ratios",
+      "ToPort": "FlightControl.Vib1HarmRatio3"
+    },
+    {
+      "FromNodeId": "mul_tr_2nd_ratio",
+      "FromPort": "a*b",
+      "ToNodeId": "cfg_ratios",
+      "ToPort": "FlightControl.Vib1HarmRatio4"
+    },
+    {
+      "FromNodeId": "const_phase_zero",
+      "FromPort": "out",
+      "ToNodeId": "cfg_ratios",
+      "ToPort": "FlightControl.Vib1Phase"
+    },
+    {
+      "FromNodeId": "const_phase_zero",
+      "FromPort": "out",
+      "ToNodeId": "cfg_ratios",
+      "ToPort": "FlightControl.Vib1HarmRatio5"
+    },
+    {
+      "FromNodeId": "const_two",
+      "FromPort": "out",
+      "ToNodeId": "mul_tr_2nd_ratio",
+      "ToPort": "b"
+    }
+  ],
+  "Params": [
+    {
+      "Name": "Pedal.gain_1rev",
+      "DefaultValue": 0.02,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Main rotor 1/rev coupling",
+        "Group": "Pedal Vibration",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Pedal.gain_nrev",
+      "DefaultValue": 0.05,
+      "Min": 0.0,
+      "Max": 2.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Main rotor blade-passing coupling",
+        "Group": "Pedal Vibration",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Pedal.gain_tr_blade",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "TR blade-passing (primary)",
+        "Group": "Pedal Vibration",
+        "Units": "N",
+        "Step": 0.05,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Pedal.gain_tr_2nd",
+      "DefaultValue": 0.2,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "TR 2nd harmonic",
+        "Group": "Pedal Vibration",
+        "Units": "N",
+        "Step": 0.05,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    }
+  ],
+  "ParamValues": null
+}
