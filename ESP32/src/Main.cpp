@@ -560,7 +560,24 @@ void physics_task_func(void *pv_parameters) {
             comm_manager.calc_final_position(sim.get_x(), x_contact_point);
         }
 
-        x_sled = config_manager.calc_sled_position(x_contact_point);
+        // SyncVib position delta — added in contact frame post-calc_final_position
+        // (own_position is dropped on the floor for non-primary axes, so the
+        // delta cannot be injected upstream). For subtractive axes the contact
+        // frame is mirrored, so a positive sample in local sim convention must
+        // be applied with inverted sign — same flip pattern as
+        // calc_input_force_sum. Cached on ConfigManager at config-update time.
+        // Clamp to axis travel so a high-amp shake near a stop doesn't drive
+        // the servo past travel; linked axes share one FunctionConfig so
+        // pos_min/pos_max are the exact contact-frame range for every role.
+        // send_force_and_position broadcasts the un-vibrated x_contact_point.
+        float vib_sign = config_manager.is_subtractive_axis() ? -1.0f : 1.0f;
+        float x_contact_servo = x_contact_point + vib_sign * sim.get_x_vib();
+        float x_lo = sim.get_x_min();
+        float x_hi = sim.get_x_max();
+        if (x_contact_servo < x_lo) x_contact_servo = x_lo;
+        if (x_contact_servo > x_hi) x_contact_servo = x_hi;
+
+        x_sled = config_manager.calc_sled_position(x_contact_servo);
 
         config_manager.release_config_semaphore();
 

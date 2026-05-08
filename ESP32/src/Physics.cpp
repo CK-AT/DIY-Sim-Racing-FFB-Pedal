@@ -200,9 +200,12 @@ void Sim::update(float &dt, float &f_in, bool final_f) {
         }
     }
 
-    // Inject vibration force after damping and friction so coherent vibration
-    // is not attenuated. Note: oscillation guard's damping is folded into
-    // k_damp_sum above and has already been applied — vibration bypasses it too.
+    // Inject Buffet's vibration force after damping and friction so the chaotic
+    // band-limited noise is not attenuated. Oscillation guard's damping is
+    // folded into k_damp_sum above and has already been applied — vibration
+    // bypasses it too. SyncVib does not use this path (see plan 12 — it
+    // writes accum.x_vib instead and is applied as a position delta on the
+    // servo command path in Main.cpp).
     accum.f_sum += accum.f_vib;
 
     _a = accum.f_sum / _m * 1000.0;
@@ -210,6 +213,11 @@ void Sim::update(float &dt, float &f_in, bool final_f) {
     _x_prev = _x;
     _x = constrain(x_raw, _x_min, _x_max);
     _f_sum = accum.f_sum;
+    // SyncVib position delta — the servo path in Main.cpp adds this on top
+    // of x_contact_point so the integrator's mass/spring/damper feel is
+    // unchanged. accum.x_vib is fresh-zero each call, so the final_f branch
+    // (where the element loop is skipped) naturally carries 0.
+    _x_vib = accum.x_vib;
 }
 
 #ifdef UNIT_TEST
@@ -256,6 +264,7 @@ float Sim::compute_force_sum(float f_in) {
         }
     }
     accum.f_sum += accum.f_vib;
+    _x_vib = accum.x_vib;
     return accum.f_sum;
 }
 #endif
@@ -311,13 +320,15 @@ void SyncVib::update(const SimState &state, SimAccumulators &accum) {
         _amp[i] += (_target[i] - _amp[i]) * a;
     }
 
-    // Sum all active slots
+    // Sum all active slots — output is a position delta (mm) on the servo
+    // command path, applied in Main.cpp after calc_final_position. Never
+    // enters the integrator; damping changes do not attenuate amplitude.
     float f = 0.0f;
     for (uint8_t i = 0; i < _num_slots; i++) {
         f += _amp[i] * fastmath::fast_sinf(_ratios[i] * _phase + _phase_offset);
     }
 
-    accum.f_vib += f;
+    accum.x_vib += f;
 }
 
 float SyncVib::wrap_pm_pi(float x) {

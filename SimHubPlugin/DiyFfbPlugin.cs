@@ -1340,11 +1340,14 @@ namespace DiyFfb
             return ResolveXPlaneRotorIndex(packet);
         }
 
-        // Vib amplitudes go on the wire as uint8 at 0.05 N/LSB (range 0..12.75 N).
-        // Plugin pre-scales here; firmware reads raw and multiplies by 0.05.
+        // Vib amplitudes go on the wire as uint8 at 0.01 mm/LSB (range 0..2.55 mm).
+        // Plugin pre-scales here; firmware reads raw and multiplies by 0.01.
+        // SyncVib output is now a position delta on the servo command path
+        // (plan 12) — feel is decoupled from damping, but profiles tuned in
+        // the previous "N" units must be retuned for the new mm scale.
         private static uint PackVibAmp(float amp)
         {
-            int scaled = (int)Math.Round(amp * 20f);
+            int scaled = (int)Math.Round(amp * 100f);
             if (scaled < 0) return 0;
             if (scaled > 255) return 255;
             return (uint)scaled;

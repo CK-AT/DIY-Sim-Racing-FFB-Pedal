@@ -45,8 +45,8 @@ FlightStickCollective) produces these outputs:
 | `TrimOffset` | `trim_offset` | CenteringSpring offset | mm | Shifts spring center from baseline |
 | `LoadForce` | `load_force` | ConstForce | N | Constant force (aero loads, SAS, etc.) |
 | `BuffetAmplitude` | `buffet_amp` | Buffet | N | Amplitude of band-limited random force |
-| `VibSlot1..5` | `vib_amp_slot1..5` | SyncVib (DDS 1) | N | Coherent vibration amplitude per harmonic slot |
-| `Vib2Slot1..2` | `vib2_amp_slot1..2` | SyncVib (DDS 2) | N | Secondary oscillator amplitudes (engine, tail rotor) |
+| `VibSlot1..5` | `vib_amp_slot1..5` | SyncVib (DDS 1) | mm | Coherent vibration amplitude per harmonic slot (position delta, plan 12) |
+| `Vib2Slot1..2` | `vib2_amp_slot1..2` | SyncVib (DDS 2) | mm | Secondary oscillator amplitudes (engine, tail rotor) |
 
 Output signal names use the function as prefix:
 `FlightStickPitch.SpringGain`, `FlightStickRoll.TrimOffset`, etc.
@@ -59,9 +59,12 @@ DDS fundamentals are global, not per-function. They use a separate
 | `Shared.VibFundamental` | `DdsFundamentals.dds1_fundamental_hz` → CAN `0x0F0` | Hz | DDS 1 master fundamental |
 | `Shared.Vib2Fundamental` | `DdsFundamentals.dds2_fundamental_hz` → CAN `0x0F0` | Hz | DDS 2 master fundamental |
 
-Wire format detail: amplitude fields are quantized to 8 bits at 0.05 N/LSB
-(0..12.75 N range). The plugin pre-scales (×20) before sending; the ESP32
-multiplies by 0.05 when applying to `SyncVib::set_amplitudes`.
+Wire format detail: amplitude fields are quantized to 8 bits at 0.01 mm/LSB
+(0..2.55 mm range). The plugin pre-scales (×100) before sending; the ESP32
+multiplies by 0.01 when applying to `SyncVib::set_amplitudes`. SyncVib's
+output is a position delta on the servo command path (Main.cpp post
+`calc_final_position`) — never injected into `f_sum` so damping changes do
+not attenuate amplitude (plan 12).
 
 The `FlightStickConfig.phase_offset` ConfigOut field is expressed in
 **degrees** at the override / graph layer (more author-friendly) and

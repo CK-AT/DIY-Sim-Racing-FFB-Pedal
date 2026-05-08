@@ -72,8 +72,8 @@ These graph-level outputs are mapped to FFB function terms at runtime.
 
 Per-function vibration amplitudes (one set per flight function — wire via Scoped Output):
 
-- `{FlightStickPitch|FlightStickRoll|FlightPedals|FlightStickCollective}.VibSlot1..5` — DDS 1 amplitudes (N), 0..12.75 N range.
-- `{...}.Vib2Slot1..2` — DDS 2 amplitudes (N), same range.
+- `{FlightStickPitch|FlightStickRoll|FlightPedals|FlightStickCollective}.VibSlot1..5` — DDS 1 amplitudes (mm), 0..2.55 mm range. SyncVib output is a position delta on the servo command path (plan 12).
+- `{...}.Vib2Slot1..2` — DDS 2 amplitudes (mm), same range.
 
 Slot semantics are defined by `FlightStickConfig.vib_harmonic_ratios` (DDS 1, up to 5 ratios) and `vib2_harmonic_ratios` (DDS 2). Drive these from ConfigOut nodes using the field paths `flight_stick.vib_harmonic_ratios.0..4` and `flight_stick.vib2_harmonic_ratios.0..1`. Phase offset (for axis split / rotor handedness) goes via ConfigOut on `flight_stick.phase_offset`.
 

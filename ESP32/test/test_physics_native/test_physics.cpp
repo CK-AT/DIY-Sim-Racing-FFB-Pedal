@@ -493,7 +493,7 @@ void test_damping_map_negative_entries_clamped(void) {
     TEST_ASSERT_TRUE(std::isfinite(v));
 }
 
-// Drive a SyncVib with a fixed dt and return the f_vib output trace.
+// Drive a SyncVib with a fixed dt and return the x_vib (mm) output trace.
 static std::vector<float> RunSyncVib(SyncVib &vib, float dt_ms, int steps) {
     std::vector<float> trace;
     trace.reserve(steps);
@@ -502,7 +502,7 @@ static std::vector<float> RunSyncVib(SyncVib &vib, float dt_ms, int steps) {
     for (int i = 0; i < steps; ++i) {
         SimAccumulators accum;
         vib.update(state, accum);
-        trace.push_back(accum.f_vib);
+        trace.push_back(accum.x_vib);
     }
     return trace;
 }

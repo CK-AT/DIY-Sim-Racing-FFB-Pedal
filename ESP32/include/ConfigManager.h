@@ -90,6 +90,9 @@ class ConfigManager {
         float get_x_contact_point_center(void) {
             return _x_contact_point_center;
         }
+        bool is_subtractive_axis(void) const {
+            return _is_subtractive_axis;
+        }
         float calc_force_conversion_factor(float &x_contact_point);
         float calc_sled_position(float &x_contact_point);
         const FunctionConfig *get_function_config(void) {
@@ -150,6 +153,28 @@ class ConfigManager {
             }
             _x_contact_point_center = _x_contact_point_min + ((_x_contact_point_max - _x_contact_point_min) / 2.0f);
         }
+        void update_is_subtractive_axis(void) {
+            // Mirrors the linked-axes walk in CommManager::calc_input_force_sum
+            // / calc_final_position, but evaluated once per config update so
+            // the per-tick servo path doesn't have to re-walk the array.
+            // True only for the linked-non-primary case where the entry
+            // matching _axis_id carries the AXIS_SUBTRACTIVE flag.
+            _is_subtractive_axis = false;
+            const auto &linked_axes = _function_config.base.linked_axes;
+            const size_t n = sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0]);
+            AxisID primary = AxisID(linked_axes[0] & AxisID_AXIS_ID_MASK);
+            if (primary == _axis_id) return;
+            if (linked_axes[0] & AxisID_AXIS_INDEPENDENT) return;
+            for (size_t idx = 1; idx < n; idx++) {
+                AxisID axis_id = AxisID(linked_axes[idx] & AxisID_AXIS_ID_MASK);
+                if (axis_id == AxisID_AXIS_UNDEFINED) break;
+                if (axis_id == _axis_id) {
+                    if (linked_axes[idx] & AxisID_AXIS_INDEPENDENT) return;
+                    _is_subtractive_axis = (linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) != 0;
+                    return;
+                }
+            }
+        }
         void on_config_update(void);
         bool _fixed_id = false;
         AxisID _axis_id = AxisID_AXIS_UNDEFINED;
@@ -168,5 +193,6 @@ class ConfigManager {
         float _x_contact_point_min = 0.0f;
         float _x_contact_point_max = 0.0f;
         float _x_contact_point_center = 0.0f;
+        bool _is_subtractive_axis = false;
         Preferences persistent_memory;
 };

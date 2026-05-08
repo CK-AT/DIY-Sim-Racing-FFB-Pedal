@@ -70,9 +70,16 @@ struct SimAccumulators {
     float f_static_sum = 0.0f;
     float f_kin_sum = 0.0f;
     float v_eps_max = 0.0f;
-    // Vibration force: bypasses damping and friction. Injected into f_sum
-    // post-friction in Sim::update so coherent vibration is not attenuated.
+    // Vibration force (Buffet only): bypasses damping and friction.
+    // Injected into f_sum post-friction in Sim::update so coherent vibration
+    // is not attenuated. SyncVib does NOT use this — it routes its sample
+    // through accum.x_vib instead, see plan 12.
     float f_vib = 0.0f;
+    // Vibration position delta (mm), summed across SyncVib instances each
+    // tick. Captured by Sim::update into _x_vib for the servo command path
+    // in Main.cpp; never enters the integrator. Coupling is independent
+    // of damping so amplitude tuning is orthogonal to feel.
+    float x_vib = 0.0f;
     bool has_limits_override = false;
     bool limits_immediate = false;
     float x_min_override = 0.0f;
@@ -139,6 +146,9 @@ class Sim {
         }
         float get_f_sum(void) {
             return _f_sum;
+        }
+        float get_x_vib(void) const {
+            return _x_vib;
         }
         float get_m(void) const {
             return _m;
@@ -209,6 +219,7 @@ class Sim {
         float _v = 0.0;
         float _a = 0.0;
         float _f_sum;
+        float _x_vib = 0.0f;
         float _dt_ms = 0.0f;
         float _min_damping = 0.0f;
 };
@@ -282,7 +293,10 @@ class Buffet : public SimElement {
 
 // Coherent multi-harmonic vibration oscillator. Phase advances at
 // fundamental_hz, each slot evaluates sin(ratio * phase + phase_offset)
-// with a smoothed amplitude. Output goes to f_vib (bypasses friction).
+// with a smoothed amplitude. Output is a position delta (mm) routed via
+// accum.x_vib. Sim::update captures the per-tick sum into _x_vib for the
+// servo command path; it never enters the integrator (damping orthogonal
+// to vibration).
 //
 // PLL state is present but dormant in phase 1 — until on_sync() is fed
 // from a gateway sync frame (phase 3), the oscillator free-runs at

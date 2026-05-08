@@ -190,8 +190,10 @@ message FlightFfbAction {
   float buffet_amp = 4;
   float load_force = 5;
   float k_friction = 6;
-  // DDS 1 amplitudes, uint8 at 0.01 N/LSB (range 0..2.55 N).
+  // DDS 1 amplitudes, uint8 at 0.01 mm/LSB (range 0..2.55 mm).
   // Plugin pre-scales (×100); firmware reads raw and multiplies by 0.01.
+  // SyncVib output is a position delta on the servo command path
+  // (plan 12 — feel decoupled from damping).
   uint32 vib_amp_slot1 = 7;
   uint32 vib_amp_slot2 = 8;
   uint32 vib_amp_slot3 = 9;
@@ -244,7 +246,7 @@ Gateway-to-axis FFB transport uses the existing `0x200 + (FFBFrameTypes::X << 4)
 ```text
 FFBFrameTypes::FLIGHT_FFB      = 1   spring, damper, trim, buffet     (8 bytes)
 FFBFrameTypes::FLIGHT_FFB_LOAD = 2   load_force, k_friction           (4 bytes)
-FFBFrameTypes::FLIGHT_VIB      = 3   5+2 amps, raw 0.01 N/LSB         (7 bytes)  NEW
+FFBFrameTypes::FLIGHT_VIB      = 3   5+2 amps, raw 0.01 mm/LSB        (7 bytes)  NEW
 ```
 
 The axis-side `FlightFfbCache` stitches the three sub-frames; on each
@@ -318,15 +320,18 @@ behaviour.
 Wired via Scoped Output nodes; routed by the parent Include's
 `FunctionScope`.
 
+SyncVib output is a position delta (mm) on the servo command path; see
+plan 12 — feel decoupled from damping.
+
 | Output | Proto field | DDS | Unit |
 | --- | --- | --- | --- |
-| `VibSlot1` | `vib_amp_slot1` | 1 | N |
-| `VibSlot2` | `vib_amp_slot2` | 1 | N |
-| `VibSlot3` | `vib_amp_slot3` | 1 | N |
-| `VibSlot4` | `vib_amp_slot4` | 1 | N |
-| `VibSlot5` | `vib_amp_slot5` | 1 | N |
-| `Vib2Slot1` | `vib2_amp_slot1` | 2 | N |
-| `Vib2Slot2` | `vib2_amp_slot2` | 2 | N |
+| `VibSlot1` | `vib_amp_slot1` | 1 | mm |
+| `VibSlot2` | `vib_amp_slot2` | 1 | mm |
+| `VibSlot3` | `vib_amp_slot3` | 1 | mm |
+| `VibSlot4` | `vib_amp_slot4` | 1 | mm |
+| `VibSlot5` | `vib_amp_slot5` | 1 | mm |
+| `Vib2Slot1` | `vib2_amp_slot1` | 2 | mm |
+| `Vib2Slot2` | `vib2_amp_slot2` | 2 | mm |
 
 ### Shared scope (fundamentals — plain Output node)
 
@@ -425,6 +430,14 @@ See plan 08 and plan 09 for specific slot profiles per aircraft type.
 ## 7. ESP32 Implementation
 
 ### Vibration force bypass
+
+> **Update (plan 12).** SyncVib no longer uses `f_vib`. Its output is now a
+> position delta (mm) routed through `accum.x_vib`, captured by
+> `Sim::update` into `_x_vib`, and added on the servo command path in
+> `Main.cpp` after `calc_final_position`. This makes damping orthogonal to
+> vibration amplitude. `f_vib` is retained for **Buffet only** (band-limited
+> noise that still benefits from the post-friction force injection). The
+> rest of this section describes the original force-bypass design.
 
 The existing `Sim::update()` applies damping and friction after summing all
 element forces. This would attenuate or completely absorb vibration forces
