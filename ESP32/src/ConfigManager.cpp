@@ -271,7 +271,7 @@ void ConfigManager::on_config_update(void) {
         _active_funtion = _on_config_update_callback(_active_funtion, &_function_config);
     }
     update_x_contact_point_limits();
-    update_is_subtractive_axis();
+    update_topology_cache();
 }
 
 void ConfigManager::update_lookup_tables(const FunctionConfig &new_config) {

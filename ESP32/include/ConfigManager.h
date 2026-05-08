@@ -11,6 +11,7 @@
 #include "IFunction.h"
 #include "LogOutput.h"
 #include "MessageTools.h"
+#include "TopologyCache.h"
 
 class ConfigManager {
     public:
@@ -90,8 +91,23 @@ class ConfigManager {
         float get_x_contact_point_center(void) {
             return _x_contact_point_center;
         }
+        float get_x_contact_point_center_2x(void) const {
+            return _x_contact_point_center_2x;
+        }
+        PositionMode get_position_mode(void) const {
+            return _position_mode;
+        }
+        AxisID get_primary_axis_for_fetch(void) const {
+            return _primary_axis_id;
+        }
         bool is_subtractive_axis(void) const {
-            return _is_subtractive_axis;
+            return _position_mode == POSITION_MODE_FETCH_PRIMARY_MIRRORED;
+        }
+        uint8_t get_force_fetch_count(void) const {
+            return _force_fetch_count;
+        }
+        const ForceFetchEntry &get_force_fetch_entry(uint8_t i) const {
+            return _force_fetch[i];
         }
         float calc_force_conversion_factor(float &x_contact_point);
         float calc_sled_position(float &x_contact_point);
@@ -152,28 +168,24 @@ class ConfigManager {
                 LogOutput::printf("ConfigManager: Unknown function config!");
             }
             _x_contact_point_center = _x_contact_point_min + ((_x_contact_point_max - _x_contact_point_min) / 2.0f);
+            _x_contact_point_center_2x = 2.0f * _x_contact_point_center;
         }
-        void update_is_subtractive_axis(void) {
-            // Mirrors the linked-axes walk in CommManager::calc_input_force_sum
-            // / calc_final_position, but evaluated once per config update so
-            // the per-tick servo path doesn't have to re-walk the array.
-            // True only for the linked-non-primary case where the entry
-            // matching _axis_id carries the AXIS_SUBTRACTIVE flag.
-            _is_subtractive_axis = false;
+        void update_topology_cache(void) {
+            // Replaces the per-tick walks of FunctionBase.linked_axes inside
+            // CommManager::calc_input_force_sum / calc_final_position with a
+            // precomputed view. Topology only changes on config update, so the
+            // FFB hot path can read the cache directly. See TopologyCache.h.
             const auto &linked_axes = _function_config.base.linked_axes;
             const size_t n = sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0]);
-            AxisID primary = AxisID(linked_axes[0] & AxisID_AXIS_ID_MASK);
-            if (primary == _axis_id) return;
-            if (linked_axes[0] & AxisID_AXIS_INDEPENDENT) return;
-            for (size_t idx = 1; idx < n; idx++) {
-                AxisID axis_id = AxisID(linked_axes[idx] & AxisID_AXIS_ID_MASK);
-                if (axis_id == AxisID_AXIS_UNDEFINED) break;
-                if (axis_id == _axis_id) {
-                    if (linked_axes[idx] & AxisID_AXIS_INDEPENDENT) return;
-                    _is_subtractive_axis = (linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) != 0;
-                    return;
-                }
-            }
+            compute_topology(
+                _axis_id,
+                linked_axes,
+                n,
+                _position_mode,
+                _primary_axis_id,
+                _force_fetch,
+                _force_fetch_count
+            );
         }
         void on_config_update(void);
         bool _fixed_id = false;
@@ -193,6 +205,10 @@ class ConfigManager {
         float _x_contact_point_min = 0.0f;
         float _x_contact_point_max = 0.0f;
         float _x_contact_point_center = 0.0f;
-        bool _is_subtractive_axis = false;
+        float _x_contact_point_center_2x = 0.0f;
+        PositionMode _position_mode = POSITION_MODE_USE_OWN;
+        AxisID _primary_axis_id = AxisID_AXIS_UNDEFINED;
+        ForceFetchEntry _force_fetch[TOPOLOGY_MAX_FETCH] = {};
+        uint8_t _force_fetch_count = 0;
         Preferences persistent_memory;
 };

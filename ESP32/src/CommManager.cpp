@@ -890,46 +890,40 @@ bool CommManager::calc_input_force_sum(const AxisID *linked_axes, float &input_f
 }
 
 bool CommManager::calc_input_force_sum(float &input_force) {
-    return calc_input_force_sum(_config_manager->get_function_config()->base.linked_axes, input_force);
+    // Topology is precomputed in ConfigManager::update_topology_cache(). The
+    // walk over linked_axes happened at config-update time; the hot path just
+    // sums the cached fetch list.
+    float f_sum = 0.0f;
+    uint8_t n = _config_manager->get_force_fetch_count();
+    for (uint8_t i = 0; i < n; i++) {
+        const ForceFetchEntry &entry = _config_manager->get_force_fetch_entry(i);
+        float temp = 0.0f;
+        get_force(entry.axis_id, temp);  // get_force won't touch temp if the associated axis is not online
+        f_sum += entry.sign * temp;
+    }
+    input_force = f_sum;
+    return _config_manager->is_subtractive_axis();
 }
 
 bool CommManager::calc_final_position(float own_position, float &final_position) {
-    const FunctionBase &func_base = _config_manager->get_function_config()->base;
-    float other_position;
-    AxisID primary_axis_id = AxisID(func_base.linked_axes[0] & AxisID_AXIS_ID_MASK);
-    AxisID own_axis_id = get_axis_id();
-    for (uint8_t idx = 0; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
-        AxisID axis_id = AxisID(func_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
-        if (axis_id == AxisID_AXIS_UNDEFINED) break;
-        if (axis_id == own_axis_id && (func_base.linked_axes[idx] & AxisID_AXIS_INDEPENDENT)) {
+    switch (_config_manager->get_position_mode()) {
+        case POSITION_MODE_USE_OWN:
             final_position = own_position;
             return true;
+        case POSITION_MODE_FETCH_PRIMARY: {
+            float other;
+            if (!get_position(_config_manager->get_primary_axis_for_fetch(), other)) return false;
+            final_position = other;
+            return true;
         }
-    }
-    if (func_base.linked_axes[0] & AxisID_AXIS_INDEPENDENT) {
-        final_position = own_position;
-        return true;
-    }
-    if (primary_axis_id == own_axis_id) {
-        // we are the primary axis -> own_position is the final position
-        final_position = own_position;
-        return true;
-    } else if (get_position(primary_axis_id, other_position)) {
-        // we are NOT the primary axis, start at idx 1
-        for (uint8_t idx = 1; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
-            AxisID axis_id = AxisID(func_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
-            if (axis_id == own_axis_id) {
-                if (func_base.linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) {
-                    final_position = (_config_manager->get_x_contact_point_center() * 2.0f) - other_position;
-                    return true;
-                } else {
-                    final_position = other_position;
-                    return true;
-                }
-            } else if (axis_id == AxisID_AXIS_UNDEFINED) {
-                break;
-            }
+        case POSITION_MODE_FETCH_PRIMARY_MIRRORED: {
+            float other;
+            if (!get_position(_config_manager->get_primary_axis_for_fetch(), other)) return false;
+            final_position = _config_manager->get_x_contact_point_center_2x() - other;
+            return true;
         }
+        case POSITION_MODE_NOT_MEMBER:
+            return false;
     }
     return false;
 }
