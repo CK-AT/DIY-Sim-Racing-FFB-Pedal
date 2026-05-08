@@ -170,6 +170,7 @@ class ConfigManager {
             _x_contact_point_center = _x_contact_point_min + ((_x_contact_point_max - _x_contact_point_min) / 2.0f);
             _x_contact_point_center_2x = 2.0f * _x_contact_point_center;
         }
+        void update_kinematic_poly_cache(void);
         void update_topology_cache(void) {
             // Replaces the per-tick walks of FunctionBase.linked_axes inside
             // CommManager::calc_input_force_sum / calc_final_position with a
@@ -210,5 +211,14 @@ class ConfigManager {
         AxisID _primary_axis_id = AxisID_AXIS_UNDEFINED;
         ForceFetchEntry _force_fetch[TOPOLOGY_MAX_FETCH] = {};
         uint8_t _force_fetch_count = 0;
+        // Cached single-precision copies of the kinematic polynomial
+        // coefficients. The wire format keeps double for offline-fit
+        // fidelity, but on-device evaluation runs in float on the ESP32's
+        // single-precision FPU. Populated by update_kinematic_poly_cache()
+        // whenever _axis_config is committed.
+        static constexpr uint8_t KINEMATIC_POLY_DEGREE = 5;  // proto: max_count:5 fixed_count:true
+        float _coeffs_force_factor_f[KINEMATIC_POLY_DEGREE] = {};
+        float _coeffs_sled_pos_f[KINEMATIC_POLY_DEGREE] = {};
+        bool _kinematic_use_double_fallback = false;
         Preferences persistent_memory;
 };
