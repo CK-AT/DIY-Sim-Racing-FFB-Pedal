@@ -57,7 +57,7 @@
       "Title": "Cyclic Pitch",
       "Kind": "Include",
       "X": 790.0,
-      "Y": 710.0,
+      "Y": 720.0,
       "IncludePath": "..\\_embedded\\heli_cyclic_unboosted.json",
       "FunctionScope": "FlightStickPitch"
     },
@@ -66,7 +66,7 @@
       "Title": "Cyclic Roll",
       "Kind": "Include",
       "X": 790.0,
-      "Y": 1140.0,
+      "Y": 1170.0,
       "IncludePath": "..\\_embedded\\heli_cyclic_unboosted.json",
       "FunctionScope": "FlightStickRoll"
     },
@@ -269,8 +269,8 @@
       "Id": "const_phase_zero",
       "Title": "0 deg",
       "Kind": "Const",
-      "X": 580.0,
-      "Y": 970.0,
+      "X": 490.0,
+      "Y": 1000.0,
       "Ports": [
         {
           "Name": "out",
@@ -320,7 +320,7 @@
       "Title": "Vib Pitch",
       "Kind": "Include",
       "X": 790.0,
-      "Y": 940.0,
+      "Y": 970.0,
       "IncludePath": "..\\_embedded\\heli_vibration_cyclic.json",
       "FunctionScope": "FlightStickPitch"
     },
@@ -329,7 +329,7 @@
       "Title": "Vib Roll",
       "Kind": "Include",
       "X": 790.0,
-      "Y": 1370.0,
+      "Y": 1420.0,
       "IncludePath": "..\\_embedded\\heli_vibration_cyclic.json",
       "FunctionScope": "FlightStickRoll"
     },
@@ -421,6 +421,12 @@
       "ToPort": "blade_alph"
     },
     {
+      "FromNodeId": "scale_include",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "rpm_norm"
+    },
+    {
       "FromNodeId": "param_owl",
       "FromPort": "OWL",
       "ToNodeId": "cyclic_pitch_include",
@@ -461,6 +467,12 @@
       "FromPort": "Rotor.BladeAlphRoll",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "blade_alph"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "rpm_norm"
     },
     {
       "FromNodeId": "const_owl_off",

@@ -7,10 +7,14 @@
       "Title": "Precalc Inputs",
       "Kind": "Input",
       "X": 30.0,
-      "Y": 200.0,
+      "Y": 250.0,
       "Ports": [
         {
           "Name": "blade_alph",
+          "Kind": "Output"
+        },
+        {
+          "Name": "rpm_norm",
           "Kind": "Output"
         }
       ]
@@ -20,7 +24,7 @@
       "Title": "OWL",
       "Kind": "Input",
       "X": 410.0,
-      "Y": 60.0,
+      "Y": 50.0,
       "Ports": [
         {
           "Name": "owl",
@@ -83,7 +87,7 @@
       "Id": "param_k_damper",
       "Kind": "Param",
       "X": 590.0,
-      "Y": 20.0,
+      "Y": 10.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -96,7 +100,7 @@
       "Id": "param_k_friction",
       "Kind": "Param",
       "X": 590.0,
-      "Y": 100.0,
+      "Y": 90.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -109,7 +113,7 @@
       "Id": "param_k_load",
       "Kind": "Param",
       "X": 30.0,
-      "Y": 280.0,
+      "Y": 170.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -162,20 +166,24 @@
       "Title": "Load",
       "Kind": "Op",
       "X": 280.0,
-      "Y": 230.0,
+      "Y": 220.0,
       "Ports": [
         {
           "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
           "Kind": "Input",
           "Negate": true
         },
         {
-          "Name": "b",
-          "Kind": "Input"
+          "Name": "a*-b*c",
+          "Kind": "Output"
         },
         {
-          "Name": "-a*b",
-          "Kind": "Output"
+          "Name": "c",
+          "Kind": "Input"
         }
       ],
       "Op": "mul"
@@ -185,7 +193,7 @@
       "Title": "OWL Clamp",
       "Kind": "Op",
       "X": 400.0,
-      "Y": 130.0,
+      "Y": 120.0,
       "Ports": [
         {
           "Name": "a",
@@ -207,7 +215,7 @@
       "Title": "OWL",
       "Kind": "Op",
       "X": 590.0,
-      "Y": 180.0,
+      "Y": 170.0,
       "Ports": [
         {
           "Name": "cond",
@@ -239,8 +247,8 @@
     {
       "Id": "out_scoped",
       "Kind": "Output",
-      "X": 1030.0,
-      "Y": 140.0,
+      "X": 880.0,
+      "Y": 130.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -280,19 +288,7 @@
       "FromNodeId": "in_precalc",
       "FromPort": "blade_alph",
       "ToNodeId": "load",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "param_k_load",
-      "FromPort": "LoadGain",
-      "ToNodeId": "load",
       "ToPort": "b"
-    },
-    {
-      "FromNodeId": "load",
-      "FromPort": "-a*b",
-      "ToNodeId": "owl_clamp",
-      "ToPort": "a"
     },
     {
       "FromNodeId": "in_owl",
@@ -305,12 +301,6 @@
       "FromPort": "min(a,b)",
       "ToNodeId": "select_owl",
       "ToPort": "a"
-    },
-    {
-      "FromNodeId": "load",
-      "FromPort": "-a*b",
-      "ToNodeId": "select_owl",
-      "ToPort": "b"
     },
     {
       "FromNodeId": "in_grip",
@@ -395,6 +385,30 @@
       "FromPort": "spring",
       "ToNodeId": "aa16294c52b74d6584a397027d88f23f",
       "ToPort": "SpringGain"
+    },
+    {
+      "FromNodeId": "param_k_load",
+      "FromPort": "LoadGain",
+      "ToNodeId": "load",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "load",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "load",
+      "FromPort": "a*-b*c",
+      "ToNodeId": "owl_clamp",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "load",
+      "FromPort": "a*-b*c",
+      "ToNodeId": "select_owl",
+      "ToPort": "b"
     }
   ],
   "Params": [
