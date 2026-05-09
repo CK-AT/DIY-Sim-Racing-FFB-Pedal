@@ -3210,35 +3210,13 @@ namespace DiyFfb
                 profile.GraphParamValues[paramName] = value;
             }
 
-            // Notify listeners of parameter change
+            // Notify listeners of parameter change. The next DataUpdate tick picks up
+            // the new graphParams[paramName] and re-evaluates the graph; an explicit
+            // re-eval here would race that tick (two threads writing the ConfigOut
+            // tier within <1ms can fire the throttled merge with stale zero values
+            // — see plan 12 follow-up). Without a connected game there is no active
+            // profile, so deferring the eval costs nothing.
             GraphParamChanged?.Invoke(this, new GraphParamChangedEventArgs(paramName, value));
-
-            // Re-evaluate the graph immediately so ConfigOut changes reach ESP32 even
-            // when no game telemetry tick is firing (e.g. user is tuning in the UI
-            // before launching X-Plane). Graph-derived config (harm ratios, phase, etc.)
-            // depends only on params + constants, so a re-eval with cached inputs is safe.
-            ReevaluateForConfigOut();
-        }
-
-        private void ReevaluateForConfigOut()
-        {
-            if (activeGraphEvaluator == null) return;
-            try
-            {
-                BuildGraphParams();
-                activeIncludeContextCache?.Clear();
-                long now = System.Diagnostics.Stopwatch.GetTimestamp();
-                double dt = _lastGraphEvalTicks > 0
-                    ? (double)(now - _lastGraphEvalTicks) / System.Diagnostics.Stopwatch.Frequency
-                    : 0.0;
-                _lastGraphEvalTicks = now;
-                lastGraphEvaluation = activeGraphEvaluator.EvaluateWithTrace(graphInputs, graphParams, dt);
-                CheckConfigOutChanges();
-            }
-            catch
-            {
-                // Ignore evaluation errors to keep runtime stable.
-            }
         }
 
         /// <summary>
