@@ -585,8 +585,8 @@
         "Label": "Main rotor 1/rev coupling",
         "Group": "Pedal Vibration",
         "Units": "mm",
-        "Step": 0.01,
-        "Precision": 2,
+        "Step": 0.005,
+        "Precision": 3,
         "LogScale": false,
         "Options": []
       }
@@ -601,8 +601,8 @@
         "Label": "Main rotor blade-passing coupling",
         "Group": "Pedal Vibration",
         "Units": "mm",
-        "Step": 0.01,
-        "Precision": 2,
+        "Step": 0.005,
+        "Precision": 3,
         "LogScale": false,
         "Options": []
       }
@@ -617,8 +617,8 @@
         "Label": "TR blade-passing (primary)",
         "Group": "Pedal Vibration",
         "Units": "mm",
-        "Step": 0.05,
-        "Precision": 2,
+        "Step": 0.005,
+        "Precision": 3,
         "LogScale": false,
         "Options": []
       }
@@ -633,8 +633,8 @@
         "Label": "TR 2nd harmonic",
         "Group": "Pedal Vibration",
         "Units": "mm",
-        "Step": 0.05,
-        "Precision": 2,
+        "Step": 0.005,
+        "Precision": 3,
         "LogScale": false,
         "Options": []
       }

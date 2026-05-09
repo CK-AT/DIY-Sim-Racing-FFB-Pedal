@@ -786,8 +786,8 @@
         "Label": "1/rev mass-imbalance",
         "Group": "Collective Vibration",
         "Units": "mm",
-        "Step": 0.01,
-        "Precision": 2,
+        "Step": 0.005,
+        "Precision": 3,
         "LogScale": false,
         "Options": []
       }
@@ -818,8 +818,8 @@
         "Label": "N/rev ETL boost",
         "Group": "Collective Vibration",
         "Units": "mm",
-        "Step": 0.01,
-        "Precision": 2,
+        "Step": 0.005,
+        "Precision": 3,
         "LogScale": false,
         "Options": []
       }
@@ -834,8 +834,8 @@
         "Label": "N/rev slap (BVI) boost",
         "Group": "Collective Vibration",
         "Units": "mm",
-        "Step": 0.05,
-        "Precision": 2,
+        "Step": 0.001,
+        "Precision": 3,
         "LogScale": false,
         "Options": []
       }

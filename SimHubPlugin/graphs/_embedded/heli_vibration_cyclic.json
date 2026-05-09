@@ -974,8 +974,8 @@
         "Label": "1/rev gain",
         "Group": "Cyclic Vibration",
         "Units": "mm/deg",
-        "Step": 0.01,
-        "Precision": 2,
+        "Step": 0.001,
+        "Precision": 3,
         "LogScale": false,
         "Options": []
       }
@@ -1038,8 +1038,8 @@
         "Label": "N/rev ETL boost",
         "Group": "Cyclic Vibration",
         "Units": "mm",
-        "Step": 0.01,
-        "Precision": 2,
+        "Step": 0.005,
+        "Precision": 3,
         "LogScale": false,
         "Options": []
       }
@@ -1054,8 +1054,8 @@
         "Label": "N/rev slap (BVI) boost",
         "Group": "Cyclic Vibration",
         "Units": "mm",
-        "Step": 0.05,
-        "Precision": 2,
+        "Step": 0.001,
+        "Precision": 3,
         "LogScale": false,
         "Options": []
       }
