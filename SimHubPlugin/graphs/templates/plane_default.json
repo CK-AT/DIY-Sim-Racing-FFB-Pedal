@@ -28,40 +28,66 @@
       "SignalGroup": "XPlane"
     },
     {
-      "Id": "in_aero_pitch",
+      "Id": "in_g_nrml",
       "Kind": "Input",
       "X": 40.0,
       "Y": 220.0,
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "AeroTorque.Pitch"
+          "SignalSuffix": "G_Nrml"
         }
       ],
       "SignalGroup": "XPlane"
     },
     {
-      "Id": "in_aero_roll",
+      "Id": "in_q_rate",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 440.0,
+      "Y": 290.0,
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "AeroTorque.Roll"
+          "SignalSuffix": "Rate.Pitch"
         }
       ],
       "SignalGroup": "XPlane"
     },
     {
-      "Id": "in_aero_yaw",
+      "Id": "in_p_rate",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 620.0,
+      "Y": 460.0,
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "AeroTorque.Yaw"
+          "SignalSuffix": "Rate.Roll"
+        }
+      ],
+      "SignalGroup": "XPlane"
+    },
+    {
+      "Id": "in_r_rate",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 670.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Rate.Yaw"
+        }
+      ],
+      "SignalGroup": "XPlane"
+    },
+    {
+      "Id": "in_beta",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 590.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Angle.Beta"
         }
       ],
       "SignalGroup": "XPlane"
@@ -177,6 +203,10 @@
         {
           "Kind": "Input",
           "SignalSuffix": "BuffetAmplitude"
+        },
+        {
+          "Kind": "Input",
+          "SignalSuffix": "TrimOffset"
         }
       ],
       "SignalGroup": "FlightPedals"
@@ -185,7 +215,7 @@
       "Id": "601b507dd2cb41aba55bf2f4acf8ca61",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 300.0,
+      "Y": 360.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -213,10 +243,16 @@
       "ToPort": "alpha"
     },
     {
-      "FromNodeId": "in_aero_pitch",
-      "FromPort": "AeroTorque.Pitch",
+      "FromNodeId": "in_g_nrml",
+      "FromPort": "G_Nrml",
       "ToNodeId": "pitch_include",
-      "ToPort": "aero_trq"
+      "ToPort": "g_nrml"
+    },
+    {
+      "FromNodeId": "in_q_rate",
+      "FromPort": "Rate.Pitch",
+      "ToNodeId": "pitch_include",
+      "ToPort": "q_rate"
     },
     {
       "FromNodeId": "pitch_include",
@@ -261,10 +297,10 @@
       "ToPort": "alpha"
     },
     {
-      "FromNodeId": "in_aero_roll",
-      "FromPort": "AeroTorque.Roll",
+      "FromNodeId": "in_p_rate",
+      "FromPort": "Rate.Roll",
       "ToNodeId": "roll_include",
-      "ToPort": "aero_trq"
+      "ToPort": "p_rate"
     },
     {
       "FromNodeId": "roll_include",
@@ -309,10 +345,16 @@
       "ToPort": "alpha"
     },
     {
-      "FromNodeId": "in_aero_yaw",
-      "FromPort": "AeroTorque.Yaw",
+      "FromNodeId": "in_beta",
+      "FromPort": "Angle.Beta",
       "ToNodeId": "yaw_include",
-      "ToPort": "aero_trq"
+      "ToPort": "beta"
+    },
+    {
+      "FromNodeId": "in_r_rate",
+      "FromPort": "Rate.Yaw",
+      "ToNodeId": "yaw_include",
+      "ToPort": "r_rate"
     },
     {
       "FromNodeId": "yaw_include",
@@ -343,6 +385,12 @@
       "FromPort": "buffet",
       "ToNodeId": "out_yaw_spring",
       "ToPort": "BuffetAmplitude"
+    },
+    {
+      "FromNodeId": "yaw_include",
+      "FromPort": "trim",
+      "ToNodeId": "out_yaw_spring",
+      "ToPort": "TrimOffset"
     },
     {
       "FromNodeId": "601b507dd2cb41aba55bf2f4acf8ca61",

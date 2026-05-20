@@ -29,14 +29,27 @@
       ]
     },
     {
-      "Id": "in_aero_trq",
-      "Title": "Aero Torque",
+      "Id": "in_beta",
+      "Title": "Beta (sideslip)",
       "Kind": "Input",
       "X": 40.0,
       "Y": 250.0,
       "Ports": [
         {
-          "Name": "aero_trq",
+          "Name": "beta",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_r_rate",
+      "Title": "R (yaw rate)",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 950.0,
+      "Ports": [
+        {
+          "Name": "r_rate",
           "Kind": "Output"
         }
       ]
@@ -55,17 +68,30 @@
       "SignalGroup": "Aircraft"
     },
     {
-      "Id": "param_aero_max",
+      "Id": "param_load_beta_trim_gain",
       "Kind": "Param",
       "X": 40.0,
       "Y": 390.0,
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "AeroTorque.YawMax"
+          "SignalSuffix": "LoadBetaTrimGain"
         }
       ],
-      "SignalGroup": "Aircraft"
+      "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "param_load_rate_gain",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 1020.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "LoadRateGain"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
     },
     {
       "Id": "param_alpha_start",
@@ -120,6 +146,19 @@
       "SignalGroup": "FlightPedals"
     },
     {
+      "Id": "param_k_damper_base",
+      "Kind": "Param",
+      "X": 980.0,
+      "Y": 260.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "DamperBase"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
+    },
+    {
       "Id": "param_k_friction_base",
       "Kind": "Param",
       "X": 40.0,
@@ -141,19 +180,6 @@
         {
           "Kind": "Output",
           "SignalSuffix": "FrictionGain"
-        }
-      ],
-      "SignalGroup": "FlightPedals"
-    },
-    {
-      "Id": "param_k_load",
-      "Kind": "Param",
-      "X": 40.0,
-      "Y": 670.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "LoadGain"
         }
       ],
       "SignalGroup": "FlightPedals"
@@ -217,8 +243,8 @@
       "Op": "mul"
     },
     {
-      "Id": "damper",
-      "Title": "Damper",
+      "Id": "damp_scaled",
+      "Title": "Damp Scaled",
       "Kind": "Op",
       "X": 670.0,
       "Y": 220.0,
@@ -239,11 +265,33 @@
       "Op": "mul"
     },
     {
+      "Id": "damper",
+      "Title": "Damper",
+      "Kind": "Op",
+      "X": 1210.0,
+      "Y": 190.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
       "Id": "fric_scaled",
       "Title": "Fric Scaled",
       "Kind": "Op",
       "X": 670.0,
-      "Y": 320.0,
+      "Y": 400.0,
       "Ports": [
         {
           "Name": "a",
@@ -264,8 +312,8 @@
       "Id": "friction",
       "Title": "Friction",
       "Kind": "Op",
-      "X": 830.0,
-      "Y": 320.0,
+      "X": 970.0,
+      "Y": 470.0,
       "Ports": [
         {
           "Name": "a",
@@ -283,11 +331,11 @@
       "Op": "add"
     },
     {
-      "Id": "load_norm",
-      "Title": "Load Norm",
+      "Id": "mul_beta_trim",
+      "Title": "TrimOffset = β × gain",
       "Kind": "Op",
-      "X": 670.0,
-      "Y": 420.0,
+      "X": 800.0,
+      "Y": 330.0,
       "Ports": [
         {
           "Name": "a",
@@ -298,30 +346,30 @@
           "Kind": "Input"
         },
         {
-          "Name": "a/b",
+          "Name": "a*b",
           "Kind": "Output"
         }
       ],
-      "Op": "div"
+      "Op": "mul"
     },
     {
       "Id": "load",
-      "Title": "Load",
+      "Title": "LoadForce = r_gain × R",
       "Kind": "Op",
-      "X": 830.0,
-      "Y": 420.0,
+      "X": 670.0,
+      "Y": 980.0,
       "Ports": [
         {
           "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
           "Kind": "Input",
           "Negate": true
         },
         {
-          "Name": "a*-b",
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "-a*b",
           "Kind": "Output"
         }
       ],
@@ -332,7 +380,7 @@
       "Title": "Buffet",
       "Kind": "Func",
       "X": 670.0,
-      "Y": 520.0,
+      "Y": 610.0,
       "Ports": [
         {
           "Name": "alpha",
@@ -379,8 +427,8 @@
       "Id": "out_damper",
       "Title": "Damper Out",
       "Kind": "Output",
-      "X": 990.0,
-      "Y": 220.0,
+      "X": 1360.0,
+      "Y": 190.0,
       "Ports": [
         {
           "Name": "damper",
@@ -392,8 +440,8 @@
       "Id": "out_friction",
       "Title": "Friction Out",
       "Kind": "Output",
-      "X": 990.0,
-      "Y": 320.0,
+      "X": 1150.0,
+      "Y": 470.0,
       "Ports": [
         {
           "Name": "friction",
@@ -405,8 +453,8 @@
       "Id": "out_load",
       "Title": "Load Out",
       "Kind": "Output",
-      "X": 990.0,
-      "Y": 420.0,
+      "X": 980.0,
+      "Y": 980.0,
       "Ports": [
         {
           "Name": "load",
@@ -419,10 +467,23 @@
       "Title": "Buffet Out",
       "Kind": "Output",
       "X": 990.0,
-      "Y": 520.0,
+      "Y": 610.0,
       "Ports": [
         {
           "Name": "buffet",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "out_trim",
+      "Title": "Trim Out",
+      "Kind": "Output",
+      "X": 990.0,
+      "Y": 330.0,
+      "Ports": [
+        {
+          "Name": "trim",
           "Kind": "Input"
         }
       ]
@@ -456,12 +517,24 @@
     {
       "FromNodeId": "qhat",
       "FromPort": "out",
-      "ToNodeId": "damper",
+      "ToNodeId": "damp_scaled",
       "ToPort": "a"
     },
     {
       "FromNodeId": "param_k_damper",
       "FromPort": "DamperGain",
+      "ToNodeId": "damp_scaled",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "damp_scaled",
+      "FromPort": "a*b",
+      "ToNodeId": "damper",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_k_damper_base",
+      "FromPort": "DamperBase",
       "ToNodeId": "damper",
       "ToPort": "b"
     },
@@ -484,26 +557,32 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "in_aero_trq",
-      "FromPort": "aero_trq",
-      "ToNodeId": "load_norm",
+      "FromNodeId": "in_beta",
+      "FromPort": "beta",
+      "ToNodeId": "mul_beta_trim",
       "ToPort": "a"
     },
     {
-      "FromNodeId": "param_aero_max",
-      "FromPort": "AeroTorque.YawMax",
-      "ToNodeId": "load_norm",
+      "FromNodeId": "param_load_beta_trim_gain",
+      "FromPort": "LoadBetaTrimGain",
+      "ToNodeId": "mul_beta_trim",
       "ToPort": "b"
     },
     {
-      "FromNodeId": "load_norm",
-      "FromPort": "a/b",
+      "FromNodeId": "mul_beta_trim",
+      "FromPort": "a*b",
+      "ToNodeId": "out_trim",
+      "ToPort": "trim"
+    },
+    {
+      "FromNodeId": "in_r_rate",
+      "FromPort": "r_rate",
       "ToNodeId": "load",
       "ToPort": "a"
     },
     {
-      "FromNodeId": "param_k_load",
-      "FromPort": "LoadGain",
+      "FromNodeId": "param_load_rate_gain",
+      "FromPort": "LoadRateGain",
       "ToNodeId": "load",
       "ToPort": "b"
     },
@@ -545,7 +624,7 @@
     },
     {
       "FromNodeId": "damper",
-      "FromPort": "a*b",
+      "FromPort": "a+b",
       "ToNodeId": "out_damper",
       "ToPort": "damper"
     },
@@ -557,7 +636,7 @@
     },
     {
       "FromNodeId": "load",
-      "FromPort": "a*-b",
+      "FromPort": "-a*b",
       "ToNodeId": "out_load",
       "ToPort": "load"
     },
@@ -588,22 +667,6 @@
         "Step": 1.0,
         "Precision": 0,
         "LogScale": false,
-        "Options": []
-      }
-    },
-    {
-      "Name": "Aircraft.AeroTorque.YawMax",
-      "DefaultValue": 2000.0,
-      "Min": 100.0,
-      "Max": 20000.0,
-      "Ui": {
-        "Widget": "slider",
-        "Label": "Max Yaw Torque",
-        "Group": "Aircraft",
-        "Units": "Nm",
-        "Step": 10.0,
-        "Precision": 0,
-        "LogScale": true,
         "Options": []
       }
     },
@@ -672,6 +735,22 @@
       }
     },
     {
+      "Name": "FlightPedals.DamperBase",
+      "DefaultValue": 0.05,
+      "Min": 0.0,
+      "Max": 2.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Damper Base",
+        "Group": "FlightPedals",
+        "Units": "N*s/mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
       "Name": "FlightPedals.FrictionBase",
       "DefaultValue": 0.1,
       "Min": 0.0,
@@ -704,16 +783,32 @@
       }
     },
     {
-      "Name": "FlightPedals.LoadGain",
+      "Name": "FlightPedals.LoadBetaTrimGain",
       "DefaultValue": 0.5,
       "Min": 0.0,
-      "Max": 100.0,
+      "Max": 5.0,
       "Ui": {
         "Widget": "slider",
-        "Label": "Load Gain",
+        "Label": "Sideslip Trim Gain",
         "Group": "FlightPedals",
-        "Units": "N @ torque_ref",
+        "Units": "mm/deg",
         "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.LoadRateGain",
+      "DefaultValue": 0.0,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Load Gain (yaw rate)",
+        "Group": "FlightPedals",
+        "Units": "N/(rad/s)",
+        "Step": 0.05,
         "Precision": 2,
         "LogScale": false,
         "Options": []

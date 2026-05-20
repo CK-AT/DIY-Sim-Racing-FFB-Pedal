@@ -31,8 +31,10 @@ through the stick/yoke. The dominant effects:
 * **Pitch**: stick force per g (manoeuvre stability) — the most important
   feel cue. FAR 23/25 require a minimum force gradient.
 * **Roll**: ailerons get heavier at speed (hinge moment scales with q).
-* **Yaw**: rudder hinge moment scales with q; sideslip creates a pedal
-  force cue ("ball not centered").
+* **Yaw**: rudder hinge moment scales with q; sideslip shifts the
+  rudder's neutral position in the relative wind, which the pilot feels
+  as the pedals leaning toward the slip-correcting position ("ball not
+  centered" → pedals want to centre the ball).
 
 
 ---
@@ -150,90 +152,108 @@ Note: for most GA aircraft, the spring + damper already provide adequate
 roll feel. `LoadForce` on roll is a refinement, not essential. Start with
 zero and tune up if the roll axis feels too "free" in manoeuvres.
 
-### 4.3 Yaw — sideslip cue + rate resistance
+### 4.3 Yaw — sideslip cue (trim shift) + rate resistance
 
-Pedal `LoadForce` provides two cues:
+Pedal feel splits across two outputs:
 
-1. **Sideslip force**: rudder force proportional to beta (sideslip angle).
-   When the ball is not centered, the pilot feels a pedal force pushing
-   toward coordinated flight. This is the most useful pedal force cue.
+1. **Sideslip cue → `TrimOffset`**: shifts the centering-spring neutral
+   toward the coordinated pedal position when the aircraft is slipping.
+   This matches the real mechanism — the rudder weathercocks toward
+   zero deflection in the relative wind, which the pilot feels as the
+   pedals wanting to move toward the slip-correcting position. The
+   restoring force scales with `SpringGain × (pedal_pos − trim_center)`,
+   so it is zero at the new trim center and grows the further the pilot
+   holds the pedals away from coordination.
 
-2. **Yaw rate resistance**: opposes sustained yaw rates.
+2. **Yaw rate resistance → `LoadForce`**: opposes sustained yaw rates,
+   independent of pedal position. Stays on the load-force path because
+   it's a damping cue, not a centering cue.
 
 ```
-LoadForce_yaw = beta_gain * beta_deg
-              + r_gain * R_rad_s
+TrimOffset_yaw = beta_trim_gain * beta_deg
+LoadForce_yaw  = r_gain * R_rad_s
 ```
 
-Sign convention: positive `LoadForce` pushes the pedal axis in the
-positive direction (right pedal forward / left pedal aft, matching the
-existing `ConstForce` convention on `FlightPedalsFunction`). Positive
-beta (nose right) produces positive load force — the pilot must push
-left rudder to return to coordinated flight, which matches real aircraft
-feel (sideslip creates a restoring pedal force).
+Sign convention: positive beta (nose right) shifts the trim center in
+the positive pedal direction (right pedal forward / left pedal aft,
+matching the existing `ConstForce` / trim convention on
+`FlightPedalsFunction`). The pilot feels the pedals "lean" toward the
+slip-correcting position; pushing past that point requires increasing
+spring force.
+
+**Dependency on spring centering:** `TrimOffset` produces no force on
+its own — it works through `SpringGain`. With `SpringGain = 0` the cue
+is silent. Effective force per degree of slip ≈ `beta_trim_gain ×
+SpringGain` (in N/deg, given gain in mm/deg and spring in N/mm).
 
 | Param | Default | Range | Unit | Description |
 | --- | --- | --- | --- | --- |
-| `FlightPedals.LoadBetaGain` | 0.3 | 0 - 2 | N/deg | Force per degree sideslip |
+| `FlightPedals.LoadBetaTrimGain` | 0.5 | 0 - 5 | mm/deg | Trim shift per degree sideslip |
 | `FlightPedals.LoadRateGain` | 0.0 | 0 - 5 | N/(rad/s) | Force per yaw rate |
 
-**Expected feel:**
+**Expected feel** (assuming `SpringGain = 0.6 N/mm`):
 
-| Condition | Beta | LoadForce |
-| --- | --- | --- |
-| Coordinated flight | 0 deg | 0 N |
-| Slight slip (3 deg) | 3 deg | 0.9 N |
-| Significant slip (10 deg) | 10 deg | 3.0 N |
-| Engine-out (15+ deg) | 15 deg | 4.5 N |
+| Condition | Beta | Trim shift | Force at original center |
+| --- | --- | --- | --- |
+| Coordinated flight | 0 deg | 0 mm | 0 N |
+| Slight slip (3 deg) | 3 deg | 1.5 mm | 0.9 N |
+| Significant slip (10 deg) | 10 deg | 5.0 mm | 3.0 N |
+| Engine-out (15+ deg) | 15 deg | 7.5 mm | 4.5 N |
 
 
 ---
 
 ## 5. Graph Implementation
 
-### New sub-graph: `plane_load.json`
+Load-force computation lives **inside each existing axis sub-graph**
+(`plane_pitch.json`, `plane_roll.json`, `plane_yaw.json`). No new
+sub-graph file. The parent template (`plane_default.json`) only adds
+the additional flight-state input wiring; the math nodes stay local
+to whichever axis consumes them.
 
-Optional Include block for fixed-wing load forces. Keeps the existing
-plane_pitch/roll/yaw sub-graphs unchanged — load force is wired at the
-template level.
+### Per-axis sub-graph changes
 
-Inputs:
+**`plane_pitch.json`** — gains a g-load node chain and a pitch-rate
+node chain. New Input ports on the existing Input node:
 
 * `g_nrml` (from `XPlane.G_Nrml`)
 * `q_rate` (from `XPlane.Rate.Pitch`)
-* `p_rate` (from `XPlane.Rate.Roll`)
-* `r_rate` (from `XPlane.Rate.Yaw`)
-* `beta` (from `XPlane.Angle.Beta`)
-* `qhat` (from `qhat_eff` node in parent graph)
 
-Outputs:
+New Param ports (consumed inside the sub-graph): `LoadGGain`,
+`LoadRateGain`. Output: existing `LoadForce` port — the new chain
+sums into it via an Add node alongside whatever already drives it
+(currently the aero-torque path being replaced).
 
-* `load_pitch` → wired to `FlightStickPitch.LoadForce` output
-* `load_roll` → wired to `FlightStickRoll.LoadForce` output
-* `load_yaw` → wired to `FlightPedals.LoadForce` output
+**`plane_roll.json`** — gains a roll-rate × qhat node chain. New
+Input ports: `p_rate` (from `XPlane.Rate.Roll`), `qhat` (from the
+parent's `qhat_eff` node). New Param: `LoadRateGain`. Output: existing
+`LoadForce`.
 
-All params as inputs (not embedded Param nodes) so the parent graph
-controls naming per function group.
+**`plane_yaw.json`** — gains a beta path (drives `TrimOffset`) and a
+yaw-rate path (drives `LoadForce`). New Input ports: `beta` (from
+`XPlane.Angle.Beta`), `r_rate` (from `XPlane.Rate.Yaw`). New Params:
+`LoadBetaTrimGain`, `LoadRateGain`. New Output port: `TrimOffset` —
+the beta path sums into it next to the existing hat-trim contribution.
+The rate path goes to the existing `LoadForce` output.
 
 ### Wiring in `plane_default.json`
 
+The parent template adds Input nodes / sources for the new flight-state
+signals and routes them into the appropriate Include nodes:
+
+```text
+XPlane.G_Nrml      ──► plane_pitch.g_nrml
+XPlane.Rate.Pitch  ──► plane_pitch.q_rate
+XPlane.Rate.Roll   ──► plane_roll.p_rate
+XPlane.Rate.Yaw    ──► plane_yaw.r_rate
+XPlane.Angle.Beta  ──► plane_yaw.beta
+qhat_eff (existing)──► plane_roll.qhat
 ```
-                    g_nrml ──┐
-XPlane inputs ──►   q_rate  ─┤
-                    p_rate  ─┼──► plane_load ──► LoadForce outputs
-                    r_rate  ─┤
-                    beta   ──┤
-qhat_eff node ──►   qhat   ──┘
-```
 
-The load force outputs are added to the existing Output nodes alongside
-SpringGain, DamperGain, Friction, BuffetAmplitude.
-
-### Alternative: inline in axis sub-graphs
-
-Instead of a separate sub-graph, each axis sub-graph (plane_pitch.json
-etc.) could compute its own load force internally. Simpler wiring but
-less reusable. Either approach works — graph-level choice.
+No new template nodes besides whatever Input wrappers are needed for
+the X-Plane signals (most are already present from buffet/spring use).
+Existing `SpringGain` / `DamperGain` / `Friction` / `BuffetAmplitude`
+wiring is unchanged.
 
 
 ---
@@ -249,7 +269,7 @@ Light, cable-controlled aircraft with relatively direct control feel.
 | Pitch LoadGGain | 3.0 N/g | Light gradient, low max forces |
 | Pitch LoadRateGain | 0.5 N/(rad/s) | Mild pitch rate cue |
 | Roll LoadRateGain | 0.0 | Not needed — spring/damper sufficient |
-| Yaw LoadBetaGain | 0.2 N/deg | Light rudder forces |
+| Yaw LoadBetaTrimGain | 0.3 mm/deg | Light slip cue via trim shift |
 
 ### Heavy GA (Bonanza, Baron, TBM)
 
@@ -260,7 +280,7 @@ Heavier controls, more pronounced force gradients.
 | Pitch LoadGGain | 8.0 N/g | Firmer gradient |
 | Pitch LoadRateGain | 1.5 N/(rad/s) | More authority feel |
 | Roll LoadRateGain | 0.3 N/(rad/s) | Slight aileron heaviness |
-| Yaw LoadBetaGain | 0.5 N/deg | Heavier rudder |
+| Yaw LoadBetaTrimGain | 0.7 mm/deg | More pronounced slip cue |
 
 ### Turboprop / Light jet
 
@@ -271,7 +291,7 @@ Higher speeds, boosted or mass-balanced controls.
 | Pitch LoadGGain | 12.0 N/g | Strong gradient for higher-g capability |
 | Pitch LoadRateGain | 2.0 N/(rad/s) | Crisp pitch response |
 | Roll LoadRateGain | 0.5 N/(rad/s) | Roll stiffens with speed via qhat |
-| Yaw LoadBetaGain | 0.8 N/deg | Firm rudder |
+| Yaw LoadBetaTrimGain | 1.0 mm/deg | Firm slip cue |
 
 ### Warbird / aerobatic
 
@@ -282,7 +302,7 @@ High g-capability, direct controls, need clear manoeuvre cues.
 | Pitch LoadGGain | 15.0 N/g | Very clear g cue for aerobatics |
 | Pitch LoadRateGain | 2.0 N/(rad/s) | Crisp |
 | Roll LoadRateGain | 1.0 N/(rad/s) | Aileron authority feel |
-| Yaw LoadBetaGain | 0.5 N/deg | |
+| Yaw LoadBetaTrimGain | 0.7 mm/deg | |
 
 All values are starting points — tune by feel in-sim.
 
@@ -291,11 +311,23 @@ All values are starting points — tune by feel in-sim.
 
 ## 7. Implementation
 
-1. Create `plane_load.json` sub-graph (Mul, Sub, Add nodes — no new Funcs)
-2. Wire `LoadForce` outputs in `plane_default.json`
-3. Test with Cessna 172 — verify g-load cue in turns
-4. Test with Baron 58 — verify pedal beta cue
-5. Tune default params for GA categories
+1. Edit `plane_pitch.json` — add `g_nrml` / `q_rate` Inputs, `LoadGGain`
+   / `LoadRateGain` Params, sum `g_gain × (g_nrml − 1) + q_gain × q_rate`
+   into the existing `LoadForce` output (Sub + Mul + Add nodes).
+2. Edit `plane_roll.json` — add `p_rate` / `qhat` Inputs, `LoadRateGain`
+   Param, sum `p_gain × p_rate × qhat` into `LoadForce` (Mul + Add).
+3. Edit `plane_yaw.json` — add `beta` / `r_rate` Inputs,
+   `LoadBetaTrimGain` / `LoadRateGain` Params; route
+   `beta_trim_gain × beta_deg` into a new `TrimOffset` output (Add with
+   existing hat-trim contribution), and `r_gain × r_rate` into
+   `LoadForce`.
+4. Wire the new flight-state inputs in `plane_default.json`
+   (`XPlane.G_Nrml` / `Rate.Pitch` / `Rate.Roll` / `Rate.Yaw` /
+   `Angle.Beta` plus the existing `qhat_eff`).
+5. Test with Cessna 172 — verify g-load cue in turns.
+6. Test with Baron 58 — verify pedal beta cue (sideslip pulls pedals
+   toward coordinated position).
+7. Tune default params for GA categories.
 
 
 ---
