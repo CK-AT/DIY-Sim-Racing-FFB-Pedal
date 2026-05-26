@@ -65,7 +65,6 @@ namespace DiyFfb
             "XPlane.Rotor.Slap",
             "XPlane.Rotor.VRS",
             "XPlane.Rotor.Propwash",
-            "XPlane.Rotor.FundamentalHz",
             "XPlane.OnGround",
             "Grip.TrimHat.Up",
             "Grip.TrimHat.Down",

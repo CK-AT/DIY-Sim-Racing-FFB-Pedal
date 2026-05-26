@@ -41,9 +41,9 @@ logger, ~9000 samples across hover through 170 kt and back).
 
 ### Derived signals (computed in plugin)
 
-| Signal | Derivation | Unit |
-| --- | --- | --- |
-| `XPlane.Rotor.FundamentalHz` | `MainRotor.Speed / 60` | Hz |
+None. DDS fundamental frequency is computed inside the graph as
+`MainRotor.Speed / 60` and published as the `Shared.Vib1Fund` output;
+no separate `Rotor.FundamentalHz` input signal is needed.
 
 
 ---
@@ -138,7 +138,7 @@ VRS uses stride-10 indexing: reads `[0], [10], [20], [30]` individually.
 
 ### Plugin signal registration
 
-Registered 6 graph input signals in `GraphSignalCatalogData.InputNames`:
+Registered 5 graph input signals in `GraphSignalCatalogData.InputNames`:
 
 ```text
 XPlane.Rotor.BladeAlphPitch
@@ -146,7 +146,6 @@ XPlane.Rotor.BladeAlphRoll
 XPlane.Rotor.Slap
 XPlane.Rotor.VRS
 XPlane.Rotor.Propwash
-XPlane.Rotor.FundamentalHz   (derived: MainRotor.Speed / 60)
 ```
 
 All indexed by `rotorIndex` (same as existing torque/speed signals).

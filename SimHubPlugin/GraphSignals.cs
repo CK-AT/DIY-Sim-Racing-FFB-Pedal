@@ -72,7 +72,6 @@ namespace DiyFfb
             inputs["XPlane.Rotor.Slap"]           = rotorIndex >= 0 && rotorIndex < packet.RotorBladeSlapRat.Length ? packet.RotorBladeSlapRat[rotorIndex] : 0.0;
             inputs["XPlane.Rotor.VRS"]            = rotorIndex >= 0 && rotorIndex < packet.VortexRingState.Length ? packet.VortexRingState[rotorIndex] : 0.0;
             inputs["XPlane.Rotor.Propwash"]       = rotorIndex >= 0 && rotorIndex < packet.PropwashMtrSec.Length ? packet.PropwashMtrSec[rotorIndex] : 0.0;
-            inputs["XPlane.Rotor.FundamentalHz"]  = rpm / 60.0;
             inputs["XPlane.OnGround"] = packet.OnGround ? 1.0 : 0.0;
         }
 
