@@ -144,6 +144,8 @@ namespace DiyFfb
         public int OtaLocalPort = 8000;
         public bool XPlaneUdpEnabled = true;
         public int XPlaneUdpPort = 27015;
+        public bool MsfsUdpEnabled = true;
+        public int MsfsUdpPort = 27016;
         public Dictionary<string, AircraftFfbProfile> AircraftFfbProfiles = new Dictionary<string, AircraftFfbProfile>();
 
         // Tiered Config Override System

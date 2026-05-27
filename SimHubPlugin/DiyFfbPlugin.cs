@@ -114,6 +114,21 @@ namespace DiyFfb
         private int xplaneDropouts;
         private DateTime xplaneLastReceivedUtc = DateTime.MinValue;
         private DateTime xplaneLastSendUtc = DateTime.MinValue;
+
+        // Plan 17: MSFS SimConnect bridge over UDP. Bridge ships raw SimVars
+        // only; derivations (BladeAlph / VRS / Slap / Propwash / Torque)
+        // run in BuildMsfsInputs using per-aircraft graph params for tuning.
+        private const uint MsfsPacketMagic = 0x4D464642; // "MFFB"
+        private const ushort MsfsPacketVersion = 1;
+        private const int MsfsPacketSizeBytes = 152;
+        private const double MsfsTelemetryFreshnessMs = 200.0;
+        private readonly object msfsLock = new object();
+        private UdpClient msfsUdpClient;
+        private Thread msfsUdpThread;
+        private CancellationTokenSource msfsUdpCts;
+        private MsfsUdpPacket latestMsfsPacket;
+        private uint msfsLastSequence;
+        private int msfsDropouts;
         private string activeCarId;
         private string activeCarName;
         private string activeGameId;
@@ -216,6 +231,54 @@ namespace DiyFfb
             public float[] RotorBladeSlapRat = new float[XPlaneMaxRotors];
             public float[] VortexRingState = new float[XPlaneMaxRotors];
             public float[] PropwashMtrSec = new float[XPlaneMaxRotors];
+            public DateTime ReceivedUtc;
+        }
+
+        // Plan 17: MSFS UDP packet — v1, 152 bytes.
+        // Magic 'MFFB' = 0x4D464642. Bridge ships raw SimVars only;
+        // derivations live in GraphSignals.BuildMsfsInputs so per-aircraft
+        // tuning happens through the existing graph-param mechanism.
+        internal sealed class MsfsUdpPacket
+        {
+            public uint Sequence;
+            // Native non-rotor SimVars
+            public float IasKts;
+            public float TasKts;
+            public float AlphaDeg;
+            public float BetaDeg;
+            public float PRateRadS;
+            public float QRateRadS;
+            public float RRateRadS;
+            public float GForce;
+            public float VviWorldFps;
+            public float VelocityBodyXFps;
+            public float VelocityBodyYFps;
+            public float VelocityBodyZFps;
+            public float PitchRad;
+            public float BankRad;
+            public float TotalWeightLb;
+            public float AmbientDensitySlugsFt3;
+            // Native rotor / heli SimVars
+            public float MainRotorRpm;
+            public float TailRotorRpm;
+            public float EngTorquePct;
+            public float CollectivePosPct;
+            public float TailRotorPedalPct;
+            public float TailRotorBladePitchPct;
+            public float RotorCollectiveBladePitchPct;
+            public float RotorCyclicBladePitchPct;
+            public float RotorCyclicBladeMaxPitchPosRad;
+            public float DiskPitchAngleRad;
+            public float DiskBankAngleRad;
+            public float DiskConingPct;
+            public float RotorLateralTrimPct;
+            public float RotorLongitudinalTrimPct;
+            public float RotorRotationAngleRad;
+            // Fixed-wing trims (future use)
+            public float ElevTrimPct;
+            public float AilTrimPct;
+            public float RudTrimPct;
+            public bool OnGround;
             public DateTime ReceivedUtc;
         }
 
@@ -872,6 +935,7 @@ namespace DiyFfb
 
             StopGatewayAutoReconnect();
             StopXPlaneUdpReceiver();
+            StopMsfsUdpReceiver();
 
             // close serial communication
             if (ui != null)
@@ -1114,6 +1178,195 @@ namespace DiyFfb
             }
         }
 
+        // Plan 17: MSFS receiver lifecycle — mirrors the X-Plane pair.
+        private void StartMsfsUdpReceiver()
+        {
+            if (msfsUdpThread != null || Settings == null || !Settings.MsfsUdpEnabled)
+            {
+                return;
+            }
+
+            msfsUdpCts = new CancellationTokenSource();
+            try
+            {
+                msfsUdpClient = new UdpClient(Settings.MsfsUdpPort);
+                msfsUdpClient.Client.ReceiveTimeout = 500;
+            }
+            catch (Exception ex)
+            {
+                SimHub.Logging.Current.Error($"MSFS UDP receiver failed to start: {ex.Message}");
+                StopMsfsUdpReceiver();
+                return;
+            }
+
+            msfsUdpThread = new Thread(MsfsUdpLoop)
+            {
+                IsBackground = true,
+                Name = "MsfsUdpReceiver"
+            };
+            msfsUdpThread.Start();
+        }
+
+        private void StopMsfsUdpReceiver()
+        {
+            if (msfsUdpCts != null)
+            {
+                msfsUdpCts.Cancel();
+            }
+
+            if (msfsUdpClient != null)
+            {
+                try
+                {
+                    msfsUdpClient.Close();
+                }
+                catch
+                {
+                }
+            }
+
+            msfsUdpThread = null;
+            msfsUdpClient = null;
+            msfsUdpCts = null;
+        }
+
+        private void MsfsUdpLoop()
+        {
+            if (msfsUdpClient == null || msfsUdpCts == null)
+            {
+                return;
+            }
+
+            var endpoint = new IPEndPoint(IPAddress.Any, 0);
+            while (!msfsUdpCts.IsCancellationRequested)
+            {
+                try
+                {
+                    byte[] data = msfsUdpClient.Receive(ref endpoint);
+                    if (data != null && data.Length >= MsfsPacketSizeBytes)
+                    {
+                        ParseMsfsPacket(data);
+                    }
+                }
+                catch (SocketException ex)
+                {
+                    if (ex.SocketErrorCode != SocketError.TimedOut)
+                    {
+                        Thread.Sleep(50);
+                    }
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (Exception)
+                {
+                }
+            }
+        }
+
+        private void ParseMsfsPacket(byte[] data)
+        {
+            int offset = 0;
+            uint magic = ReadUInt32(data, ref offset);
+            if (magic != MsfsPacketMagic)
+            {
+                return;
+            }
+
+            ushort version = ReadUInt16(data, ref offset);
+            if (version != MsfsPacketVersion)
+            {
+                return;
+            }
+
+            ushort size = ReadUInt16(data, ref offset);
+            if (size > data.Length || size < MsfsPacketSizeBytes)
+            {
+                return;
+            }
+
+            uint sequence = ReadUInt32(data, ref offset);
+            var packet = new MsfsUdpPacket
+            {
+                Sequence = sequence,
+                IasKts = ReadSingle(data, ref offset),
+                TasKts = ReadSingle(data, ref offset),
+                AlphaDeg = ReadSingle(data, ref offset),
+                BetaDeg = ReadSingle(data, ref offset),
+                PRateRadS = ReadSingle(data, ref offset),
+                QRateRadS = ReadSingle(data, ref offset),
+                RRateRadS = ReadSingle(data, ref offset),
+                GForce = ReadSingle(data, ref offset),
+                VviWorldFps = ReadSingle(data, ref offset),
+                VelocityBodyXFps = ReadSingle(data, ref offset),
+                VelocityBodyYFps = ReadSingle(data, ref offset),
+                VelocityBodyZFps = ReadSingle(data, ref offset),
+                PitchRad = ReadSingle(data, ref offset),
+                BankRad = ReadSingle(data, ref offset),
+                TotalWeightLb = ReadSingle(data, ref offset),
+                AmbientDensitySlugsFt3 = ReadSingle(data, ref offset),
+                MainRotorRpm = ReadSingle(data, ref offset),
+                TailRotorRpm = ReadSingle(data, ref offset),
+                EngTorquePct = ReadSingle(data, ref offset),
+                CollectivePosPct = ReadSingle(data, ref offset),
+                TailRotorPedalPct = ReadSingle(data, ref offset),
+                TailRotorBladePitchPct = ReadSingle(data, ref offset),
+                RotorCollectiveBladePitchPct = ReadSingle(data, ref offset),
+                RotorCyclicBladePitchPct = ReadSingle(data, ref offset),
+                RotorCyclicBladeMaxPitchPosRad = ReadSingle(data, ref offset),
+                DiskPitchAngleRad = ReadSingle(data, ref offset),
+                DiskBankAngleRad = ReadSingle(data, ref offset),
+                DiskConingPct = ReadSingle(data, ref offset),
+                RotorLateralTrimPct = ReadSingle(data, ref offset),
+                RotorLongitudinalTrimPct = ReadSingle(data, ref offset),
+                RotorRotationAngleRad = ReadSingle(data, ref offset),
+                ElevTrimPct = ReadSingle(data, ref offset),
+                AilTrimPct = ReadSingle(data, ref offset),
+                RudTrimPct = ReadSingle(data, ref offset),
+                OnGround = ReadByte(data, ref offset) != 0,
+                ReceivedUtc = DateTime.UtcNow
+            };
+
+            lock (msfsLock)
+            {
+                if (msfsLastSequence != 0 && sequence > msfsLastSequence + 1)
+                {
+                    msfsDropouts += (int)(sequence - msfsLastSequence - 1);
+                }
+                msfsLastSequence = sequence;
+                latestMsfsPacket = packet;
+            }
+        }
+
+        internal MsfsUdpPacket GetLatestMsfsPacket()
+        {
+            lock (msfsLock)
+            {
+                return latestMsfsPacket;
+            }
+        }
+
+        internal static bool IsMsfsTelemetryFresh(DateTime utc)
+        {
+            return (DateTime.UtcNow - utc).TotalMilliseconds <= MsfsTelemetryFreshnessMs;
+        }
+
+        // Plan 17: graph-param lookup for signal-source derivations.
+        // BuildMsfsInputs uses this to read per-aircraft tuning constants
+        // (rotor tip speed, k_speed_pitch, etc.) from the active graph
+        // so per-aircraft persistence falls out of GraphParamValues for free.
+        // Returns the default if the param isn't defined on the active graph.
+        internal double GetGraphParamValue(string name, double defaultValue)
+        {
+            if (string.IsNullOrEmpty(name)) return defaultValue;
+            if (graphParams != null && graphParams.TryGetValue(name, out double v))
+            {
+                return v;
+            }
+            return defaultValue;
+        }
+
         private static float Clamp(float value, float min, float max)
         {
             return Math.Min(max, Math.Max(min, value));
@@ -1214,17 +1467,25 @@ namespace DiyFfb
                 return;
             }
 
-            XPlaneUdpPacket packet;
+            // Plan 17: gate on ANY sim having fresh telemetry, not just X-Plane.
+            // Graphs read whichever prefix (XPlane.* or MSFS.*) they were authored
+            // against; the unused prefix sits at zero — it's the graph's job to
+            // pick the right inputs, not this gate's.
+            bool xplaneFresh;
+            XPlaneUdpPacket xpacket;
             lock (xplaneLock)
             {
-                if (latestXPlanePacket == null)
-                {
-                    return;
-                }
-                packet = latestXPlanePacket;
+                xpacket = latestXPlanePacket;
+                xplaneFresh = xpacket != null && IsTelemetryFresh(xpacket.ReceivedUtc);
             }
-
-            if (!IsTelemetryFresh(packet.ReceivedUtc))
+            bool msfsFresh;
+            MsfsUdpPacket mpacket;
+            lock (msfsLock)
+            {
+                mpacket = latestMsfsPacket;
+                msfsFresh = mpacket != null && IsMsfsTelemetryFresh(mpacket.ReceivedUtc);
+            }
+            if (!xplaneFresh && !msfsFresh)
             {
                 return;
             }
@@ -2324,6 +2585,7 @@ namespace DiyFfb
         {
             graphInputs.Clear();
             GraphSignalCatalog.BuildXPlaneInputs(this, data, graphInputs);
+            GraphSignalCatalog.BuildMsfsInputs(this, data, graphInputs);
             GraphSignalCatalog.BuildGripInputs(_gripHeld, graphInputs);
             GraphSignalCatalog.BuildAxisInputs(this, graphInputs);
         }
@@ -2332,6 +2594,7 @@ namespace DiyFfb
         {
             var inputs = new Dictionary<string, double>();
             GraphSignalCatalog.BuildXPlaneInputs(this, null, inputs);
+            GraphSignalCatalog.BuildMsfsInputs(this, null, inputs);
             // Grip/Axis inputs: only include cached values, no COM calls.
             // These may be zero if no bindings are configured — that's fine.
             try
@@ -4041,6 +4304,7 @@ namespace DiyFfb
 
             StartGatewayAutoReconnect();
             StartXPlaneUdpReceiver();
+            StartMsfsUdpReceiver();
 
         }
     }

@@ -19,11 +19,24 @@ namespace DiyFfb.GraphEditor
             },
             new GraphTemplateEntry
             {
-                Name = "Helicopter \u2014 Unboosted",
-                Description = "Unboosted helicopter (MD 500E, R22). Blade-alpha load force, OWL option, mechanical friction.",
+                Name = "Helicopter \u2014 Unboosted (X-Plane)",
+                Description = "Unboosted helicopter (MD 500E, R22). Blade-alpha load force, OWL option, mechanical friction. Uses X-Plane ground-truth rotor signals.",
                 Category = "Flight",
                 TemplatePath = "graphs/templates/heli_unboosted.json",
-                GameIds = new[] { "X-Plane", "XPlane", "XPlane11", "XPlane12", "MSFS2020", "MSFS2024" }
+                GameIds = new[] { "X-Plane", "XPlane", "XPlane11", "XPlane12" }
+            },
+            new GraphTemplateEntry
+            {
+                Name = "Helicopter \u2014 Unboosted (MSFS)",
+                Description = "Unboosted helicopter for MSFS 2020/2024. Same feel model as the X-Plane variant; blade-alpha/VRS/slap/propwash derived in-plugin from IAS + descent rate + weight (plan 17 \u00a73). Per-aircraft tuning via Aircraft.* graph params.",
+                Category = "Flight",
+                TemplatePath = "graphs/templates/heli_unboosted_msfs.json",
+                GameIds = new[] {
+                    "MSFS2020", "MSFS2024",
+                    "FlightSimulator", "FlightSimulator2020", "FlightSimulator2024",
+                    "MicrosoftFlightSimulator", "MicrosoftFlightSimulator2020", "MicrosoftFlightSimulator2024",
+                    "MSFS", "MSFS20", "MSFS24"
+                }
             },
             new GraphTemplateEntry
             {
@@ -72,6 +85,11 @@ namespace DiyFfb.GraphEditor
         /// <returns>Enumerable of template entries that match the game ID.</returns>
         public static IEnumerable<GraphTemplateEntry> GetTemplates(string gameId, string baseDirectory)
         {
+            // Log so the user can see what SimHub actually reports when a template
+            // is missing for their game (game-ID strings aren't documented anywhere).
+            SimHub.Logging.Current?.Info(
+                $"[GraphTemplateRegistry] GetTemplates(gameId='{gameId ?? "(null)"}')");
+
             var filtered = string.IsNullOrWhiteSpace(gameId)
                 ? AllTemplates
                 : AllTemplates.Where(t => t.GameIds != null &&

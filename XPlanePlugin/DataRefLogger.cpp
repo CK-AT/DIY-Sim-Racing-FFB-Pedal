@@ -91,6 +91,19 @@ static DataRefEntry g_refs[] = {
     // Rotor moments (small, noisy — logged for reference)
     { "sim/flightmodel/forces/Q_rotor_rad",                     "Q_rotor",          0, NULL },
     { "sim/flightmodel/forces/R_rotor_rad",                     "R_rotor",          0, NULL },
+
+    // === Plan 17 §4.1 additions: parallel the MSFS SimConnect surface ===
+    // and enable propwash/VRS derivation calibration.
+    { "sim/flightmodel/weight/m_total",                         "m_total_kg",      -1, NULL },
+    { "sim/flightmodel/position/local_vy",                      "local_vy_mps",    -1, NULL },
+    { "sim/weather/rho",                                        "rho",             -1, NULL },
+    // Disc plane attitude including flapping — closer match to MSFS DISK PITCH/BANK ANGLE
+    // than the cyclic-input-only cycli_pitch/cycli_roll already logged. Names are
+    // TBD against DataRefs.txt; logger gracefully reports NOT FOUND at startup if absent.
+    { "sim/flightmodel2/engines/rotor_disc_pitch_deg",          "disc_pitch_actual_deg", 0, NULL },
+    { "sim/flightmodel2/engines/rotor_disc_roll_deg",           "disc_roll_actual_deg",  0, NULL },
+    // Direct rotor angular velocity (rad/s) — avoids RPM rounding for calibration.
+    { "sim/flightmodel/engine/POINT_tacrad",                    "omega_rad_s",      0, NULL },
 };
 
 static const int NUM_REFS = sizeof(g_refs) / sizeof(g_refs[0]);

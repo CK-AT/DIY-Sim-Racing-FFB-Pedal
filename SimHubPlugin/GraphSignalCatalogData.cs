@@ -7,7 +7,7 @@ namespace DiyFfb
     public static class GraphSignalCatalogData
     {
         // Input signal groups (top-level namespaces)
-        public static readonly IReadOnlyList<string> InputGroups = new[] { "XPlane", "Grip", "Axis" };
+        public static readonly IReadOnlyList<string> InputGroups = new[] { "XPlane", "MSFS", "Grip", "Axis" };
 
         // Output signal groups (function names + global Shared scope)
         public static readonly IReadOnlyList<string> OutputGroups = new[]
@@ -66,6 +66,49 @@ namespace DiyFfb
             "XPlane.Rotor.VRS",
             "XPlane.Rotor.Propwash",
             "XPlane.OnGround",
+            // MSFS (plan 17). Mirrors XPlane.* where possible; rotor signals here
+            // are derived in the SimConnect bridge (tier C — IAS-only baselines).
+            "MSFS.Speed.IAS",
+            "MSFS.Speed.TAS",
+            "MSFS.Angle.Alpha",
+            "MSFS.Angle.Beta",
+            "MSFS.Attitude.Pitch",
+            "MSFS.Attitude.Bank",
+            "MSFS.Rate.Roll",
+            "MSFS.Rate.Pitch",
+            "MSFS.Rate.Yaw",
+            "MSFS.G_Nrml",
+            "MSFS.VVI.World",
+            "MSFS.Velocity.BodyX",
+            "MSFS.Velocity.BodyY",
+            "MSFS.Velocity.BodyZ",
+            "MSFS.Weight.Total",
+            "MSFS.Air.Density",
+            "MSFS.MainRotor.Speed",
+            "MSFS.MainRotor.Torque",
+            "MSFS.TailRotor.Speed",
+            "MSFS.Eng.TorquePct",
+            "MSFS.Collective.Position",
+            "MSFS.Collective.BladePitchPct",
+            "MSFS.Cyclic.BladePitchPct",
+            "MSFS.Cyclic.MaxPitchAngle",
+            "MSFS.TailRotor.PedalPosition",
+            "MSFS.TailRotor.BladePitchPct",
+            "MSFS.Disk.PitchAngle",
+            "MSFS.Disk.BankAngle",
+            "MSFS.Disk.ConingPct",
+            "MSFS.Rotor.LateralTrim",
+            "MSFS.Rotor.LongitudinalTrim",
+            "MSFS.Rotor.RotationAngle",
+            "MSFS.Trim.Elevator",
+            "MSFS.Trim.Aileron",
+            "MSFS.Trim.Rudder",
+            "MSFS.Rotor.BladeAlphPitch",
+            "MSFS.Rotor.BladeAlphRoll",
+            "MSFS.Rotor.Slap",
+            "MSFS.Rotor.VRS",
+            "MSFS.Rotor.Propwash",
+            "MSFS.OnGround",
             "Grip.TrimHat.Up",
             "Grip.TrimHat.Down",
             "Grip.TrimHat.Left",
