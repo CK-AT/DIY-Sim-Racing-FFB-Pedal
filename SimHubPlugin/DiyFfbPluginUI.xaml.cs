@@ -904,6 +904,14 @@ namespace DiyFfb
                             AppDomain.CurrentDomain.BaseDirectory);
                     }
 
+                    // "Use Tuning Only" — keep current graph, apply only the source's
+                    // tuning. ApplyProfileFromBrowser treats null/empty graphPath as
+                    // "don't change graph".
+                    if (!dialog.UseSourceGraph)
+                    {
+                        graphPath = null;
+                    }
+
                     Plugin.ApplyProfileFromBrowser(graphPath, entry.Profile, dialog.UseTuning);
                     RefreshGraphSelection();
                 }

@@ -269,6 +269,15 @@
                     Background="#4A6A4A"
                     Foreground="White"
                     BorderBrush="#5A8A5A"/>
+            <Button x:Name="ButtonUseTuningOnly"
+                    Content="Use Tuning Only"
+                    Width="115"
+                    Margin="0,0,8,0"
+                    Click="OnUseTuningOnlyClick"
+                    Background="#4A6A4A"
+                    Foreground="White"
+                    BorderBrush="#5A8A5A"
+                    ToolTip="Copy this source's tuning into the current vehicle without changing its graph template."/>
             <Button x:Name="ButtonUseGraphTuning"
                     Content="Use Graph + Tuning"
                     Width="130"
