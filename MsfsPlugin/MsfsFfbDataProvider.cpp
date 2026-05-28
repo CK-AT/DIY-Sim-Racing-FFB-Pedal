@@ -182,6 +182,7 @@ uint32_t g_sequence = 0;
 char g_udp_host[64] = "127.0.0.1";
 uint16_t g_udp_port = 27016;
 bool g_running = true;
+bool g_disconnected = false; // set on SIMCONNECT_RECV_ID_QUIT to trigger reconnect
 
 void DebugLog(const char* fmt, ...) {
     char buf[512];
@@ -261,8 +262,8 @@ void CALLBACK MsfsDispatchCallback(SIMCONNECT_RECV* recv, DWORD /*cbData*/, void
         break;
     }
     case SIMCONNECT_RECV_ID_QUIT:
-        DebugLog("MsfsFfbDataProvider: MSFS quit, exiting.\n");
-        g_running = false;
+        DebugLog("MsfsFfbDataProvider: MSFS quit, waiting for reconnect.\n");
+        g_disconnected = true;
         break;
     case SIMCONNECT_RECV_ID_EXCEPTION: {
         auto* ex = reinterpret_cast<SIMCONNECT_RECV_EXCEPTION*>(recv);
@@ -382,24 +383,29 @@ int main() {
 
     DebugLog("MsfsFfbDataProvider: connecting to MSFS via SimConnect... "
              "(retries every 2 s until MSFS is running)\n");
+
+    // Outer loop survives MSFS sessions: connect → dispatch → on QUIT,
+    // tear down SimConnect and retry. Bridge stays alive across the
+    // user closing and reopening MSFS without intervention.
     while (g_running) {
-        if (InitSimConnect()) break;
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        if (!InitSimConnect()) {
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            continue;
+        }
+
+        DebugLog("MsfsFfbDataProvider: connected to MSFS, streaming.\n");
+        g_disconnected = false;
+        while (g_running && !g_disconnected) {
+            SimConnect_CallDispatch(g_sim, MsfsDispatchCallback, nullptr);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        if (g_sim) {
+            SimConnect_Close(g_sim);
+            g_sim = nullptr;
+        }
     }
 
-    if (!g_running) {
-        if (g_socket != INVALID_SOCKET) closesocket(g_socket);
-        WSACleanup();
-        return 0;
-    }
-
-    DebugLog("MsfsFfbDataProvider: connected to MSFS, streaming.\n");
-    while (g_running) {
-        SimConnect_CallDispatch(g_sim, MsfsDispatchCallback, nullptr);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-
-    if (g_sim) SimConnect_Close(g_sim);
     if (g_socket != INVALID_SOCKET) closesocket(g_socket);
     WSACleanup();
     DebugLog("MsfsFfbDataProvider: shutdown complete.\n");

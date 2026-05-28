@@ -7,6 +7,7 @@ using ProtbufTest;
 using SimHub.Plugins;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
@@ -129,6 +130,11 @@ namespace DiyFfb
         private MsfsUdpPacket latestMsfsPacket;
         private uint msfsLastSequence;
         private int msfsDropouts;
+        // Plan 17: child process that runs the MSFS SimConnect bridge. The
+        // plugin auto-spawns it on Init so users don't have to launch a
+        // separate EXE. The bridge handles connect-to-MSFS retries on its
+        // own — safe to launch before MSFS is running.
+        private Process _msfsBridgeProcess;
         private string activeCarId;
         private string activeCarName;
         private string activeGameId;
@@ -936,6 +942,7 @@ namespace DiyFfb
             StopGatewayAutoReconnect();
             StopXPlaneUdpReceiver();
             StopMsfsUdpReceiver();
+            StopMsfsBridgeProcess();
 
             // close serial communication
             if (ui != null)
@@ -1051,17 +1058,21 @@ namespace DiyFfb
 
         private void XPlaneUdpLoop()
         {
-            if (xplaneUdpClient == null || xplaneUdpCts == null)
+            // Snapshot refs so we survive StopXPlaneUdpReceiver nulling fields
+            // mid-loop (race between Cancel + Close and the next while-check).
+            var client = xplaneUdpClient;
+            var cts = xplaneUdpCts;
+            if (client == null || cts == null)
             {
                 return;
             }
 
             var endpoint = new IPEndPoint(IPAddress.Any, 0);
-            while (!xplaneUdpCts.IsCancellationRequested)
+            while (!cts.IsCancellationRequested)
             {
                 try
                 {
-                    byte[] data = xplaneUdpClient.Receive(ref endpoint);
+                    byte[] data = client.Receive(ref endpoint);
                     if (data != null && data.Length >= XPlanePacketSizeBytes)
                     {
                         ParseXPlanePacket(data);
@@ -1178,6 +1189,69 @@ namespace DiyFfb
             }
         }
 
+        // Plan 17: spawn / kill MsfsFfbDataProvider.exe alongside the plugin
+        // lifecycle. The bridge sits next to the plugin DLL in SimHub's
+        // install dir (deployed by our post-build step). Bridge's own retry
+        // loop handles MSFS not being up yet; we don't need to gate on it.
+        private void StartMsfsBridgeProcess()
+        {
+            if (_msfsBridgeProcess != null && !_msfsBridgeProcess.HasExited)
+            {
+                return;
+            }
+
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string exePath = Path.Combine(baseDir, "MsfsFfbDataProvider.exe");
+            if (!File.Exists(exePath))
+            {
+                SimHub.Logging.Current?.Info(
+                    $"[MsfsBridge] MsfsFfbDataProvider.exe not found at '{exePath}' — MSFS support will be unavailable until it is deployed.");
+                return;
+            }
+
+            try
+            {
+                var psi = new ProcessStartInfo(exePath)
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = baseDir
+                };
+                _msfsBridgeProcess = Process.Start(psi);
+                SimHub.Logging.Current?.Info(
+                    $"[MsfsBridge] Launched '{exePath}' (PID {_msfsBridgeProcess?.Id}).");
+            }
+            catch (Exception ex)
+            {
+                SimHub.Logging.Current?.Error($"[MsfsBridge] Failed to launch: {ex.Message}");
+                _msfsBridgeProcess = null;
+            }
+        }
+
+        private void StopMsfsBridgeProcess()
+        {
+            var p = _msfsBridgeProcess;
+            _msfsBridgeProcess = null;
+            if (p == null) return;
+
+            try
+            {
+                if (!p.HasExited)
+                {
+                    p.Kill();
+                    p.WaitForExit(2000);
+                }
+            }
+            catch (Exception ex)
+            {
+                SimHub.Logging.Current?.Info($"[MsfsBridge] Stop encountered '{ex.Message}'.");
+            }
+            finally
+            {
+                try { p.Dispose(); } catch { }
+            }
+        }
+
         // Plan 17: MSFS receiver lifecycle — mirrors the X-Plane pair.
         private void StartMsfsUdpReceiver()
         {
@@ -1232,17 +1306,21 @@ namespace DiyFfb
 
         private void MsfsUdpLoop()
         {
-            if (msfsUdpClient == null || msfsUdpCts == null)
+            // Snapshot refs so we survive StopMsfsUdpReceiver nulling fields
+            // mid-loop (race between Cancel + Close and the next while-check).
+            var client = msfsUdpClient;
+            var cts = msfsUdpCts;
+            if (client == null || cts == null)
             {
                 return;
             }
 
             var endpoint = new IPEndPoint(IPAddress.Any, 0);
-            while (!msfsUdpCts.IsCancellationRequested)
+            while (!cts.IsCancellationRequested)
             {
                 try
                 {
-                    byte[] data = msfsUdpClient.Receive(ref endpoint);
+                    byte[] data = client.Receive(ref endpoint);
                     if (data != null && data.Length >= MsfsPacketSizeBytes)
                     {
                         ParseMsfsPacket(data);
@@ -4305,6 +4383,7 @@ namespace DiyFfb
             StartGatewayAutoReconnect();
             StartXPlaneUdpReceiver();
             StartMsfsUdpReceiver();
+            StartMsfsBridgeProcess();
 
         }
     }
