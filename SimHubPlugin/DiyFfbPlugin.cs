@@ -16,6 +16,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Windows.Media;
 using DiyFfb.GraphEditor;
+using DiyFfb.Msfs;
 using DiyFfb.TieredConfig;
 using Windows.UI.Notifications;
 using IPlugin = SimHub.Plugins.IPlugin;
@@ -135,6 +136,11 @@ namespace DiyFfb
         // separate EXE. The bridge handles connect-to-MSFS retries on its
         // own — safe to launch before MSFS is running.
         private Process _msfsBridgeProcess;
+        // Plan 19: pure-C# in-process SimConnect client. Replaces the
+        // bridge EXE + UDP loopback when Settings.MsfsConnectionMode ==
+        // InProcess. Mutually exclusive with the UDP path; both populate
+        // latestMsfsPacket via the same lock so downstream is unaware.
+        private MsfsSimConnectClient _msfsClient;
         private string activeCarId;
         private string activeCarName;
         private string activeGameId;
@@ -941,6 +947,9 @@ namespace DiyFfb
 
             StopGatewayAutoReconnect();
             StopXPlaneUdpReceiver();
+            // Plan 19: stop whichever MSFS path is running. Stop() is a
+            // no-op if the path was never started, so order doesn't matter.
+            StopMsfsClient();
             StopMsfsUdpReceiver();
             StopMsfsBridgeProcess();
 
@@ -1188,6 +1197,81 @@ namespace DiyFfb
                 UpdateRotorRpmHistory(packet);
             }
         }
+
+        // Plan 19: in-process SimConnect client lifecycle. Mutually exclusive
+        // with the bridge EXE path — caller chooses based on Settings.
+        private void StartMsfsClient()
+        {
+            if (_msfsClient != null) return;
+            _msfsClient = new MsfsSimConnectClient(
+                onSample: ApplyMsfsSimConnectSample,
+                log: msg => SimHub.Logging.Current?.Info(msg));
+            _msfsClient.Start();
+            SimHub.Logging.Current?.Info("[MsfsSimConnect] in-process client started.");
+        }
+
+        private void StopMsfsClient()
+        {
+            var c = _msfsClient;
+            _msfsClient = null;
+            if (c == null) return;
+            try { c.Stop(); } catch { }
+            try { c.Dispose(); } catch { }
+        }
+
+        // Worker-thread callback. The double[] is owned by the client and
+        // reused per sample, so we must finish reading from it before
+        // returning. Lock matches the UDP path (ParseMsfsPacket) so
+        // downstream sees a single consistent latestMsfsPacket.
+        private void ApplyMsfsSimConnectSample(double[] s)
+        {
+            var packet = new MsfsUdpPacket
+            {
+                Sequence                       = unchecked((uint)Interlocked.Increment(ref _msfsClientSeq)),
+                IasKts                         = (float)s[(int)MsfsSampleIndex.IasKts],
+                TasKts                         = (float)s[(int)MsfsSampleIndex.TasKts],
+                AlphaDeg                       = (float)s[(int)MsfsSampleIndex.AlphaDeg],
+                BetaDeg                        = (float)s[(int)MsfsSampleIndex.BetaDeg],
+                PRateRadS                      = (float)s[(int)MsfsSampleIndex.PRateRadS],
+                QRateRadS                      = (float)s[(int)MsfsSampleIndex.QRateRadS],
+                RRateRadS                      = (float)s[(int)MsfsSampleIndex.RRateRadS],
+                GForce                         = (float)s[(int)MsfsSampleIndex.GForce],
+                VviWorldFps                    = (float)s[(int)MsfsSampleIndex.VviWorldFps],
+                VelocityBodyXFps               = (float)s[(int)MsfsSampleIndex.VelocityBodyXFps],
+                VelocityBodyYFps               = (float)s[(int)MsfsSampleIndex.VelocityBodyYFps],
+                VelocityBodyZFps               = (float)s[(int)MsfsSampleIndex.VelocityBodyZFps],
+                PitchRad                       = (float)s[(int)MsfsSampleIndex.PitchRad],
+                BankRad                        = (float)s[(int)MsfsSampleIndex.BankRad],
+                TotalWeightLb                  = (float)s[(int)MsfsSampleIndex.TotalWeightLb],
+                AmbientDensitySlugsFt3         = (float)s[(int)MsfsSampleIndex.AmbientDensitySlugsFt3],
+                MainRotorRpm                   = (float)s[(int)MsfsSampleIndex.MainRotorRpm],
+                TailRotorRpm                   = (float)s[(int)MsfsSampleIndex.TailRotorRpm],
+                EngTorquePct                   = (float)s[(int)MsfsSampleIndex.EngTorquePct],
+                CollectivePosPct               = (float)s[(int)MsfsSampleIndex.CollectivePosPct],
+                TailRotorPedalPct              = (float)s[(int)MsfsSampleIndex.TailRotorPedalPct],
+                TailRotorBladePitchPct         = (float)s[(int)MsfsSampleIndex.TailRotorBladePitchPct],
+                RotorCollectiveBladePitchPct   = (float)s[(int)MsfsSampleIndex.RotorCollectiveBladePitchPct],
+                RotorCyclicBladePitchPct       = (float)s[(int)MsfsSampleIndex.RotorCyclicBladePitchPct],
+                RotorCyclicBladeMaxPitchPosRad = (float)s[(int)MsfsSampleIndex.RotorCyclicBladeMaxPitchPosRad],
+                DiskPitchAngleRad              = (float)s[(int)MsfsSampleIndex.DiskPitchAngleRad],
+                DiskBankAngleRad               = (float)s[(int)MsfsSampleIndex.DiskBankAngleRad],
+                DiskConingPct                  = (float)s[(int)MsfsSampleIndex.DiskConingPct],
+                RotorLateralTrimPct            = (float)s[(int)MsfsSampleIndex.RotorLateralTrimPct],
+                RotorLongitudinalTrimPct       = (float)s[(int)MsfsSampleIndex.RotorLongitudinalTrimPct],
+                RotorRotationAngleRad          = (float)s[(int)MsfsSampleIndex.RotorRotationAngleRad],
+                ElevTrimPct                    = (float)s[(int)MsfsSampleIndex.ElevTrimPct],
+                AilTrimPct                     = (float)s[(int)MsfsSampleIndex.AilTrimPct],
+                RudTrimPct                     = (float)s[(int)MsfsSampleIndex.RudTrimPct],
+                OnGround                       = s[(int)MsfsSampleIndex.SimOnGround] != 0.0,
+                ReceivedUtc                    = DateTime.UtcNow,
+            };
+            lock (msfsLock)
+            {
+                latestMsfsPacket = packet;
+            }
+        }
+
+        private int _msfsClientSeq;
 
         // Plan 17: spawn / kill MsfsFfbDataProvider.exe alongside the plugin
         // lifecycle. The bridge sits next to the plugin DLL in SimHub's
@@ -4382,8 +4466,17 @@ namespace DiyFfb
 
             StartGatewayAutoReconnect();
             StartXPlaneUdpReceiver();
-            StartMsfsUdpReceiver();
-            StartMsfsBridgeProcess();
+            // Plan 19: pick MSFS connection mode. InProcess = pure-C#
+            // SimConnect client; Bridge = legacy EXE + UDP (fallback).
+            if (Settings != null && Settings.MsfsConnectionMode == MsfsConnectionMode.Bridge)
+            {
+                StartMsfsUdpReceiver();
+                StartMsfsBridgeProcess();
+            }
+            else
+            {
+                StartMsfsClient();
+            }
 
         }
     }
