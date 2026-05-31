@@ -94,9 +94,137 @@
         {
           "Kind": "Input",
           "SignalSuffix": "LoadForce"
+        },
+        {
+          "Kind": "Input",
+          "SignalSuffix": "BuffetAmplitude"
         }
       ],
       "Scoped": true
+    },
+    {
+      "Id": "in_vrs",
+      "Title": "VRS",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 450.0,
+      "Ports": [
+        { "Name": "vrs", "Kind": "Output" }
+      ]
+    },
+    {
+      "Id": "const_vrs_lo",
+      "Title": "0.25",
+      "Kind": "Const",
+      "X": 180.0,
+      "Y": 450.0,
+      "Ports": [ { "Name": "out", "Kind": "Output" } ],
+      "ConstValue": 0.25
+    },
+    {
+      "Id": "const_vrs_zero",
+      "Title": "0.0",
+      "Kind": "Const",
+      "X": 180.0,
+      "Y": 510.0,
+      "Ports": [ { "Name": "out", "Kind": "Output" } ],
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "const_vrs_one",
+      "Title": "1.0",
+      "Kind": "Const",
+      "X": 180.0,
+      "Y": 570.0,
+      "Ports": [ { "Name": "out", "Kind": "Output" } ],
+      "ConstValue": 1.0
+    },
+    {
+      "Id": "sub_vrs_eff",
+      "Title": "vrs - 0.25",
+      "Kind": "Op",
+      "X": 280.0,
+      "Y": 450.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a-b", "Kind": "Output" }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "div_vrs_eff",
+      "Title": "/0.25",
+      "Kind": "Op",
+      "X": 360.0,
+      "Y": 450.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a/b", "Kind": "Output" }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "clamp_vrs_eff",
+      "Title": "clamp 0..1",
+      "Kind": "Op",
+      "X": 440.0,
+      "Y": 450.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "min", "Kind": "Input" },
+        { "Name": "max", "Kind": "Input" },
+        { "Name": "clamp(a,min,max)", "Kind": "Output" }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "param_vrs_buffet_start",
+      "Kind": "Param",
+      "X": 440.0,
+      "Y": 530.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "VrsBuffetStart" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_vrs_buffet_full",
+      "Kind": "Param",
+      "X": 440.0,
+      "Y": 600.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "VrsBuffetFull" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_vrs_buffet_gain",
+      "Kind": "Param",
+      "X": 440.0,
+      "Y": 670.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "VrsBuffetGain" }
+      ],
+      "SignalGroup": "Collective"
+    },
+    {
+      "Id": "vrs_buffet",
+      "Title": "VRS buffet env",
+      "Kind": "Func",
+      "X": 600.0,
+      "Y": 530.0,
+      "Ports": [
+        { "Name": "alpha", "Kind": "Input" },
+        { "Name": "start", "Kind": "Input" },
+        { "Name": "full", "Kind": "Input" },
+        { "Name": "gain", "Kind": "Input" },
+        { "Name": "qhat_eff", "Kind": "Input" },
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "Func": "buffet",
+      "IncludePath": ""
     }
   ],
   "Links": [
@@ -129,7 +257,20 @@
       "FromPort": "a*-b",
       "ToNodeId": "out_scoped",
       "ToPort": "LoadForce"
-    }
+    },
+    { "FromNodeId": "in_vrs", "FromPort": "vrs", "ToNodeId": "sub_vrs_eff", "ToPort": "a" },
+    { "FromNodeId": "const_vrs_lo", "FromPort": "out", "ToNodeId": "sub_vrs_eff", "ToPort": "b" },
+    { "FromNodeId": "sub_vrs_eff", "FromPort": "a-b", "ToNodeId": "div_vrs_eff", "ToPort": "a" },
+    { "FromNodeId": "const_vrs_lo", "FromPort": "out", "ToNodeId": "div_vrs_eff", "ToPort": "b" },
+    { "FromNodeId": "div_vrs_eff", "FromPort": "a/b", "ToNodeId": "clamp_vrs_eff", "ToPort": "a" },
+    { "FromNodeId": "const_vrs_zero", "FromPort": "out", "ToNodeId": "clamp_vrs_eff", "ToPort": "min" },
+    { "FromNodeId": "const_vrs_one", "FromPort": "out", "ToNodeId": "clamp_vrs_eff", "ToPort": "max" },
+    { "FromNodeId": "clamp_vrs_eff", "FromPort": "clamp(a,min,max)", "ToNodeId": "vrs_buffet", "ToPort": "alpha" },
+    { "FromNodeId": "param_vrs_buffet_start", "FromPort": "VrsBuffetStart", "ToNodeId": "vrs_buffet", "ToPort": "start" },
+    { "FromNodeId": "param_vrs_buffet_full", "FromPort": "VrsBuffetFull", "ToNodeId": "vrs_buffet", "ToPort": "full" },
+    { "FromNodeId": "param_vrs_buffet_gain", "FromPort": "VrsBuffetGain", "ToNodeId": "vrs_buffet", "ToPort": "gain" },
+    { "FromNodeId": "const_vrs_one", "FromPort": "out", "ToNodeId": "vrs_buffet", "ToPort": "qhat_eff" },
+    { "FromNodeId": "vrs_buffet", "FromPort": "out", "ToNodeId": "out_scoped", "ToPort": "BuffetAmplitude" }
   ],
   "Params": [
     {
@@ -175,6 +316,22 @@
         "Group": "FlightStickCollective",
         "Units": "N @ trq_ref",
         "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Collective.VrsBuffetGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 8.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS Buffet Gain",
+        "Group": "Collective",
+        "Units": "N",
+        "Step": 0.05,
         "Precision": 2,
         "LogScale": false,
         "Options": []

@@ -165,6 +165,7 @@ namespace DiyFfb
             "FlightStickCollective.Friction",
             "FlightStickCollective.LoadForce",
             "FlightStickCollective.TrimOffset",
+            "FlightStickCollective.BuffetAmplitude",
             "FlightStickCollective.Vib1Ampl1",
             "FlightStickCollective.Vib1Ampl2",
             "FlightStickCollective.Vib1Ampl3",

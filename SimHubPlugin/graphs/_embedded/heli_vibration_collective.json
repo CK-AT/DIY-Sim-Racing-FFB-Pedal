@@ -941,12 +941,12 @@
     },
     {
       "Name": "Collective.etl_gain",
-      "DefaultValue": 0.3,
+      "DefaultValue": 0.0,
       "Min": 0.0,
       "Max": 2.55,
       "Ui": {
         "Widget": "slider",
-        "Label": "N/rev ETL boost",
+        "Label": "N/rev VRS recirc boost",
         "Group": "Collective Vibration",
         "Units": "mm",
         "Step": 0.005,

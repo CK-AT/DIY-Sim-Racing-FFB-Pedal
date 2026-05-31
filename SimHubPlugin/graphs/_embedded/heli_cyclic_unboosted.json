@@ -150,6 +150,53 @@
       "Op": "mul"
     },
     {
+      "Id": "param_vrs_buffet_start",
+      "Kind": "Param",
+      "X": 600.0,
+      "Y": 1010.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "VrsBuffetStart" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_vrs_buffet_full",
+      "Kind": "Param",
+      "X": 600.0,
+      "Y": 1080.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "VrsBuffetFull" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_vrs_buffet_gain",
+      "Kind": "Param",
+      "X": 600.0,
+      "Y": 1150.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "VrsBuffetGain" }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "vrs_buffet",
+      "Title": "VRS buffet env",
+      "Kind": "Func",
+      "X": 760.0,
+      "Y": 1080.0,
+      "Ports": [
+        { "Name": "alpha", "Kind": "Input" },
+        { "Name": "start", "Kind": "Input" },
+        { "Name": "full", "Kind": "Input" },
+        { "Name": "gain", "Kind": "Input" },
+        { "Name": "qhat_eff", "Kind": "Input" },
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "Func": "buffet",
+      "IncludePath": ""
+    },
+    {
       "Id": "param_vrs_atten_gain",
       "Kind": "Param",
       "X": 30.0,
@@ -493,6 +540,10 @@
         {
           "Kind": "Input",
           "SignalSuffix": "LoadForce"
+        },
+        {
+          "Kind": "Input",
+          "SignalSuffix": "BuffetAmplitude"
         }
       ],
       "Scoped": true
@@ -757,6 +808,42 @@
       "ToPort": "c"
     },
     {
+      "FromNodeId": "clamp_vrs_eff",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "vrs_buffet",
+      "ToPort": "alpha"
+    },
+    {
+      "FromNodeId": "param_vrs_buffet_start",
+      "FromPort": "VrsBuffetStart",
+      "ToNodeId": "vrs_buffet",
+      "ToPort": "start"
+    },
+    {
+      "FromNodeId": "param_vrs_buffet_full",
+      "FromPort": "VrsBuffetFull",
+      "ToNodeId": "vrs_buffet",
+      "ToPort": "full"
+    },
+    {
+      "FromNodeId": "param_vrs_buffet_gain",
+      "FromPort": "VrsBuffetGain",
+      "ToNodeId": "vrs_buffet",
+      "ToPort": "gain"
+    },
+    {
+      "FromNodeId": "const_vrs_one",
+      "FromPort": "out",
+      "ToNodeId": "vrs_buffet",
+      "ToPort": "qhat_eff"
+    },
+    {
+      "FromNodeId": "vrs_buffet",
+      "FromPort": "out",
+      "ToNodeId": "out_scoped",
+      "ToPort": "BuffetAmplitude"
+    },
+    {
       "FromNodeId": "mul_etl_load",
       "FromPort": "a*b*c",
       "ToNodeId": "add_total_load",
@@ -884,6 +971,22 @@
         "Units": "mm",
         "Step": 0.5,
         "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.VrsBuffetGain",
+      "DefaultValue": 1.5,
+      "Min": 0.0,
+      "Max": 8.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS Buffet Gain",
+        "Group": "Cyclic",
+        "Units": "N",
+        "Step": 0.05,
+        "Precision": 2,
         "LogScale": false,
         "Options": []
       }

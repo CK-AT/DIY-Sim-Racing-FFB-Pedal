@@ -818,6 +818,12 @@
     },
     {
       "FromNodeId": "derivations_include",
+      "FromPort": "VRS",
+      "ToNodeId": "collective_include",
+      "ToPort": "vrs"
+    },
+    {
+      "FromNodeId": "derivations_include",
       "FromPort": "RBS",
       "ToNodeId": "vib_pitch_include",
       "ToPort": "rbs"
@@ -1325,6 +1331,70 @@
         "Group": "Cyclic",
         "Units": "N",
         "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.VrsBuffetStart",
+      "DefaultValue": 0.2,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS Buffet Onset",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.VrsBuffetFull",
+      "DefaultValue": 0.8,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS Buffet Saturation",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.VrsBuffetGain",
+      "DefaultValue": 1.5,
+      "Min": 0.0,
+      "Max": 8.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS Buffet (Cyclic)",
+        "Group": "Cyclic",
+        "Units": "N",
+        "Step": 0.05,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Collective.VrsBuffetGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 8.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS Buffet (Collective)",
+        "Group": "Collective",
+        "Units": "N",
+        "Step": 0.05,
         "Precision": 2,
         "LogScale": false,
         "Options": []
