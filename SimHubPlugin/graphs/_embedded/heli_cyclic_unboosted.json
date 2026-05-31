@@ -23,8 +23,8 @@
       "Id": "in_owl",
       "Title": "OWL",
       "Kind": "Input",
-      "X": 410.0,
-      "Y": 50.0,
+      "X": 920.0,
+      "Y": 70.0,
       "Ports": [
         {
           "Name": "owl",
@@ -142,40 +142,61 @@
       "X": 280.0,
       "Y": 1180.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "c", "Kind": "Input" },
-        { "Name": "a*b*c", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
     {
       "Id": "param_vrs_buffet_start",
       "Kind": "Param",
-      "X": 600.0,
-      "Y": 1010.0,
+      "X": 870.0,
+      "Y": 1150.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "VrsBuffetStart" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "VrsBuffetStart"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
     {
       "Id": "param_vrs_buffet_full",
       "Kind": "Param",
-      "X": 600.0,
-      "Y": 1080.0,
+      "X": 870.0,
+      "Y": 1220.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "VrsBuffetFull" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "VrsBuffetFull"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
     {
       "Id": "param_vrs_buffet_gain",
       "Kind": "Param",
-      "X": 600.0,
-      "Y": 1150.0,
+      "X": 870.0,
+      "Y": 1290.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "VrsBuffetGain" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "VrsBuffetGain"
+        }
       ],
       "SignalGroup": "Cyclic"
     },
@@ -183,15 +204,33 @@
       "Id": "vrs_buffet",
       "Title": "VRS buffet env",
       "Kind": "Func",
-      "X": 760.0,
-      "Y": 1080.0,
+      "X": 1180.0,
+      "Y": 860.0,
       "Ports": [
-        { "Name": "alpha", "Kind": "Input" },
-        { "Name": "start", "Kind": "Input" },
-        { "Name": "full", "Kind": "Input" },
-        { "Name": "gain", "Kind": "Input" },
-        { "Name": "qhat_eff", "Kind": "Input" },
-        { "Name": "out", "Kind": "Output" }
+        {
+          "Name": "alpha",
+          "Kind": "Input"
+        },
+        {
+          "Name": "start",
+          "Kind": "Input"
+        },
+        {
+          "Name": "full",
+          "Kind": "Input"
+        },
+        {
+          "Name": "gain",
+          "Kind": "Input"
+        },
+        {
+          "Name": "qhat_eff",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
       ],
       "Func": "buffet",
       "IncludePath": ""
@@ -213,10 +252,13 @@
       "Id": "const_vrs_lo",
       "Title": "0.25",
       "Kind": "Const",
-      "X": 200.0,
-      "Y": 1010.0,
+      "X": 300.0,
+      "Y": 990.0,
       "Ports": [
-        { "Name": "out", "Kind": "Output" }
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
       ],
       "ConstValue": 0.25
     },
@@ -224,10 +266,13 @@
       "Id": "const_vrs_one",
       "Title": "1.0",
       "Kind": "Const",
-      "X": 200.0,
-      "Y": 1060.0,
+      "X": 520.0,
+      "Y": 1050.0,
       "Ports": [
-        { "Name": "out", "Kind": "Output" }
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
       ],
       "ConstValue": 1.0
     },
@@ -235,10 +280,13 @@
       "Id": "const_vrs_zero",
       "Title": "0.0",
       "Kind": "Const",
-      "X": 200.0,
-      "Y": 1110.0,
+      "X": 560.0,
+      "Y": 910.0,
       "Ports": [
-        { "Name": "out", "Kind": "Output" }
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
       ],
       "ConstValue": 0.0
     },
@@ -246,12 +294,21 @@
       "Id": "sub_vrs_eff",
       "Title": "vrs - 0.25",
       "Kind": "Op",
-      "X": 280.0,
-      "Y": 1010.0,
+      "X": 480.0,
+      "Y": 770.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a-b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
       ],
       "Op": "sub"
     },
@@ -259,12 +316,21 @@
       "Id": "div_vrs_eff",
       "Title": "/0.25",
       "Kind": "Op",
-      "X": 360.0,
-      "Y": 1010.0,
+      "X": 610.0,
+      "Y": 790.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a/b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
       ],
       "Op": "div"
     },
@@ -272,13 +338,25 @@
       "Id": "clamp_vrs_eff",
       "Title": "clamp 0..1",
       "Kind": "Op",
-      "X": 440.0,
-      "Y": 1010.0,
+      "X": 740.0,
+      "Y": 810.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "min", "Kind": "Input" },
-        { "Name": "max", "Kind": "Input" },
-        { "Name": "clamp(a,min,max)", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
       ],
       "Op": "clamp"
     },
@@ -286,12 +364,21 @@
       "Id": "mul_atten_amt",
       "Title": "VrsAtten × vrs_eff",
       "Kind": "Op",
-      "X": 520.0,
-      "Y": 1080.0,
+      "X": 900.0,
+      "Y": 890.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -299,12 +386,21 @@
       "Id": "sub_atten_factor",
       "Title": "1 - atten_amt",
       "Kind": "Op",
-      "X": 600.0,
-      "Y": 1080.0,
+      "X": 1050.0,
+      "Y": 760.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a-b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
       ],
       "Op": "sub"
     },
@@ -312,12 +408,21 @@
       "Id": "mul_load_atten",
       "Title": "Load × atten",
       "Kind": "Op",
-      "X": 360.0,
+      "X": 750.0,
       "Y": 300.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -328,10 +433,22 @@
       "X": 280.0,
       "Y": 870.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "c", "Kind": "Input" },
-        { "Name": "a*b*c", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -339,13 +456,25 @@
       "Id": "add_total_load",
       "Title": "Load + ETL + RBS",
       "Kind": "Op",
-      "X": 440.0,
-      "Y": 300.0,
+      "X": 950.0,
+      "Y": 320.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a+b+c", "Kind": "Output" },
-        { "Name": "c", "Kind": "Input" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b+c",
+          "Kind": "Output"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        }
       ],
       "Op": "add"
     },
@@ -365,8 +494,8 @@
     {
       "Id": "param_k_damper",
       "Kind": "Param",
-      "X": 590.0,
-      "Y": 10.0,
+      "X": 1100.0,
+      "Y": 30.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -378,8 +507,8 @@
     {
       "Id": "param_k_friction",
       "Kind": "Param",
-      "X": 590.0,
-      "Y": 90.0,
+      "X": 1100.0,
+      "Y": 110.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -471,8 +600,8 @@
       "Id": "owl_clamp",
       "Title": "OWL Clamp",
       "Kind": "Op",
-      "X": 400.0,
-      "Y": 120.0,
+      "X": 910.0,
+      "Y": 140.0,
       "Ports": [
         {
           "Name": "a",
@@ -493,8 +622,8 @@
       "Id": "select_owl",
       "Title": "OWL",
       "Kind": "Op",
-      "X": 590.0,
-      "Y": 170.0,
+      "X": 1100.0,
+      "Y": 190.0,
       "Ports": [
         {
           "Name": "cond",
@@ -526,8 +655,8 @@
     {
       "Id": "out_scoped",
       "Kind": "Output",
-      "X": 880.0,
-      "Y": 130.0,
+      "X": 1420.0,
+      "Y": 270.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -990,6 +1119,27 @@
         "LogScale": false,
         "Options": []
       }
+    },
+    {
+      "Name": "Aircraft.VrsBuffetStart",
+      "DefaultValue": 0.0,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": null
+    },
+    {
+      "Name": "Aircraft.VrsBuffetFull",
+      "DefaultValue": 0.0,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": null
+    },
+    {
+      "Name": "Cyclic.VrsAttenGain",
+      "DefaultValue": 0.0,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": null
     }
   ],
   "ParamValues": null

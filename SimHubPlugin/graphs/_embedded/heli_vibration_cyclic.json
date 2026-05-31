@@ -113,9 +113,18 @@
       "X": 1370.0,
       "Y": 410.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -135,8 +144,8 @@
     {
       "Id": "param_rbs_vib1_gain",
       "Kind": "Param",
-      "X": 1090.0,
-      "Y": 80.0,
+      "X": 970.0,
+      "Y": 240.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -162,12 +171,21 @@
       "Id": "mul_rbs_1rev",
       "Title": "rbs × gain1",
       "Kind": "Op",
-      "X": 1370.0,
-      "Y": 80.0,
+      "X": 1220.0,
+      "Y": 160.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -178,9 +196,18 @@
       "X": 1240.0,
       "Y": 580.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -191,9 +218,18 @@
       "X": 1370.0,
       "Y": 580.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -468,8 +504,8 @@
       "Id": "add_1rev_abc",
       "Title": "Vib1Ampl1 (1/rev)",
       "Kind": "Op",
-      "X": 890.0,
-      "Y": 10.0,
+      "X": 1380.0,
+      "Y": -20.0,
       "Ports": [
         {
           "Name": "a",
@@ -707,8 +743,8 @@
     {
       "Id": "out_ampl1",
       "Kind": "Output",
-      "X": 1080.0,
-      "Y": 10.0,
+      "X": 1560.0,
+      "Y": -20.0,
       "Ports": [
         {
           "Kind": "Input",
