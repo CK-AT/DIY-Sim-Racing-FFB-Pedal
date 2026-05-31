@@ -462,6 +462,22 @@ namespace DiyFfb.GraphTest
                     double b = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
                     return a > b ? 1.0 : 0.0;
                 }
+                case OpType.Exp:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    return Math.Exp(a);
+                }
+                case OpType.Sqrt:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    return a <= 0.0 ? 0.0 : Math.Sqrt(a);
+                }
+                case OpType.Pow:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    double b = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
+                    return Math.Pow(a, b);
+                }
             }
 
             return 0.0;

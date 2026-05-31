@@ -167,7 +167,12 @@ namespace DiyFfb.GraphTest
             "qhat_eff",
             "torque_norm",
             "rpm_norm",
-            "assist_loss"
+            "assist_loss",
+            "buffet",
+            "accumulator",
+            "sample_hold",
+            "edge_detect",
+            "lag_asym"
         };
 
         private static readonly Dictionary<OpType, int> OpArgCounts = new Dictionary<OpType, int>
@@ -181,7 +186,10 @@ namespace DiyFfb.GraphTest
             { OpType.Abs, 1 },
             { OpType.Neg, 1 },
             { OpType.Clamp, 3 },
-            { OpType.Lerp, 3 }
+            { OpType.Lerp, 3 },
+            { OpType.Exp, 1 },
+            { OpType.Sqrt, 1 },
+            { OpType.Pow, 2 }
         };
 
         private static readonly HashSet<OpType> VariadicOps = new HashSet<OpType>

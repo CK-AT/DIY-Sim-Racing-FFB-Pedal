@@ -270,6 +270,9 @@ namespace DiyFfb.GraphEditor
                 case "select": return OpType.Select;
                 case "eq": return OpType.Eq;
                 case "gt": return OpType.Gt;
+                case "exp": return OpType.Exp;
+                case "sqrt": return OpType.Sqrt;
+                case "pow": return OpType.Pow;
                 default: return OpType.Add;
             }
         }

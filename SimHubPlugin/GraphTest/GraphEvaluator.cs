@@ -30,7 +30,10 @@ namespace DiyFfb.GraphTest
         Lerp,
         Select,
         Eq,
-        Gt
+        Gt,
+        Exp,
+        Sqrt,
+        Pow
     }
 
     public sealed class GraphNode
@@ -261,6 +264,22 @@ namespace DiyFfb.GraphTest
                     double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
                     double b = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
                     return a > b ? 1.0 : 0.0;
+                }
+                case OpType.Exp:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    return Math.Exp(a);
+                }
+                case OpType.Sqrt:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    return a <= 0.0 ? 0.0 : Math.Sqrt(a);
+                }
+                case OpType.Pow:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    double b = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
+                    return Math.Pow(a, b);
                 }
             }
 

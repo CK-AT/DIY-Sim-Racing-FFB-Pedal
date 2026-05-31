@@ -93,7 +93,7 @@ namespace DiyFfb.GraphEditor
         private const double ParamControlWidth = 120.0;
         private const int PreviewRefreshThrottleMs = 500;
         private bool _isInspectorUpdating;
-        private readonly string[] _opChoices = { "add", "sub", "mul", "div", "min", "max", "abs", "neg", "clamp", "lerp", "select", "eq", "gt" };
+        private readonly string[] _opChoices = { "add", "sub", "mul", "div", "min", "max", "abs", "neg", "clamp", "lerp", "select", "eq", "gt", "exp", "sqrt", "pow" };
         private readonly string[] _funcChoices = { "qhat_eff", "torque_norm", "rpm_norm", "assist_loss", "buffet", "accumulator", "sample_hold", "edge_detect" };
         private readonly string[] _paramWidgetChoices = { "slider", "knob", "checkbox", "enum", "text" };
         private double _curveTension = 0.5;
@@ -4098,6 +4098,8 @@ namespace DiyFfb.GraphEditor
             {
                 case "abs":
                 case "neg":
+                case "exp":
+                case "sqrt":
                     return 1;
                 case "clamp":
                 case "lerp":
@@ -4139,6 +4141,9 @@ namespace DiyFfb.GraphEditor
                 case "select": return "cond?a:b";
                 case "eq": return "a==b";
                 case "gt": return "a>b";
+                case "exp": return "exp(a)";
+                case "sqrt": return "sqrt(a)";
+                case "pow": return "pow(a,b)";
                 default: return "out";
             }
         }
@@ -4206,6 +4211,8 @@ namespace DiyFfb.GraphEditor
             {
                 case "abs":
                 case "neg":
+                case "exp":
+                case "sqrt":
                     return new[] { "a" };
                 case "clamp":
                     return new[] { "a", "min", "max" };
