@@ -36,6 +36,14 @@
         {
           "Kind": "Output",
           "SignalSuffix": "Eng.TorquePct"
+        },
+        {
+          "Kind": "Output",
+          "SignalSuffix": "G_Nrml"
+        },
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Collective.Position"
         }
       ],
       "SignalGroup": "MSFS"
@@ -333,6 +341,45 @@
       "Op": "mul"
     },
     {
+      "Id": "param_rbs_load_pitch",
+      "Kind": "Param",
+      "X": 380.0,
+      "Y": 850.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RbsLoadPitchGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_rbs_load_roll",
+      "Kind": "Param",
+      "X": 380.0,
+      "Y": 1300.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RbsLoadRollGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "mul_rbs_roll_eff",
+      "Title": "Roll RBS Load (×rot sign)",
+      "Kind": "Op",
+      "X": 540.0,
+      "Y": 1300.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
       "Id": "vib_pitch_include",
       "Title": "Vib Pitch",
       "Kind": "Include",
@@ -455,6 +502,18 @@
       "FromPort": "Eng.TorquePct",
       "ToNodeId": "derivations_include",
       "ToPort": "eng_torque_pct"
+    },
+    {
+      "FromNodeId": "in_derivations_raw",
+      "FromPort": "G_Nrml",
+      "ToNodeId": "derivations_include",
+      "ToPort": "g_force"
+    },
+    {
+      "FromNodeId": "in_derivations_raw",
+      "FromPort": "Collective.Position",
+      "ToNodeId": "derivations_include",
+      "ToPort": "collective_pos_pct"
     },
 
     {
@@ -756,6 +815,60 @@
       "FromPort": "VRS",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "vrs"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "RBS",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "rbs"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "RBS",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "rbs"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "RBS",
+      "ToNodeId": "vib_collective_include",
+      "ToPort": "rbs"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "RBS",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "rbs"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "RBS",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "rbs"
+    },
+    {
+      "FromNodeId": "param_rbs_load_pitch",
+      "FromPort": "RbsLoadPitchGain",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "rbs_load_gain_eff"
+    },
+    {
+      "FromNodeId": "param_rbs_load_roll",
+      "FromPort": "RbsLoadRollGain",
+      "ToNodeId": "mul_rbs_roll_eff",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_rotation_sign",
+      "FromPort": "RotationSign",
+      "ToNodeId": "mul_rbs_roll_eff",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_rbs_roll_eff",
+      "FromPort": "a*b",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "rbs_load_gain_eff"
     },
     {
       "FromNodeId": "param_etl_bump_load_pitch",
@@ -1132,6 +1245,86 @@
         "Group": "Aircraft",
         "Units": "s",
         "Step": 0.05,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.RbsMuCoupling",
+      "DefaultValue": 2.5,
+      "Min": 0.0,
+      "Max": 10.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RBS Mu Coupling",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.05,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.RbsThreshold",
+      "DefaultValue": 1.6,
+      "Min": 0.5,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RBS Threshold",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.05,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.RbsWidth",
+      "DefaultValue": 0.4,
+      "Min": 0.05,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RBS Width",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.RbsLoadPitchGain",
+      "DefaultValue": 1.2,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RBS Load (Pitch)",
+        "Group": "Cyclic",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.RbsLoadRollGain",
+      "DefaultValue": 0.8,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RBS Load (Roll)",
+        "Group": "Cyclic",
+        "Units": "N",
+        "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
         "Options": []

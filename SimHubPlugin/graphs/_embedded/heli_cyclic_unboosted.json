@@ -110,6 +110,46 @@
       ]
     },
     {
+      "Id": "in_rbs",
+      "Title": "RBS",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 1180.0,
+      "Ports": [
+        {
+          "Name": "rbs",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_rbs_load_gain_eff",
+      "Title": "RBS Load (eff)",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 1240.0,
+      "Ports": [
+        {
+          "Name": "rbs_load_gain_eff",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "mul_rbs_load",
+      "Title": "rbs × gain × rpm",
+      "Kind": "Op",
+      "X": 280.0,
+      "Y": 1180.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "c", "Kind": "Input" },
+        { "Name": "a*b*c", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
       "Id": "param_vrs_atten_gain",
       "Kind": "Param",
       "X": 30.0,
@@ -250,14 +290,15 @@
     },
     {
       "Id": "add_total_load",
-      "Title": "Load + ETL",
+      "Title": "Load + ETL + RBS",
       "Kind": "Op",
       "X": 440.0,
       "Y": 300.0,
       "Ports": [
         { "Name": "a", "Kind": "Input" },
         { "Name": "b", "Kind": "Input" },
-        { "Name": "a+b", "Kind": "Output" }
+        { "Name": "a+b+c", "Kind": "Output" },
+        { "Name": "c", "Kind": "Input" }
       ],
       "Op": "add"
     },
@@ -692,6 +733,30 @@
       "ToPort": "a"
     },
     {
+      "FromNodeId": "in_rbs",
+      "FromPort": "rbs",
+      "ToNodeId": "mul_rbs_load",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rbs_load_gain_eff",
+      "FromPort": "rbs_load_gain_eff",
+      "ToNodeId": "mul_rbs_load",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_rbs_load",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "mul_rbs_load",
+      "FromPort": "a*b*c",
+      "ToNodeId": "add_total_load",
+      "ToPort": "c"
+    },
+    {
       "FromNodeId": "mul_etl_load",
       "FromPort": "a*b*c",
       "ToNodeId": "add_total_load",
@@ -699,13 +764,13 @@
     },
     {
       "FromNodeId": "add_total_load",
-      "FromPort": "a+b",
+      "FromPort": "a+b+c",
       "ToNodeId": "owl_clamp",
       "ToPort": "b"
     },
     {
       "FromNodeId": "add_total_load",
-      "FromPort": "a+b",
+      "FromPort": "a+b+c",
       "ToNodeId": "select_owl",
       "ToPort": "b"
     }

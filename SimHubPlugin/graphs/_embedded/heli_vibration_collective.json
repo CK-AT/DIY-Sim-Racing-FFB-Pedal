@@ -94,6 +94,52 @@
       "Op": "mul"
     },
     {
+      "Id": "in_rbs",
+      "Title": "RBS",
+      "Kind": "Input",
+      "X": 60.0,
+      "Y": 620.0,
+      "Ports": [
+        { "Name": "rbs", "Kind": "Output" }
+      ]
+    },
+    {
+      "Id": "param_rbs_heave_gain",
+      "Kind": "Param",
+      "X": 60.0,
+      "Y": 690.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "RbsHeaveGain" }
+      ],
+      "SignalGroup": "Collective"
+    },
+    {
+      "Id": "mul_rbs_heave",
+      "Title": "rbs × heave gain",
+      "Kind": "Op",
+      "X": 800.0,
+      "Y": 620.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "add_vib3_total",
+      "Title": "Vib1Ampl3 + RBS heave",
+      "Kind": "Op",
+      "X": 1200.0,
+      "Y": 650.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a+b", "Kind": "Output" }
+      ],
+      "Op": "add"
+    },
+    {
       "Id": "param_gain_1rev",
       "Kind": "Param",
       "X": 750.0,
@@ -752,6 +798,30 @@
       "ToPort": "d"
     },
     {
+      "FromNodeId": "mul_2nrev",
+      "FromPort": "a*b",
+      "ToNodeId": "add_vib3_total",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rbs",
+      "FromPort": "rbs",
+      "ToNodeId": "mul_rbs_heave",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_rbs_heave_gain",
+      "FromPort": "RbsHeaveGain",
+      "ToNodeId": "mul_rbs_heave",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_rbs_heave",
+      "FromPort": "a*b",
+      "ToNodeId": "add_vib3_total",
+      "ToPort": "b"
+    },
+    {
       "FromNodeId": "param_base_2nrev",
       "FromPort": "base_2nrev",
       "ToNodeId": "mul_2nrev",
@@ -764,8 +834,8 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "mul_2nrev",
-      "FromPort": "a*b",
+      "FromNodeId": "add_vib3_total",
+      "FromPort": "a+b",
       "ToNodeId": "out_ampl3",
       "ToPort": "Vib1Ampl3"
     },
@@ -925,6 +995,22 @@
       "Ui": {
         "Widget": "slider",
         "Label": "ETL Bump Vibration",
+        "Group": "Collective Vibration",
+        "Units": "mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Collective.RbsHeaveGain",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RBS Heave Vibration",
         "Group": "Collective Vibration",
         "Units": "mm",
         "Step": 0.01,

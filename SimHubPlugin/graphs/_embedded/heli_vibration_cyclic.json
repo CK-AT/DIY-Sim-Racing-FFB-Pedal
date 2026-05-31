@@ -120,6 +120,84 @@
       "Op": "mul"
     },
     {
+      "Id": "in_rbs",
+      "Title": "RBS",
+      "Kind": "Input",
+      "X": 90.0,
+      "Y": 1180.0,
+      "Ports": [
+        {
+          "Name": "rbs",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_rbs_vib1_gain",
+      "Kind": "Param",
+      "X": 1090.0,
+      "Y": 80.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RbsVib1Gain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_rbs_vibn_gain",
+      "Kind": "Param",
+      "X": 1090.0,
+      "Y": 580.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RbsVibNGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "mul_rbs_1rev",
+      "Title": "rbs × gain1",
+      "Kind": "Op",
+      "X": 1370.0,
+      "Y": 80.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_rbs_sq",
+      "Title": "rbs²",
+      "Kind": "Op",
+      "X": 1240.0,
+      "Y": 580.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_rbs_nrev",
+      "Title": "rbs² × gainN",
+      "Kind": "Op",
+      "X": 1370.0,
+      "Y": 580.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
       "Id": "param_gain_1rev",
       "Kind": "Param",
       "X": 270.0,
@@ -402,11 +480,15 @@
           "Kind": "Input"
         },
         {
-          "Name": "a+b+c",
+          "Name": "a+b+c+d",
           "Kind": "Output"
         },
         {
           "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "d",
           "Kind": "Input"
         }
       ],
@@ -560,7 +642,7 @@
           "Kind": "Input"
         },
         {
-          "Name": "a+b+c+d",
+          "Name": "a+b+c+d+e",
           "Kind": "Output"
         },
         {
@@ -569,6 +651,10 @@
         },
         {
           "Name": "d",
+          "Kind": "Input"
+        },
+        {
+          "Name": "e",
           "Kind": "Input"
         }
       ],
@@ -815,7 +901,7 @@
     },
     {
       "FromNodeId": "add_1rev_abc",
-      "FromPort": "a+b+c",
+      "FromPort": "a+b+c+d",
       "ToNodeId": "out_ampl1",
       "ToPort": "Vib1Ampl1"
     },
@@ -887,7 +973,7 @@
     },
     {
       "FromNodeId": "add_nrev_slap",
-      "FromPort": "a+b+c+d",
+      "FromPort": "a+b+c+d+e",
       "ToNodeId": "out_ampl2",
       "ToPort": "Vib1Ampl2"
     },
@@ -1022,6 +1108,54 @@
       "FromPort": "a*b",
       "ToNodeId": "add_nrev_slap",
       "ToPort": "d"
+    },
+    {
+      "FromNodeId": "in_rbs",
+      "FromPort": "rbs",
+      "ToNodeId": "mul_rbs_1rev",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_rbs_vib1_gain",
+      "FromPort": "RbsVib1Gain",
+      "ToNodeId": "mul_rbs_1rev",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_rbs_1rev",
+      "FromPort": "a*b",
+      "ToNodeId": "add_1rev_abc",
+      "ToPort": "d"
+    },
+    {
+      "FromNodeId": "in_rbs",
+      "FromPort": "rbs",
+      "ToNodeId": "mul_rbs_sq",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rbs",
+      "FromPort": "rbs",
+      "ToNodeId": "mul_rbs_sq",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_rbs_sq",
+      "FromPort": "a*b",
+      "ToNodeId": "mul_rbs_nrev",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_rbs_vibn_gain",
+      "FromPort": "RbsVibNGain",
+      "ToNodeId": "mul_rbs_nrev",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_rbs_nrev",
+      "FromPort": "a*b",
+      "ToNodeId": "add_nrev_slap",
+      "ToPort": "e"
     }
   ],
   "Params": [
@@ -1145,6 +1279,38 @@
       "Ui": {
         "Widget": "slider",
         "Label": "ETL Bump Vibration",
+        "Group": "Cyclic Vibration",
+        "Units": "mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.RbsVib1Gain",
+      "DefaultValue": 0.6,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RBS 1/rev Vibration",
+        "Group": "Cyclic Vibration",
+        "Units": "mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.RbsVibNGain",
+      "DefaultValue": 0.4,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RBS N/rev Vibration",
         "Group": "Cyclic Vibration",
         "Units": "mm",
         "Step": 0.01,

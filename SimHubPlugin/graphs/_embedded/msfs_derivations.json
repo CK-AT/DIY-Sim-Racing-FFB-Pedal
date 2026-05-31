@@ -42,6 +42,26 @@
         { "Name": "eng_torque_pct", "Kind": "Output" }
       ]
     },
+    {
+      "Id": "in_g_force",
+      "Title": "G Nrml",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 360.0,
+      "Ports": [
+        { "Name": "g_force", "Kind": "Output" }
+      ]
+    },
+    {
+      "Id": "in_collective_pos_pct",
+      "Title": "Collective %",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 380.0,
+      "Ports": [
+        { "Name": "collective_pos_pct", "Kind": "Output" }
+      ]
+    },
 
     {
       "Id": "param_rotor_tip_speed",
@@ -170,6 +190,36 @@
       "Y": 1310.0,
       "Ports": [
         { "Kind": "Output", "SignalSuffix": "VrsTauDown" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_rbs_mu_coupling",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 1400.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "RbsMuCoupling" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_rbs_threshold",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 1470.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "RbsThreshold" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_rbs_width",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 1540.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "RbsWidth" }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -617,6 +667,137 @@
         { "Name": "ETLBump", "Kind": "Input" }
       ]
     },
+
+    {
+      "Id": "div_collective_100",
+      "Title": "collective/100",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 1400.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a/b", "Kind": "Output" }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "clamp_collective",
+      "Title": "clamp 0..1",
+      "Kind": "Op",
+      "X": 800.0,
+      "Y": 1400.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "min", "Kind": "Input" },
+        { "Name": "max", "Kind": "Input" },
+        { "Name": "clamp(a,min,max)", "Kind": "Output" }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "max_g_factor",
+      "Title": "max(G, 1)",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 1470.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "max(a,b)", "Kind": "Output" }
+      ],
+      "Op": "max"
+    },
+    {
+      "Id": "mul_mu_rbs",
+      "Title": "RbsMuCoupling × mu",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 1540.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "add_mu_one",
+      "Title": "1 + mu_rbs",
+      "Kind": "Op",
+      "X": 800.0,
+      "Y": 1540.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a+b", "Kind": "Output" }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "mul_rbs_demand",
+      "Title": "rbs_demand",
+      "Kind": "Op",
+      "X": 1040.0,
+      "Y": 1470.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "c", "Kind": "Input" },
+        { "Name": "a*b*c", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "sub_rbs_diff",
+      "Title": "demand - threshold",
+      "Kind": "Op",
+      "X": 1280.0,
+      "Y": 1470.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a-b", "Kind": "Output" }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "div_rbs_norm",
+      "Title": "/width",
+      "Kind": "Op",
+      "X": 1520.0,
+      "Y": 1470.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a/b", "Kind": "Output" }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "clamp_rbs",
+      "Title": "clamp 0..1",
+      "Kind": "Op",
+      "X": 1760.0,
+      "Y": 1470.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "min", "Kind": "Input" },
+        { "Name": "max", "Kind": "Input" },
+        { "Name": "clamp(a,min,max)", "Kind": "Output" }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "out_rbs",
+      "Title": "RBS Out",
+      "Kind": "Output",
+      "X": 2040.0,
+      "Y": 1470.0,
+      "Ports": [
+        { "Name": "RBS", "Kind": "Input" }
+      ]
+    },
     {
       "Id": "out_blade_alph_pitch",
       "Title": "Blade Alpha Pitch Out",
@@ -737,6 +918,29 @@
     { "FromNodeId": "div_etl_norm", "FromPort": "a/b", "ToNodeId": "mul_neg_sq", "ToPort": "b" },
     { "FromNodeId": "mul_neg_sq", "FromPort": "-a*b", "ToNodeId": "exp_etl", "ToPort": "a" },
     { "FromNodeId": "exp_etl", "FromPort": "exp(a)", "ToNodeId": "out_etl_bump", "ToPort": "ETLBump" },
+
+    { "FromNodeId": "in_collective_pos_pct", "FromPort": "collective_pos_pct", "ToNodeId": "div_collective_100", "ToPort": "a" },
+    { "FromNodeId": "const_100", "FromPort": "out", "ToNodeId": "div_collective_100", "ToPort": "b" },
+    { "FromNodeId": "div_collective_100", "FromPort": "a/b", "ToNodeId": "clamp_collective", "ToPort": "a" },
+    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "clamp_collective", "ToPort": "min" },
+    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "clamp_collective", "ToPort": "max" },
+    { "FromNodeId": "in_g_force", "FromPort": "g_force", "ToNodeId": "max_g_factor", "ToPort": "a" },
+    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "max_g_factor", "ToPort": "b" },
+    { "FromNodeId": "param_rbs_mu_coupling", "FromPort": "RbsMuCoupling", "ToNodeId": "mul_mu_rbs", "ToPort": "a" },
+    { "FromNodeId": "mu_div", "FromPort": "a/b", "ToNodeId": "mul_mu_rbs", "ToPort": "b" },
+    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "add_mu_one", "ToPort": "a" },
+    { "FromNodeId": "mul_mu_rbs", "FromPort": "a*b", "ToNodeId": "add_mu_one", "ToPort": "b" },
+    { "FromNodeId": "clamp_collective", "FromPort": "clamp(a,min,max)", "ToNodeId": "mul_rbs_demand", "ToPort": "a" },
+    { "FromNodeId": "max_g_factor", "FromPort": "max(a,b)", "ToNodeId": "mul_rbs_demand", "ToPort": "b" },
+    { "FromNodeId": "add_mu_one", "FromPort": "a+b", "ToNodeId": "mul_rbs_demand", "ToPort": "c" },
+    { "FromNodeId": "mul_rbs_demand", "FromPort": "a*b*c", "ToNodeId": "sub_rbs_diff", "ToPort": "a" },
+    { "FromNodeId": "param_rbs_threshold", "FromPort": "RbsThreshold", "ToNodeId": "sub_rbs_diff", "ToPort": "b" },
+    { "FromNodeId": "sub_rbs_diff", "FromPort": "a-b", "ToNodeId": "div_rbs_norm", "ToPort": "a" },
+    { "FromNodeId": "param_rbs_width", "FromPort": "RbsWidth", "ToNodeId": "div_rbs_norm", "ToPort": "b" },
+    { "FromNodeId": "div_rbs_norm", "FromPort": "a/b", "ToNodeId": "clamp_rbs", "ToPort": "a" },
+    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "clamp_rbs", "ToPort": "min" },
+    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "clamp_rbs", "ToPort": "max" },
+    { "FromNodeId": "clamp_rbs", "FromPort": "clamp(a,min,max)", "ToNodeId": "out_rbs", "ToPort": "RBS" },
 
     { "FromNodeId": "in_eng_torque_pct", "FromPort": "eng_torque_pct", "ToNodeId": "div_torque_100", "ToPort": "a" },
     { "FromNodeId": "const_100", "FromPort": "out", "ToNodeId": "div_torque_100", "ToPort": "b" },
@@ -948,6 +1152,54 @@
         "Group": "Aircraft",
         "Units": "s",
         "Step": 0.05,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.RbsMuCoupling",
+      "DefaultValue": 2.5,
+      "Min": 0.0,
+      "Max": 10.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RBS Mu Coupling",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.05,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.RbsThreshold",
+      "DefaultValue": 1.6,
+      "Min": 0.5,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RBS Threshold",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.05,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.RbsWidth",
+      "DefaultValue": 0.4,
+      "Min": 0.05,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RBS Width",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
         "Options": []
