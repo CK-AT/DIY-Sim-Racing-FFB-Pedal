@@ -16,14 +16,13 @@
     },
     {
       "Id": "in_derivations_raw",
-      "Title": "MSFS Raw (derivations)",
       "Kind": "Input",
-      "X": 20.0,
-      "Y": 640.0,
+      "X": 240.0,
+      "Y": 330.0,
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "Speed.IAS"
+          "SignalSuffix": "Speed.TAS"
         },
         {
           "Kind": "Output",
@@ -53,14 +52,14 @@
       "Title": "MSFS Derivations",
       "Kind": "Include",
       "X": 380.0,
-      "Y": 640.0,
+      "Y": 330.0,
       "IncludePath": "..\\_embedded\\msfs_derivations.json"
     },
     {
       "Id": "scale_include",
       "Title": "Heli Scale",
       "Kind": "Include",
-      "X": 380.0,
+      "X": 630.0,
       "Y": 60.0,
       "IncludePath": "..\\_embedded\\common\\heli_scale.json"
     },
@@ -68,8 +67,8 @@
       "Id": "cyclic_pitch_include",
       "Title": "Cyclic Pitch",
       "Kind": "Include",
-      "X": 790.0,
-      "Y": 720.0,
+      "X": 970.0,
+      "Y": 650.0,
       "IncludePath": "..\\_embedded\\heli_cyclic_unboosted.json",
       "FunctionScope": "FlightStickPitch"
     },
@@ -77,8 +76,8 @@
       "Id": "cyclic_roll_include",
       "Title": "Cyclic Roll",
       "Kind": "Include",
-      "X": 790.0,
-      "Y": 1170.0,
+      "X": 970.0,
+      "Y": 1270.0,
       "IncludePath": "..\\_embedded\\heli_cyclic_unboosted.json",
       "FunctionScope": "FlightStickRoll"
     },
@@ -86,8 +85,8 @@
       "Id": "collective_include",
       "Title": "Collective",
       "Kind": "Include",
-      "X": 790.0,
-      "Y": 60.0,
+      "X": 970.0,
+      "Y": 30.0,
       "IncludePath": "..\\_embedded\\heli_collective_unboosted.json",
       "FunctionScope": "FlightStickCollective"
     },
@@ -95,7 +94,7 @@
       "Id": "pedals_include",
       "Title": "Pedals",
       "Kind": "Include",
-      "X": 790.0,
+      "X": 970.0,
       "Y": 140.0,
       "IncludePath": "..\\_embedded\\heli_pedals_unboosted.json",
       "FunctionScope": "FlightPedals"
@@ -215,8 +214,8 @@
     {
       "Id": "param_rotation_sign",
       "Kind": "Param",
-      "X": 10.0,
-      "Y": 1630.0,
+      "X": -20.0,
+      "Y": 1850.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -255,8 +254,8 @@
       "Id": "const_phase_zero",
       "Title": "0 deg",
       "Kind": "Const",
-      "X": 490.0,
-      "Y": 1000.0,
+      "X": 640.0,
+      "Y": 1160.0,
       "Ports": [
         {
           "Name": "out",
@@ -269,8 +268,8 @@
       "Id": "const_phase_90",
       "Title": "90 deg",
       "Kind": "Const",
-      "X": 370.0,
-      "Y": 1580.0,
+      "X": 520.0,
+      "Y": 1750.0,
       "Ports": [
         {
           "Name": "out",
@@ -283,8 +282,8 @@
       "Id": "mul_phase_roll",
       "Title": "Roll Phase",
       "Kind": "Op",
-      "X": 530.0,
-      "Y": 1600.0,
+      "X": 680.0,
+      "Y": 1770.0,
       "Ports": [
         {
           "Name": "a",
@@ -304,8 +303,8 @@
     {
       "Id": "param_etl_bump_load_pitch",
       "Kind": "Param",
-      "X": 380.0,
-      "Y": 780.0,
+      "X": 430.0,
+      "Y": 920.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -317,8 +316,8 @@
     {
       "Id": "param_etl_bump_load_roll",
       "Kind": "Param",
-      "X": 380.0,
-      "Y": 1230.0,
+      "X": 280.0,
+      "Y": 1470.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -331,20 +330,29 @@
       "Id": "mul_etl_roll_eff",
       "Title": "Roll ETL Load (×rot sign)",
       "Kind": "Op",
-      "X": 540.0,
-      "Y": 1230.0,
+      "X": 680.0,
+      "Y": 1460.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
     {
       "Id": "param_rbs_load_pitch",
       "Kind": "Param",
-      "X": 380.0,
-      "Y": 850.0,
+      "X": 430.0,
+      "Y": 1000.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -356,8 +364,8 @@
     {
       "Id": "param_rbs_load_roll",
       "Kind": "Param",
-      "X": 380.0,
-      "Y": 1300.0,
+      "X": 370.0,
+      "Y": 1570.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -370,12 +378,21 @@
       "Id": "mul_rbs_roll_eff",
       "Title": "Roll RBS Load (×rot sign)",
       "Kind": "Op",
-      "X": 540.0,
-      "Y": 1300.0,
+      "X": 680.0,
+      "Y": 1570.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -383,8 +400,8 @@
       "Id": "vib_pitch_include",
       "Title": "Vib Pitch",
       "Kind": "Include",
-      "X": 790.0,
-      "Y": 970.0,
+      "X": 970.0,
+      "Y": 1020.0,
       "IncludePath": "..\\_embedded\\heli_vibration_cyclic.json",
       "FunctionScope": "FlightStickPitch"
     },
@@ -392,8 +409,8 @@
       "Id": "vib_roll_include",
       "Title": "Vib Roll",
       "Kind": "Include",
-      "X": 790.0,
-      "Y": 1420.0,
+      "X": 970.0,
+      "Y": 1650.0,
       "IncludePath": "..\\_embedded\\heli_vibration_cyclic.json",
       "FunctionScope": "FlightStickRoll"
     },
@@ -401,8 +418,8 @@
       "Id": "vib_pedal_include",
       "Title": "Vib Pedals",
       "Kind": "Include",
-      "X": 790.0,
-      "Y": 560.0,
+      "X": 970.0,
+      "Y": 500.0,
       "IncludePath": "..\\_embedded\\heli_vibration_pedal.json",
       "FunctionScope": "FlightPedals"
     },
@@ -410,15 +427,15 @@
       "Id": "vib_collective_include",
       "Title": "Vib Collective",
       "Kind": "Include",
-      "X": 790.0,
-      "Y": 410.0,
+      "X": 970.0,
+      "Y": 300.0,
       "IncludePath": "..\\_embedded\\heli_vibration_collective.json",
       "FunctionScope": "FlightStickCollective"
     },
     {
       "Id": "540bd050ff4944be849a35b8fa047f7d",
       "Kind": "Output",
-      "X": 790.0,
+      "X": 970.0,
       "Y": 230.0,
       "Ports": [
         {
@@ -478,12 +495,17 @@
       "ToNodeId": "scale_include",
       "ToPort": "rpm"
     },
-
     {
       "FromNodeId": "in_derivations_raw",
-      "FromPort": "Speed.IAS",
+      "FromPort": "Speed.TAS",
       "ToNodeId": "derivations_include",
-      "ToPort": "ias_kts"
+      "ToPort": "tas_kts"
+    },
+    {
+      "FromNodeId": "in_torque",
+      "FromPort": "MainRotor.Speed",
+      "ToNodeId": "derivations_include",
+      "ToPort": "main_rotor_rpm"
     },
     {
       "FromNodeId": "in_derivations_raw",
@@ -515,7 +537,6 @@
       "ToNodeId": "derivations_include",
       "ToPort": "collective_pos_pct"
     },
-
     {
       "FromNodeId": "derivations_include",
       "FromPort": "BladeAlphPitch",
@@ -1001,17 +1022,17 @@
       }
     },
     {
-      "Name": "Aircraft.RotorTipSpeedKts",
-      "DefaultValue": 290.0,
-      "Min": 100.0,
-      "Max": 500.0,
+      "Name": "Aircraft.RotorDiameterM",
+      "DefaultValue": 8.05,
+      "Min": 5.0,
+      "Max": 25.0,
       "Ui": {
         "Widget": "slider",
-        "Label": "Rotor Tip Speed",
+        "Label": "Rotor Diameter",
         "Group": "Aircraft",
-        "Units": "kt",
-        "Step": 1.0,
-        "Precision": 0,
+        "Units": "m",
+        "Step": 0.05,
+        "Precision": 2,
         "LogScale": false,
         "Options": []
       }

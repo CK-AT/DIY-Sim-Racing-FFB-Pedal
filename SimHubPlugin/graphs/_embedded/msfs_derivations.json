@@ -3,13 +3,23 @@
   "IsLibraryGraph": true,
   "Nodes": [
     {
-      "Id": "in_ias_kts",
-      "Title": "IAS (kts)",
+      "Id": "in_tas_kts",
+      "Title": "TAS (kts)",
       "Kind": "Input",
       "X": 30.0,
       "Y": 60.0,
       "Ports": [
-        { "Name": "ias_kts", "Kind": "Output" }
+        { "Name": "tas_kts", "Kind": "Output" }
+      ]
+    },
+    {
+      "Id": "in_main_rotor_rpm",
+      "Title": "Main Rotor RPM",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 110.0,
+      "Ports": [
+        { "Name": "main_rotor_rpm", "Kind": "Output" }
       ]
     },
     {
@@ -64,12 +74,12 @@
     },
 
     {
-      "Id": "param_rotor_tip_speed",
+      "Id": "param_rotor_diameter",
       "Kind": "Param",
       "X": 30.0,
       "Y": 420.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "RotorTipSpeedKts" }
+        { "Kind": "Output", "SignalSuffix": "RotorDiameterM" }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -305,23 +315,35 @@
       ],
       "ConstValue": 0.5
     },
+    {
+      "Id": "const_tip_kt_per_d_rpm",
+      "Title": "π·1.944/60 (kt per m·rpm)",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 480.0,
+      "Ports": [
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "ConstValue": 0.10185916357881302
+    },
 
     {
-      "Id": "max_ias",
-      "Title": "max(IAS,0)",
+      "Id": "tip_speed_kts",
+      "Title": "Vtip = D·rpm·k",
       "Kind": "Op",
       "X": 560.0,
-      "Y": 60.0,
+      "Y": 120.0,
       "Ports": [
         { "Name": "a", "Kind": "Input" },
         { "Name": "b", "Kind": "Input" },
-        { "Name": "max(a,b)", "Kind": "Output" }
+        { "Name": "c", "Kind": "Input" },
+        { "Name": "a*b*c", "Kind": "Output" }
       ],
-      "Op": "max"
+      "Op": "mul"
     },
     {
       "Id": "mu_div",
-      "Title": "mu = IAS/Vtip",
+      "Title": "mu = TAS/Vtip",
       "Kind": "Op",
       "X": 800.0,
       "Y": 60.0,
@@ -850,10 +872,11 @@
     }
   ],
   "Links": [
-    { "FromNodeId": "in_ias_kts", "FromPort": "ias_kts", "ToNodeId": "max_ias", "ToPort": "a" },
-    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "max_ias", "ToPort": "b" },
-    { "FromNodeId": "max_ias", "FromPort": "max(a,b)", "ToNodeId": "mu_div", "ToPort": "a" },
-    { "FromNodeId": "param_rotor_tip_speed", "FromPort": "RotorTipSpeedKts", "ToNodeId": "mu_div", "ToPort": "b" },
+    { "FromNodeId": "param_rotor_diameter", "FromPort": "RotorDiameterM", "ToNodeId": "tip_speed_kts", "ToPort": "a" },
+    { "FromNodeId": "in_main_rotor_rpm", "FromPort": "main_rotor_rpm", "ToNodeId": "tip_speed_kts", "ToPort": "b" },
+    { "FromNodeId": "const_tip_kt_per_d_rpm", "FromPort": "out", "ToNodeId": "tip_speed_kts", "ToPort": "c" },
+    { "FromNodeId": "in_tas_kts", "FromPort": "tas_kts", "ToNodeId": "mu_div", "ToPort": "a" },
+    { "FromNodeId": "tip_speed_kts", "FromPort": "a*b*c", "ToNodeId": "mu_div", "ToPort": "b" },
 
     { "FromNodeId": "param_k_speed_pitch", "FromPort": "KSpeedPitch", "ToNodeId": "mul_alph_pitch", "ToPort": "a" },
     { "FromNodeId": "mu_div", "FromPort": "a/b", "ToNodeId": "mul_alph_pitch", "ToPort": "b" },
@@ -874,7 +897,7 @@
     { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "clamp_desc", "ToPort": "min" },
     { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "clamp_desc", "ToPort": "max" },
 
-    { "FromNodeId": "in_ias_kts", "FromPort": "ias_kts", "ToNodeId": "div_fwd", "ToPort": "a" },
+    { "FromNodeId": "in_tas_kts", "FromPort": "tas_kts", "ToNodeId": "div_fwd", "ToPort": "a" },
     { "FromNodeId": "param_etl_speed", "FromPort": "EtlSpeedKts", "ToNodeId": "div_fwd", "ToPort": "b" },
     { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "sub_fwd", "ToPort": "a" },
     { "FromNodeId": "div_fwd", "FromPort": "a/b", "ToNodeId": "sub_fwd", "ToPort": "b" },
@@ -897,7 +920,7 @@
     { "FromNodeId": "param_vrs_tau_down", "FromPort": "VrsTauDown", "ToNodeId": "lag_asym_vrs", "ToPort": "tau_down_sec" },
     { "FromNodeId": "lag_asym_vrs", "FromPort": "out", "ToNodeId": "out_vrs", "ToPort": "VRS" },
 
-    { "FromNodeId": "in_ias_kts", "FromPort": "ias_kts", "ToNodeId": "sub_slap", "ToPort": "a" },
+    { "FromNodeId": "in_tas_kts", "FromPort": "tas_kts", "ToNodeId": "sub_slap", "ToPort": "a" },
     { "FromNodeId": "param_slap_onset", "FromPort": "SlapOnsetKts", "ToNodeId": "sub_slap", "ToPort": "b" },
     { "FromNodeId": "sub_slap", "FromPort": "a-b", "ToNodeId": "max_slap_over", "ToPort": "a" },
     { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "max_slap_over", "ToPort": "b" },
@@ -910,7 +933,7 @@
     { "FromNodeId": "param_slap_max", "FromPort": "SlapMax", "ToNodeId": "clamp_slap", "ToPort": "max" },
     { "FromNodeId": "clamp_slap", "FromPort": "clamp(a,min,max)", "ToNodeId": "out_slap", "ToPort": "Slap" },
 
-    { "FromNodeId": "in_ias_kts", "FromPort": "ias_kts", "ToNodeId": "sub_etl_diff", "ToPort": "a" },
+    { "FromNodeId": "in_tas_kts", "FromPort": "tas_kts", "ToNodeId": "sub_etl_diff", "ToPort": "a" },
     { "FromNodeId": "param_etl_peak", "FromPort": "EtlPeakKts", "ToNodeId": "sub_etl_diff", "ToPort": "b" },
     { "FromNodeId": "sub_etl_diff", "FromPort": "a-b", "ToNodeId": "div_etl_norm", "ToPort": "a" },
     { "FromNodeId": "param_etl_width", "FromPort": "EtlWidthKts", "ToNodeId": "div_etl_norm", "ToPort": "b" },
@@ -950,17 +973,17 @@
   ],
   "Params": [
     {
-      "Name": "Aircraft.RotorTipSpeedKts",
-      "DefaultValue": 290.0,
-      "Min": 100.0,
-      "Max": 500.0,
+      "Name": "Aircraft.RotorDiameterM",
+      "DefaultValue": 8.05,
+      "Min": 5.0,
+      "Max": 25.0,
       "Ui": {
         "Widget": "slider",
-        "Label": "Rotor Tip Speed",
+        "Label": "Rotor Diameter",
         "Group": "Aircraft",
-        "Units": "kt",
-        "Step": 1.0,
-        "Precision": 0,
+        "Units": "m",
+        "Step": 0.05,
+        "Precision": 2,
         "LogScale": false,
         "Options": []
       }
