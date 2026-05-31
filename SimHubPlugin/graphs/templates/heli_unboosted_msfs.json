@@ -1104,6 +1104,38 @@
         "LogScale": false,
         "Options": []
       }
+    },
+    {
+      "Name": "Aircraft.VrsTauUp",
+      "DefaultValue": 0.25,
+      "Min": 0.05,
+      "Max": 2.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS Entry Tau",
+        "Group": "Aircraft",
+        "Units": "s",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.VrsTauDown",
+      "DefaultValue": 2.0,
+      "Min": 0.5,
+      "Max": 10.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS Exit Tau",
+        "Group": "Aircraft",
+        "Units": "s",
+        "Step": 0.05,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
     }
   ],
   "ParamValues": null

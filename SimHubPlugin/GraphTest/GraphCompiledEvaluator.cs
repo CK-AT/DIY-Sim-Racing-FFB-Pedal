@@ -580,6 +580,29 @@ namespace DiyFfb.GraphTest
                     _state[si] = input;
                     return (prev <= 0.5 && input > 0.5) ? 1.0 : 0.0;
                 }
+
+                // lag_asym(input, tau_up_sec, tau_down_sec)
+                // First-order lag with direction-dependent time constant.
+                // tau_up applies when input > prev (rising); tau_down when input <= prev (falling).
+                // State slot 0: prev_output.
+                case "lag_asym":
+                {
+                    int si = node.StateBaseIndex;
+                    double input = node.ArgIndices.Length > 0 ? ResolveArg(node, 0) : 0.0;
+                    double tauUp = node.ArgIndices.Length > 1 ? ResolveArg(node, 1) : 0.25;
+                    double tauDown = node.ArgIndices.Length > 2 ? ResolveArg(node, 2) : 2.0;
+                    double prev = _state[si];
+                    double tau = (input > prev) ? tauUp : tauDown;
+                    if (tau <= 0.0 || _dt <= 0.0)
+                    {
+                        _state[si] = input;
+                        return input;
+                    }
+                    double alpha = 1.0 - Math.Exp(-_dt / tau);
+                    double output = prev + alpha * (input - prev);
+                    _state[si] = output;
+                    return output;
+                }
             }
 
             return 0.0;
@@ -596,6 +619,7 @@ namespace DiyFfb.GraphTest
                 case "accumulator":  return 1;  // accumulated value
                 case "sample_hold":  return 2;  // previous trigger + held value
                 case "edge_detect":  return 1;  // previous input value
+                case "lag_asym":     return 1;  // previous output
                 default: return 0;
             }
         }

@@ -153,6 +153,41 @@
       ],
       "SignalGroup": "Aircraft"
     },
+    {
+      "Id": "param_vrs_tau_up",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 1240.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "VrsTauUp" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_vrs_tau_down",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 1310.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "VrsTauDown" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "lag_asym_vrs",
+      "Title": "VRS lag (asym)",
+      "Kind": "Func",
+      "X": 2400.0,
+      "Y": 460.0,
+      "Ports": [
+        { "Name": "input", "Kind": "Input" },
+        { "Name": "tau_up_sec", "Kind": "Input" },
+        { "Name": "tau_down_sec", "Kind": "Input" },
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "Func": "lag_asym",
+      "IncludePath": ""
+    },
 
     {
       "Id": "const_zero",
@@ -676,7 +711,10 @@
     { "FromNodeId": "add_inner", "FromPort": "a+b", "ToNodeId": "mul_vrs_core", "ToPort": "c" },
     { "FromNodeId": "const_quarter", "FromPort": "out", "ToNodeId": "add_vrs", "ToPort": "a" },
     { "FromNodeId": "mul_vrs_core", "FromPort": "a*b*c", "ToNodeId": "add_vrs", "ToPort": "b" },
-    { "FromNodeId": "add_vrs", "FromPort": "a+b", "ToNodeId": "out_vrs", "ToPort": "VRS" },
+    { "FromNodeId": "add_vrs", "FromPort": "a+b", "ToNodeId": "lag_asym_vrs", "ToPort": "input" },
+    { "FromNodeId": "param_vrs_tau_up", "FromPort": "VrsTauUp", "ToNodeId": "lag_asym_vrs", "ToPort": "tau_up_sec" },
+    { "FromNodeId": "param_vrs_tau_down", "FromPort": "VrsTauDown", "ToNodeId": "lag_asym_vrs", "ToPort": "tau_down_sec" },
+    { "FromNodeId": "lag_asym_vrs", "FromPort": "out", "ToNodeId": "out_vrs", "ToPort": "VRS" },
 
     { "FromNodeId": "in_ias_kts", "FromPort": "ias_kts", "ToNodeId": "sub_slap", "ToPort": "a" },
     { "FromNodeId": "param_slap_onset", "FromPort": "SlapOnsetKts", "ToNodeId": "sub_slap", "ToPort": "b" },
@@ -879,6 +917,38 @@
         "Units": "kt",
         "Step": 0.5,
         "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.VrsTauUp",
+      "DefaultValue": 0.25,
+      "Min": 0.05,
+      "Max": 2.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS Entry Tau",
+        "Group": "Aircraft",
+        "Units": "s",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.VrsTauDown",
+      "DefaultValue": 2.0,
+      "Min": 0.5,
+      "Max": 10.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS Exit Tau",
+        "Group": "Aircraft",
+        "Units": "s",
+        "Step": 0.05,
+        "Precision": 2,
         "LogScale": false,
         "Options": []
       }

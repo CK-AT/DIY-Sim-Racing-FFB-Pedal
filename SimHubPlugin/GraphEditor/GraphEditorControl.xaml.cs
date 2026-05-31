@@ -4061,6 +4061,8 @@ namespace DiyFfb.GraphEditor
                     return new[] { "input", "trigger" };
                 case "edge_detect":
                     return new[] { "input" };
+                case "lag_asym":
+                    return new[] { "input", "tau_up_sec", "tau_down_sec" };
                 default:
                     return new[] { "a", "b" };
             }
