@@ -43,19 +43,94 @@ Steps 3–6 each take ~5 minutes of flying once you've found a sane baseline.
 
 ---
 
+## Isolating cues for tuning (the "solo" trick)
+
+The cyclic load output is a *sum* of independent contributions:
+
+```text
+LoadForce = BladeAlph_load × (1 − VrsAttenGain × vrs_effect)
+          + ETLBump_load
+          + RBS_load
+```
+
+Vibration is similarly additive across slots (Vib1Ampl2 sums slap + ETL +
+RBS-N/rev terms). That means every cue has a **dedicated set of gains** —
+zero those gains and the cue vanishes without affecting anything else. To
+tune one cue in isolation, mute all the others.
+
+Save a **"silent baseline"** profile up front by setting every gain in the
+table below to **0**. With that as the starting point, raise *only* the
+gains belonging to the cue you're tuning. Tune. Save. Restore baseline.
+Repeat for the next cue.
+
+| Cue | Exclusive gain params (zero these to mute) |
+|---|---|
+| BladeAlph cyclic load | `Cyclic.LoadGain` (`Flapping Load Gain`); shape via `Aircraft.KSpeedPitch`/`KSpeedRoll` |
+| ETL bump — vibration | `Cyclic.EtlBumpGain`, `Collective.EtlBumpGain` |
+| ETL bump — load | `Cyclic.EtlBumpLoadGain`, `Cyclic.EtlBumpLoadRollGain` |
+| VRS — load attenuation | `Cyclic.VrsAttenGain` (multiplicative; 0 = no attenuation) |
+| VRS — buffet | `Cyclic.VrsBuffetGain`, `Collective.VrsBuffetGain` |
+| RBS — vibration | `Cyclic.RbsVib1Gain`, `Cyclic.RbsVibNGain`, `Collective.RbsHeaveGain` |
+| RBS — load | `Cyclic.RbsLoadPitchGain`, `Cyclic.RbsLoadRollGain` |
+| Slap (BVI) — vibration | `Cyclic.slap_gain`, `Collective.slap_gain` |
+| Always-on rotor texture | `Cyclic.gain_1rev`, `Cyclic.mass_imbalance`, `Cyclic.track_drift`, `Cyclic.base_nrev`, `Cyclic.base_2nrev` (and `Collective.*` analogues) |
+
+Notes:
+
+- The **envelope shape** params (e.g. `Aircraft.EtlPeakKts`,
+  `Aircraft.RbsThreshold`, `Aircraft.VrsBuffetStart`) don't need to be
+  zeroed — they have no effect when the corresponding gain is 0.
+- Keep `Cyclic.SpringGain`, `Cyclic.DamperGain`, `Cyclic.Friction` at their
+  normal values during isolated tuning. You need centering and damping to
+  fly the test manoeuvres at all.
+- For VRS buffet specifically, the **graph debug logger** lets you see the
+  raw `Rotor.VRS` value live — useful for confirming the cue is firing
+  even before you feel it. Open the graph editor, hover over the
+  `lag_asym_vrs` node output, watch the number rise as you descend.
+- The `clamp_vrs_eff` node inside `heli_cyclic_unboosted.json` shows the
+  0..1 normalized VRS effect that drives both attenuation and buffet —
+  cross-check this against your `Aircraft.VrsBuffetStart` threshold.
+
+### Order of operations
+
+When tuning from scratch, the dependencies between cues mean you should
+work in this order:
+
+1. **Silent baseline** → set every gain to 0, fly straight-and-level cruise,
+   confirm centering spring + damping feel right. Stick should drift to
+   center with light damping, no extra forces.
+2. **BladeAlph cruise load** → only `Cyclic.LoadGain` non-zero. Confirm the
+   forward-pressure feel at cruise scales with airspeed and disappears in
+   autorotation.
+3. **ETL bump** → add `Cyclic.EtlBumpLoadGain`, `EtlBumpLoadRollGain`,
+   `EtlBumpGain`, `Collective.EtlBumpGain`. Tune through the 0→30 kt range.
+4. **RBS** → add the five RBS gains. Tune at high-G manoeuvre.
+5. **VRS attenuation** → add `Cyclic.VrsAttenGain`. Tune in deliberate VRS
+   (you'll feel BladeAlph fade out as you descend).
+6. **VRS buffet** → add `Cyclic.VrsBuffetGain`, `Collective.VrsBuffetGain`.
+   Tune in deliberate VRS again — the buffet rides on top of the
+   attenuation.
+7. **Always-on rotor texture and slap** → final layer; pure cosmetic.
+
+Once everything is dialed in, snapshot as the "tuned" profile. Keep the
+"silent baseline" around — it's invaluable any time you need to
+re-investigate one cue.
+
+---
+
 ## 1. Airframe basics
 
 These are physical numbers. Get them right once per aircraft and stop
 touching them.
 
-| Param | What it is | Sensible range | How to find it |
-|---|---|---|---|
-| `Aircraft.RotorDiameterM` | Main rotor disc diameter | 5–25 m | Datasheet (tip-to-tip) |
-| `Aircraft.BladeCount` | Number of main rotor blades | 2–8 | Datasheet |
-| `Aircraft.RotationSign` | +1 for CCW (US/MD500/AS350), -1 for CW (French) | +1 / -1 | Look at the rotor from above; CCW = +1 |
-| `Aircraft.MaxTorqueNm` | Peak main-rotor torque | 100–5000 | Datasheet, or guess from MTOW |
-| `Aircraft.TRBladeCount` | Tail rotor blade count | 2–6 | Datasheet |
-| `Aircraft.TRGearRatio` | Tail rotor : main rotor RPM ratio | 1–10 | Datasheet |
+| Param | Slider label | What it is | Sensible range | How to find it |
+| --- | --- | --- | --- | --- |
+| `Aircraft.RotorDiameterM` | Rotor Diameter | Main rotor disc diameter | 5–25 m | Datasheet (tip-to-tip) |
+| `Aircraft.BladeCount` | Blade Count | Number of main rotor blades | 2–8 | Datasheet |
+| `Aircraft.RotationSign` | Rotor Direction | +1 for CCW (US/MD500/AS350), -1 for CW (French) | +1 / -1 | Look at the rotor from above; CCW = +1 |
+| `Aircraft.MaxTorqueNm` | Max Rotor Torque | Peak main-rotor torque | 100–5000 | Datasheet, or guess from MTOW |
+| `Aircraft.TRBladeCount` | TR Blade Count | Tail rotor blade count | 2–6 | Datasheet |
+| `Aircraft.TRGearRatio` | TR Gear Ratio | Tail rotor : main rotor RPM ratio | 1–10 | Datasheet |
 
 > **Tip speed is computed**, not configured. The subgraph multiplies
 > `Aircraft.RotorDiameterM × MSFS.MainRotor.Speed × π·1.944/60` each frame
@@ -105,14 +180,14 @@ continuously while in cruise. The lateral analogue (sideslip-driven blade
 asymmetry → lateral disc tilt) is modeled too but only fires when there's
 actual sideslip.
 
-| Param | What it changes | Default | Range |
-|---|---|---|---|
-| `Aircraft.KSpeedPitch` | How much aft-stick force grows with airspeed | 17 | 0–40 |
-| `Aircraft.KSpeedRoll` | Lateral force grows with sideslip (beta) | 5 | 0–20 |
-| `Cyclic.LoadGain` | Overall scale of BladeAlph → stick force | 0.2 | 0–5 |
-| `Cyclic.SpringGain` | Centering spring | 0.45 | 0–5 |
-| `Cyclic.DamperGain` | Velocity-proportional damping | varies | 0–5 |
-| `Cyclic.Friction` | Static friction (sticktion) | varies | 0–5 |
+| Param | Slider label | What it changes | Default | Range |
+| --- | --- | --- | --- | --- |
+| `Aircraft.KSpeedPitch` | Blade Alph Gain (Pitch) | How much aft-stick force grows with airspeed | 17 | 0–40 |
+| `Aircraft.KSpeedRoll` | Blade Alph Gain (Roll) | Lateral force grows with sideslip (beta) | 5 | 0–20 |
+| `Cyclic.LoadGain` | Flapping Load Gain | Overall scale of BladeAlph → stick force | 0.2 | 0–5 |
+| `Cyclic.SpringGain` | Spring Gain | Centering spring | 0.45 | 0–5 |
+| `Cyclic.DamperGain` | Damper Gain | Velocity-proportional damping | varies | 0–5 |
+| `Cyclic.Friction` | Friction | Static friction (sticktion) | varies | 0–5 |
 
 ### Tuning recipe
 
@@ -138,14 +213,14 @@ Effective Translational Lift: the rotor transitions from recirculating its
 own downwash to flying through clean air around 15–25 kt. A short vibration
 + forward nose-tuck + lateral roll (on CCW rotors, to the right).
 
-| Param | What it changes | Default | Range |
-|---|---|---|---|
-| `Aircraft.EtlPeakKts` | Centre of the bump (in IAS) | 18 | 5–40 |
-| `Aircraft.EtlWidthKts` | Width (1/e drop at ±this many kt) | 6 | 2–20 |
-| `Cyclic.EtlBumpGain` | Pitch+Roll vibration amplitude at peak | 0.6 mm | 0–3 |
-| `Collective.EtlBumpGain` | Collective vibration amplitude at peak | 0.4 mm | 0–3 |
-| `Cyclic.EtlBumpLoadGain` | Aft load on cyclic at peak (pilot pushes forward) | 0.5 N | 0–3 |
-| `Cyclic.EtlBumpLoadRollGain` | Lateral load on cyclic at peak (×RotationSign) | 0.4 N | 0–3 |
+| Param | Slider label | What it changes | Default | Range |
+| --- | --- | --- | --- | --- |
+| `Aircraft.EtlPeakKts` | ETL Bump Peak | Centre of the bump (in TAS) | 18 | 5–40 |
+| `Aircraft.EtlWidthKts` | ETL Bump Width | Width (1/e drop at ±this many kt) | 6 | 2–20 |
+| `Cyclic.EtlBumpGain` | ETL Bump Vibration (Cyclic) | Pitch+Roll vibration amplitude at peak | 0.6 mm | 0–3 |
+| `Collective.EtlBumpGain` | ETL Bump Vibration (Collective) | Collective vibration amplitude at peak | 0.4 mm | 0–3 |
+| `Cyclic.EtlBumpLoadGain` | ETL Bump Load (Pitch) | Aft load on cyclic at peak (pilot pushes forward) | 0.5 N | 0–3 |
+| `Cyclic.EtlBumpLoadRollGain` | ETL Bump Load (Roll) | Lateral load on cyclic at peak (×RotationSign) | 0.4 N | 0–3 |
 
 ### Tuning recipe
 
@@ -181,12 +256,12 @@ of the BladeAlph cyclic stiffness**.
 
 ### 4a. Buffet character
 
-| Param | What it changes | Default | Range |
-|---|---|---|---|
-| `Aircraft.VrsBuffetStart` | VRS level where buffet starts (0..1 effect space) | 0.2 | 0–1 |
-| `Aircraft.VrsBuffetFull` | VRS level where buffet is fully developed | 0.8 | 0–1 |
-| `Cyclic.VrsBuffetGain` | Buffet force amplitude on cyclic (both axes) | 1.5 N | 0–8 |
-| `Collective.VrsBuffetGain` | Buffet force amplitude on collective | 1.0 N | 0–8 |
+| Param | Slider label | What it changes | Default | Range |
+| --- | --- | --- | --- | --- |
+| `Aircraft.VrsBuffetStart` | VRS Buffet Onset | VRS level where buffet starts (0..1 effect space) | 0.2 | 0–1 |
+| `Aircraft.VrsBuffetFull` | VRS Buffet Saturation | VRS level where buffet is fully developed | 0.8 | 0–1 |
+| `Cyclic.VrsBuffetGain` | VRS Buffet (Cyclic) | Buffet force amplitude on cyclic (both axes) | 1.5 N | 0–8 |
+| `Collective.VrsBuffetGain` | VRS Buffet (Collective) | Buffet force amplitude on collective | 1.0 N | 0–8 |
 
 The "VRS effect" is `clamp((Rotor.VRS − 0.25) / 0.25, 0, 1)`, so 0 means
 hover-no-descent and 1 means hover-with-1500-fpm-descent. Onset of
@@ -194,9 +269,9 @@ hover-no-descent and 1 means hover-with-1500-fpm-descent. Onset of
 
 ### 4b. Cyclic authority loss
 
-| Param | What it changes | Default | Range |
-|---|---|---|---|
-| `Cyclic.VrsAttenGain` | How much VRS suppresses BladeAlph load | 0.5 | 0–1 |
+| Param | Slider label | What it changes | Default | Range |
+| --- | --- | --- | --- | --- |
+| `Cyclic.VrsAttenGain` | VRS Load Attenuation | How much VRS suppresses BladeAlph load | 0.5 | 0–1 |
 
 `(1 − VrsAttenGain × vrs_effect)` is the multiplier on the existing
 BladeAlph cyclic-stiffness term. At 1.0 with full VRS, the cyclic feels
@@ -205,10 +280,10 @@ VRS doesn't affect cyclic stiffness at all (only buffet).
 
 ### 4c. Entry/exit hysteresis
 
-| Param | What it changes | Default | Range |
-|---|---|---|---|
-| `Aircraft.VrsTauUp` | Time constant when *entering* VRS | 0.25 s | 0.05–2 |
-| `Aircraft.VrsTauDown` | Time constant when *leaving* VRS | 2.0 s | 0.5–10 |
+| Param | Slider label | What it changes | Default | Range |
+| --- | --- | --- | --- | --- |
+| `Aircraft.VrsTauUp` | VRS Entry Tau | Time constant when *entering* VRS | 0.25 s | 0.05–2 |
+| `Aircraft.VrsTauDown` | VRS Exit Tau | Time constant when *leaving* VRS | 2.0 s | 0.5–10 |
 
 VRS entry should feel snappy (TauUp small, ~0.25 s). VRS exit should feel
 sticky — you have to fly out of it, not just push the cyclic forward and
@@ -259,21 +334,21 @@ where `mu = TAS / (RotorDiameterM × MainRotorRpm × π·1.944/60)`.
 
 ### Derivation params
 
-| Param | What it changes | Default | Range |
-|---|---|---|---|
-| `Aircraft.RbsMuCoupling` | How much speed amplifies the demand | 2.5 | 0–10 |
-| `Aircraft.RbsThreshold` | Demand level at which RBS begins | 1.6 | 0.5–5 |
-| `Aircraft.RbsWidth` | Demand range over which RBS ramps 0→1 | 0.4 | 0.05–3 |
+| Param | Slider label | What it changes | Default | Range |
+| --- | --- | --- | --- | --- |
+| `Aircraft.RbsMuCoupling` | RBS Mu Coupling | How much speed amplifies the demand | 2.5 | 0–10 |
+| `Aircraft.RbsThreshold` | RBS Threshold | Demand level at which RBS begins | 1.6 | 0.5–5 |
+| `Aircraft.RbsWidth` | RBS Width | Demand range over which RBS ramps 0→1 | 0.4 | 0.05–3 |
 
 ### Consumer gains
 
-| Param | What it changes | Default | Range |
-|---|---|---|---|
-| `Cyclic.RbsVib1Gain` | 1/rev vibration at full RBS | 0.6 mm | 0–3 |
-| `Cyclic.RbsVibNGain` | N/rev vibration (scales as RBS²) | 0.4 mm | 0–3 |
-| `Collective.RbsHeaveGain` | Heave vibration on collective | 0.5 mm | 0–3 |
-| `Cyclic.RbsLoadPitchGain` | Aft load on cyclic (pitch-up tendency; pilot pushes forward to counter) | 1.2 N | 0–5 |
-| `Cyclic.RbsLoadRollGain` | Lateral load on cyclic toward retreating side (×RotationSign) | 0.8 N | 0–5 |
+| Param | Slider label | What it changes | Default | Range |
+| --- | --- | --- | --- | --- |
+| `Cyclic.RbsVib1Gain` | RBS 1/rev Vibration | 1/rev vibration at full RBS | 0.6 mm | 0–3 |
+| `Cyclic.RbsVibNGain` | RBS N/rev Vibration | N/rev vibration (scales as RBS²) | 0.4 mm | 0–3 |
+| `Collective.RbsHeaveGain` | RBS Heave Vibration | Heave vibration on collective | 0.5 mm | 0–3 |
+| `Cyclic.RbsLoadPitchGain` | RBS Load (Pitch) | Aft load on cyclic (pitch-up tendency; pilot pushes forward to counter) | 1.2 N | 0–5 |
+| `Cyclic.RbsLoadRollGain` | RBS Load (Roll) | Lateral load on cyclic toward retreating side (×RotationSign) | 0.8 N | 0–5 |
 
 ### Tuning recipe
 
@@ -306,16 +381,16 @@ within a second — there's no hysteresis on RBS.
 ## 6. Slap (BVI)
 
 Blade-Vortex Interaction — the characteristic "wop-wop" of helicopters in
-high-speed flight or steep descents. The plugin models this as an IAS-only
+high-speed flight or steep descents. The plugin models this as a TAS-only
 linear ramp.
 
-| Param | What it changes | Default | Range |
-|---|---|---|---|
-| `Aircraft.SlapOnsetKts` | TAS at which slap starts | 20 | 0–80 |
-| `Aircraft.KSlap` | Slap ramp gradient | 0.03 | 0–0.2 |
-| `Aircraft.SlapMax` | Cap on slap envelope | 0.1 | 0–1 |
-| `Cyclic.slap_gain` | Slap → cyclic N/rev vibration | 1.0 mm | 0–2.55 |
-| `Collective.slap_gain` | Slap → collective N/rev vibration | 0.5 mm | 0–2.55 |
+| Param | Slider label | What it changes | Default | Range |
+| --- | --- | --- | --- | --- |
+| `Aircraft.SlapOnsetKts` | Slap Onset Speed | TAS at which slap starts | 20 | 0–80 |
+| `Aircraft.KSlap` | Slap Gain | Slap ramp gradient | 0.03 | 0–0.2 |
+| `Aircraft.SlapMax` | Slap Cap | Cap on slap envelope | 0.1 | 0–1 |
+| `Cyclic.slap_gain` | N/rev slap (BVI) boost | Slap → cyclic N/rev vibration | 1.0 mm | 0–2.55 |
+| `Collective.slap_gain` | N/rev slap (BVI) boost | Slap → collective N/rev vibration | 0.5 mm | 0–2.55 |
 
 This is vibration-only — no cyclic load coupling. Per plan 20 §3.4.2 the
 literature has no static slap load.
@@ -333,13 +408,13 @@ absent or overwhelming.
 These are the always-on rotor harmonic textures — the cabin "running"
 vibration of a helicopter in flight. Independent of any of the cues above.
 
-| Param | What it changes | Default | Range |
-|---|---|---|---|
-| `Cyclic.gain_1rev` | 1/rev amplitude scaling with BladeAlph | 0.5 mm/deg | 0–2.55 |
-| `Cyclic.mass_imbalance` | 1/rev term from blade mass imbalance × rpm² | 0.05 mm | 0–2.55 |
-| `Cyclic.track_drift` | 1/rev term from rotor tracking × rpm | 0.1 mm | 0–2.55 |
-| `Cyclic.base_nrev` | Always-on N/rev amplitude × rpm_norm | 0.3 mm | 0–2.55 |
-| `Cyclic.base_2nrev` | Always-on 2N/rev amplitude | 0.1 mm | 0–2.55 |
+| Param | Slider label | What it changes | Default | Range |
+| --- | --- | --- | --- | --- |
+| `Cyclic.gain_1rev` | 1/rev gain | 1/rev amplitude scaling with BladeAlph | 0.5 mm/deg | 0–2.55 |
+| `Cyclic.mass_imbalance` | 1/rev mass imbalance | 1/rev term from blade mass imbalance × rpm² | 0.05 mm | 0–2.55 |
+| `Cyclic.track_drift` | 1/rev track drift | 1/rev term from rotor tracking × rpm | 0.1 mm | 0–2.55 |
+| `Cyclic.base_nrev` | N/rev base | Always-on N/rev amplitude × rpm_norm | 0.3 mm | 0–2.55 |
+| `Cyclic.base_2nrev` | 2N/rev base | Always-on 2N/rev amplitude | 0.1 mm | 0–2.55 |
 
 Equivalent params exist for collective with `Collective.*` prefix.
 
