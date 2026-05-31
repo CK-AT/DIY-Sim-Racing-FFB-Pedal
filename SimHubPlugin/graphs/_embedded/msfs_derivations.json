@@ -1,0 +1,765 @@
+{
+  "Version": 4,
+  "IsLibraryGraph": true,
+  "Nodes": [
+    {
+      "Id": "in_ias_kts",
+      "Title": "IAS (kts)",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 60.0,
+      "Ports": [
+        { "Name": "ias_kts", "Kind": "Output" }
+      ]
+    },
+    {
+      "Id": "in_beta_deg",
+      "Title": "Beta (deg)",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 140.0,
+      "Ports": [
+        { "Name": "beta_deg", "Kind": "Output" }
+      ]
+    },
+    {
+      "Id": "in_vvi_fps",
+      "Title": "VVI (fps)",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 220.0,
+      "Ports": [
+        { "Name": "vvi_fps", "Kind": "Output" }
+      ]
+    },
+    {
+      "Id": "in_eng_torque_pct",
+      "Title": "Eng Torque %",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 300.0,
+      "Ports": [
+        { "Name": "eng_torque_pct", "Kind": "Output" }
+      ]
+    },
+
+    {
+      "Id": "param_rotor_tip_speed",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 420.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "RotorTipSpeedKts" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_k_speed_pitch",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 490.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "KSpeedPitch" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_k_speed_roll",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 560.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "KSpeedRoll" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_etl_speed",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 630.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "EtlSpeedKts" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_descent_max",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 700.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "DescentMaxFpm" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_slap_onset",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 770.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "SlapOnsetKts" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_k_slap",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 840.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "KSlap" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_slap_max",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 910.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "SlapMax" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_max_torque",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 980.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "MaxTorqueNm" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+
+    {
+      "Id": "const_zero",
+      "Title": "0",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 60.0,
+      "Ports": [
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "const_one",
+      "Title": "1",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 130.0,
+      "Ports": [
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "ConstValue": 1.0
+    },
+    {
+      "Id": "const_60",
+      "Title": "60 (fps->fpm)",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 200.0,
+      "Ports": [
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "ConstValue": 60.0
+    },
+    {
+      "Id": "const_100",
+      "Title": "100 (%)",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 270.0,
+      "Ports": [
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "ConstValue": 100.0
+    },
+    {
+      "Id": "const_quarter",
+      "Title": "0.25",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 340.0,
+      "Ports": [
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "ConstValue": 0.25
+    },
+    {
+      "Id": "const_half",
+      "Title": "0.5",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 410.0,
+      "Ports": [
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "ConstValue": 0.5
+    },
+
+    {
+      "Id": "max_ias",
+      "Title": "max(IAS,0)",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 60.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "max(a,b)", "Kind": "Output" }
+      ],
+      "Op": "max"
+    },
+    {
+      "Id": "mu_div",
+      "Title": "mu = IAS/Vtip",
+      "Kind": "Op",
+      "X": 800.0,
+      "Y": 60.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a/b", "Kind": "Output" }
+      ],
+      "Op": "div"
+    },
+
+    {
+      "Id": "mul_alph_pitch",
+      "Title": "-k_pitch*mu",
+      "Kind": "Op",
+      "X": 1080.0,
+      "Y": 60.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input", "Negate": true },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "-a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+
+    {
+      "Id": "mul_alph_roll",
+      "Title": "-k_roll*beta*mu",
+      "Kind": "Op",
+      "X": 1080.0,
+      "Y": 160.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input", "Negate": true },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "c", "Kind": "Input" },
+        { "Name": "-a*b*c", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+
+    {
+      "Id": "mul_descent_60",
+      "Title": "-VVI*60",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 300.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input", "Negate": true },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "-a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "max_descent",
+      "Title": "max(d,0)",
+      "Kind": "Op",
+      "X": 800.0,
+      "Y": 300.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "max(a,b)", "Kind": "Output" }
+      ],
+      "Op": "max"
+    },
+    {
+      "Id": "div_desc",
+      "Title": "d/DescentMax",
+      "Kind": "Op",
+      "X": 1080.0,
+      "Y": 300.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a/b", "Kind": "Output" }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "clamp_desc",
+      "Title": "clamp 0..1",
+      "Kind": "Op",
+      "X": 1320.0,
+      "Y": 300.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "min", "Kind": "Input" },
+        { "Name": "max", "Kind": "Input" },
+        { "Name": "clamp(a,min,max)", "Kind": "Output" }
+      ],
+      "Op": "clamp"
+    },
+
+    {
+      "Id": "div_fwd",
+      "Title": "IAS/EtlSpeed",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 420.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a/b", "Kind": "Output" }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "sub_fwd",
+      "Title": "1-IAS/Etl",
+      "Kind": "Op",
+      "X": 800.0,
+      "Y": 420.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a-b", "Kind": "Output" }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "clamp_fwd",
+      "Title": "clamp 0..1",
+      "Kind": "Op",
+      "X": 1080.0,
+      "Y": 420.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "min", "Kind": "Input" },
+        { "Name": "max", "Kind": "Input" },
+        { "Name": "clamp(a,min,max)", "Kind": "Output" }
+      ],
+      "Op": "clamp"
+    },
+
+    {
+      "Id": "mul_half_desc",
+      "Title": "0.5*desc",
+      "Kind": "Op",
+      "X": 1560.0,
+      "Y": 300.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "add_inner",
+      "Title": "0.5+0.5*desc",
+      "Kind": "Op",
+      "X": 1800.0,
+      "Y": 300.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a+b", "Kind": "Output" }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "mul_vrs_core",
+      "Title": "0.25*fwd*inner",
+      "Kind": "Op",
+      "X": 2040.0,
+      "Y": 360.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "c", "Kind": "Input" },
+        { "Name": "a*b*c", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "add_vrs",
+      "Title": "0.25+core",
+      "Kind": "Op",
+      "X": 2280.0,
+      "Y": 360.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a+b", "Kind": "Output" }
+      ],
+      "Op": "add"
+    },
+
+    {
+      "Id": "sub_slap",
+      "Title": "IAS-Onset",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 720.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a-b", "Kind": "Output" }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "max_slap_over",
+      "Title": "max(over,0)",
+      "Kind": "Op",
+      "X": 800.0,
+      "Y": 720.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "max(a,b)", "Kind": "Output" }
+      ],
+      "Op": "max"
+    },
+    {
+      "Id": "mul_slap_k",
+      "Title": "k*over",
+      "Kind": "Op",
+      "X": 1080.0,
+      "Y": 720.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "div_slap_100",
+      "Title": "/100",
+      "Kind": "Op",
+      "X": 1320.0,
+      "Y": 720.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a/b", "Kind": "Output" }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "clamp_slap",
+      "Title": "clamp 0..SlapMax",
+      "Kind": "Op",
+      "X": 1560.0,
+      "Y": 720.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "min", "Kind": "Input" },
+        { "Name": "max", "Kind": "Input" },
+        { "Name": "clamp(a,min,max)", "Kind": "Output" }
+      ],
+      "Op": "clamp"
+    },
+
+    {
+      "Id": "div_torque_100",
+      "Title": "EngTrq%/100",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 980.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a/b", "Kind": "Output" }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "mul_torque",
+      "Title": "*MaxTorque",
+      "Kind": "Op",
+      "X": 800.0,
+      "Y": 980.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+
+    {
+      "Id": "out_blade_alph_pitch",
+      "Title": "Blade Alpha Pitch Out",
+      "Kind": "Output",
+      "X": 1320.0,
+      "Y": 60.0,
+      "Ports": [
+        { "Name": "BladeAlphPitch", "Kind": "Input" }
+      ]
+    },
+    {
+      "Id": "out_blade_alph_roll",
+      "Title": "Blade Alpha Roll Out",
+      "Kind": "Output",
+      "X": 1320.0,
+      "Y": 160.0,
+      "Ports": [
+        { "Name": "BladeAlphRoll", "Kind": "Input" }
+      ]
+    },
+    {
+      "Id": "out_vrs",
+      "Title": "VRS Out",
+      "Kind": "Output",
+      "X": 2520.0,
+      "Y": 360.0,
+      "Ports": [
+        { "Name": "VRS", "Kind": "Input" }
+      ]
+    },
+    {
+      "Id": "out_slap",
+      "Title": "Slap Out",
+      "Kind": "Output",
+      "X": 1800.0,
+      "Y": 720.0,
+      "Ports": [
+        { "Name": "Slap", "Kind": "Input" }
+      ]
+    },
+    {
+      "Id": "out_torque",
+      "Title": "MainRotor Torque Out",
+      "Kind": "Output",
+      "X": 1080.0,
+      "Y": 980.0,
+      "Ports": [
+        { "Name": "MainRotor.Torque", "Kind": "Input" }
+      ]
+    }
+  ],
+  "Links": [
+    { "FromNodeId": "in_ias_kts", "FromPort": "ias_kts", "ToNodeId": "max_ias", "ToPort": "a" },
+    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "max_ias", "ToPort": "b" },
+    { "FromNodeId": "max_ias", "FromPort": "max(a,b)", "ToNodeId": "mu_div", "ToPort": "a" },
+    { "FromNodeId": "param_rotor_tip_speed", "FromPort": "RotorTipSpeedKts", "ToNodeId": "mu_div", "ToPort": "b" },
+
+    { "FromNodeId": "param_k_speed_pitch", "FromPort": "KSpeedPitch", "ToNodeId": "mul_alph_pitch", "ToPort": "a" },
+    { "FromNodeId": "mu_div", "FromPort": "a/b", "ToNodeId": "mul_alph_pitch", "ToPort": "b" },
+    { "FromNodeId": "mul_alph_pitch", "FromPort": "-a*b", "ToNodeId": "out_blade_alph_pitch", "ToPort": "BladeAlphPitch" },
+
+    { "FromNodeId": "param_k_speed_roll", "FromPort": "KSpeedRoll", "ToNodeId": "mul_alph_roll", "ToPort": "a" },
+    { "FromNodeId": "in_beta_deg", "FromPort": "beta_deg", "ToNodeId": "mul_alph_roll", "ToPort": "b" },
+    { "FromNodeId": "mu_div", "FromPort": "a/b", "ToNodeId": "mul_alph_roll", "ToPort": "c" },
+    { "FromNodeId": "mul_alph_roll", "FromPort": "-a*b*c", "ToNodeId": "out_blade_alph_roll", "ToPort": "BladeAlphRoll" },
+
+    { "FromNodeId": "in_vvi_fps", "FromPort": "vvi_fps", "ToNodeId": "mul_descent_60", "ToPort": "a" },
+    { "FromNodeId": "const_60", "FromPort": "out", "ToNodeId": "mul_descent_60", "ToPort": "b" },
+    { "FromNodeId": "mul_descent_60", "FromPort": "-a*b", "ToNodeId": "max_descent", "ToPort": "a" },
+    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "max_descent", "ToPort": "b" },
+    { "FromNodeId": "max_descent", "FromPort": "max(a,b)", "ToNodeId": "div_desc", "ToPort": "a" },
+    { "FromNodeId": "param_descent_max", "FromPort": "DescentMaxFpm", "ToNodeId": "div_desc", "ToPort": "b" },
+    { "FromNodeId": "div_desc", "FromPort": "a/b", "ToNodeId": "clamp_desc", "ToPort": "a" },
+    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "clamp_desc", "ToPort": "min" },
+    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "clamp_desc", "ToPort": "max" },
+
+    { "FromNodeId": "in_ias_kts", "FromPort": "ias_kts", "ToNodeId": "div_fwd", "ToPort": "a" },
+    { "FromNodeId": "param_etl_speed", "FromPort": "EtlSpeedKts", "ToNodeId": "div_fwd", "ToPort": "b" },
+    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "sub_fwd", "ToPort": "a" },
+    { "FromNodeId": "div_fwd", "FromPort": "a/b", "ToNodeId": "sub_fwd", "ToPort": "b" },
+    { "FromNodeId": "sub_fwd", "FromPort": "a-b", "ToNodeId": "clamp_fwd", "ToPort": "a" },
+    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "clamp_fwd", "ToPort": "min" },
+    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "clamp_fwd", "ToPort": "max" },
+
+    { "FromNodeId": "const_half", "FromPort": "out", "ToNodeId": "mul_half_desc", "ToPort": "a" },
+    { "FromNodeId": "clamp_desc", "FromPort": "clamp(a,min,max)", "ToNodeId": "mul_half_desc", "ToPort": "b" },
+    { "FromNodeId": "const_half", "FromPort": "out", "ToNodeId": "add_inner", "ToPort": "a" },
+    { "FromNodeId": "mul_half_desc", "FromPort": "a*b", "ToNodeId": "add_inner", "ToPort": "b" },
+
+    { "FromNodeId": "const_quarter", "FromPort": "out", "ToNodeId": "mul_vrs_core", "ToPort": "a" },
+    { "FromNodeId": "clamp_fwd", "FromPort": "clamp(a,min,max)", "ToNodeId": "mul_vrs_core", "ToPort": "b" },
+    { "FromNodeId": "add_inner", "FromPort": "a+b", "ToNodeId": "mul_vrs_core", "ToPort": "c" },
+    { "FromNodeId": "const_quarter", "FromPort": "out", "ToNodeId": "add_vrs", "ToPort": "a" },
+    { "FromNodeId": "mul_vrs_core", "FromPort": "a*b*c", "ToNodeId": "add_vrs", "ToPort": "b" },
+    { "FromNodeId": "add_vrs", "FromPort": "a+b", "ToNodeId": "out_vrs", "ToPort": "VRS" },
+
+    { "FromNodeId": "in_ias_kts", "FromPort": "ias_kts", "ToNodeId": "sub_slap", "ToPort": "a" },
+    { "FromNodeId": "param_slap_onset", "FromPort": "SlapOnsetKts", "ToNodeId": "sub_slap", "ToPort": "b" },
+    { "FromNodeId": "sub_slap", "FromPort": "a-b", "ToNodeId": "max_slap_over", "ToPort": "a" },
+    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "max_slap_over", "ToPort": "b" },
+    { "FromNodeId": "max_slap_over", "FromPort": "max(a,b)", "ToNodeId": "mul_slap_k", "ToPort": "a" },
+    { "FromNodeId": "param_k_slap", "FromPort": "KSlap", "ToNodeId": "mul_slap_k", "ToPort": "b" },
+    { "FromNodeId": "mul_slap_k", "FromPort": "a*b", "ToNodeId": "div_slap_100", "ToPort": "a" },
+    { "FromNodeId": "const_100", "FromPort": "out", "ToNodeId": "div_slap_100", "ToPort": "b" },
+    { "FromNodeId": "div_slap_100", "FromPort": "a/b", "ToNodeId": "clamp_slap", "ToPort": "a" },
+    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "clamp_slap", "ToPort": "min" },
+    { "FromNodeId": "param_slap_max", "FromPort": "SlapMax", "ToNodeId": "clamp_slap", "ToPort": "max" },
+    { "FromNodeId": "clamp_slap", "FromPort": "clamp(a,min,max)", "ToNodeId": "out_slap", "ToPort": "Slap" },
+
+    { "FromNodeId": "in_eng_torque_pct", "FromPort": "eng_torque_pct", "ToNodeId": "div_torque_100", "ToPort": "a" },
+    { "FromNodeId": "const_100", "FromPort": "out", "ToNodeId": "div_torque_100", "ToPort": "b" },
+    { "FromNodeId": "div_torque_100", "FromPort": "a/b", "ToNodeId": "mul_torque", "ToPort": "a" },
+    { "FromNodeId": "param_max_torque", "FromPort": "MaxTorqueNm", "ToNodeId": "mul_torque", "ToPort": "b" },
+    { "FromNodeId": "mul_torque", "FromPort": "a*b", "ToNodeId": "out_torque", "ToPort": "MainRotor.Torque" }
+  ],
+  "Params": [
+    {
+      "Name": "Aircraft.RotorTipSpeedKts",
+      "DefaultValue": 290.0,
+      "Min": 100.0,
+      "Max": 500.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Rotor Tip Speed",
+        "Group": "Aircraft",
+        "Units": "kt",
+        "Step": 1.0,
+        "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.KSpeedPitch",
+      "DefaultValue": 17.0,
+      "Min": 0.0,
+      "Max": 40.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Blade Alph Gain (Pitch)",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.5,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.KSpeedRoll",
+      "DefaultValue": 5.0,
+      "Min": 0.0,
+      "Max": 20.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Blade Alph Gain (Roll)",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.5,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.EtlSpeedKts",
+      "DefaultValue": 60.0,
+      "Min": 20.0,
+      "Max": 120.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS Fade Speed",
+        "Group": "Aircraft",
+        "Units": "kt",
+        "Step": 1.0,
+        "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.DescentMaxFpm",
+      "DefaultValue": 1500.0,
+      "Min": 500.0,
+      "Max": 5000.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS Saturation Descent",
+        "Group": "Aircraft",
+        "Units": "fpm",
+        "Step": 50.0,
+        "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.SlapOnsetKts",
+      "DefaultValue": 20.0,
+      "Min": 0.0,
+      "Max": 80.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Slap Onset Speed",
+        "Group": "Aircraft",
+        "Units": "kt",
+        "Step": 1.0,
+        "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.KSlap",
+      "DefaultValue": 0.03,
+      "Min": 0.0,
+      "Max": 0.2,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Slap Gain",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.005,
+        "Precision": 3,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.SlapMax",
+      "DefaultValue": 0.1,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Slap Cap",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.MaxTorqueNm",
+      "DefaultValue": 800.0,
+      "Min": 100.0,
+      "Max": 5000.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Max Rotor Torque",
+        "Group": "Aircraft",
+        "Units": "Nm",
+        "Step": 10.0,
+        "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    }
+  ],
+  "ParamValues": null
+}
