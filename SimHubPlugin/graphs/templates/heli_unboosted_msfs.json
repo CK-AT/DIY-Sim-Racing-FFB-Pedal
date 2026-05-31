@@ -294,6 +294,45 @@
       "Op": "mul"
     },
     {
+      "Id": "param_etl_bump_load_pitch",
+      "Kind": "Param",
+      "X": 380.0,
+      "Y": 780.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "EtlBumpLoadGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_etl_bump_load_roll",
+      "Kind": "Param",
+      "X": 380.0,
+      "Y": 1230.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "EtlBumpLoadRollGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "mul_etl_roll_eff",
+      "Title": "Roll ETL Load (×rot sign)",
+      "Kind": "Op",
+      "X": 540.0,
+      "Y": 1230.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
       "Id": "vib_pitch_include",
       "Title": "Vib Pitch",
       "Kind": "Include",
@@ -675,6 +714,60 @@
       "FromPort": "out",
       "ToNodeId": "96841bc9a8204e6285da2eb18b924e0c",
       "ToPort": "b"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "ETLBump",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "etl_bump"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "ETLBump",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "etl_bump"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "ETLBump",
+      "ToNodeId": "vib_collective_include",
+      "ToPort": "etl_bump"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "ETLBump",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "etl_bump"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "ETLBump",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "etl_bump"
+    },
+    {
+      "FromNodeId": "param_etl_bump_load_pitch",
+      "FromPort": "EtlBumpLoadGain",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "etl_load_gain_eff"
+    },
+    {
+      "FromNodeId": "param_etl_bump_load_roll",
+      "FromPort": "EtlBumpLoadRollGain",
+      "ToNodeId": "mul_etl_roll_eff",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_rotation_sign",
+      "FromPort": "RotationSign",
+      "ToNodeId": "mul_etl_roll_eff",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_etl_roll_eff",
+      "FromPort": "a*b",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "etl_load_gain_eff"
     }
   ],
   "Params": [
@@ -914,6 +1007,70 @@
         "Label": "Slap Cap",
         "Group": "Aircraft",
         "Units": "",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.EtlPeakKts",
+      "DefaultValue": 18.0,
+      "Min": 5.0,
+      "Max": 40.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "ETL Bump Peak",
+        "Group": "Aircraft",
+        "Units": "kt",
+        "Step": 0.5,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.EtlWidthKts",
+      "DefaultValue": 6.0,
+      "Min": 2.0,
+      "Max": 20.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "ETL Bump Width",
+        "Group": "Aircraft",
+        "Units": "kt",
+        "Step": 0.5,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.EtlBumpLoadGain",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "ETL Bump Load (Pitch)",
+        "Group": "Cyclic",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.EtlBumpLoadRollGain",
+      "DefaultValue": 0.4,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "ETL Bump Load (Roll)",
+        "Group": "Cyclic",
+        "Units": "N",
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,

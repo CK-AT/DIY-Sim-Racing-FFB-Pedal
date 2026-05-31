@@ -133,6 +133,26 @@
       ],
       "SignalGroup": "Aircraft"
     },
+    {
+      "Id": "param_etl_peak",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 1100.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "EtlPeakKts" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_etl_width",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 1170.0,
+      "Ports": [
+        { "Kind": "Output", "SignalSuffix": "EtlWidthKts" }
+      ],
+      "SignalGroup": "Aircraft"
+    },
 
     {
       "Id": "const_zero",
@@ -501,6 +521,68 @@
     },
 
     {
+      "Id": "sub_etl_diff",
+      "Title": "IAS - EtlPeak",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 1140.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a-b", "Kind": "Output" }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "div_etl_norm",
+      "Title": "/EtlWidth",
+      "Kind": "Op",
+      "X": 800.0,
+      "Y": 1140.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a/b", "Kind": "Output" }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "mul_neg_sq",
+      "Title": "-n*n",
+      "Kind": "Op",
+      "X": 1040.0,
+      "Y": 1140.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input", "Negate": true },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "-a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "exp_etl",
+      "Title": "exp(-(n^2))",
+      "Kind": "Op",
+      "X": 1280.0,
+      "Y": 1140.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "exp(a)", "Kind": "Output" }
+      ],
+      "Op": "exp"
+    },
+
+    {
+      "Id": "out_etl_bump",
+      "Title": "ETL Bump Out",
+      "Kind": "Output",
+      "X": 1560.0,
+      "Y": 1140.0,
+      "Ports": [
+        { "Name": "ETLBump", "Kind": "Input" }
+      ]
+    },
+    {
       "Id": "out_blade_alph_pitch",
       "Title": "Blade Alpha Pitch Out",
       "Kind": "Output",
@@ -608,6 +690,15 @@
     { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "clamp_slap", "ToPort": "min" },
     { "FromNodeId": "param_slap_max", "FromPort": "SlapMax", "ToNodeId": "clamp_slap", "ToPort": "max" },
     { "FromNodeId": "clamp_slap", "FromPort": "clamp(a,min,max)", "ToNodeId": "out_slap", "ToPort": "Slap" },
+
+    { "FromNodeId": "in_ias_kts", "FromPort": "ias_kts", "ToNodeId": "sub_etl_diff", "ToPort": "a" },
+    { "FromNodeId": "param_etl_peak", "FromPort": "EtlPeakKts", "ToNodeId": "sub_etl_diff", "ToPort": "b" },
+    { "FromNodeId": "sub_etl_diff", "FromPort": "a-b", "ToNodeId": "div_etl_norm", "ToPort": "a" },
+    { "FromNodeId": "param_etl_width", "FromPort": "EtlWidthKts", "ToNodeId": "div_etl_norm", "ToPort": "b" },
+    { "FromNodeId": "div_etl_norm", "FromPort": "a/b", "ToNodeId": "mul_neg_sq", "ToPort": "a" },
+    { "FromNodeId": "div_etl_norm", "FromPort": "a/b", "ToNodeId": "mul_neg_sq", "ToPort": "b" },
+    { "FromNodeId": "mul_neg_sq", "FromPort": "-a*b", "ToNodeId": "exp_etl", "ToPort": "a" },
+    { "FromNodeId": "exp_etl", "FromPort": "exp(a)", "ToNodeId": "out_etl_bump", "ToPort": "ETLBump" },
 
     { "FromNodeId": "in_eng_torque_pct", "FromPort": "eng_torque_pct", "ToNodeId": "div_torque_100", "ToPort": "a" },
     { "FromNodeId": "const_100", "FromPort": "out", "ToNodeId": "div_torque_100", "ToPort": "b" },
@@ -756,6 +847,38 @@
         "Units": "Nm",
         "Step": 10.0,
         "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.EtlPeakKts",
+      "DefaultValue": 18.0,
+      "Min": 5.0,
+      "Max": 40.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "ETL Bump Peak",
+        "Group": "Aircraft",
+        "Units": "kt",
+        "Step": 0.5,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.EtlWidthKts",
+      "DefaultValue": 6.0,
+      "Min": 2.0,
+      "Max": 20.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "ETL Bump Width",
+        "Group": "Aircraft",
+        "Units": "kt",
+        "Step": 0.5,
+        "Precision": 1,
         "LogScale": false,
         "Options": []
       }

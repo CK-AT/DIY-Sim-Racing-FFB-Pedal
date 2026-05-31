@@ -81,6 +81,45 @@
       ]
     },
     {
+      "Id": "in_etl_bump",
+      "Title": "ETL Bump",
+      "Kind": "Input",
+      "X": 1090.0,
+      "Y": 360.0,
+      "Ports": [
+        {
+          "Name": "etl_bump",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_etl_bump_gain",
+      "Kind": "Param",
+      "X": 1090.0,
+      "Y": 510.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "EtlBumpGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "mul_etl_bump",
+      "Title": "etl_bump × gain",
+      "Kind": "Op",
+      "X": 1370.0,
+      "Y": 410.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
       "Id": "param_gain_1rev",
       "Kind": "Param",
       "X": 270.0,
@@ -521,11 +560,15 @@
           "Kind": "Input"
         },
         {
-          "Name": "a+b+c",
+          "Name": "a+b+c+d",
           "Kind": "Output"
         },
         {
           "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "d",
           "Kind": "Input"
         }
       ],
@@ -844,7 +887,7 @@
     },
     {
       "FromNodeId": "add_nrev_slap",
-      "FromPort": "a+b+c",
+      "FromPort": "a+b+c+d",
       "ToNodeId": "out_ampl2",
       "ToPort": "Vib1Ampl2"
     },
@@ -961,6 +1004,24 @@
       "FromPort": "a*b",
       "ToNodeId": "add_nrev_slap",
       "ToPort": "c"
+    },
+    {
+      "FromNodeId": "in_etl_bump",
+      "FromPort": "etl_bump",
+      "ToNodeId": "mul_etl_bump",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_etl_bump_gain",
+      "FromPort": "EtlBumpGain",
+      "ToNodeId": "mul_etl_bump",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_etl_bump",
+      "FromPort": "a*b",
+      "ToNodeId": "add_nrev_slap",
+      "ToPort": "d"
     }
   ],
   "Params": [
@@ -1068,6 +1129,22 @@
       "Ui": {
         "Widget": "slider",
         "Label": "2N/rev base",
+        "Group": "Cyclic Vibration",
+        "Units": "mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.EtlBumpGain",
+      "DefaultValue": 0.6,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "ETL Bump Vibration",
         "Group": "Cyclic Vibration",
         "Units": "mm",
         "Step": 0.01,

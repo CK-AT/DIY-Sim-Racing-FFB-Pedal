@@ -55,6 +55,45 @@
       ]
     },
     {
+      "Id": "in_etl_bump",
+      "Title": "ETL Bump",
+      "Kind": "Input",
+      "X": 60.0,
+      "Y": 380.0,
+      "Ports": [
+        {
+          "Name": "etl_bump",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_etl_bump_gain",
+      "Kind": "Param",
+      "X": 60.0,
+      "Y": 440.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "EtlBumpGain"
+        }
+      ],
+      "SignalGroup": "Collective"
+    },
+    {
+      "Id": "mul_etl_bump",
+      "Title": "etl_bump × gain",
+      "Kind": "Op",
+      "X": 800.0,
+      "Y": 380.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
       "Id": "param_gain_1rev",
       "Kind": "Param",
       "X": 750.0,
@@ -381,7 +420,7 @@
     },
     {
       "Id": "add_nrev_total",
-      "Title": "Vib1Ampl2 = base + etl + slap",
+      "Title": "Vib1Ampl2 = base + etl + slap + etl_bump",
       "Kind": "Op",
       "X": 1230.0,
       "Y": 280.0,
@@ -395,11 +434,15 @@
           "Kind": "Input"
         },
         {
-          "Name": "a+b+c",
+          "Name": "a+b+c+d",
           "Kind": "Output"
         },
         {
           "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "d",
           "Kind": "Input"
         }
       ],
@@ -686,9 +729,27 @@
     },
     {
       "FromNodeId": "add_nrev_total",
-      "FromPort": "a+b+c",
+      "FromPort": "a+b+c+d",
       "ToNodeId": "out_ampl2",
       "ToPort": "Vib1Ampl2"
+    },
+    {
+      "FromNodeId": "in_etl_bump",
+      "FromPort": "etl_bump",
+      "ToNodeId": "mul_etl_bump",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_etl_bump_gain",
+      "FromPort": "EtlBumpGain",
+      "ToNodeId": "mul_etl_bump",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_etl_bump",
+      "FromPort": "a*b",
+      "ToNodeId": "add_nrev_total",
+      "ToPort": "d"
     },
     {
       "FromNodeId": "param_base_2nrev",
@@ -848,6 +909,22 @@
       "Ui": {
         "Widget": "slider",
         "Label": "2N/rev base",
+        "Group": "Collective Vibration",
+        "Units": "mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Collective.EtlBumpGain",
+      "DefaultValue": 0.4,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "ETL Bump Vibration",
         "Group": "Collective Vibration",
         "Units": "mm",
         "Step": 0.01,

@@ -71,6 +71,59 @@
       ]
     },
     {
+      "Id": "in_etl_bump",
+      "Title": "ETL Bump",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 870.0,
+      "Ports": [
+        {
+          "Name": "etl_bump",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_etl_load_gain_eff",
+      "Title": "ETL Bump Load (eff)",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 940.0,
+      "Ports": [
+        {
+          "Name": "etl_load_gain_eff",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "mul_etl_load",
+      "Title": "etl × gain × rpm",
+      "Kind": "Op",
+      "X": 280.0,
+      "Y": 870.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "c", "Kind": "Input" },
+        { "Name": "a*b*c", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "add_total_load",
+      "Title": "Load + ETL",
+      "Kind": "Op",
+      "X": 440.0,
+      "Y": 300.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a+b", "Kind": "Output" }
+      ],
+      "Op": "add"
+    },
+    {
       "Id": "param_k_spring",
       "Kind": "Param",
       "X": 30.0,
@@ -399,14 +452,44 @@
       "ToPort": "c"
     },
     {
-      "FromNodeId": "load",
-      "FromPort": "a*-b*c",
-      "ToNodeId": "owl_clamp",
+      "FromNodeId": "in_etl_bump",
+      "FromPort": "etl_bump",
+      "ToNodeId": "mul_etl_load",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_etl_load_gain_eff",
+      "FromPort": "etl_load_gain_eff",
+      "ToNodeId": "mul_etl_load",
       "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_etl_load",
+      "ToPort": "c"
     },
     {
       "FromNodeId": "load",
       "FromPort": "a*-b*c",
+      "ToNodeId": "add_total_load",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_etl_load",
+      "FromPort": "a*b*c",
+      "ToNodeId": "add_total_load",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_total_load",
+      "FromPort": "a+b",
+      "ToNodeId": "owl_clamp",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_total_load",
+      "FromPort": "a+b",
       "ToNodeId": "select_owl",
       "ToPort": "b"
     }
