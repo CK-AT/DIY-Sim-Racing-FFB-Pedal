@@ -746,6 +746,18 @@
       "ToPort": "etl_bump"
     },
     {
+      "FromNodeId": "derivations_include",
+      "FromPort": "VRS",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "vrs"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "VRS",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "vrs"
+    },
+    {
       "FromNodeId": "param_etl_bump_load_pitch",
       "FromPort": "EtlBumpLoadGain",
       "ToNodeId": "cyclic_pitch_include",
@@ -1071,6 +1083,22 @@
         "Label": "ETL Bump Load (Roll)",
         "Group": "Cyclic",
         "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.VrsAttenGain",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS Load Attenuation",
+        "Group": "Cyclic",
+        "Units": "",
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,

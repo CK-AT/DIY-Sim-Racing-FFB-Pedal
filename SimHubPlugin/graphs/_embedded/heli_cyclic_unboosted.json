@@ -97,6 +97,144 @@
       ]
     },
     {
+      "Id": "in_vrs",
+      "Title": "VRS",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 1010.0,
+      "Ports": [
+        {
+          "Name": "vrs",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_vrs_atten_gain",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 1080.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "VrsAttenGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "const_vrs_lo",
+      "Title": "0.25",
+      "Kind": "Const",
+      "X": 200.0,
+      "Y": 1010.0,
+      "Ports": [
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "ConstValue": 0.25
+    },
+    {
+      "Id": "const_vrs_one",
+      "Title": "1.0",
+      "Kind": "Const",
+      "X": 200.0,
+      "Y": 1060.0,
+      "Ports": [
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "ConstValue": 1.0
+    },
+    {
+      "Id": "const_vrs_zero",
+      "Title": "0.0",
+      "Kind": "Const",
+      "X": 200.0,
+      "Y": 1110.0,
+      "Ports": [
+        { "Name": "out", "Kind": "Output" }
+      ],
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "sub_vrs_eff",
+      "Title": "vrs - 0.25",
+      "Kind": "Op",
+      "X": 280.0,
+      "Y": 1010.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a-b", "Kind": "Output" }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "div_vrs_eff",
+      "Title": "/0.25",
+      "Kind": "Op",
+      "X": 360.0,
+      "Y": 1010.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a/b", "Kind": "Output" }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "clamp_vrs_eff",
+      "Title": "clamp 0..1",
+      "Kind": "Op",
+      "X": 440.0,
+      "Y": 1010.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "min", "Kind": "Input" },
+        { "Name": "max", "Kind": "Input" },
+        { "Name": "clamp(a,min,max)", "Kind": "Output" }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "mul_atten_amt",
+      "Title": "VrsAtten × vrs_eff",
+      "Kind": "Op",
+      "X": 520.0,
+      "Y": 1080.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "sub_atten_factor",
+      "Title": "1 - atten_amt",
+      "Kind": "Op",
+      "X": 600.0,
+      "Y": 1080.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a-b", "Kind": "Output" }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "mul_load_atten",
+      "Title": "Load × atten",
+      "Kind": "Op",
+      "X": 360.0,
+      "Y": 300.0,
+      "Ports": [
+        { "Name": "a", "Kind": "Input" },
+        { "Name": "b", "Kind": "Input" },
+        { "Name": "a*b", "Kind": "Output" }
+      ],
+      "Op": "mul"
+    },
+    {
       "Id": "mul_etl_load",
       "Title": "etl × gain × rpm",
       "Kind": "Op",
@@ -470,8 +608,86 @@
       "ToPort": "c"
     },
     {
+      "FromNodeId": "in_vrs",
+      "FromPort": "vrs",
+      "ToNodeId": "sub_vrs_eff",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_vrs_lo",
+      "FromPort": "out",
+      "ToNodeId": "sub_vrs_eff",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sub_vrs_eff",
+      "FromPort": "a-b",
+      "ToNodeId": "div_vrs_eff",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_vrs_lo",
+      "FromPort": "out",
+      "ToNodeId": "div_vrs_eff",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_vrs_eff",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_vrs_eff",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_vrs_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_vrs_eff",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_vrs_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_vrs_eff",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "param_vrs_atten_gain",
+      "FromPort": "VrsAttenGain",
+      "ToNodeId": "mul_atten_amt",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "clamp_vrs_eff",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_atten_amt",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "const_vrs_one",
+      "FromPort": "out",
+      "ToNodeId": "sub_atten_factor",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_atten_amt",
+      "FromPort": "a*b",
+      "ToNodeId": "sub_atten_factor",
+      "ToPort": "b"
+    },
+    {
       "FromNodeId": "load",
       "FromPort": "a*-b*c",
+      "ToNodeId": "mul_load_atten",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "sub_atten_factor",
+      "FromPort": "a-b",
+      "ToNodeId": "mul_load_atten",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_load_atten",
+      "FromPort": "a*b",
       "ToNodeId": "add_total_load",
       "ToPort": "a"
     },
