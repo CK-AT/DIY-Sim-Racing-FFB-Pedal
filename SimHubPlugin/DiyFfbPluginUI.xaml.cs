@@ -4057,8 +4057,8 @@ namespace DiyFfb
                     Orientation = Orientation.Horizontal,
                     HorizontalAlignment = HorizontalAlignment.Left
                 };
-                row.Children.Add(muteCheckbox);
                 row.Children.Add(control);
+                row.Children.Add(muteCheckbox);
                 panel.Children.Add(row);
             }
             else

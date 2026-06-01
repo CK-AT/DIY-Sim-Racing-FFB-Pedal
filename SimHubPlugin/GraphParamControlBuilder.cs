@@ -32,7 +32,7 @@ namespace DiyFfb
             {
                 Foreground = Brushes.LightGray,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 6, 0),
+                Margin = new Thickness(6, 0, 0, 0),
                 IsChecked = initialMuted,
                 ToolTip = $"Mute (substitute {muteValue.ToString("0.###", CultureInfo.InvariantCulture)} during evaluation)"
             };
