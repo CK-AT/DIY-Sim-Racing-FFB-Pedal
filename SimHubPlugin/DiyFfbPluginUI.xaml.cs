@@ -195,6 +195,7 @@ namespace DiyFfb
             {
                 plugin.ActiveGraphChanged += OnActiveGraphChanged_UI;
                 plugin.GraphParamChanged += OnGraphParamChanged_Vehicle;
+                plugin.ParamMutesCleared += OnParamMutesCleared_Vehicle;
                 plugin.ParamMigrationDetected += OnParamMigrationDetected;
                 plugin.FunctionConfigManager.FunctionConfigChanged += OnMergedFunctionConfigChanged;
                 plugin.AxisConfigManager.AxisConfigChanged += OnMergedAxisConfigChanged;
@@ -4024,6 +4025,12 @@ namespace DiyFfb
                 Content = FormatVehicleParamLabel(param, currentValue),
                 Padding = new Thickness(0, 0, 0, 8)
             };
+            var muteCheckbox = GraphParamControlBuilder.BuildMuteCheckbox(
+                param,
+                Plugin.IsParamMuted(param.Name),
+                muted => Plugin.SetParamMuted(param.Name, muted));
+
+            double controlWidth = muteCheckbox != null ? 380.0 : 400.0;
             var control = GraphParamControlBuilder.BuildControl(
                 param,
                 value =>
@@ -4038,17 +4045,38 @@ namespace DiyFfb
                         }
                     }
                 },
-                width: 400,
+                width: controlWidth,
                 initialValue: currentValue
             );
 
             panel.Children.Add(label);
-            panel.Children.Add(control);
+            if (muteCheckbox != null)
+            {
+                var row = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Left
+                };
+                row.Children.Add(muteCheckbox);
+                row.Children.Add(control);
+                panel.Children.Add(row);
+            }
+            else
+            {
+                panel.Children.Add(control);
+            }
 
             vehicleParamControls[param.Name] = control;
             vehicleParamLabels[param.Name] = label;
 
             return panel;
+        }
+
+        private void OnParamMutesCleared_Vehicle(object sender, EventArgs e)
+        {
+            // Vehicle-profile switch cleared all mutes; rebuild the panel so
+            // checkbox state mirrors the cleared plugin state.
+            Dispatcher.BeginInvoke(new Action(RefreshVehicleParams));
         }
 
         private void OnGraphParamChanged_Vehicle(object sender, GraphParamChangedEventArgs e)
