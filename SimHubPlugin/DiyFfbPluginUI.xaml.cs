@@ -4030,7 +4030,7 @@ namespace DiyFfb
                 Plugin.IsParamMuted(param.Name),
                 muted => Plugin.SetParamMuted(param.Name, muted));
 
-            double controlWidth = muteCheckbox != null ? 380.0 : 400.0;
+            double controlWidth = muteCheckbox != null ? 370.0 : 400.0;
             var control = GraphParamControlBuilder.BuildControl(
                 param,
                 value =>
