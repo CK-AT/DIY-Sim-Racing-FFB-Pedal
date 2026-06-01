@@ -51,6 +51,7 @@ namespace DiyFfb.Controls
             {
                 plugin.ActiveGraphChanged += OnActiveGraphChanged;
                 plugin.GraphParamChanged += OnGraphParamChanged;
+                plugin.ParamMutesCleared += OnParamMutesCleared;
             }
         }
 
@@ -64,7 +65,16 @@ namespace DiyFfb.Controls
             {
                 plugin.ActiveGraphChanged -= OnActiveGraphChanged;
                 plugin.GraphParamChanged -= OnGraphParamChanged;
+                plugin.ParamMutesCleared -= OnParamMutesCleared;
             }
+        }
+
+        private void OnParamMutesCleared(object sender, EventArgs e)
+        {
+            // Bulk-cleared by profile/vehicle/user switch. Rebuild so checkboxes
+            // reflect the new state. Per-click toggles use ParamMuteChanged
+            // (not subscribed here — the click already updates its own UI).
+            _dispatcher.Invoke(new Action(Refresh));
         }
 
         /// <summary>

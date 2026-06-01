@@ -1536,6 +1536,10 @@ namespace DiyFfb
         private readonly HashSet<string> _mutedParams = new HashSet<string>(StringComparer.Ordinal);
 
         public event EventHandler ParamMuteChanged;
+        // Fired on bulk clear (profile/vehicle/user switch). Subscribers
+        // should rebuild any UI that displays mute state — checkbox values
+        // may have changed without an originating user click.
+        public event EventHandler ParamMutesCleared;
 
         public bool IsParamMuted(string name)
         {
@@ -1550,6 +1554,13 @@ namespace DiyFfb
             {
                 ParamMuteChanged?.Invoke(this, EventArgs.Empty);
             }
+        }
+
+        public void ClearAllParamMutes()
+        {
+            if (_mutedParams.Count == 0) return;
+            _mutedParams.Clear();
+            ParamMutesCleared?.Invoke(this, EventArgs.Empty);
         }
 
         private static float Clamp(float value, float min, float max)
@@ -3012,6 +3023,11 @@ namespace DiyFfb
             // finds the profile under the new key format.
             MigrateProfileKeyIfNeeded(gameId, carId);
 
+            // Mute state is per-vehicle: a different aircraft shouldn't inherit
+            // tuning-session mutes. Clear before BuildGraphParams so the new
+            // params dict isn't built with stale mute substitutions.
+            ClearAllParamMutes();
+
             // Resolve graph first — auto-assign creates the profile and
             // SeedDefaultActiveFunctionIds populates ActiveFunctionIds.
             // ApplyAircraftProfile must run after so it sees populated IDs.
@@ -3378,6 +3394,10 @@ namespace DiyFfb
         {
             if (string.IsNullOrWhiteSpace(activeCarId))
                 return;
+
+            // Mute state is per-vehicle-profile: loading a different saved
+            // profile resets any tuning-session mutes.
+            ClearAllParamMutes();
 
             // 1. Set graph path for current vehicle if provided
             if (!string.IsNullOrWhiteSpace(graphPath))
