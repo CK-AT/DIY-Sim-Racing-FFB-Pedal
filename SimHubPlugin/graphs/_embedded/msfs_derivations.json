@@ -9,7 +9,10 @@
       "X": 30.0,
       "Y": 60.0,
       "Ports": [
-        { "Name": "tas_kts", "Kind": "Output" }
+        {
+          "Name": "tas_kts",
+          "Kind": "Output"
+        }
       ]
     },
     {
@@ -19,7 +22,10 @@
       "X": 30.0,
       "Y": 110.0,
       "Ports": [
-        { "Name": "main_rotor_rpm", "Kind": "Output" }
+        {
+          "Name": "main_rotor_rpm",
+          "Kind": "Output"
+        }
       ]
     },
     {
@@ -29,7 +35,10 @@
       "X": 30.0,
       "Y": 140.0,
       "Ports": [
-        { "Name": "beta_deg", "Kind": "Output" }
+        {
+          "Name": "beta_deg",
+          "Kind": "Output"
+        }
       ]
     },
     {
@@ -39,7 +48,10 @@
       "X": 30.0,
       "Y": 220.0,
       "Ports": [
-        { "Name": "vvi_fps", "Kind": "Output" }
+        {
+          "Name": "vvi_fps",
+          "Kind": "Output"
+        }
       ]
     },
     {
@@ -49,7 +61,10 @@
       "X": 30.0,
       "Y": 300.0,
       "Ports": [
-        { "Name": "eng_torque_pct", "Kind": "Output" }
+        {
+          "Name": "eng_torque_pct",
+          "Kind": "Output"
+        }
       ]
     },
     {
@@ -59,7 +74,10 @@
       "X": 30.0,
       "Y": 360.0,
       "Ports": [
-        { "Name": "g_force", "Kind": "Output" }
+        {
+          "Name": "g_force",
+          "Kind": "Output"
+        }
       ]
     },
     {
@@ -69,17 +87,22 @@
       "X": 30.0,
       "Y": 380.0,
       "Ports": [
-        { "Name": "collective_pos_pct", "Kind": "Output" }
+        {
+          "Name": "collective_pos_pct",
+          "Kind": "Output"
+        }
       ]
     },
-
     {
       "Id": "param_rotor_diameter",
       "Kind": "Param",
       "X": 30.0,
       "Y": 420.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "RotorDiameterM" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RotorDiameterM"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -89,7 +112,10 @@
       "X": 30.0,
       "Y": 490.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "KSpeedPitch" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "KSpeedPitch"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -99,7 +125,10 @@
       "X": 30.0,
       "Y": 560.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "KSpeedRoll" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "KSpeedRoll"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -109,7 +138,10 @@
       "X": 30.0,
       "Y": 630.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "EtlSpeedKts" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "EtlSpeedKts"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -119,7 +151,10 @@
       "X": 30.0,
       "Y": 700.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "DescentMaxFpm" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "DescentMaxFpm"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -129,7 +164,10 @@
       "X": 30.0,
       "Y": 770.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "SlapOnsetKts" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "SlapOnsetKts"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -139,7 +177,10 @@
       "X": 30.0,
       "Y": 840.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "KSlap" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "KSlap"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -149,7 +190,10 @@
       "X": 30.0,
       "Y": 910.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "SlapMax" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "SlapMax"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -159,7 +203,10 @@
       "X": 30.0,
       "Y": 980.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "MaxTorqueNm" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "MaxTorqueNm"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -169,7 +216,10 @@
       "X": 30.0,
       "Y": 1100.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "EtlPeakKts" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "EtlPeakKts"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -179,7 +229,10 @@
       "X": 30.0,
       "Y": 1170.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "EtlWidthKts" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "EtlWidthKts"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -189,7 +242,10 @@
       "X": 30.0,
       "Y": 1240.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "VrsTauUp" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "VrsTauUp"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -199,7 +255,10 @@
       "X": 30.0,
       "Y": 1310.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "VrsTauDown" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "VrsTauDown"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -209,7 +268,10 @@
       "X": 30.0,
       "Y": 1400.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "RbsMuCoupling" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RbsMuCoupling"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -219,7 +281,10 @@
       "X": 30.0,
       "Y": 1470.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "RbsThreshold" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RbsThreshold"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -229,7 +294,10 @@
       "X": 30.0,
       "Y": 1540.0,
       "Ports": [
-        { "Kind": "Output", "SignalSuffix": "RbsWidth" }
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RbsWidth"
+        }
       ],
       "SignalGroup": "Aircraft"
     },
@@ -240,15 +308,26 @@
       "X": 2400.0,
       "Y": 460.0,
       "Ports": [
-        { "Name": "input", "Kind": "Input" },
-        { "Name": "tau_up_sec", "Kind": "Input" },
-        { "Name": "tau_down_sec", "Kind": "Input" },
-        { "Name": "out", "Kind": "Output" }
+        {
+          "Name": "input",
+          "Kind": "Input"
+        },
+        {
+          "Name": "tau_up_sec",
+          "Kind": "Input"
+        },
+        {
+          "Name": "tau_down_sec",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
       ],
       "Func": "lag_asym",
       "IncludePath": ""
     },
-
     {
       "Id": "const_zero",
       "Title": "0",
@@ -256,7 +335,10 @@
       "X": 300.0,
       "Y": 60.0,
       "Ports": [
-        { "Name": "out", "Kind": "Output" }
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
       ],
       "ConstValue": 0.0
     },
@@ -267,7 +349,10 @@
       "X": 300.0,
       "Y": 130.0,
       "Ports": [
-        { "Name": "out", "Kind": "Output" }
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
       ],
       "ConstValue": 1.0
     },
@@ -278,7 +363,10 @@
       "X": 300.0,
       "Y": 200.0,
       "Ports": [
-        { "Name": "out", "Kind": "Output" }
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
       ],
       "ConstValue": 60.0
     },
@@ -289,7 +377,10 @@
       "X": 300.0,
       "Y": 270.0,
       "Ports": [
-        { "Name": "out", "Kind": "Output" }
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
       ],
       "ConstValue": 100.0
     },
@@ -300,7 +391,10 @@
       "X": 300.0,
       "Y": 340.0,
       "Ports": [
-        { "Name": "out", "Kind": "Output" }
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
       ],
       "ConstValue": 0.25
     },
@@ -311,7 +405,10 @@
       "X": 300.0,
       "Y": 410.0,
       "Ports": [
-        { "Name": "out", "Kind": "Output" }
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
       ],
       "ConstValue": 0.5
     },
@@ -322,11 +419,13 @@
       "X": 300.0,
       "Y": 480.0,
       "Ports": [
-        { "Name": "out", "Kind": "Output" }
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
       ],
-      "ConstValue": 0.10185916357881302
+      "ConstValue": 0.10185916357881301
     },
-
     {
       "Id": "tip_speed_kts",
       "Title": "Vtip = D·rpm·k",
@@ -334,10 +433,22 @@
       "X": 560.0,
       "Y": 120.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "c", "Kind": "Input" },
-        { "Name": "a*b*c", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -348,13 +459,21 @@
       "X": 800.0,
       "Y": 60.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a/b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
       ],
       "Op": "div"
     },
-
     {
       "Id": "mul_alph_pitch",
       "Title": "-k_pitch*mu",
@@ -362,13 +481,22 @@
       "X": 1080.0,
       "Y": 60.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input", "Negate": true },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "-a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input",
+          "Negate": true
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "-a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
-
     {
       "Id": "mul_alph_roll",
       "Title": "-k_roll*beta*mu",
@@ -376,14 +504,26 @@
       "X": 1080.0,
       "Y": 160.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input", "Negate": true },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "c", "Kind": "Input" },
-        { "Name": "-a*b*c", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input",
+          "Negate": true
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "-a*b*c",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
-
     {
       "Id": "mul_descent_60",
       "Title": "-VVI*60",
@@ -391,9 +531,19 @@
       "X": 560.0,
       "Y": 300.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input", "Negate": true },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "-a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input",
+          "Negate": true
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "-a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -404,9 +554,18 @@
       "X": 800.0,
       "Y": 300.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "max(a,b)", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max(a,b)",
+          "Kind": "Output"
+        }
       ],
       "Op": "max"
     },
@@ -417,9 +576,18 @@
       "X": 1080.0,
       "Y": 300.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a/b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
       ],
       "Op": "div"
     },
@@ -430,14 +598,25 @@
       "X": 1320.0,
       "Y": 300.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "min", "Kind": "Input" },
-        { "Name": "max", "Kind": "Input" },
-        { "Name": "clamp(a,min,max)", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
       ],
       "Op": "clamp"
     },
-
     {
       "Id": "div_fwd",
       "Title": "IAS/EtlSpeed",
@@ -445,9 +624,18 @@
       "X": 560.0,
       "Y": 420.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a/b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
       ],
       "Op": "div"
     },
@@ -458,9 +646,18 @@
       "X": 800.0,
       "Y": 420.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a-b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
       ],
       "Op": "sub"
     },
@@ -471,14 +668,25 @@
       "X": 1080.0,
       "Y": 420.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "min", "Kind": "Input" },
-        { "Name": "max", "Kind": "Input" },
-        { "Name": "clamp(a,min,max)", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
       ],
       "Op": "clamp"
     },
-
     {
       "Id": "mul_half_desc",
       "Title": "0.5*desc",
@@ -486,9 +694,18 @@
       "X": 1560.0,
       "Y": 300.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -499,9 +716,18 @@
       "X": 1800.0,
       "Y": 300.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a+b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
       ],
       "Op": "add"
     },
@@ -512,10 +738,22 @@
       "X": 2040.0,
       "Y": 360.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "c", "Kind": "Input" },
-        { "Name": "a*b*c", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -526,13 +764,21 @@
       "X": 2280.0,
       "Y": 360.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a+b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
       ],
       "Op": "add"
     },
-
     {
       "Id": "sub_slap",
       "Title": "IAS-Onset",
@@ -540,9 +786,18 @@
       "X": 560.0,
       "Y": 720.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a-b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
       ],
       "Op": "sub"
     },
@@ -553,9 +808,18 @@
       "X": 800.0,
       "Y": 720.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "max(a,b)", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max(a,b)",
+          "Kind": "Output"
+        }
       ],
       "Op": "max"
     },
@@ -566,9 +830,18 @@
       "X": 1080.0,
       "Y": 720.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -579,9 +852,18 @@
       "X": 1320.0,
       "Y": 720.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a/b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
       ],
       "Op": "div"
     },
@@ -592,14 +874,25 @@
       "X": 1560.0,
       "Y": 720.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "min", "Kind": "Input" },
-        { "Name": "max", "Kind": "Input" },
-        { "Name": "clamp(a,min,max)", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
       ],
       "Op": "clamp"
     },
-
     {
       "Id": "div_torque_100",
       "Title": "EngTrq%/100",
@@ -607,9 +900,18 @@
       "X": 560.0,
       "Y": 980.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a/b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
       ],
       "Op": "div"
     },
@@ -620,13 +922,21 @@
       "X": 800.0,
       "Y": 980.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
-
     {
       "Id": "sub_etl_diff",
       "Title": "IAS - EtlPeak",
@@ -634,9 +944,18 @@
       "X": 560.0,
       "Y": 1140.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a-b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
       ],
       "Op": "sub"
     },
@@ -647,9 +966,18 @@
       "X": 800.0,
       "Y": 1140.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a/b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
       ],
       "Op": "div"
     },
@@ -660,9 +988,19 @@
       "X": 1040.0,
       "Y": 1140.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input", "Negate": true },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "-a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input",
+          "Negate": true
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "-a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -673,12 +1011,17 @@
       "X": 1280.0,
       "Y": 1140.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "exp(a)", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "exp(a)",
+          "Kind": "Output"
+        }
       ],
       "Op": "exp"
     },
-
     {
       "Id": "out_etl_bump",
       "Title": "ETL Bump Out",
@@ -686,10 +1029,12 @@
       "X": 1560.0,
       "Y": 1140.0,
       "Ports": [
-        { "Name": "ETLBump", "Kind": "Input" }
+        {
+          "Name": "ETLBump",
+          "Kind": "Input"
+        }
       ]
     },
-
     {
       "Id": "div_collective_100",
       "Title": "collective/100",
@@ -697,9 +1042,18 @@
       "X": 560.0,
       "Y": 1400.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a/b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
       ],
       "Op": "div"
     },
@@ -710,10 +1064,22 @@
       "X": 800.0,
       "Y": 1400.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "min", "Kind": "Input" },
-        { "Name": "max", "Kind": "Input" },
-        { "Name": "clamp(a,min,max)", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
       ],
       "Op": "clamp"
     },
@@ -724,9 +1090,18 @@
       "X": 560.0,
       "Y": 1470.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "max(a,b)", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max(a,b)",
+          "Kind": "Output"
+        }
       ],
       "Op": "max"
     },
@@ -737,9 +1112,18 @@
       "X": 560.0,
       "Y": 1540.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a*b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -750,9 +1134,18 @@
       "X": 800.0,
       "Y": 1540.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a+b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
       ],
       "Op": "add"
     },
@@ -763,10 +1156,22 @@
       "X": 1040.0,
       "Y": 1470.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "c", "Kind": "Input" },
-        { "Name": "a*b*c", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c",
+          "Kind": "Output"
+        }
       ],
       "Op": "mul"
     },
@@ -777,9 +1182,18 @@
       "X": 1280.0,
       "Y": 1470.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a-b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
       ],
       "Op": "sub"
     },
@@ -790,9 +1204,18 @@
       "X": 1520.0,
       "Y": 1470.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "b", "Kind": "Input" },
-        { "Name": "a/b", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
       ],
       "Op": "div"
     },
@@ -803,10 +1226,22 @@
       "X": 1760.0,
       "Y": 1470.0,
       "Ports": [
-        { "Name": "a", "Kind": "Input" },
-        { "Name": "min", "Kind": "Input" },
-        { "Name": "max", "Kind": "Input" },
-        { "Name": "clamp(a,min,max)", "Kind": "Output" }
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
       ],
       "Op": "clamp"
     },
@@ -817,7 +1252,10 @@
       "X": 2040.0,
       "Y": 1470.0,
       "Ports": [
-        { "Name": "RBS", "Kind": "Input" }
+        {
+          "Name": "RBS",
+          "Kind": "Input"
+        }
       ]
     },
     {
@@ -827,7 +1265,10 @@
       "X": 1320.0,
       "Y": 60.0,
       "Ports": [
-        { "Name": "BladeAlphPitch", "Kind": "Input" }
+        {
+          "Name": "BladeAlphPitch",
+          "Kind": "Input"
+        }
       ]
     },
     {
@@ -837,7 +1278,10 @@
       "X": 1320.0,
       "Y": 160.0,
       "Ports": [
-        { "Name": "BladeAlphRoll", "Kind": "Input" }
+        {
+          "Name": "BladeAlphRoll",
+          "Kind": "Input"
+        }
       ]
     },
     {
@@ -847,7 +1291,10 @@
       "X": 2520.0,
       "Y": 360.0,
       "Ports": [
-        { "Name": "VRS", "Kind": "Input" }
+        {
+          "Name": "VRS",
+          "Kind": "Input"
+        }
       ]
     },
     {
@@ -857,7 +1304,10 @@
       "X": 1800.0,
       "Y": 720.0,
       "Ports": [
-        { "Name": "Slap", "Kind": "Input" }
+        {
+          "Name": "Slap",
+          "Kind": "Input"
+        }
       ]
     },
     {
@@ -867,109 +1317,542 @@
       "X": 1080.0,
       "Y": 980.0,
       "Ports": [
-        { "Name": "MainRotor.Torque", "Kind": "Input" }
+        {
+          "Name": "MainRotor.Torque",
+          "Kind": "Input"
+        }
       ]
     }
   ],
   "Links": [
-    { "FromNodeId": "param_rotor_diameter", "FromPort": "RotorDiameterM", "ToNodeId": "tip_speed_kts", "ToPort": "a" },
-    { "FromNodeId": "in_main_rotor_rpm", "FromPort": "main_rotor_rpm", "ToNodeId": "tip_speed_kts", "ToPort": "b" },
-    { "FromNodeId": "const_tip_kt_per_d_rpm", "FromPort": "out", "ToNodeId": "tip_speed_kts", "ToPort": "c" },
-    { "FromNodeId": "in_tas_kts", "FromPort": "tas_kts", "ToNodeId": "mu_div", "ToPort": "a" },
-    { "FromNodeId": "tip_speed_kts", "FromPort": "a*b*c", "ToNodeId": "mu_div", "ToPort": "b" },
-
-    { "FromNodeId": "param_k_speed_pitch", "FromPort": "KSpeedPitch", "ToNodeId": "mul_alph_pitch", "ToPort": "a" },
-    { "FromNodeId": "mu_div", "FromPort": "a/b", "ToNodeId": "mul_alph_pitch", "ToPort": "b" },
-    { "FromNodeId": "mul_alph_pitch", "FromPort": "-a*b", "ToNodeId": "out_blade_alph_pitch", "ToPort": "BladeAlphPitch" },
-
-    { "FromNodeId": "param_k_speed_roll", "FromPort": "KSpeedRoll", "ToNodeId": "mul_alph_roll", "ToPort": "a" },
-    { "FromNodeId": "in_beta_deg", "FromPort": "beta_deg", "ToNodeId": "mul_alph_roll", "ToPort": "b" },
-    { "FromNodeId": "mu_div", "FromPort": "a/b", "ToNodeId": "mul_alph_roll", "ToPort": "c" },
-    { "FromNodeId": "mul_alph_roll", "FromPort": "-a*b*c", "ToNodeId": "out_blade_alph_roll", "ToPort": "BladeAlphRoll" },
-
-    { "FromNodeId": "in_vvi_fps", "FromPort": "vvi_fps", "ToNodeId": "mul_descent_60", "ToPort": "a" },
-    { "FromNodeId": "const_60", "FromPort": "out", "ToNodeId": "mul_descent_60", "ToPort": "b" },
-    { "FromNodeId": "mul_descent_60", "FromPort": "-a*b", "ToNodeId": "max_descent", "ToPort": "a" },
-    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "max_descent", "ToPort": "b" },
-    { "FromNodeId": "max_descent", "FromPort": "max(a,b)", "ToNodeId": "div_desc", "ToPort": "a" },
-    { "FromNodeId": "param_descent_max", "FromPort": "DescentMaxFpm", "ToNodeId": "div_desc", "ToPort": "b" },
-    { "FromNodeId": "div_desc", "FromPort": "a/b", "ToNodeId": "clamp_desc", "ToPort": "a" },
-    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "clamp_desc", "ToPort": "min" },
-    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "clamp_desc", "ToPort": "max" },
-
-    { "FromNodeId": "in_tas_kts", "FromPort": "tas_kts", "ToNodeId": "div_fwd", "ToPort": "a" },
-    { "FromNodeId": "param_etl_speed", "FromPort": "EtlSpeedKts", "ToNodeId": "div_fwd", "ToPort": "b" },
-    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "sub_fwd", "ToPort": "a" },
-    { "FromNodeId": "div_fwd", "FromPort": "a/b", "ToNodeId": "sub_fwd", "ToPort": "b" },
-    { "FromNodeId": "sub_fwd", "FromPort": "a-b", "ToNodeId": "clamp_fwd", "ToPort": "a" },
-    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "clamp_fwd", "ToPort": "min" },
-    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "clamp_fwd", "ToPort": "max" },
-
-    { "FromNodeId": "const_half", "FromPort": "out", "ToNodeId": "mul_half_desc", "ToPort": "a" },
-    { "FromNodeId": "clamp_desc", "FromPort": "clamp(a,min,max)", "ToNodeId": "mul_half_desc", "ToPort": "b" },
-    { "FromNodeId": "const_half", "FromPort": "out", "ToNodeId": "add_inner", "ToPort": "a" },
-    { "FromNodeId": "mul_half_desc", "FromPort": "a*b", "ToNodeId": "add_inner", "ToPort": "b" },
-
-    { "FromNodeId": "const_quarter", "FromPort": "out", "ToNodeId": "mul_vrs_core", "ToPort": "a" },
-    { "FromNodeId": "clamp_fwd", "FromPort": "clamp(a,min,max)", "ToNodeId": "mul_vrs_core", "ToPort": "b" },
-    { "FromNodeId": "add_inner", "FromPort": "a+b", "ToNodeId": "mul_vrs_core", "ToPort": "c" },
-    { "FromNodeId": "const_quarter", "FromPort": "out", "ToNodeId": "add_vrs", "ToPort": "a" },
-    { "FromNodeId": "mul_vrs_core", "FromPort": "a*b*c", "ToNodeId": "add_vrs", "ToPort": "b" },
-    { "FromNodeId": "add_vrs", "FromPort": "a+b", "ToNodeId": "lag_asym_vrs", "ToPort": "input" },
-    { "FromNodeId": "param_vrs_tau_up", "FromPort": "VrsTauUp", "ToNodeId": "lag_asym_vrs", "ToPort": "tau_up_sec" },
-    { "FromNodeId": "param_vrs_tau_down", "FromPort": "VrsTauDown", "ToNodeId": "lag_asym_vrs", "ToPort": "tau_down_sec" },
-    { "FromNodeId": "lag_asym_vrs", "FromPort": "out", "ToNodeId": "out_vrs", "ToPort": "VRS" },
-
-    { "FromNodeId": "in_tas_kts", "FromPort": "tas_kts", "ToNodeId": "sub_slap", "ToPort": "a" },
-    { "FromNodeId": "param_slap_onset", "FromPort": "SlapOnsetKts", "ToNodeId": "sub_slap", "ToPort": "b" },
-    { "FromNodeId": "sub_slap", "FromPort": "a-b", "ToNodeId": "max_slap_over", "ToPort": "a" },
-    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "max_slap_over", "ToPort": "b" },
-    { "FromNodeId": "max_slap_over", "FromPort": "max(a,b)", "ToNodeId": "mul_slap_k", "ToPort": "a" },
-    { "FromNodeId": "param_k_slap", "FromPort": "KSlap", "ToNodeId": "mul_slap_k", "ToPort": "b" },
-    { "FromNodeId": "mul_slap_k", "FromPort": "a*b", "ToNodeId": "div_slap_100", "ToPort": "a" },
-    { "FromNodeId": "const_100", "FromPort": "out", "ToNodeId": "div_slap_100", "ToPort": "b" },
-    { "FromNodeId": "div_slap_100", "FromPort": "a/b", "ToNodeId": "clamp_slap", "ToPort": "a" },
-    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "clamp_slap", "ToPort": "min" },
-    { "FromNodeId": "param_slap_max", "FromPort": "SlapMax", "ToNodeId": "clamp_slap", "ToPort": "max" },
-    { "FromNodeId": "clamp_slap", "FromPort": "clamp(a,min,max)", "ToNodeId": "out_slap", "ToPort": "Slap" },
-
-    { "FromNodeId": "in_tas_kts", "FromPort": "tas_kts", "ToNodeId": "sub_etl_diff", "ToPort": "a" },
-    { "FromNodeId": "param_etl_peak", "FromPort": "EtlPeakKts", "ToNodeId": "sub_etl_diff", "ToPort": "b" },
-    { "FromNodeId": "sub_etl_diff", "FromPort": "a-b", "ToNodeId": "div_etl_norm", "ToPort": "a" },
-    { "FromNodeId": "param_etl_width", "FromPort": "EtlWidthKts", "ToNodeId": "div_etl_norm", "ToPort": "b" },
-    { "FromNodeId": "div_etl_norm", "FromPort": "a/b", "ToNodeId": "mul_neg_sq", "ToPort": "a" },
-    { "FromNodeId": "div_etl_norm", "FromPort": "a/b", "ToNodeId": "mul_neg_sq", "ToPort": "b" },
-    { "FromNodeId": "mul_neg_sq", "FromPort": "-a*b", "ToNodeId": "exp_etl", "ToPort": "a" },
-    { "FromNodeId": "exp_etl", "FromPort": "exp(a)", "ToNodeId": "out_etl_bump", "ToPort": "ETLBump" },
-
-    { "FromNodeId": "in_collective_pos_pct", "FromPort": "collective_pos_pct", "ToNodeId": "div_collective_100", "ToPort": "a" },
-    { "FromNodeId": "const_100", "FromPort": "out", "ToNodeId": "div_collective_100", "ToPort": "b" },
-    { "FromNodeId": "div_collective_100", "FromPort": "a/b", "ToNodeId": "clamp_collective", "ToPort": "a" },
-    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "clamp_collective", "ToPort": "min" },
-    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "clamp_collective", "ToPort": "max" },
-    { "FromNodeId": "in_g_force", "FromPort": "g_force", "ToNodeId": "max_g_factor", "ToPort": "a" },
-    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "max_g_factor", "ToPort": "b" },
-    { "FromNodeId": "param_rbs_mu_coupling", "FromPort": "RbsMuCoupling", "ToNodeId": "mul_mu_rbs", "ToPort": "a" },
-    { "FromNodeId": "mu_div", "FromPort": "a/b", "ToNodeId": "mul_mu_rbs", "ToPort": "b" },
-    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "add_mu_one", "ToPort": "a" },
-    { "FromNodeId": "mul_mu_rbs", "FromPort": "a*b", "ToNodeId": "add_mu_one", "ToPort": "b" },
-    { "FromNodeId": "clamp_collective", "FromPort": "clamp(a,min,max)", "ToNodeId": "mul_rbs_demand", "ToPort": "a" },
-    { "FromNodeId": "max_g_factor", "FromPort": "max(a,b)", "ToNodeId": "mul_rbs_demand", "ToPort": "b" },
-    { "FromNodeId": "add_mu_one", "FromPort": "a+b", "ToNodeId": "mul_rbs_demand", "ToPort": "c" },
-    { "FromNodeId": "mul_rbs_demand", "FromPort": "a*b*c", "ToNodeId": "sub_rbs_diff", "ToPort": "a" },
-    { "FromNodeId": "param_rbs_threshold", "FromPort": "RbsThreshold", "ToNodeId": "sub_rbs_diff", "ToPort": "b" },
-    { "FromNodeId": "sub_rbs_diff", "FromPort": "a-b", "ToNodeId": "div_rbs_norm", "ToPort": "a" },
-    { "FromNodeId": "param_rbs_width", "FromPort": "RbsWidth", "ToNodeId": "div_rbs_norm", "ToPort": "b" },
-    { "FromNodeId": "div_rbs_norm", "FromPort": "a/b", "ToNodeId": "clamp_rbs", "ToPort": "a" },
-    { "FromNodeId": "const_zero", "FromPort": "out", "ToNodeId": "clamp_rbs", "ToPort": "min" },
-    { "FromNodeId": "const_one", "FromPort": "out", "ToNodeId": "clamp_rbs", "ToPort": "max" },
-    { "FromNodeId": "clamp_rbs", "FromPort": "clamp(a,min,max)", "ToNodeId": "out_rbs", "ToPort": "RBS" },
-
-    { "FromNodeId": "in_eng_torque_pct", "FromPort": "eng_torque_pct", "ToNodeId": "div_torque_100", "ToPort": "a" },
-    { "FromNodeId": "const_100", "FromPort": "out", "ToNodeId": "div_torque_100", "ToPort": "b" },
-    { "FromNodeId": "div_torque_100", "FromPort": "a/b", "ToNodeId": "mul_torque", "ToPort": "a" },
-    { "FromNodeId": "param_max_torque", "FromPort": "MaxTorqueNm", "ToNodeId": "mul_torque", "ToPort": "b" },
-    { "FromNodeId": "mul_torque", "FromPort": "a*b", "ToNodeId": "out_torque", "ToPort": "MainRotor.Torque" }
+    {
+      "FromNodeId": "param_rotor_diameter",
+      "FromPort": "RotorDiameterM",
+      "ToNodeId": "tip_speed_kts",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_main_rotor_rpm",
+      "FromPort": "main_rotor_rpm",
+      "ToNodeId": "tip_speed_kts",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "const_tip_kt_per_d_rpm",
+      "FromPort": "out",
+      "ToNodeId": "tip_speed_kts",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "in_tas_kts",
+      "FromPort": "tas_kts",
+      "ToNodeId": "mu_div",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "tip_speed_kts",
+      "FromPort": "a*b*c",
+      "ToNodeId": "mu_div",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_k_speed_pitch",
+      "FromPort": "KSpeedPitch",
+      "ToNodeId": "mul_alph_pitch",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mu_div",
+      "FromPort": "a/b",
+      "ToNodeId": "mul_alph_pitch",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_alph_pitch",
+      "FromPort": "-a*b",
+      "ToNodeId": "out_blade_alph_pitch",
+      "ToPort": "BladeAlphPitch"
+    },
+    {
+      "FromNodeId": "param_k_speed_roll",
+      "FromPort": "KSpeedRoll",
+      "ToNodeId": "mul_alph_roll",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_beta_deg",
+      "FromPort": "beta_deg",
+      "ToNodeId": "mul_alph_roll",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mu_div",
+      "FromPort": "a/b",
+      "ToNodeId": "mul_alph_roll",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "mul_alph_roll",
+      "FromPort": "-a*b*c",
+      "ToNodeId": "out_blade_alph_roll",
+      "ToPort": "BladeAlphRoll"
+    },
+    {
+      "FromNodeId": "in_vvi_fps",
+      "FromPort": "vvi_fps",
+      "ToNodeId": "mul_descent_60",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_60",
+      "FromPort": "out",
+      "ToNodeId": "mul_descent_60",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_descent_60",
+      "FromPort": "-a*b",
+      "ToNodeId": "max_descent",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "max_descent",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "max_descent",
+      "FromPort": "max(a,b)",
+      "ToNodeId": "div_desc",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_descent_max",
+      "FromPort": "DescentMaxFpm",
+      "ToNodeId": "div_desc",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_desc",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_desc",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_desc",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_desc",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "in_tas_kts",
+      "FromPort": "tas_kts",
+      "ToNodeId": "div_fwd",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_etl_speed",
+      "FromPort": "EtlSpeedKts",
+      "ToNodeId": "div_fwd",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "sub_fwd",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "div_fwd",
+      "FromPort": "a/b",
+      "ToNodeId": "sub_fwd",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sub_fwd",
+      "FromPort": "a-b",
+      "ToNodeId": "clamp_fwd",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_fwd",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_fwd",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "const_half",
+      "FromPort": "out",
+      "ToNodeId": "mul_half_desc",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "clamp_desc",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_half_desc",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "const_half",
+      "FromPort": "out",
+      "ToNodeId": "add_inner",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_half_desc",
+      "FromPort": "a*b",
+      "ToNodeId": "add_inner",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "const_quarter",
+      "FromPort": "out",
+      "ToNodeId": "mul_vrs_core",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "clamp_fwd",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_vrs_core",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_inner",
+      "FromPort": "a+b",
+      "ToNodeId": "mul_vrs_core",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "const_quarter",
+      "FromPort": "out",
+      "ToNodeId": "add_vrs",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_vrs_core",
+      "FromPort": "a*b*c",
+      "ToNodeId": "add_vrs",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_vrs",
+      "FromPort": "a+b",
+      "ToNodeId": "lag_asym_vrs",
+      "ToPort": "input"
+    },
+    {
+      "FromNodeId": "param_vrs_tau_up",
+      "FromPort": "VrsTauUp",
+      "ToNodeId": "lag_asym_vrs",
+      "ToPort": "tau_up_sec"
+    },
+    {
+      "FromNodeId": "param_vrs_tau_down",
+      "FromPort": "VrsTauDown",
+      "ToNodeId": "lag_asym_vrs",
+      "ToPort": "tau_down_sec"
+    },
+    {
+      "FromNodeId": "lag_asym_vrs",
+      "FromPort": "out",
+      "ToNodeId": "out_vrs",
+      "ToPort": "VRS"
+    },
+    {
+      "FromNodeId": "in_tas_kts",
+      "FromPort": "tas_kts",
+      "ToNodeId": "sub_slap",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_slap_onset",
+      "FromPort": "SlapOnsetKts",
+      "ToNodeId": "sub_slap",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sub_slap",
+      "FromPort": "a-b",
+      "ToNodeId": "max_slap_over",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "max_slap_over",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "max_slap_over",
+      "FromPort": "max(a,b)",
+      "ToNodeId": "mul_slap_k",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_k_slap",
+      "FromPort": "KSlap",
+      "ToNodeId": "mul_slap_k",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_slap_k",
+      "FromPort": "a*b",
+      "ToNodeId": "div_slap_100",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_100",
+      "FromPort": "out",
+      "ToNodeId": "div_slap_100",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_slap_100",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_slap",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_slap",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "param_slap_max",
+      "FromPort": "SlapMax",
+      "ToNodeId": "clamp_slap",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "clamp_slap",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "out_slap",
+      "ToPort": "Slap"
+    },
+    {
+      "FromNodeId": "in_tas_kts",
+      "FromPort": "tas_kts",
+      "ToNodeId": "sub_etl_diff",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_etl_peak",
+      "FromPort": "EtlPeakKts",
+      "ToNodeId": "sub_etl_diff",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sub_etl_diff",
+      "FromPort": "a-b",
+      "ToNodeId": "div_etl_norm",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_etl_width",
+      "FromPort": "EtlWidthKts",
+      "ToNodeId": "div_etl_norm",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_etl_norm",
+      "FromPort": "a/b",
+      "ToNodeId": "mul_neg_sq",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "div_etl_norm",
+      "FromPort": "a/b",
+      "ToNodeId": "mul_neg_sq",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_neg_sq",
+      "FromPort": "-a*b",
+      "ToNodeId": "exp_etl",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "exp_etl",
+      "FromPort": "exp(a)",
+      "ToNodeId": "out_etl_bump",
+      "ToPort": "ETLBump"
+    },
+    {
+      "FromNodeId": "in_collective_pos_pct",
+      "FromPort": "collective_pos_pct",
+      "ToNodeId": "div_collective_100",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_100",
+      "FromPort": "out",
+      "ToNodeId": "div_collective_100",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_collective_100",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_collective",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_collective",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_collective",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "in_g_force",
+      "FromPort": "g_force",
+      "ToNodeId": "max_g_factor",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "max_g_factor",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_rbs_mu_coupling",
+      "FromPort": "RbsMuCoupling",
+      "ToNodeId": "mul_mu_rbs",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mu_div",
+      "FromPort": "a/b",
+      "ToNodeId": "mul_mu_rbs",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "add_mu_one",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_mu_rbs",
+      "FromPort": "a*b",
+      "ToNodeId": "add_mu_one",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "clamp_collective",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_rbs_demand",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "max_g_factor",
+      "FromPort": "max(a,b)",
+      "ToNodeId": "mul_rbs_demand",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_mu_one",
+      "FromPort": "a+b",
+      "ToNodeId": "mul_rbs_demand",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "mul_rbs_demand",
+      "FromPort": "a*b*c",
+      "ToNodeId": "sub_rbs_diff",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_rbs_threshold",
+      "FromPort": "RbsThreshold",
+      "ToNodeId": "sub_rbs_diff",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sub_rbs_diff",
+      "FromPort": "a-b",
+      "ToNodeId": "div_rbs_norm",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_rbs_width",
+      "FromPort": "RbsWidth",
+      "ToNodeId": "div_rbs_norm",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_rbs_norm",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_rbs",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_rbs",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_rbs",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "clamp_rbs",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "out_rbs",
+      "ToPort": "RBS"
+    },
+    {
+      "FromNodeId": "in_eng_torque_pct",
+      "FromPort": "eng_torque_pct",
+      "ToNodeId": "div_torque_100",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_100",
+      "FromPort": "out",
+      "ToNodeId": "div_torque_100",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_torque_100",
+      "FromPort": "a/b",
+      "ToNodeId": "mul_torque",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_max_torque",
+      "FromPort": "MaxTorqueNm",
+      "ToNodeId": "mul_torque",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_torque",
+      "FromPort": "a*b",
+      "ToNodeId": "out_torque",
+      "ToPort": "MainRotor.Torque"
+    }
   ],
   "Params": [
     {

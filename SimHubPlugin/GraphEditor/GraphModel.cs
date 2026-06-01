@@ -207,6 +207,14 @@ namespace DiyFfb.GraphEditor
         public int? Precision { get; set; }
         public bool LogScale { get; set; }
         public List<GraphParamOption> Options { get; } = new List<GraphParamOption>();
+
+        /// <summary>
+        /// Optional "muted" value. When set, the editor renders a mute checkbox
+        /// next to the slider; toggling it on substitutes this value for the
+        /// param's normal value in the runtime parameters dict. Used for the
+        /// tuning-workflow "solo a cue" pattern. Null = no mute available.
+        /// </summary>
+        public double? MuteValue { get; set; }
     }
 
     public sealed class GraphParamOption

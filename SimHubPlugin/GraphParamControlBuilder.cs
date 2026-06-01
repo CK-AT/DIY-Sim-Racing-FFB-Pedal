@@ -15,6 +15,32 @@ namespace DiyFfb
     {
         private const double DefaultParamControlHeight = 20.0;
 
+        /// <summary>
+        /// Builds an optional mute checkbox for params whose GraphParamUi has
+        /// MuteValue set. Returns null when the param has no MuteValue (no UI).
+        /// The checkbox reflects <paramref name="initialMuted"/> and invokes
+        /// <paramref name="onMuteChanged"/> when toggled.
+        /// </summary>
+        public static CheckBox BuildMuteCheckbox(
+            GraphParam param,
+            bool initialMuted,
+            Action<bool> onMuteChanged)
+        {
+            if (param?.Ui?.MuteValue.HasValue != true) return null;
+            double muteValue = param.Ui.MuteValue.Value;
+            var check = new CheckBox
+            {
+                Foreground = Brushes.LightGray,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0),
+                IsChecked = initialMuted,
+                ToolTip = $"Mute (substitute {muteValue.ToString("0.###", CultureInfo.InvariantCulture)} during evaluation)"
+            };
+            check.Checked += (_, __) => onMuteChanged?.Invoke(true);
+            check.Unchecked += (_, __) => onMuteChanged?.Invoke(false);
+            return check;
+        }
+
         public static FrameworkElement BuildControl(
             GraphParam param,
             Action<double> onValueChanged,

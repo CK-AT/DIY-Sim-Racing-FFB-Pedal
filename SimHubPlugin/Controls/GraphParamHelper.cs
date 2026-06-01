@@ -121,6 +121,12 @@ namespace DiyFfb.Controls
                         Padding = new Thickness(0, 0, 0, 8)
                     };
 
+                    var muteCheckbox = GraphParamControlBuilder.BuildMuteCheckbox(
+                        param,
+                        plugin.IsParamMuted(param.Name),
+                        muted => plugin.SetParamMuted(param.Name, muted));
+
+                    double controlWidth = muteCheckbox != null ? 380.0 : 400.0;
                     var control = GraphParamControlBuilder.BuildControl(
                         param,
                         value =>
@@ -142,12 +148,26 @@ namespace DiyFfb.Controls
                                 }
                             }
                         },
-                        width: 400,
+                        width: controlWidth,
                         initialValue: currentValue
                     );
 
                     panel.Children.Add(label);
-                    panel.Children.Add(control);
+                    if (muteCheckbox != null)
+                    {
+                        var row = new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            HorizontalAlignment = HorizontalAlignment.Left
+                        };
+                        row.Children.Add(muteCheckbox);
+                        row.Children.Add(control);
+                        panel.Children.Add(row);
+                    }
+                    else
+                    {
+                        panel.Children.Add(control);
+                    }
                     _panel.Children.Add(panel);
                     _controls[param.Name] = control;
                     _labels[param.Name] = label;

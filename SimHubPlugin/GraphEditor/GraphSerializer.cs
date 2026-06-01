@@ -777,7 +777,10 @@ namespace DiyFfb.GraphEditor
         public double? Step { get; set; }
         public int? Precision { get; set; }
         public bool LogScale { get; set; }
+        public double? MuteValue { get; set; }
         public List<GraphParamOptionDto> Options { get; set; } = new List<GraphParamOptionDto>();
+
+        public bool ShouldSerializeMuteValue() => MuteValue.HasValue;
 
         public static GraphParamUiDto FromModel(GraphParamUi ui)
         {
@@ -789,7 +792,8 @@ namespace DiyFfb.GraphEditor
                 Units = ui.Units,
                 Step = ui.Step,
                 Precision = ui.Precision,
-                LogScale = ui.LogScale
+                LogScale = ui.LogScale,
+                MuteValue = ui.MuteValue
             };
             foreach (var option in ui.Options)
             {
@@ -808,7 +812,8 @@ namespace DiyFfb.GraphEditor
                 Units = Units ?? "",
                 Step = Step,
                 Precision = Precision,
-                LogScale = LogScale
+                LogScale = LogScale,
+                MuteValue = MuteValue
             };
             if (Options != null)
             {

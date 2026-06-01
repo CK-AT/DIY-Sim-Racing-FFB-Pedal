@@ -43,7 +43,7 @@ Steps 3–6 each take ~5 minutes of flying once you've found a sane baseline.
 
 ---
 
-## Isolating cues for tuning (the "solo" trick)
+## Isolating cues for tuning (mute checkboxes)
 
 The cyclic load output is a *sum* of independent contributions:
 
@@ -54,67 +54,72 @@ LoadForce = BladeAlph_load × (1 − VrsAttenGain × vrs_effect)
 ```
 
 Vibration is similarly additive across slots (Vib1Ampl2 sums slap + ETL +
-RBS-N/rev terms). That means every cue has a **dedicated set of gains** —
-zero those gains and the cue vanishes without affecting anything else. To
-tune one cue in isolation, mute all the others.
+RBS-N/rev terms). Every cue has a **dedicated set of gains** — silence
+those gains and the cue vanishes without affecting anything else.
 
-Save a **"silent baseline"** profile up front by setting every gain in the
-table below to **0**. With that as the starting point, raise *only* the
-gains belonging to the cue you're tuning. Tune. Save. Restore baseline.
-Repeat for the next cue.
+To make this practical without losing your tuning, gain params expose a
+**mute checkbox** next to the slider. Tick it and the runtime
+substitutes the param's `MuteValue` (0 for every gain) instead of your
+tuned value — without overwriting the slider. Untick to restore. State
+is per-SimHub-session, not saved to the profile, so an inadvertently
+muted cue won't ship with your aircraft profile.
 
-| Cue | Exclusive gain params (zero these to mute) |
+### Which params have mute checkboxes
+
+| Cue | Slider labels with a mute checkbox |
 |---|---|
-| BladeAlph cyclic load | `Cyclic.LoadGain` (`Flapping Load Gain`); shape via `Aircraft.KSpeedPitch`/`KSpeedRoll` |
-| ETL bump — vibration | `Cyclic.EtlBumpGain`, `Collective.EtlBumpGain` |
-| ETL bump — load | `Cyclic.EtlBumpLoadGain`, `Cyclic.EtlBumpLoadRollGain` |
-| VRS — load attenuation | `Cyclic.VrsAttenGain` (multiplicative; 0 = no attenuation) |
-| VRS — buffet | `Cyclic.VrsBuffetGain`, `Collective.VrsBuffetGain` |
-| RBS — vibration | `Cyclic.RbsVib1Gain`, `Cyclic.RbsVibNGain`, `Collective.RbsHeaveGain` |
-| RBS — load | `Cyclic.RbsLoadPitchGain`, `Cyclic.RbsLoadRollGain` |
-| Slap (BVI) — vibration | `Cyclic.slap_gain`, `Collective.slap_gain` |
-| Always-on rotor texture | `Cyclic.gain_1rev`, `Cyclic.mass_imbalance`, `Cyclic.track_drift`, `Cyclic.base_nrev`, `Cyclic.base_2nrev` (and `Collective.*` analogues) |
+| BladeAlph cyclic load | `Flapping Load Gain` |
+| ETL bump — vibration | `ETL Bump Vibration` (cyclic + collective) |
+| ETL bump — load | `ETL Bump Load (Pitch)`, `ETL Bump Load (Roll)` |
+| VRS — load attenuation | `VRS Load Attenuation` (0 = no attenuation, so muted = full BladeAlph) |
+| VRS — buffet | `VRS Buffet (Cyclic)`, `VRS Buffet (Collective)` |
+| RBS — vibration | `RBS 1/rev Vibration`, `RBS N/rev Vibration`, `RBS Heave Vibration` |
+| RBS — load | `RBS Load (Pitch)`, `RBS Load (Roll)` |
+| Slap (BVI) | `N/rev slap (BVI) boost` (cyclic + collective) |
+| Always-on rotor texture | `1/rev gain`, `1/rev mass imbalance`, `1/rev track drift`, `N/rev base`, `2N/rev base`, and the `Collective.*` analogues |
 
-Notes:
+The **envelope-shape** params (e.g. `ETL Bump Peak/Width`, `RBS Threshold`,
+`VRS Buffet Onset`) have no mute — they shape something that's already
+silenced by muting its corresponding gain.
 
-- The **envelope shape** params (e.g. `Aircraft.EtlPeakKts`,
-  `Aircraft.RbsThreshold`, `Aircraft.VrsBuffetStart`) don't need to be
-  zeroed — they have no effect when the corresponding gain is 0.
-- Keep `Cyclic.SpringGain`, `Cyclic.DamperGain`, `Cyclic.Friction` at their
-  normal values during isolated tuning. You need centering and damping to
-  fly the test manoeuvres at all.
-- For VRS buffet specifically, the **graph debug logger** lets you see the
-  raw `Rotor.VRS` value live — useful for confirming the cue is firing
-  even before you feel it. Open the graph editor, hover over the
-  `lag_asym_vrs` node output, watch the number rise as you descend.
-- The `clamp_vrs_eff` node inside `heli_cyclic_unboosted.json` shows the
-  0..1 normalized VRS effect that drives both attenuation and buffet —
-  cross-check this against your `Aircraft.VrsBuffetStart` threshold.
+`Spring Gain`, `Damper Gain`, `Friction` have no mute either — you need
+them to fly the test manoeuvres at all.
 
-### Order of operations
+### Suggested workflow
 
-When tuning from scratch, the dependencies between cues mean you should
-work in this order:
+When tuning from scratch:
 
-1. **Silent baseline** → set every gain to 0, fly straight-and-level cruise,
-   confirm centering spring + damping feel right. Stick should drift to
-   center with light damping, no extra forces.
-2. **BladeAlph cruise load** → only `Cyclic.LoadGain` non-zero. Confirm the
+1. **Silent baseline.** Mute every gain in the table above. Fly
+   straight-and-level cruise: centering spring + damping should feel right
+   with no rotor cues at all. Stick should drift to center with light
+   damping.
+2. **BladeAlph cruise load.** Un-mute `Flapping Load Gain`. Confirm the
    forward-pressure feel at cruise scales with airspeed and disappears in
    autorotation.
-3. **ETL bump** → add `Cyclic.EtlBumpLoadGain`, `EtlBumpLoadRollGain`,
-   `EtlBumpGain`, `Collective.EtlBumpGain`. Tune through the 0→30 kt range.
-4. **RBS** → add the five RBS gains. Tune at high-G manoeuvre.
-5. **VRS attenuation** → add `Cyclic.VrsAttenGain`. Tune in deliberate VRS
-   (you'll feel BladeAlph fade out as you descend).
-6. **VRS buffet** → add `Cyclic.VrsBuffetGain`, `Collective.VrsBuffetGain`.
-   Tune in deliberate VRS again — the buffet rides on top of the
-   attenuation.
-7. **Always-on rotor texture and slap** → final layer; pure cosmetic.
+3. **ETL bump.** Un-mute the four `ETL Bump *` gains. Tune through the
+   0→30 kt range.
+4. **RBS.** Un-mute the five `RBS *` gains. Tune at a high-G manoeuvre.
+5. **VRS attenuation.** Un-mute `VRS Load Attenuation`. In deliberate VRS
+   you'll feel BladeAlph fade as you descend.
+6. **VRS buffet.** Un-mute the two `VRS Buffet *` gains. Same deliberate VRS
+   manoeuvre — the buffet rides on top of the attenuation.
+7. **Always-on rotor texture and slap.** Final layer; pure cosmetic.
 
-Once everything is dialed in, snapshot as the "tuned" profile. Keep the
-"silent baseline" around — it's invaluable any time you need to
-re-investigate one cue.
+Once everything is dialed in, leave the slider positions where they are and
+un-mute. SimHub restart re-enables all cues automatically (mute state
+doesn't persist), so there's nothing to remember.
+
+### Debugging aids
+
+- The graph editor's **include preview** shows live values for
+  `Rotor.VRS`, `Rotor.ETLBump`, `Rotor.RBS` etc. Useful for confirming
+  a cue is firing even before you can feel it.
+- Inside `heli_cyclic_unboosted.json`, the `clamp_vrs_eff` node shows the
+  0..1 normalized VRS effect that drives both attenuation and buffet —
+  cross-check against your `VRS Buffet Onset` threshold.
+- `lag_asym_vrs` node output (in `msfs_derivations.json`) shows the
+  hysteresis-smoothed VRS value; compare to the raw `add_vrs` upstream
+  to see the entry-vs-exit asymmetry in action.
 
 ---
 

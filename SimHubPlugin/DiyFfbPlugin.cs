@@ -1529,6 +1529,29 @@ namespace DiyFfb
             return defaultValue;
         }
 
+        // Transient per-session "muted" param set. When a param is muted AND
+        // its GraphParamUi has MuteValue set, BuildGraphParams substitutes
+        // MuteValue for the resolved value. Used for the "solo a cue" tuning
+        // workflow — not saved to profile.
+        private readonly HashSet<string> _mutedParams = new HashSet<string>(StringComparer.Ordinal);
+
+        public event EventHandler ParamMuteChanged;
+
+        public bool IsParamMuted(string name)
+        {
+            return !string.IsNullOrEmpty(name) && _mutedParams.Contains(name);
+        }
+
+        public void SetParamMuted(string name, bool muted)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            bool changed = muted ? _mutedParams.Add(name) : _mutedParams.Remove(name);
+            if (changed)
+            {
+                ParamMuteChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
         private static float Clamp(float value, float min, float max)
         {
             return Math.Min(max, Math.Max(min, value));
@@ -2781,7 +2804,12 @@ namespace DiyFfb
 
             foreach (var param in allParams)
             {
-                graphParams[param.Name] = ResolveParamValue(param.Name, param.DefaultValue);
+                double value = ResolveParamValue(param.Name, param.DefaultValue);
+                if (param.Ui?.MuteValue.HasValue == true && _mutedParams.Contains(param.Name))
+                {
+                    value = param.Ui.MuteValue.Value;
+                }
+                graphParams[param.Name] = value;
             }
         }
 

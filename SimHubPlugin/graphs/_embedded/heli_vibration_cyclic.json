@@ -1208,7 +1208,8 @@
         "Step": 0.001,
         "Precision": 3,
         "LogScale": false,
-        "Options": []
+        "Options": [],
+        "MuteValue": 0.0
       }
     },
     {
@@ -1224,7 +1225,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": []
+        "Options": [],
+        "MuteValue": 0.0
       }
     },
     {
@@ -1240,7 +1242,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": []
+        "Options": [],
+        "MuteValue": 0.0
       }
     },
     {
@@ -1256,7 +1259,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": []
+        "Options": [],
+        "MuteValue": 0.0
       }
     },
     {
@@ -1272,7 +1276,8 @@
         "Step": 0.005,
         "Precision": 3,
         "LogScale": false,
-        "Options": []
+        "Options": [],
+        "MuteValue": 0.0
       }
     },
     {
@@ -1288,7 +1293,8 @@
         "Step": 0.001,
         "Precision": 3,
         "LogScale": false,
-        "Options": []
+        "Options": [],
+        "MuteValue": 0.0
       }
     },
     {
@@ -1304,7 +1310,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": []
+        "Options": [],
+        "MuteValue": 0.0
       }
     },
     {
@@ -1320,7 +1327,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": []
+        "Options": [],
+        "MuteValue": 0.0
       }
     },
     {
@@ -1336,7 +1344,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": []
+        "Options": [],
+        "MuteValue": 0.0
       }
     },
     {
@@ -1352,7 +1361,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": []
+        "Options": [],
+        "MuteValue": 0.0
       }
     }
   ],
