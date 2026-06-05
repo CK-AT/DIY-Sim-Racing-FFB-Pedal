@@ -12,7 +12,22 @@ namespace DiyFfb.GraphEditor
         Func,
         Include,
         Output,
-        ConfigOut
+        ConfigOut,
+
+        /// <summary>
+        /// "Send" end of a graph-local named bus. Has one input port; the value
+        /// flowing in is published on the bus name (LocalBusName). One Send per
+        /// name per graph. Runtime: collapsed into direct wiring by the
+        /// editor→runtime converter (no runtime representation needed).
+        /// </summary>
+        LocalSend,
+
+        /// <summary>
+        /// "Receive" end of a graph-local named bus. Has one output port; emits
+        /// the value of the matching LocalSend (by LocalBusName). Any number per
+        /// graph. Orphan receives (no matching Send) evaluate to 0.
+        /// </summary>
+        LocalReceive
     }
 
     public enum GraphPortKind
@@ -83,6 +98,13 @@ namespace DiyFfb.GraphEditor
         /// Populated by SyncIncludePorts() when IncludePath changes.
         /// </summary>
         public IncludedGraphInterface CachedInterface { get; set; }
+
+        /// <summary>
+        /// Bus name for LocalSend / LocalReceive nodes. Free-form within a graph;
+        /// case-sensitive. One Send per name; many Receives match a Send by this
+        /// string.
+        /// </summary>
+        public string LocalBusName { get; set; } = "";
     }
 
     /// <summary>

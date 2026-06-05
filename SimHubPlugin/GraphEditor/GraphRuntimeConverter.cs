@@ -62,8 +62,22 @@ namespace DiyFfb.GraphEditor
             var runtime = new DiyFfb.GraphTest.GraphDefinition { Version = graph.Version };
             var nodes = graph.Nodes.ToDictionary(n => n.Id, n => n);
 
+            // Resolve graph-local named buses: each LocalReceive maps to the
+            // (FromNodeId, FromPort) that feeds the matching LocalSend. This
+            // is consulted by TryGetInputSource so consumers wired from a
+            // LocalReceive transparently read the bus source.
+            var localBusReceiveMap = BuildLocalBusReceiveMap(graph);
+
             foreach (var node in graph.Nodes)
             {
+                // LocalSend / LocalReceive nodes are pure editor sugar — they
+                // collapse away here; consumers wired from them get redirected
+                // via localBusReceiveMap in TryGetInputSource.
+                if (node.Kind == GraphNodeKind.LocalSend || node.Kind == GraphNodeKind.LocalReceive)
+                {
+                    continue;
+                }
+
                 var runtimeNode = new DiyFfb.GraphTest.GraphNode
                 {
                     Id = node.Id,
@@ -79,7 +93,7 @@ namespace DiyFfb.GraphEditor
                     runtimeNode.Op = MapOp(node.Op);
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
                     {
-                        if (TryGetInputSource(nodes, graph.Links, node.Id, port.Name, out var source))
+                        if (TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
                         {
                             runtimeNode.Args.Add(source);
                             runtimeNode.ArgNegate.Add(IsNegateSupportedOp(node.Op) && port.Negate);
@@ -90,7 +104,7 @@ namespace DiyFfb.GraphEditor
                 {
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
                     {
-                        if (TryGetInputSource(nodes, graph.Links, node.Id, port.Name, out var source))
+                        if (TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
                         {
                             runtimeNode.Args.Add(source);
                         }
@@ -100,7 +114,7 @@ namespace DiyFfb.GraphEditor
                 {
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
                     {
-                        if (TryGetInputSource(nodes, graph.Links, node.Id, port.Name, out var source))
+                        if (TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
                         {
                             // Build full signal name from SignalGroup + SignalSuffix
                             string signalName = BuildFullSignalName(node.SignalGroup, port.SignalSuffix, port.Name);
@@ -125,7 +139,7 @@ namespace DiyFfb.GraphEditor
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
                     {
                         if (!string.IsNullOrEmpty(port.ConfigField) &&
-                            TryGetInputSource(nodes, graph.Links, node.Id, port.Name, out var source))
+                            TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
                         {
                             var configOutNode = new DiyFfb.GraphTest.GraphNode
                             {
@@ -143,7 +157,7 @@ namespace DiyFfb.GraphEditor
                 {
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
                     {
-                        if (TryGetInputSource(nodes, graph.Links, node.Id, port.Name, out var source))
+                        if (TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
                         {
                             runtimeNode.InputMap[port.Name] = source;
                         }
@@ -245,6 +259,11 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.Include: return NodeType.Include;
                 case GraphNodeKind.Output: return NodeType.Output;
                 case GraphNodeKind.ConfigOut: return NodeType.ConfigOut;
+                // LocalSend / LocalReceive collapse away at convert time and
+                // never reach the runtime; MapNodeType shouldn't be called on
+                // them, but if it is just return Const (harmless).
+                case GraphNodeKind.LocalSend: return NodeType.Const;
+                case GraphNodeKind.LocalReceive: return NodeType.Const;
                 default: return NodeType.Const;
             }
         }
@@ -292,6 +311,7 @@ namespace DiyFfb.GraphEditor
         }
 
         private static bool TryGetInputSource(Dictionary<string, GraphNode> nodes, List<GraphLink> links,
+            Dictionary<string, (string FromNodeId, string FromPort)> localBusReceiveMap,
             string nodeId, string portName, out string sourceId)
         {
             sourceId = null;
@@ -301,29 +321,76 @@ namespace DiyFfb.GraphEditor
                 return false;
             }
 
-            if (!nodes.ContainsKey(link.FromNodeId))
+            string fromNodeId = link.FromNodeId;
+            string fromPort = link.FromPort;
+
+            // If the link originates at a LocalReceive node, follow the bus
+            // back to the source that feeds the matching LocalSend.
+            if (localBusReceiveMap != null && localBusReceiveMap.TryGetValue(fromNodeId, out var busSource))
+            {
+                fromNodeId = busSource.FromNodeId;
+                fromPort = busSource.FromPort;
+            }
+
+            if (string.IsNullOrEmpty(fromNodeId) || !nodes.ContainsKey(fromNodeId))
             {
                 return false;
             }
 
-            if (nodes.TryGetValue(link.FromNodeId, out var fromNode) &&
+            if (nodes.TryGetValue(fromNodeId, out var fromNode) &&
                 fromNode.Kind == GraphNodeKind.Include &&
-                link.FromPort != null)
+                fromPort != null)
             {
-                sourceId = BuildIncludeOutputId(link.FromNodeId, link.FromPort);
+                sourceId = BuildIncludeOutputId(fromNodeId, fromPort);
                 return true;
             }
 
-            if (nodes.TryGetValue(link.FromNodeId, out var sourceNode) &&
+            if (nodes.TryGetValue(fromNodeId, out var sourceNode) &&
                 (sourceNode.Kind == GraphNodeKind.Input || sourceNode.Kind == GraphNodeKind.Param) &&
-                !string.IsNullOrWhiteSpace(link.FromPort))
+                !string.IsNullOrWhiteSpace(fromPort))
             {
-                sourceId = BuildPortId(link.FromNodeId, link.FromPort);
+                sourceId = BuildPortId(fromNodeId, fromPort);
                 return true;
             }
 
-            sourceId = link.FromNodeId;
+            sourceId = fromNodeId;
             return true;
+        }
+
+        /// <summary>
+        /// For every LocalReceive node in the graph, resolve which upstream
+        /// (FromNodeId, FromPort) feeds the matching LocalSend. Orphan
+        /// receives (no matching send) are omitted — TryGetInputSource will
+        /// then fail to resolve them and the consumer port becomes
+        /// unconnected (evaluates to 0, same as any unwired port).
+        /// </summary>
+        private static Dictionary<string, (string FromNodeId, string FromPort)> BuildLocalBusReceiveMap(GraphDefinition graph)
+        {
+            var result = new Dictionary<string, (string, string)>(StringComparer.Ordinal);
+            if (graph?.Nodes == null) return result;
+
+            // bus name → (FromNodeId, FromPort) feeding the Send's input
+            var busSource = new Dictionary<string, (string, string)>(StringComparer.Ordinal);
+            foreach (var sendNode in graph.Nodes)
+            {
+                if (sendNode.Kind != GraphNodeKind.LocalSend) continue;
+                if (string.IsNullOrEmpty(sendNode.LocalBusName)) continue;
+                // Send has a single input port — find the link that feeds it.
+                var feeder = graph.Links.FirstOrDefault(l => l.ToNodeId == sendNode.Id);
+                if (feeder == null) continue;
+                busSource[sendNode.LocalBusName] = (feeder.FromNodeId, feeder.FromPort);
+            }
+
+            foreach (var recvNode in graph.Nodes)
+            {
+                if (recvNode.Kind != GraphNodeKind.LocalReceive) continue;
+                if (string.IsNullOrEmpty(recvNode.LocalBusName)) continue;
+                if (busSource.TryGetValue(recvNode.LocalBusName, out var src))
+                {
+                    result[recvNode.Id] = src;
+                }
+            }
+            return result;
         }
 
         private static string BuildIncludeOutputId(string nodeId, string portName)

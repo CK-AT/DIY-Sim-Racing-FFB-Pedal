@@ -185,6 +185,20 @@
                          TextChanged="InspectorConst_TextChanged" />
             </StackPanel>
         </DataTemplate>
+        <DataTemplate x:Key="InspectorLocalBusTemplate">
+            <StackPanel>
+                <TextBlock Text="Bus Name" Foreground="#BBBBBB" FontSize="10" />
+                <TextBox Margin="0,2,0,6"
+                         Background="#1E1E1E"
+                         Foreground="White"
+                         BorderBrush="#4A4A4A"
+                         BorderThickness="1"
+                         Padding="3,2,3,2"
+                         Text="{Binding LocalBusName, Mode=OneWay}"
+                         TextChanged="InspectorLocalBusName_TextChanged"
+                         ToolTip="Bus identifier. A Send and one or more Receives with the same name form a graph-local wireless connection." />
+            </StackPanel>
+        </DataTemplate>
         <DataTemplate x:Key="InspectorOpTemplate">
             <StackPanel>
                 <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
@@ -719,7 +733,8 @@
                                          OutputTemplate="{StaticResource InspectorOutputTemplate}"
                                          ParamTemplate="{StaticResource InspectorParamTemplate}"
                                          IncludeTemplate="{StaticResource InspectorIncludeTemplate}"
-                                         ConfigOutTemplate="{StaticResource InspectorConfigOutTemplate}" />
+                                         ConfigOutTemplate="{StaticResource InspectorConfigOutTemplate}"
+                                         LocalBusTemplate="{StaticResource InspectorLocalBusTemplate}" />
         <DrawingBrush x:Key="GraphGridBrush" TileMode="Tile" Viewport="0,0,20,20" ViewportUnits="Absolute">
             <DrawingBrush.Drawing>
                 <DrawingGroup>

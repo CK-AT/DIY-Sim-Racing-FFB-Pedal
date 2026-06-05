@@ -1573,6 +1573,8 @@ namespace DiyFfb.GraphEditor
             menu.Items.Add(BuildMenuItem("Add Include", () => AddNode(GraphNodeKind.Include, position)));
             menu.Items.Add(BuildMenuItem("Add Output", () => AddNode(GraphNodeKind.Output, position)));
             menu.Items.Add(BuildMenuItem("Add ConfigOut", () => AddNode(GraphNodeKind.ConfigOut, position)));
+            menu.Items.Add(BuildMenuItem("Add Local Send", () => AddNode(GraphNodeKind.LocalSend, position)));
+            menu.Items.Add(BuildMenuItem("Add Local Receive", () => AddNode(GraphNodeKind.LocalReceive, position)));
             menu.Items.Add(new Separator());
             menu.Items.Add(BuildMenuItem("Zoom to Fit", ZoomToFit));
             menu.Items.Add(BuildMenuItem("Align Left", AlignSelectedLeft));
@@ -1638,6 +1640,20 @@ namespace DiyFfb.GraphEditor
             else if (kind == GraphNodeKind.ConfigOut)
             {
                 node.Ports.Add(new GraphPort { Name = "cfg_0", Kind = GraphPortKind.Input });
+            }
+            else if (kind == GraphNodeKind.LocalSend)
+            {
+                // Sink: takes one input, publishes on the bus. No output port.
+                node.Title = "Send: ?";
+                node.LocalBusName = "";
+                node.Ports.Add(new GraphPort { Name = "in", Kind = GraphPortKind.Input });
+            }
+            else if (kind == GraphNodeKind.LocalReceive)
+            {
+                // Source: emits the bus value. No input port.
+                node.Title = "Recv: ?";
+                node.LocalBusName = "";
+                node.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
             }
 
             _graph.Nodes.Add(node);
@@ -3448,7 +3464,9 @@ namespace DiyFfb.GraphEditor
                    || node.Kind == GraphNodeKind.Output
                    || node.Kind == GraphNodeKind.ConfigOut
                    || node.Kind == GraphNodeKind.Param
-                   || node.Kind == GraphNodeKind.Include;
+                   || node.Kind == GraphNodeKind.Include
+                   || node.Kind == GraphNodeKind.LocalSend
+                   || node.Kind == GraphNodeKind.LocalReceive;
         }
 
 
@@ -4290,6 +4308,30 @@ namespace DiyFfb.GraphEditor
                 node.Title = string.IsNullOrWhiteSpace(desired) ? null : desired;
                 UpdateNodeTitleVisual(node);
                 SyncPreviewEntries();
+                RefreshPreview();
+                _pendingUndoDebounce = true;
+                GraphChanged?.Invoke();
+            }
+        }
+
+        private void InspectorLocalBusName_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null)
+            {
+                return;
+            }
+
+            if (sender is TextBox textBox &&
+                textBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node) &&
+                (node.Kind == GraphNodeKind.LocalSend || node.Kind == GraphNodeKind.LocalReceive))
+            {
+                string desired = textBox.Text?.Trim() ?? "";
+                node.LocalBusName = desired;
+                // Reflect bus name in the node title for at-a-glance visual.
+                node.Title = (node.Kind == GraphNodeKind.LocalSend ? "Send: " : "Recv: ")
+                             + (string.IsNullOrEmpty(desired) ? "?" : desired);
+                UpdateNodeTitleVisual(node);
                 RefreshPreview();
                 _pendingUndoDebounce = true;
                 GraphChanged?.Invoke();
@@ -6421,6 +6463,7 @@ namespace DiyFfb.GraphEditor
         public DataTemplate ParamTemplate { get; set; }
         public DataTemplate IncludeTemplate { get; set; }
         public DataTemplate ConfigOutTemplate { get; set; }
+        public DataTemplate LocalBusTemplate { get; set; }
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
@@ -6444,6 +6487,9 @@ namespace DiyFfb.GraphEditor
                         return IncludeTemplate;
                     case GraphNodeKind.ConfigOut:
                         return ConfigOutTemplate;
+                    case GraphNodeKind.LocalSend:
+                    case GraphNodeKind.LocalReceive:
+                        return LocalBusTemplate;
                 }
             }
 
