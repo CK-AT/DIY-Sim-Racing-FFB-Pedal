@@ -304,15 +304,22 @@ void SyncVib::on_sync(float gateway_phase, float gateway_hz) {
 void SyncVib::update(const SimState &state, SimAccumulators &accum) {
     if (!_enabled) return;
     float dt_s = state.dt_ms * 0.001f;
+    // Clamp dt: the first cycle after (re)enable can follow a config-apply stall
+    // with a large gap; an unbounded dt would turn into a giant phase step.
+    // (!(dt_s > 0) also rejects NaN/negative.)
+    if (!(dt_s > 0.0f)) dt_s = 0.0f;
+    else if (dt_s > 0.05f) dt_s = 0.05f;
 
     // PLL-corrected frequency (PLL terms are zero in phase 1 if on_sync isn't called)
     float f_adj = _fundamental_hz + PLL_KP * _phase_error + PLL_KI * _error_integral;
-    if (f_adj < 0.0f) f_adj = 0.0f;
+    if (!isfinite(f_adj) || f_adj < 0.0f) f_adj = 0.0f;
 
-    // Advance phase, wrap to [0, 2*pi)
+    // Advance phase, wrap to [0, 2*pi). fmodf is O(1) and cannot spin — the old
+    // iterative subtraction looped forever on a non-finite or large _phase.
     _phase += 2.0f * (float)M_PI * f_adj * dt_s;
-    while (_phase >= 2.0f * (float)M_PI) _phase -= 2.0f * (float)M_PI;
-    while (_phase < 0.0f) _phase += 2.0f * (float)M_PI;
+    if (!isfinite(_phase)) _phase = 0.0f;
+    _phase = fmodf(_phase, 2.0f * (float)M_PI);
+    if (_phase < 0.0f) _phase += 2.0f * (float)M_PI;
 
     // Smooth amplitudes (first-order LPF, tau = 50 ms)
     float a = dt_s / (0.05f + dt_s);
@@ -332,7 +339,17 @@ void SyncVib::update(const SimState &state, SimAccumulators &accum) {
 }
 
 float SyncVib::wrap_pm_pi(float x) {
-    while (x > (float)M_PI) x -= 2.0f * (float)M_PI;
-    while (x < -(float)M_PI) x += 2.0f * (float)M_PI;
-    return x;
+    if (!isfinite(x)) return 0.0f;
+    x = fmodf(x + (float)M_PI, 2.0f * (float)M_PI);
+    if (x < 0.0f) x += 2.0f * (float)M_PI;
+    return x - (float)M_PI;
+}
+
+void SyncVib::reset(void) {
+    _phase = 0.0f;
+    _fundamental_hz = 0.0f;
+    _phase_error = 0.0f;
+    _error_integral = 0.0f;
+    // Ramp amplitudes back in from silence; ratios/phase_offset (config) persist.
+    for (uint8_t i = 0; i < MAX_SLOTS; i++) _amp[i] = 0.0f;
 }

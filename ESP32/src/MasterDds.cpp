@@ -15,8 +15,11 @@ void MasterDds::tick(uint32_t now_us) {
     _ti_prev_us = now_us;
     for (uint8_t i = 0; i < NUM_DDS; i++) {
         _phase[i] += 2.0f * (float)M_PI * _hz[i] * dt_s;
-        while (_phase[i] >= 2.0f * (float)M_PI) _phase[i] -= 2.0f * (float)M_PI;
-        while (_phase[i] < 0.0f) _phase[i] += 2.0f * (float)M_PI;
+        // fmodf is O(1); iterative subtraction spins forever on a non-finite or
+        // large phase.
+        if (!isfinite(_phase[i])) _phase[i] = 0.0f;
+        _phase[i] = fmodf(_phase[i], 2.0f * (float)M_PI);
+        if (_phase[i] < 0.0f) _phase[i] += 2.0f * (float)M_PI;
     }
 }
 
