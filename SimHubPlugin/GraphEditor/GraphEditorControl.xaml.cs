@@ -5513,6 +5513,15 @@ namespace DiyFfb.GraphEditor
                 return "";
             }
 
+            // LocalReceive nodes don't exist in the runtime graph — they
+            // collapse into direct wires by the converter. To show a live
+            // preview value here, walk the bus back to the upstream source
+            // that feeds the matching LocalSend port and use *its* key.
+            if (node.Kind == GraphNodeKind.LocalReceive)
+            {
+                return ResolveBusReceiveValueKey(node, portName);
+            }
+
             if (node.Kind == GraphNodeKind.Include ||
                 node.Kind == GraphNodeKind.Output ||
                 node.Kind == GraphNodeKind.ConfigOut ||
@@ -5523,6 +5532,57 @@ namespace DiyFfb.GraphEditor
             }
 
             return node.Id;
+        }
+
+        private string ResolveBusReceiveValueKey(GraphNode receiveNode, string receivePortName)
+        {
+            if (_graph?.Nodes == null) return "";
+            var recvPort = receiveNode.Ports.FirstOrDefault(p =>
+                p.Kind == GraphPortKind.Output && p.Name == receivePortName);
+            if (recvPort == null || string.IsNullOrEmpty(recvPort.BusName)) return "";
+
+            // Find the LocalSend port with the matching bus name.
+            GraphNode sendNode = null;
+            GraphPort sendPort = null;
+            foreach (var n in _graph.Nodes)
+            {
+                if (n.Kind != GraphNodeKind.LocalSend) continue;
+                foreach (var p in n.Ports)
+                {
+                    if (p.Kind == GraphPortKind.Input && p.BusName == recvPort.BusName)
+                    {
+                        sendNode = n;
+                        sendPort = p;
+                        break;
+                    }
+                }
+                if (sendNode != null) break;
+            }
+            if (sendNode == null) return "";
+
+            // Find the link feeding the Send port → that's the bus source.
+            var feeder = _graph.Links.FirstOrDefault(l =>
+                l.ToNodeId == sendNode.Id && l.ToPort == sendPort.Name);
+            if (feeder == null) return "";
+
+            // Resolve the source's runtime value key. Mirrors the runtime
+            // converter's source-key derivation (Op/Func/Const collapse to
+            // node.Id; Include/Input/Param/Output/ConfigOut use node.Id:port).
+            var fromNode = _graph.Nodes.FirstOrDefault(n => n.Id == feeder.FromNodeId);
+            if (fromNode == null)
+            {
+                return string.IsNullOrEmpty(feeder.FromPort)
+                    ? feeder.FromNodeId
+                    : $"{feeder.FromNodeId}:{feeder.FromPort}";
+            }
+
+            // Recurse for chained buses (a Receive feeding a Send).
+            if (fromNode.Kind == GraphNodeKind.LocalReceive)
+            {
+                return ResolveBusReceiveValueKey(fromNode, feeder.FromPort);
+            }
+
+            return GetOutputValueKey(fromNode, feeder.FromPort);
         }
 
         private void UpdatePortHandleVisibility(NodeVisual node)
