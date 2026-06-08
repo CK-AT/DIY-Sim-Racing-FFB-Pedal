@@ -211,8 +211,8 @@
                         BorderThickness="1"
                         Padding="0"
                         FontSize="12"
-                        ToolTip="Jump to the matching Send (Receive only)"
-                        Visibility="{Binding ShowJumpButton, Converter={StaticResource BoolToVisibility}}"
+                        ToolTip="Jump to the matching Send"
+                        Visibility="{Binding IsReceive, Converter={StaticResource BoolToVisibility}}"
                         Click="ButtonJumpToSend_Click" />
                 <TextBlock Text="{Binding PortName}"
                            DockPanel.Dock="Left"
@@ -221,15 +221,48 @@
                            VerticalAlignment="Center"
                            FontSize="10"
                            Margin="0,0,4,0" />
-                <ComboBox Background="#1E1E1E"
-                          Foreground="White"
-                          BorderBrush="#4A4A4A"
-                          BorderThickness="1"
-                          Padding="2,0,2,0"
-                          IsEditable="True"
-                          ItemsSource="{Binding BusOptions}"
-                          Text="{Binding BusName, UpdateSourceTrigger=LostFocus}"
-                          ToolTip="Bus name. Send/Receive ports with the same name are connected wirelessly." />
+                <Grid>
+                    <!-- Receive: editable ComboBox listing existing Send buses -->
+                    <ComboBox Background="#1E1E1E"
+                              Foreground="White"
+                              BorderBrush="#4A4A4A"
+                              BorderThickness="1"
+                              Padding="2,0,2,0"
+                              IsEditable="True"
+                              ItemsSource="{Binding BusOptions}"
+                              Text="{Binding BusName, UpdateSourceTrigger=LostFocus}"
+                              ToolTip="Bus name. Pick an existing Send, or type a new name (will be flagged as orphan until a matching Send exists).">
+                        <ComboBox.Style>
+                            <Style TargetType="ComboBox">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsReceive}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ComboBox.Style>
+                    </ComboBox>
+                    <!-- Send: plain TextBox; the Send declares the bus name. -->
+                    <TextBox Background="#1E1E1E"
+                             Foreground="White"
+                             BorderBrush="#4A4A4A"
+                             BorderThickness="1"
+                             Padding="3,2,3,2"
+                             Text="{Binding BusName, UpdateSourceTrigger=LostFocus}"
+                             ToolTip="Bus name this Send publishes. Must be unique across all Send ports in this graph.">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsReceive}" Value="False">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+                </Grid>
             </DockPanel>
         </DataTemplate>
         <DataTemplate x:Key="InspectorLocalBusTemplate">

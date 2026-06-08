@@ -4037,19 +4037,18 @@ namespace DiyFfb.GraphEditor
 
         public sealed class BusPortEntry : INotifyPropertyChanged
         {
-            private readonly Action _onBusNameChanged;
-
-            public BusPortEntry(GraphPort port, IEnumerable<string> busOptions, bool showJumpButton)
+            public BusPortEntry(GraphPort port, IEnumerable<string> busOptions, bool isReceive)
             {
                 Port = port;
                 PortName = port.Name;
                 BusOptions = new ObservableCollection<string>(busOptions ?? Enumerable.Empty<string>());
-                ShowJumpButton = showJumpButton;
+                IsReceive = isReceive;
             }
 
             public GraphPort Port { get; }
             public string PortName { get; }
-            public bool ShowJumpButton { get; }
+            /// <summary>True for Receive ports (gates dropdown vs free-form text, and the jump-to-Send button).</summary>
+            public bool IsReceive { get; }
             public ObservableCollection<string> BusOptions { get; }
 
             public string BusName
