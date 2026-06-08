@@ -3995,16 +3995,29 @@ namespace DiyFfb.GraphEditor
 
         private void CenterOnNode(NodeVisual visual)
         {
-            if (visual == null || CanvasSurface.ActualWidth < 10 || CanvasSurface.ActualHeight < 10) return;
-            // The canvas applies SurfaceScale + SurfaceTranslate. To put the
-            // node's centre at the viewport centre, we want:
-            //   nodeCenterCanvas * scale + translate = viewportCenter
-            // → translate = viewportCenter - nodeCenterCanvas * scale
-            double nodeCx = visual.Node.X + 60;  // approx node mid-width
-            double nodeCy = visual.Node.Y + 30;  // approx node mid-height
+            if (visual?.Container == null) return;
+
+            // Visible viewport = RootGrid (ClipToBounds=True), NOT
+            // CanvasSurface. SimHub embeds the editor in an unconstrained
+            // vertical container, so the Canvas's own ActualHeight balloons
+            // to fit its content (e.g. 3012px when the visible area is
+            // ~1500px). RootGrid's ActualHeight tracks the visible window.
+            // Horizontally, subtract the inspector column + splitter so the
+            // centre lands in the visible canvas region, not under the panel.
+            double viewportW = RootGrid?.ActualWidth ?? CanvasSurface.ActualWidth;
+            double viewportH = RootGrid?.ActualHeight ?? CanvasSurface.ActualHeight;
+            double inspectorW = (InspectorColumn?.ActualWidth ?? 0) + (SplitterColumn?.ActualWidth ?? 0);
+            double canvasViewportW = Math.Max(10, viewportW - inspectorW);
+            if (canvasViewportW < 10 || viewportH < 10) return;
+
+            CanvasSurface.UpdateLayout();
+            double width = visual.Container.ActualWidth > 0 ? visual.Container.ActualWidth : 120.0;
+            double height = visual.Container.ActualHeight > 0 ? visual.Container.ActualHeight : 50.0;
+            double nodeCx = visual.Node.X + width * 0.5;
+            double nodeCy = visual.Node.Y + height * 0.5;
             double scale = SurfaceScale.ScaleX > 0 ? SurfaceScale.ScaleX : 1.0;
-            SurfaceTranslate.X = (CanvasSurface.ActualWidth * 0.5) - nodeCx * scale;
-            SurfaceTranslate.Y = (CanvasSurface.ActualHeight * 0.5) - nodeCy * scale;
+            SurfaceTranslate.X = (canvasViewportW * 0.5) - nodeCx * scale;
+            SurfaceTranslate.Y = (viewportH * 0.5) - nodeCy * scale;
         }
 
         private void SyncBusPortEntries(GraphNode node)
@@ -4014,6 +4027,7 @@ namespace DiyFfb.GraphEditor
 
             // Build the suggestion list: all bus names already declared on
             // LocalSend ports in this graph (so Receive dropdowns auto-fill).
+            // Sorted alphabetically — order of declaration is not meaningful.
             var busOptions = new List<string>();
             foreach (var n in _graph.Nodes)
             {
@@ -4026,6 +4040,7 @@ namespace DiyFfb.GraphEditor
                     }
                 }
             }
+            busOptions.Sort(StringComparer.OrdinalIgnoreCase);
 
             bool isReceive = node.Kind == GraphNodeKind.LocalReceive;
             var wantedKind = isReceive ? GraphPortKind.Output : GraphPortKind.Input;
@@ -5346,9 +5361,13 @@ namespace DiyFfb.GraphEditor
             double maxOutput = 0.0;
             foreach (var port in node.Ports)
             {
-                if (!string.IsNullOrWhiteSpace(port.Name))
+                // Measure the actual displayed label, not the underlying
+                // port.Name — bus ports show "▸ BusName" / "BusName ▸"
+                // and would otherwise overflow when bus names get long.
+                string displayLabel = GetPortDisplayLabel(node, port);
+                if (!string.IsNullOrWhiteSpace(displayLabel))
                 {
-                    double labelWidth = MeasureTextWidth(port.Name, PortFontSize);
+                    double labelWidth = MeasureTextWidth(displayLabel, PortFontSize);
                     if (port.Kind == GraphPortKind.Input)
                     {
                         maxInput = Math.Max(maxInput, labelWidth);
@@ -6148,7 +6167,16 @@ namespace DiyFfb.GraphEditor
                     _name = port.Name;
                 _isNegated = port.Negate;
                 UseSignalOptions = useSignalOptions;
-                SignalOptions = signalOptions ?? Array.Empty<string>();
+                // Sort signal options alphabetically so both the flat ComboBox
+                // list and the hierarchical SignalTree popup come out ordered.
+                if (signalOptions != null && signalOptions.Count > 0)
+                {
+                    SignalOptions = signalOptions.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+                }
+                else
+                {
+                    SignalOptions = Array.Empty<string>();
+                }
                 SignalTree = BuildSignalTree(SignalOptions);
                 ShowParamFields = showParamFields;
                 HideParamUiButton = hideParamUiButton;
