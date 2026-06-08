@@ -405,39 +405,44 @@ namespace DiyFfb.GraphEditor
                 }
             }
 
-            // Local bus validation: exactly one LocalSend per bus name; warn
-            // about LocalReceives without a matching Send.
-            var sendNamesSeen = new HashSet<string>();
+            // Local bus validation (per-port). Each Send port publishes on a
+            // unique bus name; Receive ports tap any matching Send port.
+            var sendBusNames = new HashSet<string>();
             var duplicateSendNames = new HashSet<string>();
             foreach (var node in graph.Nodes)
             {
-                if (node.Kind == GraphNodeKind.LocalSend)
+                if (node.Kind != GraphNodeKind.LocalSend) continue;
+                foreach (var port in node.Ports)
                 {
-                    if (string.IsNullOrEmpty(node.LocalBusName))
+                    if (port.Kind != GraphPortKind.Input) continue;
+                    if (string.IsNullOrEmpty(port.BusName))
                     {
-                        result.Errors.Add($"LocalSend node '{node.Id}' has no bus name.");
+                        result.Errors.Add($"LocalSend '{node.Id}' port '{port.Name}' has no bus name.");
+                        continue;
                     }
-                    else if (!sendNamesSeen.Add(node.LocalBusName))
+                    if (!sendBusNames.Add(port.BusName))
                     {
-                        duplicateSendNames.Add(node.LocalBusName);
+                        duplicateSendNames.Add(port.BusName);
                     }
                 }
             }
             foreach (var name in duplicateSendNames)
             {
-                result.Errors.Add($"Local bus '{name}' has multiple LocalSend nodes (must be exactly one).");
+                result.Errors.Add($"Local bus '{name}' has multiple LocalSend ports (must be exactly one).");
             }
             foreach (var node in graph.Nodes)
             {
-                if (node.Kind == GraphNodeKind.LocalReceive)
+                if (node.Kind != GraphNodeKind.LocalReceive) continue;
+                foreach (var port in node.Ports)
                 {
-                    if (string.IsNullOrEmpty(node.LocalBusName))
+                    if (port.Kind != GraphPortKind.Output) continue;
+                    if (string.IsNullOrEmpty(port.BusName))
                     {
-                        result.Errors.Add($"LocalReceive node '{node.Id}' has no bus name.");
+                        result.Errors.Add($"LocalReceive '{node.Id}' port '{port.Name}' has no bus name.");
                     }
-                    else if (!sendNamesSeen.Contains(node.LocalBusName))
+                    else if (!sendBusNames.Contains(port.BusName))
                     {
-                        result.Warnings.Add($"LocalReceive node '{node.Id}' references bus '{node.LocalBusName}' with no matching LocalSend (will evaluate to 0).");
+                        result.Warnings.Add($"LocalReceive '{node.Id}' port '{port.Name}' references bus '{port.BusName}' with no matching LocalSend (will evaluate to 0).");
                     }
                 }
             }
@@ -538,7 +543,6 @@ namespace DiyFfb.GraphEditor
         public string FunctionScope { get; set; } = "";
         public bool Scoped { get; set; }
         public string ConfigType { get; set; } = "";
-        public string LocalBusName { get; set; } = "";
 
         // Track whether this node uses signal binding (for ShouldSerialize methods)
         // Not serialized; set during FromModel based on graph context
@@ -560,8 +564,6 @@ namespace DiyFfb.GraphEditor
         public bool ShouldSerializeFunctionScope() => Kind == GraphNodeKind.Include && !string.IsNullOrEmpty(FunctionScope);
         public bool ShouldSerializeScoped() => Scoped;
         public bool ShouldSerializeConfigType() => Kind == GraphNodeKind.ConfigOut && !string.IsNullOrEmpty(ConfigType);
-        public bool ShouldSerializeLocalBusName() =>
-            (Kind == GraphNodeKind.LocalSend || Kind == GraphNodeKind.LocalReceive) && !string.IsNullOrEmpty(LocalBusName);
         // v3: Include node ports are auto-derived from included graph, so don't serialize them
         public bool ShouldSerializePorts() => Kind != GraphNodeKind.Include && Ports != null && Ports.Count > 0;
 
@@ -616,8 +618,6 @@ namespace DiyFfb.GraphEditor
                     dto.ConfigType = node.ConfigType;
                 if (node.Kind == GraphNodeKind.Const)
                     dto.ConstValue = node.ConstValue;
-                if (node.Kind == GraphNodeKind.LocalSend || node.Kind == GraphNodeKind.LocalReceive)
-                    dto.LocalBusName = node.LocalBusName;
             }
 
             // v3: Skip ports for Include nodes (they're derived from the included graph)
@@ -679,8 +679,6 @@ namespace DiyFfb.GraphEditor
                     node.ConfigType = ConfigType ?? "";
                 if (Kind == GraphNodeKind.Const)
                     node.ConstValue = ConstValue;
-                if (Kind == GraphNodeKind.LocalSend || Kind == GraphNodeKind.LocalReceive)
-                    node.LocalBusName = LocalBusName ?? "";
             }
 
             if (Ports != null)
@@ -700,12 +698,14 @@ namespace DiyFfb.GraphEditor
         public GraphPortKind Kind { get; set; }
         public string SignalSuffix { get; set; } = "";
         public string ConfigField { get; set; } = "";
+        public string BusName { get; set; } = "";
         public bool Negate { get; set; }
 
         // Conditional serialization: Name for non-signal ports, SignalSuffix for signal ports
         public bool ShouldSerializeName() => string.IsNullOrEmpty(SignalSuffix);
         public bool ShouldSerializeSignalSuffix() => !string.IsNullOrEmpty(SignalSuffix);
         public bool ShouldSerializeConfigField() => !string.IsNullOrEmpty(ConfigField);
+        public bool ShouldSerializeBusName() => !string.IsNullOrEmpty(BusName);
         public bool ShouldSerializeNegate() => Negate;
 
         public static GraphPortDto FromModel(GraphPort port, bool isSignalNode)
@@ -722,6 +722,7 @@ namespace DiyFfb.GraphEditor
                 dto.Name = port.Name;
             }
             dto.ConfigField = port.ConfigField;
+            dto.BusName = port.BusName;
             return dto;
         }
 
@@ -745,6 +746,7 @@ namespace DiyFfb.GraphEditor
             }
             port.Negate = Negate;
             port.ConfigField = ConfigField ?? "";
+            port.BusName = BusName ?? "";
             return port;
         }
     }

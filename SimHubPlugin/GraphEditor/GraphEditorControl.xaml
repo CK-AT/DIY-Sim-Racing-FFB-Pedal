@@ -185,18 +185,67 @@
                          TextChanged="InspectorConst_TextChanged" />
             </StackPanel>
         </DataTemplate>
+        <DataTemplate x:Key="InspectorBusPortEntryTemplate">
+            <DockPanel LastChildFill="True" Margin="0,2,0,2">
+                <Button DockPanel.Dock="Right"
+                        Content="×"
+                        Margin="6,0,0,0"
+                        Width="22"
+                        Height="22"
+                        Background="#1E1E1E"
+                        Foreground="#CC6666"
+                        BorderBrush="#4A4A4A"
+                        BorderThickness="1"
+                        Padding="0"
+                        FontSize="14"
+                        ToolTip="Remove this bus port"
+                        Click="ButtonRemoveBusPort_Click" />
+                <Button DockPanel.Dock="Right"
+                        Content="→"
+                        Margin="6,0,0,0"
+                        Width="22"
+                        Height="22"
+                        Background="#1E1E1E"
+                        Foreground="#88AAFF"
+                        BorderBrush="#4A4A4A"
+                        BorderThickness="1"
+                        Padding="0"
+                        FontSize="12"
+                        ToolTip="Jump to the matching Send (Receive only)"
+                        Visibility="{Binding ShowJumpButton, Converter={StaticResource BoolToVisibility}}"
+                        Click="ButtonJumpToSend_Click" />
+                <TextBlock Text="{Binding PortName}"
+                           DockPanel.Dock="Left"
+                           Width="50"
+                           Foreground="#AAAAAA"
+                           VerticalAlignment="Center"
+                           FontSize="10"
+                           Margin="0,0,4,0" />
+                <ComboBox Background="#1E1E1E"
+                          Foreground="White"
+                          BorderBrush="#4A4A4A"
+                          BorderThickness="1"
+                          Padding="2,0,2,0"
+                          IsEditable="True"
+                          ItemsSource="{Binding BusOptions}"
+                          Text="{Binding BusName, UpdateSourceTrigger=LostFocus}"
+                          ToolTip="Bus name. Send/Receive ports with the same name are connected wirelessly." />
+            </DockPanel>
+        </DataTemplate>
         <DataTemplate x:Key="InspectorLocalBusTemplate">
             <StackPanel>
-                <TextBlock Text="Bus Name" Foreground="#BBBBBB" FontSize="10" />
-                <TextBox Margin="0,2,0,6"
-                         Background="#1E1E1E"
-                         Foreground="White"
-                         BorderBrush="#4A4A4A"
-                         BorderThickness="1"
-                         Padding="3,2,3,2"
-                         Text="{Binding LocalBusName, Mode=OneWay}"
-                         TextChanged="InspectorLocalBusName_TextChanged"
-                         ToolTip="Bus identifier. A Send and one or more Receives with the same name form a graph-local wireless connection." />
+                <TextBlock Text="Bus Ports" Foreground="#BBBBBB" Margin="0,2,0,2" FontSize="10" />
+                <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=BusPortEntries}"
+                              ItemTemplate="{StaticResource InspectorBusPortEntryTemplate}" />
+                <Button Content="+ Add Bus Port"
+                        Margin="0,6,0,0"
+                        HorizontalAlignment="Left"
+                        Background="#1E1E1E"
+                        Foreground="White"
+                        BorderBrush="#4A4A4A"
+                        BorderThickness="1"
+                        Padding="6,2,6,2"
+                        Click="ButtonAddBusPort_Click" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate x:Key="InspectorOpTemplate">

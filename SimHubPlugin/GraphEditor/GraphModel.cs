@@ -98,13 +98,6 @@ namespace DiyFfb.GraphEditor
         /// Populated by SyncIncludePorts() when IncludePath changes.
         /// </summary>
         public IncludedGraphInterface CachedInterface { get; set; }
-
-        /// <summary>
-        /// Bus name for LocalSend / LocalReceive nodes. Free-form within a graph;
-        /// case-sensitive. One Send per name; many Receives match a Send by this
-        /// string.
-        /// </summary>
-        public string LocalBusName { get; set; } = "";
     }
 
     /// <summary>
@@ -173,6 +166,15 @@ namespace DiyFfb.GraphEditor
         /// Only meaningful on ConfigOut node input ports.
         /// </summary>
         public string ConfigField { get; set; } = "";
+
+        /// <summary>
+        /// Graph-local bus name for LocalSend/LocalReceive ports. Each port on a
+        /// Send/Receive node has its own bus name, allowing one node to carry
+        /// multiple buses. One Send port per bus name per graph; any number of
+        /// Receive ports may match a Send by this string. Empty on all other
+        /// port kinds.
+        /// </summary>
+        public string BusName { get; set; } = "";
     }
 
     /// <summary>

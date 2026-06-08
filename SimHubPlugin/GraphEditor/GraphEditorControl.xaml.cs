@@ -39,6 +39,7 @@ namespace DiyFfb.GraphEditor
         private string _previewStatusText = "";
         private readonly GraphPreviewEvaluator _previewEvaluator = new GraphPreviewEvaluator();
         private readonly ObservableCollection<PortEditEntry> _portEntries = new ObservableCollection<PortEditEntry>();
+        private readonly ObservableCollection<BusPortEntry> _busPortEntries = new ObservableCollection<BusPortEntry>();
         private readonly Dictionary<string, IReadOnlyList<string>> _configFieldOptionsCache = new Dictionary<string, IReadOnlyList<string>>();
         private bool _isPanning;
         private bool _panWasDragged;
@@ -78,6 +79,8 @@ namespace DiyFfb.GraphEditor
         private static readonly SolidColorBrush TitleBarOp = new SolidColorBrush(Color.FromRgb(80, 150, 80));          // Green
         private static readonly SolidColorBrush TitleBarFunc = new SolidColorBrush(Color.FromRgb(60, 140, 160));       // Teal
         private static readonly SolidColorBrush TitleBarInclude = new SolidColorBrush(Color.FromRgb(180, 80, 140));    // Magenta
+        private static readonly SolidColorBrush TitleBarLocalSend = new SolidColorBrush(Color.FromRgb(190, 110, 60));   // Burnt-orange (sink, like Output but warmer)
+        private static readonly SolidColorBrush TitleBarLocalReceive = new SolidColorBrush(Color.FromRgb(70, 170, 130));// Mint-green (source on the bus side)
 
         private static readonly FontFamily NodeFontFamily = new FontFamily("Segoe UI");
         private const double TitleFontSize = 11.0;
@@ -118,6 +121,7 @@ namespace DiyFfb.GraphEditor
         public IReadOnlyList<string> FuncChoices => _funcChoices;
         public IReadOnlyList<string> ParamWidgetChoices => _paramWidgetChoices;
         public ObservableCollection<PortEditEntry> PortEntries => _portEntries;
+        public ObservableCollection<BusPortEntry> BusPortEntries => _busPortEntries;
 
         public ObservableCollection<string> IncludeInputNames { get; } = new ObservableCollection<string>();
         public ObservableCollection<string> IncludeOutputNames { get; } = new ObservableCollection<string>();
@@ -1643,17 +1647,15 @@ namespace DiyFfb.GraphEditor
             }
             else if (kind == GraphNodeKind.LocalSend)
             {
-                // Sink: takes one input, publishes on the bus. No output port.
-                node.Title = "Send: ?";
-                node.LocalBusName = "";
-                node.Ports.Add(new GraphPort { Name = "in", Kind = GraphPortKind.Input });
+                // Sink node. Each input port publishes on its own BusName.
+                node.Title = "Local Send";
+                node.Ports.Add(new GraphPort { Name = "in_0", Kind = GraphPortKind.Input, BusName = "" });
             }
             else if (kind == GraphNodeKind.LocalReceive)
             {
-                // Source: emits the bus value. No input port.
-                node.Title = "Recv: ?";
-                node.LocalBusName = "";
-                node.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
+                // Source node. Each output port taps a bus by BusName.
+                node.Title = "Local Receive";
+                node.Ports.Add(new GraphPort { Name = "out_0", Kind = GraphPortKind.Output, BusName = "" });
             }
 
             _graph.Nodes.Add(node);
@@ -1698,6 +1700,10 @@ namespace DiyFfb.GraphEditor
             if (UsesTemplateInspector(node) && node.Kind == GraphNodeKind.Include)
             {
                 RebuildIncludePortEditors(node);
+            }
+            if (UsesTemplateInspector(node) && (node.Kind == GraphNodeKind.LocalSend || node.Kind == GraphNodeKind.LocalReceive))
+            {
+                SyncBusPortEntries(node);
             }
         }
 
@@ -3330,6 +3336,14 @@ namespace DiyFfb.GraphEditor
         /// </summary>
         private string GetPortDisplayLabel(GraphNode node, GraphPort port)
         {
+            // Bus ports surface their bus name on the canvas (the local
+            // port.Name like "in_0" / "out_0" carries no semantic value here).
+            if (node != null && (node.Kind == GraphNodeKind.LocalSend || node.Kind == GraphNodeKind.LocalReceive))
+            {
+                string busLabel = string.IsNullOrEmpty(port?.BusName) ? "(unnamed)" : port.BusName;
+                return node.Kind == GraphNodeKind.LocalSend ? "▸ " + busLabel : busLabel + " ▸";
+            }
+
             bool isLibraryGraph = _graph != null && _graph.IsLibraryGraph;
             bool isNegatedOpInput = node != null &&
                 node.Kind == GraphNodeKind.Op &&
@@ -3904,6 +3918,155 @@ namespace DiyFfb.GraphEditor
             GraphChanged?.Invoke();
         }
 
+        private void ButtonAddBusPort_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null) return;
+            var node = _selectedNode.Node;
+            if (node.Kind != GraphNodeKind.LocalSend && node.Kind != GraphNodeKind.LocalReceive) return;
+
+            var portKind = node.Kind == GraphNodeKind.LocalSend ? GraphPortKind.Input : GraphPortKind.Output;
+            string prefix = node.Kind == GraphNodeKind.LocalSend ? "in_" : "out_";
+            int idx = node.Ports.Count(p => p.Kind == portKind);
+            node.Ports.Add(new GraphPort { Name = $"{prefix}{idx}", Kind = portKind, BusName = "" });
+
+            RebuildSurface();
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+            SyncBusPortEntries(node);
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        private void ButtonRemoveBusPort_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null || !(sender is Button button)) return;
+            if (!(button.DataContext is BusPortEntry entry)) return;
+            var node = _selectedNode.Node;
+            if (node.Kind != GraphNodeKind.LocalSend && node.Kind != GraphNodeKind.LocalReceive) return;
+            if (node.Ports.Count <= 1) return;  // keep at least one port
+
+            RemovePort(node, entry.Port);
+            RebuildSurface();
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+            SyncBusPortEntries(node);
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        private void ButtonJumpToSend_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button button) || !(button.DataContext is BusPortEntry entry)) return;
+            if (string.IsNullOrEmpty(entry.BusName)) return;
+            // Find the LocalSend node that has a port with this bus name.
+            foreach (var n in _graph.Nodes)
+            {
+                if (n.Kind != GraphNodeKind.LocalSend) continue;
+                foreach (var port in n.Ports)
+                {
+                    if (port.Kind == GraphPortKind.Input && port.BusName == entry.BusName)
+                    {
+                        if (_nodeVisuals.TryGetValue(n.Id, out var visual))
+                        {
+                            CenterOnNode(visual);
+                            _selectedNode = visual;
+                            _selectedNodes.Clear();
+                            _selectedNodes.Add(visual);
+                            UpdateSelectionVisuals();
+                            UpdateInspector();
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+
+        private void CenterOnNode(NodeVisual visual)
+        {
+            if (visual == null || CanvasSurface.ActualWidth < 10 || CanvasSurface.ActualHeight < 10) return;
+            // The canvas applies SurfaceScale + SurfaceTranslate. To put the
+            // node's centre at the viewport centre, we want:
+            //   nodeCenterCanvas * scale + translate = viewportCenter
+            // → translate = viewportCenter - nodeCenterCanvas * scale
+            double nodeCx = visual.Node.X + 60;  // approx node mid-width
+            double nodeCy = visual.Node.Y + 30;  // approx node mid-height
+            double scale = SurfaceScale.ScaleX > 0 ? SurfaceScale.ScaleX : 1.0;
+            SurfaceTranslate.X = (CanvasSurface.ActualWidth * 0.5) - nodeCx * scale;
+            SurfaceTranslate.Y = (CanvasSurface.ActualHeight * 0.5) - nodeCy * scale;
+        }
+
+        private void SyncBusPortEntries(GraphNode node)
+        {
+            _busPortEntries.Clear();
+            if (node == null || (node.Kind != GraphNodeKind.LocalSend && node.Kind != GraphNodeKind.LocalReceive)) return;
+
+            // Build the suggestion list: all bus names already declared on
+            // LocalSend ports in this graph (so Receive dropdowns auto-fill).
+            var busOptions = new List<string>();
+            foreach (var n in _graph.Nodes)
+            {
+                if (n.Kind != GraphNodeKind.LocalSend) continue;
+                foreach (var p in n.Ports)
+                {
+                    if (p.Kind == GraphPortKind.Input && !string.IsNullOrEmpty(p.BusName) && !busOptions.Contains(p.BusName))
+                    {
+                        busOptions.Add(p.BusName);
+                    }
+                }
+            }
+
+            bool isReceive = node.Kind == GraphNodeKind.LocalReceive;
+            var wantedKind = isReceive ? GraphPortKind.Output : GraphPortKind.Input;
+            foreach (var port in node.Ports.Where(p => p.Kind == wantedKind))
+            {
+                _busPortEntries.Add(new BusPortEntry(port, busOptions, isReceive));
+            }
+        }
+
+        public sealed class BusPortEntry : INotifyPropertyChanged
+        {
+            private readonly Action _onBusNameChanged;
+
+            public BusPortEntry(GraphPort port, IEnumerable<string> busOptions, bool showJumpButton)
+            {
+                Port = port;
+                PortName = port.Name;
+                BusOptions = new ObservableCollection<string>(busOptions ?? Enumerable.Empty<string>());
+                ShowJumpButton = showJumpButton;
+            }
+
+            public GraphPort Port { get; }
+            public string PortName { get; }
+            public bool ShowJumpButton { get; }
+            public ObservableCollection<string> BusOptions { get; }
+
+            public string BusName
+            {
+                get => Port.BusName ?? "";
+                set
+                {
+                    string trimmed = value?.Trim() ?? "";
+                    if (Port.BusName == trimmed) return;
+                    Port.BusName = trimmed;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BusName)));
+                }
+            }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+        }
+
         private void EnsureFuncPorts(GraphNode node)
         {
             if (node == null || node.Kind != GraphNodeKind.Func)
@@ -4308,30 +4471,6 @@ namespace DiyFfb.GraphEditor
                 node.Title = string.IsNullOrWhiteSpace(desired) ? null : desired;
                 UpdateNodeTitleVisual(node);
                 SyncPreviewEntries();
-                RefreshPreview();
-                _pendingUndoDebounce = true;
-                GraphChanged?.Invoke();
-            }
-        }
-
-        private void InspectorLocalBusName_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (_isInspectorUpdating || _selectedNode == null)
-            {
-                return;
-            }
-
-            if (sender is TextBox textBox &&
-                textBox.DataContext is GraphNode node &&
-                ReferenceEquals(node, _selectedNode.Node) &&
-                (node.Kind == GraphNodeKind.LocalSend || node.Kind == GraphNodeKind.LocalReceive))
-            {
-                string desired = textBox.Text?.Trim() ?? "";
-                node.LocalBusName = desired;
-                // Reflect bus name in the node title for at-a-glance visual.
-                node.Title = (node.Kind == GraphNodeKind.LocalSend ? "Send: " : "Recv: ")
-                             + (string.IsNullOrEmpty(desired) ? "?" : desired);
-                UpdateNodeTitleVisual(node);
                 RefreshPreview();
                 _pendingUndoDebounce = true;
                 GraphChanged?.Invoke();
@@ -5150,6 +5289,8 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.Op: return TitleBarOp;
                 case GraphNodeKind.Func: return TitleBarFunc;
                 case GraphNodeKind.Include: return TitleBarInclude;
+                case GraphNodeKind.LocalSend: return TitleBarLocalSend;
+                case GraphNodeKind.LocalReceive: return TitleBarLocalReceive;
                 default: return TitleBarConst;
             }
         }
