@@ -4031,18 +4031,54 @@ namespace DiyFfb.GraphEditor
             var wantedKind = isReceive ? GraphPortKind.Output : GraphPortKind.Input;
             foreach (var port in node.Ports.Where(p => p.Kind == wantedKind))
             {
-                _busPortEntries.Add(new BusPortEntry(port, busOptions, isReceive));
+                _busPortEntries.Add(new BusPortEntry(port, busOptions, isReceive, OnBusPortNameChanged));
             }
+        }
+
+        private void OnBusPortNameChanged()
+        {
+            // Bus name edited inline — mark dirty + repaint affected node so
+            // the canvas label updates immediately.
+            if (_selectedNode != null)
+            {
+                RebuildNodeVisual(_selectedNode.Node);
+                UpdateSelectionVisuals();
+            }
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        private void RebuildNodeVisual(GraphNode node)
+        {
+            if (node == null) return;
+            if (!_nodeVisuals.TryGetValue(node.Id, out var oldVisual)) return;
+            CanvasSurface.Children.Remove(oldVisual.Container);
+            var newVisual = BuildNodeVisual(node);
+            _nodeVisuals[node.Id] = newVisual;
+            CanvasSurface.Children.Add(newVisual.Container);
+            Canvas.SetLeft(newVisual.Container, node.X);
+            Canvas.SetTop(newVisual.Container, node.Y);
+            if (ReferenceEquals(_selectedNode?.Node, node))
+            {
+                _selectedNode = newVisual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(newVisual);
+            }
+            UpdateAllLinkGeometry();
         }
 
         public sealed class BusPortEntry : INotifyPropertyChanged
         {
-            public BusPortEntry(GraphPort port, IEnumerable<string> busOptions, bool isReceive)
+            private readonly Action _onChanged;
+
+            public BusPortEntry(GraphPort port, IEnumerable<string> busOptions, bool isReceive, Action onChanged)
             {
                 Port = port;
                 PortName = port.Name;
                 BusOptions = new ObservableCollection<string>(busOptions ?? Enumerable.Empty<string>());
                 IsReceive = isReceive;
+                _onChanged = onChanged;
             }
 
             public GraphPort Port { get; }
@@ -4056,10 +4092,14 @@ namespace DiyFfb.GraphEditor
                 get => Port.BusName ?? "";
                 set
                 {
-                    string trimmed = value?.Trim() ?? "";
-                    if (Port.BusName == trimmed) return;
-                    Port.BusName = trimmed;
+                    // PropertyChanged-trigger binding: do NOT trim here, or the
+                    // TextBox loses characters mid-typing when the user has a
+                    // trailing space. Trim is purely cosmetic in this UI.
+                    string newValue = value ?? "";
+                    if (Port.BusName == newValue) return;
+                    Port.BusName = newValue;
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BusName)));
+                    _onChanged?.Invoke();
                 }
             }
 

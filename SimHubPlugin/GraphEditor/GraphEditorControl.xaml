@@ -223,14 +223,15 @@
                            Margin="0,0,4,0" />
                 <Grid>
                     <!-- Receive: editable ComboBox listing existing Send buses -->
-                    <ComboBox Background="#1E1E1E"
+                    <ComboBox IsEditable="True"
+                              IsTextSearchEnabled="True"
+                              Background="#1E1E1E"
                               Foreground="White"
                               BorderBrush="#4A4A4A"
                               BorderThickness="1"
                               Padding="2,0,2,0"
-                              IsEditable="True"
                               ItemsSource="{Binding BusOptions}"
-                              Text="{Binding BusName, UpdateSourceTrigger=LostFocus}"
+                              Text="{Binding BusName, UpdateSourceTrigger=PropertyChanged}"
                               ToolTip="Bus name. Pick an existing Send, or type a new name (will be flagged as orphan until a matching Send exists).">
                         <ComboBox.Style>
                             <Style TargetType="ComboBox">
@@ -242,6 +243,43 @@
                                 </Style.Triggers>
                             </Style>
                         </ComboBox.Style>
+                        <ComboBox.Template>
+                            <ControlTemplate TargetType="ComboBox">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="20" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="PART_EditableTextBox"
+                                             Grid.Column="0"
+                                             Background="#1E1E1E"
+                                             Foreground="White"
+                                             BorderThickness="0"
+                                             Padding="2,1,2,1"
+                                             ContextMenu="{x:Null}"
+                                             Text="{TemplateBinding Text}" />
+                                    <ToggleButton Grid.Column="1"
+                                                  IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                                  Background="#1E1E1E"
+                                                  BorderBrush="#4A4A4A"
+                                                  BorderThickness="1"
+                                                  Focusable="False">
+                                        <TextBlock Text="▾" Foreground="White" HorizontalAlignment="Center" />
+                                    </ToggleButton>
+                                    <Popup Placement="Bottom"
+                                           IsOpen="{TemplateBinding IsDropDownOpen}"
+                                           AllowsTransparency="True"
+                                           PopupAnimation="None"
+                                           PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}">
+                                        <Border Background="#1E1E1E" BorderBrush="#4A4A4A" BorderThickness="1">
+                                            <ScrollViewer MaxHeight="240">
+                                                <ItemsPresenter />
+                                            </ScrollViewer>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+                            </ControlTemplate>
+                        </ComboBox.Template>
                     </ComboBox>
                     <!-- Send: plain TextBox; the Send declares the bus name. -->
                     <TextBox Background="#1E1E1E"
@@ -249,7 +287,7 @@
                              BorderBrush="#4A4A4A"
                              BorderThickness="1"
                              Padding="3,2,3,2"
-                             Text="{Binding BusName, UpdateSourceTrigger=LostFocus}"
+                             Text="{Binding BusName, UpdateSourceTrigger=PropertyChanged}"
                              ToolTip="Bus name this Send publishes. Must be unique across all Send ports in this graph.">
                         <TextBox.Style>
                             <Style TargetType="TextBox">
