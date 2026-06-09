@@ -39,6 +39,14 @@ public:
     // Return codes from CheckForOTAUpdate
     enum ErrorCode { UPDATE_AVAILABLE = -3, NO_UPDATE_PROFILE_FOUND = -2, NO_UPDATE_AVAILABLE = -1, UPDATE_OK = 0, HTTP_FAILED = 1, WRITE_ERROR = 2, JSON_PROBLEM = 3, OTA_UPDATE_FAIL = 4, MD5_ERROR = 5 };
 
+    // Details of the last WRITE_ERROR (incomplete transfer).
+    const char *GetWriteFailReason() const { return _write_fail_reason; }
+    int GetWriteFailOffset() const { return _write_fail_offset; }
+    int GetWriteFailTotal() const { return _write_fail_total; }
+
+    // Reason for the last OTA_UPDATE_FAIL (Update.begin/end failure).
+    const char *GetUpdateFailReason() const { return _update_fail_reason; }
+
 private:
     void (*Callback)(int offset, int totallength) = NULL;
     ActionType Action = UPDATE_AND_BOOT;
@@ -48,6 +56,17 @@ private:
     String CVersion   = "";
     bool DowngradesAllowed = false;
     bool SerialDebug = false;
+
+    // Diagnostics for the last WRITE_ERROR (incomplete transfer): why it stopped
+    // and how far it got. Lets the caller distinguish a dropped connection from a
+    // flash short-write or a stalled stream.
+    const char *_write_fail_reason = "";
+    int _write_fail_offset = 0;
+    int _write_fail_total = 0;
+
+    // Update.errorString() captured at the OTA_UPDATE_FAIL paths (begin/end), so
+    // callers can report it without reaching into the Update library themselves.
+    const char *_update_fail_reason = "";
 
     static int CompareVersionStrings(const char *lhs, const char *rhs)
     {
@@ -96,6 +115,14 @@ private:
 
     int DoOTAUpdate(const char* URL, ActionType Action, const char* md5)
     {
+        // A previous attempt may have called Update.begin() and then bailed out
+        // (dropped connection, stall timeout, write mismatch) without ending or
+        // aborting. Update is then stuck "already running" and every begin() below
+        // returns false with NO error set ("No Error") until the next reboot.
+        // Clear any leftover state so a retry can start cleanly.
+        if (Update.isRunning())
+            Update.abort();
+
         HTTPClient http;
 	http.useHTTP10(true);		
         http.begin(URL);
@@ -109,14 +136,17 @@ private:
             int totalLength = http.getSize();
 
             // this is required to start firmware update process
-            if (!Update.begin(UPDATE_SIZE_UNKNOWN))
+            if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+                _update_fail_reason = Update.errorString();
                 return OTA_UPDATE_FAIL;
+            }
 
             if (md5 && md5[0] != '\0') {
                 if (!Update.setMD5(md5)) {
                     if (SerialDebug) {
                         Serial.println("OTA: invalid MD5 string");
                     }
+                    Update.abort();
                     return JSON_PROBLEM;
                 }
             }
@@ -129,6 +159,9 @@ private:
 
             // read all data from server
             int offset = 0;
+            uint32_t last_data_ms = millis();
+            // Default reason if the loop exits with http.connected() == false.
+            const char *fail_reason = "connection closed";
             while (http.connected() && offset < totalLength)
             {
                 size_t sizeAvail = stream->available();
@@ -146,11 +179,27 @@ private:
 				Serial.printf("Using merged .bin file instead of just the app .bin from Arduino\n");
 				Serial.printf("Flash encryption configuration issues.\n");
 			}
+                        fail_reason = "flash short-write";
                         break;
                     }
                     offset += bytes_written;
+                    last_data_ms = millis();
                     if (Callback != NULL)
                         Callback(offset, totalLength);
+                }
+                else
+                {
+                    // No data ready yet. Yield so IDLE/the task watchdog can run;
+                    // the original tight spin on available()/connected() starves
+                    // IDLE0 during normal TCP gaps -> TASK_WDT reboot mid-download.
+                    // Abort if the stream stalls too long so a dead connection
+                    // fails cleanly instead of hanging.
+                    if (millis() - last_data_ms > 10000)
+                    {
+                        fail_reason = "stalled (no data 10s)";
+                        break;
+                    }
+                    delay(2);
                 }
             }
 
@@ -164,13 +213,21 @@ private:
                         return UPDATE_OK;
                     ESP.restart();
                 } else {
+                    _update_fail_reason = Update.errorString();
                     auto err = Update.getError();
                     if (err == UPDATE_ERROR_MD5) {
-                        return MD5_ERROR;                   
+                        return MD5_ERROR;
                     }
                     return OTA_UPDATE_FAIL;
                 }
             }
+            // Incomplete transfer (dropped connection / stall timeout / write
+            // mismatch). Record diagnostics and abort so Update isn't left
+            // "running" and blocking the next attempt's begin().
+            _write_fail_reason = fail_reason;
+            _write_fail_offset = offset;
+            _write_fail_total = totalLength;
+            Update.abort();
             return WRITE_ERROR;
         }
 

@@ -63,8 +63,12 @@ void CommManager::periodic_task_func(void) {
         _config_manager_initialized = true;
         refresh_force_pos_rate(_config_manager->get_function_config()->base.linked_axes);
     } else {
-        if (!_physics_task_started) {
-            // process() is usualy called by the physics task but it has not been started (yet), so call process() here
+        if (!_physics_task_started || _ota_state != OtaState::OTA_IDLE) {
+            // process() is usually called by the physics task, but it hasn't been
+            // started yet (gateway) or is suspended during OTA. Pump it here so
+            // CAN/ISOTP keeps flowing — notably axis log egress to the gateway,
+            // which otherwise goes silent while updating. (During the blocking
+            // download itself periodic_task can't loop, so logs still pause then.)
             process();
         }
         can_manager.process_isotp();
@@ -209,11 +213,12 @@ void CommManager::update_ota_state() {
                 result = ESP32OTAPull::ErrorCode(ota.CheckForOTAUpdate(_ota_url.c_str(), VERSION));
                 switch (result) {
                     case ESP32OTAPull::ErrorCode::OTA_UPDATE_FAIL:
-                        LogOutput::printf("OTA: Failed to begin update");
+                        LogOutput::printf("OTA: Failed to begin update: %s", ota.GetUpdateFailReason());
                         switch_ota_state(OTA_ERROR);
                         break;
                     case ESP32OTAPull::ErrorCode::WRITE_ERROR:
-                        LogOutput::printf("OTA: Write error");
+                        LogOutput::printf("OTA: Write error: %s at %d/%d bytes", ota.GetWriteFailReason(), ota.GetWriteFailOffset(),
+                                          ota.GetWriteFailTotal());
                         switch_ota_state(OTA_ERROR);
                         break;
                     case ESP32OTAPull::ErrorCode::MD5_ERROR:

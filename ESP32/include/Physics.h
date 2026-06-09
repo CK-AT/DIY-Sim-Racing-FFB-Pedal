@@ -320,6 +320,11 @@ class SyncVib : public SimElement {
 
         void update(const SimState &state, SimAccumulators &accum) override;
 
+        // Reset DDS + PLL state to a known-safe start. Call on (re)activation so
+        // the first post-enable cycle can't consume stale phase/frequency and
+        // produce a runaway phase step.
+        void reset(void);
+
     private:
         // Local DDS
         float _phase = 0.0f;

@@ -191,9 +191,12 @@ namespace {
     static_assert(sizeof(DdsSyncPayload) == 8, "0x0F0 payload must be 8 bytes");
 
     uint16_t pack_dds_phase(float phase_rad) {
-        // Wrap to [0, 2π) then scale to uint16
-        while (phase_rad < 0.0f) phase_rad += kTwoPi;
-        while (phase_rad >= kTwoPi) phase_rad -= kTwoPi;
+        // Wrap to [0, 2π). fmodf is O(1); the old iterative subtraction spins
+        // forever on a non-finite or large phase (same hazard fixed in SyncVib
+        // and MasterDds).
+        if (!isfinite(phase_rad)) phase_rad = 0.0f;
+        phase_rad = fmodf(phase_rad, kTwoPi);
+        if (phase_rad < 0.0f) phase_rad += kTwoPi;
         int32_t scaled = (int32_t)lroundf(phase_rad * kDdsPhasePackScale);
         return (uint16_t)(scaled & 0xFFFF);
     }

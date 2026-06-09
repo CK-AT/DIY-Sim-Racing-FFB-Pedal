@@ -13,6 +13,12 @@ FlightControlFunction::FlightControlFunction(void) {
 
 void FlightControlFunction::update_config(const FlightControlConfig &config) {
     _config = config;
+    // (Re)activation point: clear DDS/PLL state so the first physics cycle after
+    // enable starts from a known-safe phase/frequency. Stale phase/frequency
+    // here (e.g. carried from a previous flight session) could otherwise produce
+    // a runaway phase step on that first cycle.
+    vib1.reset();
+    vib2.reset();
     damper.set_k(_config.damping);
     centering_spring.set_k(_config.centering_spring_const);
     _base_center = float(_config.pos_min) + (float(_config.pos_max - _config.pos_min) / 2.0f);

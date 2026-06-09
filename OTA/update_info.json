@@ -2,9 +2,9 @@
   "Configurations": [
     {
       "Board": "CK-AT_A6_V1.0",
-      "MD5": "4418c03e3211fd8fd6b965f5f741c73f",
-      "URL": "https://raw.githubusercontent.com/CK-AT/DIY-Sim-Racing-FFB-Pedal/refs/heads/ck_unified_flight_controls/OTA/firmware_a6-ffb-v10-ck-at.bin",
-      "Version": "0.2.26"
+      "MD5": "fd4f78035d7e486176c2142a29e44d6d",
+      "URL": "https://raw.githubusercontent.com/CK-AT/DIY-Sim-Racing-FFB-Pedal/refs/heads/ck_dds_stability_fix/OTA/firmware_a6-ffb-v10-ck-at.bin",
+      "Version": "0.2.29"
     }
   ]
 }
