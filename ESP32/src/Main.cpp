@@ -673,10 +673,17 @@ void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel) {
 }
 
 void on_ota_state_change(bool ota_active) {
-    if (!servo) return;
+    // Free core 1 for the duration of OTA. PhysicsTask (prio 10, pinned core 1)
+    // otherwise keeps spinning its loop even with the servo paused, and under the
+    // added WiFi/lwIP load it starves IDLE1 long enough to trip the task watchdog
+    // -> TASK_WDT reboot mid-download (the OTA "flakiness"). Suspending it lets
+    // IDLE1 run and feed the WDT. vTaskSuspend/Resume are not nested, so repeated
+    // active-state transitions are harmless; a single resume undoes it.
     if (ota_active) {
-        servo->pause();
+        if (physics_task_handle) vTaskSuspend(physics_task_handle);
+        if (servo) servo->pause();
     } else {
-        servo->resume();
+        if (servo) servo->resume();
+        if (physics_task_handle) vTaskResume(physics_task_handle);
     }
 }
