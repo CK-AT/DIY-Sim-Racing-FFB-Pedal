@@ -213,11 +213,12 @@ void CommManager::update_ota_state() {
                 result = ESP32OTAPull::ErrorCode(ota.CheckForOTAUpdate(_ota_url.c_str(), VERSION));
                 switch (result) {
                     case ESP32OTAPull::ErrorCode::OTA_UPDATE_FAIL:
-                        LogOutput::printf("OTA: Failed to begin update");
+                        LogOutput::printf("OTA: Failed to begin update: %s", ota.GetUpdateFailReason());
                         switch_ota_state(OTA_ERROR);
                         break;
                     case ESP32OTAPull::ErrorCode::WRITE_ERROR:
-                        LogOutput::printf("OTA: Write error");
+                        LogOutput::printf("OTA: Write error: %s at %d/%d bytes", ota.GetWriteFailReason(), ota.GetWriteFailOffset(),
+                                          ota.GetWriteFailTotal());
                         switch_ota_state(OTA_ERROR);
                         break;
                     case ESP32OTAPull::ErrorCode::MD5_ERROR:
