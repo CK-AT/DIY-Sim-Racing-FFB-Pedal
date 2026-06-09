@@ -14,6 +14,7 @@
 #include "Main.h"
 
 #include "Arduino.h"
+#include "esp_ota_ops.h"
 #include "ConfigManager.h"
 #include "IFunction.h"
 #include "Physics.h"
@@ -292,6 +293,36 @@ void setup() {
     Serial.setTimeout(5);
     Serial.begin(3000000);
 #endif
+
+    // OTA boot diagnostic: which slot booted, its rollback state, and why we last
+    // reset. A freshly-OTA'd image that got rolled back shows up here as the OLD
+    // partition (e.g. app0) with a fault reset_reason (PANIC/TASK_WDT/INT_WDT) and
+    // a VALID state — i.e. it never reached initArduino's mark-app-valid before
+    // resetting in the PENDING_VERIFY window. A clean stick shows the NEW partition.
+    {
+        const esp_partition_t *running = esp_ota_get_running_partition();
+        esp_ota_img_states_t ota_state = ESP_OTA_IMG_UNDEFINED;
+        if (running) esp_ota_get_state_partition(running, &ota_state);
+        const char *state_str =
+            ota_state == ESP_OTA_IMG_NEW            ? "NEW" :
+            ota_state == ESP_OTA_IMG_PENDING_VERIFY ? "PENDING_VERIFY" :
+            ota_state == ESP_OTA_IMG_VALID          ? "VALID" :
+            ota_state == ESP_OTA_IMG_INVALID        ? "INVALID" :
+            ota_state == ESP_OTA_IMG_ABORTED        ? "ABORTED" : "UNDEFINED";
+        esp_reset_reason_t rr = esp_reset_reason();
+        const char *rr_str =
+            rr == ESP_RST_POWERON  ? "POWERON" :
+            rr == ESP_RST_EXT      ? "EXT" :
+            rr == ESP_RST_SW       ? "SW" :
+            rr == ESP_RST_PANIC    ? "PANIC" :
+            rr == ESP_RST_INT_WDT  ? "INT_WDT" :
+            rr == ESP_RST_TASK_WDT ? "TASK_WDT" :
+            rr == ESP_RST_WDT      ? "WDT" :
+            rr == ESP_RST_BROWNOUT ? "BROWNOUT" :
+            rr == ESP_RST_DEEPSLEEP ? "DEEPSLEEP" : "OTHER";
+        Serial.printf("Boot: v%s part=%s ota_state=%s reset_reason=%s(%d)",
+                          VERSION, running ? running->label : "?", state_str, rr_str, (int)rr);
+    }
 
     CommManager::CANConfig can_config = {.baud_rate = 1000, .tx_pin = CAN_TX, .rx_pin = CAN_RX};
 
