@@ -15,8 +15,12 @@ namespace DiyFfb
         private readonly Action<string> log;
 
         public int RetryCount { get; set; } = 1;
-        public TimeSpan RetryTimeout { get; set; } = TimeSpan.FromSeconds(30);
+        public TimeSpan RetryTimeout { get; set; } = TimeSpan.FromSeconds(45);
         public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(1);
+
+        // Delay between sends when no expected version is known (no completion signal
+        // to wait on). Best-effort spacing so targets don't all start downloading at once.
+        public TimeSpan StaggerDelay { get; set; } = TimeSpan.FromSeconds(2);
 
         public OtaUpdateCoordinator(
             Func<AxisID, string> axisVersionProvider,
@@ -43,7 +47,7 @@ namespace DiyFfb
                 bool axesOk = await UpdateAxesAsync(axes, expectedVersion, token).ConfigureAwait(true);
                 if (!axesOk)
                 {
-                    log?.Invoke("OTA: axis update did not reach expected version.");
+                    log?.Invoke("OTA: one or more axes did not reach expected version.");
                 }
             }
 
@@ -79,6 +83,11 @@ namespace DiyFfb
                 token).ConfigureAwait(true);
         }
 
+        // Updates targets one at a time: send to a single target, wait for it to report the
+        // expected version, then move on. This avoids the WiFi/HTTP congestion that caused
+        // some targets to fail when all of them downloaded firmware simultaneously. Retries
+        // are per-target, so a single stuck unit is re-flashed in place rather than restarting
+        // the whole batch.
         private async Task<bool> UpdateTargetsAsync<TId>(
             IReadOnlyList<TId> targets,
             string expectedVersion,
@@ -95,33 +104,56 @@ namespace DiyFfb
             if (string.IsNullOrWhiteSpace(expectedVersion) || expectedVersion == "-")
             {
                 log?.Invoke($"OTA: skipping {label} version checks (no expected version).");
-                foreach (var target in targets)
+                for (int i = 0; i < targets.Count; i++)
                 {
-                    sender(target);
+                    sender(targets[i]);
+                    if (i < targets.Count - 1)
+                    {
+                        await Task.Delay(StaggerDelay, token).ConfigureAwait(true);
+                    }
                 }
                 return true;
             }
 
-            for (int attempt = 0; attempt <= RetryCount; attempt++)
+            bool allOk = true;
+            for (int i = 0; i < targets.Count; i++)
             {
-                log?.Invoke($"OTA: sending {label} update (attempt {attempt + 1}/{RetryCount + 1}).");
-                foreach (var target in targets)
+                TId target = targets[i];
+
+                // Already on the expected version (e.g. a retry of a partially-completed run).
+                if (TargetMatches(target, expectedVersion, versionProvider))
                 {
-                    sender(target);
+                    log?.Invoke($"OTA: {label} {i + 1}/{targets.Count} already on {expectedVersion}, skipping.");
+                    continue;
                 }
 
-                bool ok = await WaitForTargetsAsync(targets, expectedVersion, versionProvider, token).ConfigureAwait(true);
-                if (ok)
+                bool ok = false;
+                for (int attempt = 0; attempt <= RetryCount; attempt++)
                 {
-                    return true;
+                    log?.Invoke($"OTA: updating {label} {i + 1}/{targets.Count} (attempt {attempt + 1}/{RetryCount + 1}).");
+                    sender(target);
+
+                    ok = await WaitForTargetAsync(target, expectedVersion, versionProvider, token).ConfigureAwait(true);
+                    if (ok)
+                    {
+                        log?.Invoke($"OTA: {label} {i + 1}/{targets.Count} reached {expectedVersion}.");
+                        break;
+                    }
+
+                    log?.Invoke($"OTA: {label} {i + 1}/{targets.Count} did not reach {expectedVersion} within {RetryTimeout.TotalSeconds:0}s.");
+                }
+
+                if (!ok)
+                {
+                    allOk = false;
                 }
             }
 
-            return false;
+            return allOk;
         }
 
-        private async Task<bool> WaitForTargetsAsync<TId>(
-            IReadOnlyList<TId> targets,
+        private async Task<bool> WaitForTargetAsync<TId>(
+            TId target,
             string expectedVersion,
             Func<TId, string> versionProvider,
             CancellationToken token)
@@ -130,18 +162,19 @@ namespace DiyFfb
             while (DateTime.UtcNow < deadline)
             {
                 token.ThrowIfCancellationRequested();
-                bool allMatch = targets.All(t =>
-                {
-                    string version = versionProvider(t);
-                    return string.Equals(version, expectedVersion, StringComparison.OrdinalIgnoreCase);
-                });
-                if (allMatch)
+                if (TargetMatches(target, expectedVersion, versionProvider))
                 {
                     return true;
                 }
                 await Task.Delay(PollInterval, token).ConfigureAwait(true);
             }
             return false;
+        }
+
+        private static bool TargetMatches<TId>(TId target, string expectedVersion, Func<TId, string> versionProvider)
+        {
+            string version = versionProvider(target);
+            return string.Equals(version, expectedVersion, StringComparison.OrdinalIgnoreCase);
         }
     }
 }
