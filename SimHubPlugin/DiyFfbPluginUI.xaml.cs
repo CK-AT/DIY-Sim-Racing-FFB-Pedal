@@ -2264,6 +2264,51 @@ namespace DiyFfb
             {
                 AddLogSourceFilter(UiLogSourceKind.Axis, (int)axis_id, $"Axis {(int)axis_id}");
             }
+
+            // A reconnecting axis (after an axis or gateway restart) comes back with
+            // its persisted/default config — graph-derived (ConfigOut) and other
+            // non-stored fields are lost. Proactively re-push the full merged config
+            // we already hold so the axis is restored to exactly its prior state,
+            // rather than relying on the device-report + baseline-gated push-back.
+            if (new_online_state && axis_id != AxisID.AxisUndefined)
+            {
+                RepushActiveConfigsForAxis(axis_id);
+            }
+        }
+
+        // Re-uploads the current merged config (baseline + profile + user + ConfigOut)
+        // for every active function bound to the given axis. Used on axis reconnect to
+        // restore state the device drops on restart, including ConfigOut-derived fields.
+        private void RepushActiveConfigsForAxis(AxisID axisId)
+        {
+            if (axisId == AxisID.AxisUndefined)
+            {
+                return;
+            }
+
+            foreach (var funcId in functions.Keys)
+            {
+                int id = (int)funcId;
+                if (!Plugin.ConfigOrchestrator.IsFunctionActive(id))
+                {
+                    continue;
+                }
+
+                FunctionConfig merged = Plugin.FunctionConfigManager.GetCurrentConfig(id);
+                if (merged == null)
+                {
+                    continue;
+                }
+
+                bool linksThisAxis = merged.Base.LinkedAxes.Any(a => (a & AxisID.Mask) == axisId);
+                if (!linksThisAxis)
+                {
+                    continue;
+                }
+
+                EnqueueFunctionConfigUpload(merged, store: false, verify: true);
+                Plugin.FunctionConfigManager.MarkAsSent(id, merged);
+            }
         }
 
         private void ToastNotification(string message1, string message2)
