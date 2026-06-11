@@ -23,6 +23,13 @@ namespace DiyFfb.GraphTest
             public int[] IncludeOutputIndices = Array.Empty<int>();
             /// <summary>Starting index in _state for this node's persistent state slots. -1 if not stateful.</summary>
             public int StateBaseIndex = -1;
+
+            // Expr nodes: formula parsed once at compile, plus the resolved array
+            // slots for each inport identifier referenced by the formula.
+            public NCalc.Expression CompiledExpr;
+            public string[] ExprParamNames = Array.Empty<string>();
+            public int[] ExprParamIndices = Array.Empty<int>();
+            public bool[] ExprParamIsExtra = Array.Empty<bool>();
         }
 
         private readonly GraphDefinition _graph;
@@ -84,6 +91,7 @@ namespace DiyFfb.GraphTest
                 BuildArgs(compiled);
                 BuildSrc(compiled);
                 BuildIncludeBindings(compiled);
+                BuildExpr(compiled);
 
                 // Assign persistent state slots for stateful Func nodes
                 int slotsNeeded = GetStateSlotsNeeded(node);
@@ -180,6 +188,9 @@ namespace DiyFfb.GraphTest
                         break;
                     case NodeType.Func:
                         _values[compiled.Index] = EvalFunc(compiled);
+                        break;
+                    case NodeType.Expr:
+                        _values[compiled.Index] = EvalExpr(compiled);
                         break;
                     case NodeType.Include:
                         EvalInclude(compiled, inputs, parameters, warnings);
@@ -303,6 +314,82 @@ namespace DiyFfb.GraphTest
                 }
                 node.IncludeOutputNames = names;
                 node.IncludeOutputIndices = indices;
+            }
+        }
+
+        // Parses an Expr node's formula once and pre-resolves each referenced
+        // inport identifier to its value-array slot. Enforces that the formula
+        // only references wired inports (InputMap keys): any other free identifier
+        // throws here, failing graph compile rather than a runtime tick.
+        private void BuildExpr(CompiledNode node)
+        {
+            if (node.Node.Type != NodeType.Expr)
+            {
+                return;
+            }
+
+            var expr = GraphExprSupport.TryParse(node.Node.Expr, out string parseError);
+            if (expr == null)
+            {
+                throw new InvalidOperationException(
+                    $"Expr '{node.Node.Id}': {parseError}");
+            }
+
+            var inputMap = node.Node.InputMap ?? new Dictionary<string, string>();
+            var used = GraphExprSupport.CollectIdentifiers(expr);
+
+            var names = new List<string>();
+            var indices = new List<int>();
+            var extras = new List<bool>();
+            foreach (var name in used)
+            {
+                if (GraphExprSupport.IsConstant(name))
+                {
+                    continue; // built-in constant (e.g. Pi), not an inport
+                }
+                if (!inputMap.TryGetValue(name, out var sourceId))
+                {
+                    throw new InvalidOperationException(
+                        $"Expr '{node.Node.Id}': '{name}' is not a wired inport " +
+                        $"(available: [{string.Join(", ", inputMap.Keys)}]).");
+                }
+                BuildArgRef(sourceId, out int idx, out bool isExtra);
+                names.Add(name);
+                indices.Add(idx);
+                extras.Add(isExtra);
+            }
+
+            GraphExprSupport.SeedConstants(expr, used);
+            node.CompiledExpr = expr;
+            node.ExprParamNames = names.ToArray();
+            node.ExprParamIndices = indices.ToArray();
+            node.ExprParamIsExtra = extras.ToArray();
+        }
+
+        private double EvalExpr(CompiledNode node)
+        {
+            var expr = node.CompiledExpr;
+            if (expr == null)
+            {
+                return 0.0;
+            }
+
+            // Feed only the wired inports the formula actually references, read
+            // straight from the value arrays. (Boxing here is the known GC cost
+            // of the tree-walking path — acceptable for a handful of Expr nodes.)
+            for (int i = 0; i < node.ExprParamNames.Length; i++)
+            {
+                expr.Parameters[node.ExprParamNames[i]] =
+                    Resolve(node.ExprParamIndices[i], node.ExprParamIsExtra[i]);
+            }
+
+            try
+            {
+                return GraphExprSupport.ToDouble(expr.Evaluate());
+            }
+            catch
+            {
+                return 0.0;
             }
         }
 
@@ -980,8 +1067,8 @@ namespace DiyFfb.GraphTest
                     {
                         Visit(node.Src);
                     }
-                    // Include nodes have dependencies via InputMap values
-                    if (node.Type == NodeType.Include && node.InputMap != null)
+                    // Include and Expr nodes have dependencies via InputMap values
+                    if ((node.Type == NodeType.Include || node.Type == NodeType.Expr) && node.InputMap != null)
                     {
                         foreach (var dep in node.InputMap.Values)
                         {

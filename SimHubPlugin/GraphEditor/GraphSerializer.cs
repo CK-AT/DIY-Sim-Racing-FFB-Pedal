@@ -539,6 +539,7 @@ namespace DiyFfb.GraphEditor
         public string Func { get; set; } = "";
         public string IncludePath { get; set; } = "";
         public double ConstValue { get; set; }
+        public string Expr { get; set; } = "";
         public string SignalGroup { get; set; } = "";
         public string FunctionScope { get; set; } = "";
         public bool Scoped { get; set; }
@@ -558,6 +559,7 @@ namespace DiyFfb.GraphEditor
         public bool ShouldSerializeFunc() => Kind == GraphNodeKind.Func;
         public bool ShouldSerializeIncludePath() => Kind == GraphNodeKind.Include || Kind == GraphNodeKind.Func;
         public bool ShouldSerializeConstValue() => Kind == GraphNodeKind.Const;
+        public bool ShouldSerializeExpr() => Kind == GraphNodeKind.Expr;
         // v4: SignalGroup only for signal-bound nodes, but NOT for Scoped Output nodes
         // (scoped nodes inherit their group from the parent Include's FunctionScope)
         public bool ShouldSerializeSignalGroup() => UsesSignalBinding && !Scoped;
@@ -618,6 +620,8 @@ namespace DiyFfb.GraphEditor
                     dto.ConfigType = node.ConfigType;
                 if (node.Kind == GraphNodeKind.Const)
                     dto.ConstValue = node.ConstValue;
+                if (node.Kind == GraphNodeKind.Expr)
+                    dto.Expr = node.Expr;
             }
 
             // v3: Skip ports for Include nodes (they're derived from the included graph)
@@ -679,6 +683,8 @@ namespace DiyFfb.GraphEditor
                     node.ConfigType = ConfigType ?? "";
                 if (Kind == GraphNodeKind.Const)
                     node.ConstValue = ConstValue;
+                if (Kind == GraphNodeKind.Expr)
+                    node.Expr = Expr ?? "";
             }
 
             if (Ports != null)

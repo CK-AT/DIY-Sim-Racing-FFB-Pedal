@@ -381,6 +381,48 @@
                           SelectionChanged="InspectorFunc_SelectionChanged" />
             </StackPanel>
         </DataTemplate>
+        <DataTemplate x:Key="InspectorExprTemplate">
+            <StackPanel>
+                <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
+                <TextBox Margin="0,2,0,6"
+                         Background="#1E1E1E"
+                         Foreground="White"
+                         BorderBrush="#4A4A4A"
+                         BorderThickness="1"
+                         Padding="3,2,3,2"
+                         Text="{Binding Title, Mode=OneWay}"
+                         TextChanged="InspectorTitle_TextChanged" />
+                <TextBlock Text="Formula" Foreground="#BBBBBB" FontSize="10" />
+                <TextBox Margin="0,2,0,2"
+                         Background="#1E1E1E"
+                         Foreground="White"
+                         BorderBrush="#4A4A4A"
+                         BorderThickness="1"
+                         Padding="3,2,3,2"
+                         MinLines="2"
+                         MaxLines="6"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         FontFamily="Consolas"
+                         Text="{Binding Expr, Mode=OneWay}"
+                         TextChanged="InspectorExpr_TextChanged" />
+                <TextBlock Foreground="#888888" FontSize="9" TextWrapping="Wrap" Margin="0,0,0,6">
+                    Variables = input port names below.&#x0a;Ops: + - * / %  **=power  (^ is XOR, not power).&#x0a;Compare/logic: &lt; &gt; == != &amp;&amp; || ! → 1/0.&#x0a;Funcs: Pow Sqrt Abs Min Max Round Floor Sin Cos if(c,a,b).&#x0a;Constant: Pi.
+                </TextBlock>
+                <TextBlock Text="Inputs" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <Button Content="Add Input"
+                            Background="#1E1E1E"
+                            Foreground="White"
+                            BorderBrush="#4A4A4A"
+                            BorderThickness="1"
+                            Padding="2,2,2,2"
+                            Click="ButtonAddInputPort_Click" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=PortEntries}"
+                              ItemTemplate="{StaticResource PortEntryTemplate}" />
+            </StackPanel>
+        </DataTemplate>
         <DataTemplate x:Key="InspectorInputTemplate">
             <StackPanel>
                 <StackPanel>
@@ -853,6 +895,7 @@
                                          ConstTemplate="{StaticResource InspectorConstTemplate}"
                                          OpTemplate="{StaticResource InspectorOpTemplate}"
                                          FuncTemplate="{StaticResource InspectorFuncTemplate}"
+                                         ExprTemplate="{StaticResource InspectorExprTemplate}"
                                          InputTemplate="{StaticResource InspectorInputTemplate}"
                                          OutputTemplate="{StaticResource InspectorOutputTemplate}"
                                          ParamTemplate="{StaticResource InspectorParamTemplate}"

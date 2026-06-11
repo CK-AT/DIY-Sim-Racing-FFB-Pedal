@@ -9,6 +9,11 @@
     <PackageReference Include="Google.Protobuf" Version="3.30.0" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="NCalc">
+      <HintPath>C:\Program Files (x86)\SimHub\NCalc.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="..\GraphSignalCatalogData.cs" Link="GraphSignalCatalogData.cs" />
     <Compile Include="..\TestCommon\TestRunner.cs" Link="TestRunner.cs" />
   </ItemGroup>

@@ -217,6 +217,22 @@ namespace DiyFfb.GraphEditor
                         }
                     }
                 }
+                else if (node.Kind == GraphNodeKind.Expr)
+                {
+                    // Expr is a single-output node (like Op/Func) but binds its
+                    // inputs by name: each wired input port becomes an InputMap
+                    // entry whose key is the identifier usable in the formula.
+                    runtimeNode.Expr = node.Expr ?? "";
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
+                    {
+                        if (TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
+                        {
+                            runtimeNode.InputMap[port.Name] = source;
+                        }
+                    }
+                    // Falls through to add runtimeNode (id == node.Id); consumers
+                    // wired from its output port resolve to this id.
+                }
                 else if (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Param)
                 {
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
@@ -259,6 +275,7 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.Include: return NodeType.Include;
                 case GraphNodeKind.Output: return NodeType.Output;
                 case GraphNodeKind.ConfigOut: return NodeType.ConfigOut;
+                case GraphNodeKind.Expr: return NodeType.Expr;
                 // LocalSend / LocalReceive collapse away at convert time and
                 // never reach the runtime; MapNodeType shouldn't be called on
                 // them, but if it is just return Const (harmless).

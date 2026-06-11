@@ -225,6 +225,15 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("EdgeDetect: no pulse on sustained", TestEdgeDetect_NoPulseOnSustained));
             results.Add(TestRunner.RunTest("ResetState: clears accumulator", TestResetState_ClearsAccumulator));
 
+            // Expr node tests
+            results.Add(TestRunner.RunTest("Expr: arithmetic over inports", TestExpr_Arithmetic));
+            results.Add(TestRunner.RunTest("Expr: builtin functions allowed", TestExpr_BuiltinFunctions));
+            results.Add(TestRunner.RunTest("Expr: Pi constant usable", TestExpr_PiConstant));
+            results.Add(TestRunner.RunTest("Expr: compiled matches interpreter", TestExpr_CompiledMatchesInterpreter));
+            results.Add(TestRunner.RunTest("Expr: non-inport identifier rejected", TestExpr_NonInportRejected));
+            results.Add(TestRunner.RunTest("Expr: parse error rejected", TestExpr_ParseErrorRejected));
+            results.Add(TestRunner.RunTest("Expr: editor roundtrip + conversion", TestExpr_EditorRoundtripAndConversion));
+
             TestRunner.PrintResults("FFB Graph Tests", results);
         }
 
@@ -293,6 +302,110 @@ namespace DiyFfb.GraphTest
 
             Console.WriteLine($"PerfHarnessMs: {sw.Elapsed.TotalMilliseconds:F2}");
             Console.WriteLine($"PerfHarnessIterations: {iterations}");
+
+            RunExprPerfHarness();
+        }
+
+        // Measures the cost of Expr (tree-walking NCalc) nodes against an
+        // identically-shaped Op graph, isolating the marginal ns + GC cost of the
+        // boxing path. Decision metric for whether a compiled-lambda path is worth
+        // its semantic-divergence risk. Runs under FFB_PERF_ONLY=1.
+        private static void RunExprPerfHarness()
+        {
+            const int nodeCount = 12;     // compute nodes (Expr or Op), each over 3 inports
+            const int iterations = 200000;
+
+            // Build two graphs with identical shape: N inputs feeding N 3-input
+            // compute nodes ("a * b * c"), each exposed as an output.
+            GraphCompiledEvaluator BuildGraph(bool useExpr)
+            {
+                var g = new GraphDefinition();
+                for (int i = 0; i < nodeCount * 3; i++)
+                {
+                    string id = $"in_{i}";
+                    g.Nodes[id] = new GraphNode { Id = id, Type = NodeType.Input, Name = id };
+                }
+                for (int n = 0; n < nodeCount; n++)
+                {
+                    string a = $"in_{n * 3}", b = $"in_{n * 3 + 1}", c = $"in_{n * 3 + 2}";
+                    string nodeId = $"calc_{n}";
+                    if (useExpr)
+                    {
+                        var expr = new GraphNode { Id = nodeId, Type = NodeType.Expr, Expr = "a * b * c" };
+                        expr.InputMap["a"] = a; expr.InputMap["b"] = b; expr.InputMap["c"] = c;
+                        g.Nodes[nodeId] = expr;
+                    }
+                    else
+                    {
+                        g.Nodes[nodeId] = new GraphNode
+                        {
+                            Id = nodeId, Type = NodeType.Op, Op = OpType.Mul,
+                            Args = new List<string> { a, b, c }
+                        };
+                    }
+                    g.Nodes[$"out_{n}"] = new GraphNode { Id = $"out_{n}", Type = NodeType.Output, Name = $"R{n}", Src = nodeId };
+                }
+                return new GraphCompiledEvaluator(g);
+            }
+
+            var inputs = new Dictionary<string, double>();
+            for (int i = 0; i < nodeCount * 3; i++) inputs[$"in_{i}"] = (i % 7) + 1;
+
+            try { AppDomain.MonitoringIsEnabled = true; } catch { /* may already be on */ }
+
+            var exprStats = MeasureEval(BuildGraph(true), inputs, iterations);
+            var opStats = MeasureEval(BuildGraph(false), inputs, iterations);
+
+            // Marginal Expr cost over the native Op path (both share the per-eval
+            // result-dictionary overhead, which cancels in the delta).
+            double dNs = (exprStats.NsPerTick - opStats.NsPerTick) / nodeCount;
+            double dBytes = (double)(exprStats.Bytes - opStats.Bytes) / iterations / nodeCount;
+
+            Console.WriteLine($"ExprPerf: nodes={nodeCount} iters={iterations}");
+            Console.WriteLine($"ExprPerf: Expr {exprStats.NsPerTick:F0} ns/tick, {(double)exprStats.Bytes / iterations:F0} B/tick, gen0={exprStats.Gen0}");
+            Console.WriteLine($"ExprPerf: Op   {opStats.NsPerTick:F0} ns/tick, {(double)opStats.Bytes / iterations:F0} B/tick, gen0={opStats.Gen0}");
+            Console.WriteLine($"ExprPerf: marginal Expr cost = {dNs:F0} ns/node, {dBytes:F0} B/node");
+            Console.WriteLine($"ExprPerf: projected at 60 Hz = {(exprStats.Bytes - opStats.Bytes) / iterations * 60.0 / 1024.0:F1} KB/s for {nodeCount} Expr nodes");
+        }
+
+        private struct EvalStats
+        {
+            public double NsPerTick;
+            public long Bytes;
+            public int Gen0;
+        }
+
+        private static EvalStats MeasureEval(GraphCompiledEvaluator eval, Dictionary<string, double> inputs, int iterations)
+        {
+            eval.Evaluate(inputs, null); // warm up (compile + JIT)
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            long bytes0 = AllocatedBytes();
+            int gen0 = GC.CollectionCount(0);
+
+            var sw = Stopwatch.StartNew();
+            for (int i = 0; i < iterations; i++)
+            {
+                eval.Evaluate(inputs, null);
+            }
+            sw.Stop();
+
+            return new EvalStats
+            {
+                NsPerTick = sw.Elapsed.TotalMilliseconds * 1e6 / iterations,
+                Bytes = AllocatedBytes() - bytes0,
+                Gen0 = GC.CollectionCount(0) - gen0
+            };
+        }
+
+        // Cumulative process allocation. AppDomain monitoring (available on .NET
+        // Framework) gives an accurate byte count; falls back to a coarse estimate.
+        private static long AllocatedBytes()
+        {
+            try { return AppDomain.CurrentDomain.MonitoringTotalAllocatedMemorySize; }
+            catch { return GC.GetTotalMemory(false); }
         }
 
         private static bool TestEvaluatorBasicOutputs()
@@ -4434,6 +4547,122 @@ namespace DiyFfb.GraphTest
         #region Stateful graph node tests
 
         /// <summary>Helper: build a graph with a single stateful Func node and evaluate it.</summary>
+        // Builds a runtime graph: one Expr node fed by Input nodes (one per inport,
+        // node id == inport name), output exposed as "result".
+        private static GraphDefinition BuildExprGraphDef(string formula, params string[] inports)
+        {
+            var graph = new GraphDefinition();
+            var expr = new GraphNode { Id = "expr", Type = NodeType.Expr, Expr = formula };
+            foreach (var p in inports)
+            {
+                graph.Nodes[p] = new GraphNode { Id = p, Type = NodeType.Input, Name = p };
+                expr.InputMap[p] = p;
+            }
+            graph.Nodes["expr"] = expr;
+            graph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "expr" };
+            return graph;
+        }
+
+        private static bool TestExpr_Arithmetic()
+        {
+            var eval = new GraphCompiledEvaluator(BuildExprGraphDef("a + b * 2", "a", "b"));
+            var outputs = eval.Evaluate(new Dictionary<string, double> { ["a"] = 3.0, ["b"] = 4.0 }, null);
+            return outputs.TryGetValue("result", out var v) && Math.Abs(v - 11.0) < 1e-9;
+        }
+
+        private static bool TestExpr_BuiltinFunctions()
+        {
+            // Built-in functions are allowed and are NOT treated as inports.
+            var eval = new GraphCompiledEvaluator(BuildExprGraphDef("Pow(x, 2) + Abs(y)", "x", "y"));
+            var outputs = eval.Evaluate(new Dictionary<string, double> { ["x"] = 3.0, ["y"] = -4.0 }, null);
+            return outputs.TryGetValue("result", out var v) && Math.Abs(v - 13.0) < 1e-9;
+        }
+
+        private static bool TestExpr_PiConstant()
+        {
+            // Pi is a built-in constant: usable without being a wired inport.
+            var def = BuildExprGraphDef("x * Pi", "x");
+            var eval = new GraphCompiledEvaluator(def);
+            var outputs = eval.Evaluate(new Dictionary<string, double> { ["x"] = 2.0 }, null);
+            return outputs.TryGetValue("result", out var v) && Math.Abs(v - 2.0 * Math.PI) < 1e-9;
+        }
+
+        private static bool TestExpr_CompiledMatchesInterpreter()
+        {
+            var def = BuildExprGraphDef("(a - b) * 0.5 + Max(a, b)", "a", "b");
+            var inputs = new Dictionary<string, double> { ["a"] = 7.0, ["b"] = 2.0 };
+            double interp = new GraphEvaluator(def).Evaluate(inputs, null)["result"];
+            double compiled = new GraphCompiledEvaluator(def).Evaluate(inputs, null)["result"];
+            return Math.Abs(interp - compiled) < 1e-9 && Math.Abs(compiled - 9.5) < 1e-9;
+        }
+
+        private static bool TestExpr_NonInportRejected()
+        {
+            // 'z' is not a wired inport — compiling the formula must fail, naming 'z'.
+            var def = BuildExprGraphDef("a + z", "a");
+            try
+            {
+                _ = new GraphCompiledEvaluator(def);
+                return false; // should have thrown
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ex.Message.Contains("'z'");
+            }
+        }
+
+        private static bool TestExpr_ParseErrorRejected()
+        {
+            var def = BuildExprGraphDef("a + * b", "a", "b");
+            try
+            {
+                _ = new GraphCompiledEvaluator(def);
+                return false; // malformed formula should fail to compile
+            }
+            catch (InvalidOperationException)
+            {
+                return true;
+            }
+        }
+
+        private static bool TestExpr_EditorRoundtripAndConversion()
+        {
+            var graph = new GraphEditor.GraphDefinition { IsLibraryGraph = true };
+
+            var input = new GraphEditor.GraphNode { Id = "in", Kind = GraphNodeKind.Input, Title = "In" };
+            input.Ports.Add(new GraphEditor.GraphPort { Name = "a", Kind = GraphEditor.GraphPortKind.Output });
+            graph.Nodes.Add(input);
+
+            var expr = new GraphEditor.GraphNode { Id = "expr", Kind = GraphNodeKind.Expr, Title = "Expr", Expr = "a * 3 + 1" };
+            expr.Ports.Add(new GraphEditor.GraphPort { Name = "a", Kind = GraphEditor.GraphPortKind.Input });
+            expr.Ports.Add(new GraphEditor.GraphPort { Name = "out", Kind = GraphEditor.GraphPortKind.Output });
+            graph.Nodes.Add(expr);
+
+            var output = new GraphEditor.GraphNode { Id = "out", Kind = GraphNodeKind.Output, Title = "Out" };
+            output.Ports.Add(new GraphEditor.GraphPort { Name = "result", Kind = GraphEditor.GraphPortKind.Input });
+            graph.Nodes.Add(output);
+
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "in", FromPort = "a", ToNodeId = "expr", ToPort = "a" });
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "expr", FromPort = "out", ToNodeId = "out", ToPort = "result" });
+
+            // Formula must survive JSON roundtrip.
+            string json = GraphSerializer.Serialize(graph);
+            var loaded = GraphSerializer.Deserialize(json, out var validation);
+            if (!validation.IsValid) return false;
+            var loadedExpr = loaded.Nodes.FirstOrDefault(n => n.Kind == GraphNodeKind.Expr);
+            if (loadedExpr == null || loadedExpr.Expr != "a * 3 + 1") return false;
+
+            // Convert to runtime and verify the Expr node wired correctly.
+            // (Inspect via ToString to avoid the local/plugin-DLL type conflict that
+            // prevents feeding a converted graph to the locally-compiled evaluator;
+            // evaluation itself is covered by the runtime-graph tests above.)
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(loaded);
+            var exprNode = runtime.Nodes.Values.FirstOrDefault(n => n.Type.ToString() == "Expr");
+            return exprNode != null
+                   && exprNode.Expr == "a * 3 + 1"
+                   && exprNode.InputMap.ContainsKey("a");
+        }
+
         private static GraphCompiledEvaluator BuildStatefulGraph(string func, string[] argNodeIds, Dictionary<string, double> constNodes = null)
         {
             var graph = new GraphDefinition();

@@ -13,7 +13,8 @@ namespace DiyFfb.GraphTest
         Func,
         Include,
         Output,
-        ConfigOut
+        ConfigOut,
+        Expr
     }
 
     public enum OpType
@@ -48,6 +49,7 @@ namespace DiyFfb.GraphTest
         public List<bool> ArgNegate = new List<bool>();
         public string Src = "";
         public string Path = "";
+        public string Expr = "";
         public Dictionary<string, string> InputMap = new Dictionary<string, string>();
         public Dictionary<string, string> OutputMap = new Dictionary<string, string>();
         public GraphDefinition InlineGraph;
@@ -78,12 +80,28 @@ namespace DiyFfb.GraphTest
         private readonly List<GraphNode> _order;
         private readonly Dictionary<string, double> _values = new Dictionary<string, double>();
         private readonly IGraphResolver _resolver;
+        // Parsed Expr formulas, keyed by node id. Built once in the constructor;
+        // this evaluator is used for validation/preview, not the 60 Hz hot path.
+        private readonly Dictionary<string, NCalc.Expression> _exprCache = new Dictionary<string, NCalc.Expression>();
 
         public GraphEvaluator(GraphDefinition graph, IGraphResolver resolver = null)
         {
             _graph = graph ?? throw new ArgumentNullException(nameof(graph));
             _resolver = resolver;
             _order = TopoSort(graph);
+
+            foreach (var node in graph.Nodes.Values)
+            {
+                if (node.Type == NodeType.Expr)
+                {
+                    var expr = GraphExprSupport.TryParse(node.Expr, out _);
+                    if (expr != null)
+                    {
+                        GraphExprSupport.SeedConstants(expr, GraphExprSupport.CollectIdentifiers(expr));
+                        _exprCache[node.Id] = expr;
+                    }
+                }
+            }
         }
 
         public IReadOnlyDictionary<string, double> Evaluate(
@@ -117,6 +135,9 @@ namespace DiyFfb.GraphTest
                         break;
                     case NodeType.Func:
                         _values[node.Id] = EvalFunc(node);
+                        break;
+                    case NodeType.Expr:
+                        _values[node.Id] = EvalExpr(node);
                         break;
                     case NodeType.Include:
                         _values[node.Id] = EvalInclude(node, inputs, parameters);
@@ -152,6 +173,30 @@ namespace DiyFfb.GraphTest
         private double Resolve(string id)
         {
             return _values.TryGetValue(id, out var v) ? v : 0.0;
+        }
+
+        private double EvalExpr(GraphNode node)
+        {
+            if (!_exprCache.TryGetValue(node.Id, out var expr) || expr == null)
+            {
+                return 0.0;
+            }
+
+            // Bind each wired inport (name -> source node value). Identifiers not
+            // present in InputMap are unwired ports and resolve to 0.
+            foreach (var mapping in node.InputMap)
+            {
+                expr.Parameters[mapping.Key] = Resolve(mapping.Value);
+            }
+
+            try
+            {
+                return GraphExprSupport.ToDouble(expr.Evaluate());
+            }
+            catch
+            {
+                return 0.0;
+            }
         }
 
         private double EvalOp(GraphNode node)
@@ -437,6 +482,18 @@ namespace DiyFfb.GraphTest
                     if (!string.IsNullOrEmpty(node.Src))
                     {
                         Visit(node.Src);
+                    }
+                    // Expr nodes depend on their wired inports (InputMap values),
+                    // like Include nodes; order those sources first.
+                    if (node.Type == NodeType.Expr && node.InputMap != null)
+                    {
+                        foreach (var dep in node.InputMap.Values)
+                        {
+                            if (!string.IsNullOrEmpty(dep))
+                            {
+                                Visit(dep);
+                            }
+                        }
                     }
                     result.Add(node);
                 }

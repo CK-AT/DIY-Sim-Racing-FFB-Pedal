@@ -1574,6 +1574,7 @@ namespace DiyFfb.GraphEditor
             menu.Items.Add(BuildMenuItem("Add Const", () => AddNode(GraphNodeKind.Const, position)));
             menu.Items.Add(BuildMenuItem("Add Op", () => AddNode(GraphNodeKind.Op, position)));
             menu.Items.Add(BuildMenuItem("Add Func", () => AddNode(GraphNodeKind.Func, position)));
+            menu.Items.Add(BuildMenuItem("Add Expr", () => AddNode(GraphNodeKind.Expr, position)));
             menu.Items.Add(BuildMenuItem("Add Include", () => AddNode(GraphNodeKind.Include, position)));
             menu.Items.Add(BuildMenuItem("Add Output", () => AddNode(GraphNodeKind.Output, position)));
             menu.Items.Add(BuildMenuItem("Add ConfigOut", () => AddNode(GraphNodeKind.ConfigOut, position)));
@@ -1630,6 +1631,14 @@ namespace DiyFfb.GraphEditor
             }
             else if (kind == GraphNodeKind.Const)
             {
+                node.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
+            }
+            else if (kind == GraphNodeKind.Expr)
+            {
+                node.Title = "Expr";
+                node.Expr = "a + b";
+                node.Ports.Add(new GraphPort { Name = "a", Kind = GraphPortKind.Input });
+                node.Ports.Add(new GraphPort { Name = "b", Kind = GraphPortKind.Input });
                 node.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
             }
             else if (kind == GraphNodeKind.Include)
@@ -1693,7 +1702,8 @@ namespace DiyFfb.GraphEditor
                                                 node.Kind == GraphNodeKind.Output ||
                                                 node.Kind == GraphNodeKind.ConfigOut ||
                                                 node.Kind == GraphNodeKind.Param ||
-                                                node.Kind == GraphNodeKind.Op))
+                                                node.Kind == GraphNodeKind.Op ||
+                                                node.Kind == GraphNodeKind.Expr))
             {
                 SyncPortEntries(node);
             }
@@ -3402,6 +3412,9 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.Func:
                     label = $"Func ({node.Func ?? "?"})";
                     break;
+                case GraphNodeKind.Expr:
+                    label = "Expr";
+                    break;
                 case GraphNodeKind.Input:
                     label = BuildSignalNodeHeader("Input", node);
                     break;
@@ -3474,6 +3487,7 @@ namespace DiyFfb.GraphEditor
             return node.Kind == GraphNodeKind.Const
                    || node.Kind == GraphNodeKind.Op
                    || node.Kind == GraphNodeKind.Func
+                   || node.Kind == GraphNodeKind.Expr
                    || node.Kind == GraphNodeKind.Input
                    || node.Kind == GraphNodeKind.Output
                    || node.Kind == GraphNodeKind.ConfigOut
@@ -4531,6 +4545,26 @@ namespace DiyFfb.GraphEditor
             }
         }
 
+        private void InspectorExpr_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null)
+            {
+                return;
+            }
+
+            if (sender is TextBox textBox &&
+                textBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
+            {
+                node.Expr = textBox.Text ?? "";
+                UpdateNodeTitleVisual(node);
+                SyncPreviewEntries();
+                RefreshPreview();
+                _pendingUndoDebounce = true;
+                GraphChanged?.Invoke();
+            }
+        }
+
         private void InspectorConst_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (_isInspectorUpdating || _selectedNode == null)
@@ -4667,13 +4701,15 @@ namespace DiyFfb.GraphEditor
 
             string effectiveSignalGroup = GetEffectiveSignalGroup(node);
             bool isOpNode = node.Kind == GraphNodeKind.Op;
+            bool isExprNode = node.Kind == GraphNodeKind.Expr;
             bool opVariadic = isOpNode && IsVariadicOp(node.Op);
             int opMinInputs = isOpNode ? GetOpMinInputCount(node.Op) : 0;
             var opInputPorts = isOpNode ? node.Ports.Where(p => p.Kind == GraphPortKind.Input).ToList() : null;
             foreach (var port in node.Ports)
             {
-                if (isOpNode && port.Kind == GraphPortKind.Output)
+                if ((isOpNode || isExprNode) && port.Kind == GraphPortKind.Output)
                 {
+                    // The single output is implicit for Op/Expr; only inputs are editable.
                     continue;
                 }
                 bool useSignalOptions = false;
@@ -5298,6 +5334,10 @@ namespace DiyFfb.GraphEditor
             {
                 return $"{title} ({node.Func})";
             }
+            if (node.Kind == GraphNodeKind.Expr && !string.IsNullOrWhiteSpace(node.Expr))
+            {
+                return $"{title} (= {node.Expr})";
+            }
 
             return title;
         }
@@ -5342,6 +5382,7 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.Const: return TitleBarConst;
                 case GraphNodeKind.Op: return TitleBarOp;
                 case GraphNodeKind.Func: return TitleBarFunc;
+                case GraphNodeKind.Expr: return TitleBarFunc;
                 case GraphNodeKind.Include: return TitleBarInclude;
                 case GraphNodeKind.LocalSend: return TitleBarLocalSend;
                 case GraphNodeKind.LocalReceive: return TitleBarLocalReceive;
@@ -6726,6 +6767,7 @@ namespace DiyFfb.GraphEditor
         public DataTemplate ConstTemplate { get; set; }
         public DataTemplate OpTemplate { get; set; }
         public DataTemplate FuncTemplate { get; set; }
+        public DataTemplate ExprTemplate { get; set; }
         public DataTemplate InputTemplate { get; set; }
         public DataTemplate OutputTemplate { get; set; }
         public DataTemplate ParamTemplate { get; set; }
@@ -6745,6 +6787,8 @@ namespace DiyFfb.GraphEditor
                         return OpTemplate;
                     case GraphNodeKind.Func:
                         return FuncTemplate;
+                    case GraphNodeKind.Expr:
+                        return ExprTemplate;
                     case GraphNodeKind.Input:
                         return InputTemplate;
                     case GraphNodeKind.Output:

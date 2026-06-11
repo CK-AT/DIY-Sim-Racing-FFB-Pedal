@@ -249,6 +249,7 @@
     <Compile Include="GraphEditor\GraphUndoStack.cs" />
     <Compile Include="GraphTest\GraphEvaluator.cs" />
     <Compile Include="GraphTest\GraphCompiledEvaluator.cs" />
+    <Compile Include="GraphTest\GraphExprSupport.cs" />
     <Compile Include="GraphTest\GraphIncludeResolver.cs" />
     <Compile Include="GraphTest\GraphLoader.cs" />
     <Compile Include="GraphTest\GraphSaver.cs" />

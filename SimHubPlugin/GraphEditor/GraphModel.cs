@@ -27,7 +27,15 @@ namespace DiyFfb.GraphEditor
         /// the value of the matching LocalSend (by LocalBusName). Any number per
         /// graph. Orphan receives (no matching Send) evaluate to 0.
         /// </summary>
-        LocalReceive
+        LocalReceive,
+
+        /// <summary>
+        /// Evaluates a user-authored math formula (NCalc syntax). Has one output
+        /// port and any number of named input ports; the formula may only reference
+        /// those input port names as variables (built-in functions like Pow/Abs/if
+        /// are allowed). The port name is the identifier used in the formula.
+        /// </summary>
+        Expr
     }
 
     public enum GraphPortKind
@@ -64,6 +72,12 @@ namespace DiyFfb.GraphEditor
         public string Func { get; set; } = "";
         public string IncludePath { get; set; } = "";
         public double ConstValue { get; set; }
+
+        /// <summary>
+        /// Formula text for Expr nodes (NCalc syntax). Variables must match this
+        /// node's input port names.
+        /// </summary>
+        public string Expr { get; set; } = "";
 
         /// <summary>
         /// Signal group for Input/Output/Param nodes (e.g., "XPlane", "FlightStickPitch", "Aircraft").

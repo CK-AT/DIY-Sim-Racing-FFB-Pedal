@@ -54,7 +54,8 @@ namespace DiyFfb.GraphTest
                         Op = node.Op,
                         Func = node.Func ?? string.Empty,
                         Src = node.Src ?? string.Empty,
-                        Path = node.Path ?? string.Empty
+                        Path = node.Path ?? string.Empty,
+                        Expr = node.Expr ?? string.Empty
                     };
                     if (node.Args != null)
                     {
@@ -116,7 +117,8 @@ namespace DiyFfb.GraphTest
                         Op = node.Op,
                         Func = node.Func ?? string.Empty,
                         Src = node.Src ?? string.Empty,
-                        Path = node.Path ?? string.Empty
+                        Path = node.Path ?? string.Empty,
+                        Expr = node.Expr ?? string.Empty
                     };
                     if (node.Args != null)
                     {
@@ -279,6 +281,32 @@ namespace DiyFfb.GraphTest
                 {
                     result.Errors.Add($"Func node '{node.Id}' uses unknown function '{node.Func}'.");
                 }
+                if (node.Type == NodeType.Expr)
+                {
+                    foreach (var mapping in node.InputMap)
+                    {
+                        if (!graph.Nodes.ContainsKey(mapping.Value))
+                        {
+                            result.Errors.Add($"Expr node '{node.Id}' inport '{mapping.Key}' references missing node '{mapping.Value}'.");
+                        }
+                    }
+
+                    var parsed = GraphExprSupport.TryParse(node.Expr, out string exprError);
+                    if (parsed == null)
+                    {
+                        result.Errors.Add($"Expr node '{node.Id}' has an invalid formula: {exprError}.");
+                    }
+                    else
+                    {
+                        foreach (var name in GraphExprSupport.CollectIdentifiers(parsed))
+                        {
+                            if (!GraphExprSupport.IsConstant(name) && !node.InputMap.ContainsKey(name))
+                            {
+                                result.Errors.Add($"Expr node '{node.Id}' formula references '{name}', which is not a wired inport (available: [{string.Join(", ", node.InputMap.Keys)}]).");
+                            }
+                        }
+                    }
+                }
                 if (node.Type == NodeType.Include && string.IsNullOrWhiteSpace(node.Path) && node.InlineGraph == null)
                 {
                     result.Errors.Add($"Include node '{node.Id}' is missing a path.");
@@ -419,6 +447,7 @@ namespace DiyFfb.GraphTest
         public List<bool> ArgNegate { get; set; } = new List<bool>();
         public string Src { get; set; } = string.Empty;
         public string Path { get; set; } = string.Empty;
+        public string Expr { get; set; } = string.Empty;
         public Dictionary<string, string> Inputs { get; set; } = new Dictionary<string, string>();
         public Dictionary<string, string> Outputs { get; set; } = new Dictionary<string, string>();
         public GraphDefinitionDto Inline { get; set; }
