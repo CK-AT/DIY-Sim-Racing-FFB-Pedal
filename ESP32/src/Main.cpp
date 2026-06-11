@@ -15,6 +15,7 @@
 
 #include "Arduino.h"
 #include "esp_ota_ops.h"
+#include "esp_task_wdt.h"
 #include "ConfigManager.h"
 #include "IFunction.h"
 #include "Physics.h"
@@ -426,7 +427,9 @@ void setup() {
                                 &physics_task_handle, /* Task handle to keep track of created task */
                                 1);                   /* pin task to core 1 */
 
-        enableCore1WDT();
+        // Note: core 1 is watched via PhysicsTask's own esp_task_wdt progress
+        // reset (see physics_task_func), not enableCore1WDT()/IDLE1 — a busy FFB
+        // loop legitimately starves IDLE1 and would otherwise false-trip.
 
         attachInterrupt(PIN_DRDY, &adc_isr, FALLING);
     } else {
@@ -517,7 +520,15 @@ void physics_task_func(void *pv_parameters) {
 
     comm_manager.on_physics_task_start();
 
+    // Watch THIS task's progress rather than IDLE1: PhysicsTask is pinned, high
+    // priority and legitimately CPU-bound under load, so an IDLE1 watchdog
+    // (enableCore1WDT) false-trips whenever the loop saturates core 1 for a few
+    // seconds (CAN/config bursts). Resetting once per iteration still catches a
+    // real single-iteration hang (iterations stop), without the false reboots.
+    esp_task_wdt_add(NULL);
+
     for (;;) {
+        esp_task_wdt_reset();
         if (ulTaskNotifyTake(pdTRUE, 10) == 0) {
             continue;
         }
@@ -680,10 +691,18 @@ void on_ota_state_change(bool ota_active) {
     // IDLE1 run and feed the WDT. vTaskSuspend/Resume are not nested, so repeated
     // active-state transitions are harmless; a single resume undoes it.
     if (ota_active) {
-        if (physics_task_handle) vTaskSuspend(physics_task_handle);
+        if (physics_task_handle) {
+            // Unsubscribe from the task WDT before suspending: a suspended task
+            // can't reset its watchdog and would otherwise trip it during OTA.
+            esp_task_wdt_delete(physics_task_handle);
+            vTaskSuspend(physics_task_handle);
+        }
         if (servo) servo->pause();
     } else {
         if (servo) servo->resume();
-        if (physics_task_handle) vTaskResume(physics_task_handle);
+        if (physics_task_handle) {
+            vTaskResume(physics_task_handle);
+            esp_task_wdt_add(physics_task_handle);
+        }
     }
 }
