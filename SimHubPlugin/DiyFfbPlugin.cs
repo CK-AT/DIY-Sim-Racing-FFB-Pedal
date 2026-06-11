@@ -2900,10 +2900,27 @@ namespace DiyFfb
                 }
             }
 
-            // Then collect params from this graph (these override include defaults)
+            // Then merge params from this graph. For a param that originates in an
+            // include, the included (library) graph stays the authority for range
+            // (Min/Max) and UI metadata — so editing the library's range propagates
+            // even when the parent holds a copy (e.g. an auto-created value stub or a
+            // stale range). The parent may still override the default value. Params
+            // defined only in the parent are taken as-is.
             foreach (var param in graph.Params.Values)
             {
-                result[param.Name] = param;
+                if (result.TryGetValue(param.Name, out var includeParam))
+                {
+                    includeParam.DefaultValue = param.DefaultValue;
+                    if (param.Ui != null)
+                    {
+                        includeParam.Ui = param.Ui;
+                    }
+                    // Keep includeParam.Min/Max: the library defines the range.
+                }
+                else
+                {
+                    result[param.Name] = param;
+                }
             }
 
             return result.Values.ToList();
