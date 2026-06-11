@@ -2,6 +2,7 @@
 
 #include <math.h>
 
+#include "FunctionConflict.h"
 #include "KinematicPoly.h"
 #include "LogOutput.h"
 
@@ -320,6 +321,25 @@ void ConfigManager::update_kinematic_poly_cache(void) {
 }
 
 void ConfigManager::update_lookup_tables(const FunctionConfig &new_config) {
+    const FunctionID fid = new_config.base.function_id;
+
+    // Evict any other stored function that conflicts with the incoming one — it
+    // binds a shared physical axis or drives the same controller output axis.
+    // A physical axis / output channel belongs to one function at a time, so the
+    // new config supersedes the old (e.g. a stale flight-pedals function left
+    // over after switching to an automotive profile). The matching function_id
+    // is left alone; the insert below replaces it.
+    for (auto it = _function_lut.begin(); it != _function_lut.end();) {
+        if (it->first != fid && functions_conflict(it->second, new_config.base)) {
+            LogOutput::printf("ConfigManager: evicting function %d (axis/output conflict with function %d)",
+                              int(it->first), int(fid));
+            _aux_function_lut.erase(it->first);
+            it = _function_lut.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
     _function_lut[new_config.base.function_id] = new_config.base;
     if (new_config.has_aux_function) {
         if (_get_aux_function_callback) {
