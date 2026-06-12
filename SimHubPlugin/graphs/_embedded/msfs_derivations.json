@@ -1541,6 +1541,100 @@
           "Kind": "Input"
         }
       ]
+    },
+    {
+      "Id": "const_turb_tau",
+      "Title": "0.5 s",
+      "Kind": "Const",
+      "X": 560.0,
+      "Y": 1860.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.5
+    },
+    {
+      "Id": "func_g_lag",
+      "Title": "G low-pass",
+      "Kind": "Func",
+      "X": 740.0,
+      "Y": 1820.0,
+      "Ports": [
+        {
+          "Name": "input",
+          "Kind": "Input"
+        },
+        {
+          "Name": "tau_up_sec",
+          "Kind": "Input"
+        },
+        {
+          "Name": "tau_down_sec",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Func": "lag_asym",
+      "IncludePath": ""
+    },
+    {
+      "Id": "sub_g_hp",
+      "Title": "G - lag(G)",
+      "Kind": "Op",
+      "X": 940.0,
+      "Y": 1800.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "abs_turb",
+      "Title": "|G hp|",
+      "Kind": "Op",
+      "X": 1100.0,
+      "Y": 1800.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "abs(a)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "abs"
+    },
+    {
+      "Id": "out_turb",
+      "Title": "Turb Out",
+      "Kind": "Output",
+      "X": 1280.0,
+      "Y": 1800.0,
+      "Ports": [
+        {
+          "Name": "Turb",
+          "Kind": "Input"
+        }
+      ]
     }
   ],
   "Links": [
@@ -2191,6 +2285,48 @@
       "FromPort": "a*b",
       "ToNodeId": "out_tr_inflow",
       "ToPort": "TrInflow"
+    },
+    {
+      "FromNodeId": "in_g_force",
+      "FromPort": "g_force",
+      "ToNodeId": "func_g_lag",
+      "ToPort": "input"
+    },
+    {
+      "FromNodeId": "const_turb_tau",
+      "FromPort": "out",
+      "ToNodeId": "func_g_lag",
+      "ToPort": "tau_up_sec"
+    },
+    {
+      "FromNodeId": "const_turb_tau",
+      "FromPort": "out",
+      "ToNodeId": "func_g_lag",
+      "ToPort": "tau_down_sec"
+    },
+    {
+      "FromNodeId": "in_g_force",
+      "FromPort": "g_force",
+      "ToNodeId": "sub_g_hp",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "func_g_lag",
+      "FromPort": "out",
+      "ToNodeId": "sub_g_hp",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sub_g_hp",
+      "FromPort": "a-b",
+      "ToNodeId": "abs_turb",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "abs_turb",
+      "FromPort": "abs(a)",
+      "ToNodeId": "out_turb",
+      "ToPort": "Turb"
     }
   ],
   "Params": [

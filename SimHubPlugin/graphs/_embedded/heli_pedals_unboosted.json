@@ -266,6 +266,137 @@
         }
       ],
       "Scoped": true
+    },
+    {
+      "Id": "in_buffet_gate",
+      "Title": "TR regime gate (0..1)",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 700.0,
+      "Ports": [
+        {
+          "Name": "buffet_gate",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_turb",
+      "Title": "Turbulence (|G hp|)",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 840.0,
+      "Ports": [
+        {
+          "Name": "turb",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_tr_buffet_gain",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 770.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrBuffetGain"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "param_turb_gain",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 910.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TurbBuffetGain"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "mul_tr_buffet",
+      "Title": "gate x gain",
+      "Kind": "Op",
+      "X": 320.0,
+      "Y": 720.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_turb_buffet",
+      "Title": "turb x gain",
+      "Kind": "Op",
+      "X": 320.0,
+      "Y": 860.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "add_buffet_total",
+      "Title": "pedal buffet",
+      "Kind": "Op",
+      "X": 520.0,
+      "Y": 780.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "out_buffet",
+      "Kind": "Output",
+      "X": 700.0,
+      "Y": 780.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "BuffetAmplitude"
+        }
+      ],
+      "Scoped": true
     }
   ],
   "Links": [
@@ -358,6 +489,48 @@
       "FromPort": "a*b*c*d",
       "ToNodeId": "out_load",
       "ToPort": "LoadForce"
+    },
+    {
+      "FromNodeId": "in_buffet_gate",
+      "FromPort": "buffet_gate",
+      "ToNodeId": "mul_tr_buffet",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_tr_buffet_gain",
+      "FromPort": "TrBuffetGain",
+      "ToNodeId": "mul_tr_buffet",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_turb",
+      "FromPort": "turb",
+      "ToNodeId": "mul_turb_buffet",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_turb_gain",
+      "FromPort": "TurbBuffetGain",
+      "ToNodeId": "mul_turb_buffet",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_tr_buffet",
+      "FromPort": "a*b",
+      "ToNodeId": "add_buffet_total",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_turb_buffet",
+      "FromPort": "a*b",
+      "ToNodeId": "add_buffet_total",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_buffet_total",
+      "FromPort": "a+b",
+      "ToNodeId": "out_buffet",
+      "ToPort": "BuffetAmplitude"
     }
   ],
   "Params": [
@@ -438,6 +611,40 @@
         "Units": "N/deg",
         "Step": 0.01,
         "Precision": 2,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.TrBuffetGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 10.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "TR Regime Buffet (LTE)",
+        "Group": "FlightPedals",
+        "Units": "N",
+        "Step": 0.1,
+        "Precision": 1,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.TurbBuffetGain",
+      "DefaultValue": 0.0,
+      "Min": 0.0,
+      "Max": 10.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Turbulence Buffet",
+        "Group": "FlightPedals",
+        "Units": "N/G",
+        "Step": 0.1,
+        "Precision": 1,
         "LogScale": false,
         "MuteValue": 0.0,
         "Options": []

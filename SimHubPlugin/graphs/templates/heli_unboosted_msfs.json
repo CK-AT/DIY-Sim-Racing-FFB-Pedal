@@ -532,6 +532,11 @@
           "Name": "TrInflow",
           "Kind": "Input",
           "BusName": "TrInflow"
+        },
+        {
+          "Name": "Turb",
+          "Kind": "Input",
+          "BusName": "Turb"
         }
       ]
     },
@@ -663,6 +668,11 @@
           "Name": "RBS",
           "Kind": "Output",
           "BusName": "RBS"
+        },
+        {
+          "Name": "Turb",
+          "Kind": "Output",
+          "BusName": "Turb"
         }
       ]
     },
@@ -687,6 +697,11 @@
           "Name": "RBS",
           "Kind": "Output",
           "BusName": "RBS"
+        },
+        {
+          "Name": "Turb",
+          "Kind": "Output",
+          "BusName": "Turb"
         }
       ]
     },
@@ -711,6 +726,11 @@
           "Name": "RPMnorm",
           "Kind": "Output",
           "BusName": "RPMnorm"
+        },
+        {
+          "Name": "Turb",
+          "Kind": "Output",
+          "BusName": "Turb"
         }
       ]
     },
@@ -916,6 +936,11 @@
           "Name": "TrInflow",
           "Kind": "Output",
           "BusName": "TrInflow"
+        },
+        {
+          "Name": "Turb",
+          "Kind": "Output",
+          "BusName": "Turb"
         }
       ]
     },
@@ -1286,6 +1311,355 @@
       ],
       "Func": "lag_asym",
       "IncludePath": ""
+    },
+    {
+      "Id": "in_tr_pitch",
+      "Kind": "Input",
+      "X": 300.0,
+      "Y": 620.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TailRotor.BladePitchPct"
+        }
+      ],
+      "SignalGroup": "MSFS"
+    },
+    {
+      "Id": "const_ls_ref",
+      "Title": "30 kt",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 700.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 30.0
+    },
+    {
+      "Id": "const_beta_ref",
+      "Title": "15 deg",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 760.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 15.0
+    },
+    {
+      "Id": "const_demand_on",
+      "Title": "70 %",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 820.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 70.0
+    },
+    {
+      "Id": "const_demand_w",
+      "Title": "30 %",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 880.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 30.0
+    },
+    {
+      "Id": "div_ls",
+      "Title": "TAS/30",
+      "Kind": "Op",
+      "X": 460.0,
+      "Y": 640.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "sub_ls",
+      "Title": "1 - TAS/30",
+      "Kind": "Op",
+      "X": 600.0,
+      "Y": 640.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "clamp_ls",
+      "Title": "lowspeed 0..1",
+      "Kind": "Op",
+      "X": 740.0,
+      "Y": 640.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "mul_crit_beta",
+      "Title": "beta x rot sign",
+      "Kind": "Op",
+      "X": 460.0,
+      "Y": 760.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "div_crit_beta",
+      "Title": "/15deg",
+      "Kind": "Op",
+      "X": 600.0,
+      "Y": 760.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "clamp_crit_beta",
+      "Title": "crit side 0..1",
+      "Kind": "Op",
+      "X": 740.0,
+      "Y": 760.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "sub_demand",
+      "Title": "TRpitch - 70",
+      "Kind": "Op",
+      "X": 460.0,
+      "Y": 880.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "div_demand",
+      "Title": "/30",
+      "Kind": "Op",
+      "X": 600.0,
+      "Y": 880.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "clamp_demand",
+      "Title": "stall demand 0..1",
+      "Kind": "Op",
+      "X": 740.0,
+      "Y": 880.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "add_tr_drivers",
+      "Title": "crit + demand",
+      "Kind": "Op",
+      "X": 900.0,
+      "Y": 820.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "clamp_tr_drivers",
+      "Title": "cap 0..1",
+      "Kind": "Op",
+      "X": 1040.0,
+      "Y": 820.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "mul_tr_gate",
+      "Title": "lowspeed x drivers",
+      "Kind": "Op",
+      "X": 1180.0,
+      "Y": 740.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
     }
   ],
   "Links": [
@@ -2008,6 +2382,210 @@
       "FromPort": "out",
       "ToNodeId": "collective_include",
       "ToPort": "thump"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "Turb",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "Turb"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_pitch_include",
+      "FromPort": "Turb",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "turb"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_roll_include",
+      "FromPort": "Turb",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "turb"
+    },
+    {
+      "FromNodeId": "bus_recv_collective_include",
+      "FromPort": "Turb",
+      "ToNodeId": "collective_include",
+      "ToPort": "turb"
+    },
+    {
+      "FromNodeId": "6027c9ac160d4e8c9e9894554be29664",
+      "FromPort": "Turb",
+      "ToNodeId": "pedals_include",
+      "ToPort": "turb"
+    },
+    {
+      "FromNodeId": "in_derivations_raw",
+      "FromPort": "Speed.TAS",
+      "ToNodeId": "div_ls",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_ls_ref",
+      "FromPort": "out",
+      "ToNodeId": "div_ls",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "const_mu_one",
+      "FromPort": "out",
+      "ToNodeId": "sub_ls",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "div_ls",
+      "FromPort": "a/b",
+      "ToNodeId": "sub_ls",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sub_ls",
+      "FromPort": "a-b",
+      "ToNodeId": "clamp_ls",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_mu_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_ls",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_mu_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_ls",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "in_derivations_raw",
+      "FromPort": "Angle.Beta",
+      "ToNodeId": "mul_crit_beta",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_rotation_sign",
+      "FromPort": "RotationSign",
+      "ToNodeId": "mul_crit_beta",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_crit_beta",
+      "FromPort": "a*b",
+      "ToNodeId": "div_crit_beta",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_beta_ref",
+      "FromPort": "out",
+      "ToNodeId": "div_crit_beta",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_crit_beta",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_crit_beta",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_mu_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_crit_beta",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_mu_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_crit_beta",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "in_tr_pitch",
+      "FromPort": "TailRotor.BladePitchPct",
+      "ToNodeId": "sub_demand",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_demand_on",
+      "FromPort": "out",
+      "ToNodeId": "sub_demand",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sub_demand",
+      "FromPort": "a-b",
+      "ToNodeId": "div_demand",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_demand_w",
+      "FromPort": "out",
+      "ToNodeId": "div_demand",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_demand",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_demand",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_mu_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_demand",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_mu_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_demand",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "clamp_crit_beta",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "add_tr_drivers",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "clamp_demand",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "add_tr_drivers",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_tr_drivers",
+      "FromPort": "a+b",
+      "ToNodeId": "clamp_tr_drivers",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_mu_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_tr_drivers",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_mu_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_tr_drivers",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "clamp_ls",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_tr_gate",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "clamp_tr_drivers",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_tr_gate",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_tr_gate",
+      "FromPort": "a*b",
+      "ToNodeId": "pedals_include",
+      "ToPort": "buffet_gate"
     }
   ],
   "Params": [

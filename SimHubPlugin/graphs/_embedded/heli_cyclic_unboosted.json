@@ -721,11 +721,63 @@
           "Kind": "Input"
         },
         {
-          "Name": "a+b",
+          "Name": "a+b+c",
           "Kind": "Output"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
         }
       ],
       "Op": "add"
+    },
+    {
+      "Id": "in_turb",
+      "Title": "Turbulence (|G hp|)",
+      "Kind": "Input",
+      "X": 1180.0,
+      "Y": 1140.0,
+      "Ports": [
+        {
+          "Name": "turb",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_turb_gain",
+      "Kind": "Param",
+      "X": 1180.0,
+      "Y": 1210.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TurbBuffetGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "mul_turb_buffet",
+      "Title": "turb x gain",
+      "Kind": "Op",
+      "X": 1320.0,
+      "Y": 1140.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
     }
   ],
   "Links": [
@@ -959,7 +1011,7 @@
     },
     {
       "FromNodeId": "add_buffet_total",
-      "FromPort": "a+b",
+      "FromPort": "a+b+c",
       "ToNodeId": "out_scoped",
       "ToPort": "BuffetAmplitude"
     },
@@ -1040,6 +1092,24 @@
       "FromPort": "thump",
       "ToNodeId": "add_buffet_total",
       "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_turb",
+      "FromPort": "turb",
+      "ToNodeId": "mul_turb_buffet",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_turb_gain",
+      "FromPort": "TurbBuffetGain",
+      "ToNodeId": "mul_turb_buffet",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_turb_buffet",
+      "FromPort": "a*b",
+      "ToNodeId": "add_buffet_total",
+      "ToPort": "c"
     }
   ],
   "Params": [
@@ -1193,6 +1263,23 @@
       "Min": 0.0,
       "Max": 1.0,
       "Ui": null
+    },
+    {
+      "Name": "Cyclic.TurbBuffetGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 10.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Turbulence Buffet",
+        "Group": "Cyclic",
+        "Units": "N/G",
+        "Step": 0.1,
+        "Precision": 1,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
     }
   ],
   "ParamValues": null
