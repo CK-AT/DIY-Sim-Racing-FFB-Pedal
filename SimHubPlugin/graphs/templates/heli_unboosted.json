@@ -677,6 +677,12 @@
       "FromPort": "RotationSign",
       "ToNodeId": "pedals_include",
       "ToPort": "rot_sign"
+    },
+    {
+      "FromNodeId": "scale_include",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "collective_include",
+      "ToPort": "rpm_norm"
     }
   ],
   "Params": [

@@ -242,6 +242,106 @@
       ],
       "Func": "buffet",
       "IncludePath": ""
+    },
+    {
+      "Id": "in_rpm_norm",
+      "Title": "RPM (norm)",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 660.0,
+      "Ports": [
+        {
+          "Name": "rpm_norm",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "mul_rpm_sq",
+      "Title": "rpm x rpm",
+      "Kind": "Op",
+      "X": 250.0,
+      "Y": 660.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "param_k_spring",
+      "Kind": "Param",
+      "X": 250.0,
+      "Y": 740.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "SpringGain"
+        }
+      ],
+      "SignalGroup": "FlightStickCollective"
+    },
+    {
+      "Id": "mul_spring",
+      "Title": "Spring x rpm^2 (CTM)",
+      "Kind": "Op",
+      "X": 480.0,
+      "Y": 680.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "param_spring_center",
+      "Kind": "Param",
+      "X": 480.0,
+      "Y": 800.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "SpringCenter"
+        }
+      ],
+      "SignalGroup": "FlightStickCollective"
+    },
+    {
+      "Id": "out_spring",
+      "Kind": "Output",
+      "X": 700.0,
+      "Y": 680.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "SpringGain"
+        },
+        {
+          "Kind": "Input",
+          "SignalSuffix": "TrimOffset"
+        }
+      ],
+      "Scoped": true
     }
   ],
   "Links": [
@@ -328,6 +428,42 @@
       "FromPort": "vrs",
       "ToNodeId": "clamp_vrs_eff",
       "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_rpm_sq",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_rpm_sq",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_k_spring",
+      "FromPort": "SpringGain",
+      "ToNodeId": "mul_spring",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_rpm_sq",
+      "FromPort": "a*b",
+      "ToNodeId": "mul_spring",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_spring",
+      "FromPort": "a*b",
+      "ToNodeId": "out_spring",
+      "ToPort": "SpringGain"
+    },
+    {
+      "FromNodeId": "param_spring_center",
+      "FromPort": "SpringCenter",
+      "ToNodeId": "out_spring",
+      "ToPort": "TrimOffset"
     }
   ],
   "Params": [
@@ -365,18 +501,19 @@
     },
     {
       "Name": "FlightStickCollective.LoadGain",
-      "DefaultValue": 0.8,
+      "DefaultValue": 0.2,
       "Min": 0.0,
       "Max": 5.0,
       "Ui": {
         "Widget": "slider",
-        "Label": "Load Gain",
+        "Label": "Torque Load (residual)",
         "Group": "FlightStickCollective",
         "Units": "N @ trq_ref",
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": []
+        "Options": [],
+        "MuteValue": 0.0
       }
     },
     {
@@ -409,6 +546,39 @@
       "Min": 0.0,
       "Max": 1.0,
       "Ui": null
+    },
+    {
+      "Name": "FlightStickCollective.SpringGain",
+      "DefaultValue": 0.3,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Flat-Pitch Spring",
+        "Group": "FlightStickCollective",
+        "Units": "N/mm @ RPM nom",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickCollective.SpringCenter",
+      "DefaultValue": -20.0,
+      "Min": -50.0,
+      "Max": 50.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Spring Center (low-pitch stop)",
+        "Group": "FlightStickCollective",
+        "Units": "mm",
+        "Step": 0.5,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
     }
   ],
   "ParamValues": null

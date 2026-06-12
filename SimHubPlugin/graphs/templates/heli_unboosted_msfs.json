@@ -706,6 +706,11 @@
           "Name": "VRS",
           "Kind": "Output",
           "BusName": "VRS"
+        },
+        {
+          "Name": "RPMnorm",
+          "Kind": "Output",
+          "BusName": "RPMnorm"
         }
       ]
     },
@@ -1750,6 +1755,12 @@
       "FromPort": "TrInflow",
       "ToNodeId": "pedals_include",
       "ToPort": "tr_inflow"
+    },
+    {
+      "FromNodeId": "bus_recv_collective_include",
+      "FromPort": "RPMnorm",
+      "ToNodeId": "collective_include",
+      "ToPort": "rpm_norm"
     }
   ],
   "Params": [
