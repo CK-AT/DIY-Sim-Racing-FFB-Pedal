@@ -478,8 +478,8 @@
       "ToPort": "a"
     },
     {
-      "FromNodeId": "in_rpm_norm",
-      "FromPort": "rpm_norm",
+      "FromNodeId": "mul_rpm_sq",
+      "FromPort": "a*b",
       "ToNodeId": "mul_tr_blade_ampl",
       "ToPort": "b"
     },
@@ -496,8 +496,8 @@
       "ToPort": "a"
     },
     {
-      "FromNodeId": "in_rpm_norm",
-      "FromPort": "rpm_norm",
+      "FromNodeId": "mul_rpm_sq",
+      "FromPort": "a*b",
       "ToNodeId": "mul_tr_2nd_ampl",
       "ToPort": "b"
     },

@@ -807,22 +807,10 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "load",
-      "FromPort": "a*-b*c",
-      "ToNodeId": "mul_load_atten",
-      "ToPort": "a"
-    },
-    {
       "FromNodeId": "sub_atten_factor",
       "FromPort": "a-b",
       "ToNodeId": "mul_load_atten",
       "ToPort": "b"
-    },
-    {
-      "FromNodeId": "mul_load_atten",
-      "FromPort": "a*b",
-      "ToNodeId": "add_total_load",
-      "ToPort": "a"
     },
     {
       "FromNodeId": "in_rbs",
@@ -891,14 +879,14 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "add_total_load",
-      "FromPort": "a+b+c",
+      "FromNodeId": "mul_load_atten",
+      "FromPort": "a*b",
       "ToNodeId": "owl_clamp",
       "ToPort": "b"
     },
     {
-      "FromNodeId": "add_total_load",
-      "FromPort": "a+b+c",
+      "FromNodeId": "mul_load_atten",
+      "FromPort": "a*b",
       "ToNodeId": "select_owl",
       "ToPort": "b"
     },
@@ -906,6 +894,18 @@
       "FromNodeId": "in_vrs",
       "FromPort": "vrs",
       "ToNodeId": "clamp_vrs_eff",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "load",
+      "FromPort": "a*-b*c",
+      "ToNodeId": "add_total_load",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "add_total_load",
+      "FromPort": "a+b+c",
+      "ToNodeId": "mul_load_atten",
       "ToPort": "a"
     }
   ],

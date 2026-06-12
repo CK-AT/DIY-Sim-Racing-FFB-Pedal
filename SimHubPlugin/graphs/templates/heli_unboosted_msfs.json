@@ -1613,9 +1613,9 @@
     },
     {
       "Name": "Aircraft.KSlap",
-      "DefaultValue": 0.03,
+      "DefaultValue": 0.15,
       "Min": 0.0,
-      "Max": 0.2,
+      "Max": 0.5,
       "Ui": {
         "Widget": "slider",
         "Label": "Slap Gain",

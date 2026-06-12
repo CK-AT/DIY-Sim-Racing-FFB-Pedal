@@ -786,6 +786,45 @@
         }
       ],
       "Op": "add"
+    },
+    {
+      "Id": "param_vib1_max",
+      "Kind": "Param",
+      "X": 580.0,
+      "Y": -80.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Vib1Max"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "clamp_1rev",
+      "Title": "cap flapping 1/rev",
+      "Kind": "Op",
+      "X": 780.0,
+      "Y": 10.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
     }
   ],
   "Links": [
@@ -838,8 +877,8 @@
       "ToPort": "a"
     },
     {
-      "FromNodeId": "in_rpm_norm",
-      "FromPort": "rpm_norm",
+      "FromNodeId": "mul_rpm_sq",
+      "FromPort": "a*b",
       "ToNodeId": "mul_track",
       "ToPort": "b"
     },
@@ -964,8 +1003,8 @@
       "ToPort": "FlightControl.Vib1HarmRatio5"
     },
     {
-      "FromNodeId": "mul_1rev",
-      "FromPort": "a*b",
+      "FromNodeId": "clamp_1rev",
+      "FromPort": "clamp(a,min,max)",
       "ToNodeId": "add_1rev_abc",
       "ToPort": "a"
     },
@@ -1082,6 +1121,24 @@
       "FromPort": "a*b*c",
       "ToNodeId": "add_1rev_total",
       "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_1rev",
+      "FromPort": "a*b",
+      "ToNodeId": "clamp_1rev",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_1rev",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "param_vib1_max",
+      "FromPort": "Vib1Max",
+      "ToNodeId": "clamp_1rev",
+      "ToPort": "max"
     }
   ],
   "Params": [
@@ -1252,6 +1309,22 @@
         "Precision": 2,
         "LogScale": false,
         "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.Vib1Max",
+      "DefaultValue": 2.0,
+      "Min": 0.1,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "1/rev cap",
+        "Group": "Cyclic Vibration",
+        "Units": "mm",
+        "Step": 0.1,
+        "Precision": 1,
+        "LogScale": false,
         "Options": []
       }
     }

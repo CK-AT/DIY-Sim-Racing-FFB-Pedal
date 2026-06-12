@@ -175,6 +175,28 @@
         }
       ],
       "Scoped": true
+    },
+    {
+      "Id": "mul_rpm_sq",
+      "Title": "rpm x rpm",
+      "Kind": "Op",
+      "X": 320.0,
+      "Y": 40.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
     }
   ],
   "Links": [
@@ -203,8 +225,8 @@
       "ToPort": "Friction"
     },
     {
-      "FromNodeId": "in_precalc",
-      "FromPort": "rpm_norm",
+      "FromNodeId": "mul_rpm_sq",
+      "FromPort": "a*b",
       "ToNodeId": "spring_calc",
       "ToPort": "a"
     },
@@ -225,6 +247,18 @@
       "FromPort": "a*b",
       "ToNodeId": "out_trim_offset",
       "ToPort": "TrimOffset"
+    },
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_rpm_sq",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_rpm_sq",
+      "ToPort": "b"
     }
   ],
   "Params": [

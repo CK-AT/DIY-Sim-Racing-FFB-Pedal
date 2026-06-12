@@ -992,28 +992,6 @@
       "Op": "clamp"
     },
     {
-      "Id": "max_g_factor",
-      "Title": "max(G, 1)",
-      "Kind": "Op",
-      "X": 560.0,
-      "Y": 1470.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "max(a,b)",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "max"
-    },
-    {
       "Id": "mul_mu_rbs",
       "Title": "RbsMuCoupling × mu",
       "Kind": "Op",
@@ -1292,6 +1270,130 @@
         }
       ],
       "Op": "clamp"
+    },
+    {
+      "Id": "const_bvi_desc",
+      "Title": "600 (BVI desc sat fpm)",
+      "Kind": "Const",
+      "X": 800.0,
+      "Y": 840.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 600.0
+    },
+    {
+      "Id": "div_slap_desc",
+      "Title": "desc/600",
+      "Kind": "Op",
+      "X": 1000.0,
+      "Y": 820.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "clamp_slap_desc",
+      "Title": "clamp 0..1",
+      "Kind": "Op",
+      "X": 1180.0,
+      "Y": 820.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "mul_slap_desc",
+      "Title": "slap x desc gate",
+      "Kind": "Op",
+      "X": 1440.0,
+      "Y": 760.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "const_g_max",
+      "Title": "3.0",
+      "Kind": "Const",
+      "X": 380.0,
+      "Y": 1500.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 3.0
+    },
+    {
+      "Id": "clamp_g_factor",
+      "Title": "clamp(G,0,3)",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 1470.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
     }
   ],
   "Links": [
@@ -1548,8 +1650,8 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "div_slap_100",
-      "FromPort": "a/b",
+      "FromNodeId": "mul_slap_desc",
+      "FromPort": "a*b",
       "ToNodeId": "clamp_slap",
       "ToPort": "a"
     },
@@ -1650,18 +1752,6 @@
       "ToPort": "max"
     },
     {
-      "FromNodeId": "in_g_force",
-      "FromPort": "g_force",
-      "ToNodeId": "max_g_factor",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "const_one",
-      "FromPort": "out",
-      "ToNodeId": "max_g_factor",
-      "ToPort": "b"
-    },
-    {
       "FromNodeId": "param_rbs_mu_coupling",
       "FromPort": "RbsMuCoupling",
       "ToNodeId": "mul_mu_rbs",
@@ -1690,12 +1780,6 @@
       "FromPort": "clamp(a,min,max)",
       "ToNodeId": "mul_rbs_demand",
       "ToPort": "a"
-    },
-    {
-      "FromNodeId": "max_g_factor",
-      "FromPort": "max(a,b)",
-      "ToNodeId": "mul_rbs_demand",
-      "ToPort": "b"
     },
     {
       "FromNodeId": "add_mu_one",
@@ -1816,6 +1900,72 @@
       "FromPort": "clamp(a,min,max)",
       "ToNodeId": "lag_asym_vrs",
       "ToPort": "input"
+    },
+    {
+      "FromNodeId": "max_descent",
+      "FromPort": "max(a,b)",
+      "ToNodeId": "div_slap_desc",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_bvi_desc",
+      "FromPort": "out",
+      "ToNodeId": "div_slap_desc",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_slap_desc",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_slap_desc",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_slap_desc",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_slap_desc",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "div_slap_100",
+      "FromPort": "a/b",
+      "ToNodeId": "mul_slap_desc",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "clamp_slap_desc",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_slap_desc",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_g_force",
+      "FromPort": "g_force",
+      "ToNodeId": "clamp_g_factor",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_g_factor",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_g_max",
+      "FromPort": "out",
+      "ToNodeId": "clamp_g_factor",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "clamp_g_factor",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_rbs_demand",
+      "ToPort": "b"
     }
   ],
   "Params": [
@@ -1917,9 +2067,9 @@
     },
     {
       "Name": "Aircraft.KSlap",
-      "DefaultValue": 0.03,
+      "DefaultValue": 0.15,
       "Min": 0.0,
-      "Max": 0.2,
+      "Max": 0.5,
       "Ui": {
         "Widget": "slider",
         "Label": "Slap Gain",
