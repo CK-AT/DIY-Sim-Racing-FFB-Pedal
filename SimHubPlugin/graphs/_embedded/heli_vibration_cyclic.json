@@ -825,6 +825,76 @@
         }
       ],
       "Op": "clamp"
+    },
+    {
+      "Id": "in_mu_buzz",
+      "Title": "Mu Buzz (0..1)",
+      "Kind": "Input",
+      "X": 1210.0,
+      "Y": 480.0,
+      "Ports": [
+        {
+          "Name": "mu_buzz",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_mu_buzz_gain",
+      "Kind": "Param",
+      "X": 1360.0,
+      "Y": 540.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "MuBuzzGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "mul_mu_buzz",
+      "Title": "mu_buzz x gain",
+      "Kind": "Op",
+      "X": 1580.0,
+      "Y": 500.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "add_nrev_total2",
+      "Title": "N/rev + mu buzz",
+      "Kind": "Op",
+      "X": 1780.0,
+      "Y": 400.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
     }
   ],
   "Links": [
@@ -919,8 +989,8 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "add_nrev_slap",
-      "FromPort": "a+b+c+d",
+      "FromNodeId": "add_nrev_total2",
+      "FromPort": "a+b",
       "ToNodeId": "out_ampl2",
       "ToPort": "Vib1Ampl2"
     },
@@ -1139,6 +1209,30 @@
       "FromPort": "Vib1Max",
       "ToNodeId": "clamp_1rev",
       "ToPort": "max"
+    },
+    {
+      "FromNodeId": "in_mu_buzz",
+      "FromPort": "mu_buzz",
+      "ToNodeId": "mul_mu_buzz",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_mu_buzz_gain",
+      "FromPort": "MuBuzzGain",
+      "ToNodeId": "mul_mu_buzz",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_nrev_slap",
+      "FromPort": "a+b+c+d",
+      "ToNodeId": "add_nrev_total2",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_mu_buzz",
+      "FromPort": "a*b",
+      "ToNodeId": "add_nrev_total2",
+      "ToPort": "b"
     }
   ],
   "Params": [
@@ -1325,6 +1419,23 @@
         "Step": 0.1,
         "Precision": 1,
         "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.MuBuzzGain",
+      "DefaultValue": 0.3,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "High-speed (mu) buzz",
+        "Group": "Cyclic Vibration",
+        "Units": "mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "MuteValue": 0.0,
         "Options": []
       }
     }

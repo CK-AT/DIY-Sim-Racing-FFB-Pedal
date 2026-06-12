@@ -517,6 +517,16 @@
           "Name": "Slap",
           "Kind": "Input",
           "BusName": "Slap"
+        },
+        {
+          "Name": "GLoad",
+          "Kind": "Input",
+          "BusName": "GLoad"
+        },
+        {
+          "Name": "Mu",
+          "Kind": "Input",
+          "BusName": "Mu"
         }
       ]
     },
@@ -551,6 +561,11 @@
           "Name": "BladeCount",
           "Kind": "Output",
           "BusName": "BladeCount"
+        },
+        {
+          "Name": "Mu",
+          "Kind": "Output",
+          "BusName": "Mu"
         }
       ]
     },
@@ -700,6 +715,11 @@
           "Name": "ETLBump",
           "Kind": "Output",
           "BusName": "ETLBump"
+        },
+        {
+          "Name": "GLoad",
+          "Kind": "Output",
+          "BusName": "GLoad"
         }
       ]
     },
@@ -852,6 +872,16 @@
           "Name": "RBS",
           "Kind": "Output",
           "BusName": "RBS"
+        },
+        {
+          "Name": "GLoad",
+          "Kind": "Output",
+          "BusName": "GLoad"
+        },
+        {
+          "Name": "Mu",
+          "Kind": "Output",
+          "BusName": "Mu"
         }
       ]
     },
@@ -908,6 +938,182 @@
         }
       ],
       "Op": "div"
+    },
+    {
+      "Id": "param_g_load_gain",
+      "Kind": "Param",
+      "X": 280.0,
+      "Y": 1570.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "GLoadGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_g_load_roll_gain",
+      "Kind": "Param",
+      "X": 50.0,
+      "Y": 2470.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "GLoadRollGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "mul_g_roll_eff",
+      "Title": "Roll G gain x mu x rot sign",
+      "Kind": "Op",
+      "X": 360.0,
+      "Y": 2470.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "param_mu_buzz_onset",
+      "Kind": "Param",
+      "X": 880.0,
+      "Y": 1620.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "MuBuzzOnset"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_mu_buzz_width",
+      "Kind": "Param",
+      "X": 880.0,
+      "Y": 1690.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "MuBuzzWidth"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "sub_mu_onset",
+      "Title": "mu - onset",
+      "Kind": "Op",
+      "X": 1060.0,
+      "Y": 1620.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "div_mu_width",
+      "Title": "/width",
+      "Kind": "Op",
+      "X": 1200.0,
+      "Y": 1620.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "const_mu_zero",
+      "Title": "0",
+      "Kind": "Const",
+      "X": 1200.0,
+      "Y": 1700.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "const_mu_one",
+      "Title": "1",
+      "Kind": "Const",
+      "X": 1260.0,
+      "Y": 1700.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
+    },
+    {
+      "Id": "clamp_mu_buzz",
+      "Title": "clamp 0..1",
+      "Kind": "Op",
+      "X": 1340.0,
+      "Y": 1620.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
     }
   ],
   "Links": [
@@ -1414,6 +1620,114 @@
       "FromPort": "RotationSign",
       "ToNodeId": "pedals_include",
       "ToPort": "rot_sign"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "GLoad",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "GLoad"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "Mu",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "Mu"
+    },
+    {
+      "FromNodeId": "5056d384999c49cc9e14d398e93d5a85",
+      "FromPort": "GLoad",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "g_load"
+    },
+    {
+      "FromNodeId": "param_g_load_gain",
+      "FromPort": "GLoadGain",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "g_load_gain_eff"
+    },
+    {
+      "FromNodeId": "param_g_load_roll_gain",
+      "FromPort": "GLoadRollGain",
+      "ToNodeId": "mul_g_roll_eff",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "743cb52f438b47b6928a4ef7a38d22f7",
+      "FromPort": "Mu",
+      "ToNodeId": "mul_g_roll_eff",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "743cb52f438b47b6928a4ef7a38d22f7",
+      "FromPort": "RotationSign",
+      "ToNodeId": "mul_g_roll_eff",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "mul_g_roll_eff",
+      "FromPort": "a*b*c",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "g_load_gain_eff"
+    },
+    {
+      "FromNodeId": "743cb52f438b47b6928a4ef7a38d22f7",
+      "FromPort": "GLoad",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "g_load"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_pitch_include",
+      "FromPort": "Mu",
+      "ToNodeId": "sub_mu_onset",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_mu_buzz_onset",
+      "FromPort": "MuBuzzOnset",
+      "ToNodeId": "sub_mu_onset",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sub_mu_onset",
+      "FromPort": "a-b",
+      "ToNodeId": "div_mu_width",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_mu_buzz_width",
+      "FromPort": "MuBuzzWidth",
+      "ToNodeId": "div_mu_width",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_mu_width",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_mu_buzz",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_mu_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_mu_buzz",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_mu_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_mu_buzz",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "clamp_mu_buzz",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "mu_buzz"
+    },
+    {
+      "FromNodeId": "clamp_mu_buzz",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "mu_buzz"
     }
   ],
   "Params": [
@@ -1918,6 +2232,72 @@
         "Units": "RPM",
         "Step": 1.0,
         "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.GLoadGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "G Load (Pitch)",
+        "Group": "Cyclic",
+        "Units": "N/G",
+        "Step": 0.05,
+        "Precision": 2,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.GLoadRollGain",
+      "DefaultValue": 0.0,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "G Load (Roll, x mu)",
+        "Group": "Cyclic",
+        "Units": "N/G",
+        "Step": 0.05,
+        "Precision": 2,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.MuBuzzOnset",
+      "DefaultValue": 0.32,
+      "Min": 0.2,
+      "Max": 0.5,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Mu Buzz Onset",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.MuBuzzWidth",
+      "DefaultValue": 0.08,
+      "Min": 0.02,
+      "Max": 0.2,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Mu Buzz Width",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.01,
+        "Precision": 2,
         "LogScale": false,
         "Options": []
       }

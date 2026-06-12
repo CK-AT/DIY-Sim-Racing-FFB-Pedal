@@ -410,11 +410,15 @@
           "Kind": "Input"
         },
         {
-          "Name": "a+b+c",
+          "Name": "a+b+c+d",
           "Kind": "Output"
         },
         {
           "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "d",
           "Kind": "Input"
         }
       ],
@@ -635,6 +639,58 @@
         }
       ],
       "Scoped": true
+    },
+    {
+      "Id": "in_g_load",
+      "Title": "G Load (G-1)",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 1310.0,
+      "Ports": [
+        {
+          "Name": "g_load",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_g_load_gain",
+      "Title": "G Load Gain (eff)",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 1380.0,
+      "Ports": [
+        {
+          "Name": "g_load_gain_eff",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "mul_g_load",
+      "Title": "g x gain x rpm",
+      "Kind": "Op",
+      "X": 280.0,
+      "Y": 1330.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
     }
   ],
   "Links": [
@@ -904,7 +960,7 @@
     },
     {
       "FromNodeId": "add_total_load",
-      "FromPort": "a+b+c",
+      "FromPort": "a+b+c+d",
       "ToNodeId": "mul_load_atten",
       "ToPort": "a"
     },
@@ -913,6 +969,30 @@
       "FromPort": "out",
       "ToNodeId": "owl_clamp",
       "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_g_load",
+      "FromPort": "g_load",
+      "ToNodeId": "mul_g_load",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_g_load_gain",
+      "FromPort": "g_load_gain_eff",
+      "ToNodeId": "mul_g_load",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_g_load",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "mul_g_load",
+      "FromPort": "a*b*c",
+      "ToNodeId": "add_total_load",
+      "ToPort": "d"
     }
   ],
   "Params": [

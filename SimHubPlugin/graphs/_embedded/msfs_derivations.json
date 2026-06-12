@@ -1392,6 +1392,54 @@
         }
       ],
       "Op": "clamp"
+    },
+    {
+      "Id": "sub_g_load",
+      "Title": "G - 1",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 1600.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "out_g_load",
+      "Title": "GLoad Out",
+      "Kind": "Output",
+      "X": 800.0,
+      "Y": 1600.0,
+      "Ports": [
+        {
+          "Name": "GLoad",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "out_mu",
+      "Title": "Mu Out",
+      "Kind": "Output",
+      "X": 1080.0,
+      "Y": -40.0,
+      "Ports": [
+        {
+          "Name": "Mu",
+          "Kind": "Input"
+        }
+      ]
     }
   ],
   "Links": [
@@ -1964,6 +2012,30 @@
       "FromPort": "clamp(a,min,max)",
       "ToNodeId": "mul_rbs_demand",
       "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_g_force",
+      "FromPort": "g_force",
+      "ToNodeId": "sub_g_load",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "sub_g_load",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sub_g_load",
+      "FromPort": "a-b",
+      "ToNodeId": "out_g_load",
+      "ToPort": "GLoad"
+    },
+    {
+      "FromNodeId": "mu_div",
+      "FromPort": "a/b",
+      "ToNodeId": "out_mu",
+      "ToPort": "Mu"
     }
   ],
   "Params": [
