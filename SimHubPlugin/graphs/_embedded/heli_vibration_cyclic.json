@@ -895,6 +895,85 @@
         }
       ],
       "Op": "add"
+    },
+    {
+      "Id": "in_gnd_boost",
+      "Title": "Ground boost (0..gain)",
+      "Kind": "Input",
+      "X": 1500.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Name": "gnd_boost",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "add_gnd_factor",
+      "Title": "1 + gnd boost",
+      "Kind": "Op",
+      "X": 1660.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "mul_gnd_1rev",
+      "Title": "1/rev x gnd",
+      "Kind": "Op",
+      "X": 1840.0,
+      "Y": 80.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_gnd_nrev",
+      "Title": "N/rev x gnd",
+      "Kind": "Op",
+      "X": 1840.0,
+      "Y": 320.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
     }
   ],
   "Links": [
@@ -959,8 +1038,8 @@
       "ToPort": "c"
     },
     {
-      "FromNodeId": "add_1rev_total",
-      "FromPort": "a+b",
+      "FromNodeId": "mul_gnd_1rev",
+      "FromPort": "a*b",
       "ToNodeId": "out_ampl1",
       "ToPort": "Vib1Ampl1"
     },
@@ -989,8 +1068,8 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "add_nrev_total2",
-      "FromPort": "a+b",
+      "FromNodeId": "mul_gnd_nrev",
+      "FromPort": "a*b",
       "ToNodeId": "out_ampl2",
       "ToPort": "Vib1Ampl2"
     },
@@ -1232,6 +1311,42 @@
       "FromNodeId": "mul_mu_buzz",
       "FromPort": "a*b",
       "ToNodeId": "add_nrev_total2",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "add_gnd_factor",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_gnd_boost",
+      "FromPort": "gnd_boost",
+      "ToNodeId": "add_gnd_factor",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_1rev_total",
+      "FromPort": "a+b",
+      "ToNodeId": "mul_gnd_1rev",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "add_gnd_factor",
+      "FromPort": "a+b",
+      "ToNodeId": "mul_gnd_1rev",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_nrev_total2",
+      "FromPort": "a+b",
+      "ToNodeId": "mul_gnd_nrev",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "add_gnd_factor",
+      "FromPort": "a+b",
+      "ToNodeId": "mul_gnd_nrev",
       "ToPort": "b"
     }
   ],

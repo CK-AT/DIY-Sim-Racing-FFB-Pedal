@@ -399,6 +399,163 @@
         }
       ],
       "ConstValue": 60.0
+    },
+    {
+      "Id": "in_on_ground",
+      "Kind": "Input",
+      "X": 1500.0,
+      "Y": 30.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "OnGround"
+        }
+      ],
+      "SignalGroup": "XPlane"
+    },
+    {
+      "Id": "param_gnd_res_gain",
+      "Kind": "Param",
+      "X": 1500.0,
+      "Y": 110.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "GndResGain"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "mul_gnd_boost",
+      "Title": "OnGround x gain",
+      "Kind": "Op",
+      "X": 1700.0,
+      "Y": 60.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "func_td_edge",
+      "Title": "Touchdown edge",
+      "Kind": "Func",
+      "X": 1500.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Name": "input",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Func": "edge_detect",
+      "IncludePath": ""
+    },
+    {
+      "Id": "param_touchdown_gain",
+      "Kind": "Param",
+      "X": 1500.0,
+      "Y": 280.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TouchdownGain"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "mul_td_pulse",
+      "Title": "edge x gain",
+      "Kind": "Op",
+      "X": 1700.0,
+      "Y": 220.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "const_td_tau_up",
+      "Title": "0.01 s",
+      "Kind": "Const",
+      "X": 1700.0,
+      "Y": 320.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.01
+    },
+    {
+      "Id": "const_td_tau_down",
+      "Title": "0.3 s",
+      "Kind": "Const",
+      "X": 1780.0,
+      "Y": 320.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.3
+    },
+    {
+      "Id": "func_td_lag",
+      "Title": "stretch pulse",
+      "Kind": "Func",
+      "X": 1900.0,
+      "Y": 220.0,
+      "Ports": [
+        {
+          "Name": "input",
+          "Kind": "Input"
+        },
+        {
+          "Name": "tau_up_sec",
+          "Kind": "Input"
+        },
+        {
+          "Name": "tau_down_sec",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Func": "lag_asym",
+      "IncludePath": ""
     }
   ],
   "Links": [
@@ -683,6 +840,96 @@
       "FromPort": "rpm_norm",
       "ToNodeId": "collective_include",
       "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "in_on_ground",
+      "FromPort": "OnGround",
+      "ToNodeId": "mul_gnd_boost",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_gnd_res_gain",
+      "FromPort": "GndResGain",
+      "ToNodeId": "mul_gnd_boost",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_on_ground",
+      "FromPort": "OnGround",
+      "ToNodeId": "func_td_edge",
+      "ToPort": "input"
+    },
+    {
+      "FromNodeId": "func_td_edge",
+      "FromPort": "out",
+      "ToNodeId": "mul_td_pulse",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_touchdown_gain",
+      "FromPort": "TouchdownGain",
+      "ToNodeId": "mul_td_pulse",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_td_pulse",
+      "FromPort": "a*b",
+      "ToNodeId": "func_td_lag",
+      "ToPort": "input"
+    },
+    {
+      "FromNodeId": "const_td_tau_up",
+      "FromPort": "out",
+      "ToNodeId": "func_td_lag",
+      "ToPort": "tau_up_sec"
+    },
+    {
+      "FromNodeId": "const_td_tau_down",
+      "FromPort": "out",
+      "ToNodeId": "func_td_lag",
+      "ToPort": "tau_down_sec"
+    },
+    {
+      "FromNodeId": "mul_gnd_boost",
+      "FromPort": "a*b",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "gnd_boost"
+    },
+    {
+      "FromNodeId": "mul_gnd_boost",
+      "FromPort": "a*b",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "gnd_boost"
+    },
+    {
+      "FromNodeId": "mul_gnd_boost",
+      "FromPort": "a*b",
+      "ToNodeId": "vib_collective_include",
+      "ToPort": "gnd_boost"
+    },
+    {
+      "FromNodeId": "mul_gnd_boost",
+      "FromPort": "a*b",
+      "ToNodeId": "vib_pedal_include",
+      "ToPort": "gnd_boost"
+    },
+    {
+      "FromNodeId": "func_td_lag",
+      "FromPort": "out",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "thump"
+    },
+    {
+      "FromNodeId": "func_td_lag",
+      "FromPort": "out",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "thump"
+    },
+    {
+      "FromNodeId": "func_td_lag",
+      "FromPort": "out",
+      "ToNodeId": "collective_include",
+      "ToPort": "thump"
     }
   ],
   "Params": [
@@ -781,6 +1028,40 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.GndResGain",
+      "DefaultValue": 0.6,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Ground Shake Boost",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.05,
+        "Precision": 2,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.TouchdownGain",
+      "DefaultValue": 2.0,
+      "Min": 0.0,
+      "Max": 10.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Touchdown Thump",
+        "Group": "Aircraft",
+        "Units": "N",
+        "Step": 0.1,
+        "Precision": 1,
+        "LogScale": false,
+        "MuteValue": 0.0,
         "Options": []
       }
     }

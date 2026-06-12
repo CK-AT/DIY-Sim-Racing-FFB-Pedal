@@ -455,6 +455,85 @@
         }
       ],
       "Op": "mul"
+    },
+    {
+      "Id": "in_gnd_boost",
+      "Title": "Ground boost (0..gain)",
+      "Kind": "Input",
+      "X": 1500.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Name": "gnd_boost",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "add_gnd_factor",
+      "Title": "1 + gnd boost",
+      "Kind": "Op",
+      "X": 1660.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "mul_gnd_1rev",
+      "Title": "1/rev x gnd",
+      "Kind": "Op",
+      "X": 1840.0,
+      "Y": 80.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_gnd_nrev",
+      "Title": "N/rev x gnd",
+      "Kind": "Op",
+      "X": 1840.0,
+      "Y": 320.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
     }
   ],
   "Links": [
@@ -483,7 +562,7 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "mul_1rev_ampl",
+      "FromNodeId": "mul_gnd_1rev",
       "FromPort": "a*b",
       "ToNodeId": "out_ampl1",
       "ToPort": "Vib1Ampl1"
@@ -501,7 +580,7 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "mul_nrev_ampl",
+      "FromNodeId": "mul_gnd_nrev",
       "FromPort": "a*b",
       "ToNodeId": "out_ampl2",
       "ToPort": "Vib1Ampl2"
@@ -619,6 +698,42 @@
       "FromPort": "tr_gear",
       "ToNodeId": "cfg_ratios",
       "ToPort": "FlightControl.Vib1HarmRatio5"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "add_gnd_factor",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_gnd_boost",
+      "FromPort": "gnd_boost",
+      "ToNodeId": "add_gnd_factor",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_1rev_ampl",
+      "FromPort": "a*b",
+      "ToNodeId": "mul_gnd_1rev",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "add_gnd_factor",
+      "FromPort": "a+b",
+      "ToNodeId": "mul_gnd_1rev",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_nrev_ampl",
+      "FromPort": "a*b",
+      "ToNodeId": "mul_gnd_nrev",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "add_gnd_factor",
+      "FromPort": "a+b",
+      "ToNodeId": "mul_gnd_nrev",
+      "ToPort": "b"
     }
   ],
   "Params": [

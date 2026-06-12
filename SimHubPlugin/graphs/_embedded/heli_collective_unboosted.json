@@ -342,6 +342,41 @@
         }
       ],
       "Scoped": true
+    },
+    {
+      "Id": "in_thump",
+      "Title": "Touchdown thump",
+      "Kind": "Input",
+      "X": 1180.0,
+      "Y": 1060.0,
+      "Ports": [
+        {
+          "Name": "thump",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "add_buffet_total",
+      "Title": "buffet + thump",
+      "Kind": "Op",
+      "X": 1320.0,
+      "Y": 980.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
     }
   ],
   "Links": [
@@ -418,8 +453,8 @@
       "ToPort": "qhat_eff"
     },
     {
-      "FromNodeId": "vrs_buffet",
-      "FromPort": "out",
+      "FromNodeId": "add_buffet_total",
+      "FromPort": "a+b",
       "ToNodeId": "out_scoped",
       "ToPort": "BuffetAmplitude"
     },
@@ -464,6 +499,18 @@
       "FromPort": "SpringCenter",
       "ToNodeId": "out_spring",
       "ToPort": "TrimOffset"
+    },
+    {
+      "FromNodeId": "vrs_buffet",
+      "FromPort": "out",
+      "ToNodeId": "add_buffet_total",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_thump",
+      "FromPort": "thump",
+      "ToNodeId": "add_buffet_total",
+      "ToPort": "b"
     }
   ],
   "Params": [
