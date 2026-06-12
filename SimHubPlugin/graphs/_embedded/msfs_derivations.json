@@ -198,19 +198,6 @@
       "SignalGroup": "Aircraft"
     },
     {
-      "Id": "param_max_torque",
-      "Kind": "Param",
-      "X": 30.0,
-      "Y": 980.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "MaxTorqueNm"
-        }
-      ],
-      "SignalGroup": "Aircraft"
-    },
-    {
       "Id": "param_etl_peak",
       "Kind": "Param",
       "X": 30.0,
@@ -859,28 +846,6 @@
       "Op": "div"
     },
     {
-      "Id": "mul_torque",
-      "Title": "*MaxTorque",
-      "Kind": "Op",
-      "X": 800.0,
-      "Y": 980.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a*b",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "mul"
-    },
-    {
       "Id": "sub_etl_diff",
       "Title": "IAS - EtlPeak",
       "Kind": "Op",
@@ -1254,19 +1219,6 @@
       ]
     },
     {
-      "Id": "out_torque",
-      "Title": "MainRotor Torque Out",
-      "Kind": "Output",
-      "X": 1080.0,
-      "Y": 980.0,
-      "Ports": [
-        {
-          "Name": "MainRotor.Torque",
-          "Kind": "Input"
-        }
-      ]
-    },
-    {
       "Id": "5a7303a164f2449199694963c9e09942",
       "Title": "2.5",
       "Kind": "Const",
@@ -1279,6 +1231,67 @@
         }
       ],
       "ConstValue": 2.5
+    },
+    {
+      "Id": "out_trq_norm",
+      "Title": "TrqNorm Out",
+      "Kind": "Output",
+      "X": 1080.0,
+      "Y": 980.0,
+      "Ports": [
+        {
+          "Name": "TrqNorm",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "mul_vrs_pwr",
+      "Title": "× collective (no VRS in auto)",
+      "Kind": "Op",
+      "X": 2080.0,
+      "Y": 460.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "clamp_vrs_core",
+      "Title": "clamp 0..1",
+      "Kind": "Op",
+      "X": 2240.0,
+      "Y": 460.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
     }
   ],
   "Links": [
@@ -1751,40 +1764,58 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "div_torque_100",
-      "FromPort": "a/b",
-      "ToNodeId": "mul_torque",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "param_max_torque",
-      "FromPort": "MaxTorqueNm",
-      "ToNodeId": "mul_torque",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "mul_torque",
-      "FromPort": "a*b",
-      "ToNodeId": "out_torque",
-      "ToPort": "MainRotor.Torque"
-    },
-    {
       "FromNodeId": "mul_half_desc",
       "FromPort": "a*b",
       "ToNodeId": "mul_vrs_core",
       "ToPort": "c"
     },
     {
-      "FromNodeId": "mul_vrs_core",
-      "FromPort": "a*b*c",
-      "ToNodeId": "lag_asym_vrs",
-      "ToPort": "input"
-    },
-    {
       "FromNodeId": "5a7303a164f2449199694963c9e09942",
       "FromPort": "out",
       "ToNodeId": "mul_vrs_core",
       "ToPort": "a"
+    },
+    {
+      "FromNodeId": "div_torque_100",
+      "FromPort": "a/b",
+      "ToNodeId": "out_trq_norm",
+      "ToPort": "TrqNorm"
+    },
+    {
+      "FromNodeId": "mul_vrs_core",
+      "FromPort": "a*b*c",
+      "ToNodeId": "mul_vrs_pwr",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "clamp_collective",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_vrs_pwr",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_vrs_pwr",
+      "FromPort": "a*b",
+      "ToNodeId": "clamp_vrs_core",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_vrs_core",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_vrs_core",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "clamp_vrs_core",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "lag_asym_vrs",
+      "ToPort": "input"
     }
   ],
   "Params": [
@@ -1912,22 +1943,6 @@
         "Units": "",
         "Step": 0.01,
         "Precision": 2,
-        "LogScale": false,
-        "Options": []
-      }
-    },
-    {
-      "Name": "Aircraft.MaxTorqueNm",
-      "DefaultValue": 800.0,
-      "Min": 100.0,
-      "Max": 5000.0,
-      "Ui": {
-        "Widget": "slider",
-        "Label": "Max Rotor Torque",
-        "Group": "Aircraft",
-        "Units": "Nm",
-        "Step": 10.0,
-        "Precision": 0,
         "LogScale": false,
         "Options": []
       }
