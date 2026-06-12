@@ -610,8 +610,8 @@
     {
       "Id": "out_ampl1",
       "Kind": "Output",
-      "X": 1560.0,
-      "Y": -20.0,
+      "X": 1920.0,
+      "Y": 40.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -623,7 +623,7 @@
     {
       "Id": "out_ampl2",
       "Kind": "Output",
-      "X": 1780.0,
+      "X": 2120.0,
       "Y": 340.0,
       "Ports": [
         {
@@ -770,7 +770,7 @@
       "Title": "1/rev + VRS shake",
       "Kind": "Op",
       "X": 1560.0,
-      "Y": 100.0,
+      "Y": 40.0,
       "Ports": [
         {
           "Name": "a",
@@ -830,7 +830,7 @@
       "Id": "in_mu_buzz",
       "Title": "Mu Buzz (0..1)",
       "Kind": "Input",
-      "X": 1210.0,
+      "X": 1560.0,
       "Y": 480.0,
       "Ports": [
         {
@@ -842,8 +842,8 @@
     {
       "Id": "param_mu_buzz_gain",
       "Kind": "Param",
-      "X": 1360.0,
-      "Y": 540.0,
+      "X": 1560.0,
+      "Y": 560.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -856,8 +856,8 @@
       "Id": "mul_mu_buzz",
       "Title": "mu_buzz x gain",
       "Kind": "Op",
-      "X": 1580.0,
-      "Y": 500.0,
+      "X": 1740.0,
+      "Y": 520.0,
       "Ports": [
         {
           "Name": "a",
@@ -878,8 +878,8 @@
       "Id": "add_nrev_total2",
       "Title": "N/rev + mu buzz",
       "Kind": "Op",
-      "X": 1780.0,
-      "Y": 400.0,
+      "X": 1760.0,
+      "Y": 340.0,
       "Ports": [
         {
           "Name": "a",
@@ -901,7 +901,7 @@
       "Title": "Ground boost (0..gain)",
       "Kind": "Input",
       "X": 1500.0,
-      "Y": 200.0,
+      "Y": 180.0,
       "Ports": [
         {
           "Name": "gnd_boost",
@@ -914,7 +914,7 @@
       "Title": "1 + gnd boost",
       "Kind": "Op",
       "X": 1660.0,
-      "Y": 200.0,
+      "Y": 180.0,
       "Ports": [
         {
           "Name": "a",
@@ -935,8 +935,8 @@
       "Id": "mul_gnd_1rev",
       "Title": "1/rev x gnd",
       "Kind": "Op",
-      "X": 1840.0,
-      "Y": 80.0,
+      "X": 1740.0,
+      "Y": 40.0,
       "Ports": [
         {
           "Name": "a",
@@ -957,8 +957,8 @@
       "Id": "mul_gnd_nrev",
       "Title": "N/rev x gnd",
       "Kind": "Op",
-      "X": 1840.0,
-      "Y": 320.0,
+      "X": 1940.0,
+      "Y": 340.0,
       "Ports": [
         {
           "Name": "a",

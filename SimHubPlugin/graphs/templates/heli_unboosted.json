@@ -520,8 +520,8 @@
       "Id": "const_td_tau_down",
       "Title": "0.3 s",
       "Kind": "Const",
-      "X": 1780.0,
-      "Y": 320.0,
+      "X": 1700.0,
+      "Y": 395.0,
       "Ports": [
         {
           "Name": "out",

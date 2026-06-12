@@ -135,20 +135,6 @@
       "ConstValue": 2.0
     },
     {
-      "Id": "const_zero",
-      "Title": "0.0",
-      "Kind": "Const",
-      "X": 740.0,
-      "Y": 550.0,
-      "Ports": [
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "ConstValue": 0.0
-    },
-    {
       "Id": "const_phase_zero",
       "Title": "0 deg",
       "Kind": "Const",
@@ -319,7 +305,7 @@
     {
       "Id": "out_ampl1",
       "Kind": "Output",
-      "X": 880.0,
+      "X": 1020.0,
       "Y": 40.0,
       "Ports": [
         {
@@ -332,7 +318,7 @@
     {
       "Id": "out_ampl2",
       "Kind": "Output",
-      "X": 880.0,
+      "X": 1020.0,
       "Y": 190.0,
       "Ports": [
         {
@@ -460,8 +446,8 @@
       "Id": "in_gnd_boost",
       "Title": "Ground boost (0..gain)",
       "Kind": "Input",
-      "X": 1500.0,
-      "Y": 200.0,
+      "X": 520.0,
+      "Y": -60.0,
       "Ports": [
         {
           "Name": "gnd_boost",
@@ -473,8 +459,8 @@
       "Id": "add_gnd_factor",
       "Title": "1 + gnd boost",
       "Kind": "Op",
-      "X": 1660.0,
-      "Y": 200.0,
+      "X": 700.0,
+      "Y": -60.0,
       "Ports": [
         {
           "Name": "a",
@@ -495,8 +481,8 @@
       "Id": "mul_gnd_1rev",
       "Title": "1/rev x gnd",
       "Kind": "Op",
-      "X": 1840.0,
-      "Y": 80.0,
+      "X": 850.0,
+      "Y": 40.0,
       "Ports": [
         {
           "Name": "a",
@@ -517,8 +503,8 @@
       "Id": "mul_gnd_nrev",
       "Title": "N/rev x gnd",
       "Kind": "Op",
-      "X": 1840.0,
-      "Y": 320.0,
+      "X": 850.0,
+      "Y": 190.0,
       "Ports": [
         {
           "Name": "a",

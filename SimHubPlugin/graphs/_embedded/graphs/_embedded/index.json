@@ -1,0 +1,16 @@
+{
+  "Entries": [
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\trim_combined.json",
+      "Hash": "f11f1098ae2e9ce79ddf734fad1c6f0486a856628687713ad46d5fe811855567",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-12T18:18:14.0720235Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\trim_hat.json",
+      "Hash": "ab7d0bcada723fca275914e68e707b51190dfa4ddd29fd17db76bbdd52d8423c",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-09T17:17:23.8984618Z"
+    }
+  ]
+}

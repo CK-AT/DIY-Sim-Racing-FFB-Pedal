@@ -1,0 +1,94 @@
+{
+  "Version": 4,
+  "Nodes": [
+    {
+      "Id": "52849692b3ad4995bfce02a10d616eee",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 40.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Angle.Beta"
+        }
+      ],
+      "SignalGroup": ""
+    },
+    {
+      "Id": "248c76156c7e4560861484e232d47522",
+      "Kind": "Output",
+      "X": 320.0,
+      "Y": 40.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "DamperGain"
+        }
+      ],
+      "SignalGroup": ""
+    },
+    {
+      "Id": "232f2d60076c45ca9777fe6c2ec01b47",
+      "Title": "Local Send",
+      "Kind": "LocalSend",
+      "X": 311.0,
+      "Y": 165.87,
+      "Ports": [
+        {
+          "Name": "in_0",
+          "Kind": "Input",
+          "BusName": "Param0"
+        }
+      ]
+    },
+    {
+      "Id": "a6e17ecc8e504ca9bf298d86df8b7a51",
+      "Title": "Local Receive",
+      "Kind": "LocalReceive",
+      "X": 310.0,
+      "Y": 280.0,
+      "Ports": [
+        {
+          "Name": "out_0",
+          "Kind": "Output",
+          "BusName": "Param0"
+        }
+      ]
+    },
+    {
+      "Id": "3c6b84840d5b40b7905e450d7dc24124",
+      "Kind": "Output",
+      "X": 600.0,
+      "Y": 280.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "SpringGain"
+        }
+      ],
+      "SignalGroup": ""
+    }
+  ],
+  "Links": [
+    {
+      "FromNodeId": "52849692b3ad4995bfce02a10d616eee",
+      "FromPort": "Angle.Beta",
+      "ToNodeId": "248c76156c7e4560861484e232d47522",
+      "ToPort": "DamperGain"
+    },
+    {
+      "FromNodeId": "52849692b3ad4995bfce02a10d616eee",
+      "FromPort": "Angle.Beta",
+      "ToNodeId": "232f2d60076c45ca9777fe6c2ec01b47",
+      "ToPort": "in_0"
+    },
+    {
+      "FromNodeId": "a6e17ecc8e504ca9bf298d86df8b7a51",
+      "FromPort": "out_0",
+      "ToNodeId": "3c6b84840d5b40b7905e450d7dc24124",
+      "ToPort": "SpringGain"
+    }
+  ],
+  "Params": [],
+  "ParamValues": null
+}

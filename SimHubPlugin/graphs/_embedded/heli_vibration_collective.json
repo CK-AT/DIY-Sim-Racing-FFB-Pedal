@@ -419,7 +419,7 @@
     {
       "Id": "out_ampl1",
       "Kind": "Output",
-      "X": 1450.0,
+      "X": 1650.0,
       "Y": 50.0,
       "Ports": [
         {
@@ -432,7 +432,7 @@
     {
       "Id": "out_ampl2",
       "Kind": "Output",
-      "X": 1560.0,
+      "X": 1740.0,
       "Y": 280.0,
       "Ports": [
         {
@@ -538,8 +538,8 @@
       "Id": "mul_vrs_vib",
       "Title": "vrs × gain × rpm",
       "Kind": "Op",
-      "X": 1000.0,
-      "Y": 320.0,
+      "X": 820.0,
+      "Y": 350.0,
       "Ports": [
         {
           "Name": "a",
@@ -565,7 +565,7 @@
       "Title": "1/rev + VRS shake",
       "Kind": "Op",
       "X": 1230.0,
-      "Y": 80.0,
+      "Y": 50.0,
       "Ports": [
         {
           "Name": "a",
@@ -587,7 +587,7 @@
       "Title": "N/rev + RBS heave",
       "Kind": "Op",
       "X": 1400.0,
-      "Y": 290.0,
+      "Y": 280.0,
       "Ports": [
         {
           "Name": "a",
@@ -608,8 +608,8 @@
       "Id": "in_gnd_boost",
       "Title": "Ground boost (0..gain)",
       "Kind": "Input",
-      "X": 1500.0,
-      "Y": 200.0,
+      "X": 1230.0,
+      "Y": 165.0,
       "Ports": [
         {
           "Name": "gnd_boost",
@@ -621,8 +621,8 @@
       "Id": "add_gnd_factor",
       "Title": "1 + gnd boost",
       "Kind": "Op",
-      "X": 1660.0,
-      "Y": 200.0,
+      "X": 1400.0,
+      "Y": 165.0,
       "Ports": [
         {
           "Name": "a",
@@ -643,8 +643,8 @@
       "Id": "mul_gnd_1rev",
       "Title": "1/rev x gnd",
       "Kind": "Op",
-      "X": 1840.0,
-      "Y": 80.0,
+      "X": 1450.0,
+      "Y": 50.0,
       "Ports": [
         {
           "Name": "a",
@@ -665,8 +665,8 @@
       "Id": "mul_gnd_nrev",
       "Title": "N/rev x gnd",
       "Kind": "Op",
-      "X": 1840.0,
-      "Y": 320.0,
+      "X": 1570.0,
+      "Y": 280.0,
       "Ports": [
         {
           "Name": "a",

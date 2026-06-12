@@ -1,0 +1,124 @@
+{
+  "Entries": [
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\heli_collective.json",
+      "Hash": "3f659b4414ca1fe94451d3c4ee4286e1a31d7e0df500af33edf3e4af90be1212",
+      "Version": 4,
+      "UpdatedUtc": "2026-04-23T16:30:06.0431569Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\common\\heli_scale.json",
+      "Hash": "147be3026be4a531c0ec2642b489d13aae5b92aa4de470eb7a4055f312f681ec",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-12T18:16:25.2711776Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\heli_cyclic.json",
+      "Hash": "9543075e3567a3fa02d5d04152f943276597e0fa6f31dd913f76775c25bc9e48",
+      "Version": 4,
+      "UpdatedUtc": "2026-04-23T16:30:06.0511589Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\heli_pedals.json",
+      "Hash": "1d8d33e3fa8a018a306520e2cd9de8ee2c742e4acf78062417deff75b3ed4f48",
+      "Version": 4,
+      "UpdatedUtc": "2026-04-23T16:30:06.0616598Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\trim_combined.json",
+      "Hash": "f11f1098ae2e9ce79ddf734fad1c6f0486a856628687713ad46d5fe811855567",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-12T18:16:41.1257866Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\heli_cyclic_unboosted.json",
+      "Hash": "ae2f11685675de1e6d97080f6732f8db189fb31d516d1b75121b93bfecbac73b",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-12T18:16:41.1202869Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\heli_collective_unboosted.json",
+      "Hash": "95b424f3d1a5eb09639dfdd9a8429f9d9922c3a4722d13d1a35585f55efc3231",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-12T18:16:41.1322866Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\heli_pedals_unboosted.json",
+      "Hash": "015d089a9875ad85a0037b9bc1f169e7bc9927dd71c90d24d7da57683a306158",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-12T18:16:41.1377874Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\heli_cyclic_boosted.json",
+      "Hash": "8b9ace1f09dd7fe11472d7dbddd990269f18a158cdb3c00926dc30cba197b1b2",
+      "Version": 4,
+      "UpdatedUtc": "2026-04-24T17:15:54.5544553Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\heli_collective_boosted.json",
+      "Hash": "ff4070e4b33141b7884d9114c2100fc399a67d56d2c9aec71269427be1c053bd",
+      "Version": 4,
+      "UpdatedUtc": "2026-05-11T07:21:42.6041565Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\heli_pedals_boosted.json",
+      "Hash": "292e312dec0e9795a78e3292e14539bbe78dd8346d13e44b8e9b4f5a14a6f433",
+      "Version": 4,
+      "UpdatedUtc": "2026-05-11T07:21:42.6146587Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\heli_cyclic_sas.json",
+      "Hash": "a6b0d1b6f28303c4fb40a436d8580e7d4088a8308eb5213cd3167456613b1750",
+      "Version": 4,
+      "UpdatedUtc": "2026-05-11T07:21:42.5961565Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\heli_vibration_cyclic.json",
+      "Hash": "7f3fd3f8bad84297b45446573965b324223bf2959831ab3a7f1a76f374122adc",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-12T18:16:41.1447863Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\heli_vibration_pedal.json",
+      "Hash": "3d14ab94e690c9931b653a75e886693e05087ac0cf7bb2618c5ab1653b750e57",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-12T18:16:41.149784Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\heli_vibration_collective.json",
+      "Hash": "f5c627f7a27e4772a70642793249553767e6b8eca09147c89337f38a3816b659",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-12T18:16:41.1552858Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\plane_pitch.json",
+      "Hash": "65bcc3e0a1b741f22f13856cb77b86d36d7c5730471ee0cda89214191eae8e53",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-09T17:16:38.8526779Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\trim_hat.json",
+      "Hash": "ab7d0bcada723fca275914e68e707b51190dfa4ddd29fd17db76bbdd52d8423c",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-09T17:16:38.8591781Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\plane_roll.json",
+      "Hash": "b66baf24fd330648137dd463223b4895f2bb9f0c0d54bc35b5f8faa8558363a9",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-09T17:16:38.8626783Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\plane_yaw.json",
+      "Hash": "50c673193afd83ca8386ed2204d5fae616df6a5e423725ef1440f7ad56bcb260",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-09T17:16:38.8696782Z"
+    },
+    {
+      "Path": "D:\\Projects\\DIY-Sim-Racing-FFB-Pedal\\SimHubPlugin\\graphs\\_embedded\\msfs_derivations.json",
+      "Hash": "95e6d2225b29c80ccfae1bcc9c23aead2647694961c2e3745498700645fa6afe",
+      "Version": 4,
+      "UpdatedUtc": "2026-06-12T18:16:41.1177832Z"
+    }
+  ]
+}

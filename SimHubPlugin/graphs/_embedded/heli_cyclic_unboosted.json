@@ -735,7 +735,7 @@
       "Id": "in_turb",
       "Title": "Turbulence (|G hp|)",
       "Kind": "Input",
-      "X": 1180.0,
+      "X": 1160.0,
       "Y": 1140.0,
       "Ports": [
         {

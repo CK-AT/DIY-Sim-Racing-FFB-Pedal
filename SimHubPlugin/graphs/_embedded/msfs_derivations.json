@@ -799,7 +799,7 @@
       "Id": "clamp_slap",
       "Title": "clamp 0..SlapMax",
       "Kind": "Op",
-      "X": 1560.0,
+      "X": 1800.0,
       "Y": 720.0,
       "Ports": [
         {
@@ -1185,7 +1185,7 @@
       "Id": "out_slap",
       "Title": "Slap Out",
       "Kind": "Output",
-      "X": 1800.0,
+      "X": 2040.0,
       "Y": 720.0,
       "Ports": [
         {
@@ -1212,7 +1212,7 @@
       "Id": "out_trq_norm",
       "Title": "TrqNorm Out",
       "Kind": "Output",
-      "X": 1080.0,
+      "X": 800.0,
       "Y": 980.0,
       "Ports": [
         {
@@ -1273,7 +1273,7 @@
       "Id": "const_bvi_desc",
       "Title": "600 (BVI desc sat fpm)",
       "Kind": "Const",
-      "X": 800.0,
+      "X": 1000.0,
       "Y": 840.0,
       "Ports": [
         {
@@ -1287,8 +1287,8 @@
       "Id": "div_slap_desc",
       "Title": "desc/600",
       "Kind": "Op",
-      "X": 1000.0,
-      "Y": 820.0,
+      "X": 1180.0,
+      "Y": 840.0,
       "Ports": [
         {
           "Name": "a",
@@ -1309,8 +1309,8 @@
       "Id": "clamp_slap_desc",
       "Title": "clamp 0..1",
       "Kind": "Op",
-      "X": 1180.0,
-      "Y": 820.0,
+      "X": 1360.0,
+      "Y": 840.0,
       "Ports": [
         {
           "Name": "a",
@@ -1335,8 +1335,8 @@
       "Id": "mul_slap_desc",
       "Title": "slap x desc gate",
       "Kind": "Op",
-      "X": 1440.0,
-      "Y": 760.0,
+      "X": 1560.0,
+      "Y": 720.0,
       "Ports": [
         {
           "Name": "a",
@@ -1398,7 +1398,7 @@
       "Title": "G - 1",
       "Kind": "Op",
       "X": 560.0,
-      "Y": 1600.0,
+      "Y": 1660.0,
       "Ports": [
         {
           "Name": "a",
@@ -1420,7 +1420,7 @@
       "Title": "GLoad Out",
       "Kind": "Output",
       "X": 800.0,
-      "Y": 1600.0,
+      "Y": 1660.0,
       "Ports": [
         {
           "Name": "GLoad",
@@ -1446,7 +1446,7 @@
       "Title": "TAS/60kt",
       "Kind": "Op",
       "X": 560.0,
-      "Y": 1720.0,
+      "Y": 1780.0,
       "Ports": [
         {
           "Name": "a",
@@ -1468,7 +1468,7 @@
       "Title": "q ratio^2",
       "Kind": "Op",
       "X": 740.0,
-      "Y": 1720.0,
+      "Y": 1780.0,
       "Ports": [
         {
           "Name": "a",
@@ -1490,7 +1490,7 @@
       "Title": "min(q,1)",
       "Kind": "Op",
       "X": 920.0,
-      "Y": 1720.0,
+      "Y": 1780.0,
       "Ports": [
         {
           "Name": "a",
@@ -1512,7 +1512,7 @@
       "Title": "beta x q",
       "Kind": "Op",
       "X": 1100.0,
-      "Y": 1700.0,
+      "Y": 1780.0,
       "Ports": [
         {
           "Name": "a",
@@ -1534,7 +1534,7 @@
       "Title": "TrInflow Out",
       "Kind": "Output",
       "X": 1280.0,
-      "Y": 1700.0,
+      "Y": 1780.0,
       "Ports": [
         {
           "Name": "TrInflow",
@@ -1547,7 +1547,7 @@
       "Title": "0.5 s",
       "Kind": "Const",
       "X": 560.0,
-      "Y": 1860.0,
+      "Y": 1940.0,
       "Ports": [
         {
           "Name": "out",
@@ -1561,7 +1561,7 @@
       "Title": "G low-pass",
       "Kind": "Func",
       "X": 740.0,
-      "Y": 1820.0,
+      "Y": 1900.0,
       "Ports": [
         {
           "Name": "input",
@@ -1588,7 +1588,7 @@
       "Title": "G - lag(G)",
       "Kind": "Op",
       "X": 940.0,
-      "Y": 1800.0,
+      "Y": 1900.0,
       "Ports": [
         {
           "Name": "a",
@@ -1609,8 +1609,8 @@
       "Id": "abs_turb",
       "Title": "|G hp|",
       "Kind": "Op",
-      "X": 1100.0,
-      "Y": 1800.0,
+      "X": 1120.0,
+      "Y": 1900.0,
       "Ports": [
         {
           "Name": "a",
@@ -1627,8 +1627,8 @@
       "Id": "out_turb",
       "Title": "Turb Out",
       "Kind": "Output",
-      "X": 1280.0,
-      "Y": 1800.0,
+      "X": 1300.0,
+      "Y": 1900.0,
       "Ports": [
         {
           "Name": "Turb",

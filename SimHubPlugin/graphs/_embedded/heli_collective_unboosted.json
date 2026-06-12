@@ -248,7 +248,7 @@
       "Title": "RPM (norm)",
       "Kind": "Input",
       "X": 30.0,
-      "Y": 660.0,
+      "Y": 900.0,
       "Ports": [
         {
           "Name": "rpm_norm",
@@ -261,7 +261,7 @@
       "Title": "rpm x rpm",
       "Kind": "Op",
       "X": 250.0,
-      "Y": 660.0,
+      "Y": 900.0,
       "Ports": [
         {
           "Name": "a",
@@ -282,7 +282,7 @@
       "Id": "param_k_spring",
       "Kind": "Param",
       "X": 250.0,
-      "Y": 740.0,
+      "Y": 1000.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -296,7 +296,7 @@
       "Title": "Spring x rpm^2 (CTM)",
       "Kind": "Op",
       "X": 480.0,
-      "Y": 680.0,
+      "Y": 930.0,
       "Ports": [
         {
           "Name": "a",
@@ -317,7 +317,7 @@
       "Id": "param_spring_center",
       "Kind": "Param",
       "X": 480.0,
-      "Y": 800.0,
+      "Y": 1030.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -330,7 +330,7 @@
       "Id": "out_spring",
       "Kind": "Output",
       "X": 700.0,
-      "Y": 680.0,
+      "Y": 930.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -347,8 +347,8 @@
       "Id": "in_thump",
       "Title": "Touchdown thump",
       "Kind": "Input",
-      "X": 1180.0,
-      "Y": 1060.0,
+      "X": 960.0,
+      "Y": 440.0,
       "Ports": [
         {
           "Name": "thump",
@@ -360,8 +360,8 @@
       "Id": "add_buffet_total",
       "Title": "buffet + thump",
       "Kind": "Op",
-      "X": 1320.0,
-      "Y": 980.0,
+      "X": 1180.0,
+      "Y": 330.0,
       "Ports": [
         {
           "Name": "a",
@@ -386,8 +386,8 @@
       "Id": "in_turb",
       "Title": "Turbulence (|G hp|)",
       "Kind": "Input",
-      "X": 1180.0,
-      "Y": 1140.0,
+      "X": 960.0,
+      "Y": 520.0,
       "Ports": [
         {
           "Name": "turb",
@@ -398,8 +398,8 @@
     {
       "Id": "param_turb_gain",
       "Kind": "Param",
-      "X": 1180.0,
-      "Y": 1210.0,
+      "X": 960.0,
+      "Y": 600.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -412,8 +412,8 @@
       "Id": "mul_turb_buffet",
       "Title": "turb x gain",
       "Kind": "Op",
-      "X": 1320.0,
-      "Y": 1140.0,
+      "X": 1140.0,
+      "Y": 540.0,
       "Ports": [
         {
           "Name": "a",

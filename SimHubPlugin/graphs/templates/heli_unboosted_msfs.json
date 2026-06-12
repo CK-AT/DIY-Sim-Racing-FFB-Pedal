@@ -947,8 +947,8 @@
     {
       "Id": "param_rotor_speed_nom",
       "Kind": "Param",
-      "X": 500.0,
-      "Y": 330.0,
+      "X": 360.0,
+      "Y": 180.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -961,8 +961,8 @@
       "Id": "div_rpm_norm",
       "Title": "RPM Norm",
       "Kind": "Op",
-      "X": 680.0,
-      "Y": 360.0,
+      "X": 520.0,
+      "Y": 210.0,
       "Ports": [
         {
           "Name": "a",
@@ -1083,7 +1083,7 @@
       "Id": "div_mu_width",
       "Title": "/width",
       "Kind": "Op",
-      "X": 1200.0,
+      "X": 1300.0,
       "Y": 1620.0,
       "Ports": [
         {
@@ -1105,7 +1105,7 @@
       "Id": "const_mu_zero",
       "Title": "0",
       "Kind": "Const",
-      "X": 1200.0,
+      "X": 1300.0,
       "Y": 1700.0,
       "Ports": [
         {
@@ -1119,8 +1119,8 @@
       "Id": "const_mu_one",
       "Title": "1",
       "Kind": "Const",
-      "X": 1260.0,
-      "Y": 1700.0,
+      "X": 1300.0,
+      "Y": 1775.0,
       "Ports": [
         {
           "Name": "out",
@@ -1133,7 +1133,7 @@
       "Id": "clamp_mu_buzz",
       "Title": "clamp 0..1",
       "Kind": "Op",
-      "X": 1340.0,
+      "X": 1540.0,
       "Y": 1620.0,
       "Ports": [
         {
@@ -1261,7 +1261,7 @@
       "Id": "const_td_tau_up",
       "Title": "0.01 s",
       "Kind": "Const",
-      "X": 1700.0,
+      "X": 1900.0,
       "Y": 320.0,
       "Ports": [
         {
@@ -1275,7 +1275,7 @@
       "Id": "const_td_tau_down",
       "Title": "0.3 s",
       "Kind": "Const",
-      "X": 1780.0,
+      "X": 2050.0,
       "Y": 320.0,
       "Ports": [
         {
@@ -1315,8 +1315,8 @@
     {
       "Id": "in_tr_pitch",
       "Kind": "Input",
-      "X": 300.0,
-      "Y": 620.0,
+      "X": 1450.0,
+      "Y": 400.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -1329,8 +1329,8 @@
       "Id": "const_ls_ref",
       "Title": "30 kt",
       "Kind": "Const",
-      "X": 300.0,
-      "Y": 700.0,
+      "X": 1450.0,
+      "Y": 480.0,
       "Ports": [
         {
           "Name": "out",
@@ -1343,8 +1343,8 @@
       "Id": "const_beta_ref",
       "Title": "15 deg",
       "Kind": "Const",
-      "X": 300.0,
-      "Y": 760.0,
+      "X": 1450.0,
+      "Y": 560.0,
       "Ports": [
         {
           "Name": "out",
@@ -1357,8 +1357,8 @@
       "Id": "const_demand_on",
       "Title": "70 %",
       "Kind": "Const",
-      "X": 300.0,
-      "Y": 820.0,
+      "X": 1450.0,
+      "Y": 640.0,
       "Ports": [
         {
           "Name": "out",
@@ -1371,8 +1371,8 @@
       "Id": "const_demand_w",
       "Title": "30 %",
       "Kind": "Const",
-      "X": 300.0,
-      "Y": 880.0,
+      "X": 1450.0,
+      "Y": 720.0,
       "Ports": [
         {
           "Name": "out",
@@ -1385,8 +1385,8 @@
       "Id": "div_ls",
       "Title": "TAS/30",
       "Kind": "Op",
-      "X": 460.0,
-      "Y": 640.0,
+      "X": 1650.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Name": "a",
@@ -1407,8 +1407,8 @@
       "Id": "sub_ls",
       "Title": "1 - TAS/30",
       "Kind": "Op",
-      "X": 600.0,
-      "Y": 640.0,
+      "X": 1810.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Name": "a",
@@ -1429,8 +1429,8 @@
       "Id": "clamp_ls",
       "Title": "lowspeed 0..1",
       "Kind": "Op",
-      "X": 740.0,
-      "Y": 640.0,
+      "X": 1970.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Name": "a",
@@ -1455,8 +1455,8 @@
       "Id": "mul_crit_beta",
       "Title": "beta x rot sign",
       "Kind": "Op",
-      "X": 460.0,
-      "Y": 760.0,
+      "X": 1650.0,
+      "Y": 540.0,
       "Ports": [
         {
           "Name": "a",
@@ -1477,8 +1477,8 @@
       "Id": "div_crit_beta",
       "Title": "/15deg",
       "Kind": "Op",
-      "X": 600.0,
-      "Y": 760.0,
+      "X": 1810.0,
+      "Y": 540.0,
       "Ports": [
         {
           "Name": "a",
@@ -1499,8 +1499,8 @@
       "Id": "clamp_crit_beta",
       "Title": "crit side 0..1",
       "Kind": "Op",
-      "X": 740.0,
-      "Y": 760.0,
+      "X": 1970.0,
+      "Y": 540.0,
       "Ports": [
         {
           "Name": "a",
@@ -1525,8 +1525,8 @@
       "Id": "sub_demand",
       "Title": "TRpitch - 70",
       "Kind": "Op",
-      "X": 460.0,
-      "Y": 880.0,
+      "X": 1650.0,
+      "Y": 660.0,
       "Ports": [
         {
           "Name": "a",
@@ -1547,8 +1547,8 @@
       "Id": "div_demand",
       "Title": "/30",
       "Kind": "Op",
-      "X": 600.0,
-      "Y": 880.0,
+      "X": 1810.0,
+      "Y": 660.0,
       "Ports": [
         {
           "Name": "a",
@@ -1569,8 +1569,8 @@
       "Id": "clamp_demand",
       "Title": "stall demand 0..1",
       "Kind": "Op",
-      "X": 740.0,
-      "Y": 880.0,
+      "X": 1970.0,
+      "Y": 660.0,
       "Ports": [
         {
           "Name": "a",
@@ -1595,8 +1595,8 @@
       "Id": "add_tr_drivers",
       "Title": "crit + demand",
       "Kind": "Op",
-      "X": 900.0,
-      "Y": 820.0,
+      "X": 2130.0,
+      "Y": 600.0,
       "Ports": [
         {
           "Name": "a",
@@ -1617,8 +1617,8 @@
       "Id": "clamp_tr_drivers",
       "Title": "cap 0..1",
       "Kind": "Op",
-      "X": 1040.0,
-      "Y": 820.0,
+      "X": 2290.0,
+      "Y": 600.0,
       "Ports": [
         {
           "Name": "a",
@@ -1643,8 +1643,8 @@
       "Id": "mul_tr_gate",
       "Title": "lowspeed x drivers",
       "Kind": "Op",
-      "X": 1180.0,
-      "Y": 740.0,
+      "X": 2450.0,
+      "Y": 520.0,
       "Ports": [
         {
           "Name": "a",
