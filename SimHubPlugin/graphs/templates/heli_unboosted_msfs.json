@@ -489,7 +489,7 @@
       "Y": 50.0,
       "Ports": [
         {
-          "Name": "VRS",
+          "Name": "ETLBump",
           "Kind": "Input",
           "BusName": "ETLBump"
         },
@@ -499,22 +499,22 @@
           "BusName": "RBS"
         },
         {
-          "Name": "ETLBump",
+          "Name": "BladeAlphaPitch",
           "Kind": "Input",
           "BusName": "BladeAlphaPitch"
         },
         {
-          "Name": "Slap",
+          "Name": "BladeAlphaRoll",
           "Kind": "Input",
           "BusName": "BladeAlphaRoll"
         },
         {
-          "Name": "in_4",
+          "Name": "VRS",
           "Kind": "Input",
           "BusName": "VRS"
         },
         {
-          "Name": "in_5",
+          "Name": "Slap",
           "Kind": "Input",
           "BusName": "Slap"
         }
@@ -528,27 +528,27 @@
       "Y": 1150.0,
       "Ports": [
         {
-          "Name": "VRS",
+          "Name": "BladeAlphaPitch",
           "Kind": "Output",
           "BusName": "BladeAlphaPitch"
         },
         {
-          "Name": "RBS",
+          "Name": "VRS",
           "Kind": "Output",
           "BusName": "VRS"
         },
         {
-          "Name": "ETLBump",
+          "Name": "Slap",
           "Kind": "Output",
           "BusName": "Slap"
         },
         {
-          "Name": "Slap",
+          "Name": "RPMnorm",
           "Kind": "Output",
           "BusName": "RPMnorm"
         },
         {
-          "Name": "out_4",
+          "Name": "BladeCount",
           "Kind": "Output",
           "BusName": "BladeCount"
         }
@@ -562,27 +562,27 @@
       "Y": 1880.0,
       "Ports": [
         {
-          "Name": "VRS",
+          "Name": "BladeAlphaRoll",
           "Kind": "Output",
           "BusName": "BladeAlphaRoll"
         },
         {
-          "Name": "RBS",
+          "Name": "VRS",
           "Kind": "Output",
           "BusName": "VRS"
         },
         {
-          "Name": "ETLBump",
+          "Name": "Slap",
           "Kind": "Output",
           "BusName": "Slap"
         },
         {
-          "Name": "Slap",
+          "Name": "RPMnorm",
           "Kind": "Output",
           "BusName": "RPMnorm"
         },
         {
-          "Name": "out_4",
+          "Name": "BladeCount",
           "Kind": "Output",
           "BusName": "BladeCount"
         }
@@ -596,17 +596,17 @@
       "Y": 790.0,
       "Ports": [
         {
-          "Name": "VRS",
+          "Name": "RPMnorm",
           "Kind": "Output",
           "BusName": "RPMnorm"
         },
         {
-          "Name": "RBS",
+          "Name": "BladeCount",
           "Kind": "Output",
           "BusName": "BladeCount"
         },
         {
-          "Name": "ETLBump",
+          "Name": "VRS",
           "Kind": "Output",
           "BusName": "VRS"
         },
@@ -616,12 +616,12 @@
           "BusName": "Slap"
         },
         {
-          "Name": "out_4",
+          "Name": "ETLBump",
           "Kind": "Output",
           "BusName": "ETLBump"
         },
         {
-          "Name": "out_5",
+          "Name": "RBS",
           "Kind": "Output",
           "BusName": "RBS"
         }
@@ -654,17 +654,17 @@
       "Y": 2150.0,
       "Ports": [
         {
-          "Name": "VRS",
+          "Name": "ETLBump",
           "Kind": "Output",
           "BusName": "ETLBump"
         },
         {
-          "Name": "RBS",
+          "Name": "VRS",
           "Kind": "Output",
           "BusName": "VRS"
         },
         {
-          "Name": "ETLBump",
+          "Name": "RBS",
           "Kind": "Output",
           "BusName": "RBS"
         }
@@ -678,12 +678,12 @@
       "Y": 800.0,
       "Ports": [
         {
-          "Name": "VRS",
+          "Name": "TRQnorm",
           "Kind": "Output",
           "BusName": "TRQnorm"
         },
         {
-          "Name": "out_1",
+          "Name": "VRS",
           "Kind": "Output",
           "BusName": "VRS"
         }
@@ -711,12 +711,12 @@
       "Y": 290.0,
       "Ports": [
         {
-          "Name": "in_0",
+          "Name": "TRQnorm",
           "Kind": "Input",
           "BusName": "TRQnorm"
         },
         {
-          "Name": "in_1",
+          "Name": "RPMnorm",
           "Kind": "Input",
           "BusName": "RPMnorm"
         }
@@ -730,12 +730,12 @@
       "Y": 480.0,
       "Ports": [
         {
-          "Name": "in_0",
+          "Name": "BladeCount",
           "Kind": "Input",
           "BusName": "BladeCount"
         },
         {
-          "Name": "in_1",
+          "Name": "RotationSign",
           "Kind": "Input",
           "BusName": "RotationSign"
         }
@@ -749,12 +749,12 @@
       "Y": 510.0,
       "Ports": [
         {
-          "Name": "out_0",
+          "Name": "RPMnorm",
           "Kind": "Output",
           "BusName": "RPMnorm"
         },
         {
-          "Name": "out_1",
+          "Name": "BladeCount",
           "Kind": "Output",
           "BusName": "BladeCount"
         }
@@ -768,12 +768,12 @@
       "Y": 1030.0,
       "Ports": [
         {
-          "Name": "out_0",
+          "Name": "BladeAlphaPitch",
           "Kind": "Output",
           "BusName": "BladeAlphaPitch"
         },
         {
-          "Name": "out_1",
+          "Name": "RPMnorm",
           "Kind": "Output",
           "BusName": "RPMnorm"
         }
@@ -787,12 +787,12 @@
       "Y": 1390.0,
       "Ports": [
         {
-          "Name": "out_0",
+          "Name": "ETLBump",
           "Kind": "Output",
           "BusName": "ETLBump"
         },
         {
-          "Name": "out_1",
+          "Name": "RBS",
           "Kind": "Output",
           "BusName": "RBS"
         }
@@ -806,12 +806,12 @@
       "Y": 1760.0,
       "Ports": [
         {
-          "Name": "out_0",
+          "Name": "BladeAlphaRoll",
           "Kind": "Output",
           "BusName": "BladeAlphaRoll"
         },
         {
-          "Name": "out_1",
+          "Name": "RPMnorm",
           "Kind": "Output",
           "BusName": "RPMnorm"
         }
@@ -825,7 +825,7 @@
       "Y": 2200.0,
       "Ports": [
         {
-          "Name": "out_0",
+          "Name": "RotationSign",
           "Kind": "Output",
           "BusName": "RotationSign"
         }
@@ -839,17 +839,17 @@
       "Y": 2120.0,
       "Ports": [
         {
-          "Name": "out_0",
+          "Name": "RotationSign",
           "Kind": "Output",
           "BusName": "RotationSign"
         },
         {
-          "Name": "out_1",
+          "Name": "ETLBump",
           "Kind": "Output",
           "BusName": "ETLBump"
         },
         {
-          "Name": "out_2",
+          "Name": "RBS",
           "Kind": "Output",
           "BusName": "RBS"
         }
@@ -863,12 +863,12 @@
       "Y": 650.0,
       "Ports": [
         {
-          "Name": "out_0",
+          "Name": "RPMnorm",
           "Kind": "Output",
           "BusName": "RPMnorm"
         },
         {
-          "Name": "out_1",
+          "Name": "RotationSign",
           "Kind": "Output",
           "BusName": "RotationSign"
         }
@@ -1089,31 +1089,31 @@
       "FromNodeId": "derivations_include",
       "FromPort": "ETLBump",
       "ToNodeId": "bus_send_rotor",
-      "ToPort": "VRS"
+      "ToPort": "ETLBump"
     },
     {
       "FromNodeId": "derivations_include",
       "FromPort": "Slap",
       "ToNodeId": "bus_send_rotor",
-      "ToPort": "in_5"
+      "ToPort": "Slap"
     },
     {
       "FromNodeId": "derivations_include",
       "FromPort": "VRS",
       "ToNodeId": "bus_send_rotor",
-      "ToPort": "in_4"
+      "ToPort": "VRS"
     },
     {
       "FromNodeId": "derivations_include",
       "FromPort": "BladeAlphRoll",
       "ToNodeId": "bus_send_rotor",
-      "ToPort": "Slap"
+      "ToPort": "BladeAlphaRoll"
     },
     {
       "FromNodeId": "derivations_include",
       "FromPort": "BladeAlphPitch",
       "ToNodeId": "bus_send_rotor",
-      "ToPort": "ETLBump"
+      "ToPort": "BladeAlphaPitch"
     },
     {
       "FromNodeId": "5056d384999c49cc9e14d398e93d5a85",
@@ -1125,23 +1125,23 @@
       "FromNodeId": "param_blade_count",
       "FromPort": "BladeCount",
       "ToNodeId": "edc0c7e523124e9e8981cf12c02c7aee",
-      "ToPort": "in_0"
+      "ToPort": "BladeCount"
     },
     {
       "FromNodeId": "bus_recv_vib_collective_include",
-      "FromPort": "VRS",
+      "FromPort": "RPMnorm",
       "ToNodeId": "vib_collective_include",
       "ToPort": "rpm_norm"
     },
     {
       "FromNodeId": "bus_recv_vib_collective_include",
-      "FromPort": "RBS",
+      "FromPort": "BladeCount",
       "ToNodeId": "vib_collective_include",
       "ToPort": "blade_count"
     },
     {
       "FromNodeId": "bus_recv_vib_collective_include",
-      "FromPort": "ETLBump",
+      "FromPort": "VRS",
       "ToNodeId": "vib_collective_include",
       "ToPort": "vrs"
     },
@@ -1153,25 +1153,25 @@
     },
     {
       "FromNodeId": "bus_recv_vib_collective_include",
-      "FromPort": "out_4",
+      "FromPort": "ETLBump",
       "ToNodeId": "vib_collective_include",
       "ToPort": "etl_bump"
     },
     {
       "FromNodeId": "bus_recv_vib_collective_include",
-      "FromPort": "out_5",
+      "FromPort": "RBS",
       "ToNodeId": "vib_collective_include",
       "ToPort": "rbs"
     },
     {
       "FromNodeId": "a6ac41cbcfcf48daab26a78374d37213",
-      "FromPort": "out_0",
+      "FromPort": "RPMnorm",
       "ToNodeId": "vib_pedal_include",
       "ToPort": "rpm_norm"
     },
     {
       "FromNodeId": "a6ac41cbcfcf48daab26a78374d37213",
-      "FromPort": "out_1",
+      "FromPort": "BladeCount",
       "ToNodeId": "vib_pedal_include",
       "ToPort": "blade_count"
     },
@@ -1183,85 +1183,85 @@
     },
     {
       "FromNodeId": "78a314f726604459b7f2ce36306b8d00",
-      "FromPort": "out_0",
+      "FromPort": "BladeAlphaPitch",
       "ToNodeId": "cyclic_pitch_include",
       "ToPort": "blade_alph"
     },
     {
       "FromNodeId": "78a314f726604459b7f2ce36306b8d00",
-      "FromPort": "out_1",
+      "FromPort": "RPMnorm",
       "ToNodeId": "cyclic_pitch_include",
       "ToPort": "rpm_norm"
     },
     {
       "FromNodeId": "36439fa54099488389cfc89e986eccf5",
-      "FromPort": "out_0",
+      "FromPort": "ETLBump",
       "ToNodeId": "vib_pitch_include",
       "ToPort": "etl_bump"
     },
     {
       "FromNodeId": "36439fa54099488389cfc89e986eccf5",
-      "FromPort": "out_1",
+      "FromPort": "RBS",
       "ToNodeId": "vib_pitch_include",
       "ToPort": "rbs"
     },
     {
       "FromNodeId": "bus_recv_vib_pitch_include",
-      "FromPort": "VRS",
+      "FromPort": "BladeAlphaPitch",
       "ToNodeId": "vib_pitch_include",
       "ToPort": "blade_alph"
     },
     {
       "FromNodeId": "bus_recv_vib_pitch_include",
-      "FromPort": "RBS",
+      "FromPort": "VRS",
       "ToNodeId": "vib_pitch_include",
       "ToPort": "vrs"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_pitch_include",
-      "FromPort": "ETLBump",
-      "ToNodeId": "vib_pitch_include",
-      "ToPort": "slap_rat"
     },
     {
       "FromNodeId": "bus_recv_vib_pitch_include",
       "FromPort": "Slap",
       "ToNodeId": "vib_pitch_include",
+      "ToPort": "slap_rat"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_pitch_include",
+      "FromPort": "RPMnorm",
+      "ToNodeId": "vib_pitch_include",
       "ToPort": "rpm_norm"
     },
     {
       "FromNodeId": "bus_recv_vib_pitch_include",
-      "FromPort": "out_4",
+      "FromPort": "BladeCount",
       "ToNodeId": "vib_pitch_include",
       "ToPort": "blade_count"
     },
     {
       "FromNodeId": "ba17dc0f0158450bb61ae3a4acd21a1e",
-      "FromPort": "out_0",
+      "FromPort": "BladeAlphaRoll",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "blade_alph"
     },
     {
       "FromNodeId": "ba17dc0f0158450bb61ae3a4acd21a1e",
-      "FromPort": "out_1",
+      "FromPort": "RPMnorm",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "rpm_norm"
     },
     {
       "FromNodeId": "bus_recv_cyclic_roll_include",
-      "FromPort": "VRS",
+      "FromPort": "ETLBump",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "etl_bump"
     },
     {
       "FromNodeId": "bus_recv_cyclic_roll_include",
-      "FromPort": "RBS",
+      "FromPort": "VRS",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "vrs"
     },
     {
       "FromNodeId": "bus_recv_cyclic_roll_include",
-      "FromPort": "ETLBump",
+      "FromPort": "RBS",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "rbs"
     },
@@ -1269,83 +1269,83 @@
       "FromNodeId": "param_rotation_sign",
       "FromPort": "RotationSign",
       "ToNodeId": "edc0c7e523124e9e8981cf12c02c7aee",
-      "ToPort": "in_1"
+      "ToPort": "RotationSign"
     },
     {
       "FromNodeId": "7e9da48d633c409abad36c8be8f0872f",
-      "FromPort": "out_0",
+      "FromPort": "RotationSign",
       "ToNodeId": "mul_etl_roll_eff",
       "ToPort": "b"
     },
     {
       "FromNodeId": "7e9da48d633c409abad36c8be8f0872f",
-      "FromPort": "out_0",
+      "FromPort": "RotationSign",
       "ToNodeId": "mul_rbs_roll_eff",
       "ToPort": "b"
     },
     {
       "FromNodeId": "743cb52f438b47b6928a4ef7a38d22f7",
-      "FromPort": "out_0",
+      "FromPort": "RotationSign",
       "ToNodeId": "mul_phase_roll",
       "ToPort": "b"
     },
     {
       "FromNodeId": "bus_recv_vib_roll_include",
-      "FromPort": "VRS",
+      "FromPort": "BladeAlphaRoll",
       "ToNodeId": "vib_roll_include",
       "ToPort": "blade_alph"
     },
     {
       "FromNodeId": "bus_recv_vib_roll_include",
-      "FromPort": "RBS",
+      "FromPort": "VRS",
       "ToNodeId": "vib_roll_include",
       "ToPort": "vrs"
     },
     {
       "FromNodeId": "bus_recv_vib_roll_include",
-      "FromPort": "ETLBump",
+      "FromPort": "Slap",
       "ToNodeId": "vib_roll_include",
       "ToPort": "slap_rat"
     },
     {
       "FromNodeId": "bus_recv_vib_roll_include",
-      "FromPort": "Slap",
+      "FromPort": "RPMnorm",
       "ToNodeId": "vib_roll_include",
       "ToPort": "rpm_norm"
     },
     {
       "FromNodeId": "bus_recv_vib_roll_include",
-      "FromPort": "out_4",
+      "FromPort": "BladeCount",
       "ToNodeId": "vib_roll_include",
       "ToPort": "blade_count"
     },
     {
       "FromNodeId": "743cb52f438b47b6928a4ef7a38d22f7",
-      "FromPort": "out_1",
+      "FromPort": "ETLBump",
       "ToNodeId": "vib_roll_include",
       "ToPort": "etl_bump"
     },
     {
       "FromNodeId": "743cb52f438b47b6928a4ef7a38d22f7",
-      "FromPort": "out_2",
+      "FromPort": "RBS",
       "ToNodeId": "vib_roll_include",
       "ToPort": "rbs"
     },
     {
       "FromNodeId": "6027c9ac160d4e8c9e9894554be29664",
-      "FromPort": "out_0",
+      "FromPort": "RPMnorm",
       "ToNodeId": "pedals_include",
       "ToPort": "rpm_norm"
     },
     {
       "FromNodeId": "bus_recv_collective_include",
-      "FromPort": "VRS",
+      "FromPort": "TRQnorm",
       "ToNodeId": "collective_include",
       "ToPort": "torque_norm"
     },
     {
       "FromNodeId": "bus_recv_collective_include",
-      "FromPort": "out_1",
+      "FromPort": "VRS",
       "ToNodeId": "collective_include",
       "ToPort": "vrs"
     },
@@ -1401,17 +1401,17 @@
       "FromNodeId": "div_rpm_norm",
       "FromPort": "a/b",
       "ToNodeId": "4b86eb4fd664445b97050b2e9b46b3ac",
-      "ToPort": "in_1"
+      "ToPort": "RPMnorm"
     },
     {
       "FromNodeId": "derivations_include",
       "FromPort": "TrqNorm",
       "ToNodeId": "4b86eb4fd664445b97050b2e9b46b3ac",
-      "ToPort": "in_0"
+      "ToPort": "TRQnorm"
     },
     {
       "FromNodeId": "6027c9ac160d4e8c9e9894554be29664",
-      "FromPort": "out_1",
+      "FromPort": "RotationSign",
       "ToNodeId": "pedals_include",
       "ToPort": "rot_sign"
     }

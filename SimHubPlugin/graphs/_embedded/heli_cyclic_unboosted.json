@@ -907,6 +907,12 @@
       "FromPort": "a+b+c",
       "ToNodeId": "mul_load_atten",
       "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_vrs_zero",
+      "FromPort": "out",
+      "ToNodeId": "owl_clamp",
+      "ToPort": "a"
     }
   ],
   "Params": [

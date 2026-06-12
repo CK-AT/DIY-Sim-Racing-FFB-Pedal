@@ -479,20 +479,18 @@
       "Ports": [
         {
           "Name": "a",
-          "Kind": "Input",
-          "Negate": true
+          "Kind": "Input"
         },
         {
           "Name": "b",
-          "Kind": "Input",
-          "Negate": true
+          "Kind": "Input"
         },
         {
           "Name": "c",
           "Kind": "Input"
         },
         {
-          "Name": "-a*-b*c",
+          "Name": "a*b*c",
           "Kind": "Output"
         }
       ],
@@ -1465,7 +1463,7 @@
     },
     {
       "FromNodeId": "mul_alph_roll",
-      "FromPort": "-a*-b*c",
+      "FromPort": "a*b*c",
       "ToNodeId": "out_blade_alph_roll",
       "ToPort": "BladeAlphRoll"
     },
