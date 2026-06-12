@@ -725,6 +725,67 @@
         }
       ],
       "ConstValue": 0.0
+    },
+    {
+      "Id": "param_vrs_vib_gain",
+      "Kind": "Param",
+      "X": 680.0,
+      "Y": 420.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "VrsVibGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "mul_vrs_vib",
+      "Title": "vrs × gain × rpm",
+      "Kind": "Op",
+      "X": 860.0,
+      "Y": 360.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "add_1rev_total",
+      "Title": "1/rev + VRS shake",
+      "Kind": "Op",
+      "X": 1560.0,
+      "Y": 100.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
     }
   ],
   "Links": [
@@ -789,8 +850,8 @@
       "ToPort": "c"
     },
     {
-      "FromNodeId": "add_1rev_abc",
-      "FromPort": "a+b+c+d",
+      "FromNodeId": "add_1rev_total",
+      "FromPort": "a+b",
       "ToNodeId": "out_ampl1",
       "ToPort": "Vib1Ampl1"
     },
@@ -991,6 +1052,36 @@
       "FromPort": "a*b",
       "ToNodeId": "add_nrev_slap",
       "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_vrs",
+      "FromPort": "vrs",
+      "ToNodeId": "mul_vrs_vib",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_vrs_vib_gain",
+      "FromPort": "VrsVibGain",
+      "ToNodeId": "mul_vrs_vib",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_vrs_vib",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "add_1rev_abc",
+      "FromPort": "a+b+c+d",
+      "ToNodeId": "add_1rev_total",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_vrs_vib",
+      "FromPort": "a*b*c",
+      "ToNodeId": "add_1rev_total",
+      "ToPort": "b"
     }
   ],
   "Params": [
@@ -1138,6 +1229,23 @@
       "Ui": {
         "Widget": "slider",
         "Label": "RBS N/rev Vibration",
+        "Group": "Cyclic Vibration",
+        "Units": "mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Cyclic.VrsVibGain",
+      "DefaultValue": 0.3,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS 1/rev shake",
         "Group": "Cyclic Vibration",
         "Units": "mm",
         "Step": 0.01,

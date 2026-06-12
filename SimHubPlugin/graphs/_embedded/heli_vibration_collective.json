@@ -151,28 +151,6 @@
       "Op": "mul"
     },
     {
-      "Id": "add_vib3_total",
-      "Title": "Vib1Ampl3 + RBS heave",
-      "Kind": "Op",
-      "X": 1190.0,
-      "Y": 840.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a+b",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "add"
-    },
-    {
       "Id": "param_gain_1rev",
       "Kind": "Param",
       "X": 750.0,
@@ -542,6 +520,89 @@
         }
       ],
       "ConfigType": "FlightControl"
+    },
+    {
+      "Id": "param_vrs_vib_gain",
+      "Kind": "Param",
+      "X": 650.0,
+      "Y": 260.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "VrsVibGain"
+        }
+      ],
+      "SignalGroup": "Collective"
+    },
+    {
+      "Id": "mul_vrs_vib",
+      "Title": "vrs × gain × rpm",
+      "Kind": "Op",
+      "X": 1000.0,
+      "Y": 320.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "add_1rev_total",
+      "Title": "1/rev + VRS shake",
+      "Kind": "Op",
+      "X": 1230.0,
+      "Y": 80.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "add_nrev_total2",
+      "Title": "N/rev + RBS heave",
+      "Kind": "Op",
+      "X": 1400.0,
+      "Y": 290.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
     }
   ],
   "Links": [
@@ -570,8 +631,8 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "mul_1rev_ampl",
-      "FromPort": "a*b",
+      "FromNodeId": "add_1rev_total",
+      "FromPort": "a+b",
       "ToNodeId": "out_ampl1",
       "ToPort": "Vib1Ampl1"
     },
@@ -606,8 +667,8 @@
       "ToPort": "a"
     },
     {
-      "FromNodeId": "add_nrev_total",
-      "FromPort": "a+b+c",
+      "FromNodeId": "add_nrev_total2",
+      "FromPort": "a+b",
       "ToNodeId": "out_ampl2",
       "ToPort": "Vib1Ampl2"
     },
@@ -624,12 +685,6 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "mul_2nrev",
-      "FromPort": "a*b",
-      "ToNodeId": "add_vib3_total",
-      "ToPort": "a"
-    },
-    {
       "FromNodeId": "in_rbs",
       "FromPort": "rbs",
       "ToNodeId": "mul_rbs_heave",
@@ -639,12 +694,6 @@
       "FromNodeId": "param_rbs_heave_gain",
       "FromPort": "RbsHeaveGain",
       "ToNodeId": "mul_rbs_heave",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "mul_rbs_heave",
-      "FromPort": "a*b",
-      "ToNodeId": "add_vib3_total",
       "ToPort": "b"
     },
     {
@@ -658,12 +707,6 @@
       "FromPort": "rpm_norm",
       "ToNodeId": "mul_2nrev",
       "ToPort": "b"
-    },
-    {
-      "FromNodeId": "add_vib3_total",
-      "FromPort": "a+b",
-      "ToNodeId": "out_ampl3",
-      "ToPort": "Vib1Ampl3"
     },
     {
       "FromNodeId": "const_zero",
@@ -736,6 +779,54 @@
       "FromPort": "a*b",
       "ToNodeId": "add_nrev_total",
       "ToPort": "c"
+    },
+    {
+      "FromNodeId": "in_vrs",
+      "FromPort": "vrs",
+      "ToNodeId": "mul_vrs_vib",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_vrs_vib_gain",
+      "FromPort": "VrsVibGain",
+      "ToNodeId": "mul_vrs_vib",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_vrs_vib",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "mul_1rev_ampl",
+      "FromPort": "a*b",
+      "ToNodeId": "add_1rev_total",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_vrs_vib",
+      "FromPort": "a*b*c",
+      "ToNodeId": "add_1rev_total",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_nrev_total",
+      "FromPort": "a+b+c",
+      "ToNodeId": "add_nrev_total2",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_rbs_heave",
+      "FromPort": "a*b",
+      "ToNodeId": "add_nrev_total2",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_2nrev",
+      "FromPort": "a*b",
+      "ToNodeId": "out_ampl3",
+      "ToPort": "Vib1Ampl3"
     }
   ],
   "Params": [
@@ -832,6 +923,23 @@
       "Ui": {
         "Widget": "slider",
         "Label": "RBS Heave Vibration",
+        "Group": "Collective Vibration",
+        "Units": "mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Collective.VrsVibGain",
+      "DefaultValue": 0.3,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS 1/rev shake",
         "Group": "Collective Vibration",
         "Units": "mm",
         "Step": 0.01,
