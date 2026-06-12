@@ -420,6 +420,41 @@
         }
       ],
       "ConfigType": "FlightControl"
+    },
+    {
+      "Id": "param_gain_tr_1rev",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 560.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "gain_tr_1rev"
+        }
+      ],
+      "SignalGroup": "Pedal"
+    },
+    {
+      "Id": "mul_tr_1rev_ampl",
+      "Title": "Vib1Ampl5 = gain_tr_1rev x rpm^2",
+      "Kind": "Op",
+      "X": 630.0,
+      "Y": 550.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
     }
   ],
   "Links": [
@@ -508,12 +543,6 @@
       "ToPort": "Vib1Ampl4"
     },
     {
-      "FromNodeId": "const_zero",
-      "FromPort": "out",
-      "ToNodeId": "out_ampl5",
-      "ToPort": "Vib1Ampl5"
-    },
-    {
       "FromNodeId": "in_tr_blade_count",
       "FromPort": "tr_blade_count",
       "ToNodeId": "mul_tr_blade_ratio",
@@ -562,16 +591,34 @@
       "ToPort": "FlightControl.Vib1Phase"
     },
     {
-      "FromNodeId": "const_phase_zero",
-      "FromPort": "out",
-      "ToNodeId": "cfg_ratios",
-      "ToPort": "FlightControl.Vib1HarmRatio5"
-    },
-    {
       "FromNodeId": "const_two",
       "FromPort": "out",
       "ToNodeId": "mul_tr_2nd_ratio",
       "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_gain_tr_1rev",
+      "FromPort": "gain_tr_1rev",
+      "ToNodeId": "mul_tr_1rev_ampl",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_rpm_sq",
+      "FromPort": "a*b",
+      "ToNodeId": "mul_tr_1rev_ampl",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_tr_1rev_ampl",
+      "FromPort": "a*b",
+      "ToNodeId": "out_ampl5",
+      "ToPort": "Vib1Ampl5"
+    },
+    {
+      "FromNodeId": "in_tr_gear",
+      "FromPort": "tr_gear",
+      "ToNodeId": "cfg_ratios",
+      "ToPort": "FlightControl.Vib1HarmRatio5"
     }
   ],
   "Params": [
@@ -636,6 +683,23 @@
         "Step": 0.005,
         "Precision": 3,
         "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Pedal.gain_tr_1rev",
+      "DefaultValue": 0.05,
+      "Min": 0.0,
+      "Max": 2.55,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "TR 1/rev (track/balance)",
+        "Group": "Pedal Vibration",
+        "Units": "mm",
+        "Step": 0.005,
+        "Precision": 3,
+        "LogScale": false,
+        "MuteValue": 0.0,
         "Options": []
       }
     }

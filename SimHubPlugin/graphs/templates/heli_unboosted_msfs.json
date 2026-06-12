@@ -527,6 +527,11 @@
           "Name": "Mu",
           "Kind": "Input",
           "BusName": "Mu"
+        },
+        {
+          "Name": "TrInflow",
+          "Kind": "Input",
+          "BusName": "TrInflow"
         }
       ]
     },
@@ -901,6 +906,11 @@
           "Name": "RotationSign",
           "Kind": "Output",
           "BusName": "RotationSign"
+        },
+        {
+          "Name": "TrInflow",
+          "Kind": "Output",
+          "BusName": "TrInflow"
         }
       ]
     },
@@ -1728,6 +1738,18 @@
       "FromPort": "clamp(a,min,max)",
       "ToNodeId": "vib_roll_include",
       "ToPort": "mu_buzz"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "TrInflow",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "TrInflow"
+    },
+    {
+      "FromNodeId": "6027c9ac160d4e8c9e9894554be29664",
+      "FromPort": "TrInflow",
+      "ToNodeId": "pedals_include",
+      "ToPort": "tr_inflow"
     }
   ],
   "Params": [

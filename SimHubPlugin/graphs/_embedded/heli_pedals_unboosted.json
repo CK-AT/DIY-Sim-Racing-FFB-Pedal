@@ -197,6 +197,75 @@
         }
       ],
       "Op": "mul"
+    },
+    {
+      "Id": "in_tr_inflow",
+      "Title": "TR Inflow (beta x q)",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 530.0,
+      "Ports": [
+        {
+          "Name": "tr_inflow",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_inflow_gain",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 600.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "InflowGain"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "mul_inflow_load",
+      "Title": "gain x inflow x sign x rpm^2",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 540.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "d",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c*d",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "out_load",
+      "Kind": "Output",
+      "X": 700.0,
+      "Y": 540.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "LoadForce"
+        }
+      ],
+      "Scoped": true
     }
   ],
   "Links": [
@@ -259,6 +328,36 @@
       "FromPort": "rpm_norm",
       "ToNodeId": "mul_rpm_sq",
       "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_inflow_gain",
+      "FromPort": "InflowGain",
+      "ToNodeId": "mul_inflow_load",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_tr_inflow",
+      "FromPort": "tr_inflow",
+      "ToNodeId": "mul_inflow_load",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_rot_sign",
+      "FromPort": "rot_sign",
+      "ToNodeId": "mul_inflow_load",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "mul_rpm_sq",
+      "FromPort": "a*b",
+      "ToNodeId": "mul_inflow_load",
+      "ToPort": "d"
+    },
+    {
+      "FromNodeId": "mul_inflow_load",
+      "FromPort": "a*b*c*d",
+      "ToNodeId": "out_load",
+      "ToPort": "LoadForce"
     }
   ],
   "Params": [
@@ -322,6 +421,23 @@
         "Units": "mm",
         "Step": 0.5,
         "Precision": 1,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.InflowGain",
+      "DefaultValue": 0.05,
+      "Min": -0.5,
+      "Max": 0.5,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "TR Inflow Load",
+        "Group": "FlightPedals",
+        "Units": "N/deg",
+        "Step": 0.01,
+        "Precision": 2,
         "LogScale": false,
         "MuteValue": 0.0,
         "Options": []

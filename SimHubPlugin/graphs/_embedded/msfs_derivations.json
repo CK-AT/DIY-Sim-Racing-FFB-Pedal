@@ -1440,6 +1440,107 @@
           "Kind": "Input"
         }
       ]
+    },
+    {
+      "Id": "div_tr_q",
+      "Title": "TAS/60kt",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 1720.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "mul_tr_q_sq",
+      "Title": "q ratio^2",
+      "Kind": "Op",
+      "X": 740.0,
+      "Y": 1720.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "min_tr_q",
+      "Title": "min(q,1)",
+      "Kind": "Op",
+      "X": 920.0,
+      "Y": 1720.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min(a,b)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "min"
+    },
+    {
+      "Id": "mul_tr_inflow",
+      "Title": "beta x q",
+      "Kind": "Op",
+      "X": 1100.0,
+      "Y": 1700.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "out_tr_inflow",
+      "Title": "TrInflow Out",
+      "Kind": "Output",
+      "X": 1280.0,
+      "Y": 1700.0,
+      "Ports": [
+        {
+          "Name": "TrInflow",
+          "Kind": "Input"
+        }
+      ]
     }
   ],
   "Links": [
@@ -2036,6 +2137,60 @@
       "FromPort": "a/b",
       "ToNodeId": "out_mu",
       "ToPort": "Mu"
+    },
+    {
+      "FromNodeId": "in_tas_kts",
+      "FromPort": "tas_kts",
+      "ToNodeId": "div_tr_q",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_60",
+      "FromPort": "out",
+      "ToNodeId": "div_tr_q",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_tr_q",
+      "FromPort": "a/b",
+      "ToNodeId": "mul_tr_q_sq",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "div_tr_q",
+      "FromPort": "a/b",
+      "ToNodeId": "mul_tr_q_sq",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_tr_q_sq",
+      "FromPort": "a*b",
+      "ToNodeId": "min_tr_q",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "min_tr_q",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_beta_deg",
+      "FromPort": "beta_deg",
+      "ToNodeId": "mul_tr_inflow",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "min_tr_q",
+      "FromPort": "min(a,b)",
+      "ToNodeId": "mul_tr_inflow",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_tr_inflow",
+      "FromPort": "a*b",
+      "ToNodeId": "out_tr_inflow",
+      "ToPort": "TrInflow"
     }
   ],
   "Params": [
