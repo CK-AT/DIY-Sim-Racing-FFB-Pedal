@@ -671,6 +671,12 @@
       "FromPort": "out",
       "ToNodeId": "96841bc9a8204e6285da2eb18b924e0c",
       "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_rotation_sign",
+      "FromPort": "RotationSign",
+      "ToNodeId": "pedals_include",
+      "ToPort": "rot_sign"
     }
   ],
   "Params": [

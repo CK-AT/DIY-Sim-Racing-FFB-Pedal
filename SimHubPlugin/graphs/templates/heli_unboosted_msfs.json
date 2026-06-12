@@ -866,6 +866,11 @@
           "Name": "out_0",
           "Kind": "Output",
           "BusName": "RPMnorm"
+        },
+        {
+          "Name": "out_1",
+          "Kind": "Output",
+          "BusName": "RotationSign"
         }
       ]
     },
@@ -1403,6 +1408,12 @@
       "FromPort": "TrqNorm",
       "ToNodeId": "4b86eb4fd664445b97050b2e9b46b3ac",
       "ToPort": "in_0"
+    },
+    {
+      "FromNodeId": "6027c9ac160d4e8c9e9894554be29664",
+      "FromPort": "out_1",
+      "ToNodeId": "pedals_include",
+      "ToPort": "rot_sign"
     }
   ],
   "Params": [

@@ -114,6 +114,67 @@
         }
       ],
       "Scoped": true
+    },
+    {
+      "Id": "in_rot_sign",
+      "Title": "Rotation Sign",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 360.0,
+      "Ports": [
+        {
+          "Name": "rot_sign",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_spring_offset",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 440.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "SpringOffset"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "mul_trim_offset",
+      "Title": "offset × rot sign",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 400.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "out_trim_offset",
+      "Kind": "Output",
+      "X": 700.0,
+      "Y": 400.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "TrimOffset"
+        }
+      ],
+      "Scoped": true
     }
   ],
   "Links": [
@@ -146,6 +207,24 @@
       "FromPort": "rpm_norm",
       "ToNodeId": "spring_calc",
       "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_spring_offset",
+      "FromPort": "SpringOffset",
+      "ToNodeId": "mul_trim_offset",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rot_sign",
+      "FromPort": "rot_sign",
+      "ToNodeId": "mul_trim_offset",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_trim_offset",
+      "FromPort": "a*b",
+      "ToNodeId": "out_trim_offset",
+      "ToPort": "TrimOffset"
     }
   ],
   "Params": [
@@ -194,6 +273,23 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.SpringOffset",
+      "DefaultValue": 3.0,
+      "Min": -20.0,
+      "Max": 20.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Flat-Pitch Spring Offset",
+        "Group": "FlightPedals",
+        "Units": "mm",
+        "Step": 0.5,
+        "Precision": 1,
+        "LogScale": false,
+        "MuteValue": 0.0,
         "Options": []
       }
     }
