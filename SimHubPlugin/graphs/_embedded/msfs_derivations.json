@@ -385,20 +385,6 @@
       "ConstValue": 100.0
     },
     {
-      "Id": "const_quarter",
-      "Title": "0.25",
-      "Kind": "Const",
-      "X": 300.0,
-      "Y": 340.0,
-      "Ports": [
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "ConstValue": 0.25
-    },
-    {
       "Id": "const_half",
       "Title": "0.5",
       "Kind": "Const",
@@ -499,7 +485,7 @@
     },
     {
       "Id": "mul_alph_roll",
-      "Title": "-k_roll*beta*mu",
+      "Title": "k_roll*beta*mu",
       "Kind": "Op",
       "X": 1080.0,
       "Y": 160.0,
@@ -511,14 +497,15 @@
         },
         {
           "Name": "b",
-          "Kind": "Input"
+          "Kind": "Input",
+          "Negate": true
         },
         {
           "Name": "c",
           "Kind": "Input"
         },
         {
-          "Name": "-a*b*c",
+          "Name": "-a*-b*c",
           "Kind": "Output"
         }
       ],
@@ -665,8 +652,8 @@
       "Id": "clamp_fwd",
       "Title": "clamp 0..1",
       "Kind": "Op",
-      "X": 1080.0,
-      "Y": 420.0,
+      "X": 1190.0,
+      "Y": 450.0,
       "Ports": [
         {
           "Name": "a",
@@ -710,33 +697,11 @@
       "Op": "mul"
     },
     {
-      "Id": "add_inner",
-      "Title": "0.5+0.5*desc",
-      "Kind": "Op",
-      "X": 1800.0,
-      "Y": 300.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a+b",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "add"
-    },
-    {
       "Id": "mul_vrs_core",
-      "Title": "0.25*fwd*inner",
+      "Title": "2.5*fwd*half_desc",
       "Kind": "Op",
-      "X": 2040.0,
-      "Y": 360.0,
+      "X": 1880.0,
+      "Y": 440.0,
       "Ports": [
         {
           "Name": "a",
@@ -756,28 +721,6 @@
         }
       ],
       "Op": "mul"
-    },
-    {
-      "Id": "add_vrs",
-      "Title": "0.25+core",
-      "Kind": "Op",
-      "X": 2280.0,
-      "Y": 360.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a+b",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "add"
     },
     {
       "Id": "sub_slap",
@@ -1322,6 +1265,20 @@
           "Kind": "Input"
         }
       ]
+    },
+    {
+      "Id": "5a7303a164f2449199694963c9e09942",
+      "Title": "2.5",
+      "Kind": "Const",
+      "X": 1701.0,
+      "Y": 537.2,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 2.5
     }
   ],
   "Links": [
@@ -1393,7 +1350,7 @@
     },
     {
       "FromNodeId": "mul_alph_roll",
-      "FromPort": "-a*b*c",
+      "FromPort": "-a*-b*c",
       "ToNodeId": "out_blade_alph_roll",
       "ToPort": "BladeAlphRoll"
     },
@@ -1506,52 +1463,10 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "const_half",
-      "FromPort": "out",
-      "ToNodeId": "add_inner",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "mul_half_desc",
-      "FromPort": "a*b",
-      "ToNodeId": "add_inner",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "const_quarter",
-      "FromPort": "out",
-      "ToNodeId": "mul_vrs_core",
-      "ToPort": "a"
-    },
-    {
       "FromNodeId": "clamp_fwd",
       "FromPort": "clamp(a,min,max)",
       "ToNodeId": "mul_vrs_core",
       "ToPort": "b"
-    },
-    {
-      "FromNodeId": "add_inner",
-      "FromPort": "a+b",
-      "ToNodeId": "mul_vrs_core",
-      "ToPort": "c"
-    },
-    {
-      "FromNodeId": "const_quarter",
-      "FromPort": "out",
-      "ToNodeId": "add_vrs",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "mul_vrs_core",
-      "FromPort": "a*b*c",
-      "ToNodeId": "add_vrs",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "add_vrs",
-      "FromPort": "a+b",
-      "ToNodeId": "lag_asym_vrs",
-      "ToPort": "input"
     },
     {
       "FromNodeId": "param_vrs_tau_up",
@@ -1852,6 +1767,24 @@
       "FromPort": "a*b",
       "ToNodeId": "out_torque",
       "ToPort": "MainRotor.Torque"
+    },
+    {
+      "FromNodeId": "mul_half_desc",
+      "FromPort": "a*b",
+      "ToNodeId": "mul_vrs_core",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "mul_vrs_core",
+      "FromPort": "a*b*c",
+      "ToNodeId": "lag_asym_vrs",
+      "ToPort": "input"
+    },
+    {
+      "FromNodeId": "5a7303a164f2449199694963c9e09942",
+      "FromPort": "out",
+      "ToNodeId": "mul_vrs_core",
+      "ToPort": "a"
     }
   ],
   "Params": [

@@ -199,19 +199,6 @@
       "SignalGroup": "Collective"
     },
     {
-      "Id": "param_etl_gain",
-      "Kind": "Param",
-      "X": 780.0,
-      "Y": 420.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "etl_gain"
-        }
-      ],
-      "SignalGroup": "Collective"
-    },
-    {
       "Id": "param_slap_gain",
       "Kind": "Param",
       "X": 760.0,
@@ -294,34 +281,6 @@
       "ConstValue": 0.0
     },
     {
-      "Id": "const_etl_lo",
-      "Title": "ETL low (0.25)",
-      "Kind": "Const",
-      "X": 440.0,
-      "Y": 270.0,
-      "Ports": [
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "ConstValue": 0.25
-    },
-    {
-      "Id": "const_etl_span",
-      "Title": "ETL span (0.25)",
-      "Kind": "Const",
-      "X": 550.0,
-      "Y": 320.0,
-      "Ports": [
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "ConstValue": 0.25
-    },
-    {
       "Id": "mul_rpm_sq",
       "Title": "rpm × rpm",
       "Kind": "Op",
@@ -388,94 +347,6 @@
       "Op": "mul"
     },
     {
-      "Id": "sub_etl",
-      "Title": "vrs - 0.25",
-      "Kind": "Op",
-      "X": 640.0,
-      "Y": 230.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a-b",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "sub"
-    },
-    {
-      "Id": "div_etl",
-      "Title": "/ 0.25",
-      "Kind": "Op",
-      "X": 760.0,
-      "Y": 260.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a/b",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "div"
-    },
-    {
-      "Id": "max_etl",
-      "Title": "max(0, x)",
-      "Kind": "Op",
-      "X": 880.0,
-      "Y": 310.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "max(a,b)",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "max"
-    },
-    {
-      "Id": "mul_etl",
-      "Title": "etl × gain",
-      "Kind": "Op",
-      "X": 1000.0,
-      "Y": 350.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a*b",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "mul"
-    },
-    {
       "Id": "mul_slap",
       "Title": "slap × gain",
       "Kind": "Op",
@@ -513,15 +384,11 @@
           "Kind": "Input"
         },
         {
-          "Name": "a+b+c+d",
+          "Name": "a+b+c",
           "Kind": "Output"
         },
         {
           "Name": "c",
-          "Kind": "Input"
-        },
-        {
-          "Name": "d",
           "Kind": "Input"
         }
       ],
@@ -675,20 +542,6 @@
         }
       ],
       "ConfigType": "FlightControl"
-    },
-    {
-      "Id": "2268233183e24d75b8d5f080bb6a5dd0",
-      "Title": "0.0",
-      "Kind": "Const",
-      "X": 680.0,
-      "Y": 360.0,
-      "Ports": [
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "ConstValue": 0.0
     }
   ],
   "Links": [
@@ -735,48 +588,6 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "in_vrs",
-      "FromPort": "vrs",
-      "ToNodeId": "sub_etl",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "const_etl_lo",
-      "FromPort": "out",
-      "ToNodeId": "sub_etl",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "sub_etl",
-      "FromPort": "a-b",
-      "ToNodeId": "div_etl",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "const_etl_span",
-      "FromPort": "out",
-      "ToNodeId": "div_etl",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "div_etl",
-      "FromPort": "a/b",
-      "ToNodeId": "max_etl",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "max_etl",
-      "FromPort": "max(a,b)",
-      "ToNodeId": "mul_etl",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "param_etl_gain",
-      "FromPort": "etl_gain",
-      "ToNodeId": "mul_etl",
-      "ToPort": "b"
-    },
-    {
       "FromNodeId": "in_slap",
       "FromPort": "slap_rat",
       "ToNodeId": "mul_slap",
@@ -795,20 +606,8 @@
       "ToPort": "a"
     },
     {
-      "FromNodeId": "mul_etl",
-      "FromPort": "a*b",
-      "ToNodeId": "add_nrev_total",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "mul_slap",
-      "FromPort": "a*b",
-      "ToNodeId": "add_nrev_total",
-      "ToPort": "d"
-    },
-    {
       "FromNodeId": "add_nrev_total",
-      "FromPort": "a+b+c+d",
+      "FromPort": "a+b+c",
       "ToNodeId": "out_ampl2",
       "ToPort": "Vib1Ampl2"
     },
@@ -927,13 +726,13 @@
       "ToPort": "FlightControl.Vib1HarmRatio4"
     },
     {
-      "FromNodeId": "2268233183e24d75b8d5f080bb6a5dd0",
-      "FromPort": "out",
-      "ToNodeId": "max_etl",
+      "FromNodeId": "mul_etl_bump",
+      "FromPort": "a*b",
+      "ToNodeId": "add_nrev_total",
       "ToPort": "b"
     },
     {
-      "FromNodeId": "mul_etl_bump",
+      "FromNodeId": "mul_slap",
       "FromPort": "a*b",
       "ToNodeId": "add_nrev_total",
       "ToPort": "c"
@@ -953,8 +752,8 @@
         "Step": 0.005,
         "Precision": 3,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -970,25 +769,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
-      }
-    },
-    {
-      "Name": "Collective.etl_gain",
-      "DefaultValue": 0.0,
-      "Min": 0.0,
-      "Max": 2.55,
-      "Ui": {
-        "Widget": "slider",
-        "Label": "N/rev VRS recirc boost",
-        "Group": "Collective Vibration",
-        "Units": "mm",
-        "Step": 0.005,
-        "Precision": 3,
-        "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -1004,8 +786,8 @@
         "Step": 0.001,
         "Precision": 3,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -1021,8 +803,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -1038,8 +820,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -1055,8 +837,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     }
   ],

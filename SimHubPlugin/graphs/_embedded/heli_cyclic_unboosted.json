@@ -249,20 +249,6 @@
       "SignalGroup": "Cyclic"
     },
     {
-      "Id": "const_vrs_lo",
-      "Title": "0.25",
-      "Kind": "Const",
-      "X": 300.0,
-      "Y": 990.0,
-      "Ports": [
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "ConstValue": 0.25
-    },
-    {
       "Id": "const_vrs_one",
       "Title": "1.0",
       "Kind": "Const",
@@ -289,50 +275,6 @@
         }
       ],
       "ConstValue": 0.0
-    },
-    {
-      "Id": "sub_vrs_eff",
-      "Title": "vrs - 0.25",
-      "Kind": "Op",
-      "X": 480.0,
-      "Y": 770.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a-b",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "sub"
-    },
-    {
-      "Id": "div_vrs_eff",
-      "Title": "/0.25",
-      "Kind": "Op",
-      "X": 610.0,
-      "Y": 790.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a/b",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "div"
     },
     {
       "Id": "clamp_vrs_eff",
@@ -829,36 +771,6 @@
       "ToPort": "c"
     },
     {
-      "FromNodeId": "in_vrs",
-      "FromPort": "vrs",
-      "ToNodeId": "sub_vrs_eff",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "const_vrs_lo",
-      "FromPort": "out",
-      "ToNodeId": "sub_vrs_eff",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "sub_vrs_eff",
-      "FromPort": "a-b",
-      "ToNodeId": "div_vrs_eff",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "const_vrs_lo",
-      "FromPort": "out",
-      "ToNodeId": "div_vrs_eff",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "div_vrs_eff",
-      "FromPort": "a/b",
-      "ToNodeId": "clamp_vrs_eff",
-      "ToPort": "a"
-    },
-    {
       "FromNodeId": "const_vrs_zero",
       "FromPort": "out",
       "ToNodeId": "clamp_vrs_eff",
@@ -989,6 +901,12 @@
       "FromPort": "a+b+c",
       "ToNodeId": "select_owl",
       "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_vrs",
+      "FromPort": "vrs",
+      "ToNodeId": "clamp_vrs_eff",
+      "ToPort": "a"
     }
   ],
   "Params": [
@@ -1053,8 +971,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -1109,7 +1027,7 @@
       "Name": "Cyclic.VrsBuffetGain",
       "DefaultValue": 1.5,
       "Min": 0.0,
-      "Max": 8.0,
+      "Max": 100.0,
       "Ui": {
         "Widget": "slider",
         "Label": "VRS Buffet Gain",
@@ -1118,8 +1036,8 @@
         "Step": 0.05,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {

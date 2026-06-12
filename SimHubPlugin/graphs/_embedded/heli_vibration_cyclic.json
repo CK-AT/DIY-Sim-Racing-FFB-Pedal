@@ -32,8 +32,8 @@
       "Id": "in_slap",
       "Title": "Slap",
       "Kind": "Input",
-      "X": 1200.0,
-      "Y": 650.0,
+      "X": 1210.0,
+      "Y": 560.0,
       "Ports": [
         {
           "Name": "slap_rat",
@@ -46,7 +46,7 @@
       "Title": "RPM (norm)",
       "Kind": "Input",
       "X": 60.0,
-      "Y": 550.0,
+      "Y": 490.0,
       "Ports": [
         {
           "Name": "rpm_norm",
@@ -84,8 +84,8 @@
       "Id": "in_etl_bump",
       "Title": "ETL Bump",
       "Kind": "Input",
-      "X": 1090.0,
-      "Y": 360.0,
+      "X": 1200.0,
+      "Y": 300.0,
       "Ports": [
         {
           "Name": "etl_bump",
@@ -97,7 +97,7 @@
       "Id": "param_etl_bump_gain",
       "Kind": "Param",
       "X": 1090.0,
-      "Y": 510.0,
+      "Y": 380.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -110,8 +110,8 @@
       "Id": "mul_etl_bump",
       "Title": "etl_bump × gain",
       "Kind": "Op",
-      "X": 1370.0,
-      "Y": 410.0,
+      "X": 1360.0,
+      "Y": 340.0,
       "Ports": [
         {
           "Name": "a",
@@ -132,8 +132,8 @@
       "Id": "in_rbs",
       "Title": "RBS",
       "Kind": "Input",
-      "X": 90.0,
-      "Y": 1180.0,
+      "X": 80.0,
+      "Y": 700.0,
       "Ports": [
         {
           "Name": "rbs",
@@ -157,8 +157,8 @@
     {
       "Id": "param_rbs_vibn_gain",
       "Kind": "Param",
-      "X": 1090.0,
-      "Y": 580.0,
+      "X": 1140.0,
+      "Y": 820.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -193,8 +193,8 @@
       "Id": "mul_rbs_sq",
       "Title": "rbs²",
       "Kind": "Op",
-      "X": 1240.0,
-      "Y": 580.0,
+      "X": 1210.0,
+      "Y": 710.0,
       "Ports": [
         {
           "Name": "a",
@@ -216,7 +216,7 @@
       "Title": "rbs² × gainN",
       "Kind": "Op",
       "X": 1370.0,
-      "Y": 580.0,
+      "Y": 710.0,
       "Ports": [
         {
           "Name": "a",
@@ -247,23 +247,10 @@
       "SignalGroup": "Cyclic"
     },
     {
-      "Id": "param_etl_gain",
-      "Kind": "Param",
-      "X": 1140.0,
-      "Y": 440.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "etl_gain"
-        }
-      ],
-      "SignalGroup": "Cyclic"
-    },
-    {
       "Id": "param_slap_gain",
       "Kind": "Param",
-      "X": 1090.0,
-      "Y": 720.0,
+      "X": 1100.0,
+      "Y": 640.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -275,8 +262,8 @@
     {
       "Id": "param_base_nrev",
       "Kind": "Param",
-      "X": 1090.0,
-      "Y": 570.0,
+      "X": 1100.0,
+      "Y": 490.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -289,7 +276,7 @@
       "Id": "param_base_2nrev",
       "Kind": "Param",
       "X": 890.0,
-      "Y": 840.0,
+      "Y": 930.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -357,7 +344,7 @@
       "Title": "0.0",
       "Kind": "Const",
       "X": 1240.0,
-      "Y": 940.0,
+      "Y": 1030.0,
       "Ports": [
         {
           "Name": "out",
@@ -365,34 +352,6 @@
         }
       ],
       "ConstValue": 0.0
-    },
-    {
-      "Id": "const_etl_lo",
-      "Title": "ETL low (0.25)",
-      "Kind": "Const",
-      "X": 680.0,
-      "Y": 420.0,
-      "Ports": [
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "ConstValue": 0.25
-    },
-    {
-      "Id": "const_etl_span",
-      "Title": "ETL span (0.25)",
-      "Kind": "Const",
-      "X": 840.0,
-      "Y": 440.0,
-      "Ports": [
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "ConstValue": 0.25
     },
     {
       "Id": "abs_blade_alph",
@@ -531,99 +490,11 @@
       "Op": "add"
     },
     {
-      "Id": "sub_etl",
-      "Title": "vrs - 0.25",
-      "Kind": "Op",
-      "X": 840.0,
-      "Y": 340.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a-b",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "sub"
-    },
-    {
-      "Id": "div_etl",
-      "Title": "/0.25",
-      "Kind": "Op",
-      "X": 1010.0,
-      "Y": 340.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a/b",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "div"
-    },
-    {
-      "Id": "max_etl",
-      "Title": "max(0, x)",
-      "Kind": "Op",
-      "X": 1160.0,
-      "Y": 340.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "max(a,b)",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "max"
-    },
-    {
-      "Id": "mul_etl",
-      "Title": "etl × gain",
-      "Kind": "Op",
-      "X": 1370.0,
-      "Y": 340.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a*b",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "mul"
-    },
-    {
       "Id": "mul_slap",
       "Title": "slap × gain",
       "Kind": "Op",
-      "X": 1360.0,
-      "Y": 660.0,
+      "X": 1370.0,
+      "Y": 580.0,
       "Ports": [
         {
           "Name": "a",
@@ -644,8 +515,8 @@
       "Id": "mul_nrev_base",
       "Title": "base × rpm_norm",
       "Kind": "Op",
-      "X": 1330.0,
-      "Y": 510.0,
+      "X": 1360.0,
+      "Y": 440.0,
       "Ports": [
         {
           "Name": "a",
@@ -678,7 +549,7 @@
           "Kind": "Input"
         },
         {
-          "Name": "a+b+c+d+e",
+          "Name": "a+b+c+d",
           "Kind": "Output"
         },
         {
@@ -687,10 +558,6 @@
         },
         {
           "Name": "d",
-          "Kind": "Input"
-        },
-        {
-          "Name": "e",
           "Kind": "Input"
         }
       ],
@@ -701,7 +568,7 @@
       "Title": "Vib1Ampl3 (2N/rev)",
       "Kind": "Op",
       "X": 1230.0,
-      "Y": 810.0,
+      "Y": 900.0,
       "Ports": [
         {
           "Name": "a",
@@ -770,7 +637,7 @@
       "Id": "out_ampl3",
       "Kind": "Output",
       "X": 1390.0,
-      "Y": 810.0,
+      "Y": 900.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -783,7 +650,7 @@
       "Id": "out_ampl4",
       "Kind": "Output",
       "X": 1380.0,
-      "Y": 940.0,
+      "Y": 1030.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -796,7 +663,7 @@
       "Id": "out_ampl5",
       "Kind": "Output",
       "X": 1380.0,
-      "Y": 1000.0,
+      "Y": 1090.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -851,20 +718,6 @@
       "Kind": "Const",
       "X": 250.0,
       "Y": 1140.0,
-      "Ports": [
-        {
-          "Name": "out",
-          "Kind": "Output"
-        }
-      ],
-      "ConstValue": 0.0
-    },
-    {
-      "Id": "6bb7b6335f9d4ed2a408a4cbacf5bd83",
-      "Title": "0.0",
-      "Kind": "Const",
-      "X": 1010.0,
-      "Y": 440.0,
       "Ports": [
         {
           "Name": "out",
@@ -942,48 +795,6 @@
       "ToPort": "Vib1Ampl1"
     },
     {
-      "FromNodeId": "in_vrs",
-      "FromPort": "vrs",
-      "ToNodeId": "sub_etl",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "const_etl_lo",
-      "FromPort": "out",
-      "ToNodeId": "sub_etl",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "sub_etl",
-      "FromPort": "a-b",
-      "ToNodeId": "div_etl",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "const_etl_span",
-      "FromPort": "out",
-      "ToNodeId": "div_etl",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "div_etl",
-      "FromPort": "a/b",
-      "ToNodeId": "max_etl",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "max_etl",
-      "FromPort": "max(a,b)",
-      "ToNodeId": "mul_etl",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "param_etl_gain",
-      "FromPort": "etl_gain",
-      "ToNodeId": "mul_etl",
-      "ToPort": "b"
-    },
-    {
       "FromNodeId": "in_slap",
       "FromPort": "slap_rat",
       "ToNodeId": "mul_slap",
@@ -1009,7 +820,7 @@
     },
     {
       "FromNodeId": "add_nrev_slap",
-      "FromPort": "a+b+c+d+e",
+      "FromPort": "a+b+c+d",
       "ToNodeId": "out_ampl2",
       "ToPort": "Vib1Ampl2"
     },
@@ -1092,12 +903,6 @@
       "ToPort": "FlightControl.Vib1HarmRatio5"
     },
     {
-      "FromNodeId": "6bb7b6335f9d4ed2a408a4cbacf5bd83",
-      "FromPort": "out",
-      "ToNodeId": "max_etl",
-      "ToPort": "b"
-    },
-    {
       "FromNodeId": "mul_1rev",
       "FromPort": "a*b",
       "ToNodeId": "add_1rev_abc",
@@ -1108,12 +913,6 @@
       "FromPort": "a*b",
       "ToNodeId": "add_1rev_abc",
       "ToPort": "b"
-    },
-    {
-      "FromNodeId": "mul_etl",
-      "FromPort": "a*b",
-      "ToNodeId": "add_nrev_slap",
-      "ToPort": "a"
     },
     {
       "FromNodeId": "mul_nrev_base",
@@ -1138,12 +937,6 @@
       "FromPort": "EtlBumpGain",
       "ToNodeId": "mul_etl_bump",
       "ToPort": "b"
-    },
-    {
-      "FromNodeId": "mul_etl_bump",
-      "FromPort": "a*b",
-      "ToNodeId": "add_nrev_slap",
-      "ToPort": "d"
     },
     {
       "FromNodeId": "in_rbs",
@@ -1191,7 +984,13 @@
       "FromNodeId": "mul_rbs_nrev",
       "FromPort": "a*b",
       "ToNodeId": "add_nrev_slap",
-      "ToPort": "e"
+      "ToPort": "d"
+    },
+    {
+      "FromNodeId": "mul_etl_bump",
+      "FromPort": "a*b",
+      "ToNodeId": "add_nrev_slap",
+      "ToPort": "a"
     }
   ],
   "Params": [
@@ -1208,8 +1007,8 @@
         "Step": 0.001,
         "Precision": 3,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -1225,8 +1024,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -1242,8 +1041,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -1259,25 +1058,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
-      }
-    },
-    {
-      "Name": "Cyclic.etl_gain",
-      "DefaultValue": 0.0,
-      "Min": 0.0,
-      "Max": 2.55,
-      "Ui": {
-        "Widget": "slider",
-        "Label": "N/rev VRS recirc boost",
-        "Group": "Cyclic Vibration",
-        "Units": "mm",
-        "Step": 0.005,
-        "Precision": 3,
-        "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -1293,8 +1075,8 @@
         "Step": 0.001,
         "Precision": 3,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -1310,8 +1092,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -1327,8 +1109,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -1344,8 +1126,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {
@@ -1361,8 +1143,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     }
   ],
