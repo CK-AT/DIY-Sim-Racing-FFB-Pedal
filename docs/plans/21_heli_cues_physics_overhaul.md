@@ -34,10 +34,16 @@ D5) deferred. Hardware retune pass pending.
   X-Plane (template has no G/TAS/beta/TR-pitch inputs) — they
   default to 0 and no-op, same precedent as its unwired
   `etl_bump`/`rbs` force inputs.
+- **Top level stays wiring-only:** the rpm-norm divide, mu-buzz
+  ramp, and W22 TR-regime gate all live in `msfs_derivations.json`
+  (outputs `RPMnorm`, `MuBuzz`, `TrBuffetGate`); W19/W20 live in a
+  new shared include `_embedded/heli_ground_cues.json` (outputs
+  `gnd_boost`, `thump`) used by both templates. Templates contain
+  only inputs, params, includes, buses, and per-axis gain glue.
 - A structural validator
   ([validate_graphs.py](../../SimHubPlugin/graphs/validate_graphs.py))
   now checks link/port integrity incl. include-resolved ports and
-  bus pairing; all 22 graph JSONs pass.
+  bus pairing; all graph JSONs pass.
 
 **Branch base:** `ck_heli_cues_rework` (continues the VRS full-range
 rework from c31c3171)

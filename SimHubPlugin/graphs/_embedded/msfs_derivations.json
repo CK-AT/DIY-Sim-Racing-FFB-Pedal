@@ -1635,6 +1635,538 @@
           "Kind": "Input"
         }
       ]
+    },
+    {
+      "Id": "param_rotor_speed_nom",
+      "Kind": "Param",
+      "X": 300.0,
+      "Y": 2050.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "Rotor.SpeedNom"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "div_rpm_norm",
+      "Title": "RPM Norm",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 2020.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "out_rpm_norm",
+      "Title": "RPMnorm Out",
+      "Kind": "Output",
+      "X": 800.0,
+      "Y": 2020.0,
+      "Ports": [
+        {
+          "Name": "RPMnorm",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "param_mu_buzz_onset",
+      "Kind": "Param",
+      "X": 300.0,
+      "Y": 2140.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "MuBuzzOnset"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_mu_buzz_width",
+      "Kind": "Param",
+      "X": 300.0,
+      "Y": 2210.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "MuBuzzWidth"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "sub_mu_onset",
+      "Title": "mu - onset",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 2140.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "div_mu_width",
+      "Title": "/width",
+      "Kind": "Op",
+      "X": 740.0,
+      "Y": 2140.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "clamp_mu_buzz",
+      "Title": "clamp 0..1",
+      "Kind": "Op",
+      "X": 920.0,
+      "Y": 2140.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "out_mu_buzz",
+      "Title": "MuBuzz Out",
+      "Kind": "Output",
+      "X": 1140.0,
+      "Y": 2140.0,
+      "Ports": [
+        {
+          "Name": "MuBuzz",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "in_rot_sign",
+      "Title": "Rotation Sign",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 2400.0,
+      "Ports": [
+        {
+          "Name": "rot_sign",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_tr_pitch_pct",
+      "Title": "TR Blade Pitch %",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 2520.0,
+      "Ports": [
+        {
+          "Name": "tr_pitch_pct",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "const_ls_ref",
+      "Title": "30 kt",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 2330.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 30.0
+    },
+    {
+      "Id": "const_beta_ref",
+      "Title": "15 deg",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 2450.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 15.0
+    },
+    {
+      "Id": "const_demand_on",
+      "Title": "70 %",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 2570.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 70.0
+    },
+    {
+      "Id": "const_demand_w",
+      "Title": "30 %",
+      "Kind": "Const",
+      "X": 300.0,
+      "Y": 2640.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 30.0
+    },
+    {
+      "Id": "div_ls",
+      "Title": "TAS/30",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 2280.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "sub_ls",
+      "Title": "1 - TAS/30",
+      "Kind": "Op",
+      "X": 740.0,
+      "Y": 2280.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "clamp_ls",
+      "Title": "lowspeed 0..1",
+      "Kind": "Op",
+      "X": 920.0,
+      "Y": 2280.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "mul_crit_beta",
+      "Title": "beta x rot sign",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 2400.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "div_crit_beta",
+      "Title": "/15deg",
+      "Kind": "Op",
+      "X": 740.0,
+      "Y": 2400.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "clamp_crit_beta",
+      "Title": "crit side 0..1",
+      "Kind": "Op",
+      "X": 920.0,
+      "Y": 2400.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "sub_demand",
+      "Title": "TRpitch - 70",
+      "Kind": "Op",
+      "X": 560.0,
+      "Y": 2520.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "div_demand",
+      "Title": "/30",
+      "Kind": "Op",
+      "X": 740.0,
+      "Y": 2520.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "clamp_demand",
+      "Title": "stall demand 0..1",
+      "Kind": "Op",
+      "X": 920.0,
+      "Y": 2520.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "add_tr_drivers",
+      "Title": "crit + demand",
+      "Kind": "Op",
+      "X": 1140.0,
+      "Y": 2460.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "clamp_tr_drivers",
+      "Title": "cap 0..1",
+      "Kind": "Op",
+      "X": 1320.0,
+      "Y": 2460.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "mul_tr_gate",
+      "Title": "lowspeed x drivers",
+      "Kind": "Op",
+      "X": 1500.0,
+      "Y": 2360.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "out_tr_gate",
+      "Title": "TrBuffetGate Out",
+      "Kind": "Output",
+      "X": 1680.0,
+      "Y": 2360.0,
+      "Ports": [
+        {
+          "Name": "TrBuffetGate",
+          "Kind": "Input"
+        }
+      ]
     }
   ],
   "Links": [
@@ -2327,6 +2859,246 @@
       "FromPort": "abs(a)",
       "ToNodeId": "out_turb",
       "ToPort": "Turb"
+    },
+    {
+      "FromNodeId": "in_main_rotor_rpm",
+      "FromPort": "main_rotor_rpm",
+      "ToNodeId": "div_rpm_norm",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_rotor_speed_nom",
+      "FromPort": "Rotor.SpeedNom",
+      "ToNodeId": "div_rpm_norm",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_rpm_norm",
+      "FromPort": "a/b",
+      "ToNodeId": "out_rpm_norm",
+      "ToPort": "RPMnorm"
+    },
+    {
+      "FromNodeId": "mu_div",
+      "FromPort": "a/b",
+      "ToNodeId": "sub_mu_onset",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_mu_buzz_onset",
+      "FromPort": "MuBuzzOnset",
+      "ToNodeId": "sub_mu_onset",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sub_mu_onset",
+      "FromPort": "a-b",
+      "ToNodeId": "div_mu_width",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_mu_buzz_width",
+      "FromPort": "MuBuzzWidth",
+      "ToNodeId": "div_mu_width",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_mu_width",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_mu_buzz",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_mu_buzz",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_mu_buzz",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "clamp_mu_buzz",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "out_mu_buzz",
+      "ToPort": "MuBuzz"
+    },
+    {
+      "FromNodeId": "in_tas_kts",
+      "FromPort": "tas_kts",
+      "ToNodeId": "div_ls",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_ls_ref",
+      "FromPort": "out",
+      "ToNodeId": "div_ls",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "sub_ls",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "div_ls",
+      "FromPort": "a/b",
+      "ToNodeId": "sub_ls",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sub_ls",
+      "FromPort": "a-b",
+      "ToNodeId": "clamp_ls",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_ls",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_ls",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "in_beta_deg",
+      "FromPort": "beta_deg",
+      "ToNodeId": "mul_crit_beta",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rot_sign",
+      "FromPort": "rot_sign",
+      "ToNodeId": "mul_crit_beta",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_crit_beta",
+      "FromPort": "a*b",
+      "ToNodeId": "div_crit_beta",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_beta_ref",
+      "FromPort": "out",
+      "ToNodeId": "div_crit_beta",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_crit_beta",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_crit_beta",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_crit_beta",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_crit_beta",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "in_tr_pitch_pct",
+      "FromPort": "tr_pitch_pct",
+      "ToNodeId": "sub_demand",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_demand_on",
+      "FromPort": "out",
+      "ToNodeId": "sub_demand",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "sub_demand",
+      "FromPort": "a-b",
+      "ToNodeId": "div_demand",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_demand_w",
+      "FromPort": "out",
+      "ToNodeId": "div_demand",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_demand",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_demand",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_demand",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_demand",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "clamp_crit_beta",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "add_tr_drivers",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "clamp_demand",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "add_tr_drivers",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_tr_drivers",
+      "FromPort": "a+b",
+      "ToNodeId": "clamp_tr_drivers",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_tr_drivers",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_tr_drivers",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "clamp_ls",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_tr_gate",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "clamp_tr_drivers",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_tr_gate",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_tr_gate",
+      "FromPort": "a*b",
+      "ToNodeId": "out_tr_gate",
+      "ToPort": "TrBuffetGate"
     }
   ],
   "Params": [
@@ -2562,6 +3334,54 @@
       "Ui": {
         "Widget": "slider",
         "Label": "RBS Width",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.Rotor.SpeedNom",
+      "DefaultValue": 400.0,
+      "Min": 100.0,
+      "Max": 1000.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Nominal Rotor Speed",
+        "Group": "Aircraft",
+        "Units": "RPM",
+        "Step": 1.0,
+        "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.MuBuzzOnset",
+      "DefaultValue": 0.32,
+      "Min": 0.2,
+      "Max": 0.5,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Mu Buzz Onset",
+        "Group": "Aircraft",
+        "Units": "",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.MuBuzzWidth",
+      "DefaultValue": 0.08,
+      "Min": 0.02,
+      "Max": 0.2,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Mu Buzz Width",
         "Group": "Aircraft",
         "Units": "",
         "Step": 0.01,
