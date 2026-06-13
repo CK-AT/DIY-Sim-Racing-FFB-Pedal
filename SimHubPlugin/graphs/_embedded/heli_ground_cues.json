@@ -6,8 +6,8 @@
       "Id": "in_on_ground",
       "Title": "On Ground (0/1)",
       "Kind": "Input",
-      "X": 40.0,
-      "Y": 60.0,
+      "X": 50.0,
+      "Y": 190.0,
       "Ports": [
         {
           "Name": "on_ground",
@@ -19,7 +19,7 @@
       "Id": "param_gnd_res_gain",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 160.0,
+      "Y": 80.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -67,8 +67,8 @@
       "Id": "func_td_edge",
       "Title": "Touchdown edge",
       "Kind": "Func",
-      "X": 300.0,
-      "Y": 260.0,
+      "X": 280.0,
+      "Y": 240.0,
       "Ports": [
         {
           "Name": "input",
@@ -99,8 +99,8 @@
       "Id": "mul_td_pulse",
       "Title": "edge x gain",
       "Kind": "Op",
-      "X": 480.0,
-      "Y": 280.0,
+      "X": 510.0,
+      "Y": 270.0,
       "Ports": [
         {
           "Name": "a",
@@ -191,12 +191,6 @@
       "FromNodeId": "in_on_ground",
       "FromPort": "on_ground",
       "ToNodeId": "mul_gnd_boost",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "param_gnd_res_gain",
-      "FromPort": "GndResGain",
-      "ToNodeId": "mul_gnd_boost",
       "ToPort": "b"
     },
     {
@@ -246,6 +240,12 @@
       "FromPort": "out",
       "ToNodeId": "out_thump",
       "ToPort": "thump"
+    },
+    {
+      "FromNodeId": "param_gnd_res_gain",
+      "FromPort": "GndResGain",
+      "ToNodeId": "mul_gnd_boost",
+      "ToPort": "a"
     }
   ],
   "Params": [

@@ -120,7 +120,7 @@
       "Title": "Rotation Sign",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 360.0,
+      "Y": 440.0,
       "Ports": [
         {
           "Name": "rot_sign",
@@ -132,7 +132,7 @@
       "Id": "param_spring_offset",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 440.0,
+      "Y": 360.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -180,7 +180,7 @@
       "Id": "mul_rpm_sq",
       "Title": "rpm x rpm",
       "Kind": "Op",
-      "X": 320.0,
+      "X": 280.0,
       "Y": 40.0,
       "Ports": [
         {
@@ -203,7 +203,7 @@
       "Title": "TR Inflow (beta x q)",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 530.0,
+      "Y": 600.0,
       "Ports": [
         {
           "Name": "tr_inflow",
@@ -215,7 +215,7 @@
       "Id": "param_inflow_gain",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 600.0,
+      "Y": 520.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -257,7 +257,7 @@
     {
       "Id": "out_load",
       "Kind": "Output",
-      "X": 700.0,
+      "X": 750.0,
       "Y": 540.0,
       "Ports": [
         {
@@ -461,28 +461,16 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "param_inflow_gain",
-      "FromPort": "InflowGain",
-      "ToNodeId": "mul_inflow_load",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "in_tr_inflow",
-      "FromPort": "tr_inflow",
-      "ToNodeId": "mul_inflow_load",
-      "ToPort": "b"
-    },
-    {
       "FromNodeId": "in_rot_sign",
       "FromPort": "rot_sign",
       "ToNodeId": "mul_inflow_load",
-      "ToPort": "c"
+      "ToPort": "b"
     },
     {
       "FromNodeId": "mul_rpm_sq",
       "FromPort": "a*b",
       "ToNodeId": "mul_inflow_load",
-      "ToPort": "d"
+      "ToPort": "a"
     },
     {
       "FromNodeId": "mul_inflow_load",
@@ -531,6 +519,18 @@
       "FromPort": "a+b",
       "ToNodeId": "out_buffet",
       "ToPort": "BuffetAmplitude"
+    },
+    {
+      "FromNodeId": "param_inflow_gain",
+      "FromPort": "InflowGain",
+      "ToNodeId": "mul_inflow_load",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "in_tr_inflow",
+      "FromPort": "tr_inflow",
+      "ToNodeId": "mul_inflow_load",
+      "ToPort": "d"
     }
   ],
   "Params": [

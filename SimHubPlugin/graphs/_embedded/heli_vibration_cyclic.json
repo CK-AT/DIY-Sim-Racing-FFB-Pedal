@@ -6,8 +6,8 @@
       "Id": "in_blade_alph",
       "Title": "Blade Alpha",
       "Kind": "Input",
-      "X": 220.0,
-      "Y": 10.0,
+      "X": 200.0,
+      "Y": 140.0,
       "Ports": [
         {
           "Name": "blade_alph",
@@ -19,8 +19,8 @@
       "Id": "in_vrs",
       "Title": "VRS",
       "Kind": "Input",
-      "X": 680.0,
-      "Y": 340.0,
+      "X": 660.0,
+      "Y": 470.0,
       "Ports": [
         {
           "Name": "vrs",
@@ -32,8 +32,8 @@
       "Id": "in_slap",
       "Title": "Slap",
       "Kind": "Input",
-      "X": 1210.0,
-      "Y": 560.0,
+      "X": 1190.0,
+      "Y": 840.0,
       "Ports": [
         {
           "Name": "slap_rat",
@@ -45,8 +45,8 @@
       "Id": "in_rpm_norm",
       "Title": "RPM (norm)",
       "Kind": "Input",
-      "X": 60.0,
-      "Y": 490.0,
+      "X": 40.0,
+      "Y": 620.0,
       "Ports": [
         {
           "Name": "rpm_norm",
@@ -58,8 +58,8 @@
       "Id": "in_blade_count",
       "Title": "Blade Count",
       "Kind": "Input",
-      "X": 90.0,
-      "Y": 970.0,
+      "X": 330.0,
+      "Y": 1540.0,
       "Ports": [
         {
           "Name": "blade_count",
@@ -71,8 +71,8 @@
       "Id": "in_phase",
       "Title": "Phase (deg)",
       "Kind": "Input",
-      "X": 250.0,
-      "Y": 1220.0,
+      "X": 490.0,
+      "Y": 1790.0,
       "Ports": [
         {
           "Name": "phase",
@@ -84,8 +84,8 @@
       "Id": "in_etl_bump",
       "Title": "ETL Bump",
       "Kind": "Input",
-      "X": 1200.0,
-      "Y": 300.0,
+      "X": 1180.0,
+      "Y": 580.0,
       "Ports": [
         {
           "Name": "etl_bump",
@@ -96,8 +96,8 @@
     {
       "Id": "param_etl_bump_gain",
       "Kind": "Param",
-      "X": 1090.0,
-      "Y": 380.0,
+      "X": 1070.0,
+      "Y": 660.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -110,8 +110,8 @@
       "Id": "mul_etl_bump",
       "Title": "etl_bump × gain",
       "Kind": "Op",
-      "X": 1360.0,
-      "Y": 340.0,
+      "X": 1340.0,
+      "Y": 620.0,
       "Ports": [
         {
           "Name": "a",
@@ -132,8 +132,8 @@
       "Id": "in_rbs",
       "Title": "RBS",
       "Kind": "Input",
-      "X": 80.0,
-      "Y": 700.0,
+      "X": 40.0,
+      "Y": 860.0,
       "Ports": [
         {
           "Name": "rbs",
@@ -144,8 +144,8 @@
     {
       "Id": "param_rbs_vib1_gain",
       "Kind": "Param",
-      "X": 970.0,
-      "Y": 240.0,
+      "X": 950.0,
+      "Y": 370.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -157,8 +157,8 @@
     {
       "Id": "param_rbs_vibn_gain",
       "Kind": "Param",
-      "X": 1140.0,
-      "Y": 820.0,
+      "X": 1110.0,
+      "Y": 1090.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -171,8 +171,8 @@
       "Id": "mul_rbs_1rev",
       "Title": "rbs × gain1",
       "Kind": "Op",
-      "X": 1220.0,
-      "Y": 160.0,
+      "X": 1200.0,
+      "Y": 290.0,
       "Ports": [
         {
           "Name": "a",
@@ -193,8 +193,8 @@
       "Id": "mul_rbs_sq",
       "Title": "rbs²",
       "Kind": "Op",
-      "X": 1210.0,
-      "Y": 710.0,
+      "X": 1190.0,
+      "Y": 990.0,
       "Ports": [
         {
           "Name": "a",
@@ -215,8 +215,8 @@
       "Id": "mul_rbs_nrev",
       "Title": "rbs² × gainN",
       "Kind": "Op",
-      "X": 1370.0,
-      "Y": 710.0,
+      "X": 1350.0,
+      "Y": 990.0,
       "Ports": [
         {
           "Name": "a",
@@ -236,8 +236,8 @@
     {
       "Id": "param_gain_1rev",
       "Kind": "Param",
-      "X": 270.0,
-      "Y": 80.0,
+      "X": 250.0,
+      "Y": 210.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -249,8 +249,8 @@
     {
       "Id": "param_slap_gain",
       "Kind": "Param",
-      "X": 1100.0,
-      "Y": 640.0,
+      "X": 1080.0,
+      "Y": 920.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -262,8 +262,8 @@
     {
       "Id": "param_base_nrev",
       "Kind": "Param",
-      "X": 1100.0,
-      "Y": 490.0,
+      "X": 1080.0,
+      "Y": 770.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -275,8 +275,8 @@
     {
       "Id": "param_base_2nrev",
       "Kind": "Param",
-      "X": 890.0,
-      "Y": 930.0,
+      "X": 1080.0,
+      "Y": 1310.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -288,8 +288,8 @@
     {
       "Id": "param_mass_imbalance",
       "Kind": "Param",
-      "X": 240.0,
-      "Y": 150.0,
+      "X": 220.0,
+      "Y": 280.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -301,8 +301,8 @@
     {
       "Id": "param_track_drift",
       "Kind": "Param",
-      "X": 540.0,
-      "Y": 210.0,
+      "X": 520.0,
+      "Y": 340.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -315,8 +315,8 @@
       "Id": "const_one",
       "Title": "1.0",
       "Kind": "Const",
-      "X": 250.0,
-      "Y": 920.0,
+      "X": 490.0,
+      "Y": 1490.0,
       "Ports": [
         {
           "Name": "out",
@@ -329,8 +329,8 @@
       "Id": "const_two_bc",
       "Title": "2.0 (×N)",
       "Kind": "Const",
-      "X": 90.0,
-      "Y": 1070.0,
+      "X": 330.0,
+      "Y": 1640.0,
       "Ports": [
         {
           "Name": "out",
@@ -343,8 +343,8 @@
       "Id": "const_zero",
       "Title": "0.0",
       "Kind": "Const",
-      "X": 1240.0,
-      "Y": 1030.0,
+      "X": 1430.0,
+      "Y": 1410.0,
       "Ports": [
         {
           "Name": "out",
@@ -357,8 +357,8 @@
       "Id": "abs_blade_alph",
       "Title": "|blade_alph|",
       "Kind": "Op",
-      "X": 370.0,
-      "Y": 10.0,
+      "X": 350.0,
+      "Y": 140.0,
       "Ports": [
         {
           "Name": "a",
@@ -375,8 +375,8 @@
       "Id": "mul_1rev",
       "Title": "gain × |alph|",
       "Kind": "Op",
-      "X": 580.0,
-      "Y": 10.0,
+      "X": 560.0,
+      "Y": 140.0,
       "Ports": [
         {
           "Name": "a",
@@ -397,8 +397,8 @@
       "Id": "mul_rpm_sq",
       "Title": "rpm × rpm",
       "Kind": "Op",
-      "X": 370.0,
-      "Y": 220.0,
+      "X": 320.0,
+      "Y": 380.0,
       "Ports": [
         {
           "Name": "a",
@@ -419,8 +419,8 @@
       "Id": "mul_imbalance",
       "Title": "mass × rpm²",
       "Kind": "Op",
-      "X": 580.0,
-      "Y": 110.0,
+      "X": 560.0,
+      "Y": 240.0,
       "Ports": [
         {
           "Name": "a",
@@ -441,8 +441,8 @@
       "Id": "mul_track",
       "Title": "track × rpm",
       "Kind": "Op",
-      "X": 770.0,
-      "Y": 220.0,
+      "X": 750.0,
+      "Y": 350.0,
       "Ports": [
         {
           "Name": "a",
@@ -463,8 +463,8 @@
       "Id": "add_1rev_abc",
       "Title": "Vib1Ampl1 (1/rev)",
       "Kind": "Op",
-      "X": 1380.0,
-      "Y": -20.0,
+      "X": 1360.0,
+      "Y": 110.0,
       "Ports": [
         {
           "Name": "a",
@@ -493,8 +493,8 @@
       "Id": "mul_slap",
       "Title": "slap × gain",
       "Kind": "Op",
-      "X": 1370.0,
-      "Y": 580.0,
+      "X": 1350.0,
+      "Y": 860.0,
       "Ports": [
         {
           "Name": "a",
@@ -515,8 +515,8 @@
       "Id": "mul_nrev_base",
       "Title": "base × rpm_norm",
       "Kind": "Op",
-      "X": 1360.0,
-      "Y": 440.0,
+      "X": 1340.0,
+      "Y": 720.0,
       "Ports": [
         {
           "Name": "a",
@@ -537,8 +537,8 @@
       "Id": "add_nrev_slap",
       "Title": "Vib1Ampl2 (N/rev)",
       "Kind": "Op",
-      "X": 1580.0,
-      "Y": 340.0,
+      "X": 1560.0,
+      "Y": 620.0,
       "Ports": [
         {
           "Name": "a",
@@ -567,8 +567,8 @@
       "Id": "mul_2nrev",
       "Title": "Vib1Ampl3 (2N/rev)",
       "Kind": "Op",
-      "X": 1230.0,
-      "Y": 900.0,
+      "X": 1420.0,
+      "Y": 1280.0,
       "Ports": [
         {
           "Name": "a",
@@ -589,8 +589,8 @@
       "Id": "mul_bc2",
       "Title": "blade × 2",
       "Kind": "Op",
-      "X": 250.0,
-      "Y": 1040.0,
+      "X": 490.0,
+      "Y": 1610.0,
       "Ports": [
         {
           "Name": "a",
@@ -610,8 +610,8 @@
     {
       "Id": "out_ampl1",
       "Kind": "Output",
-      "X": 1920.0,
-      "Y": 40.0,
+      "X": 2270.0,
+      "Y": 210.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -623,8 +623,8 @@
     {
       "Id": "out_ampl2",
       "Kind": "Output",
-      "X": 2120.0,
-      "Y": 340.0,
+      "X": 2300.0,
+      "Y": 620.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -636,8 +636,8 @@
     {
       "Id": "out_ampl3",
       "Kind": "Output",
-      "X": 1390.0,
-      "Y": 900.0,
+      "X": 1580.0,
+      "Y": 1280.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -649,8 +649,8 @@
     {
       "Id": "out_ampl4",
       "Kind": "Output",
-      "X": 1380.0,
-      "Y": 1030.0,
+      "X": 1570.0,
+      "Y": 1410.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -662,8 +662,8 @@
     {
       "Id": "out_ampl5",
       "Kind": "Output",
-      "X": 1380.0,
-      "Y": 1090.0,
+      "X": 1570.0,
+      "Y": 1470.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -676,8 +676,8 @@
       "Id": "cfg_ratios",
       "Title": "ConfigOut",
       "Kind": "ConfigOut",
-      "X": 520.0,
-      "Y": 990.0,
+      "X": 760.0,
+      "Y": 1560.0,
       "Ports": [
         {
           "Name": "FlightControl.Vib1HarmRatio1",
@@ -716,8 +716,8 @@
       "Id": "15a4a84d19424a1d890d0a9abd4a93b9",
       "Title": "0.0",
       "Kind": "Const",
-      "X": 250.0,
-      "Y": 1140.0,
+      "X": 490.0,
+      "Y": 1710.0,
       "Ports": [
         {
           "Name": "out",
@@ -729,8 +729,8 @@
     {
       "Id": "param_vrs_vib_gain",
       "Kind": "Param",
-      "X": 680.0,
-      "Y": 420.0,
+      "X": 420.0,
+      "Y": 520.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -743,8 +743,8 @@
       "Id": "mul_vrs_vib",
       "Title": "vrs × gain × rpm",
       "Kind": "Op",
-      "X": 860.0,
-      "Y": 360.0,
+      "X": 840.0,
+      "Y": 490.0,
       "Ports": [
         {
           "Name": "a",
@@ -769,8 +769,8 @@
       "Id": "add_1rev_total",
       "Title": "1/rev + VRS shake",
       "Kind": "Op",
-      "X": 1560.0,
-      "Y": 40.0,
+      "X": 1790.0,
+      "Y": 220.0,
       "Ports": [
         {
           "Name": "a",
@@ -790,8 +790,8 @@
     {
       "Id": "param_vib1_max",
       "Kind": "Param",
-      "X": 580.0,
-      "Y": -80.0,
+      "X": 750.0,
+      "Y": 170.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -804,8 +804,8 @@
       "Id": "clamp_1rev",
       "Title": "cap flapping 1/rev",
       "Kind": "Op",
-      "X": 780.0,
-      "Y": 10.0,
+      "X": 1100.0,
+      "Y": 60.0,
       "Ports": [
         {
           "Name": "a",
@@ -830,8 +830,8 @@
       "Id": "in_mu_buzz",
       "Title": "Mu Buzz (0..1)",
       "Kind": "Input",
-      "X": 1560.0,
-      "Y": 480.0,
+      "X": 1660.0,
+      "Y": 780.0,
       "Ports": [
         {
           "Name": "mu_buzz",
@@ -842,8 +842,8 @@
     {
       "Id": "param_mu_buzz_gain",
       "Kind": "Param",
-      "X": 1560.0,
-      "Y": 560.0,
+      "X": 1540.0,
+      "Y": 870.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -856,8 +856,8 @@
       "Id": "mul_mu_buzz",
       "Title": "mu_buzz x gain",
       "Kind": "Op",
-      "X": 1740.0,
-      "Y": 520.0,
+      "X": 1800.0,
+      "Y": 770.0,
       "Ports": [
         {
           "Name": "a",
@@ -878,8 +878,8 @@
       "Id": "add_nrev_total2",
       "Title": "N/rev + mu buzz",
       "Kind": "Op",
-      "X": 1760.0,
-      "Y": 340.0,
+      "X": 1940.0,
+      "Y": 620.0,
       "Ports": [
         {
           "Name": "a",
@@ -900,8 +900,8 @@
       "Id": "in_gnd_boost",
       "Title": "Ground boost (0..gain)",
       "Kind": "Input",
-      "X": 1500.0,
-      "Y": 180.0,
+      "X": 1690.0,
+      "Y": 440.0,
       "Ports": [
         {
           "Name": "gnd_boost",
@@ -913,8 +913,8 @@
       "Id": "add_gnd_factor",
       "Title": "1 + gnd boost",
       "Kind": "Op",
-      "X": 1660.0,
-      "Y": 180.0,
+      "X": 1850.0,
+      "Y": 360.0,
       "Ports": [
         {
           "Name": "a",
@@ -935,8 +935,8 @@
       "Id": "mul_gnd_1rev",
       "Title": "1/rev x gnd",
       "Kind": "Op",
-      "X": 1740.0,
-      "Y": 40.0,
+      "X": 2090.0,
+      "Y": 210.0,
       "Ports": [
         {
           "Name": "a",
@@ -957,8 +957,8 @@
       "Id": "mul_gnd_nrev",
       "Title": "N/rev x gnd",
       "Kind": "Op",
-      "X": 1940.0,
-      "Y": 340.0,
+      "X": 2120.0,
+      "Y": 620.0,
       "Ports": [
         {
           "Name": "a",
@@ -974,6 +974,34 @@
         }
       ],
       "Op": "mul"
+    },
+    {
+      "Id": "7e8ac80026c44ac3b871c7b980ec6c88",
+      "Title": "1.0",
+      "Kind": "Const",
+      "X": 1710.0,
+      "Y": 350.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
+    },
+    {
+      "Id": "dcede9f7bdd1459c982a3bef426b93be",
+      "Title": "0.0",
+      "Kind": "Const",
+      "X": 830.0,
+      "Y": 50.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.0
     }
   ],
   "Links": [
@@ -1278,12 +1306,6 @@
       "ToPort": "a"
     },
     {
-      "FromNodeId": "const_zero",
-      "FromPort": "out",
-      "ToNodeId": "clamp_1rev",
-      "ToPort": "min"
-    },
-    {
       "FromNodeId": "param_vib1_max",
       "FromPort": "Vib1Max",
       "ToNodeId": "clamp_1rev",
@@ -1314,12 +1336,6 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "const_one",
-      "FromPort": "out",
-      "ToNodeId": "add_gnd_factor",
-      "ToPort": "a"
-    },
-    {
       "FromNodeId": "in_gnd_boost",
       "FromPort": "gnd_boost",
       "ToNodeId": "add_gnd_factor",
@@ -1348,6 +1364,18 @@
       "FromPort": "a+b",
       "ToNodeId": "mul_gnd_nrev",
       "ToPort": "b"
+    },
+    {
+      "FromNodeId": "7e8ac80026c44ac3b871c7b980ec6c88",
+      "FromPort": "out",
+      "ToNodeId": "add_gnd_factor",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "dcede9f7bdd1459c982a3bef426b93be",
+      "FromPort": "out",
+      "ToNodeId": "clamp_1rev",
+      "ToPort": "min"
     }
   ],
   "Params": [

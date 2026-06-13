@@ -4,8 +4,8 @@
     {
       "Id": "in_torque",
       "Kind": "Input",
-      "X": 50.0,
-      "Y": 280.0,
+      "X": 1020.0,
+      "Y": 120.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -59,7 +59,7 @@
       "Id": "derivations_include",
       "Title": "MSFS Derivations",
       "Kind": "Include",
-      "X": 210.0,
+      "X": 310.0,
       "Y": 50.0,
       "IncludePath": "..\\_embedded\\msfs_derivations.json"
     },
@@ -68,7 +68,7 @@
       "Title": "Cyclic Pitch",
       "Kind": "Include",
       "X": 670.0,
-      "Y": 1120.0,
+      "Y": 1090.0,
       "IncludePath": "..\\_embedded\\heli_cyclic_unboosted.json",
       "FunctionScope": "FlightStickPitch"
     },
@@ -95,7 +95,7 @@
       "Title": "Pedals",
       "Kind": "Include",
       "X": 670.0,
-      "Y": 650.0,
+      "Y": 590.0,
       "IncludePath": "..\\_embedded\\heli_pedals_unboosted.json",
       "FunctionScope": "FlightPedals"
     },
@@ -103,7 +103,7 @@
       "Id": "in_grip_pitch",
       "Kind": "Input",
       "X": 410.0,
-      "Y": 1200.0,
+      "Y": 1170.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -145,7 +145,7 @@
       "Id": "in_axis_pitch",
       "Kind": "Input",
       "X": 380.0,
-      "Y": 1320.0,
+      "Y": 1290.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -179,7 +179,7 @@
       "Id": "param_owl",
       "Kind": "Param",
       "X": 340.0,
-      "Y": 1130.0,
+      "Y": 1100.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -258,8 +258,8 @@
       "Id": "const_phase_zero",
       "Title": "0 deg",
       "Kind": "Const",
-      "X": 990.0,
-      "Y": 1320.0,
+      "X": 970.0,
+      "Y": 1490.0,
       "Ports": [
         {
           "Name": "out",
@@ -272,8 +272,8 @@
       "Id": "const_phase_90",
       "Title": "90 deg",
       "Kind": "Const",
-      "X": 880.0,
-      "Y": 2050.0,
+      "X": 920.0,
+      "Y": 2260.0,
       "Ports": [
         {
           "Name": "out",
@@ -286,8 +286,8 @@
       "Id": "mul_phase_roll",
       "Title": "Roll Phase",
       "Kind": "Op",
-      "X": 1020.0,
-      "Y": 2050.0,
+      "X": 1060.0,
+      "Y": 2230.0,
       "Ports": [
         {
           "Name": "a",
@@ -307,8 +307,8 @@
     {
       "Id": "param_etl_bump_load_pitch",
       "Kind": "Param",
-      "X": 280.0,
-      "Y": 1490.0,
+      "X": 290.0,
+      "Y": 1580.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -321,7 +321,7 @@
       "Id": "param_etl_bump_load_roll",
       "Kind": "Param",
       "X": 30.0,
-      "Y": 2270.0,
+      "Y": 2350.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -335,7 +335,7 @@
       "Title": "Roll ETL Load (×rot sign)",
       "Kind": "Op",
       "X": 360.0,
-      "Y": 2270.0,
+      "Y": 2350.0,
       "Ports": [
         {
           "Name": "a",
@@ -356,7 +356,7 @@
       "Id": "param_rbs_load_pitch",
       "Kind": "Param",
       "X": 280.0,
-      "Y": 1660.0,
+      "Y": 1650.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -369,7 +369,7 @@
       "Id": "param_rbs_load_roll",
       "Kind": "Param",
       "X": 50.0,
-      "Y": 2370.0,
+      "Y": 2450.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -383,7 +383,7 @@
       "Title": "Roll RBS Load (×rot sign)",
       "Kind": "Op",
       "X": 360.0,
-      "Y": 2370.0,
+      "Y": 2450.0,
       "Ports": [
         {
           "Name": "a",
@@ -422,7 +422,7 @@
       "Id": "vib_pedal_include",
       "Title": "Vib Pedals",
       "Kind": "Include",
-      "X": 1150.0,
+      "X": 1240.0,
       "Y": 560.0,
       "IncludePath": "..\\_embedded\\heli_vibration_pedal.json",
       "FunctionScope": "FlightPedals"
@@ -439,8 +439,8 @@
     {
       "Id": "540bd050ff4944be849a35b8fa047f7d",
       "Kind": "Output",
-      "X": 380.0,
-      "Y": 330.0,
+      "X": 1350.0,
+      "Y": 170.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -453,8 +453,8 @@
       "Id": "96841bc9a8204e6285da2eb18b924e0c",
       "Title": "Calc Fundamental",
       "Kind": "Op",
-      "X": 200.0,
-      "Y": 330.0,
+      "X": 1170.0,
+      "Y": 170.0,
       "Ports": [
         {
           "Name": "a",
@@ -475,8 +475,8 @@
       "Id": "5a3cec22fab74cc09233193cba8135cd",
       "Title": "1/min -> 1/s",
       "Kind": "Const",
-      "X": 70.0,
-      "Y": 360.0,
+      "X": 1040.0,
+      "Y": 200.0,
       "Ports": [
         {
           "Name": "out",
@@ -486,10 +486,83 @@
       "ConstValue": 60.0
     },
     {
+      "Id": "param_g_load_gain",
+      "Kind": "Param",
+      "X": 310.0,
+      "Y": 1720.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "GLoadGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "param_g_load_roll_gain",
+      "Kind": "Param",
+      "X": 50.0,
+      "Y": 2550.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "GLoadRollGain"
+        }
+      ],
+      "SignalGroup": "Cyclic"
+    },
+    {
+      "Id": "mul_g_roll_eff",
+      "Title": "Roll G gain x mu x rot sign",
+      "Kind": "Op",
+      "X": 360.0,
+      "Y": 2550.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "in_on_ground",
+      "Kind": "Input",
+      "X": 990.0,
+      "Y": 310.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "OnGround"
+        }
+      ],
+      "SignalGroup": "MSFS"
+    },
+    {
+      "Id": "gnd_cues_include",
+      "Title": "Ground Cues",
+      "Kind": "Include",
+      "X": 1170.0,
+      "Y": 310.0,
+      "IncludePath": "..\\_embedded\\heli_ground_cues.json"
+    },
+    {
       "Id": "bus_send_rotor",
       "Title": "Rotor Bus Send",
       "Kind": "LocalSend",
-      "X": 500.0,
+      "X": 600.0,
       "Y": 50.0,
       "Ports": [
         {
@@ -523,6 +596,11 @@
           "BusName": "Slap"
         },
         {
+          "Name": "TRQnorm",
+          "Kind": "Input",
+          "BusName": "TRQnorm"
+        },
+        {
           "Name": "GLoad",
           "Kind": "Input",
           "BusName": "GLoad"
@@ -541,15 +619,82 @@
           "Name": "Turb",
           "Kind": "Input",
           "BusName": "Turb"
+        },
+        {
+          "Name": "RPMnorm",
+          "Kind": "Input",
+          "BusName": "RPMnorm"
+        },
+        {
+          "Name": "MuBuzz",
+          "Kind": "Input",
+          "BusName": "MuBuzz"
+        },
+        {
+          "Name": "TrBuffetGate",
+          "Kind": "Input",
+          "BusName": "TrBuffetGate"
         }
       ]
     },
     {
-      "Id": "bus_recv_vib_pitch_include",
+      "Id": "bus_send_params",
+      "Title": "Params Bus Send",
+      "Kind": "LocalSend",
+      "X": 340.0,
+      "Y": 480.0,
+      "Ports": [
+        {
+          "Name": "BladeCount",
+          "Kind": "Input",
+          "BusName": "BladeCount"
+        },
+        {
+          "Name": "RotationSign",
+          "Kind": "Input",
+          "BusName": "RotationSign"
+        }
+      ]
+    },
+    {
+      "Id": "bus_send_ground",
+      "Title": "Ground Bus Send",
+      "Kind": "LocalSend",
+      "X": 1390.0,
+      "Y": 310.0,
+      "Ports": [
+        {
+          "Name": "GndBoost",
+          "Kind": "Input",
+          "BusName": "GndBoost"
+        },
+        {
+          "Name": "Thump",
+          "Kind": "Input",
+          "BusName": "Thump"
+        }
+      ]
+    },
+    {
+      "Id": "bus_recv_derivations",
       "Title": "Bus Recv",
       "Kind": "LocalReceive",
-      "X": 960.0,
-      "Y": 1150.0,
+      "X": 80.0,
+      "Y": 300.0,
+      "Ports": [
+        {
+          "Name": "RotationSign",
+          "Kind": "Output",
+          "BusName": "RotationSign"
+        }
+      ]
+    },
+    {
+      "Id": "bus_recv_vib_pitch",
+      "Title": "Bus Recv",
+      "Kind": "LocalReceive",
+      "X": 940.0,
+      "Y": 1210.0,
       "Ports": [
         {
           "Name": "BladeAlphaPitch",
@@ -577,18 +722,33 @@
           "BusName": "BladeCount"
         },
         {
-          "Name": "Mu",
+          "Name": "ETLBump",
           "Kind": "Output",
-          "BusName": "Mu"
+          "BusName": "ETLBump"
+        },
+        {
+          "Name": "RBS",
+          "Kind": "Output",
+          "BusName": "RBS"
+        },
+        {
+          "Name": "MuBuzz",
+          "Kind": "Output",
+          "BusName": "MuBuzz"
+        },
+        {
+          "Name": "GndBoost",
+          "Kind": "Output",
+          "BusName": "GndBoost"
         }
       ]
     },
     {
-      "Id": "bus_recv_vib_roll_include",
+      "Id": "bus_recv_vib_roll",
       "Title": "Bus Recv",
       "Kind": "LocalReceive",
-      "X": 1000.0,
-      "Y": 1880.0,
+      "X": 900.0,
+      "Y": 1940.0,
       "Ports": [
         {
           "Name": "BladeAlphaRoll",
@@ -614,14 +774,92 @@
           "Name": "BladeCount",
           "Kind": "Output",
           "BusName": "BladeCount"
+        },
+        {
+          "Name": "ETLBump",
+          "Kind": "Output",
+          "BusName": "ETLBump"
+        },
+        {
+          "Name": "RBS",
+          "Kind": "Output",
+          "BusName": "RBS"
+        },
+        {
+          "Name": "MuBuzz",
+          "Kind": "Output",
+          "BusName": "MuBuzz"
+        },
+        {
+          "Name": "GndBoost",
+          "Kind": "Output",
+          "BusName": "GndBoost"
+        },
+        {
+          "Name": "RotationSign",
+          "Kind": "Output",
+          "BusName": "RotationSign"
         }
       ]
     },
     {
-      "Id": "bus_recv_vib_collective_include",
+      "Id": "bus_recv_roll_glue",
       "Title": "Bus Recv",
       "Kind": "LocalReceive",
-      "X": 1010.0,
+      "X": 170.0,
+      "Y": 2650.0,
+      "Ports": [
+        {
+          "Name": "RotationSign",
+          "Kind": "Output",
+          "BusName": "RotationSign"
+        },
+        {
+          "Name": "Mu",
+          "Kind": "Output",
+          "BusName": "Mu"
+        }
+      ]
+    },
+    {
+      "Id": "bus_recv_collective",
+      "Title": "Bus Recv",
+      "Kind": "LocalReceive",
+      "X": 510.0,
+      "Y": 800.0,
+      "Ports": [
+        {
+          "Name": "TRQnorm",
+          "Kind": "Output",
+          "BusName": "TRQnorm"
+        },
+        {
+          "Name": "VRS",
+          "Kind": "Output",
+          "BusName": "VRS"
+        },
+        {
+          "Name": "RPMnorm",
+          "Kind": "Output",
+          "BusName": "RPMnorm"
+        },
+        {
+          "Name": "Thump",
+          "Kind": "Output",
+          "BusName": "Thump"
+        },
+        {
+          "Name": "Turb",
+          "Kind": "Output",
+          "BusName": "Turb"
+        }
+      ]
+    },
+    {
+      "Id": "bus_recv_vib_collective",
+      "Title": "Bus Recv",
+      "Kind": "LocalReceive",
+      "X": 980.0,
       "Y": 790.0,
       "Ports": [
         {
@@ -653,16 +891,103 @@
           "Name": "RBS",
           "Kind": "Output",
           "BusName": "RBS"
+        },
+        {
+          "Name": "GndBoost",
+          "Kind": "Output",
+          "BusName": "GndBoost"
         }
       ]
     },
     {
-      "Id": "bus_recv_cyclic_pitch_include",
+      "Id": "bus_recv_pedals",
+      "Title": "Bus Recv",
+      "Kind": "LocalReceive",
+      "X": 510.0,
+      "Y": 590.0,
+      "Ports": [
+        {
+          "Name": "RPMnorm",
+          "Kind": "Output",
+          "BusName": "RPMnorm"
+        },
+        {
+          "Name": "RotationSign",
+          "Kind": "Output",
+          "BusName": "RotationSign"
+        },
+        {
+          "Name": "TrInflow",
+          "Kind": "Output",
+          "BusName": "TrInflow"
+        },
+        {
+          "Name": "TrBuffetGate",
+          "Kind": "Output",
+          "BusName": "TrBuffetGate"
+        },
+        {
+          "Name": "Turb",
+          "Kind": "Output",
+          "BusName": "Turb"
+        }
+      ]
+    },
+    {
+      "Id": "bus_recv_vib_pedal",
+      "Title": "Bus Recv",
+      "Kind": "LocalReceive",
+      "X": 1010.0,
+      "Y": 490.0,
+      "Ports": [
+        {
+          "Name": "RPMnorm",
+          "Kind": "Output",
+          "BusName": "RPMnorm"
+        },
+        {
+          "Name": "BladeCount",
+          "Kind": "Output",
+          "BusName": "BladeCount"
+        },
+        {
+          "Name": "GndBoost",
+          "Kind": "Output",
+          "BusName": "GndBoost"
+        }
+      ]
+    },
+    {
+      "Id": "bus_recv_cyclic_pitch_pre",
+      "Title": "Bus Recv",
+      "Kind": "LocalReceive",
+      "X": 440.0,
+      "Y": 1010.0,
+      "Ports": [
+        {
+          "Name": "BladeAlphaPitch",
+          "Kind": "Output",
+          "BusName": "BladeAlphaPitch"
+        },
+        {
+          "Name": "RPMnorm",
+          "Kind": "Output",
+          "BusName": "RPMnorm"
+        }
+      ]
+    },
+    {
+      "Id": "bus_recv_cyclic_pitch_cues",
       "Title": "Bus Recv",
       "Kind": "LocalReceive",
       "X": 430.0,
-      "Y": 1560.0,
+      "Y": 1380.0,
       "Ports": [
+        {
+          "Name": "ETLBump",
+          "Kind": "Output",
+          "BusName": "ETLBump"
+        },
         {
           "Name": "VRS",
           "Kind": "Output",
@@ -674,6 +999,16 @@
           "BusName": "RBS"
         },
         {
+          "Name": "GLoad",
+          "Kind": "Output",
+          "BusName": "GLoad"
+        },
+        {
+          "Name": "Thump",
+          "Kind": "Output",
+          "BusName": "Thump"
+        },
+        {
           "Name": "Turb",
           "Kind": "Output",
           "BusName": "Turb"
@@ -681,7 +1016,26 @@
       ]
     },
     {
-      "Id": "bus_recv_cyclic_roll_include",
+      "Id": "bus_recv_cyclic_roll_pre",
+      "Title": "Bus Recv",
+      "Kind": "LocalReceive",
+      "X": 430.0,
+      "Y": 1820.0,
+      "Ports": [
+        {
+          "Name": "BladeAlphaRoll",
+          "Kind": "Output",
+          "BusName": "BladeAlphaRoll"
+        },
+        {
+          "Name": "RPMnorm",
+          "Kind": "Output",
+          "BusName": "RPMnorm"
+        }
+      ]
+    },
+    {
+      "Id": "bus_recv_cyclic_roll_cues",
       "Title": "Bus Recv",
       "Kind": "LocalReceive",
       "X": 430.0,
@@ -703,243 +1057,14 @@
           "BusName": "RBS"
         },
         {
-          "Name": "Turb",
-          "Kind": "Output",
-          "BusName": "Turb"
-        }
-      ]
-    },
-    {
-      "Id": "bus_recv_collective_include",
-      "Title": "Bus Recv",
-      "Kind": "LocalReceive",
-      "X": 530.0,
-      "Y": 800.0,
-      "Ports": [
-        {
-          "Name": "TRQnorm",
-          "Kind": "Output",
-          "BusName": "TRQnorm"
-        },
-        {
-          "Name": "VRS",
-          "Kind": "Output",
-          "BusName": "VRS"
-        },
-        {
-          "Name": "RPMnorm",
-          "Kind": "Output",
-          "BusName": "RPMnorm"
-        },
-        {
-          "Name": "Turb",
-          "Kind": "Output",
-          "BusName": "Turb"
-        }
-      ]
-    },
-    {
-      "Id": "5056d384999c49cc9e14d398e93d5a85",
-      "Title": "Bus Recv",
-      "Kind": "LocalReceive",
-      "X": 430.0,
-      "Y": 1420.0,
-      "Ports": [
-        {
-          "Name": "ETLBump",
-          "Kind": "Output",
-          "BusName": "ETLBump"
-        },
-        {
-          "Name": "GLoad",
-          "Kind": "Output",
-          "BusName": "GLoad"
-        }
-      ]
-    },
-    {
-      "Id": "4b86eb4fd664445b97050b2e9b46b3ac",
-      "Title": "Local Send",
-      "Kind": "LocalSend",
-      "X": 680.0,
-      "Y": 290.0,
-      "Ports": [
-        {
-          "Name": "TRQnorm",
-          "Kind": "Input",
-          "BusName": "TRQnorm"
-        },
-        {
-          "Name": "RPMnorm",
-          "Kind": "Input",
-          "BusName": "RPMnorm"
-        }
-      ]
-    },
-    {
-      "Id": "edc0c7e523124e9e8981cf12c02c7aee",
-      "Title": "Local Send",
-      "Kind": "LocalSend",
-      "X": 340.0,
-      "Y": 480.0,
-      "Ports": [
-        {
-          "Name": "BladeCount",
-          "Kind": "Input",
-          "BusName": "BladeCount"
-        },
-        {
-          "Name": "RotationSign",
-          "Kind": "Input",
-          "BusName": "RotationSign"
-        }
-      ]
-    },
-    {
-      "Id": "a6ac41cbcfcf48daab26a78374d37213",
-      "Title": "Local Receive",
-      "Kind": "LocalReceive",
-      "X": 1010.0,
-      "Y": 510.0,
-      "Ports": [
-        {
-          "Name": "RPMnorm",
-          "Kind": "Output",
-          "BusName": "RPMnorm"
-        },
-        {
-          "Name": "BladeCount",
-          "Kind": "Output",
-          "BusName": "BladeCount"
-        }
-      ]
-    },
-    {
-      "Id": "78a314f726604459b7f2ce36306b8d00",
-      "Title": "Local Receive",
-      "Kind": "LocalReceive",
-      "X": 400.0,
-      "Y": 1030.0,
-      "Ports": [
-        {
-          "Name": "BladeAlphaPitch",
-          "Kind": "Output",
-          "BusName": "BladeAlphaPitch"
-        },
-        {
-          "Name": "RPMnorm",
-          "Kind": "Output",
-          "BusName": "RPMnorm"
-        }
-      ]
-    },
-    {
-      "Id": "36439fa54099488389cfc89e986eccf5",
-      "Title": "Local Receive",
-      "Kind": "LocalReceive",
-      "X": 990.0,
-      "Y": 1390.0,
-      "Ports": [
-        {
-          "Name": "ETLBump",
-          "Kind": "Output",
-          "BusName": "ETLBump"
-        },
-        {
-          "Name": "RBS",
-          "Kind": "Output",
-          "BusName": "RBS"
-        }
-      ]
-    },
-    {
-      "Id": "ba17dc0f0158450bb61ae3a4acd21a1e",
-      "Title": "Local Receive",
-      "Kind": "LocalReceive",
-      "X": 410.0,
-      "Y": 1760.0,
-      "Ports": [
-        {
-          "Name": "BladeAlphaRoll",
-          "Kind": "Output",
-          "BusName": "BladeAlphaRoll"
-        },
-        {
-          "Name": "RPMnorm",
-          "Kind": "Output",
-          "BusName": "RPMnorm"
-        }
-      ]
-    },
-    {
-      "Id": "7e9da48d633c409abad36c8be8f0872f",
-      "Title": "Local Receive",
-      "Kind": "LocalReceive",
-      "X": 190.0,
-      "Y": 2200.0,
-      "Ports": [
-        {
-          "Name": "RotationSign",
-          "Kind": "Output",
-          "BusName": "RotationSign"
-        }
-      ]
-    },
-    {
-      "Id": "743cb52f438b47b6928a4ef7a38d22f7",
-      "Title": "Local Receive",
-      "Kind": "LocalReceive",
-      "X": 880.0,
-      "Y": 2120.0,
-      "Ports": [
-        {
-          "Name": "RotationSign",
-          "Kind": "Output",
-          "BusName": "RotationSign"
-        },
-        {
-          "Name": "ETLBump",
-          "Kind": "Output",
-          "BusName": "ETLBump"
-        },
-        {
-          "Name": "RBS",
-          "Kind": "Output",
-          "BusName": "RBS"
-        },
-        {
           "Name": "GLoad",
           "Kind": "Output",
           "BusName": "GLoad"
         },
         {
-          "Name": "Mu",
+          "Name": "Thump",
           "Kind": "Output",
-          "BusName": "Mu"
-        }
-      ]
-    },
-    {
-      "Id": "6027c9ac160d4e8c9e9894554be29664",
-      "Title": "Local Receive",
-      "Kind": "LocalReceive",
-      "X": 540.0,
-      "Y": 650.0,
-      "Ports": [
-        {
-          "Name": "RPMnorm",
-          "Kind": "Output",
-          "BusName": "RPMnorm"
-        },
-        {
-          "Name": "RotationSign",
-          "Kind": "Output",
-          "BusName": "RotationSign"
-        },
-        {
-          "Name": "TrInflow",
-          "Kind": "Output",
-          "BusName": "TrInflow"
+          "BusName": "Thump"
         },
         {
           "Name": "Turb",
@@ -947,79 +1072,6 @@
           "BusName": "Turb"
         }
       ]
-    },
-    {
-      "Id": "param_g_load_gain",
-      "Kind": "Param",
-      "X": 280.0,
-      "Y": 1570.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "GLoadGain"
-        }
-      ],
-      "SignalGroup": "Cyclic"
-    },
-    {
-      "Id": "param_g_load_roll_gain",
-      "Kind": "Param",
-      "X": 50.0,
-      "Y": 2470.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "GLoadRollGain"
-        }
-      ],
-      "SignalGroup": "Cyclic"
-    },
-    {
-      "Id": "mul_g_roll_eff",
-      "Title": "Roll G gain x mu x rot sign",
-      "Kind": "Op",
-      "X": 360.0,
-      "Y": 2470.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "c",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a*b*c",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "mul"
-    },
-    {
-      "Id": "in_on_ground",
-      "Kind": "Input",
-      "X": 1500.0,
-      "Y": 30.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "OnGround"
-        }
-      ],
-      "SignalGroup": "MSFS"
-    },
-    {
-      "Id": "gnd_cues_include",
-      "Title": "Ground Cues",
-      "Kind": "Include",
-      "X": 1680.0,
-      "Y": 30.0,
-      "IncludePath": "..\\_embedded\\heli_ground_cues.json"
     }
   ],
   "Links": [
@@ -1094,12 +1146,6 @@
       "FromPort": "FlightStickRoll.Center",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "axis_center"
-    },
-    {
-      "FromNodeId": "const_phase_90",
-      "FromPort": "out",
-      "ToNodeId": "mul_phase_roll",
-      "ToPort": "a"
     },
     {
       "FromNodeId": "const_phase_zero",
@@ -1180,286 +1226,10 @@
       "ToPort": "etl_load_gain_eff"
     },
     {
-      "FromNodeId": "derivations_include",
-      "FromPort": "RBS",
-      "ToNodeId": "bus_send_rotor",
-      "ToPort": "RBS"
-    },
-    {
-      "FromNodeId": "bus_recv_cyclic_pitch_include",
-      "FromPort": "VRS",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "vrs"
-    },
-    {
-      "FromNodeId": "bus_recv_cyclic_pitch_include",
-      "FromPort": "RBS",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "rbs"
-    },
-    {
-      "FromNodeId": "derivations_include",
-      "FromPort": "ETLBump",
-      "ToNodeId": "bus_send_rotor",
-      "ToPort": "ETLBump"
-    },
-    {
-      "FromNodeId": "derivations_include",
-      "FromPort": "Slap",
-      "ToNodeId": "bus_send_rotor",
-      "ToPort": "Slap"
-    },
-    {
-      "FromNodeId": "derivations_include",
-      "FromPort": "VRS",
-      "ToNodeId": "bus_send_rotor",
-      "ToPort": "VRS"
-    },
-    {
-      "FromNodeId": "derivations_include",
-      "FromPort": "BladeAlphRoll",
-      "ToNodeId": "bus_send_rotor",
-      "ToPort": "BladeAlphaRoll"
-    },
-    {
-      "FromNodeId": "derivations_include",
-      "FromPort": "BladeAlphPitch",
-      "ToNodeId": "bus_send_rotor",
-      "ToPort": "BladeAlphaPitch"
-    },
-    {
-      "FromNodeId": "5056d384999c49cc9e14d398e93d5a85",
-      "FromPort": "ETLBump",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "etl_bump"
-    },
-    {
-      "FromNodeId": "param_blade_count",
-      "FromPort": "BladeCount",
-      "ToNodeId": "edc0c7e523124e9e8981cf12c02c7aee",
-      "ToPort": "BladeCount"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_collective_include",
-      "FromPort": "RPMnorm",
-      "ToNodeId": "vib_collective_include",
-      "ToPort": "rpm_norm"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_collective_include",
-      "FromPort": "BladeCount",
-      "ToNodeId": "vib_collective_include",
-      "ToPort": "blade_count"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_collective_include",
-      "FromPort": "VRS",
-      "ToNodeId": "vib_collective_include",
-      "ToPort": "vrs"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_collective_include",
-      "FromPort": "Slap",
-      "ToNodeId": "vib_collective_include",
-      "ToPort": "slap_rat"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_collective_include",
-      "FromPort": "ETLBump",
-      "ToNodeId": "vib_collective_include",
-      "ToPort": "etl_bump"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_collective_include",
-      "FromPort": "RBS",
-      "ToNodeId": "vib_collective_include",
-      "ToPort": "rbs"
-    },
-    {
-      "FromNodeId": "a6ac41cbcfcf48daab26a78374d37213",
-      "FromPort": "RPMnorm",
-      "ToNodeId": "vib_pedal_include",
-      "ToPort": "rpm_norm"
-    },
-    {
-      "FromNodeId": "a6ac41cbcfcf48daab26a78374d37213",
-      "FromPort": "BladeCount",
-      "ToNodeId": "vib_pedal_include",
-      "ToPort": "blade_count"
-    },
-    {
       "FromNodeId": "in_grip_roll",
       "FromPort": "ForceTrimRelease",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "ftr_button"
-    },
-    {
-      "FromNodeId": "78a314f726604459b7f2ce36306b8d00",
-      "FromPort": "BladeAlphaPitch",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "blade_alph"
-    },
-    {
-      "FromNodeId": "78a314f726604459b7f2ce36306b8d00",
-      "FromPort": "RPMnorm",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "rpm_norm"
-    },
-    {
-      "FromNodeId": "36439fa54099488389cfc89e986eccf5",
-      "FromPort": "ETLBump",
-      "ToNodeId": "vib_pitch_include",
-      "ToPort": "etl_bump"
-    },
-    {
-      "FromNodeId": "36439fa54099488389cfc89e986eccf5",
-      "FromPort": "RBS",
-      "ToNodeId": "vib_pitch_include",
-      "ToPort": "rbs"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_pitch_include",
-      "FromPort": "BladeAlphaPitch",
-      "ToNodeId": "vib_pitch_include",
-      "ToPort": "blade_alph"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_pitch_include",
-      "FromPort": "VRS",
-      "ToNodeId": "vib_pitch_include",
-      "ToPort": "vrs"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_pitch_include",
-      "FromPort": "Slap",
-      "ToNodeId": "vib_pitch_include",
-      "ToPort": "slap_rat"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_pitch_include",
-      "FromPort": "RPMnorm",
-      "ToNodeId": "vib_pitch_include",
-      "ToPort": "rpm_norm"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_pitch_include",
-      "FromPort": "BladeCount",
-      "ToNodeId": "vib_pitch_include",
-      "ToPort": "blade_count"
-    },
-    {
-      "FromNodeId": "ba17dc0f0158450bb61ae3a4acd21a1e",
-      "FromPort": "BladeAlphaRoll",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "blade_alph"
-    },
-    {
-      "FromNodeId": "ba17dc0f0158450bb61ae3a4acd21a1e",
-      "FromPort": "RPMnorm",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "rpm_norm"
-    },
-    {
-      "FromNodeId": "bus_recv_cyclic_roll_include",
-      "FromPort": "ETLBump",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "etl_bump"
-    },
-    {
-      "FromNodeId": "bus_recv_cyclic_roll_include",
-      "FromPort": "VRS",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "vrs"
-    },
-    {
-      "FromNodeId": "bus_recv_cyclic_roll_include",
-      "FromPort": "RBS",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "rbs"
-    },
-    {
-      "FromNodeId": "param_rotation_sign",
-      "FromPort": "RotationSign",
-      "ToNodeId": "edc0c7e523124e9e8981cf12c02c7aee",
-      "ToPort": "RotationSign"
-    },
-    {
-      "FromNodeId": "7e9da48d633c409abad36c8be8f0872f",
-      "FromPort": "RotationSign",
-      "ToNodeId": "mul_etl_roll_eff",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "7e9da48d633c409abad36c8be8f0872f",
-      "FromPort": "RotationSign",
-      "ToNodeId": "mul_rbs_roll_eff",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "743cb52f438b47b6928a4ef7a38d22f7",
-      "FromPort": "RotationSign",
-      "ToNodeId": "mul_phase_roll",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_roll_include",
-      "FromPort": "BladeAlphaRoll",
-      "ToNodeId": "vib_roll_include",
-      "ToPort": "blade_alph"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_roll_include",
-      "FromPort": "VRS",
-      "ToNodeId": "vib_roll_include",
-      "ToPort": "vrs"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_roll_include",
-      "FromPort": "Slap",
-      "ToNodeId": "vib_roll_include",
-      "ToPort": "slap_rat"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_roll_include",
-      "FromPort": "RPMnorm",
-      "ToNodeId": "vib_roll_include",
-      "ToPort": "rpm_norm"
-    },
-    {
-      "FromNodeId": "bus_recv_vib_roll_include",
-      "FromPort": "BladeCount",
-      "ToNodeId": "vib_roll_include",
-      "ToPort": "blade_count"
-    },
-    {
-      "FromNodeId": "743cb52f438b47b6928a4ef7a38d22f7",
-      "FromPort": "ETLBump",
-      "ToNodeId": "vib_roll_include",
-      "ToPort": "etl_bump"
-    },
-    {
-      "FromNodeId": "743cb52f438b47b6928a4ef7a38d22f7",
-      "FromPort": "RBS",
-      "ToNodeId": "vib_roll_include",
-      "ToPort": "rbs"
-    },
-    {
-      "FromNodeId": "6027c9ac160d4e8c9e9894554be29664",
-      "FromPort": "RPMnorm",
-      "ToNodeId": "pedals_include",
-      "ToPort": "rpm_norm"
-    },
-    {
-      "FromNodeId": "bus_recv_collective_include",
-      "FromPort": "TRQnorm",
-      "ToNodeId": "collective_include",
-      "ToPort": "torque_norm"
-    },
-    {
-      "FromNodeId": "bus_recv_collective_include",
-      "FromPort": "VRS",
-      "ToNodeId": "collective_include",
-      "ToPort": "vrs"
     },
     {
       "FromNodeId": "in_derivations_raw",
@@ -1498,16 +1268,76 @@
       "ToPort": "collective_pos_pct"
     },
     {
-      "FromNodeId": "derivations_include",
-      "FromPort": "TrqNorm",
-      "ToNodeId": "4b86eb4fd664445b97050b2e9b46b3ac",
-      "ToPort": "TRQnorm"
+      "FromNodeId": "param_g_load_gain",
+      "FromPort": "GLoadGain",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "g_load_gain_eff"
     },
     {
-      "FromNodeId": "6027c9ac160d4e8c9e9894554be29664",
-      "FromPort": "RotationSign",
-      "ToNodeId": "pedals_include",
-      "ToPort": "rot_sign"
+      "FromNodeId": "param_g_load_roll_gain",
+      "FromPort": "GLoadRollGain",
+      "ToNodeId": "mul_g_roll_eff",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_g_roll_eff",
+      "FromPort": "a*b*c",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "g_load_gain_eff"
+    },
+    {
+      "FromNodeId": "in_derivations_raw",
+      "FromPort": "TailRotor.BladePitchPct",
+      "ToNodeId": "derivations_include",
+      "ToPort": "tr_pitch_pct"
+    },
+    {
+      "FromNodeId": "in_on_ground",
+      "FromPort": "OnGround",
+      "ToNodeId": "gnd_cues_include",
+      "ToPort": "on_ground"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "ETLBump",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "ETLBump"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "RBS",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "RBS"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "BladeAlphPitch",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "BladeAlphaPitch"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "BladeAlphRoll",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "BladeAlphaRoll"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "VRS",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "VRS"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "Slap",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "Slap"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "TrqNorm",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "TRQnorm"
     },
     {
       "FromNodeId": "derivations_include",
@@ -1522,64 +1352,10 @@
       "ToPort": "Mu"
     },
     {
-      "FromNodeId": "5056d384999c49cc9e14d398e93d5a85",
-      "FromPort": "GLoad",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "g_load"
-    },
-    {
-      "FromNodeId": "param_g_load_gain",
-      "FromPort": "GLoadGain",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "g_load_gain_eff"
-    },
-    {
-      "FromNodeId": "param_g_load_roll_gain",
-      "FromPort": "GLoadRollGain",
-      "ToNodeId": "mul_g_roll_eff",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "743cb52f438b47b6928a4ef7a38d22f7",
-      "FromPort": "Mu",
-      "ToNodeId": "mul_g_roll_eff",
-      "ToPort": "b"
-    },
-    {
-      "FromNodeId": "743cb52f438b47b6928a4ef7a38d22f7",
-      "FromPort": "RotationSign",
-      "ToNodeId": "mul_g_roll_eff",
-      "ToPort": "c"
-    },
-    {
-      "FromNodeId": "mul_g_roll_eff",
-      "FromPort": "a*b*c",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "g_load_gain_eff"
-    },
-    {
-      "FromNodeId": "743cb52f438b47b6928a4ef7a38d22f7",
-      "FromPort": "GLoad",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "g_load"
-    },
-    {
       "FromNodeId": "derivations_include",
       "FromPort": "TrInflow",
       "ToNodeId": "bus_send_rotor",
       "ToPort": "TrInflow"
-    },
-    {
-      "FromNodeId": "6027c9ac160d4e8c9e9894554be29664",
-      "FromPort": "TrInflow",
-      "ToNodeId": "pedals_include",
-      "ToPort": "tr_inflow"
-    },
-    {
-      "FromNodeId": "bus_recv_collective_include",
-      "FromPort": "RPMnorm",
-      "ToNodeId": "collective_include",
-      "ToPort": "rpm_norm"
     },
     {
       "FromNodeId": "derivations_include",
@@ -1588,112 +1364,412 @@
       "ToPort": "Turb"
     },
     {
-      "FromNodeId": "bus_recv_cyclic_pitch_include",
-      "FromPort": "Turb",
-      "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "turb"
-    },
-    {
-      "FromNodeId": "bus_recv_cyclic_roll_include",
-      "FromPort": "Turb",
-      "ToNodeId": "cyclic_roll_include",
-      "ToPort": "turb"
-    },
-    {
-      "FromNodeId": "bus_recv_collective_include",
-      "FromPort": "Turb",
-      "ToNodeId": "collective_include",
-      "ToPort": "turb"
-    },
-    {
-      "FromNodeId": "6027c9ac160d4e8c9e9894554be29664",
-      "FromPort": "Turb",
-      "ToNodeId": "pedals_include",
-      "ToPort": "turb"
-    },
-    {
-      "FromNodeId": "in_derivations_raw",
-      "FromPort": "TailRotor.BladePitchPct",
-      "ToNodeId": "derivations_include",
-      "ToPort": "tr_pitch_pct"
-    },
-    {
-      "FromNodeId": "param_rotation_sign",
-      "FromPort": "RotationSign",
-      "ToNodeId": "derivations_include",
-      "ToPort": "rot_sign"
-    },
-    {
       "FromNodeId": "derivations_include",
       "FromPort": "RPMnorm",
-      "ToNodeId": "4b86eb4fd664445b97050b2e9b46b3ac",
+      "ToNodeId": "bus_send_rotor",
       "ToPort": "RPMnorm"
     },
     {
       "FromNodeId": "derivations_include",
       "FromPort": "MuBuzz",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "MuBuzz"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "TrBuffetGate",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "TrBuffetGate"
+    },
+    {
+      "FromNodeId": "param_blade_count",
+      "FromPort": "BladeCount",
+      "ToNodeId": "bus_send_params",
+      "ToPort": "BladeCount"
+    },
+    {
+      "FromNodeId": "param_rotation_sign",
+      "FromPort": "RotationSign",
+      "ToNodeId": "bus_send_params",
+      "ToPort": "RotationSign"
+    },
+    {
+      "FromNodeId": "gnd_cues_include",
+      "FromPort": "gnd_boost",
+      "ToNodeId": "bus_send_ground",
+      "ToPort": "GndBoost"
+    },
+    {
+      "FromNodeId": "gnd_cues_include",
+      "FromPort": "thump",
+      "ToNodeId": "bus_send_ground",
+      "ToPort": "Thump"
+    },
+    {
+      "FromNodeId": "bus_recv_derivations",
+      "FromPort": "RotationSign",
+      "ToNodeId": "derivations_include",
+      "ToPort": "rot_sign"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_pitch",
+      "FromPort": "BladeAlphaPitch",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "blade_alph"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_pitch",
+      "FromPort": "VRS",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "vrs"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_pitch",
+      "FromPort": "Slap",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "slap_rat"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_pitch",
+      "FromPort": "RPMnorm",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_pitch",
+      "FromPort": "BladeCount",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "blade_count"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_pitch",
+      "FromPort": "ETLBump",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "etl_bump"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_pitch",
+      "FromPort": "RBS",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "rbs"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_pitch",
+      "FromPort": "MuBuzz",
       "ToNodeId": "vib_pitch_include",
       "ToPort": "mu_buzz"
     },
     {
-      "FromNodeId": "derivations_include",
+      "FromNodeId": "bus_recv_vib_pitch",
+      "FromPort": "GndBoost",
+      "ToNodeId": "vib_pitch_include",
+      "ToPort": "gnd_boost"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_roll",
+      "FromPort": "BladeAlphaRoll",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "blade_alph"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_roll",
+      "FromPort": "VRS",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "vrs"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_roll",
+      "FromPort": "Slap",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "slap_rat"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_roll",
+      "FromPort": "RPMnorm",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_roll",
+      "FromPort": "BladeCount",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "blade_count"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_roll",
+      "FromPort": "ETLBump",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "etl_bump"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_roll",
+      "FromPort": "RBS",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "rbs"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_roll",
       "FromPort": "MuBuzz",
       "ToNodeId": "vib_roll_include",
       "ToPort": "mu_buzz"
     },
     {
-      "FromNodeId": "derivations_include",
+      "FromNodeId": "bus_recv_vib_roll",
+      "FromPort": "GndBoost",
+      "ToNodeId": "vib_roll_include",
+      "ToPort": "gnd_boost"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_roll",
+      "FromPort": "RotationSign",
+      "ToNodeId": "mul_phase_roll",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "bus_recv_roll_glue",
+      "FromPort": "RotationSign",
+      "ToNodeId": "mul_etl_roll_eff",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "bus_recv_roll_glue",
+      "FromPort": "RotationSign",
+      "ToNodeId": "mul_rbs_roll_eff",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "bus_recv_roll_glue",
+      "FromPort": "RotationSign",
+      "ToNodeId": "mul_g_roll_eff",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "bus_recv_collective",
+      "FromPort": "TRQnorm",
+      "ToNodeId": "collective_include",
+      "ToPort": "torque_norm"
+    },
+    {
+      "FromNodeId": "bus_recv_collective",
+      "FromPort": "VRS",
+      "ToNodeId": "collective_include",
+      "ToPort": "vrs"
+    },
+    {
+      "FromNodeId": "bus_recv_collective",
+      "FromPort": "RPMnorm",
+      "ToNodeId": "collective_include",
+      "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "bus_recv_collective",
+      "FromPort": "Thump",
+      "ToNodeId": "collective_include",
+      "ToPort": "thump"
+    },
+    {
+      "FromNodeId": "bus_recv_collective",
+      "FromPort": "Turb",
+      "ToNodeId": "collective_include",
+      "ToPort": "turb"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_collective",
+      "FromPort": "RPMnorm",
+      "ToNodeId": "vib_collective_include",
+      "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_collective",
+      "FromPort": "BladeCount",
+      "ToNodeId": "vib_collective_include",
+      "ToPort": "blade_count"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_collective",
+      "FromPort": "VRS",
+      "ToNodeId": "vib_collective_include",
+      "ToPort": "vrs"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_collective",
+      "FromPort": "Slap",
+      "ToNodeId": "vib_collective_include",
+      "ToPort": "slap_rat"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_collective",
+      "FromPort": "ETLBump",
+      "ToNodeId": "vib_collective_include",
+      "ToPort": "etl_bump"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_collective",
+      "FromPort": "RBS",
+      "ToNodeId": "vib_collective_include",
+      "ToPort": "rbs"
+    },
+    {
+      "FromNodeId": "bus_recv_vib_collective",
+      "FromPort": "GndBoost",
+      "ToNodeId": "vib_collective_include",
+      "ToPort": "gnd_boost"
+    },
+    {
+      "FromNodeId": "bus_recv_pedals",
+      "FromPort": "RPMnorm",
+      "ToNodeId": "pedals_include",
+      "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "bus_recv_pedals",
+      "FromPort": "RotationSign",
+      "ToNodeId": "pedals_include",
+      "ToPort": "rot_sign"
+    },
+    {
+      "FromNodeId": "bus_recv_pedals",
+      "FromPort": "TrInflow",
+      "ToNodeId": "pedals_include",
+      "ToPort": "tr_inflow"
+    },
+    {
+      "FromNodeId": "bus_recv_pedals",
       "FromPort": "TrBuffetGate",
       "ToNodeId": "pedals_include",
       "ToPort": "buffet_gate"
     },
     {
-      "FromNodeId": "in_on_ground",
-      "FromPort": "OnGround",
-      "ToNodeId": "gnd_cues_include",
-      "ToPort": "on_ground"
+      "FromNodeId": "bus_recv_pedals",
+      "FromPort": "Turb",
+      "ToNodeId": "pedals_include",
+      "ToPort": "turb"
     },
     {
-      "FromNodeId": "gnd_cues_include",
-      "FromPort": "gnd_boost",
-      "ToNodeId": "vib_pitch_include",
-      "ToPort": "gnd_boost"
+      "FromNodeId": "bus_recv_vib_pedal",
+      "FromPort": "RPMnorm",
+      "ToNodeId": "vib_pedal_include",
+      "ToPort": "rpm_norm"
     },
     {
-      "FromNodeId": "gnd_cues_include",
-      "FromPort": "gnd_boost",
-      "ToNodeId": "vib_roll_include",
-      "ToPort": "gnd_boost"
+      "FromNodeId": "bus_recv_vib_pedal",
+      "FromPort": "BladeCount",
+      "ToNodeId": "vib_pedal_include",
+      "ToPort": "blade_count"
     },
     {
-      "FromNodeId": "gnd_cues_include",
-      "FromPort": "gnd_boost",
-      "ToNodeId": "vib_collective_include",
-      "ToPort": "gnd_boost"
-    },
-    {
-      "FromNodeId": "gnd_cues_include",
-      "FromPort": "gnd_boost",
+      "FromNodeId": "bus_recv_vib_pedal",
+      "FromPort": "GndBoost",
       "ToNodeId": "vib_pedal_include",
       "ToPort": "gnd_boost"
     },
     {
-      "FromNodeId": "gnd_cues_include",
-      "FromPort": "thump",
+      "FromNodeId": "const_phase_90",
+      "FromPort": "out",
+      "ToNodeId": "mul_phase_roll",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "bus_recv_roll_glue",
+      "FromPort": "Mu",
+      "ToNodeId": "mul_g_roll_eff",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_pitch_pre",
+      "FromPort": "BladeAlphaPitch",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "blade_alph"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_pitch_pre",
+      "FromPort": "RPMnorm",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_pitch_cues",
+      "FromPort": "ETLBump",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "etl_bump"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_pitch_cues",
+      "FromPort": "VRS",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "vrs"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_pitch_cues",
+      "FromPort": "RBS",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "rbs"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_pitch_cues",
+      "FromPort": "GLoad",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "g_load"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_pitch_cues",
+      "FromPort": "Thump",
       "ToNodeId": "cyclic_pitch_include",
       "ToPort": "thump"
     },
     {
-      "FromNodeId": "gnd_cues_include",
-      "FromPort": "thump",
+      "FromNodeId": "bus_recv_cyclic_pitch_cues",
+      "FromPort": "Turb",
+      "ToNodeId": "cyclic_pitch_include",
+      "ToPort": "turb"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_roll_pre",
+      "FromPort": "BladeAlphaRoll",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "blade_alph"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_roll_pre",
+      "FromPort": "RPMnorm",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "rpm_norm"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_roll_cues",
+      "FromPort": "ETLBump",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "etl_bump"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_roll_cues",
+      "FromPort": "VRS",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "vrs"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_roll_cues",
+      "FromPort": "RBS",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "rbs"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_roll_cues",
+      "FromPort": "GLoad",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "g_load"
+    },
+    {
+      "FromNodeId": "bus_recv_cyclic_roll_cues",
+      "FromPort": "Thump",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "thump"
     },
     {
-      "FromNodeId": "gnd_cues_include",
-      "FromPort": "thump",
-      "ToNodeId": "collective_include",
-      "ToPort": "thump"
+      "FromNodeId": "bus_recv_cyclic_roll_cues",
+      "FromPort": "Turb",
+      "ToNodeId": "cyclic_roll_include",
+      "ToPort": "turb"
     }
   ],
   "Params": [

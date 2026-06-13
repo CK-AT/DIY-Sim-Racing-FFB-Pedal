@@ -80,8 +80,8 @@
     {
       "Id": "out_scoped",
       "Kind": "Output",
-      "X": 1180.0,
-      "Y": 80.0,
+      "X": 1420.0,
+      "Y": 90.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -172,8 +172,8 @@
     {
       "Id": "param_vrs_buffet_start",
       "Kind": "Param",
-      "X": 500.0,
-      "Y": 590.0,
+      "X": 590.0,
+      "Y": 410.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -185,8 +185,8 @@
     {
       "Id": "param_vrs_buffet_full",
       "Kind": "Param",
-      "X": 500.0,
-      "Y": 660.0,
+      "X": 590.0,
+      "Y": 480.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -198,8 +198,8 @@
     {
       "Id": "param_vrs_buffet_gain",
       "Kind": "Param",
-      "X": 500.0,
-      "Y": 730.0,
+      "X": 590.0,
+      "Y": 550.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -281,8 +281,8 @@
     {
       "Id": "param_k_spring",
       "Kind": "Param",
-      "X": 250.0,
-      "Y": 1000.0,
+      "X": 230.0,
+      "Y": 820.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -316,7 +316,7 @@
     {
       "Id": "param_spring_center",
       "Kind": "Param",
-      "X": 480.0,
+      "X": 420.0,
       "Y": 1030.0,
       "Ports": [
         {
@@ -347,8 +347,8 @@
       "Id": "in_thump",
       "Title": "Touchdown thump",
       "Kind": "Input",
-      "X": 960.0,
-      "Y": 440.0,
+      "X": 980.0,
+      "Y": 460.0,
       "Ports": [
         {
           "Name": "thump",
@@ -386,8 +386,8 @@
       "Id": "in_turb",
       "Title": "Turbulence (|G hp|)",
       "Kind": "Input",
-      "X": 960.0,
-      "Y": 520.0,
+      "X": 870.0,
+      "Y": 640.0,
       "Ports": [
         {
           "Name": "turb",
@@ -398,8 +398,8 @@
     {
       "Id": "param_turb_gain",
       "Kind": "Param",
-      "X": 960.0,
-      "Y": 600.0,
+      "X": 760.0,
+      "Y": 720.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -412,8 +412,8 @@
       "Id": "mul_turb_buffet",
       "Title": "turb x gain",
       "Kind": "Op",
-      "X": 1140.0,
-      "Y": 540.0,
+      "X": 1030.0,
+      "Y": 650.0,
       "Ports": [
         {
           "Name": "a",
@@ -429,6 +429,20 @@
         }
       ],
       "Op": "mul"
+    },
+    {
+      "Id": "940dc931e6494589950ff118092c5841",
+      "Title": "1.0",
+      "Kind": "Const",
+      "X": 720.0,
+      "Y": 620.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
     }
   ],
   "Links": [
@@ -497,12 +511,6 @@
       "FromPort": "VrsBuffetGain",
       "ToNodeId": "vrs_buffet",
       "ToPort": "gain"
-    },
-    {
-      "FromNodeId": "const_vrs_one",
-      "FromPort": "out",
-      "ToNodeId": "vrs_buffet",
-      "ToPort": "qhat_eff"
     },
     {
       "FromNodeId": "add_buffet_total",
@@ -581,6 +589,12 @@
       "FromPort": "a*b",
       "ToNodeId": "add_buffet_total",
       "ToPort": "c"
+    },
+    {
+      "FromNodeId": "940dc931e6494589950ff118092c5841",
+      "FromPort": "out",
+      "ToNodeId": "vrs_buffet",
+      "ToPort": "qhat_eff"
     }
   ],
   "Params": [
@@ -629,8 +643,8 @@
         "Step": 0.01,
         "Precision": 2,
         "LogScale": false,
-        "Options": [],
-        "MuteValue": 0.0
+        "MuteValue": 0.0,
+        "Options": []
       }
     },
     {

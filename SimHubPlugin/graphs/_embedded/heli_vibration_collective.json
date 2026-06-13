@@ -206,8 +206,8 @@
       "Id": "const_one",
       "Title": "1.0",
       "Kind": "Const",
-      "X": 170.0,
-      "Y": 970.0,
+      "X": 180.0,
+      "Y": 960.0,
       "Ports": [
         {
           "Name": "out",
@@ -234,8 +234,8 @@
       "Id": "const_zero",
       "Title": "0.0",
       "Kind": "Const",
-      "X": 1070.0,
-      "Y": 1000.0,
+      "X": 1080.0,
+      "Y": 1240.0,
       "Ports": [
         {
           "Name": "out",
@@ -350,8 +350,8 @@
       "Id": "add_nrev_total",
       "Title": "Vib1Ampl2 = base + etl + slap + etl_bump",
       "Kind": "Op",
-      "X": 1230.0,
-      "Y": 280.0,
+      "X": 1200.0,
+      "Y": 470.0,
       "Ports": [
         {
           "Name": "a",
@@ -419,8 +419,8 @@
     {
       "Id": "out_ampl1",
       "Kind": "Output",
-      "X": 1650.0,
-      "Y": 50.0,
+      "X": 2000.0,
+      "Y": 90.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -432,8 +432,8 @@
     {
       "Id": "out_ampl2",
       "Kind": "Output",
-      "X": 1740.0,
-      "Y": 280.0,
+      "X": 2120.0,
+      "Y": 320.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -458,8 +458,8 @@
     {
       "Id": "out_ampl4",
       "Kind": "Output",
-      "X": 1440.0,
-      "Y": 990.0,
+      "X": 1450.0,
+      "Y": 1230.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -471,8 +471,8 @@
     {
       "Id": "out_ampl5",
       "Kind": "Output",
-      "X": 1440.0,
-      "Y": 1140.0,
+      "X": 1450.0,
+      "Y": 1380.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -524,8 +524,8 @@
     {
       "Id": "param_vrs_vib_gain",
       "Kind": "Param",
-      "X": 650.0,
-      "Y": 260.0,
+      "X": 460.0,
+      "Y": 370.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -564,8 +564,8 @@
       "Id": "add_1rev_total",
       "Title": "1/rev + VRS shake",
       "Kind": "Op",
-      "X": 1230.0,
-      "Y": 50.0,
+      "X": 1420.0,
+      "Y": 110.0,
       "Ports": [
         {
           "Name": "a",
@@ -586,8 +586,8 @@
       "Id": "add_nrev_total2",
       "Title": "N/rev + RBS heave",
       "Kind": "Op",
-      "X": 1400.0,
-      "Y": 280.0,
+      "X": 1510.0,
+      "Y": 540.0,
       "Ports": [
         {
           "Name": "a",
@@ -608,8 +608,8 @@
       "Id": "in_gnd_boost",
       "Title": "Ground boost (0..gain)",
       "Kind": "Input",
-      "X": 1230.0,
-      "Y": 165.0,
+      "X": 1310.0,
+      "Y": 310.0,
       "Ports": [
         {
           "Name": "gnd_boost",
@@ -621,8 +621,8 @@
       "Id": "add_gnd_factor",
       "Title": "1 + gnd boost",
       "Kind": "Op",
-      "X": 1400.0,
-      "Y": 165.0,
+      "X": 1510.0,
+      "Y": 250.0,
       "Ports": [
         {
           "Name": "a",
@@ -643,8 +643,8 @@
       "Id": "mul_gnd_1rev",
       "Title": "1/rev x gnd",
       "Kind": "Op",
-      "X": 1450.0,
-      "Y": 50.0,
+      "X": 1770.0,
+      "Y": 90.0,
       "Ports": [
         {
           "Name": "a",
@@ -665,8 +665,8 @@
       "Id": "mul_gnd_nrev",
       "Title": "N/rev x gnd",
       "Kind": "Op",
-      "X": 1570.0,
-      "Y": 280.0,
+      "X": 1880.0,
+      "Y": 320.0,
       "Ports": [
         {
           "Name": "a",
@@ -682,6 +682,20 @@
         }
       ],
       "Op": "mul"
+    },
+    {
+      "Id": "f58e087a1adf456db9109424f5f227e1",
+      "Title": "1.0",
+      "Kind": "Const",
+      "X": 1330.0,
+      "Y": 240.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
     }
   ],
   "Links": [
@@ -908,12 +922,6 @@
       "ToPort": "Vib1Ampl3"
     },
     {
-      "FromNodeId": "const_one",
-      "FromPort": "out",
-      "ToNodeId": "add_gnd_factor",
-      "ToPort": "a"
-    },
-    {
       "FromNodeId": "in_gnd_boost",
       "FromPort": "gnd_boost",
       "ToNodeId": "add_gnd_factor",
@@ -942,6 +950,12 @@
       "FromPort": "a+b",
       "ToNodeId": "mul_gnd_nrev",
       "ToPort": "b"
+    },
+    {
+      "FromNodeId": "f58e087a1adf456db9109424f5f227e1",
+      "FromPort": "out",
+      "ToNodeId": "add_gnd_factor",
+      "ToPort": "a"
     }
   ],
   "Params": [

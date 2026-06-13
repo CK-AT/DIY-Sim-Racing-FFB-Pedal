@@ -36,8 +36,8 @@
       "Id": "in_grip",
       "Title": "Grip",
       "Kind": "Input",
-      "X": 30.0,
-      "Y": 370.0,
+      "X": 100.0,
+      "Y": 1270.0,
       "Ports": [
         {
           "Name": "hat_pos",
@@ -57,8 +57,8 @@
       "Id": "in_axis_pos",
       "Title": "Axis Pos",
       "Kind": "Input",
-      "X": 30.0,
-      "Y": 490.0,
+      "X": 100.0,
+      "Y": 1390.0,
       "Ports": [
         {
           "Name": "axis_position",
@@ -75,7 +75,7 @@
       "Title": "ETL Bump",
       "Kind": "Input",
       "X": 30.0,
-      "Y": 870.0,
+      "Y": 370.0,
       "Ports": [
         {
           "Name": "etl_bump",
@@ -88,7 +88,7 @@
       "Title": "ETL Bump Load (eff)",
       "Kind": "Input",
       "X": 30.0,
-      "Y": 940.0,
+      "Y": 440.0,
       "Ports": [
         {
           "Name": "etl_load_gain_eff",
@@ -100,8 +100,8 @@
       "Id": "in_vrs",
       "Title": "VRS",
       "Kind": "Input",
-      "X": 30.0,
-      "Y": 1010.0,
+      "X": 40.0,
+      "Y": 810.0,
       "Ports": [
         {
           "Name": "vrs",
@@ -114,7 +114,7 @@
       "Title": "RBS",
       "Kind": "Input",
       "X": 30.0,
-      "Y": 1180.0,
+      "Y": 520.0,
       "Ports": [
         {
           "Name": "rbs",
@@ -127,7 +127,7 @@
       "Title": "RBS Load (eff)",
       "Kind": "Input",
       "X": 30.0,
-      "Y": 1240.0,
+      "Y": 580.0,
       "Ports": [
         {
           "Name": "rbs_load_gain_eff",
@@ -140,7 +140,7 @@
       "Title": "rbs × gain × rpm",
       "Kind": "Op",
       "X": 280.0,
-      "Y": 1180.0,
+      "Y": 520.0,
       "Ports": [
         {
           "Name": "a",
@@ -164,8 +164,8 @@
     {
       "Id": "param_vrs_buffet_start",
       "Kind": "Param",
-      "X": 870.0,
-      "Y": 1150.0,
+      "X": 480.0,
+      "Y": 880.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -177,8 +177,8 @@
     {
       "Id": "param_vrs_buffet_full",
       "Kind": "Param",
-      "X": 870.0,
-      "Y": 1220.0,
+      "X": 480.0,
+      "Y": 950.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -190,8 +190,8 @@
     {
       "Id": "param_vrs_buffet_gain",
       "Kind": "Param",
-      "X": 870.0,
-      "Y": 1290.0,
+      "X": 480.0,
+      "Y": 1020.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -204,8 +204,8 @@
       "Id": "vrs_buffet",
       "Title": "VRS buffet env",
       "Kind": "Func",
-      "X": 1180.0,
-      "Y": 860.0,
+      "X": 810.0,
+      "Y": 840.0,
       "Ports": [
         {
           "Name": "alpha",
@@ -238,8 +238,8 @@
     {
       "Id": "param_vrs_atten_gain",
       "Kind": "Param",
-      "X": 30.0,
-      "Y": 1080.0,
+      "X": 200.0,
+      "Y": 1020.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -252,8 +252,8 @@
       "Id": "const_vrs_one",
       "Title": "1.0",
       "Kind": "Const",
-      "X": 520.0,
-      "Y": 1050.0,
+      "X": 610.0,
+      "Y": 1090.0,
       "Ports": [
         {
           "Name": "out",
@@ -266,8 +266,8 @@
       "Id": "const_vrs_zero",
       "Title": "0.0",
       "Kind": "Const",
-      "X": 560.0,
-      "Y": 910.0,
+      "X": 80.0,
+      "Y": 890.0,
       "Ports": [
         {
           "Name": "out",
@@ -280,7 +280,7 @@
       "Id": "clamp_vrs_eff",
       "Title": "clamp 0..1",
       "Kind": "Op",
-      "X": 740.0,
+      "X": 290.0,
       "Y": 810.0,
       "Ports": [
         {
@@ -306,8 +306,8 @@
       "Id": "mul_atten_amt",
       "Title": "VrsAtten × vrs_eff",
       "Kind": "Op",
-      "X": 900.0,
-      "Y": 890.0,
+      "X": 490.0,
+      "Y": 720.0,
       "Ports": [
         {
           "Name": "a",
@@ -328,8 +328,8 @@
       "Id": "sub_atten_factor",
       "Title": "1 - atten_amt",
       "Kind": "Op",
-      "X": 1050.0,
-      "Y": 760.0,
+      "X": 650.0,
+      "Y": 600.0,
       "Ports": [
         {
           "Name": "a",
@@ -350,8 +350,8 @@
       "Id": "mul_load_atten",
       "Title": "Load × atten",
       "Kind": "Op",
-      "X": 750.0,
-      "Y": 300.0,
+      "X": 790.0,
+      "Y": 230.0,
       "Ports": [
         {
           "Name": "a",
@@ -373,7 +373,7 @@
       "Title": "etl × gain × rpm",
       "Kind": "Op",
       "X": 280.0,
-      "Y": 870.0,
+      "Y": 370.0,
       "Ports": [
         {
           "Name": "a",
@@ -398,8 +398,8 @@
       "Id": "add_total_load",
       "Title": "Load + ETL + RBS",
       "Kind": "Op",
-      "X": 950.0,
-      "Y": 320.0,
+      "X": 620.0,
+      "Y": 230.0,
       "Ports": [
         {
           "Name": "a",
@@ -427,8 +427,8 @@
     {
       "Id": "param_k_spring",
       "Kind": "Param",
-      "X": 30.0,
-      "Y": 600.0,
+      "X": 100.0,
+      "Y": 1500.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -479,8 +479,8 @@
     {
       "Id": "param_trim_step",
       "Kind": "Param",
-      "X": 30.0,
-      "Y": 670.0,
+      "X": 100.0,
+      "Y": 1570.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -492,8 +492,8 @@
     {
       "Id": "param_trim_min",
       "Kind": "Param",
-      "X": 30.0,
-      "Y": 740.0,
+      "X": 100.0,
+      "Y": 1640.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -505,8 +505,8 @@
     {
       "Id": "param_trim_max",
       "Kind": "Param",
-      "X": 30.0,
-      "Y": 810.0,
+      "X": 100.0,
+      "Y": 1710.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -594,8 +594,8 @@
       "Id": "trim_include",
       "Title": "FTR + Hat Trim",
       "Kind": "Include",
-      "X": 490.0,
-      "Y": 460.0,
+      "X": 560.0,
+      "Y": 1360.0,
       "IncludePath": "trim_combined.json"
     },
     {
@@ -626,8 +626,8 @@
     {
       "Id": "aa16294c52b74d6584a397027d88f23f",
       "Kind": "Output",
-      "X": 710.0,
-      "Y": 460.0,
+      "X": 780.0,
+      "Y": 1360.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -645,7 +645,7 @@
       "Title": "G Load (G-1)",
       "Kind": "Input",
       "X": 30.0,
-      "Y": 1310.0,
+      "Y": 660.0,
       "Ports": [
         {
           "Name": "g_load",
@@ -658,7 +658,7 @@
       "Title": "G Load Gain (eff)",
       "Kind": "Input",
       "X": 30.0,
-      "Y": 1380.0,
+      "Y": 730.0,
       "Ports": [
         {
           "Name": "g_load_gain_eff",
@@ -671,7 +671,7 @@
       "Title": "g x gain x rpm",
       "Kind": "Op",
       "X": 280.0,
-      "Y": 1330.0,
+      "Y": 680.0,
       "Ports": [
         {
           "Name": "a",
@@ -696,8 +696,8 @@
       "Id": "in_thump",
       "Title": "Touchdown thump",
       "Kind": "Input",
-      "X": 1180.0,
-      "Y": 1060.0,
+      "X": 830.0,
+      "Y": 1020.0,
       "Ports": [
         {
           "Name": "thump",
@@ -709,8 +709,8 @@
       "Id": "add_buffet_total",
       "Title": "buffet + thump",
       "Kind": "Op",
-      "X": 1320.0,
-      "Y": 980.0,
+      "X": 1090.0,
+      "Y": 910.0,
       "Ports": [
         {
           "Name": "a",
@@ -735,8 +735,8 @@
       "Id": "in_turb",
       "Title": "Turbulence (|G hp|)",
       "Kind": "Input",
-      "X": 1160.0,
-      "Y": 1140.0,
+      "X": 770.0,
+      "Y": 1100.0,
       "Ports": [
         {
           "Name": "turb",
@@ -747,8 +747,8 @@
     {
       "Id": "param_turb_gain",
       "Kind": "Param",
-      "X": 1180.0,
-      "Y": 1210.0,
+      "X": 660.0,
+      "Y": 1180.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -761,8 +761,8 @@
       "Id": "mul_turb_buffet",
       "Title": "turb x gain",
       "Kind": "Op",
-      "X": 1320.0,
-      "Y": 1140.0,
+      "X": 930.0,
+      "Y": 1100.0,
       "Ports": [
         {
           "Name": "a",
@@ -778,6 +778,48 @@
         }
       ],
       "Op": "mul"
+    },
+    {
+      "Id": "4d524584c0214589931c3676da1ebfc3",
+      "Title": "0.0",
+      "Kind": "Const",
+      "X": 770.0,
+      "Y": 130.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "9b4c13e8cc2b4f9eb049424be56c0ce3",
+      "Title": "1.0",
+      "Kind": "Const",
+      "X": 80.0,
+      "Y": 960.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
+    },
+    {
+      "Id": "b10b07dc401e4c4c85768c9922f1cdd8",
+      "Title": "1.0",
+      "Kind": "Const",
+      "X": 490.0,
+      "Y": 610.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
     }
   ],
   "Links": [
@@ -920,28 +962,10 @@
       "ToPort": "min"
     },
     {
-      "FromNodeId": "const_vrs_one",
-      "FromPort": "out",
-      "ToNodeId": "clamp_vrs_eff",
-      "ToPort": "max"
-    },
-    {
       "FromNodeId": "param_vrs_atten_gain",
       "FromPort": "VrsAttenGain",
       "ToNodeId": "mul_atten_amt",
-      "ToPort": "a"
-    },
-    {
-      "FromNodeId": "clamp_vrs_eff",
-      "FromPort": "clamp(a,min,max)",
-      "ToNodeId": "mul_atten_amt",
       "ToPort": "b"
-    },
-    {
-      "FromNodeId": "const_vrs_one",
-      "FromPort": "out",
-      "ToNodeId": "sub_atten_factor",
-      "ToPort": "a"
     },
     {
       "FromNodeId": "mul_atten_amt",
@@ -1052,12 +1076,6 @@
       "ToPort": "a"
     },
     {
-      "FromNodeId": "const_vrs_zero",
-      "FromPort": "out",
-      "ToNodeId": "owl_clamp",
-      "ToPort": "a"
-    },
-    {
       "FromNodeId": "in_g_load",
       "FromPort": "g_load",
       "ToNodeId": "mul_g_load",
@@ -1110,6 +1128,30 @@
       "FromPort": "a*b",
       "ToNodeId": "add_buffet_total",
       "ToPort": "c"
+    },
+    {
+      "FromNodeId": "4d524584c0214589931c3676da1ebfc3",
+      "FromPort": "out",
+      "ToNodeId": "owl_clamp",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "9b4c13e8cc2b4f9eb049424be56c0ce3",
+      "FromPort": "out",
+      "ToNodeId": "clamp_vrs_eff",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "b10b07dc401e4c4c85768c9922f1cdd8",
+      "FromPort": "out",
+      "ToNodeId": "sub_atten_factor",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "clamp_vrs_eff",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_atten_amt",
+      "ToPort": "a"
     }
   ],
   "Params": [
@@ -1262,7 +1304,16 @@
       "DefaultValue": 0.0,
       "Min": 0.0,
       "Max": 1.0,
-      "Ui": null
+      "Ui": {
+        "Widget": "",
+        "Label": "",
+        "Group": "",
+        "Units": "",
+        "Step": null,
+        "Precision": null,
+        "LogScale": false,
+        "Options": []
+      }
     },
     {
       "Name": "Cyclic.TurbBuffetGain",

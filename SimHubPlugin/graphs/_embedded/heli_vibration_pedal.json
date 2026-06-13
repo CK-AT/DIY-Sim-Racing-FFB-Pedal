@@ -6,8 +6,8 @@
       "Id": "in_rpm_norm",
       "Title": "RPM (norm)",
       "Kind": "Input",
-      "X": 30.0,
-      "Y": 70.0,
+      "X": 40.0,
+      "Y": 240.0,
       "Ports": [
         {
           "Name": "rpm_norm",
@@ -19,8 +19,8 @@
       "Id": "in_blade_count",
       "Title": "Main Blade Count",
       "Kind": "Input",
-      "X": 420.0,
-      "Y": 720.0,
+      "X": 470.0,
+      "Y": 960.0,
       "Ports": [
         {
           "Name": "blade_count",
@@ -32,8 +32,8 @@
       "Id": "in_tr_blade_count",
       "Title": "TR Blade Count",
       "Kind": "Input",
-      "X": 20.0,
-      "Y": 730.0,
+      "X": 70.0,
+      "Y": 970.0,
       "Ports": [
         {
           "Name": "tr_blade_count",
@@ -45,8 +45,8 @@
       "Id": "in_tr_gear",
       "Title": "TR Gear Ratio",
       "Kind": "Input",
-      "X": 30.0,
-      "Y": 820.0,
+      "X": 90.0,
+      "Y": 1060.0,
       "Ports": [
         {
           "Name": "tr_gear",
@@ -57,8 +57,8 @@
     {
       "Id": "param_gain_1rev",
       "Kind": "Param",
-      "X": 360.0,
-      "Y": 10.0,
+      "X": 370.0,
+      "Y": 180.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -70,8 +70,8 @@
     {
       "Id": "param_gain_nrev",
       "Kind": "Param",
-      "X": 30.0,
-      "Y": 190.0,
+      "X": 40.0,
+      "Y": 360.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -83,8 +83,8 @@
     {
       "Id": "param_gain_tr_blade",
       "Kind": "Param",
-      "X": 30.0,
-      "Y": 340.0,
+      "X": 40.0,
+      "Y": 510.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -96,8 +96,8 @@
     {
       "Id": "param_gain_tr_2nd",
       "Kind": "Param",
-      "X": 30.0,
-      "Y": 450.0,
+      "X": 40.0,
+      "Y": 620.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -110,8 +110,8 @@
       "Id": "const_one",
       "Title": "1.0",
       "Kind": "Const",
-      "X": 430.0,
-      "Y": 650.0,
+      "X": 490.0,
+      "Y": 890.0,
       "Ports": [
         {
           "Name": "out",
@@ -124,8 +124,8 @@
       "Id": "const_two",
       "Title": "2.0",
       "Kind": "Const",
-      "X": 220.0,
-      "Y": 890.0,
+      "X": 270.0,
+      "Y": 1130.0,
       "Ports": [
         {
           "Name": "out",
@@ -138,8 +138,8 @@
       "Id": "const_phase_zero",
       "Title": "0 deg",
       "Kind": "Const",
-      "X": 430.0,
-      "Y": 970.0,
+      "X": 490.0,
+      "Y": 1210.0,
       "Ports": [
         {
           "Name": "out",
@@ -152,8 +152,8 @@
       "Id": "mul_rpm_sq",
       "Title": "rpm × rpm",
       "Kind": "Op",
-      "X": 460.0,
-      "Y": 80.0,
+      "X": 470.0,
+      "Y": 250.0,
       "Ports": [
         {
           "Name": "a",
@@ -174,8 +174,8 @@
       "Id": "mul_1rev_ampl",
       "Title": "Vib1Ampl1 = gain_1rev × rpm²",
       "Kind": "Op",
-      "X": 630.0,
-      "Y": 40.0,
+      "X": 640.0,
+      "Y": 210.0,
       "Ports": [
         {
           "Name": "a",
@@ -196,8 +196,8 @@
       "Id": "mul_nrev_ampl",
       "Title": "Vib1Ampl2 = gain_nrev × rpm",
       "Kind": "Op",
-      "X": 630.0,
-      "Y": 190.0,
+      "X": 640.0,
+      "Y": 360.0,
       "Ports": [
         {
           "Name": "a",
@@ -218,8 +218,8 @@
       "Id": "mul_tr_blade_ampl",
       "Title": "Vib1Ampl3 = gain_tr_blade × rpm",
       "Kind": "Op",
-      "X": 630.0,
-      "Y": 340.0,
+      "X": 640.0,
+      "Y": 510.0,
       "Ports": [
         {
           "Name": "a",
@@ -240,8 +240,8 @@
       "Id": "mul_tr_2nd_ampl",
       "Title": "Vib1Ampl4 = gain_tr_2nd × rpm",
       "Kind": "Op",
-      "X": 630.0,
-      "Y": 450.0,
+      "X": 640.0,
+      "Y": 620.0,
       "Ports": [
         {
           "Name": "a",
@@ -262,8 +262,8 @@
       "Id": "mul_tr_blade_ratio",
       "Title": "tr_blade × tr_gear",
       "Kind": "Op",
-      "X": 210.0,
-      "Y": 760.0,
+      "X": 270.0,
+      "Y": 1000.0,
       "Ports": [
         {
           "Name": "a",
@@ -284,8 +284,8 @@
       "Id": "mul_tr_2nd_ratio",
       "Title": "2 × tr_blade × tr_gear",
       "Kind": "Op",
-      "X": 370.0,
-      "Y": 860.0,
+      "X": 430.0,
+      "Y": 1100.0,
       "Ports": [
         {
           "Name": "a",
@@ -305,8 +305,8 @@
     {
       "Id": "out_ampl1",
       "Kind": "Output",
-      "X": 1020.0,
-      "Y": 40.0,
+      "X": 1030.0,
+      "Y": 210.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -318,8 +318,8 @@
     {
       "Id": "out_ampl2",
       "Kind": "Output",
-      "X": 1020.0,
-      "Y": 190.0,
+      "X": 1030.0,
+      "Y": 360.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -331,8 +331,8 @@
     {
       "Id": "out_ampl3",
       "Kind": "Output",
-      "X": 880.0,
-      "Y": 340.0,
+      "X": 890.0,
+      "Y": 510.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -344,8 +344,8 @@
     {
       "Id": "out_ampl4",
       "Kind": "Output",
-      "X": 880.0,
-      "Y": 450.0,
+      "X": 890.0,
+      "Y": 620.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -357,8 +357,8 @@
     {
       "Id": "out_ampl5",
       "Kind": "Output",
-      "X": 880.0,
-      "Y": 550.0,
+      "X": 890.0,
+      "Y": 720.0,
       "Ports": [
         {
           "Kind": "Input",
@@ -371,8 +371,8 @@
       "Id": "cfg_ratios",
       "Title": "ConfigOut",
       "Kind": "ConfigOut",
-      "X": 610.0,
-      "Y": 790.0,
+      "X": 670.0,
+      "Y": 1030.0,
       "Ports": [
         {
           "Name": "FlightControl.Vib1HarmRatio1",
@@ -410,8 +410,8 @@
     {
       "Id": "param_gain_tr_1rev",
       "Kind": "Param",
-      "X": 30.0,
-      "Y": 560.0,
+      "X": 40.0,
+      "Y": 730.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -424,8 +424,8 @@
       "Id": "mul_tr_1rev_ampl",
       "Title": "Vib1Ampl5 = gain_tr_1rev x rpm^2",
       "Kind": "Op",
-      "X": 630.0,
-      "Y": 550.0,
+      "X": 640.0,
+      "Y": 720.0,
       "Ports": [
         {
           "Name": "a",
@@ -447,7 +447,7 @@
       "Title": "Ground boost (0..gain)",
       "Kind": "Input",
       "X": 520.0,
-      "Y": -60.0,
+      "Y": 100.0,
       "Ports": [
         {
           "Name": "gnd_boost",
@@ -459,8 +459,8 @@
       "Id": "add_gnd_factor",
       "Title": "1 + gnd boost",
       "Kind": "Op",
-      "X": 700.0,
-      "Y": -60.0,
+      "X": 710.0,
+      "Y": 110.0,
       "Ports": [
         {
           "Name": "a",
@@ -481,8 +481,8 @@
       "Id": "mul_gnd_1rev",
       "Title": "1/rev x gnd",
       "Kind": "Op",
-      "X": 850.0,
-      "Y": 40.0,
+      "X": 860.0,
+      "Y": 210.0,
       "Ports": [
         {
           "Name": "a",
@@ -503,8 +503,8 @@
       "Id": "mul_gnd_nrev",
       "Title": "N/rev x gnd",
       "Kind": "Op",
-      "X": 850.0,
-      "Y": 190.0,
+      "X": 860.0,
+      "Y": 360.0,
       "Ports": [
         {
           "Name": "a",
@@ -520,6 +520,20 @@
         }
       ],
       "Op": "mul"
+    },
+    {
+      "Id": "8125cd257eab4493978435aadc3932d5",
+      "Title": "1.0",
+      "Kind": "Const",
+      "X": 560.0,
+      "Y": 30.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
     }
   ],
   "Links": [
@@ -686,12 +700,6 @@
       "ToPort": "FlightControl.Vib1HarmRatio5"
     },
     {
-      "FromNodeId": "const_one",
-      "FromPort": "out",
-      "ToNodeId": "add_gnd_factor",
-      "ToPort": "a"
-    },
-    {
       "FromNodeId": "in_gnd_boost",
       "FromPort": "gnd_boost",
       "ToNodeId": "add_gnd_factor",
@@ -720,6 +728,12 @@
       "FromPort": "a+b",
       "ToNodeId": "mul_gnd_nrev",
       "ToPort": "b"
+    },
+    {
+      "FromNodeId": "8125cd257eab4493978435aadc3932d5",
+      "FromPort": "out",
+      "ToNodeId": "add_gnd_factor",
+      "ToPort": "a"
     }
   ],
   "Params": [
