@@ -18,14 +18,14 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 ## Core Concepts
 ### Graph Definition
 - Directed acyclic graph (DAG) of nodes with typed input/output ports.
-- Graph schema versioned (currently v3).
+- Graph schema versioned (currently v4).
 - Nodes:
   - Input: pulls a named input value.
   - Param: pulls a tunable parameter.
   - Const: constant numeric value.
   - Op: arithmetic operations (add/sub/mul/div/min/max/abs/neg/clamp/lerp) with output ports labeled by formula; add/mul/min/max accept variable input counts and expand the output label to match (e.g., "a+b+c"). Add/mul inputs can be negated per-port and the output label reflects negation (e.g., "a+b-c", "a*b*-c").
   - Func: known functions (qhat_eff, torque_norm, rpm_norm, assist_loss).
-  - Include: references another graph by path or embedded content.
+  - Include: references a sub-graph, either **file-backed** (by `IncludePath`) or **embedded** (an inline sub-graph definition stored in the parent node — no path). The two forms are mutually exclusive; a node is embedded iff it carries an inline graph and has no path.
   - Output: exposes a named output.
 - Nodes can have multiple input/output ports to reduce total node count.
 - Layout metadata (positions, collapsed state, group/section) is stored in JSON.
@@ -38,9 +38,32 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 - Division by near-zero returns 0.0.
 
 ### Include Resolution
-- Include node can reference path or embedded graph content.
-- Resolver caches graphs and populates a block library index.
-- Include outputs are mapped into the parent graph with explicit port names.
+- Include node can reference a file path or carry embedded (inline) graph content.
+- File-backed includes are cached by the resolver and registered in the block library index for reuse across graphs.
+- Embedded sub-graphs are evaluated directly from memory (cached per-node by `"inline:" + nodeId`) with **no disk spill** — the resolver no longer materializes inline blocks to `_embedded/{hash}.json`. Embedded blocks are private to their parent and are deliberately *not* registered in the block library (no reuse).
+- Include outputs are mapped into the parent graph with explicit port names. For both forms, the Include node's ports are derived from the sub-graph's Input/Output nodes (re-derived on load, not stored on the Include node itself).
+
+### Embedded Sub-Graphs
+- An embedded sub-graph is an Include node whose definition lives **inline** in the parent rather than referenced by file path. Use it for one-off, template-specific clusters (e.g. a TR-gate, mu-buzz ramp, or ground-cue) that would otherwise clutter the top level. Reuse across templates stays file-based.
+- Stored in the editor JSON as a nested `Inline` block on the Include node DTO; embedding nests recursively (an embedded sub-graph may itself contain embedded includes). Ports are not serialized — they are re-derived from the inline graph's Input/Output nodes on load (`PopulateIncludePorts`), and re-sync live when the sub-graph's interface changes.
+- **Library graphs** (`IsLibraryGraph`, schema v4): a reusable sub-graph flagged as a library block whose Input/Output nodes use freeform port names (no signal-catalog binding), so the parent supplies the wiring. Library graphs are file-backed for sharing; embedding is for the non-reused case.
+
+#### Editor operations (right-click context menu)
+
+- **Add Embedded Sub-Graph** — inserts an Include node carrying a blank inline graph.
+- **Group N Nodes into Embedded Sub-Graph** — collapses the current selection into a new embedded Include: boundary-crossing links become deduped Input/Output ports, the parent is rewired automatically, and the moved contents are anchored near the sub-graph canvas top-left.
+- **Extract Embedded Sub-Graph to File…** — writes an inline block out to a chosen `_embedded/*.json`, sets `IncludePath`, and clears the inline content (embedded → file-backed).
+- **Inline This Include (detach from file)** — reads a file include into the node's inline content and clears `IncludePath` (file-backed → embedded). The shared file is left in place; only this node detaches.
+
+#### Embedded sub-graph tabs
+
+- Double-clicking a path-less Include opens its inline graph in its own editor tab, titled `parent/node` (nesting chains, e.g. `file/outer/inner`).
+- Edits flush back into the parent Include node's inline content and mark the parent dirty (there is no standalone file). Saving cascades up to the root file tab; an embedded tab never prompts for a filename, and closing it never prompts to save (its content already lives in the parent).
+- Embedded tabs key on `(parentTab, nodeId)` for dedupe, not a file path.
+
+#### Include port reordering
+
+- Per-node `InputPortOrder` / `OutputPortOrder` (lists of port names, serialized) let the parent fix the display order of an Include node's derived ports for tidy wiring. This is purely cosmetic — links and maps are name-keyed, so reordering never breaks wiring. Unknown names are ignored and new ports append in derived order. The inspector exposes ▲/▼ buttons to reorder.
 
 ## UI Editor Behavior
 ### Core UX
@@ -87,8 +110,10 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 - Library list for cached/embedded blocks.
 
 ## Data Model and Persistence
-- JSON schema (versioned) with nodes, ports, links, params.
-- Includes can be stored as paths or embedded graphs with block library index.
+- JSON schema (versioned, currently v4) with nodes, ports, links, params.
+- Includes are stored either as a file path (`IncludePath`, registered in the block library index) or as an embedded sub-graph (a nested `Inline` block on the Include node — recursive, private to the parent, never registered for reuse).
+- Include node ports are not serialized; they are re-derived from the sub-graph's Input/Output nodes on load. Optional `InputPortOrder` / `OutputPortOrder` lists are serialized to fix cosmetic port display order.
+- `IsLibraryGraph` (v4) flags a reusable sub-graph whose Input/Output nodes use freeform port names instead of signal-catalog binding.
 - Paths can be stored relative to the root graph directory.
 - Layout data persists in the JSON to preserve editor state.
 

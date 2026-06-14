@@ -24,7 +24,67 @@ These map to X-Plane telemetry and system values.
 - `XPlane.AeroTorque.Yaw` (Nm)
 - `XPlane.MainRotor.Torque` (Nm)
 - `XPlane.MainRotor.Speed` (1/min)
+- `XPlane.Rotor.BladeAlphPitch` (deg)
+- `XPlane.Rotor.BladeAlphRoll` (deg)
+- `XPlane.Rotor.Slap` (normalized)
+- `XPlane.Rotor.VRS` (normalized)
+- `XPlane.Rotor.Propwash` (normalized)
 - `XPlane.OnGround` (bool)
+
+## MSFS input signals
+These map to MSFS telemetry via the SimConnect bridge (plan 17). They mirror `XPlane.*` where possible; rotor-related signals are derived in the bridge (tier C — IAS-only baselines).
+
+Airframe / motion:
+
+- `MSFS.Speed.IAS` (kts)
+- `MSFS.Speed.TAS` (kts)
+- `MSFS.Angle.Alpha` (deg)
+- `MSFS.Angle.Beta` (deg)
+- `MSFS.Attitude.Pitch` (deg)
+- `MSFS.Attitude.Bank` (deg)
+- `MSFS.Rate.Roll` (deg/s)
+- `MSFS.Rate.Pitch` (deg/s)
+- `MSFS.Rate.Yaw` (deg/s)
+- `MSFS.G_Nrml` (g multiples)
+- `MSFS.VVI.World` (ft/min)
+- `MSFS.Velocity.BodyX` (ft/s)
+- `MSFS.Velocity.BodyY` (ft/s)
+- `MSFS.Velocity.BodyZ` (ft/s)
+- `MSFS.GroundSpeed` (kts) — ground speed over the surface, from SimConnect `GROUND VELOCITY`; drives the helicopter ground-rumble cue.
+- `MSFS.Weight.Total` (lbs)
+- `MSFS.Air.Density` (slug/ft^3)
+- `MSFS.OnGround` (bool)
+
+Rotorcraft:
+
+- `MSFS.MainRotor.Speed` (1/min)
+- `MSFS.TailRotor.Speed` (1/min)
+- `MSFS.Eng.TorquePct` (%)
+- `MSFS.Collective.Position` (normalized)
+- `MSFS.Collective.BladePitchPct` (%)
+- `MSFS.Cyclic.BladePitchPct` (%)
+- `MSFS.Cyclic.MaxPitchAngle` (deg)
+- `MSFS.TailRotor.PedalPosition` (normalized)
+- `MSFS.TailRotor.BladePitchPct` (%)
+- `MSFS.Disk.PitchAngle` (deg)
+- `MSFS.Disk.BankAngle` (deg)
+- `MSFS.Disk.ConingPct` (%)
+- `MSFS.Rotor.LateralTrim` (normalized)
+- `MSFS.Rotor.LongitudinalTrim` (normalized)
+- `MSFS.Rotor.RotationAngle` (deg)
+
+Trim:
+
+- `MSFS.Trim.Elevator` (normalized -1..1)
+- `MSFS.Trim.Aileron` (normalized -1..1)
+- `MSFS.Trim.Rudder` (normalized -1..1)
+
+## Grip / Axis input signals
+- `Grip.TrimHat.Up` / `.Down` / `.Left` / `.Right` (bool)
+- `Grip.ForceTrimRelease` (bool)
+- `Grip.TrimReset` (bool)
+- `Axis.{FlightStickPitch|FlightStickRoll|FlightPedals|FlightStickCollective}.Position` (normalized)
+- `Axis.{FlightStickPitch|FlightStickRoll|FlightPedals|FlightStickCollective}.Center` (normalized)
 
 ## Parameter signals
 These can be defined freely, but must be part of a defined set of groups (top level names):

@@ -158,6 +158,12 @@ Status: living progress document for graph editor/runtime integration.
 - Fixed inspector showing wrong values: `EditIncludePath_TextChanged` (Include nodes) and `InspectorSignalGroup_SelectionChanged` (Input/Output/Param nodes) now validate DataContext with ReferenceEquals check to prevent stale events from updating the wrong node.
 - Fixed CloseTab bypassing SharedGraphSaveDialog: closing a dirty tab now checks if graph is shared and shows the save protection dialog before saving.
 - Escape key deselects all nodes and edges.
+- Embedded sub-graphs: an Include node can carry an inline sub-graph definition (no `IncludePath`), serialized as a nested `Inline` block, evaluated from memory (cached `inline:<nodeId>`, no disk spill), private to the parent (not registered in the block library). Ports re-derived from the inline graph's Input/Output nodes on load; nesting is recursive.
+- Embedded sub-graph editor commands (right-click): "Add Embedded Sub-Graph" (blank), "Group N Nodes into Embedded Sub-Graph" (collapse selection — boundary-crossing links become deduped Input/Output ports, parent rewired automatically, contents anchored to sub-graph top-left), "Extract Embedded Sub-Graph to File…" and "Inline This Include (detach from file)" (convert between embedded and file-backed).
+- Embedded sub-graph tabs: double-click a path-less Include opens it in its own tab titled `parent/node` (nesting chains via `EmbeddedOpenRequested`, keyed on `(parentTab, nodeId)`); edits flush back into the parent node and dirty the parent; Save cascades to the root file (no filename prompt); closing never prompts.
+- Include port reordering: per-node `InputPortOrder`/`OutputPortOrder` (serialized) set a cosmetic display order for derived Include ports; inspector ▲/▼ buttons reorder. Purely cosmetic — links are name-keyed.
+- Added `MSFS.GroundSpeed` input signal (kts, from SimConnect `GROUND VELOCITY`) driving the helicopter ground-rumble cue.
+- Split `msfs_derivations` into per-cue embedded sub-graphs within the MSFS helicopter template, replacing the monolithic derivations include.
 
 ## In Progress
 
