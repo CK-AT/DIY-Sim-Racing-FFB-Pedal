@@ -420,6 +420,20 @@
       "X": 1680.0,
       "Y": 30.0,
       "IncludePath": "..\\_embedded\\heli_ground_cues.json"
+    },
+    {
+      "Id": "const_td_descent_full",
+      "Title": "1000 fpm (no VS signal)",
+      "Kind": "Const",
+      "X": 1500.0,
+      "Y": 120.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1000.0
     }
   ],
   "Links": [
@@ -752,6 +766,12 @@
       "FromPort": "thump",
       "ToNodeId": "collective_include",
       "ToPort": "thump"
+    },
+    {
+      "FromNodeId": "const_td_descent_full",
+      "FromPort": "out",
+      "ToNodeId": "gnd_cues_include",
+      "ToPort": "descent_fpm"
     }
   ],
   "Params": [

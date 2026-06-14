@@ -97,10 +97,10 @@
     },
     {
       "Id": "mul_td_pulse",
-      "Title": "edge x gain",
+      "Title": "edge x gain x severity",
       "Kind": "Op",
-      "X": 510.0,
-      "Y": 270.0,
+      "X": 860.0,
+      "Y": 300.0,
       "Ports": [
         {
           "Name": "a",
@@ -111,7 +111,11 @@
           "Kind": "Input"
         },
         {
-          "Name": "a*b",
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c",
           "Kind": "Output"
         }
       ],
@@ -149,7 +153,7 @@
       "Id": "func_td_lag",
       "Title": "stretch pulse",
       "Kind": "Func",
-      "X": 660.0,
+      "X": 1040.0,
       "Y": 300.0,
       "Ports": [
         {
@@ -176,7 +180,7 @@
       "Id": "out_thump",
       "Title": "Thump Out",
       "Kind": "Output",
-      "X": 840.0,
+      "X": 1220.0,
       "Y": 300.0,
       "Ports": [
         {
@@ -184,6 +188,163 @@
           "Kind": "Input"
         }
       ]
+    },
+    {
+      "Id": "in_descent",
+      "Title": "Descent (fpm, +down)",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 560.0,
+      "Ports": [
+        {
+          "Name": "descent_fpm",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "const_hold_up",
+      "Title": "0.05 s",
+      "Kind": "Const",
+      "X": 40.0,
+      "Y": 700.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.05
+    },
+    {
+      "Id": "const_hold_down",
+      "Title": "0.5 s",
+      "Kind": "Const",
+      "X": 130.0,
+      "Y": 700.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.5
+    },
+    {
+      "Id": "func_descent_hold",
+      "Title": "hold descent over touchdown",
+      "Kind": "Func",
+      "X": 260.0,
+      "Y": 560.0,
+      "Ports": [
+        {
+          "Name": "input",
+          "Kind": "Input"
+        },
+        {
+          "Name": "tau_up_sec",
+          "Kind": "Input"
+        },
+        {
+          "Name": "tau_down_sec",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Func": "lag_asym",
+      "IncludePath": ""
+    },
+    {
+      "Id": "param_td_vs_ref",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 480.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TouchdownVsRef"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "div_td_sev",
+      "Title": "descent / ref",
+      "Kind": "Op",
+      "X": 460.0,
+      "Y": 520.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "const_sev_zero",
+      "Title": "0",
+      "Kind": "Const",
+      "X": 460.0,
+      "Y": 640.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "const_sev_one",
+      "Title": "1",
+      "Kind": "Const",
+      "X": 540.0,
+      "Y": 640.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
+    },
+    {
+      "Id": "clamp_td_sev",
+      "Title": "severity 0..1",
+      "Kind": "Op",
+      "X": 660.0,
+      "Y": 520.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
     }
   ],
   "Links": [
@@ -219,7 +380,7 @@
     },
     {
       "FromNodeId": "mul_td_pulse",
-      "FromPort": "a*b",
+      "FromPort": "a*b*c",
       "ToNodeId": "func_td_lag",
       "ToPort": "input"
     },
@@ -246,6 +407,60 @@
       "FromPort": "GndResGain",
       "ToNodeId": "mul_gnd_boost",
       "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_descent",
+      "FromPort": "descent_fpm",
+      "ToNodeId": "func_descent_hold",
+      "ToPort": "input"
+    },
+    {
+      "FromNodeId": "const_hold_up",
+      "FromPort": "out",
+      "ToNodeId": "func_descent_hold",
+      "ToPort": "tau_up_sec"
+    },
+    {
+      "FromNodeId": "const_hold_down",
+      "FromPort": "out",
+      "ToNodeId": "func_descent_hold",
+      "ToPort": "tau_down_sec"
+    },
+    {
+      "FromNodeId": "func_descent_hold",
+      "FromPort": "out",
+      "ToNodeId": "div_td_sev",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_td_vs_ref",
+      "FromPort": "TouchdownVsRef",
+      "ToNodeId": "div_td_sev",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_td_sev",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_td_sev",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_sev_zero",
+      "FromPort": "out",
+      "ToNodeId": "clamp_td_sev",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "const_sev_one",
+      "FromPort": "out",
+      "ToNodeId": "clamp_td_sev",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "clamp_td_sev",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_td_pulse",
+      "ToPort": "c"
     }
   ],
   "Params": [
@@ -270,16 +485,32 @@
       "Name": "Aircraft.TouchdownGain",
       "DefaultValue": 2.0,
       "Min": 0.0,
-      "Max": 10.0,
+      "Max": 100.0,
       "Ui": {
         "Widget": "slider",
-        "Label": "Touchdown Thump",
+        "Label": "Touchdown Thump (@ ref VS)",
         "Group": "Aircraft",
         "Units": "N",
         "Step": 0.1,
         "Precision": 1,
         "LogScale": false,
         "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.TouchdownVsRef",
+      "DefaultValue": 300.0,
+      "Min": 50.0,
+      "Max": 1000.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Touchdown VS Reference",
+        "Group": "Aircraft",
+        "Units": "fpm",
+        "Step": 10.0,
+        "Precision": 0,
+        "LogScale": false,
         "Options": []
       }
     }

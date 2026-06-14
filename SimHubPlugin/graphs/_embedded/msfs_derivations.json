@@ -2167,6 +2167,19 @@
           "Kind": "Input"
         }
       ]
+    },
+    {
+      "Id": "out_descent",
+      "Title": "Descent Out",
+      "Kind": "Output",
+      "X": 1040.0,
+      "Y": 240.0,
+      "Ports": [
+        {
+          "Name": "Descent",
+          "Kind": "Input"
+        }
+      ]
     }
   ],
   "Links": [
@@ -3099,6 +3112,12 @@
       "FromPort": "a*b",
       "ToNodeId": "out_tr_gate",
       "ToPort": "TrBuffetGate"
+    },
+    {
+      "FromNodeId": "max_descent",
+      "FromPort": "max(a,b)",
+      "ToNodeId": "out_descent",
+      "ToPort": "Descent"
     }
   ],
   "Params": [

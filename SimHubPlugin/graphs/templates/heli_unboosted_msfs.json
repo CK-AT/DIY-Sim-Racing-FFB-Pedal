@@ -77,7 +77,7 @@
       "Title": "Cyclic Roll",
       "Kind": "Include",
       "X": 640.0,
-      "Y": 1910.0,
+      "Y": 2000.0,
       "IncludePath": "..\\_embedded\\heli_cyclic_unboosted.json",
       "FunctionScope": "FlightStickRoll"
     },
@@ -124,7 +124,7 @@
       "Id": "in_grip_roll",
       "Kind": "Input",
       "X": 410.0,
-      "Y": 1930.0,
+      "Y": 2020.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -162,7 +162,7 @@
       "Id": "in_axis_roll",
       "Kind": "Input",
       "X": 390.0,
-      "Y": 2050.0,
+      "Y": 2140.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -193,7 +193,7 @@
       "Title": "0",
       "Kind": "Const",
       "X": 430.0,
-      "Y": 1860.0,
+      "Y": 1950.0,
       "Ports": [
         {
           "Name": "out",
@@ -308,7 +308,7 @@
       "Id": "param_etl_bump_load_pitch",
       "Kind": "Param",
       "X": 290.0,
-      "Y": 1580.0,
+      "Y": 1590.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -321,7 +321,7 @@
       "Id": "param_etl_bump_load_roll",
       "Kind": "Param",
       "X": 30.0,
-      "Y": 2350.0,
+      "Y": 2440.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -335,7 +335,7 @@
       "Title": "Roll ETL Load (×rot sign)",
       "Kind": "Op",
       "X": 360.0,
-      "Y": 2350.0,
+      "Y": 2440.0,
       "Ports": [
         {
           "Name": "a",
@@ -356,7 +356,7 @@
       "Id": "param_rbs_load_pitch",
       "Kind": "Param",
       "X": 280.0,
-      "Y": 1650.0,
+      "Y": 1660.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -369,7 +369,7 @@
       "Id": "param_rbs_load_roll",
       "Kind": "Param",
       "X": 50.0,
-      "Y": 2450.0,
+      "Y": 2540.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -383,7 +383,7 @@
       "Title": "Roll RBS Load (×rot sign)",
       "Kind": "Op",
       "X": 360.0,
-      "Y": 2450.0,
+      "Y": 2540.0,
       "Ports": [
         {
           "Name": "a",
@@ -489,7 +489,7 @@
       "Id": "param_g_load_gain",
       "Kind": "Param",
       "X": 310.0,
-      "Y": 1720.0,
+      "Y": 1730.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -502,7 +502,7 @@
       "Id": "param_g_load_roll_gain",
       "Kind": "Param",
       "X": 50.0,
-      "Y": 2550.0,
+      "Y": 2640.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -516,7 +516,7 @@
       "Title": "Roll G gain x mu x rot sign",
       "Kind": "Op",
       "X": 360.0,
-      "Y": 2550.0,
+      "Y": 2640.0,
       "Ports": [
         {
           "Name": "a",
@@ -634,6 +634,11 @@
           "Name": "TrBuffetGate",
           "Kind": "Input",
           "BusName": "TrBuffetGate"
+        },
+        {
+          "Name": "Descent",
+          "Kind": "Input",
+          "BusName": "Descent"
         }
       ]
     },
@@ -807,7 +812,7 @@
       "Title": "Bus Recv",
       "Kind": "LocalReceive",
       "X": 170.0,
-      "Y": 2650.0,
+      "Y": 2740.0,
       "Ports": [
         {
           "Name": "RotationSign",
@@ -961,8 +966,8 @@
       "Id": "bus_recv_cyclic_pitch_pre",
       "Title": "Bus Recv",
       "Kind": "LocalReceive",
-      "X": 440.0,
-      "Y": 1010.0,
+      "X": 400.0,
+      "Y": 1000.0,
       "Ports": [
         {
           "Name": "BladeAlphaPitch",
@@ -981,7 +986,7 @@
       "Title": "Bus Recv",
       "Kind": "LocalReceive",
       "X": 430.0,
-      "Y": 1380.0,
+      "Y": 1390.0,
       "Ports": [
         {
           "Name": "ETLBump",
@@ -1019,8 +1024,8 @@
       "Id": "bus_recv_cyclic_roll_pre",
       "Title": "Bus Recv",
       "Kind": "LocalReceive",
-      "X": 430.0,
-      "Y": 1820.0,
+      "X": 410.0,
+      "Y": 1850.0,
       "Ports": [
         {
           "Name": "BladeAlphaRoll",
@@ -1039,7 +1044,7 @@
       "Title": "Bus Recv",
       "Kind": "LocalReceive",
       "X": 430.0,
-      "Y": 2150.0,
+      "Y": 2240.0,
       "Ports": [
         {
           "Name": "ETLBump",
@@ -1070,6 +1075,20 @@
           "Name": "Turb",
           "Kind": "Output",
           "BusName": "Turb"
+        }
+      ]
+    },
+    {
+      "Id": "bus_recv_ground",
+      "Title": "Bus Recv",
+      "Kind": "LocalReceive",
+      "X": 990.0,
+      "Y": 390.0,
+      "Ports": [
+        {
+          "Name": "Descent",
+          "Kind": "Output",
+          "BusName": "Descent"
         }
       ]
     }
@@ -1770,6 +1789,18 @@
       "FromPort": "Turb",
       "ToNodeId": "cyclic_roll_include",
       "ToPort": "turb"
+    },
+    {
+      "FromNodeId": "derivations_include",
+      "FromPort": "Descent",
+      "ToNodeId": "bus_send_rotor",
+      "ToPort": "Descent"
+    },
+    {
+      "FromNodeId": "bus_recv_ground",
+      "FromPort": "Descent",
+      "ToNodeId": "gnd_cues_include",
+      "ToPort": "descent_fpm"
     }
   ],
   "Params": [
