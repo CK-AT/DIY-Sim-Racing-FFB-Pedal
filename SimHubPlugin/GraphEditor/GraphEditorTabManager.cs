@@ -186,6 +186,34 @@ namespace DiyFfb.GraphEditor
         }
 
         /// <summary>
+        /// Opens an embedded (inline, path-less) sub-graph in its own tab, or
+        /// switches to it if already open. Keyed by (parent tab, node id) since
+        /// embedded graphs have no file path.
+        /// </summary>
+        public GraphEditorTab OpenEmbedded(GraphEditorTab parent, GraphNode node)
+        {
+            if (parent == null || node == null)
+            {
+                return null;
+            }
+
+            var existing = Tabs.FirstOrDefault(t =>
+                t.IsEmbedded && t.ParentTab == parent && t.EmbeddedNodeId == node.Id);
+            if (existing != null)
+            {
+                SelectedTab = existing;
+                return existing;
+            }
+
+            var tab = new GraphEditorTab();
+            tab.LoadFromEmbedded(parent, node);
+            Tabs.Add(tab);
+            SelectedTab = tab;
+            TabAdded?.Invoke(this, tab);
+            return tab;
+        }
+
+        /// <summary>
         /// Creates a new untitled tab.
         /// </summary>
         public GraphEditorTab CreateNewTab()
@@ -213,6 +241,19 @@ namespace DiyFfb.GraphEditor
             }
 
             int index = Tabs.IndexOf(tab);
+            if (index < 0)
+            {
+                return false;
+            }
+
+            // Close any embedded child tabs that edit sub-graphs of this tab
+            // (recursively, covering nested embeds) — they reference this tab.
+            foreach (var child in Tabs.Where(t => t.ParentTab == tab).ToList())
+            {
+                CloseTab(child);
+            }
+
+            index = Tabs.IndexOf(tab);
             if (index < 0)
             {
                 return false;

@@ -112,6 +112,7 @@ namespace DiyFfb.GraphEditor
         private bool _previewRefreshPending;
 
         public event Action<string, string> IncludeOpenRequested;  // (path, includeNodeId)
+        public event Action<string, string> EmbeddedOpenRequested;  // (embeddedIncludeNodeId, contextId)
         public event Action GraphChanged;
         public event Action<bool> DirtyChanged;
         public event EventHandler<string> ContextChanged;  // string = contextId or null
@@ -1278,13 +1279,23 @@ namespace DiyFfb.GraphEditor
             if (sender is Border border && border.Tag is GraphNode node)
             {
                 // Handle double-click on Include nodes
-                if (e.ClickCount == 2 && node.Kind == GraphNodeKind.Include && !string.IsNullOrWhiteSpace(node.IncludePath))
+                if (e.ClickCount == 2 && node.Kind == GraphNodeKind.Include)
                 {
                     // Pass node.Id so the new tab can auto-select this context when live mode is active
                     string contextId = _liveInputsEnabled ? node.Id : null;
-                    IncludeOpenRequested?.Invoke(node.IncludePath, contextId);
-                    e.Handled = true;
-                    return;
+                    if (node.InlineGraph != null)
+                    {
+                        // Embedded sub-graph: open it in its own tab (no file).
+                        EmbeddedOpenRequested?.Invoke(node.Id, contextId);
+                        e.Handled = true;
+                        return;
+                    }
+                    if (!string.IsNullOrWhiteSpace(node.IncludePath))
+                    {
+                        IncludeOpenRequested?.Invoke(node.IncludePath, contextId);
+                        e.Handled = true;
+                        return;
+                    }
                 }
 
                 _dragNode = _nodeVisuals[node.Id];
@@ -1576,6 +1587,7 @@ namespace DiyFfb.GraphEditor
             menu.Items.Add(BuildMenuItem("Add Func", () => AddNode(GraphNodeKind.Func, position)));
             menu.Items.Add(BuildMenuItem("Add Expr", () => AddNode(GraphNodeKind.Expr, position)));
             menu.Items.Add(BuildMenuItem("Add Include", () => AddNode(GraphNodeKind.Include, position)));
+            menu.Items.Add(BuildMenuItem("Add Embedded Sub-Graph", () => AddEmbeddedSubgraph(position)));
             menu.Items.Add(BuildMenuItem("Add Output", () => AddNode(GraphNodeKind.Output, position)));
             menu.Items.Add(BuildMenuItem("Add ConfigOut", () => AddNode(GraphNodeKind.ConfigOut, position)));
             menu.Items.Add(BuildMenuItem("Add Local Send", () => AddNode(GraphNodeKind.LocalSend, position)));
@@ -1589,6 +1601,23 @@ namespace DiyFfb.GraphEditor
             menu.Items.Add(new Separator());
             menu.Items.Add(BuildMenuItem("Increase Edge Curvature", () => AdjustCurveTension(0.1)));
             menu.Items.Add(BuildMenuItem("Decrease Edge Curvature", () => AdjustCurveTension(-0.1)));
+
+            // Include-node conversions (single Include node selected)
+            if (_selectedNodes.Count == 1 && _selectedNode?.Node?.Kind == GraphNodeKind.Include)
+            {
+                var incNode = _selectedNode.Node;
+                menu.Items.Add(new Separator());
+                if (incNode.InlineGraph != null)
+                {
+                    menu.Items.Add(BuildMenuItem("Extract Embedded Sub-Graph to File…",
+                        () => ExtractEmbeddedToFile(incNode)));
+                }
+                else if (!string.IsNullOrWhiteSpace(incNode.IncludePath))
+                {
+                    menu.Items.Add(BuildMenuItem("Inline This Include (detach from file)",
+                        () => InlineFileInclude(incNode)));
+                }
+            }
             return menu;
         }
 
@@ -1668,6 +1697,15 @@ namespace DiyFfb.GraphEditor
             }
 
             _graph.Nodes.Add(node);
+            FinalizeAddedNode(node);
+        }
+
+        /// <summary>
+        /// Shared tail for adding a node: build its visual, select it, refresh, notify.
+        /// The node must already be in _graph.Nodes.
+        /// </summary>
+        private void FinalizeAddedNode(GraphNode node)
+        {
             var visual = BuildNodeVisual(node);
             _nodeVisuals[node.Id] = visual;
             CanvasSurface.Children.Add(visual.Container);
@@ -1679,6 +1717,124 @@ namespace DiyFfb.GraphEditor
             RefreshPreview();
             UpdateInspector();
             GraphChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Creates a new embedded (inline, path-less) sub-graph Include node. Its
+        /// inline graph starts with one Input ("in") and one Output ("out") so the
+        /// node has matching boundary ports; double-click opens it to build the body.
+        /// </summary>
+        private void AddEmbeddedSubgraph(Point position)
+        {
+            var inline = new GraphDefinition { IsLibraryGraph = true };
+            var subIn = new GraphNode { Kind = GraphNodeKind.Input, Title = "Input", X = 40, Y = 40 };
+            subIn.Ports.Add(new GraphPort { Name = "in", Kind = GraphPortKind.Output });
+            var subOut = new GraphNode { Kind = GraphNodeKind.Output, Title = "Output", X = 320, Y = 40 };
+            subOut.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Input });
+            inline.Nodes.Add(subIn);
+            inline.Nodes.Add(subOut);
+
+            var node = new GraphNode
+            {
+                Kind = GraphNodeKind.Include,
+                Title = "Embedded",
+                X = position.X,
+                Y = position.Y,
+                InlineGraph = inline
+            };
+            node.Ports.Add(new GraphPort { Name = "in", Kind = GraphPortKind.Input });
+            node.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
+
+            _graph.Nodes.Add(node);
+            FinalizeAddedNode(node);
+        }
+
+        /// <summary>
+        /// Extracts an embedded sub-graph to a standalone include file. Writes the
+        /// inline graph to a chosen path, sets IncludePath (relative to this graph),
+        /// and clears InlineGraph. Ports are unchanged (same interface).
+        /// </summary>
+        private void ExtractEmbeddedToFile(GraphNode node)
+        {
+            if (node == null || node.Kind != GraphNodeKind.Include || node.InlineGraph == null)
+            {
+                return;
+            }
+
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "Graph JSON (*.json)|*.json",
+                DefaultExt = "json",
+                Title = "Extract embedded sub-graph to file",
+                InitialDirectory = string.IsNullOrWhiteSpace(BaseDirectory)
+                    ? null : System.IO.Path.GetFullPath(BaseDirectory)
+            };
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            try
+            {
+                node.InlineGraph.IsLibraryGraph = true;
+                System.IO.File.WriteAllText(dialog.FileName, GraphSerializer.Serialize(node.InlineGraph));
+                node.IncludePath = MakeRelativePath(BaseDirectory, dialog.FileName);
+                node.InlineGraph = null;
+                GraphChanged?.Invoke();
+                UpdateInspector();
+            }
+            catch (Exception ex)
+            {
+                ThemedMessageBox.Show($"Extract failed:\n{ex.Message}", "Extract embedded sub-graph",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>
+        /// Inlines a file-backed include: reads the referenced file into InlineGraph
+        /// and clears IncludePath, detaching this node from the shared file (the file
+        /// itself is left in place). Ports are unchanged (same interface).
+        /// </summary>
+        private void InlineFileInclude(GraphNode node)
+        {
+            if (node == null || node.Kind != GraphNodeKind.Include || string.IsNullOrWhiteSpace(node.IncludePath))
+            {
+                return;
+            }
+
+            string resolved = node.IncludePath;
+            if (!System.IO.Path.IsPathRooted(resolved) && !string.IsNullOrWhiteSpace(BaseDirectory))
+            {
+                resolved = System.IO.Path.GetFullPath(System.IO.Path.Combine(BaseDirectory, resolved));
+            }
+
+            if (!System.IO.File.Exists(resolved))
+            {
+                ThemedMessageBox.Show($"Include file not found:\n{node.IncludePath}", "Inline file include",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                var loaded = GraphSerializer.Deserialize(System.IO.File.ReadAllText(resolved), out var validation);
+                if (loaded == null || (validation != null && !validation.IsValid))
+                {
+                    ThemedMessageBox.Show("Include file is not a valid graph.", "Inline file include",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                loaded.IsLibraryGraph = true;
+                node.InlineGraph = loaded;
+                node.IncludePath = "";
+                GraphChanged?.Invoke();
+                UpdateInspector();
+            }
+            catch (Exception ex)
+            {
+                ThemedMessageBox.Show($"Inline failed:\n{ex.Message}", "Inline file include",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private void UpdateInspector()
@@ -5878,13 +6034,28 @@ namespace DiyFfb.GraphEditor
         /// </summary>
         private void SyncIncludePorts(GraphNode node)
         {
-            if (node == null || node.Kind != GraphNodeKind.Include || string.IsNullOrWhiteSpace(node.IncludePath))
+            if (node == null || node.Kind != GraphNodeKind.Include)
             {
                 return;
             }
 
-            // Extract interface from included graph
-            var iface = GraphSerializer.ExtractInterfaceFromPath(node.IncludePath, BaseDirectory);
+            // Extract interface from the embedded inline graph, or from the
+            // referenced file. Embedded nodes have no path — their ports come
+            // from the inline graph's Input/Output nodes.
+            IncludedGraphInterface iface;
+            if (node.InlineGraph != null)
+            {
+                iface = GraphSerializer.ExtractInterface(node.InlineGraph);
+            }
+            else if (!string.IsNullOrWhiteSpace(node.IncludePath))
+            {
+                iface = GraphSerializer.ExtractInterfaceFromPath(node.IncludePath, BaseDirectory);
+            }
+            else
+            {
+                return;
+            }
+
             node.CachedInterface = iface;
 
             if (!iface.IsValid)
@@ -5922,6 +6093,29 @@ namespace DiyFfb.GraphEditor
                     return true;
                 return false;
             });
+        }
+
+        /// <summary>
+        /// Re-derives the ports of a single Include node (by id) from its current
+        /// source (inline graph or file) and redraws. Used to keep a parent's
+        /// embedded Include node ports in sync after its sub-graph's interface
+        /// (Input/Output nodes) is edited in another tab.
+        /// </summary>
+        public void RefreshIncludeNode(string nodeId)
+        {
+            if (string.IsNullOrEmpty(nodeId) || _graph == null)
+            {
+                return;
+            }
+
+            var node = _graph.Nodes.FirstOrDefault(n => n.Id == nodeId && n.Kind == GraphNodeKind.Include);
+            if (node == null)
+            {
+                return;
+            }
+
+            SyncIncludePorts(node);
+            RebuildSurface();
         }
 
         private void ButtonRefreshIncludePorts_Click(object sender, RoutedEventArgs e)
