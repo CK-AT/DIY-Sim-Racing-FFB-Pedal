@@ -61,7 +61,18 @@
       "Kind": "Include",
       "X": 310.0,
       "Y": 50.0,
-      "IncludePath": "..\\_embedded\\msfs_derivations.json"
+      "IncludePath": "..\\_embedded\\msfs_derivations.json",
+      "InputPortOrder": [
+        "tas_kts",
+        "main_rotor_rpm",
+        "beta_deg",
+        "vvi_fps",
+        "eng_torque_pct",
+        "g_force",
+        "collective_pos_pct",
+        "tr_pitch_pct",
+        "rot_sign"
+      ]
     },
     {
       "Id": "cyclic_pitch_include",
@@ -70,7 +81,26 @@
       "X": 670.0,
       "Y": 1090.0,
       "IncludePath": "..\\_embedded\\heli_cyclic_unboosted.json",
-      "FunctionScope": "FlightStickPitch"
+      "FunctionScope": "FlightStickPitch",
+      "InputPortOrder": [
+        "blade_alph",
+        "rpm_norm",
+        "owl",
+        "hat_pos",
+        "hat_neg",
+        "ftr_button",
+        "axis_position",
+        "axis_center",
+        "etl_bump",
+        "vrs",
+        "rbs",
+        "g_load",
+        "gnd_buffet",
+        "turb",
+        "etl_load_gain_eff",
+        "rbs_load_gain_eff",
+        "g_load_gain_eff"
+      ]
     },
     {
       "Id": "cyclic_roll_include",
@@ -79,7 +109,26 @@
       "X": 640.0,
       "Y": 2000.0,
       "IncludePath": "..\\_embedded\\heli_cyclic_unboosted.json",
-      "FunctionScope": "FlightStickRoll"
+      "FunctionScope": "FlightStickRoll",
+      "InputPortOrder": [
+        "blade_alph",
+        "rpm_norm",
+        "owl",
+        "hat_pos",
+        "hat_neg",
+        "ftr_button",
+        "axis_position",
+        "axis_center",
+        "etl_bump",
+        "vrs",
+        "rbs",
+        "g_load",
+        "gnd_buffet",
+        "turb",
+        "etl_load_gain_eff",
+        "rbs_load_gain_eff",
+        "g_load_gain_eff"
+      ]
     },
     {
       "Id": "collective_include",
@@ -405,9 +454,21 @@
       "Title": "Vib Pitch",
       "Kind": "Include",
       "X": 1150.0,
-      "Y": 1190.0,
+      "Y": 1210.0,
       "IncludePath": "..\\_embedded\\heli_vibration_cyclic.json",
-      "FunctionScope": "FlightStickPitch"
+      "FunctionScope": "FlightStickPitch",
+      "InputPortOrder": [
+        "blade_alph",
+        "vrs",
+        "slap_rat",
+        "rpm_norm",
+        "blade_count",
+        "etl_bump",
+        "rbs",
+        "mu_buzz",
+        "gnd_boost",
+        "phase"
+      ]
     },
     {
       "Id": "vib_roll_include",
@@ -416,7 +477,19 @@
       "X": 1190.0,
       "Y": 1940.0,
       "IncludePath": "..\\_embedded\\heli_vibration_cyclic.json",
-      "FunctionScope": "FlightStickRoll"
+      "FunctionScope": "FlightStickRoll",
+      "InputPortOrder": [
+        "blade_alph",
+        "vrs",
+        "slap_rat",
+        "rpm_norm",
+        "blade_count",
+        "etl_bump",
+        "rbs",
+        "mu_buzz",
+        "gnd_boost",
+        "phase"
+      ]
     },
     {
       "Id": "vib_pedal_include",
@@ -425,7 +498,14 @@
       "X": 1240.0,
       "Y": 560.0,
       "IncludePath": "..\\_embedded\\heli_vibration_pedal.json",
-      "FunctionScope": "FlightPedals"
+      "FunctionScope": "FlightPedals",
+      "InputPortOrder": [
+        "rpm_norm",
+        "blade_count",
+        "gnd_boost",
+        "tr_blade_count",
+        "tr_gear"
+      ]
     },
     {
       "Id": "vib_collective_include",
@@ -560,7 +640,12 @@
       "Kind": "Include",
       "X": 1170.0,
       "Y": 310.0,
-      "IncludePath": "..\\_embedded\\heli_ground_cues.json"
+      "IncludePath": "..\\_embedded\\heli_ground_cues.json",
+      "InputPortOrder": [
+        "on_ground",
+        "ground_speed",
+        "descent_fpm"
+      ]
     },
     {
       "Id": "bus_send_rotor",
