@@ -867,19 +867,28 @@ namespace DiyFfb.GraphTest
                 GraphDebugLogger.LogDict("parent parameters", parameters);
             }
 
+            // Seed with the parent's parameters so resolved values/overrides
+            // propagate THROUGH intermediate sub-graphs that don't have the param
+            // node themselves (e.g. a cue param two includes deep:
+            // template -> msfs_derivations -> cue). Then fill this sub-graph's own
+            // param-node defaults for any the parent didn't supply.
             var subParams = new Dictionary<string, double>();
+            if (parameters != null)
+            {
+                foreach (var kv in parameters)
+                {
+                    subParams[kv.Key] = kv.Value;
+                }
+            }
             foreach (var subNode in subGraph.Nodes.Values)
             {
-                if (subNode.Type == NodeType.Param && !string.IsNullOrEmpty(subNode.Name))
+                if (subNode.Type == NodeType.Param && !string.IsNullOrEmpty(subNode.Name)
+                    && !subParams.ContainsKey(subNode.Name))
                 {
-                    // Use parent's override if available, otherwise use sub-graph's default value
-                    double pVal = 0;
-                    bool foundInParent = parameters != null && parameters.TryGetValue(subNode.Name, out pVal);
-                    double value = foundInParent ? pVal : subNode.ConstValue;
-                    subParams[subNode.Name] = value;
+                    subParams[subNode.Name] = subNode.ConstValue;
                     if (GraphDebugLogger.Enabled)
                     {
-                        GraphDebugLogger.Log($"    Param '{subNode.Name}': {(foundInParent ? "from parent" : "default")} = {value} (default={subNode.ConstValue})");
+                        GraphDebugLogger.Log($"    Param '{subNode.Name}': default = {subNode.ConstValue}");
                     }
                 }
             }
@@ -891,10 +900,14 @@ namespace DiyFfb.GraphTest
             var subResult = evaluator.EvaluateWithTrace(subInputs, subParams, _dt);
             var outputs = subResult.Outputs;
 
-            // Capture context for sub-graph preview (after evaluate so state is current)
-            if (_contextCache != null && !string.IsNullOrEmpty(key) && !key.StartsWith("inline:"))
+            // Capture context for sub-graph preview (after evaluate so state is current).
+            // File includes key by resolved path; embedded (inline) sub-graphs key by
+            // "inline:<nodeId>" so their tabs can request live context too.
+            if (_contextCache != null && !string.IsNullOrEmpty(key))
             {
-                string resolvedPath = ResolveToAbsolutePath(node.Node.Path);
+                string resolvedPath = key.StartsWith("inline:")
+                    ? key
+                    : ResolveToAbsolutePath(node.Node.Path);
 
                 _contextCache.Add(resolvedPath, new IncludeCallContext
                 {

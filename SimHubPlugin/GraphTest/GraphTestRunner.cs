@@ -31,6 +31,8 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Inline include mapping", TestInlineIncludeMapping));
             results.Add(TestRunner.RunTest("Embedded sub-graph editor roundtrip", TestEmbeddedSubgraphEditorRoundtrip));
             results.Add(TestRunner.RunTest("Include port-order override roundtrip", TestIncludePortOrderRoundtrip));
+            results.Add(TestRunner.RunTest("Embedded sub-graph carries param defs", TestEmbeddedSubgraphParamDefs));
+            results.Add(TestRunner.RunTest("Real derivations: cue param def resolves after clone", TestRealDerivationsCueParamDefs));
             results.Add(TestRunner.RunTest("Block library index", TestBlockLibraryIndex));
             results.Add(TestRunner.RunTest("Schema version mismatch", TestSchemaVersionMismatch));
             results.Add(TestRunner.RunTest("Unknown function validation", TestUnknownFunctionValidation));
@@ -45,6 +47,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Diamond dependency includes", TestDiamondDependencyIncludes));
             results.Add(TestRunner.RunTest("Include chaining", TestIncludeChaining));
             results.Add(TestRunner.RunTest("Include with parameters", TestIncludeWithParameters));
+            results.Add(TestRunner.RunTest("Nested param override propagates two levels", TestNestedParamPropagationTwoLevels));
             results.Add(TestRunner.RunTest("Include with multiple outputs", TestIncludeMultipleOutputs));
             results.Add(TestRunner.RunTest("Cyclic include detection", TestCyclicIncludeDetection));
             results.Add(TestRunner.RunTest("Op arg count validation", TestOpArgValidation));
@@ -569,6 +572,98 @@ namespace DiyFfb.GraphTest
             return v2 != null && v2.IsValid && inc2?.InputPortOrder != null
                    && string.Join(",", inc2.InputPortOrder) == "b,a"
                    && string.Join(",", inc2.OutputPortOrder) == "q,p";
+        }
+
+        // An embedded sub-graph's param DEFINITIONS (the Params list with Ui) must
+        // survive deserialize into the parent node's InlineGraph, so the sub-graph
+        // tab can show param widget metadata (GetOrCreateParam looks them up there).
+        private static bool TestEmbeddedSubgraphParamDefs()
+        {
+            const string json = @"{
+  ""Version"": 4,
+  ""Nodes"": [
+    { ""Id"": ""emb"", ""Kind"": ""Include"", ""Title"": ""Cue"",
+      ""Inline"": {
+        ""Version"": 4, ""IsLibraryGraph"": true,
+        ""Nodes"": [
+          { ""Id"": ""pn"", ""Kind"": ""Param"", ""SignalGroup"": ""Aircraft"",
+            ""Ports"": [{ ""Kind"": ""Output"", ""SignalSuffix"": ""MuBuzzOnset"" }] },
+          { ""Id"": ""o"", ""Kind"": ""Output"", ""Ports"": [{ ""Name"": ""y"", ""Kind"": ""Input"" }] }
+        ],
+        ""Links"": [ { ""FromNodeId"": ""pn"", ""FromPort"": ""MuBuzzOnset"", ""ToNodeId"": ""o"", ""ToPort"": ""y"" } ],
+        ""Params"": [
+          { ""Name"": ""Aircraft.MuBuzzOnset"", ""DefaultValue"": 0.32, ""Min"": 0.2, ""Max"": 0.5,
+            ""Ui"": { ""Widget"": ""slider"", ""Label"": ""Mu Buzz Onset"", ""Group"": ""Aircraft"" } }
+        ]
+      }
+    }
+  ],
+  ""Links"": []
+}";
+            var g = DiyFfb.GraphEditor.GraphSerializer.Deserialize(json, out var v);
+            if (g == null || !v.IsValid) return false;
+            var inc = g.Nodes.FirstOrDefault(n => n.Id == "emb");
+            if (inc?.InlineGraph == null) return false;
+            // The def must be present and carry its Ui (widget metadata).
+            if (!inc.InlineGraph.Params.TryGetValue("Aircraft.MuBuzzOnset", out var def)) return false;
+            if (def.Ui == null || def.Ui.Widget != "slider") return false;
+            // And survive a re-serialize round-trip.
+            var g2 = DiyFfb.GraphEditor.GraphSerializer.Deserialize(
+                DiyFfb.GraphEditor.GraphSerializer.Serialize(g), out var v2);
+            var inc2 = g2?.Nodes.FirstOrDefault(n => n.Id == "emb");
+            if (v2 == null || !v2.IsValid || inc2?.InlineGraph == null) return false;
+            if (!inc2.InlineGraph.Params.TryGetValue("Aircraft.MuBuzzOnset", out var d2)
+                || d2.Ui == null || Math.Abs(d2.DefaultValue - 0.32) >= 1e-9) return false;
+
+            // CRITICAL: the embedded-tab open path clones the InlineGraph *standalone*
+            // (Deserialize(Serialize(inlineGraph))). The clone must keep its Params or
+            // the sub-graph tab's param inspector is blank.
+            var cloned = DiyFfb.GraphEditor.GraphSerializer.Deserialize(
+                DiyFfb.GraphEditor.GraphSerializer.Serialize(inc2.InlineGraph), out var v3);
+            return v3 != null && v3.IsValid
+                   && cloned.Params.TryGetValue("Aircraft.MuBuzzOnset", out var d3)
+                   && d3.Ui != null && d3.Ui.Widget == "slider";
+        }
+
+        // End-to-end against the real partitioned msfs_derivations.json: load it
+        // (= file-include tab path) and clone a cue's InlineGraph (= embedded-tab
+        // open path), then confirm each cue Param node's full signal name resolves
+        // to a def carrying Ui in the clone — exactly what the inspector needs.
+        private static bool TestRealDerivationsCueParamDefs()
+        {
+            string path = @"d:\Projects\DIY-Sim-Racing-FFB-Pedal\SimHubPlugin\graphs\_embedded\msfs_derivations.json";
+            if (!System.IO.File.Exists(path))
+            {
+                return true; // skip if run outside the repo
+            }
+            var g = DiyFfb.GraphEditor.GraphSerializer.Deserialize(System.IO.File.ReadAllText(path), out var v);
+            if (g == null || !v.IsValid) return false;
+
+            int checkedParams = 0;
+            foreach (var inc in g.Nodes.Where(n => n.Kind == DiyFfb.GraphEditor.GraphNodeKind.Include && n.InlineGraph != null))
+            {
+                // Clone the inline graph the way LoadFromEmbedded does.
+                var clone = DiyFfb.GraphEditor.GraphSerializer.Deserialize(
+                    DiyFfb.GraphEditor.GraphSerializer.Serialize(inc.InlineGraph), out var vc);
+                if (clone == null || !vc.IsValid) return false;
+                foreach (var pnode in clone.Nodes.Where(n => n.Kind == DiyFfb.GraphEditor.GraphNodeKind.Param))
+                {
+                    foreach (var port in pnode.Ports.Where(p => p.Kind == DiyFfb.GraphEditor.GraphPortKind.Output))
+                    {
+                        string full = (pnode.SignalGroup ?? "") + "." +
+                                      (string.IsNullOrEmpty(port.SignalSuffix) ? port.Name : port.SignalSuffix);
+                        // The inspector needs the def AND a populated Ui (widget) — a
+                        // present-but-empty Ui (Widget == "") renders blank too.
+                        if (!clone.Params.TryGetValue(full, out var def) || def.Ui == null
+                            || string.IsNullOrEmpty(def.Ui.Widget))
+                        {
+                            return false;
+                        }
+                        checkedParams++;
+                    }
+                }
+            }
+            return checkedParams > 0;
         }
 
         private static bool TestBlockLibraryIndex()
@@ -1579,6 +1674,46 @@ namespace DiyFfb.GraphTest
             bool compOk = compOut.TryGetValue("final", out var cv) && Math.Abs(cv - 110.0) < 0.0001;
 
             return interpOk && compOk;
+        }
+
+        // Does a param override propagate TWO levels deep when the intermediate
+        // graph has no node for it? (Mirrors template -> msfs_derivations -> cue
+        // sub-graph: the cue param node lives only in the leaf.)
+        private static bool TestNestedParamPropagationTwoLevels()
+        {
+            // Leaf: scaled = value * gain ; gain node default (ConstValue) = 1.0
+            var leaf = new GraphDefinition();
+            leaf.Nodes["in"] = new GraphNode { Id = "in", Type = NodeType.Input, Name = "value" };
+            leaf.Nodes["k"] = new GraphNode { Id = "k", Type = NodeType.Param, Name = "gain", ConstValue = 1.0 };
+            leaf.Nodes["mul"] = new GraphNode { Id = "mul", Type = NodeType.Op, Op = OpType.Mul, Args = { "in", "k" } };
+            leaf.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "scaled", Src = "mul" };
+
+            // Mid: just forwards value through the leaf. NO param node here.
+            var mid = new GraphDefinition();
+            mid.Nodes["min"] = new GraphNode { Id = "min", Type = NodeType.Input, Name = "mval" };
+            mid.Nodes["leaf"] = new GraphNode
+            {
+                Id = "leaf", Type = NodeType.Include, InlineGraph = leaf,
+                InputMap = { ["value"] = "min" }, OutputMap = { ["scaled"] = "leaf_out" }
+            };
+            mid.Nodes["mout"] = new GraphNode { Id = "mout", Type = NodeType.Output, Name = "midout", Src = "leaf_out" };
+
+            // Top: const 10 -> mid; override gain = 3.
+            var top = new GraphDefinition();
+            top.Nodes["ten"] = new GraphNode { Id = "ten", Type = NodeType.Const, ConstValue = 10.0 };
+            top.Nodes["mid"] = new GraphNode
+            {
+                Id = "mid", Type = NodeType.Include, InlineGraph = mid,
+                InputMap = { ["mval"] = "ten" }, OutputMap = { ["midout"] = "mid_out" }
+            };
+            top.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "mid_out" };
+
+            var compiled = new GraphCompiledEvaluator(top, new GraphIncludeResolver(AppContext.BaseDirectory));
+            var compOut = compiled.Evaluate(new Dictionary<string, double>(),
+                                            new Dictionary<string, double> { ["gain"] = 3.0 });
+            // If the override propagates to the leaf: 10*3=30. If it's dropped at
+            // the intermediate and the leaf falls back to its node default: 10*1=10.
+            return compOut.TryGetValue("result", out var v) && Math.Abs(v - 30.0) < 0.0001;
         }
 
         private static bool TestIncludeWithParameters()

@@ -254,6 +254,9 @@ namespace DiyFfb.GraphEditor
 
             EditorControl.BaseDirectory = parent.BaseDirectory;
             EditorControl.FilePath = parent.FilePath;
+            // Live-preview context for an embedded sub-graph is keyed by the
+            // include node id, not a file path (it has none).
+            EditorControl.ContextKeyOverride = "inline:" + node.Id;
 
             var source = node.InlineGraph ?? new GraphDefinition { IsLibraryGraph = true };
             Graph = CloneGraph(source);

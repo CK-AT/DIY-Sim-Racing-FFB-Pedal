@@ -201,6 +201,29 @@ namespace DiyFfb.GraphEditor
         private HashSet<string> _lastContextIds = new HashSet<string>();
         private bool _hadLiveContext;
         private Func<string, IReadOnlyList<IncludeCallContext>> _contextProvider;
+
+        /// <summary>
+        /// When set (embedded sub-graph tabs), live-preview context is requested
+        /// under this key (e.g. "inline:&lt;nodeId&gt;") instead of the file path —
+        /// embedded sub-graphs have no file of their own.
+        /// </summary>
+        public string ContextKeyOverride { get; set; }
+
+        /// <summary>The key used to look up live-preview context for this graph.</summary>
+        private string ContextLookupKey()
+        {
+            if (!string.IsNullOrEmpty(ContextKeyOverride))
+            {
+                return ContextKeyOverride;
+            }
+            if (string.IsNullOrEmpty(_filePath))
+            {
+                return null;
+            }
+            try { return System.IO.Path.GetFullPath(_filePath); }
+            catch { return _filePath; }
+        }
+
         public string BaseDirectory
         {
             get => _baseDirectory;
@@ -1761,6 +1784,22 @@ namespace DiyFfb.GraphEditor
             foreach (var n in selected) inline.Nodes.Add(n);
             foreach (var l in internalLinks) inline.Links.Add(l);
 
+            // Carry the parameter definitions for any moved Param nodes into the
+            // sub-graph, so its tab shows the param widgets/metadata (defs are
+            // looked up in the editing graph's Params, not just the node).
+            foreach (var n in selected.Where(n => n.Kind == GraphNodeKind.Param))
+            {
+                foreach (var port in n.Ports.Where(p => p.Kind == GraphPortKind.Output))
+                {
+                    string full = (n.SignalGroup ?? "") + "." +
+                                  (string.IsNullOrEmpty(port.SignalSuffix) ? port.Name : port.SignalSuffix);
+                    if (_graph.Params.TryGetValue(full, out var def) && !inline.Params.ContainsKey(full))
+                    {
+                        inline.Params[full] = def;
+                    }
+                }
+            }
+
             var includeNode = new GraphNode
             {
                 Kind = GraphNodeKind.Include,
@@ -3178,18 +3217,10 @@ namespace DiyFfb.GraphEditor
                 // Check if we should use context-provided inputs
                 if (_selectedContextId != null && _contextProvider != null)
                 {
-                    // Normalize path for cache lookup (same as RefreshContextDropdown)
-                    string normalizedPath = _filePath;
-                    try
-                    {
-                        normalizedPath = System.IO.Path.GetFullPath(_filePath);
-                    }
-                    catch
-                    {
-                        // Keep original if normalization fails
-                    }
-
-                    var contexts = _contextProvider(normalizedPath);
+                    // Lookup key: embedded sub-graphs use ContextKeyOverride; file
+                    // graphs use the normalized path.
+                    string normalizedPath = ContextLookupKey();
+                    var contexts = normalizedPath != null ? _contextProvider(normalizedPath) : null;
                     IncludeCallContext ctx = null;
                     if (contexts != null)
                     {
@@ -3510,7 +3541,7 @@ namespace DiyFfb.GraphEditor
 
         private void RefreshContextDropdown(bool force = false)
         {
-            if (_contextProvider == null || string.IsNullOrEmpty(_filePath))
+            if (_contextProvider == null || ContextLookupKey() == null)
             {
                 // Only clear selection if not user-selected (sticky behavior)
                 if (!_contextIsUserSelected)
@@ -3531,17 +3562,9 @@ namespace DiyFfb.GraphEditor
                 return;
             }
 
-            // Normalize path for cache lookup (use GetFullPath for consistent format)
-            string normalizedPath = _filePath;
-            try
-            {
-                normalizedPath = System.IO.Path.GetFullPath(_filePath);
-            }
-            catch
-            {
-                // Keep original if normalization fails
-            }
-
+            // Lookup key: embedded sub-graphs use ContextKeyOverride; file graphs
+            // use the normalized path.
+            string normalizedPath = ContextLookupKey();
             var contexts = _contextProvider(normalizedPath);
 
             if (contexts == null || contexts.Count == 0)
