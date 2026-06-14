@@ -1588,6 +1588,11 @@ namespace DiyFfb.GraphEditor
             menu.Items.Add(BuildMenuItem("Add Expr", () => AddNode(GraphNodeKind.Expr, position)));
             menu.Items.Add(BuildMenuItem("Add Include", () => AddNode(GraphNodeKind.Include, position)));
             menu.Items.Add(BuildMenuItem("Add Embedded Sub-Graph", () => AddEmbeddedSubgraph(position)));
+            if (_selectedNodes.Count >= 2)
+            {
+                menu.Items.Add(BuildMenuItem($"Group {_selectedNodes.Count} Nodes into Embedded Sub-Graph",
+                    GroupSelectionIntoSubgraph));
+            }
             menu.Items.Add(BuildMenuItem("Add Output", () => AddNode(GraphNodeKind.Output, position)));
             menu.Items.Add(BuildMenuItem("Add ConfigOut", () => AddNode(GraphNodeKind.ConfigOut, position)));
             menu.Items.Add(BuildMenuItem("Add Local Send", () => AddNode(GraphNodeKind.LocalSend, position)));
@@ -1717,6 +1722,186 @@ namespace DiyFfb.GraphEditor
             RefreshPreview();
             UpdateInspector();
             GraphChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Collapses the selected nodes into an embedded sub-graph Include node.
+        /// Links crossing the selection boundary become the sub-graph's Input /
+        /// Output ports (deduped by external source / internal source), so wiring
+        /// is preserved. Nodes NOT selected stay at the top level and feed the
+        /// new Include as inputs — that's how shared intermediates (mu, descent,
+        /// constants) remain shared rather than duplicated.
+        /// </summary>
+        private void GroupSelectionIntoSubgraph()
+        {
+            var selected = _selectedNodes.Select(v => v.Node).Where(n => n != null).ToList();
+            if (selected.Count < 1)
+            {
+                return;
+            }
+            var selIds = new HashSet<string>(selected.Select(n => n.Id));
+
+            // Partition links relative to the selection.
+            var internalLinks = new List<GraphLink>();
+            var boundaryIn = new List<GraphLink>();   // external source -> selected
+            var boundaryOut = new List<GraphLink>();  // selected -> external consumer
+            foreach (var l in _graph.Links)
+            {
+                bool fromIn = selIds.Contains(l.FromNodeId);
+                bool toIn = selIds.Contains(l.ToNodeId);
+                if (fromIn && toIn) internalLinks.Add(l);
+                else if (!fromIn && toIn) boundaryIn.Add(l);
+                else if (fromIn && !toIn) boundaryOut.Add(l);
+            }
+
+            double minX = selected.Min(n => n.X), maxX = selected.Max(n => n.X), minY = selected.Min(n => n.Y);
+            double cx = selected.Average(n => n.X), cy = selected.Average(n => n.Y);
+
+            var inline = new GraphDefinition { IsLibraryGraph = true };
+            foreach (var n in selected) inline.Nodes.Add(n);
+            foreach (var l in internalLinks) inline.Links.Add(l);
+
+            var includeNode = new GraphNode
+            {
+                Kind = GraphNodeKind.Include,
+                Title = "Sub-Graph",
+                X = cx,
+                Y = cy,
+                InlineGraph = inline
+            };
+
+            var usedNames = new HashSet<string>();
+
+            // Boundary inputs: one port per distinct external (node, port) source.
+            var inPortBySource = new Dictionary<string, string>();
+            var inNodeIdByPort = new Dictionary<string, string>();
+            double iy = minY;
+            foreach (var l in boundaryIn)
+            {
+                string key = l.FromNodeId + " " + l.FromPort;
+                if (!inPortBySource.TryGetValue(key, out var portName))
+                {
+                    portName = UniqueName(SuggestPortName(l.FromNodeId, l.FromPort), usedNames);
+                    inPortBySource[key] = portName;
+                    var inNode = new GraphNode { Kind = GraphNodeKind.Input, Title = portName, X = minX - 220, Y = iy };
+                    inNode.Ports.Add(new GraphPort { Name = portName, Kind = GraphPortKind.Output });
+                    inline.Nodes.Add(inNode);
+                    inNodeIdByPort[portName] = inNode.Id;
+                    includeNode.Ports.Add(new GraphPort { Name = portName, Kind = GraphPortKind.Input });
+                    iy += 60;
+                }
+                // inside: feed the consumer from the new Input node
+                inline.Links.Add(new GraphLink
+                {
+                    FromNodeId = inNodeIdByPort[portName],
+                    FromPort = portName,
+                    ToNodeId = l.ToNodeId,
+                    ToPort = l.ToPort
+                });
+                // parent: external source now feeds the Include's input port
+                l.ToNodeId = includeNode.Id;
+                l.ToPort = portName;
+            }
+
+            // Boundary outputs: one port per distinct internal (node, port) source.
+            var outPortBySource = new Dictionary<string, string>();
+            double oy = minY;
+            foreach (var l in boundaryOut)
+            {
+                string key = l.FromNodeId + " " + l.FromPort;
+                if (!outPortBySource.TryGetValue(key, out var portName))
+                {
+                    portName = UniqueName(SuggestPortName(l.FromNodeId, l.FromPort), usedNames);
+                    outPortBySource[key] = portName;
+                    var outNode = new GraphNode { Kind = GraphNodeKind.Output, Title = portName, X = maxX + 220, Y = oy };
+                    outNode.Ports.Add(new GraphPort { Name = portName, Kind = GraphPortKind.Input });
+                    inline.Nodes.Add(outNode);
+                    includeNode.Ports.Add(new GraphPort { Name = portName, Kind = GraphPortKind.Output });
+                    oy += 60;
+                    // inside: internal source feeds the new Output node
+                    inline.Links.Add(new GraphLink
+                    {
+                        FromNodeId = l.FromNodeId,
+                        FromPort = l.FromPort,
+                        ToNodeId = outNode.Id,
+                        ToPort = portName
+                    });
+                }
+                // parent: external consumer now reads from the Include's output port
+                l.FromNodeId = includeNode.Id;
+                l.FromPort = portName;
+            }
+
+            // Anchor the sub-graph's contents near its own canvas top-left. The
+            // grouped nodes otherwise keep their parent-graph coordinates and land
+            // far off-grid when the sub-graph is opened in its own tab.
+            if (inline.Nodes.Count > 0)
+            {
+                double offX = inline.Nodes.Min(n => n.X) - 40.0;
+                double offY = inline.Nodes.Min(n => n.Y) - 40.0;
+                foreach (var n in inline.Nodes)
+                {
+                    n.X -= offX;
+                    n.Y -= offY;
+                }
+            }
+
+            // Remove the grouped nodes and their internal links from the parent.
+            _graph.Nodes.RemoveAll(n => selIds.Contains(n.Id));
+            _graph.Links.RemoveAll(l => internalLinks.Contains(l));
+            _graph.Nodes.Add(includeNode);
+
+            _selectedNodes.Clear();
+            _selectedNode = null;
+            RebuildSurface();
+            UpdateInspector();
+            GraphChanged?.Invoke();
+        }
+
+        /// <summary>Suggests a readable boundary port name from a source node/port.</summary>
+        private string SuggestPortName(string nodeId, string portName)
+        {
+            var node = _graph.Nodes.FirstOrDefault(n => n.Id == nodeId);
+            string basis = portName;
+            if (node != null)
+            {
+                // Signal nodes carry the most meaningful name in their port; Op/Func
+                // ports are like "a*b", so prefer a sanitized node title there.
+                if (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Param ||
+                    node.Kind == GraphNodeKind.Output)
+                {
+                    basis = portName;
+                }
+                else if (!string.IsNullOrWhiteSpace(node.Title))
+                {
+                    basis = node.Title;
+                }
+            }
+            return string.IsNullOrWhiteSpace(SanitizeName(basis)) ? "port" : SanitizeName(basis);
+        }
+
+        private static string SanitizeName(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in s)
+            {
+                if (char.IsLetterOrDigit(c)) sb.Append(char.ToLowerInvariant(c));
+                else if (sb.Length > 0 && sb[sb.Length - 1] != '_') sb.Append('_');
+            }
+            return sb.ToString().Trim('_');
+        }
+
+        private static string UniqueName(string baseName, HashSet<string> used)
+        {
+            if (string.IsNullOrEmpty(baseName)) baseName = "port";
+            string name = baseName;
+            int i = 2;
+            while (!used.Add(name))
+            {
+                name = baseName + "_" + i++;
+            }
+            return name;
         }
 
         /// <summary>
