@@ -106,6 +106,7 @@ namespace DiyFfb
             inputs["MSFS.Velocity.BodyX"] = packet.VelocityBodyXFps;
             inputs["MSFS.Velocity.BodyY"] = packet.VelocityBodyYFps;
             inputs["MSFS.Velocity.BodyZ"] = packet.VelocityBodyZFps;
+            inputs["MSFS.GroundSpeed"] = packet.GroundVelocityKts;
             inputs["MSFS.Weight.Total"] = packet.TotalWeightLb;
             inputs["MSFS.Air.Density"] = packet.AmbientDensitySlugsFt3;
             inputs["MSFS.MainRotor.Speed"] = packet.MainRotorRpm;

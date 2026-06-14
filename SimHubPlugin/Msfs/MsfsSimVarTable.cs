@@ -15,7 +15,7 @@ namespace DiyFfb.Msfs
             public Entry(string name, string units) { Name = name; Units = units; }
         }
 
-        // Order matches MsfsSampleIndex below. 35 entries. Editing this
+        // Order matches MsfsSampleIndex below. 36 entries. Editing this
         // table without also editing MsfsSampleIndex breaks the contract.
         public static readonly Entry[] Entries = new[]
         {
@@ -54,9 +54,10 @@ namespace DiyFfb.Msfs
             new Entry("AILERON TRIM PCT",                         "Percent"),
             new Entry("RUDDER TRIM PCT",                          "Percent"),
             new Entry("SIM ON GROUND",                            "Bool"),
+            new Entry("GROUND VELOCITY",                          "Knots"),
         };
 
-        public const int SampleCount = 35;
+        public const int SampleCount = 36;
     }
 
     // Index enum keeps the plugin's sample[(int)X] reads self-documenting.
@@ -98,5 +99,6 @@ namespace DiyFfb.Msfs
         AilTrimPct,
         RudTrimPct,
         SimOnGround,
+        GroundVelocityKts,
     }
 }

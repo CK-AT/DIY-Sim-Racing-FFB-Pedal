@@ -82,6 +82,7 @@ namespace DiyFfb
             "MSFS.Velocity.BodyX",
             "MSFS.Velocity.BodyY",
             "MSFS.Velocity.BodyZ",
+            "MSFS.GroundSpeed",
             "MSFS.Weight.Total",
             "MSFS.Air.Density",
             "MSFS.MainRotor.Speed",

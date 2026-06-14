@@ -1,8 +1,8 @@
 // Plan 19 - In-process SimConnect client. Replaces MsfsFfbDataProvider.exe
 // + UDP loopback. Talks to MSFS 2024 directly over the named pipe
-// \\.\pipe\Microsoft Flight Simulator\SimConnect, registers the 35-entry
+// \\.\pipe\Microsoft Flight Simulator\SimConnect, registers the 36-entry
 // SimVar definition from MsfsSimVarTable, subscribes at SIM_FRAME, and
-// hands each sample (35 doubles) to a callback for the plugin to publish
+// hands each sample (36 doubles) to a callback for the plugin to publish
 // into latestMsfsPacket.
 //
 // Lifecycle mirrors the EXE bridge's outer loop: connect → handshake →
@@ -38,7 +38,7 @@ namespace DiyFfb.Msfs
         private DateTime                _lastSampleUtc = DateTime.MinValue;
 
         // Reused per-sample buffer to avoid GC churn. Sized for an
-        // all-FLOAT64 35-entry data definition (~320 bytes) plus headroom.
+        // all-FLOAT64 36-entry data definition (~320 bytes) plus headroom.
         private readonly byte[]   _rxBuffer    = new byte[4096];
         private readonly byte[]   _txBuffer    = new byte[SimConnectProtocol.MaxOutboundPacketBytes];
         private readonly double[] _sampleBuffer = new double[MsfsSimVarTable.SampleCount];
@@ -128,7 +128,7 @@ namespace DiyFfb.Msfs
                         RegisterSimVars(pipe);
                         SubscribeSimObjectData(pipe);
 
-                        _log("[MsfsSimConnect] connected, streaming SIM_FRAME at 35 doubles/sample.");
+                        _log("[MsfsSimConnect] connected, streaming SIM_FRAME at 36 doubles/sample.");
                         _connected = true;
                         ReadLoop(pipe, ct);
                     }

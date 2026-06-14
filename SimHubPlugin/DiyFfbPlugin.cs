@@ -266,6 +266,7 @@ namespace DiyFfb
             public float VelocityBodyXFps;
             public float VelocityBodyYFps;
             public float VelocityBodyZFps;
+            public float GroundVelocityKts;
             public float PitchRad;
             public float BankRad;
             public float TotalWeightLb;
@@ -1240,6 +1241,7 @@ namespace DiyFfb
                 VelocityBodyXFps               = (float)s[(int)MsfsSampleIndex.VelocityBodyXFps],
                 VelocityBodyYFps               = (float)s[(int)MsfsSampleIndex.VelocityBodyYFps],
                 VelocityBodyZFps               = (float)s[(int)MsfsSampleIndex.VelocityBodyZFps],
+                GroundVelocityKts              = (float)s[(int)MsfsSampleIndex.GroundVelocityKts],
                 PitchRad                       = (float)s[(int)MsfsSampleIndex.PitchRad],
                 BankRad                        = (float)s[(int)MsfsSampleIndex.BankRad],
                 TotalWeightLb                  = (float)s[(int)MsfsSampleIndex.TotalWeightLb],
