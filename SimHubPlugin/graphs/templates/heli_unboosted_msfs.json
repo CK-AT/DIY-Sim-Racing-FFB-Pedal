@@ -546,6 +546,10 @@
         {
           "Kind": "Output",
           "SignalSuffix": "OnGround"
+        },
+        {
+          "Kind": "Output",
+          "SignalSuffix": "GroundSpeed"
         }
       ],
       "SignalGroup": "MSFS"
@@ -674,9 +678,9 @@
           "BusName": "GndBoost"
         },
         {
-          "Name": "Thump",
+          "Name": "GndBuffet",
           "Kind": "Input",
-          "BusName": "Thump"
+          "BusName": "GndBuffet"
         }
       ]
     },
@@ -849,9 +853,9 @@
           "BusName": "RPMnorm"
         },
         {
-          "Name": "Thump",
+          "Name": "GndBuffet",
           "Kind": "Output",
-          "BusName": "Thump"
+          "BusName": "GndBuffet"
         },
         {
           "Name": "Turb",
@@ -1009,9 +1013,9 @@
           "BusName": "GLoad"
         },
         {
-          "Name": "Thump",
+          "Name": "GndBuffet",
           "Kind": "Output",
-          "BusName": "Thump"
+          "BusName": "GndBuffet"
         },
         {
           "Name": "Turb",
@@ -1067,9 +1071,9 @@
           "BusName": "GLoad"
         },
         {
-          "Name": "Thump",
+          "Name": "GndBuffet",
           "Kind": "Output",
-          "BusName": "Thump"
+          "BusName": "GndBuffet"
         },
         {
           "Name": "Turb",
@@ -1082,8 +1086,8 @@
       "Id": "bus_recv_ground",
       "Title": "Bus Recv",
       "Kind": "LocalReceive",
-      "X": 990.0,
-      "Y": 390.0,
+      "X": 1000.0,
+      "Y": 410.0,
       "Ports": [
         {
           "Name": "Descent",
@@ -1420,9 +1424,9 @@
     },
     {
       "FromNodeId": "gnd_cues_include",
-      "FromPort": "thump",
+      "FromPort": "gnd_buffet",
       "ToNodeId": "bus_send_ground",
-      "ToPort": "Thump"
+      "ToPort": "GndBuffet"
     },
     {
       "FromNodeId": "bus_recv_derivations",
@@ -1582,9 +1586,9 @@
     },
     {
       "FromNodeId": "bus_recv_collective",
-      "FromPort": "Thump",
+      "FromPort": "GndBuffet",
       "ToNodeId": "collective_include",
-      "ToPort": "thump"
+      "ToPort": "gnd_buffet"
     },
     {
       "FromNodeId": "bus_recv_collective",
@@ -1732,9 +1736,9 @@
     },
     {
       "FromNodeId": "bus_recv_cyclic_pitch_cues",
-      "FromPort": "Thump",
+      "FromPort": "GndBuffet",
       "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "thump"
+      "ToPort": "gnd_buffet"
     },
     {
       "FromNodeId": "bus_recv_cyclic_pitch_cues",
@@ -1780,9 +1784,9 @@
     },
     {
       "FromNodeId": "bus_recv_cyclic_roll_cues",
-      "FromPort": "Thump",
+      "FromPort": "GndBuffet",
       "ToNodeId": "cyclic_roll_include",
-      "ToPort": "thump"
+      "ToPort": "gnd_buffet"
     },
     {
       "FromNodeId": "bus_recv_cyclic_roll_cues",
@@ -1801,6 +1805,12 @@
       "FromPort": "Descent",
       "ToNodeId": "gnd_cues_include",
       "ToPort": "descent_fpm"
+    },
+    {
+      "FromNodeId": "in_on_ground",
+      "FromPort": "GroundSpeed",
+      "ToNodeId": "gnd_cues_include",
+      "ToPort": "ground_speed"
     }
   ],
   "Params": [

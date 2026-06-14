@@ -67,8 +67,8 @@
       "Id": "func_td_edge",
       "Title": "Touchdown edge",
       "Kind": "Func",
-      "X": 280.0,
-      "Y": 240.0,
+      "X": 660.0,
+      "Y": 260.0,
       "Ports": [
         {
           "Name": "input",
@@ -85,8 +85,8 @@
     {
       "Id": "param_touchdown_gain",
       "Kind": "Param",
-      "X": 40.0,
-      "Y": 330.0,
+      "X": 600.0,
+      "Y": 340.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -99,8 +99,8 @@
       "Id": "mul_td_pulse",
       "Title": "edge x gain x severity",
       "Kind": "Op",
-      "X": 860.0,
-      "Y": 300.0,
+      "X": 900.0,
+      "Y": 320.0,
       "Ports": [
         {
           "Name": "a",
@@ -125,8 +125,8 @@
       "Id": "const_td_tau_up",
       "Title": "0.01 s",
       "Kind": "Const",
-      "X": 480.0,
-      "Y": 380.0,
+      "X": 920.0,
+      "Y": 560.0,
       "Ports": [
         {
           "Name": "out",
@@ -139,8 +139,8 @@
       "Id": "const_td_tau_down",
       "Title": "0.3 s",
       "Kind": "Const",
-      "X": 480.0,
-      "Y": 450.0,
+      "X": 920.0,
+      "Y": 630.0,
       "Ports": [
         {
           "Name": "out",
@@ -153,8 +153,8 @@
       "Id": "func_td_lag",
       "Title": "stretch pulse",
       "Kind": "Func",
-      "X": 1040.0,
-      "Y": 300.0,
+      "X": 1100.0,
+      "Y": 540.0,
       "Ports": [
         {
           "Name": "input",
@@ -178,13 +178,13 @@
     },
     {
       "Id": "out_thump",
-      "Title": "Thump Out",
+      "Title": "Ground Buffet Out",
       "Kind": "Output",
-      "X": 1220.0,
-      "Y": 300.0,
+      "X": 1470.0,
+      "Y": 620.0,
       "Ports": [
         {
-          "Name": "thump",
+          "Name": "gnd_buffet",
           "Kind": "Input"
         }
       ]
@@ -194,7 +194,7 @@
       "Title": "Descent (fpm, +down)",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 560.0,
+      "Y": 350.0,
       "Ports": [
         {
           "Name": "descent_fpm",
@@ -207,7 +207,7 @@
       "Title": "0.05 s",
       "Kind": "Const",
       "X": 40.0,
-      "Y": 700.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Name": "out",
@@ -220,8 +220,8 @@
       "Id": "const_hold_down",
       "Title": "0.5 s",
       "Kind": "Const",
-      "X": 130.0,
-      "Y": 700.0,
+      "X": 40.0,
+      "Y": 490.0,
       "Ports": [
         {
           "Name": "out",
@@ -234,8 +234,8 @@
       "Id": "func_descent_hold",
       "Title": "hold descent over touchdown",
       "Kind": "Func",
-      "X": 260.0,
-      "Y": 560.0,
+      "X": 220.0,
+      "Y": 370.0,
       "Ports": [
         {
           "Name": "input",
@@ -260,8 +260,8 @@
     {
       "Id": "param_td_vs_ref",
       "Kind": "Param",
-      "X": 40.0,
-      "Y": 480.0,
+      "X": 220.0,
+      "Y": 510.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -274,8 +274,8 @@
       "Id": "div_td_sev",
       "Title": "descent / ref",
       "Kind": "Op",
-      "X": 460.0,
-      "Y": 520.0,
+      "X": 540.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Name": "a",
@@ -296,8 +296,8 @@
       "Id": "const_sev_zero",
       "Title": "0",
       "Kind": "Const",
-      "X": 460.0,
-      "Y": 640.0,
+      "X": 580.0,
+      "Y": 840.0,
       "Ports": [
         {
           "Name": "out",
@@ -310,8 +310,8 @@
       "Id": "const_sev_one",
       "Title": "1",
       "Kind": "Const",
-      "X": 540.0,
-      "Y": 640.0,
+      "X": 580.0,
+      "Y": 920.0,
       "Ports": [
         {
           "Name": "out",
@@ -324,8 +324,8 @@
       "Id": "clamp_td_sev",
       "Title": "severity 0..1",
       "Kind": "Op",
-      "X": 660.0,
-      "Y": 520.0,
+      "X": 700.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Name": "a",
@@ -345,6 +345,211 @@
         }
       ],
       "Op": "clamp"
+    },
+    {
+      "Id": "in_ground_speed",
+      "Title": "Ground Speed (kt)",
+      "Kind": "Input",
+      "X": 420.0,
+      "Y": 720.0,
+      "Ports": [
+        {
+          "Name": "ground_speed",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_rumble_ref",
+      "Kind": "Param",
+      "X": 300.0,
+      "Y": 790.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RumbleRefKts"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "param_rumble_gain",
+      "Kind": "Param",
+      "X": 740.0,
+      "Y": 890.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RumbleGain"
+        }
+      ],
+      "SignalGroup": "Aircraft"
+    },
+    {
+      "Id": "div_rumble",
+      "Title": "gs / ref",
+      "Kind": "Op",
+      "X": 580.0,
+      "Y": 740.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "clamp_rumble",
+      "Title": "0..1",
+      "Kind": "Op",
+      "X": 720.0,
+      "Y": 760.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "min",
+          "Kind": "Input"
+        },
+        {
+          "Name": "max",
+          "Kind": "Input"
+        },
+        {
+          "Name": "clamp(a,min,max)",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "clamp"
+    },
+    {
+      "Id": "mul_rumble",
+      "Title": "on_ground x sev x gain",
+      "Kind": "Op",
+      "X": 1080.0,
+      "Y": 730.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "add_gnd_buffet",
+      "Title": "thump + rumble",
+      "Kind": "Op",
+      "X": 1280.0,
+      "Y": 620.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "c9ebf610aa8649849d1e7ad368d399a1",
+      "Title": "0",
+      "Kind": "Const",
+      "X": 540.0,
+      "Y": 520.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "79289d9dfc754e54bb0df4a1fe1ad5f3",
+      "Title": "1",
+      "Kind": "Const",
+      "X": 540.0,
+      "Y": 590.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
+    },
+    {
+      "Id": "1b135f72b7e34c748abb26b0aa003e4c",
+      "Title": "Local Send",
+      "Kind": "LocalSend",
+      "X": 300.0,
+      "Y": 190.0,
+      "Ports": [
+        {
+          "Name": "in_0",
+          "Kind": "Input",
+          "BusName": "OnGround"
+        }
+      ]
+    },
+    {
+      "Id": "d7ab6197fa144ee282510a2bc3af3ebf",
+      "Title": "Local Receive",
+      "Kind": "LocalReceive",
+      "X": 920.0,
+      "Y": 710.0,
+      "Ports": [
+        {
+          "Name": "out_0",
+          "Kind": "Output",
+          "BusName": "OnGround"
+        }
+      ]
+    },
+    {
+      "Id": "d3796dab9f914569bedb9221d59c12c8",
+      "Title": "Local Receive",
+      "Kind": "LocalReceive",
+      "X": 540.0,
+      "Y": 260.0,
+      "Ports": [
+        {
+          "Name": "out_0",
+          "Kind": "Output",
+          "BusName": "OnGround"
+        }
+      ]
     }
   ],
   "Links": [
@@ -359,12 +564,6 @@
       "FromPort": "a*b",
       "ToNodeId": "out_gnd_boost",
       "ToPort": "gnd_boost"
-    },
-    {
-      "FromNodeId": "in_on_ground",
-      "FromPort": "on_ground",
-      "ToNodeId": "func_td_edge",
-      "ToPort": "input"
     },
     {
       "FromNodeId": "func_td_edge",
@@ -399,8 +598,8 @@
     {
       "FromNodeId": "func_td_lag",
       "FromPort": "out",
-      "ToNodeId": "out_thump",
-      "ToPort": "thump"
+      "ToNodeId": "add_gnd_buffet",
+      "ToPort": "a"
     },
     {
       "FromNodeId": "param_gnd_res_gain",
@@ -445,22 +644,94 @@
       "ToPort": "a"
     },
     {
+      "FromNodeId": "clamp_td_sev",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_td_pulse",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "in_ground_speed",
+      "FromPort": "ground_speed",
+      "ToNodeId": "div_rumble",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_rumble_ref",
+      "FromPort": "RumbleRefKts",
+      "ToNodeId": "div_rumble",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "div_rumble",
+      "FromPort": "a/b",
+      "ToNodeId": "clamp_rumble",
+      "ToPort": "a"
+    },
+    {
       "FromNodeId": "const_sev_zero",
       "FromPort": "out",
-      "ToNodeId": "clamp_td_sev",
+      "ToNodeId": "clamp_rumble",
       "ToPort": "min"
     },
     {
       "FromNodeId": "const_sev_one",
       "FromPort": "out",
+      "ToNodeId": "clamp_rumble",
+      "ToPort": "max"
+    },
+    {
+      "FromNodeId": "clamp_rumble",
+      "FromPort": "clamp(a,min,max)",
+      "ToNodeId": "mul_rumble",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_rumble_gain",
+      "FromPort": "RumbleGain",
+      "ToNodeId": "mul_rumble",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "mul_rumble",
+      "FromPort": "a*b*c",
+      "ToNodeId": "add_gnd_buffet",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_gnd_buffet",
+      "FromPort": "a+b",
+      "ToNodeId": "out_thump",
+      "ToPort": "gnd_buffet"
+    },
+    {
+      "FromNodeId": "c9ebf610aa8649849d1e7ad368d399a1",
+      "FromPort": "out",
+      "ToNodeId": "clamp_td_sev",
+      "ToPort": "min"
+    },
+    {
+      "FromNodeId": "79289d9dfc754e54bb0df4a1fe1ad5f3",
+      "FromPort": "out",
       "ToNodeId": "clamp_td_sev",
       "ToPort": "max"
     },
     {
-      "FromNodeId": "clamp_td_sev",
-      "FromPort": "clamp(a,min,max)",
-      "ToNodeId": "mul_td_pulse",
-      "ToPort": "c"
+      "FromNodeId": "in_on_ground",
+      "FromPort": "on_ground",
+      "ToNodeId": "1b135f72b7e34c748abb26b0aa003e4c",
+      "ToPort": "in_0"
+    },
+    {
+      "FromNodeId": "d7ab6197fa144ee282510a2bc3af3ebf",
+      "FromPort": "out_0",
+      "ToNodeId": "mul_rumble",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "d3796dab9f914569bedb9221d59c12c8",
+      "FromPort": "out_0",
+      "ToNodeId": "func_td_edge",
+      "ToPort": "input"
     }
   ],
   "Params": [
@@ -511,6 +782,39 @@
         "Step": 10.0,
         "Precision": 0,
         "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.RumbleRefKts",
+      "DefaultValue": 25.0,
+      "Min": 5.0,
+      "Max": 80.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Ground Rumble Ref Speed",
+        "Group": "Aircraft",
+        "Units": "kt",
+        "Step": 1.0,
+        "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.RumbleGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 100.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Ground Rumble",
+        "Group": "Aircraft",
+        "Units": "N",
+        "Step": 0.1,
+        "Precision": 1,
+        "LogScale": false,
+        "MuteValue": 0.0,
         "Options": []
       }
     }

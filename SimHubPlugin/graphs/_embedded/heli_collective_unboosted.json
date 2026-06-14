@@ -345,13 +345,13 @@
     },
     {
       "Id": "in_thump",
-      "Title": "Touchdown thump",
+      "Title": "Ground Buffet",
       "Kind": "Input",
       "X": 980.0,
       "Y": 460.0,
       "Ports": [
         {
-          "Name": "thump",
+          "Name": "gnd_buffet",
           "Kind": "Output"
         }
       ]
@@ -568,7 +568,7 @@
     },
     {
       "FromNodeId": "in_thump",
-      "FromPort": "thump",
+      "FromPort": "gnd_buffet",
       "ToNodeId": "add_buffet_total",
       "ToPort": "b"
     },

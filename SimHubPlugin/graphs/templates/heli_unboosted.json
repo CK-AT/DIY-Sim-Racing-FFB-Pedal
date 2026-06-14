@@ -434,6 +434,20 @@
         }
       ],
       "ConstValue": 1000.0
+    },
+    {
+      "Id": "const_gs_zero",
+      "Title": "0 (no GS signal)",
+      "Kind": "Const",
+      "X": 1500.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.0
     }
   ],
   "Links": [
@@ -751,27 +765,33 @@
     },
     {
       "FromNodeId": "gnd_cues_include",
-      "FromPort": "thump",
+      "FromPort": "gnd_buffet",
       "ToNodeId": "cyclic_pitch_include",
-      "ToPort": "thump"
+      "ToPort": "gnd_buffet"
     },
     {
       "FromNodeId": "gnd_cues_include",
-      "FromPort": "thump",
+      "FromPort": "gnd_buffet",
       "ToNodeId": "cyclic_roll_include",
-      "ToPort": "thump"
+      "ToPort": "gnd_buffet"
     },
     {
       "FromNodeId": "gnd_cues_include",
-      "FromPort": "thump",
+      "FromPort": "gnd_buffet",
       "ToNodeId": "collective_include",
-      "ToPort": "thump"
+      "ToPort": "gnd_buffet"
     },
     {
       "FromNodeId": "const_td_descent_full",
       "FromPort": "out",
       "ToNodeId": "gnd_cues_include",
       "ToPort": "descent_fpm"
+    },
+    {
+      "FromNodeId": "const_gs_zero",
+      "FromPort": "out",
+      "ToNodeId": "gnd_cues_include",
+      "ToPort": "ground_speed"
     }
   ],
   "Params": [
