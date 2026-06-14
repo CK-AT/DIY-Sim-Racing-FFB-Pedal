@@ -759,6 +759,22 @@
                                     <ColumnDefinition Width="120" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Mute Value" Foreground="#BBBBBB" FontSize="10" VerticalAlignment="Center"
+                                           ToolTip="Leave blank to disable. When set, a mute checkbox substitutes this value during evaluation." />
+                                <TextBox Grid.Column="1"
+                                         Background="#1E1E1E"
+                                         Foreground="White"
+                                         BorderBrush="#4A4A4A"
+                                         BorderThickness="1"
+                                         Padding="3,2,3,2"
+                                         ToolTip="Leave blank to disable. When set, a mute checkbox substitutes this value during evaluation."
+                                         Text="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=SelectedPortEntry.UiMuteValue, UpdateSourceTrigger=PropertyChanged}" />
+                            </Grid>
+                            <Grid Margin="0,4,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Options" Foreground="#BBBBBB" FontSize="10" VerticalAlignment="Top" />
                                 <TextBox Grid.Column="1"
                                          Background="#1E1E1E"

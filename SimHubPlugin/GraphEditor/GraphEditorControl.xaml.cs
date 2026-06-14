@@ -6703,6 +6703,7 @@ namespace DiyFfb.GraphEditor
             private string _uiStep;
             private string _uiPrecision;
             private bool _uiLogScale;
+            private string _uiMuteValue;
             private string _uiOptionsText;
             private GraphParam _param;
             private GraphParamUi _paramUi;
@@ -6998,6 +6999,25 @@ namespace DiyFfb.GraphEditor
                 }
             }
 
+            public string UiMuteValue
+            {
+                get => _uiMuteValue;
+                set
+                {
+                    if (_uiMuteValue == value)
+                    {
+                        return;
+                    }
+                    _uiMuteValue = value;
+                    if (_paramUi != null)
+                    {
+                        _paramUi.MuteValue = ParseNullableDouble(value);
+                        ParamChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiMuteValue)));
+                }
+            }
+
             public string UiOptionsText
             {
                 get => _uiOptionsText;
@@ -7037,6 +7057,7 @@ namespace DiyFfb.GraphEditor
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiStep)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiPrecision)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiLogScale)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiMuteValue)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiOptionsText)));
             }
 
@@ -7068,6 +7089,7 @@ namespace DiyFfb.GraphEditor
                     _uiStep = "";
                     _uiPrecision = "";
                     _uiLogScale = false;
+                    _uiMuteValue = "";
                     _uiOptionsText = "";
                     return;
                 }
@@ -7079,6 +7101,7 @@ namespace DiyFfb.GraphEditor
                 _uiStep = _paramUi.Step?.ToString("G", CultureInfo.InvariantCulture) ?? "";
                 _uiPrecision = _paramUi.Precision?.ToString(CultureInfo.InvariantCulture) ?? "";
                 _uiLogScale = _paramUi.LogScale;
+                _uiMuteValue = _paramUi.MuteValue?.ToString("G", CultureInfo.InvariantCulture) ?? "";
                 _uiOptionsText = FormatOptionsText(_paramUi.Options);
             }
 
