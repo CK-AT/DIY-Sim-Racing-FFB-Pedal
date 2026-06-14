@@ -9,7 +9,6 @@ namespace DiyFfb.GraphTest
     {
         private readonly string _baseDirectory;
         private readonly GraphLoader _loader = new GraphLoader();
-        private readonly GraphSaver _saver = new GraphSaver();
         private readonly Dictionary<string, GraphDefinition> _cache = new Dictionary<string, GraphDefinition>();
         private readonly string _libraryDirectory;
         private readonly Dictionary<string, GraphDefinition> _library = new Dictionary<string, GraphDefinition>();
@@ -101,25 +100,12 @@ namespace DiyFfb.GraphTest
                 return null;
             }
 
+            // Embedded sub-graph: evaluate straight from memory. Do NOT
+            // materialize to a {hash}.json file — embedded graphs are
+            // self-contained in the parent and must stay that way (the
+            // compiled evaluator already treats inline this way).
             if (includeNode.InlineGraph != null)
             {
-                string path = includeNode.Path;
-                if (string.IsNullOrWhiteSpace(path))
-                {
-                    string hash = ComputeGraphHash(includeNode.InlineGraph);
-                    path = Path.Combine(_libraryDirectory, $"{hash}.json");
-                }
-
-                if (!_library.ContainsKey(path))
-                {
-                    Directory.CreateDirectory(Path.GetDirectoryName(path) ?? _libraryDirectory);
-                    File.WriteAllText(path, _saver.SaveToJson(includeNode.InlineGraph));
-                    _library[path] = includeNode.InlineGraph;
-                    RegisterBlock(path, includeNode.InlineGraph);
-                }
-
-                _cache[path] = includeNode.InlineGraph;
-                includeNode.Path = path;
                 return includeNode.InlineGraph;
             }
 

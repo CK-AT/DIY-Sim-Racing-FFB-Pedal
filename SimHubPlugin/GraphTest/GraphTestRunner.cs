@@ -29,6 +29,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("JSON load/save roundtrip", TestJsonRoundtrip));
             results.Add(TestRunner.RunTest("Validation catches missing output", TestIncludeOutputValidation));
             results.Add(TestRunner.RunTest("Inline include mapping", TestInlineIncludeMapping));
+            results.Add(TestRunner.RunTest("Embedded sub-graph editor roundtrip", TestEmbeddedSubgraphEditorRoundtrip));
             results.Add(TestRunner.RunTest("Block library index", TestBlockLibraryIndex));
             results.Add(TestRunner.RunTest("Schema version mismatch", TestSchemaVersionMismatch));
             results.Add(TestRunner.RunTest("Unknown function validation", TestUnknownFunctionValidation));
@@ -530,23 +531,83 @@ namespace DiyFfb.GraphTest
 
         private static bool TestBlockLibraryIndex()
         {
+            // The block library index is populated when a FILE include is
+            // resolved. Embedded (inline, path-less) includes deliberately do
+            // NOT register or spill to disk — they stay self-contained in the
+            // parent. So exercise the index via a real include file.
             string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ffb_graph_test");
-            System.IO.Directory.CreateDirectory(tempDir);
+            string embeddedDir = System.IO.Path.Combine(tempDir, "graphs", "_embedded");
+            string indexPath = System.IO.Path.Combine(embeddedDir, "index.json");
+            if (System.IO.File.Exists(indexPath)) System.IO.File.Delete(indexPath); // isolate
+            System.IO.Directory.CreateDirectory(embeddedDir);
+
+            string blockPath = System.IO.Path.Combine(embeddedDir, "test_block.json");
+            System.IO.File.WriteAllText(blockPath, new GraphSaver().SaveToJson(BuildInlineGraph()));
+
             var resolver = new GraphIncludeResolver(tempDir);
-
-            var graph = BuildInlineGraph();
-            var includeNode = new GraphNode
-            {
-                Id = "inc",
-                Type = NodeType.Include,
-                InlineGraph = graph,
-                InputMap = { ["cmd_force"] = "cmd_force" },
-                OutputMap = { ["out_force"] = "out_force" }
-            };
-
-            resolver.ResolveInclude(includeNode);
-            string indexPath = System.IO.Path.Combine(tempDir, "graphs", "_embedded", "index.json");
+            resolver.GetGraph(blockPath);
             return System.IO.File.Exists(indexPath);
+        }
+
+        // Editor-format embedded sub-graph: a path-less Include carrying an
+        // inline definition must deserialize, derive its ports, convert, and
+        // evaluate straight from memory (no file, no disk spill).
+        private static bool TestEmbeddedSubgraphEditorRoundtrip()
+        {
+            const string json = @"{
+  ""Version"": 4,
+  ""Nodes"": [
+    { ""Id"": ""in_rpm"", ""Kind"": ""Input"", ""SignalGroup"": ""MSFS"",
+      ""Ports"": [{ ""Kind"": ""Output"", ""SignalSuffix"": ""MainRotor.Speed"" }] },
+    { ""Id"": ""emb"", ""Kind"": ""Include"", ""Title"": ""Embedded Double"",
+      ""Inline"": {
+        ""Version"": 4, ""IsLibraryGraph"": true,
+        ""Nodes"": [
+          { ""Id"": ""s_in"", ""Kind"": ""Input"", ""Ports"": [{ ""Name"": ""x"", ""Kind"": ""Output"" }] },
+          { ""Id"": ""s_two"", ""Kind"": ""Const"", ""ConstValue"": 2.0, ""Ports"": [{ ""Name"": ""out"", ""Kind"": ""Output"" }] },
+          { ""Id"": ""s_mul"", ""Kind"": ""Op"", ""Op"": ""mul"",
+            ""Ports"": [{ ""Name"": ""a"", ""Kind"": ""Input"" }, { ""Name"": ""b"", ""Kind"": ""Input"" }, { ""Name"": ""a*b"", ""Kind"": ""Output"" }] },
+          { ""Id"": ""s_out"", ""Kind"": ""Output"", ""Ports"": [{ ""Name"": ""y"", ""Kind"": ""Input"" }] }
+        ],
+        ""Links"": [
+          { ""FromNodeId"": ""s_in"", ""FromPort"": ""x"", ""ToNodeId"": ""s_mul"", ""ToPort"": ""a"" },
+          { ""FromNodeId"": ""s_two"", ""FromPort"": ""out"", ""ToNodeId"": ""s_mul"", ""ToPort"": ""b"" },
+          { ""FromNodeId"": ""s_mul"", ""FromPort"": ""a*b"", ""ToNodeId"": ""s_out"", ""ToPort"": ""y"" }
+        ]
+      }
+    },
+    { ""Id"": ""out_v"", ""Kind"": ""Output"", ""SignalGroup"": ""Shared"",
+      ""Ports"": [{ ""Kind"": ""Input"", ""SignalSuffix"": ""Vib1Fund"" }] }
+  ],
+  ""Links"": [
+    { ""FromNodeId"": ""in_rpm"", ""FromPort"": ""MainRotor.Speed"", ""ToNodeId"": ""emb"", ""ToPort"": ""x"" },
+    { ""FromNodeId"": ""emb"", ""FromPort"": ""y"", ""ToNodeId"": ""out_v"", ""ToPort"": ""Vib1Fund"" }
+  ]
+}";
+            // Deserialize editor format: the path-less Include must carry the inline graph.
+            var editorGraph = DiyFfb.GraphEditor.GraphSerializer.Deserialize(json, out var validation);
+            if (editorGraph == null || !validation.IsValid) return false;
+            var inc = editorGraph.Nodes.FirstOrDefault(n => n.Id == "emb");
+            if (inc == null || inc.InlineGraph == null || !string.IsNullOrEmpty(inc.IncludePath)) return false;
+
+            // Ports must be derived from the inline graph's Input/Output nodes.
+            DiyFfb.GraphEditor.GraphSerializer.PopulateIncludePorts(editorGraph, AppContext.BaseDirectory);
+            bool hasX = inc.Ports.Any(p => p.Name == "x" && p.Kind == DiyFfb.GraphEditor.GraphPortKind.Input);
+            bool hasY = inc.Ports.Any(p => p.Name == "y" && p.Kind == DiyFfb.GraphEditor.GraphPortKind.Output);
+            if (!hasX || !hasY) return false;
+
+            // Convert to runtime: the include node carries the converted InlineGraph
+            // (resolver/evaluator read it straight from memory) and maps boundary ports.
+            var runtime = DiyFfb.GraphEditor.GraphRuntimeConverter.Convert(editorGraph);
+            if (!runtime.Nodes.TryGetValue("emb", out var rn)) return false;
+            if (rn.InlineGraph == null || !rn.InputMap.ContainsKey("x") || !rn.OutputMap.ContainsKey("y")) return false;
+
+            // Re-serialize: the inline block must survive the round-trip.
+            string roundtrip = DiyFfb.GraphEditor.GraphSerializer.Serialize(editorGraph);
+            var reloaded = DiyFfb.GraphEditor.GraphSerializer.Deserialize(roundtrip, out var v2);
+            var inc2 = reloaded?.Nodes.FirstOrDefault(n => n.Id == "emb");
+            return v2 != null && v2.IsValid && inc2 != null && inc2.InlineGraph != null
+                   && inc2.InlineGraph.Nodes.Count == 4;
         }
 
         private static bool TestSchemaVersionMismatch()

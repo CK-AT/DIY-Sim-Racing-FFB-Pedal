@@ -31,9 +31,9 @@ def load(path):
         return json.load(f)
 
 
-def include_ports(inc_path):
-    """Returns (input_port_names, output_port_names) exposed by an include."""
-    g = load(inc_path)
+def graph_io_ports(g):
+    """Returns (input_port_names, output_port_names) exposed by a graph dict
+    via its Input/Output nodes."""
     ins, outs = set(), set()
     for n in g.get("Nodes", []):
         kind = n.get("Kind")
@@ -48,10 +48,18 @@ def include_ports(inc_path):
     return ins, outs
 
 
+def include_ports(inc_path):
+    """Returns (input_port_names, output_port_names) exposed by an include file."""
+    return graph_io_ports(load(inc_path))
+
+
 def node_ports(node, base_dir, fname):
     """Returns (input_names, output_names) for a node."""
     kind = node.get("Kind")
     if kind == "Include":
+        # Embedded sub-graph: ports come from the inline definition, no file.
+        if node.get("Inline"):
+            return graph_io_ports(node["Inline"])
         rel = node.get("IncludePath", "").replace("\\", os.sep)
         inc_path = os.path.normpath(os.path.join(base_dir, rel))
         if not os.path.isfile(inc_path):
@@ -64,9 +72,10 @@ def node_ports(node, base_dir, fname):
 
 
 def validate(path):
-    fname = os.path.relpath(path)
-    g = load(path)
-    base_dir = os.path.dirname(path)
+    validate_graph(load(path), os.path.dirname(path), os.path.relpath(path))
+
+
+def validate_graph(g, base_dir, fname):
     nodes = {}
     for n in g.get("Nodes", []):
         if n["Id"] in nodes:
@@ -108,6 +117,11 @@ def validate(path):
         if key in seen:
             errors.append(f"{fname}: input {key[0]}.{key[1]} driven by multiple links")
         seen[key] = True
+
+    # recurse into embedded sub-graphs (their own node/link/bus scope)
+    for nid, n in nodes.items():
+        if n.get("Kind") == "Include" and n.get("Inline"):
+            validate_graph(n["Inline"], base_dir, f"{fname}:{nid}")
 
 
 def main(args):

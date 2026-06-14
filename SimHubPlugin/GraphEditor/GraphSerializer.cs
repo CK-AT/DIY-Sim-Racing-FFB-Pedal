@@ -311,18 +311,32 @@ namespace DiyFfb.GraphEditor
 
             foreach (var node in graph.Nodes)
             {
-                if (node.Kind != GraphNodeKind.Include || string.IsNullOrWhiteSpace(node.IncludePath))
+                if (node.Kind != GraphNodeKind.Include)
                 {
                     continue;
                 }
 
-                // Skip if ports are already populated
-                if (node.Ports.Count > 0)
+                IncludedGraphInterface iface;
+                if (node.InlineGraph != null)
                 {
-                    continue;
+                    // Embedded sub-graph: recurse so nested includes are ready, then
+                    // derive this node's ports from the inline graph itself (no file).
+                    PopulateIncludePorts(node.InlineGraph, baseDirectory);
+                    if (node.Ports.Count > 0)
+                    {
+                        continue;
+                    }
+                    iface = ExtractInterface(node.InlineGraph);
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(node.IncludePath) || node.Ports.Count > 0)
+                    {
+                        continue;
+                    }
+                    iface = ExtractInterfaceFromPath(node.IncludePath, baseDirectory);
                 }
 
-                var iface = ExtractInterfaceFromPath(node.IncludePath, baseDirectory);
                 if (!iface.IsValid)
                 {
                     continue;
@@ -545,6 +559,9 @@ namespace DiyFfb.GraphEditor
         public bool Scoped { get; set; }
         public string ConfigType { get; set; } = "";
 
+        /// <summary>Embedded sub-graph for an Include node (no IncludePath). Recursive.</summary>
+        public GraphDefinitionDto Inline { get; set; }
+
         // Track whether this node uses signal binding (for ShouldSerialize methods)
         // Not serialized; set during FromModel based on graph context
         [JsonIgnore]
@@ -557,7 +574,9 @@ namespace DiyFfb.GraphEditor
              && Kind != GraphNodeKind.ConfigOut) || !UsesSignalBinding;
         public bool ShouldSerializeOp() => Kind == GraphNodeKind.Op;
         public bool ShouldSerializeFunc() => Kind == GraphNodeKind.Func;
-        public bool ShouldSerializeIncludePath() => Kind == GraphNodeKind.Include || Kind == GraphNodeKind.Func;
+        public bool ShouldSerializeIncludePath() =>
+            (Kind == GraphNodeKind.Include || Kind == GraphNodeKind.Func) && !string.IsNullOrEmpty(IncludePath);
+        public bool ShouldSerializeInline() => Inline != null;
         public bool ShouldSerializeConstValue() => Kind == GraphNodeKind.Const;
         public bool ShouldSerializeExpr() => Kind == GraphNodeKind.Expr;
         // v4: SignalGroup only for signal-bound nodes, but NOT for Scoped Output nodes
@@ -615,6 +634,8 @@ namespace DiyFfb.GraphEditor
                 {
                     dto.IncludePath = node.IncludePath;
                     dto.FunctionScope = node.FunctionScope;
+                    if (node.InlineGraph != null)
+                        dto.Inline = GraphDefinitionDto.FromModel(node.InlineGraph);
                 }
                 if (node.Kind == GraphNodeKind.ConfigOut)
                     dto.ConfigType = node.ConfigType;
@@ -678,6 +699,8 @@ namespace DiyFfb.GraphEditor
                 {
                     node.IncludePath = IncludePath ?? "";
                     node.FunctionScope = FunctionScope ?? "";
+                    if (Inline != null)
+                        node.InlineGraph = Inline.ToModel();
                 }
                 if (Kind == GraphNodeKind.ConfigOut)
                     node.ConfigType = ConfigType ?? "";

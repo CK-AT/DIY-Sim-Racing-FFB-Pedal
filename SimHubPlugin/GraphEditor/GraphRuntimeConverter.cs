@@ -155,6 +155,14 @@ namespace DiyFfb.GraphEditor
                 }
                 else if (node.Kind == GraphNodeKind.Include)
                 {
+                    // Embedded sub-graph: recursively convert the inline definition.
+                    // The runtime resolver checks InlineGraph before Path, so a
+                    // path-less embedded include evaluates straight from memory.
+                    if (node.InlineGraph != null)
+                    {
+                        runtimeNode.InlineGraph = Convert(node.InlineGraph);
+                    }
+
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
                     {
                         if (TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))

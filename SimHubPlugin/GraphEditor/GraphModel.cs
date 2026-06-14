@@ -108,6 +108,19 @@ namespace DiyFfb.GraphEditor
         public string ConfigType { get; set; } = "";
 
         /// <summary>
+        /// Embedded sub-graph definition for Include nodes. When non-null the
+        /// Include is *embedded* (self-contained in the parent, no file) rather
+        /// than referencing IncludePath. Mutually exclusive with IncludePath:
+        /// an embedded include has InlineGraph set and IncludePath empty.
+        /// Ports are derived from this graph's Input/Output nodes, same as a
+        /// file include. Nesting is allowed (recursion).
+        /// </summary>
+        public GraphDefinition InlineGraph { get; set; }
+
+        /// <summary>True if this Include node is embedded (inline) rather than file-backed.</summary>
+        public bool IsEmbeddedInclude => Kind == GraphNodeKind.Include && InlineGraph != null;
+
+        /// <summary>
         /// Cached interface from the included graph. Not serialized.
         /// Populated by SyncIncludePorts() when IncludePath changes.
         /// </summary>
