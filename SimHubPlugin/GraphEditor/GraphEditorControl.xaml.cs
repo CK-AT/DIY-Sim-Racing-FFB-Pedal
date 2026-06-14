@@ -6093,7 +6093,121 @@ namespace DiyFfb.GraphEditor
                     return true;
                 return false;
             });
+
+            // Apply any saved per-node display order on top of the derived order.
+            ApplyIncludePortOrder(node);
         }
+
+        /// <summary>
+        /// Reorders an Include node's ports to match its saved InputPortOrder /
+        /// OutputPortOrder. Known names come first in saved order; ports not named
+        /// (new since the override was set) keep their derived order, appended.
+        /// Purely cosmetic — links are name-keyed.
+        /// </summary>
+        private void ApplyIncludePortOrder(GraphNode node)
+        {
+            if (node == null || node.Kind != GraphNodeKind.Include)
+            {
+                return;
+            }
+
+            var inputs = OrderPortsByNames(
+                node.Ports.Where(p => p.Kind == GraphPortKind.Input).ToList(), node.InputPortOrder);
+            var outputs = OrderPortsByNames(
+                node.Ports.Where(p => p.Kind == GraphPortKind.Output).ToList(), node.OutputPortOrder);
+
+            node.Ports.Clear();
+            foreach (var p in inputs) node.Ports.Add(p);
+            foreach (var p in outputs) node.Ports.Add(p);
+        }
+
+        private static List<GraphPort> OrderPortsByNames(List<GraphPort> ports, List<string> order)
+        {
+            if (order == null || order.Count == 0)
+            {
+                return ports;
+            }
+
+            var remaining = ports.ToList();
+            var result = new List<GraphPort>();
+            foreach (var name in order)
+            {
+                var match = remaining.FirstOrDefault(p => p.Name == name);
+                if (match != null)
+                {
+                    result.Add(match);
+                    remaining.Remove(match);
+                }
+            }
+            result.AddRange(remaining); // new/unknown ports keep derived order
+            return result;
+        }
+
+        /// <summary>
+        /// Moves a port one slot within its kind on an Include node, records the
+        /// new order on the node, and redraws.
+        /// </summary>
+        private void MoveIncludePort(GraphNode node, string name, GraphPortKind kind, int dir)
+        {
+            if (node == null || string.IsNullOrEmpty(name))
+            {
+                return;
+            }
+
+            var names = node.Ports.Where(p => p.Kind == kind).Select(p => p.Name).ToList();
+            int i = names.IndexOf(name);
+            int j = i + dir;
+            if (i < 0 || j < 0 || j >= names.Count)
+            {
+                return;
+            }
+
+            var tmp = names[i];
+            names[i] = names[j];
+            names[j] = tmp;
+
+            if (kind == GraphPortKind.Input)
+            {
+                node.InputPortOrder = names;
+            }
+            else
+            {
+                node.OutputPortOrder = names;
+            }
+
+            ApplyIncludePortOrder(node);
+            RebuildSurface();
+            RebuildIncludePortEditors(node);
+            GraphChanged?.Invoke();
+        }
+
+        private void MoveSelectedIncludePort(object sender, GraphPortKind kind, int dir)
+        {
+            if (_selectedNode?.Node == null || _selectedNode.Node.Kind != GraphNodeKind.Include)
+            {
+                return;
+            }
+
+            string name = (sender as FrameworkElement)?.DataContext as string;
+            if (string.IsNullOrEmpty(name) || name == "(none)")
+            {
+                return;
+            }
+
+            MoveIncludePort(_selectedNode.Node, name, kind, dir);
+        }
+
+        private void MoveIncludeInputUp_Click(object sender, RoutedEventArgs e)
+            => MoveSelectedIncludePort(sender, GraphPortKind.Input, -1);
+
+        private void MoveIncludeInputDown_Click(object sender, RoutedEventArgs e)
+            => MoveSelectedIncludePort(sender, GraphPortKind.Input, +1);
+
+        private void MoveIncludeOutputUp_Click(object sender, RoutedEventArgs e)
+            => MoveSelectedIncludePort(sender, GraphPortKind.Output, -1);
+
+        private void MoveIncludeOutputDown_Click(object sender, RoutedEventArgs e)
+            => MoveSelectedIncludePort(sender, GraphPortKind.Output, +1);
 
         /// <summary>
         /// Re-derives the ports of a single Include node (by id) from its current

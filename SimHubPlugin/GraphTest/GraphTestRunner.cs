@@ -30,6 +30,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Validation catches missing output", TestIncludeOutputValidation));
             results.Add(TestRunner.RunTest("Inline include mapping", TestInlineIncludeMapping));
             results.Add(TestRunner.RunTest("Embedded sub-graph editor roundtrip", TestEmbeddedSubgraphEditorRoundtrip));
+            results.Add(TestRunner.RunTest("Include port-order override roundtrip", TestIncludePortOrderRoundtrip));
             results.Add(TestRunner.RunTest("Block library index", TestBlockLibraryIndex));
             results.Add(TestRunner.RunTest("Schema version mismatch", TestSchemaVersionMismatch));
             results.Add(TestRunner.RunTest("Unknown function validation", TestUnknownFunctionValidation));
@@ -527,6 +528,47 @@ namespace DiyFfb.GraphTest
                 new Dictionary<string, double>());
 
             return outputs.TryGetValue("out", out var value) && Math.Abs(value - 2.0) < 0.0001;
+        }
+
+        // An Include node's per-node port display-order override must survive a
+        // serialize/deserialize round-trip (Include ports themselves aren't
+        // serialized — only the order override is).
+        private static bool TestIncludePortOrderRoundtrip()
+        {
+            const string json = @"{
+  ""Version"": 4,
+  ""Nodes"": [
+    { ""Id"": ""emb"", ""Kind"": ""Include"", ""Title"": ""Embedded"",
+      ""InputPortOrder"": [ ""b"", ""a"" ],
+      ""OutputPortOrder"": [ ""q"", ""p"" ],
+      ""Inline"": {
+        ""Version"": 4, ""IsLibraryGraph"": true,
+        ""Nodes"": [
+          { ""Id"": ""ia"", ""Kind"": ""Input"", ""Ports"": [{ ""Name"": ""a"", ""Kind"": ""Output"" }] },
+          { ""Id"": ""ib"", ""Kind"": ""Input"", ""Ports"": [{ ""Name"": ""b"", ""Kind"": ""Output"" }] },
+          { ""Id"": ""op"", ""Kind"": ""Output"", ""Ports"": [{ ""Name"": ""p"", ""Kind"": ""Input"" }] },
+          { ""Id"": ""oq"", ""Kind"": ""Output"", ""Ports"": [{ ""Name"": ""q"", ""Kind"": ""Input"" }] }
+        ],
+        ""Links"": []
+      }
+    }
+  ],
+  ""Links"": []
+}";
+            var g = DiyFfb.GraphEditor.GraphSerializer.Deserialize(json, out var v);
+            if (g == null || !v.IsValid) return false;
+            var inc = g.Nodes.FirstOrDefault(n => n.Id == "emb");
+            if (inc?.InputPortOrder == null || inc.OutputPortOrder == null) return false;
+            if (string.Join(",", inc.InputPortOrder) != "b,a") return false;
+            if (string.Join(",", inc.OutputPortOrder) != "q,p") return false;
+
+            // Round-trip: order survives re-serialize.
+            var g2 = DiyFfb.GraphEditor.GraphSerializer.Deserialize(
+                DiyFfb.GraphEditor.GraphSerializer.Serialize(g), out var v2);
+            var inc2 = g2?.Nodes.FirstOrDefault(n => n.Id == "emb");
+            return v2 != null && v2.IsValid && inc2?.InputPortOrder != null
+                   && string.Join(",", inc2.InputPortOrder) == "b,a"
+                   && string.Join(",", inc2.OutputPortOrder) == "q,p";
         }
 
         private static bool TestBlockLibraryIndex()

@@ -837,19 +837,35 @@
                            Margin="0,0,0,6"
                            Visibility="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=ConfigTypeMismatchVisible, Converter={StaticResource BoolToVisibility}}"
                            Text="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=ConfigTypeMismatchMessage}" />
-                <TextBlock Text="Inputs (from included graph)" Foreground="#BBBBBB" FontSize="10" />
+                <TextBlock Text="Inputs (order — ▲▼ to reorder)" Foreground="#BBBBBB" FontSize="10" />
                 <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IncludeInputNames}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}" Foreground="#CCCCCC" FontSize="10" />
+                            <DockPanel Margin="0,1,0,1">
+                                <Button DockPanel.Dock="Right" Content="▼" Width="20" Height="18" FontSize="9"
+                                        Background="#2D2D2D" Foreground="White" BorderBrush="#4A4A4A" BorderThickness="1"
+                                        Padding="0" Click="MoveIncludeInputDown_Click" />
+                                <Button DockPanel.Dock="Right" Content="▲" Width="20" Height="18" FontSize="9" Margin="0,0,2,0"
+                                        Background="#2D2D2D" Foreground="White" BorderBrush="#4A4A4A" BorderThickness="1"
+                                        Padding="0" Click="MoveIncludeInputUp_Click" />
+                                <TextBlock Text="{Binding}" Foreground="#CCCCCC" FontSize="10" VerticalAlignment="Center" />
+                            </DockPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <TextBlock Text="Outputs (from included graph)" Foreground="#BBBBBB" FontSize="10" Margin="0,6,0,0" />
+                <TextBlock Text="Outputs (order — ▲▼ to reorder)" Foreground="#BBBBBB" FontSize="10" Margin="0,6,0,0" />
                 <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IncludeOutputNames}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}" Foreground="#CCCCCC" FontSize="10" />
+                            <DockPanel Margin="0,1,0,1">
+                                <Button DockPanel.Dock="Right" Content="▼" Width="20" Height="18" FontSize="9"
+                                        Background="#2D2D2D" Foreground="White" BorderBrush="#4A4A4A" BorderThickness="1"
+                                        Padding="0" Click="MoveIncludeOutputDown_Click" />
+                                <Button DockPanel.Dock="Right" Content="▲" Width="20" Height="18" FontSize="9" Margin="0,0,2,0"
+                                        Background="#2D2D2D" Foreground="White" BorderBrush="#4A4A4A" BorderThickness="1"
+                                        Padding="0" Click="MoveIncludeOutputUp_Click" />
+                                <TextBlock Text="{Binding}" Foreground="#CCCCCC" FontSize="10" VerticalAlignment="Center" />
+                            </DockPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

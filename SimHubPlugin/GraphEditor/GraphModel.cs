@@ -121,6 +121,17 @@ namespace DiyFfb.GraphEditor
         public bool IsEmbeddedInclude => Kind == GraphNodeKind.Include && InlineGraph != null;
 
         /// <summary>
+        /// Optional display order for an Include node's input/output ports, as a
+        /// list of port names. Include ports are derived from the sub-graph each
+        /// load, so this override (applied after derivation) lets the parent fix a
+        /// port order for tidy wiring independent of the sub-graph's node order.
+        /// Purely cosmetic — links/maps are name-keyed. Null = derived order.
+        /// Unknown names are ignored; new ports append in derived order.
+        /// </summary>
+        public List<string> InputPortOrder { get; set; }
+        public List<string> OutputPortOrder { get; set; }
+
+        /// <summary>
         /// Cached interface from the included graph. Not serialized.
         /// Populated by SyncIncludePorts() when IncludePath changes.
         /// </summary>

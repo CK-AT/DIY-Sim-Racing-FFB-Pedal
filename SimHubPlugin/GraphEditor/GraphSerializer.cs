@@ -562,6 +562,10 @@ namespace DiyFfb.GraphEditor
         /// <summary>Embedded sub-graph for an Include node (no IncludePath). Recursive.</summary>
         public GraphDefinitionDto Inline { get; set; }
 
+        /// <summary>Optional display order overrides for an Include node's ports.</summary>
+        public List<string> InputPortOrder { get; set; }
+        public List<string> OutputPortOrder { get; set; }
+
         // Track whether this node uses signal binding (for ShouldSerialize methods)
         // Not serialized; set during FromModel based on graph context
         [JsonIgnore]
@@ -577,6 +581,8 @@ namespace DiyFfb.GraphEditor
         public bool ShouldSerializeIncludePath() =>
             (Kind == GraphNodeKind.Include || Kind == GraphNodeKind.Func) && !string.IsNullOrEmpty(IncludePath);
         public bool ShouldSerializeInline() => Inline != null;
+        public bool ShouldSerializeInputPortOrder() => Kind == GraphNodeKind.Include && InputPortOrder != null && InputPortOrder.Count > 0;
+        public bool ShouldSerializeOutputPortOrder() => Kind == GraphNodeKind.Include && OutputPortOrder != null && OutputPortOrder.Count > 0;
         public bool ShouldSerializeConstValue() => Kind == GraphNodeKind.Const;
         public bool ShouldSerializeExpr() => Kind == GraphNodeKind.Expr;
         // v4: SignalGroup only for signal-bound nodes, but NOT for Scoped Output nodes
@@ -636,6 +642,10 @@ namespace DiyFfb.GraphEditor
                     dto.FunctionScope = node.FunctionScope;
                     if (node.InlineGraph != null)
                         dto.Inline = GraphDefinitionDto.FromModel(node.InlineGraph);
+                    if (node.InputPortOrder != null && node.InputPortOrder.Count > 0)
+                        dto.InputPortOrder = new List<string>(node.InputPortOrder);
+                    if (node.OutputPortOrder != null && node.OutputPortOrder.Count > 0)
+                        dto.OutputPortOrder = new List<string>(node.OutputPortOrder);
                 }
                 if (node.Kind == GraphNodeKind.ConfigOut)
                     dto.ConfigType = node.ConfigType;
@@ -701,6 +711,10 @@ namespace DiyFfb.GraphEditor
                     node.FunctionScope = FunctionScope ?? "";
                     if (Inline != null)
                         node.InlineGraph = Inline.ToModel();
+                    if (InputPortOrder != null && InputPortOrder.Count > 0)
+                        node.InputPortOrder = new List<string>(InputPortOrder);
+                    if (OutputPortOrder != null && OutputPortOrder.Count > 0)
+                        node.OutputPortOrder = new List<string>(OutputPortOrder);
                 }
                 if (Kind == GraphNodeKind.ConfigOut)
                     node.ConfigType = ConfigType ?? "";
