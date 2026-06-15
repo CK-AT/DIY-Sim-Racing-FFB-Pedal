@@ -1538,7 +1538,8 @@ namespace DiyFfb
         private readonly HashSet<string> _mutedParams = new HashSet<string>(StringComparer.Ordinal);
 
         public event EventHandler ParamMuteChanged;
-        // Fired on bulk clear (profile/vehicle/user switch). Subscribers
+        // Fired on any bulk mute change (profile/vehicle/user switch, or the
+        // mute-checkbox context menu's mute/unmute all/others). Subscribers
         // should rebuild any UI that displays mute state — checkbox values
         // may have changed without an originating user click.
         public event EventHandler ParamMutesCleared;
@@ -1563,6 +1564,32 @@ namespace DiyFfb
             if (_mutedParams.Count == 0) return;
             _mutedParams.Clear();
             ParamMutesCleared?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// Bulk mute/unmute for the mute-checkbox context menu. Operates over
+        /// every active-graph param that exposes a MuteValue. When
+        /// <paramref name="exceptName"/> is non-null that param is left untouched
+        /// ("mute/unmute others"). Fires <see cref="ParamMutesCleared"/> so all
+        /// mute checkboxes rebuild to reflect the new state.
+        /// </summary>
+        public void SetAllParamMutes(bool muted, string exceptName = null)
+        {
+            var allParams = GetActiveGraphParams();
+            if (allParams == null) return;
+
+            bool changed = false;
+            foreach (var kv in allParams)
+            {
+                if (kv.Value?.Ui?.MuteValue.HasValue != true) continue;
+                if (exceptName != null && string.Equals(kv.Key, exceptName, StringComparison.Ordinal)) continue;
+                changed |= muted ? _mutedParams.Add(kv.Key) : _mutedParams.Remove(kv.Key);
+            }
+
+            if (changed)
+            {
+                ParamMutesCleared?.Invoke(this, EventArgs.Empty);
+            }
         }
 
         private static float Clamp(float value, float min, float max)
