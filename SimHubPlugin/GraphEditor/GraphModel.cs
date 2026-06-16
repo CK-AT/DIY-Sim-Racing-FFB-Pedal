@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace DiyFfb.GraphEditor
 {
@@ -69,8 +71,12 @@ namespace DiyFfb.GraphEditor
         public bool IsLibraryGraph { get; set; }
     }
 
-    public sealed class GraphNode
+    public sealed class GraphNode : INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void OnPropertyChanged([CallerMemberName] string name = null) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
         public string Id { get; set; } = Guid.NewGuid().ToString("N");
         public string Title { get; set; } = "";
         public GraphNodeKind Kind { get; set; }
@@ -100,7 +106,12 @@ namespace DiyFfb.GraphEditor
         /// E.g., "FlightStickPitch", "FlightStickRoll", "FlightPedals".
         /// Empty string means unscoped (default, backward-compatible behavior).
         /// </summary>
-        public string FunctionScope { get; set; } = "";
+        public string FunctionScope
+        {
+            get => _functionScope;
+            set { if (_functionScope != value) { _functionScope = value ?? ""; OnPropertyChanged(); } }
+        }
+        private string _functionScope = "";
 
         /// <summary>
         /// Marks an Output node as scoped. When true, ports use SignalSuffix (dropdown)
@@ -108,7 +119,12 @@ namespace DiyFfb.GraphEditor
         /// Include's FunctionScope. When false, the output appears as a normal port on
         /// the Include node. Only meaningful on Output nodes in library graphs.
         /// </summary>
-        public bool Scoped { get; set; }
+        public bool Scoped
+        {
+            get => _scoped;
+            set { if (_scoped != value) { _scoped = value; OnPropertyChanged(); } }
+        }
+        private bool _scoped;
 
         /// <summary>
         /// Config type for ConfigOut nodes. Determines which OverrideFieldRegistry fields

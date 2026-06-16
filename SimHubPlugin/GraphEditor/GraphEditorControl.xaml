@@ -12,6 +12,7 @@
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
         <local:SignalGroupOptionsConverter x:Key="SignalGroupOptionsConverter" />
         <local:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+        <local:StringEmptyToBoolConverter x:Key="StringEmptyToBool" />
         <local:OpVariadicVisibilityConverter x:Key="OpVariadicVisibilityConverter" />
         <DataTemplate x:Key="PortEntryTemplate">
             <DockPanel Margin="0,2,0,2">
@@ -909,6 +910,39 @@
                           Loaded="InspectorConfigType_Loaded"
                           DataContextChanged="InspectorConfigType_DataContextChanged"
                           SelectionChanged="InspectorConfigType_SelectionChanged" />
+                <!-- Scoped: checked = function comes from the parent Include's FunctionScope
+                     (or top-level fan-out); unchecked = explicit single target function. -->
+                <CheckBox x:Name="ConfigOutScopedCheck"
+                          Content="Scoped (write to parent's / all functions)"
+                          Foreground="#BBBBBB"
+                          Margin="0,0,0,6"
+                          IsChecked="{Binding FunctionScope, Converter={StaticResource StringEmptyToBool}, Mode=OneWay}"
+                          Checked="ConfigOutScoped_Changed"
+                          Unchecked="ConfigOutScoped_Changed" />
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <!-- Scoped (empty FunctionScope) = auto; hide the explicit dropdown. -->
+                                <DataTrigger Binding="{Binding FunctionScope}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Text="Function (write to)" Foreground="#BBBBBB" FontSize="10" />
+                    <ComboBox Margin="0,2,0,6"
+                              Background="#1E1E1E"
+                              Foreground="White"
+                              BorderBrush="#4A4A4A"
+                              BorderThickness="1"
+                              ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=FunctionScopeOptions}"
+                              SelectedItem="{Binding FunctionScope, Mode=OneWay}"
+                              Loaded="InspectorFunctionScope_Loaded"
+                              DataContextChanged="InspectorFunctionScope_DataContextChanged"
+                              SelectionChanged="InspectorConfigOutScope_SelectionChanged" />
+                </StackPanel>
                 <TextBlock Text="Config Ports" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                     <Button Content="Add Port"
@@ -934,17 +968,55 @@
                          Padding="3,2,3,2"
                          Text="{Binding Title, Mode=OneWay}"
                          TextChanged="InspectorTitle_TextChanged" />
-                <TextBlock Text="Function (read from)" Foreground="#BBBBBB" FontSize="10" />
-                <ComboBox Margin="0,2,0,6"
-                          Background="#1E1E1E"
-                          Foreground="White"
-                          BorderBrush="#4A4A4A"
-                          BorderThickness="1"
-                          ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=FunctionScopeOptions}"
-                          SelectedItem="{Binding ConfigType, Mode=OneWay}"
-                          Loaded="InspectorConfigType_Loaded"
-                          DataContextChanged="InspectorConfigType_DataContextChanged"
-                          SelectionChanged="InspectorConfigType_SelectionChanged" />
+                <!-- Scoped checkbox: only in library/embedded sub-graphs. When scoped the
+                     function comes from the parent Include's FunctionScope. -->
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsLibraryGraph}"
+                                             Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <CheckBox Content="Scoped (read from parent's function)"
+                              Foreground="#BBBBBB"
+                              Margin="0,0,0,6"
+                              IsChecked="{Binding Scoped, Mode=OneWay}"
+                              Checked="InspectorScoped_Changed"
+                              Unchecked="InspectorScoped_Changed" />
+                </StackPanel>
+                <!-- Function dropdown: shown unless (library AND scoped) -->
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsLibraryGraph}" Value="True" />
+                                        <Condition Binding="{Binding Scoped}" Value="True" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Text="Function (read from)" Foreground="#BBBBBB" FontSize="10" />
+                    <ComboBox Margin="0,2,0,6"
+                              Background="#1E1E1E"
+                              Foreground="White"
+                              BorderBrush="#4A4A4A"
+                              BorderThickness="1"
+                              ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=FunctionScopeOptions}"
+                              SelectedItem="{Binding ConfigType, Mode=OneWay}"
+                              Loaded="InspectorConfigType_Loaded"
+                              DataContextChanged="InspectorConfigType_DataContextChanged"
+                              SelectionChanged="InspectorConfigType_SelectionChanged" />
+                </StackPanel>
                 <TextBlock Text="Config Fields" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                     <Button Content="Add Field"

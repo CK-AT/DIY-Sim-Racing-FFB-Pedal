@@ -33,6 +33,22 @@ namespace DiyFfb.GraphEditor
         }
     }
 
+    /// <summary>
+    /// Converts a null/empty string to true (e.g. "no explicit function set" → Scoped checked).
+    /// </summary>
+    public sealed class StringEmptyToBoolConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return string.IsNullOrEmpty(value as string);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public partial class GraphEditorWindow : Window
     {
         private readonly GraphEditorTabManager tabManager;

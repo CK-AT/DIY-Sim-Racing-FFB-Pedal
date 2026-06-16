@@ -231,6 +231,9 @@ namespace DiyFfb.GraphEditor
                 }
                 else if (node.Kind == GraphNodeKind.ConfigOut)
                 {
+                    // Explicit (unscoped) ConfigOut nodes name their own target function
+                    // and must NOT be auto-bridged by the parent's FunctionScope.
+                    if (!string.IsNullOrEmpty(node.FunctionScope)) continue;
                     // Each input port on a ConfigOut node is a config output.
                     // These don't appear as Include node ports — they're only used
                     // when the parent Include has FunctionScope.
@@ -249,6 +252,10 @@ namespace DiyFfb.GraphEditor
                 }
                 else if (node.Kind == GraphNodeKind.ConfigIn)
                 {
+                    // Only scoped ConfigIn nodes are auto-wired by the parent's
+                    // FunctionScope (mirror of scoped Output). Unscoped ConfigIns name
+                    // their function explicitly and are populated directly by the plugin.
+                    if (!node.Scoped) continue;
                     // Each output port on a ConfigIn node is a config input. Like
                     // ConfigOutputs they don't appear as Include node ports — they're
                     // fed a scoped merged-config value when the parent has FunctionScope.
@@ -606,7 +613,7 @@ namespace DiyFfb.GraphEditor
         // v4: SignalGroup only for signal-bound nodes, but NOT for Scoped Output nodes
         // (scoped nodes inherit their group from the parent Include's FunctionScope)
         public bool ShouldSerializeSignalGroup() => UsesSignalBinding && !Scoped;
-        public bool ShouldSerializeFunctionScope() => Kind == GraphNodeKind.Include && !string.IsNullOrEmpty(FunctionScope);
+        public bool ShouldSerializeFunctionScope() => (Kind == GraphNodeKind.Include || Kind == GraphNodeKind.ConfigOut) && !string.IsNullOrEmpty(FunctionScope);
         public bool ShouldSerializeScoped() => Scoped;
         public bool ShouldSerializeConfigType() => (Kind == GraphNodeKind.ConfigOut || Kind == GraphNodeKind.ConfigIn) && !string.IsNullOrEmpty(ConfigType);
         // v3: Include node ports are auto-derived from included graph, so don't serialize them
@@ -667,6 +674,8 @@ namespace DiyFfb.GraphEditor
                 }
                 if (node.Kind == GraphNodeKind.ConfigOut || node.Kind == GraphNodeKind.ConfigIn)
                     dto.ConfigType = node.ConfigType;
+                if (node.Kind == GraphNodeKind.ConfigOut)
+                    dto.FunctionScope = node.FunctionScope;  // explicit (unscoped) target function; empty = auto
                 if (node.Kind == GraphNodeKind.Const)
                     dto.ConstValue = node.ConstValue;
                 if (node.Kind == GraphNodeKind.Expr)
@@ -736,6 +745,8 @@ namespace DiyFfb.GraphEditor
                 }
                 if (Kind == GraphNodeKind.ConfigOut || Kind == GraphNodeKind.ConfigIn)
                     node.ConfigType = ConfigType ?? "";
+                if (Kind == GraphNodeKind.ConfigOut)
+                    node.FunctionScope = FunctionScope ?? "";
                 if (Kind == GraphNodeKind.Const)
                     node.ConstValue = ConstValue;
                 if (Kind == GraphNodeKind.Expr)

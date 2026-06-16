@@ -1714,6 +1714,9 @@ namespace DiyFfb.GraphEditor
             }
             else if (kind == GraphNodeKind.ConfigIn)
             {
+                // In a library/embedded sub-graph, default to scoped (function comes
+                // from the parent Include); at top level, default to explicit.
+                node.Scoped = _graph?.IsLibraryGraph == true;
                 node.Ports.Add(new GraphPort { Name = "cfg_0", Kind = GraphPortKind.Output });
             }
             else if (kind == GraphNodeKind.LocalSend)
@@ -4053,6 +4056,63 @@ namespace DiyFfb.GraphEditor
                 _isInspectorUpdating = true;
                 comboBox.SelectedItem = string.IsNullOrEmpty(node.FunctionScope) ? "" : node.FunctionScope;
                 _isInspectorUpdating = false;
+            }
+        }
+
+        // ConfigOut "Scoped" checkbox: checked = empty FunctionScope (auto: parent-scoped
+        // in includes, or top-level fan-out); unchecked = explicit single target function.
+        // IsChecked is bound to FunctionScope-emptiness, so it stays in sync via INPC.
+        private void ConfigOutScoped_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null) return;
+            if (sender is System.Windows.Controls.CheckBox cb &&
+                cb.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
+            {
+                // Checked = auto (empty FunctionScope: parent-scoped / top-level fan-out).
+                // Unchecked = explicit: seed a default function so the dropdown (shown when
+                // FunctionScope is non-empty) appears; the user then picks the target.
+                bool wantScoped = cb.IsChecked == true;
+                bool isScoped = string.IsNullOrEmpty(node.FunctionScope);
+                if (wantScoped == isScoped) return;  // already in the desired state
+
+                node.FunctionScope = wantScoped
+                    ? ""
+                    : (GraphSignalCatalogData.FunctionScopeOptions.FirstOrDefault(s => !string.IsNullOrEmpty(s)) ?? "");
+
+                RebuildSurface();
+                if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+                {
+                    _selectedNode = visual;
+                    _selectedNodes.Clear();
+                    _selectedNodes.Add(visual);
+                    UpdateSelectionVisuals();
+                }
+                GraphChanged?.Invoke();
+            }
+        }
+
+        private void InspectorConfigOutScope_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null) return;
+            if (sender is ComboBox comboBox &&
+                comboBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
+            {
+                string selected = comboBox.SelectedItem as string ?? "";
+                if (node.FunctionScope != selected)
+                {
+                    node.FunctionScope = selected;
+                    RebuildSurface();
+                    if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+                    {
+                        _selectedNode = visual;
+                        _selectedNodes.Clear();
+                        _selectedNodes.Add(visual);
+                        UpdateSelectionVisuals();
+                    }
+                    GraphChanged?.Invoke();
+                }
             }
         }
 

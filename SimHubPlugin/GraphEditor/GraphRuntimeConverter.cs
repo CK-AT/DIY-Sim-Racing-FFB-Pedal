@@ -141,10 +141,16 @@ namespace DiyFfb.GraphEditor
                         if (!string.IsNullOrEmpty(port.ConfigField) &&
                             TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
                         {
+                            // Explicit (unscoped) ConfigOut: FunctionScope names the single
+                            // target function ("Function:field"). Empty = current behavior
+                            // (parent-scoped in includes, or top-level fan-out by group).
+                            string name = string.IsNullOrEmpty(node.FunctionScope)
+                                ? port.ConfigField
+                                : node.FunctionScope + ":" + port.ConfigField;
                             var configOutNode = new DiyFfb.GraphTest.GraphNode
                             {
                                 Id = BuildPortId(node.Id, port.Name),
-                                Name = port.ConfigField,
+                                Name = name,
                                 Type = NodeType.ConfigOut,
                                 Src = source
                             };
@@ -298,9 +304,12 @@ namespace DiyFfb.GraphEditor
                         {
                             continue;
                         }
-                        string key = string.IsNullOrEmpty(node.ConfigType)
+                        // Scoped: the parent Include's FunctionScope supplies the function,
+                        // so the runtime key is the bare field (fed via the parent's InputMap).
+                        // Unscoped: ConfigType names the function explicitly ("Function:Field").
+                        string key = node.Scoped
                             ? port.ConfigField
-                            : node.ConfigType + ":" + port.ConfigField;
+                            : (string.IsNullOrEmpty(node.ConfigType) ? port.ConfigField : node.ConfigType + ":" + port.ConfigField);
                         var configInNode = new DiyFfb.GraphTest.GraphNode
                         {
                             Id = BuildPortId(node.Id, port.Name),
