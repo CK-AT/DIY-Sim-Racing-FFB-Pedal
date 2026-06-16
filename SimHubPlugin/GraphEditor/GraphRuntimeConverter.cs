@@ -223,6 +223,27 @@ namespace DiyFfb.GraphEditor
                             };
                             runtime.Nodes[scopedConfigOut.Id] = scopedConfigOut;
                         }
+
+                        // Scoped config inputs (inverse of scoped config outputs): feed
+                        // each sub-graph ConfigIn the scoped function's merged config value.
+                        // A parent-level ConfigIn source node carries the scoped key
+                        // "scope:ConfigField" (the plugin populates it); it is wired into
+                        // the sub-graph via the Include's InputMap. The library ConfigIn
+                        // node reads inputs["ConfigField"] (no scope prefix), so we key the
+                        // InputMap entry by ConfigField — EvalInclude passes it through
+                        // unmapped (it isn't an Input port) straight into subInputs.
+                        foreach (var cfgIn in node.CachedInterface.ConfigInputs)
+                        {
+                            string scopedNodeId = node.Id + ":scoped_cfgin:" + cfgIn.Name;
+                            var scopedConfigIn = new DiyFfb.GraphTest.GraphNode
+                            {
+                                Id = scopedNodeId,
+                                Name = scope + ":" + cfgIn.ConfigField,
+                                Type = NodeType.ConfigIn
+                            };
+                            runtime.Nodes[scopedConfigIn.Id] = scopedConfigIn;
+                            runtimeNode.InputMap[cfgIn.ConfigField] = scopedNodeId;
+                        }
                     }
                 }
                 else if (node.Kind == GraphNodeKind.Expr)

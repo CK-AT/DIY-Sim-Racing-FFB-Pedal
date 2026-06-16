@@ -192,6 +192,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Evaluator: ConfigOut values in ConfigOutputs", TestEval_ConfigOutValues));
             results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigOut values in ConfigOutputs", TestCompiledEval_ConfigOutValues));
             results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigIn reads inputs + exposes keys", TestCompiledEval_ConfigInValues));
+            results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigIn auto-scoped through Include", TestCompiledEval_ConfigInScopedThroughInclude));
             results.Add(TestRunner.RunTest("Evaluator: ConfigOut bridges through Include", TestEval_ConfigOutBridgesThroughInclude));
             results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigOut bridges through Include", TestCompiledEval_ConfigOutBridgesThroughInclude));
             results.Add(TestRunner.RunTest("ExtractInterface: scoped vs unscoped outputs", TestExtractInterface_ScopedOutputs));
@@ -5387,6 +5388,40 @@ namespace DiyFfb.GraphTest
             bool defaultsZero = result0.Outputs.TryGetValue("FlightStickCollective.SpringGain", out var v0) && Math.Abs(v0) < 1e-9;
 
             return keyExposed && valueFlows && defaultsZero;
+        }
+
+        private static bool TestCompiledEval_ConfigInScopedThroughInclude()
+        {
+            // Auto-scoping: a library sub-graph ConfigIn reads inputs["ConfigField"];
+            // the parent feeds it the scoped merged value via a scoped ConfigIn source
+            // node wired through the Include's InputMap. Mirrors the runtime shape the
+            // converter produces for a FunctionScope Include.
+            var sub = new GraphDefinition();
+            sub.Nodes["cfgin"] = new GraphNode { Id = "cfgin", Type = NodeType.ConfigIn, Name = "FlightControl.PosMin" };
+            sub.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "value", Src = "cfgin" };
+
+            var parent = new GraphDefinition();
+            var include = new GraphNode { Id = "inc", Type = NodeType.Include, InlineGraph = sub };
+            include.InputMap["FlightControl.PosMin"] = "scoped_in";   // scope feed into sub-graph
+            include.OutputMap["value"] = "inc_out_value";            // bridge sub Output out
+            parent.Nodes["inc"] = include;
+            parent.Nodes["scoped_in"] = new GraphNode
+            {
+                Id = "scoped_in",
+                Type = NodeType.ConfigIn,
+                Name = "FlightStickCollective:FlightControl.PosMin"
+            };
+            parent.Nodes["result"] = new GraphNode { Id = "result", Type = NodeType.Output, Name = "Result", Src = "inc_out_value" };
+
+            var resolver = new GraphIncludeResolver(AppContext.BaseDirectory);
+            var eval = new GraphCompiledEvaluator(parent, resolver);
+
+            bool keyExposed = eval.ConfigInputKeys.Contains("FlightStickCollective:FlightControl.PosMin");
+            var inputs = new Dictionary<string, double> { { "FlightStickCollective:FlightControl.PosMin", 9.0 } };
+            var result = eval.EvaluateWithTrace(inputs, null);
+            bool flows = result.Outputs.TryGetValue("Result", out var v) && Math.Abs(v - 9.0) < 1e-9;
+
+            return keyExposed && flows;
         }
 
         private static bool TestCompiledEval_ConfigOutValues()
