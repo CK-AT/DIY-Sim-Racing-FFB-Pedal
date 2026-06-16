@@ -48,6 +48,8 @@ namespace DiyFfb
                     if (Math.Abs(x - rounded) < 1e-9) return;
                     x = rounded;
                     OnPropertyChanged(nameof(X));
+                    OnPropertyChanged(nameof(Distance));
+                    OnPropertyChanged(nameof(Angle));
                 }
             }
 
@@ -60,7 +62,82 @@ namespace DiyFfb
                     if (Math.Abs(y - rounded) < 1e-9) return;
                     y = rounded;
                     OnPropertyChanged(nameof(Y));
+                    OnPropertyChanged(nameof(Distance));
+                    OnPropertyChanged(nameof(Angle));
                 }
+            }
+
+            // Polar view: distance/angle of this pin relative to a reference pin
+            // chosen in the UI. XY stays canonical — these are an editing lens that
+            // resolves back to XY. The reference position is pushed in via
+            // SetPolarReference whenever the reference pin (or its position) changes.
+            private double refX;
+            private double refY;
+            private bool isPolarReference;
+
+            public void SetPolarReference(double referenceX, double referenceY, bool isReference)
+            {
+                refX = referenceX;
+                refY = referenceY;
+                isPolarReference = isReference;
+                OnPropertyChanged(nameof(Distance));
+                OnPropertyChanged(nameof(Angle));
+            }
+
+            // Distance from the reference pin (mm). Blank-equivalent (0) for the
+            // reference pin itself; editing it is a no-op there.
+            public double Distance
+            {
+                get
+                {
+                    if (isPolarReference) return 0.0;
+                    double dx = x - refX, dy = y - refY;
+                    return Math.Round(Math.Sqrt(dx * dx + dy * dy), 1, MidpointRounding.AwayFromZero);
+                }
+                set
+                {
+                    if (isPolarReference) return;
+                    SetFromPolar(value, CurrentAngleRad());
+                }
+            }
+
+            // Angle from the reference pin, degrees from +X axis, CCW positive
+            // (matches the proto's x-right / y-up convention).
+            public double Angle
+            {
+                get
+                {
+                    if (isPolarReference) return 0.0;
+                    double dx = x - refX, dy = y - refY;
+                    if (Math.Abs(dx) < 1e-9 && Math.Abs(dy) < 1e-9) return 0.0;
+                    return Math.Round(Math.Atan2(dy, dx) * 180.0 / Math.PI, 1, MidpointRounding.AwayFromZero);
+                }
+                set
+                {
+                    if (isPolarReference) return;
+                    SetFromPolar(CurrentDistance(), value * Math.PI / 180.0);
+                }
+            }
+
+            private double CurrentDistance()
+            {
+                double dx = x - refX, dy = y - refY;
+                return Math.Sqrt(dx * dx + dy * dy);
+            }
+
+            private double CurrentAngleRad()
+            {
+                double dx = x - refX, dy = y - refY;
+                if (Math.Abs(dx) < 1e-9 && Math.Abs(dy) < 1e-9) return 0.0;
+                return Math.Atan2(dy, dx);
+            }
+
+            private void SetFromPolar(double distance, double angleRad)
+            {
+                X = refX + distance * Math.Cos(angleRad);
+                Y = refY + distance * Math.Sin(angleRad);
+                OnPropertyChanged(nameof(Distance));
+                OnPropertyChanged(nameof(Angle));
             }
 
             private static double RoundPinCoordinate(double value)
@@ -328,6 +405,7 @@ namespace DiyFfb
             TextRailNegative.Text = railTravelNegative.ToString("0.#", CultureInfo.CurrentCulture);
             TextRailPositive.Text = railTravelPositive.ToString("0.#", CultureInfo.CurrentCulture);
             isLoading = false;
+            RefreshPolarRefChoices();
             // Cancel any pending user-edit timer, then do a synchronous
             // visual rebuild.  No KinematicParametersChanged event — this is
             // a programmatic load, not a user edit.
@@ -364,6 +442,7 @@ namespace DiyFfb
             }
             if (isLoading) return;
             DropMissingBarPins();
+            RefreshPolarRefChoices();
             QueueRebuild();
         }
 
@@ -392,6 +471,18 @@ namespace DiyFfb
         {
             if (isLoading) return;
             var row = (PinRow)sender;
+
+            // Distance/Angle are a display-only projection of X/Y; the geometry
+            // config is driven by X/Y, so don't trigger a rebuild on their change.
+            if (e.PropertyName == nameof(PinRow.Distance) || e.PropertyName == nameof(PinRow.Angle))
+                return;
+
+            // When the polar reference pin itself moves, every other pin's polar
+            // readout shifts — refresh them all.
+            if ((e.PropertyName == nameof(PinRow.X) || e.PropertyName == nameof(PinRow.Y)) &&
+                row.PinId == polarReferencePinId)
+                RefreshPolarReference();
+
             switch (e.PropertyName)
             {
                 case nameof(PinRow.Grounded):
@@ -414,9 +505,53 @@ namespace DiyFfb
                     break;
                 case nameof(PinRow.PinId):
                     DropMissingBarPins();
+                    RefreshPolarRefChoices();
                     break;
             }
             QueueRebuild();
+        }
+
+        // The polar-reference dropdown lets the user read/edit each pin's position
+        // as distance + angle relative to a chosen reference pin. XY remains the
+        // source of truth; these methods keep the projection in sync.
+        private uint polarReferencePinId;
+        private bool suppressPolarRefChange;
+
+        private void RefreshPolarRefChoices()
+        {
+            var ids = pinRows.Select(p => p.PinId).ToList();
+
+            uint desired = polarReferencePinId;
+            if (!ids.Contains(desired))
+                desired = pinRows.FirstOrDefault(p => p.Grounded)?.PinId
+                          ?? (ids.Count > 0 ? ids[0] : 0u);
+
+            suppressPolarRefChange = true;
+            PolarRefCombo.ItemsSource = ids;
+            PolarRefCombo.SelectedItem = ids.Contains(desired) ? (object)desired : null;
+            suppressPolarRefChange = false;
+
+            polarReferencePinId = desired;
+            RefreshPolarReference();
+        }
+
+        private void RefreshPolarReference()
+        {
+            var refRow = pinRows.FirstOrDefault(p => p.PinId == polarReferencePinId);
+            double rx = refRow?.X ?? 0.0;
+            double ry = refRow?.Y ?? 0.0;
+            foreach (var row in pinRows)
+                row.SetPolarReference(rx, ry, refRow != null && ReferenceEquals(row, refRow));
+        }
+
+        private void PolarRefCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (suppressPolarRefChange) return;
+            if (PolarRefCombo.SelectedItem is uint id)
+            {
+                polarReferencePinId = id;
+                RefreshPolarReference();
+            }
         }
 
         private void OnBarRowPropertyChanged(object sender, PropertyChangedEventArgs e)
