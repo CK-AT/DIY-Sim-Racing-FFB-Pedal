@@ -418,7 +418,31 @@ namespace DiyFfb
                     ApplyFallbackTravelRange();
                 }
                 function?.OnAxisUpdate();
+                PersistAxisConfigToBaseline();
             }
+        }
+
+        // LinkedAxes (physical axis binding) and OutputMode live in the Baseline
+        // layer with no override-registry entry, so changing them must update the
+        // baseline and re-upload — otherwise the merge re-applies the baseline's
+        // old axes and the selection is silently discarded.
+        private void PersistAxisConfigToBaseline()
+        {
+            if (!allowOverrideCreation || plugin == null || function == null ||
+                !plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+                return;
+
+            plugin.ConfigOrchestrator.UpdateFunctionBaseline((int)function.ID, baseline =>
+            {
+                baseline.Base.OutputMode = function_config.Base.OutputMode;
+                baseline.Base.LinkedAxes.Clear();
+                baseline.Base.LinkedAxes.AddRange(function_config.Base.LinkedAxes);
+                if (function_config.AuxFunction != null && baseline.AuxFunction != null)
+                {
+                    baseline.AuxFunction.LinkedAxes.Clear();
+                    baseline.AuxFunction.LinkedAxes.AddRange(function_config.AuxFunction.LinkedAxes);
+                }
+            });
         }
 
         private void Rangeslider_brake_force_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -479,6 +503,34 @@ namespace DiyFfb
         {
             function_config.Base.ControllerOutputAxis = e.Value;
             function_config.AuxFunction.RudderBrake.ControllerOutputAxisFlightPedals = e.Value;
+            PersistControllerAxesToBaseline();
+        }
+
+        // The HID controller-output-axis assignment lives in the Baseline layer, not
+        // the override system, so changing a selector must update the baseline and
+        // re-upload — otherwise the merged config keeps the baseline's axis and the
+        // selection is silently discarded. Writes all three pedal axes at once.
+        private void PersistControllerAxesToBaseline()
+        {
+            if (!allowOverrideCreation || plugin == null || function == null ||
+                !plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+                return;
+
+            var pedalsAxis = function_config.Base.ControllerOutputAxis;
+            var flightPedalsAxis = function_config.AuxFunction.RudderBrake.ControllerOutputAxisFlightPedals;
+            var leftAxis = function_config.AuxFunction.RudderBrake.ControllerOutputAxisLeftPedal;
+            var rightAxis = function_config.AuxFunction.RudderBrake.ControllerOutputAxisRightPedal;
+
+            plugin.ConfigOrchestrator.UpdateFunctionBaseline((int)function.ID, baseline =>
+            {
+                baseline.Base.ControllerOutputAxis = pedalsAxis;
+                if (baseline.AuxFunction?.RudderBrake != null)
+                {
+                    baseline.AuxFunction.RudderBrake.ControllerOutputAxisFlightPedals = flightPedalsAxis;
+                    baseline.AuxFunction.RudderBrake.ControllerOutputAxisLeftPedal = leftAxis;
+                    baseline.AuxFunction.RudderBrake.ControllerOutputAxisRightPedal = rightAxis;
+                }
+            });
         }
 
         private void Rangeslider_travel_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -554,11 +606,13 @@ namespace DiyFfb
         private void uc_controller_axis_right_brake_ControllerAxisChanged(object sender, ControllerAxisSelector.ControllerAxisChangedEventArgs e)
         {
             function_config.AuxFunction.RudderBrake.ControllerOutputAxisRightPedal = e.Value;
+            PersistControllerAxesToBaseline();
         }
 
         private void uc_controller_axis_left_brake_ControllerAxisChanged(object sender, ControllerAxisSelector.ControllerAxisChangedEventArgs e)
         {
             function_config.AuxFunction.RudderBrake.ControllerOutputAxisLeftPedal = e.Value;
+            PersistControllerAxesToBaseline();
         }
 
         private void OnFrictionChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

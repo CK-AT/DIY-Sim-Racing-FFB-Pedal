@@ -128,6 +128,28 @@ namespace DiyFfb.TieredConfig
         }
 
         /// <summary>
+        /// Mutate a stored function baseline in place, then re-merge and re-upload.
+        /// Use for fields that live in the Baseline layer rather than the override
+        /// system — notably the HID controller-output-axis assignment, which is a
+        /// device-global property and not a per-profile tuning value. No-op when the
+        /// function has no stored baseline (callers edit the working copy directly in
+        /// that case). Persists the updated baseline to disk and refreshes the live
+        /// manager base so the next merge reflects the new value.
+        /// </summary>
+        public void UpdateFunctionBaseline(int functionId, Action<FunctionConfig> mutate)
+        {
+            if (mutate == null) return;
+
+            var baseline = GetFunctionBaseline(functionId);
+            if (baseline == null) return;
+
+            mutate(baseline);
+            SetFunctionBaseline(functionId, baseline);                  // persist JSON
+            _functionConfigManager.SetBaseConfig(functionId, baseline); // refresh live base
+            ReapplyMergedOverrides(functionId, diffCheck: false);       // re-merge + upload
+        }
+
+        /// <summary>
         /// Check if a function has a stored baseline.
         /// </summary>
         public bool HasFunctionBaseline(int functionId)

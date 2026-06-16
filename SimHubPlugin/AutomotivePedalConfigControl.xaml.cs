@@ -1140,6 +1140,7 @@ namespace DiyFfb
                 OnKinematicParametersChanged(kinematic_parameters);
             }
             function?.OnAxisUpdate();
+            PersistAxisConfigToBaseline();
         }
 
         private void cb_controller_output_mode_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1157,11 +1158,41 @@ namespace DiyFfb
                     break;
             }
             AutomotivePedalProcessor.ReconcileDerivedFields(function_config);
+            PersistAxisConfigToBaseline();
+        }
+
+        // LinkedAxes (physical axis binding) and OutputMode live in the Baseline
+        // layer with no override-registry entry, so changing them must update the
+        // baseline and re-upload — otherwise the merge re-applies the baseline's
+        // old axes/mode and the selection is silently discarded.
+        private void PersistAxisConfigToBaseline()
+        {
+            if (!allowOverrideCreation || plugin == null || function == null ||
+                !plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+                return;
+
+            plugin.ConfigOrchestrator.UpdateFunctionBaseline((int)function.ID, baseline =>
+            {
+                baseline.Base.OutputMode = function_config.Base.OutputMode;
+                baseline.Base.LinkedAxes.Clear();
+                baseline.Base.LinkedAxes.AddRange(function_config.Base.LinkedAxes);
+            });
         }
 
         private void AutomotivePedal_ControllerAxisSelector_ControllerAxisChanged(object sender, ControllerAxisSelector.ControllerAxisChangedEventArgs e)
         {
             function_config.Base.ControllerOutputAxis = e.Value;
+
+            // The HID controller-output-axis lives in the Baseline layer, not the
+            // override system, so persist it to the baseline and re-upload — otherwise
+            // the merged config keeps the baseline's axis and the selection is lost.
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+            {
+                var axis = e.Value;
+                plugin.ConfigOrchestrator.UpdateFunctionBaseline((int)function.ID,
+                    baseline => baseline.Base.ControllerOutputAxis = axis);
+            }
         }
         
         private void OnFrictionChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
