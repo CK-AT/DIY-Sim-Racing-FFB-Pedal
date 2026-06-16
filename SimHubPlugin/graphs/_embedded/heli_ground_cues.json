@@ -54,7 +54,7 @@
       "Id": "out_gnd_boost",
       "Title": "Ground Boost Out",
       "Kind": "Output",
-      "X": 520.0,
+      "X": 790.0,
       "Y": 80.0,
       "Ports": [
         {
@@ -67,8 +67,8 @@
       "Id": "func_td_edge",
       "Title": "Touchdown edge",
       "Kind": "Func",
-      "X": 660.0,
-      "Y": 260.0,
+      "X": 670.0,
+      "Y": 340.0,
       "Ports": [
         {
           "Name": "input",
@@ -79,14 +79,13 @@
           "Kind": "Output"
         }
       ],
-      "Func": "edge_detect",
-      "IncludePath": ""
+      "Func": "edge_detect"
     },
     {
       "Id": "param_touchdown_gain",
       "Kind": "Param",
-      "X": 600.0,
-      "Y": 340.0,
+      "X": 610.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -99,8 +98,8 @@
       "Id": "mul_td_pulse",
       "Title": "edge x gain x severity",
       "Kind": "Op",
-      "X": 900.0,
-      "Y": 320.0,
+      "X": 910.0,
+      "Y": 400.0,
       "Ports": [
         {
           "Name": "a",
@@ -125,8 +124,8 @@
       "Id": "const_td_tau_up",
       "Title": "0.01 s",
       "Kind": "Const",
-      "X": 920.0,
-      "Y": 560.0,
+      "X": 930.0,
+      "Y": 640.0,
       "Ports": [
         {
           "Name": "out",
@@ -139,8 +138,8 @@
       "Id": "const_td_tau_down",
       "Title": "0.3 s",
       "Kind": "Const",
-      "X": 920.0,
-      "Y": 630.0,
+      "X": 930.0,
+      "Y": 700.0,
       "Ports": [
         {
           "Name": "out",
@@ -153,8 +152,8 @@
       "Id": "func_td_lag",
       "Title": "stretch pulse",
       "Kind": "Func",
-      "X": 1100.0,
-      "Y": 540.0,
+      "X": 1110.0,
+      "Y": 620.0,
       "Ports": [
         {
           "Name": "input",
@@ -173,15 +172,14 @@
           "Kind": "Output"
         }
       ],
-      "Func": "lag_asym",
-      "IncludePath": ""
+      "Func": "lag_asym"
     },
     {
       "Id": "out_thump",
       "Title": "Ground Buffet Out",
       "Kind": "Output",
-      "X": 1470.0,
-      "Y": 620.0,
+      "X": 1480.0,
+      "Y": 700.0,
       "Ports": [
         {
           "Name": "gnd_buffet",
@@ -193,8 +191,8 @@
       "Id": "in_descent",
       "Title": "Descent (fpm, +down)",
       "Kind": "Input",
-      "X": 40.0,
-      "Y": 350.0,
+      "X": 50.0,
+      "Y": 420.0,
       "Ports": [
         {
           "Name": "descent_fpm",
@@ -206,8 +204,8 @@
       "Id": "const_hold_up",
       "Title": "0.05 s",
       "Kind": "Const",
-      "X": 40.0,
-      "Y": 420.0,
+      "X": 50.0,
+      "Y": 500.0,
       "Ports": [
         {
           "Name": "out",
@@ -220,8 +218,8 @@
       "Id": "const_hold_down",
       "Title": "0.5 s",
       "Kind": "Const",
-      "X": 40.0,
-      "Y": 490.0,
+      "X": 50.0,
+      "Y": 560.0,
       "Ports": [
         {
           "Name": "out",
@@ -234,8 +232,8 @@
       "Id": "func_descent_hold",
       "Title": "hold descent over touchdown",
       "Kind": "Func",
-      "X": 220.0,
-      "Y": 370.0,
+      "X": 230.0,
+      "Y": 440.0,
       "Ports": [
         {
           "Name": "input",
@@ -254,14 +252,13 @@
           "Kind": "Output"
         }
       ],
-      "Func": "lag_asym",
-      "IncludePath": ""
+      "Func": "lag_asym"
     },
     {
       "Id": "param_td_vs_ref",
       "Kind": "Param",
-      "X": 220.0,
-      "Y": 510.0,
+      "X": 230.0,
+      "Y": 580.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -274,8 +271,8 @@
       "Id": "div_td_sev",
       "Title": "descent / ref",
       "Kind": "Op",
-      "X": 540.0,
-      "Y": 420.0,
+      "X": 550.0,
+      "Y": 500.0,
       "Ports": [
         {
           "Name": "a",
@@ -296,8 +293,8 @@
       "Id": "const_sev_zero",
       "Title": "0",
       "Kind": "Const",
-      "X": 580.0,
-      "Y": 840.0,
+      "X": 590.0,
+      "Y": 920.0,
       "Ports": [
         {
           "Name": "out",
@@ -310,8 +307,8 @@
       "Id": "const_sev_one",
       "Title": "1",
       "Kind": "Const",
-      "X": 580.0,
-      "Y": 920.0,
+      "X": 590.0,
+      "Y": 1000.0,
       "Ports": [
         {
           "Name": "out",
@@ -324,8 +321,8 @@
       "Id": "clamp_td_sev",
       "Title": "severity 0..1",
       "Kind": "Op",
-      "X": 700.0,
-      "Y": 420.0,
+      "X": 710.0,
+      "Y": 500.0,
       "Ports": [
         {
           "Name": "a",
@@ -350,8 +347,8 @@
       "Id": "in_ground_speed",
       "Title": "Ground Speed (kt)",
       "Kind": "Input",
-      "X": 420.0,
-      "Y": 720.0,
+      "X": 430.0,
+      "Y": 800.0,
       "Ports": [
         {
           "Name": "ground_speed",
@@ -362,8 +359,8 @@
     {
       "Id": "param_rumble_ref",
       "Kind": "Param",
-      "X": 300.0,
-      "Y": 790.0,
+      "X": 320.0,
+      "Y": 870.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -375,8 +372,8 @@
     {
       "Id": "param_rumble_gain",
       "Kind": "Param",
-      "X": 740.0,
-      "Y": 890.0,
+      "X": 750.0,
+      "Y": 960.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -389,8 +386,8 @@
       "Id": "div_rumble",
       "Title": "gs / ref",
       "Kind": "Op",
-      "X": 580.0,
-      "Y": 740.0,
+      "X": 590.0,
+      "Y": 820.0,
       "Ports": [
         {
           "Name": "a",
@@ -411,8 +408,8 @@
       "Id": "clamp_rumble",
       "Title": "0..1",
       "Kind": "Op",
-      "X": 720.0,
-      "Y": 760.0,
+      "X": 730.0,
+      "Y": 840.0,
       "Ports": [
         {
           "Name": "a",
@@ -437,8 +434,8 @@
       "Id": "mul_rumble",
       "Title": "on_ground x sev x gain",
       "Kind": "Op",
-      "X": 1080.0,
-      "Y": 730.0,
+      "X": 1090.0,
+      "Y": 800.0,
       "Ports": [
         {
           "Name": "a",
@@ -463,8 +460,8 @@
       "Id": "add_gnd_buffet",
       "Title": "thump + rumble",
       "Kind": "Op",
-      "X": 1280.0,
-      "Y": 620.0,
+      "X": 1290.0,
+      "Y": 700.0,
       "Ports": [
         {
           "Name": "a",
@@ -485,8 +482,8 @@
       "Id": "c9ebf610aa8649849d1e7ad368d399a1",
       "Title": "0",
       "Kind": "Const",
-      "X": 540.0,
-      "Y": 520.0,
+      "X": 550.0,
+      "Y": 600.0,
       "Ports": [
         {
           "Name": "out",
@@ -499,8 +496,8 @@
       "Id": "79289d9dfc754e54bb0df4a1fe1ad5f3",
       "Title": "1",
       "Kind": "Const",
-      "X": 540.0,
-      "Y": 590.0,
+      "X": 550.0,
+      "Y": 660.0,
       "Ports": [
         {
           "Name": "out",
@@ -527,8 +524,8 @@
       "Id": "d7ab6197fa144ee282510a2bc3af3ebf",
       "Title": "Local Receive",
       "Kind": "LocalReceive",
-      "X": 920.0,
-      "Y": 710.0,
+      "X": 930.0,
+      "Y": 780.0,
       "Ports": [
         {
           "Name": "out_0",
@@ -541,8 +538,8 @@
       "Id": "d3796dab9f914569bedb9221d59c12c8",
       "Title": "Local Receive",
       "Kind": "LocalReceive",
-      "X": 540.0,
-      "Y": 260.0,
+      "X": 550.0,
+      "Y": 340.0,
       "Ports": [
         {
           "Name": "out_0",
@@ -550,6 +547,46 @@
           "BusName": "OnGround"
         }
       ]
+    },
+    {
+      "Id": "1be633291f4d4efca0e269b323afce22",
+      "Title": "stretch pulse",
+      "Kind": "Func",
+      "X": 600.0,
+      "Y": 80.0,
+      "Ports": [
+        {
+          "Name": "input",
+          "Kind": "Input"
+        },
+        {
+          "Name": "tau_up_sec",
+          "Kind": "Input"
+        },
+        {
+          "Name": "tau_down_sec",
+          "Kind": "Input"
+        },
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "Func": "lag_asym"
+    },
+    {
+      "Id": "fc6f8b4917484e2fa83e4c7aaeb1e800",
+      "Title": "0.1 s",
+      "Kind": "Const",
+      "X": 450.0,
+      "Y": 140.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.1
     }
   ],
   "Links": [
@@ -558,12 +595,6 @@
       "FromPort": "on_ground",
       "ToNodeId": "mul_gnd_boost",
       "ToPort": "b"
-    },
-    {
-      "FromNodeId": "mul_gnd_boost",
-      "FromPort": "a*b",
-      "ToNodeId": "out_gnd_boost",
-      "ToPort": "gnd_boost"
     },
     {
       "FromNodeId": "func_td_edge",
@@ -732,6 +763,30 @@
       "FromPort": "out_0",
       "ToNodeId": "func_td_edge",
       "ToPort": "input"
+    },
+    {
+      "FromNodeId": "mul_gnd_boost",
+      "FromPort": "a*b",
+      "ToNodeId": "1be633291f4d4efca0e269b323afce22",
+      "ToPort": "input"
+    },
+    {
+      "FromNodeId": "1be633291f4d4efca0e269b323afce22",
+      "FromPort": "out",
+      "ToNodeId": "out_gnd_boost",
+      "ToPort": "gnd_boost"
+    },
+    {
+      "FromNodeId": "fc6f8b4917484e2fa83e4c7aaeb1e800",
+      "FromPort": "out",
+      "ToNodeId": "1be633291f4d4efca0e269b323afce22",
+      "ToPort": "tau_up_sec"
+    },
+    {
+      "FromNodeId": "fc6f8b4917484e2fa83e4c7aaeb1e800",
+      "FromPort": "out",
+      "ToNodeId": "1be633291f4d4efca0e269b323afce22",
+      "ToPort": "tau_down_sec"
     }
   ],
   "Params": [

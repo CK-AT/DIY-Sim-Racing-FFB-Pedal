@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Profile Browser"
         MinHeight="520"
-        Width="600"
+        Width="731"
         WindowStartupLocation="CenterOwner"
         Background="#1B1B1B"
         Foreground="White"
@@ -226,7 +226,7 @@
         </Border>
 
         <!-- Action buttons -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,0">
             <Button x:Name="ButtonCancel"
                     Content="Cancel"
                     Width="80"
