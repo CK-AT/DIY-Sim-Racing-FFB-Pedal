@@ -191,6 +191,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Converter: ConfigOut scoped via FunctionScope", TestConvert_ConfigOutScoped));
             results.Add(TestRunner.RunTest("Evaluator: ConfigOut values in ConfigOutputs", TestEval_ConfigOutValues));
             results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigOut values in ConfigOutputs", TestCompiledEval_ConfigOutValues));
+            results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigIn reads inputs + exposes keys", TestCompiledEval_ConfigInValues));
             results.Add(TestRunner.RunTest("Evaluator: ConfigOut bridges through Include", TestEval_ConfigOutBridgesThroughInclude));
             results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigOut bridges through Include", TestCompiledEval_ConfigOutBridgesThroughInclude));
             results.Add(TestRunner.RunTest("ExtractInterface: scoped vs unscoped outputs", TestExtractInterface_ScopedOutputs));
@@ -5362,6 +5363,30 @@ namespace DiyFfb.GraphTest
             bool outNotInConfigOutputs = !result.ConfigOutputs.ContainsKey("FlightStickPitch.SpringGain");
 
             return cfgInConfigOutputs && cfgNotInOutputs && outInOutputs && outNotInConfigOutputs;
+        }
+
+        private static bool TestCompiledEval_ConfigInValues()
+        {
+            // ConfigIn runtime nodes are sources that read the inputs dict by their
+            // scoped key, and the compiled evaluator exposes those keys so the host
+            // knows which config values to supply.
+            var runtime = new GraphDefinition();
+            runtime.Nodes["cfgin"] = new GraphNode { Id = "cfgin", Type = NodeType.ConfigIn, Name = "FlightStickCollective:FlightControl.PosMin" };
+            runtime.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "FlightStickCollective.SpringGain", Src = "cfgin" };
+
+            var eval = new GraphCompiledEvaluator(runtime);
+
+            bool keyExposed = eval.ConfigInputKeys.Contains("FlightStickCollective:FlightControl.PosMin");
+
+            var inputs = new Dictionary<string, double> { { "FlightStickCollective:FlightControl.PosMin", 12.5 } };
+            var result = eval.EvaluateWithTrace(inputs, null);
+            bool valueFlows = result.Outputs.TryGetValue("FlightStickCollective.SpringGain", out var v) && Math.Abs(v - 12.5) < 1e-9;
+
+            // Missing input → 0 (no throw).
+            var result0 = eval.EvaluateWithTrace(null, null);
+            bool defaultsZero = result0.Outputs.TryGetValue("FlightStickCollective.SpringGain", out var v0) && Math.Abs(v0) < 1e-9;
+
+            return keyExposed && valueFlows && defaultsZero;
         }
 
         private static bool TestCompiledEval_ConfigOutValues()

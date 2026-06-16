@@ -1618,6 +1618,7 @@ namespace DiyFfb.GraphEditor
             }
             menu.Items.Add(BuildMenuItem("Add Output", () => AddNode(GraphNodeKind.Output, position)));
             menu.Items.Add(BuildMenuItem("Add ConfigOut", () => AddNode(GraphNodeKind.ConfigOut, position)));
+            menu.Items.Add(BuildMenuItem("Add ConfigIn", () => AddNode(GraphNodeKind.ConfigIn, position)));
             menu.Items.Add(BuildMenuItem("Add Local Send", () => AddNode(GraphNodeKind.LocalSend, position)));
             menu.Items.Add(BuildMenuItem("Add Local Receive", () => AddNode(GraphNodeKind.LocalReceive, position)));
             menu.Items.Add(new Separator());
@@ -1710,6 +1711,10 @@ namespace DiyFfb.GraphEditor
             else if (kind == GraphNodeKind.ConfigOut)
             {
                 node.Ports.Add(new GraphPort { Name = "cfg_0", Kind = GraphPortKind.Input });
+            }
+            else if (kind == GraphNodeKind.ConfigIn)
+            {
+                node.Ports.Add(new GraphPort { Name = "cfg_0", Kind = GraphPortKind.Output });
             }
             else if (kind == GraphNodeKind.LocalSend)
             {
@@ -2081,6 +2086,7 @@ namespace DiyFfb.GraphEditor
             if (UsesTemplateInspector(node) && (node.Kind == GraphNodeKind.Input ||
                                                 node.Kind == GraphNodeKind.Output ||
                                                 node.Kind == GraphNodeKind.ConfigOut ||
+                                                node.Kind == GraphNodeKind.ConfigIn ||
                                                 node.Kind == GraphNodeKind.Param ||
                                                 node.Kind == GraphNodeKind.Op ||
                                                 node.Kind == GraphNodeKind.Expr))
@@ -3728,7 +3734,7 @@ namespace DiyFfb.GraphEditor
             // In library graphs, Input/Output nodes use Name directly (freeform)
             // Exception: Scoped Output nodes use SignalSuffix even in library graphs
             // ConfigOut nodes always use freeform Names
-            if (node.Kind == GraphNodeKind.ConfigOut ||
+            if (node.Kind == GraphNodeKind.ConfigOut || node.Kind == GraphNodeKind.ConfigIn ||
                 (isLibraryGraph && (node.Kind == GraphNodeKind.Input ||
                                     (node.Kind == GraphNodeKind.Output && !node.Scoped))))
             {
@@ -3796,6 +3802,9 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.ConfigOut:
                     label = string.IsNullOrWhiteSpace(node.Title) ? "ConfigOut" : $"ConfigOut ({node.Title})";
                     break;
+                case GraphNodeKind.ConfigIn:
+                    label = string.IsNullOrWhiteSpace(node.Title) ? "ConfigIn" : $"ConfigIn ({node.Title})";
+                    break;
                 default:
                     label = node.Kind.ToString();
                     break;
@@ -3855,6 +3864,7 @@ namespace DiyFfb.GraphEditor
                    || node.Kind == GraphNodeKind.Input
                    || node.Kind == GraphNodeKind.Output
                    || node.Kind == GraphNodeKind.ConfigOut
+                   || node.Kind == GraphNodeKind.ConfigIn
                    || node.Kind == GraphNodeKind.Param
                    || node.Kind == GraphNodeKind.Include
                    || node.Kind == GraphNodeKind.LocalSend
@@ -4193,6 +4203,12 @@ namespace DiyFfb.GraphEditor
         private void ButtonAddOutputPort_Click(object sender, RoutedEventArgs e)
         {
             AddPort(GraphPortKind.Output, "out");
+        }
+
+        private void ButtonAddConfigInPort_Click(object sender, RoutedEventArgs e)
+        {
+            // ConfigIn fields are output ports (the node is a source).
+            AddPort(GraphPortKind.Output, "cfg");
         }
 
         private void ButtonAddOpInput_Click(object sender, RoutedEventArgs e)
@@ -5119,6 +5135,16 @@ namespace DiyFfb.GraphEditor
                         port.Name = port.ConfigField;
                     }
                 }
+                else if (node.Kind == GraphNodeKind.ConfigIn && port.Kind == GraphPortKind.Output)
+                {
+                    // ConfigIn output ports select from the readable-field catalog.
+                    useSignalOptions = true;
+                    signalOptions = ConfigInFieldCatalog.FieldPaths;
+                    if (!string.IsNullOrEmpty(port.ConfigField) && string.IsNullOrEmpty(port.Name))
+                    {
+                        port.Name = port.ConfigField;
+                    }
+                }
                 else if (node.Kind == GraphNodeKind.Param && port.Kind == GraphPortKind.Output)
                 {
                     showParamFields = true;
@@ -5270,9 +5296,9 @@ namespace DiyFfb.GraphEditor
                 {
                     entry.Port.SignalSuffix = unique;
                 }
-                else if (node.Kind == GraphNodeKind.ConfigOut && entry.UseSignalOptions)
+                else if ((node.Kind == GraphNodeKind.ConfigOut || node.Kind == GraphNodeKind.ConfigIn) && entry.UseSignalOptions)
                 {
-                    // ConfigOut ports: the selected field path IS the ConfigField
+                    // ConfigOut/ConfigIn ports: the selected field path IS the ConfigField
                     entry.Port.ConfigField = unique;
                 }
                 else if (node.Kind == GraphNodeKind.Param && entry.Port.Kind == GraphPortKind.Output)
@@ -5742,6 +5768,7 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.Input: return TitleBarInput;
                 case GraphNodeKind.Output: return TitleBarOutput;
                 case GraphNodeKind.ConfigOut: return TitleBarOutput;
+                case GraphNodeKind.ConfigIn: return TitleBarInput;
                 case GraphNodeKind.Param: return TitleBarParam;
                 case GraphNodeKind.Const: return TitleBarConst;
                 case GraphNodeKind.Op: return TitleBarOp;
@@ -5949,6 +5976,7 @@ namespace DiyFfb.GraphEditor
             if (node.Kind == GraphNodeKind.Include ||
                 node.Kind == GraphNodeKind.Output ||
                 node.Kind == GraphNodeKind.ConfigOut ||
+                node.Kind == GraphNodeKind.ConfigIn ||
                 node.Kind == GraphNodeKind.Input ||
                 node.Kind == GraphNodeKind.Param)
             {
@@ -7312,6 +7340,7 @@ namespace DiyFfb.GraphEditor
         public DataTemplate ParamTemplate { get; set; }
         public DataTemplate IncludeTemplate { get; set; }
         public DataTemplate ConfigOutTemplate { get; set; }
+        public DataTemplate ConfigInTemplate { get; set; }
         public DataTemplate LocalBusTemplate { get; set; }
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
@@ -7338,6 +7367,8 @@ namespace DiyFfb.GraphEditor
                         return IncludeTemplate;
                     case GraphNodeKind.ConfigOut:
                         return ConfigOutTemplate;
+                    case GraphNodeKind.ConfigIn:
+                        return ConfigInTemplate;
                     case GraphNodeKind.LocalSend:
                     case GraphNodeKind.LocalReceive:
                         return LocalBusTemplate;

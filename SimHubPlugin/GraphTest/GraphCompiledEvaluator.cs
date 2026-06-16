@@ -45,6 +45,7 @@ namespace DiyFfb.GraphTest
         private readonly string[] _outputNames;
         private readonly int[] _configOutIndices;
         private readonly string[] _configOutNames;
+        private readonly string[] _configInKeys;
         private readonly double[] _values;
         private readonly double[] _extraValues;
         private readonly double[] _state;  // persists across evaluations for stateful Func nodes
@@ -137,7 +138,24 @@ namespace DiyFfb.GraphTest
 
             _configOutIndices = configOutIndices.ToArray();
             _configOutNames = configOutNames.ToArray();
+
+            var configInKeys = new List<string>();
+            foreach (var node in _order)
+            {
+                if (node.Node.Type == NodeType.ConfigIn && !string.IsNullOrEmpty(node.Node.Name))
+                {
+                    configInKeys.Add(node.Node.Name);
+                }
+            }
+            _configInKeys = configInKeys.ToArray();
         }
+
+        /// <summary>
+        /// The (scoped) config field keys this graph reads via ConfigIn nodes, in
+        /// "ConfigType:FieldPath" form. The host resolves each to a function + merged
+        /// config value and supplies it in the inputs dictionary before evaluation.
+        /// </summary>
+        public IReadOnlyList<string> ConfigInputKeys => _configInKeys;
 
         public IReadOnlyDictionary<string, double> Evaluate(
             IReadOnlyDictionary<string, double> inputs,
@@ -175,6 +193,9 @@ namespace DiyFfb.GraphTest
                 switch (compiled.Node.Type)
                 {
                     case NodeType.Input:
+                    case NodeType.ConfigIn:
+                        // ConfigIn is a source like Input: the plugin supplies the
+                        // merged config value under the node's (scoped) field key.
                         _values[compiled.Index] = inputs != null && inputs.TryGetValue(compiled.Node.Name, out var inVal) ? inVal : 0.0;
                         break;
                     case NodeType.Param:

@@ -264,6 +264,32 @@ namespace DiyFfb.GraphEditor
                     }
                     continue;
                 }
+                else if (node.Kind == GraphNodeKind.ConfigIn)
+                {
+                    // ConfigIn nodes are sources (like Input) that read a merged config
+                    // field value supplied by the plugin. One runtime node per output
+                    // port; Name is "ConfigType:ConfigField" so the plugin can resolve
+                    // the target function + field. Consumers wired from the output port
+                    // resolve via TryGetInputSource → BuildPortId, same as Input/Param.
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
+                    {
+                        if (string.IsNullOrEmpty(port.ConfigField))
+                        {
+                            continue;
+                        }
+                        string key = string.IsNullOrEmpty(node.ConfigType)
+                            ? port.ConfigField
+                            : node.ConfigType + ":" + port.ConfigField;
+                        var configInNode = new DiyFfb.GraphTest.GraphNode
+                        {
+                            Id = BuildPortId(node.Id, port.Name),
+                            Name = key,
+                            Type = NodeType.ConfigIn
+                        };
+                        runtime.Nodes[configInNode.Id] = configInNode;
+                    }
+                    continue;
+                }
 
                 runtime.Nodes[runtimeNode.Id] = runtimeNode;
             }
@@ -283,6 +309,7 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.Include: return NodeType.Include;
                 case GraphNodeKind.Output: return NodeType.Output;
                 case GraphNodeKind.ConfigOut: return NodeType.ConfigOut;
+                case GraphNodeKind.ConfigIn: return NodeType.ConfigIn;
                 case GraphNodeKind.Expr: return NodeType.Expr;
                 // LocalSend / LocalReceive collapse away at convert time and
                 // never reach the runtime; MapNodeType shouldn't be called on
@@ -371,7 +398,8 @@ namespace DiyFfb.GraphEditor
             }
 
             if (nodes.TryGetValue(fromNodeId, out var sourceNode) &&
-                (sourceNode.Kind == GraphNodeKind.Input || sourceNode.Kind == GraphNodeKind.Param) &&
+                (sourceNode.Kind == GraphNodeKind.Input || sourceNode.Kind == GraphNodeKind.Param ||
+                 sourceNode.Kind == GraphNodeKind.ConfigIn) &&
                 !string.IsNullOrWhiteSpace(fromPort))
             {
                 sourceId = BuildPortId(fromNodeId, fromPort);

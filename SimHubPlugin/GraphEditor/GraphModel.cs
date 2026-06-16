@@ -15,6 +15,16 @@ namespace DiyFfb.GraphEditor
         ConfigOut,
 
         /// <summary>
+        /// Reads a config field value INTO the graph as a source (mirror of
+        /// ConfigOut). Has one or more output ports, each bound to an
+        /// OverrideFieldRegistry field path via ConfigField. The value is the
+        /// current MERGED config value of that field for the scoped function,
+        /// supplied by the plugin at eval time. Scoped via the parent Include's
+        /// FunctionScope, exactly like ConfigOut.
+        /// </summary>
+        ConfigIn,
+
+        /// <summary>
         /// "Send" end of a graph-local named bus. Has one input port; the value
         /// flowing in is published on the bus name (LocalBusName). One Send per
         /// name per graph. Runtime: collapsed into direct wiring by the
@@ -171,6 +181,13 @@ namespace DiyFfb.GraphEditor
         public List<ConfigOutputPort> ConfigOutputs { get; } = new List<ConfigOutputPort>();
 
         /// <summary>
+        /// ConfigIn node ports in the included graph. Mirror of ConfigOutputs:
+        /// they do NOT become ports on the Include node — when the Include has a
+        /// FunctionScope, the converter feeds each one a scoped merged-config value.
+        /// </summary>
+        public List<ConfigInputPort> ConfigInputs { get; } = new List<ConfigInputPort>();
+
+        /// <summary>
         /// True if the interface was successfully extracted.
         /// </summary>
         public bool IsValid { get; set; }
@@ -199,9 +216,9 @@ namespace DiyFfb.GraphEditor
         public bool Negate { get; set; }
 
         /// <summary>
-        /// Config field path for ConfigOut input ports. Stores the OverrideFieldRegistry
-        /// FieldPath (e.g., "flight_stick.damping", "flight_stick.vib_harmonic_ratios.0").
-        /// Only meaningful on ConfigOut node input ports.
+        /// Config field path for ConfigOut input ports / ConfigIn output ports.
+        /// Stores the OverrideFieldRegistry FieldPath (e.g., "FlightControl.PosMin").
+        /// Only meaningful on ConfigOut input ports and ConfigIn output ports.
         /// </summary>
         public string ConfigField { get; set; } = "";
 
@@ -239,6 +256,22 @@ namespace DiyFfb.GraphEditor
         public string ConfigField { get; set; } = "";
 
         /// <summary>Config type from the ConfigOut node (e.g., "FlightStick").</summary>
+        public string ConfigType { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Describes a ConfigIn port extracted from an included sub-graph (mirror of
+    /// ConfigOutputPort). The parent Include feeds it a scoped merged-config value.
+    /// </summary>
+    public sealed class ConfigInputPort
+    {
+        /// <summary>Port name in the sub-graph (used for InputMap lookup).</summary>
+        public string Name { get; set; } = "";
+
+        /// <summary>OverrideFieldRegistry FieldPath being read (e.g., "FlightControl.PosMin").</summary>
+        public string ConfigField { get; set; } = "";
+
+        /// <summary>Config type from the ConfigIn node (e.g., "FlightStick").</summary>
         public string ConfigType { get; set; } = "";
     }
 

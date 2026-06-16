@@ -923,6 +923,42 @@
                               ItemTemplate="{StaticResource PortEntryTemplate}" />
             </StackPanel>
         </DataTemplate>
+        <DataTemplate x:Key="InspectorConfigInTemplate">
+            <StackPanel>
+                <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
+                <TextBox Margin="0,2,0,6"
+                         Background="#1E1E1E"
+                         Foreground="White"
+                         BorderBrush="#4A4A4A"
+                         BorderThickness="1"
+                         Padding="3,2,3,2"
+                         Text="{Binding Title, Mode=OneWay}"
+                         TextChanged="InspectorTitle_TextChanged" />
+                <TextBlock Text="Function (read from)" Foreground="#BBBBBB" FontSize="10" />
+                <ComboBox Margin="0,2,0,6"
+                          Background="#1E1E1E"
+                          Foreground="White"
+                          BorderBrush="#4A4A4A"
+                          BorderThickness="1"
+                          ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=FunctionScopeOptions}"
+                          SelectedItem="{Binding ConfigType, Mode=OneWay}"
+                          Loaded="InspectorConfigType_Loaded"
+                          DataContextChanged="InspectorConfigType_DataContextChanged"
+                          SelectionChanged="InspectorConfigType_SelectionChanged" />
+                <TextBlock Text="Config Fields" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <Button Content="Add Field"
+                            Background="#1E1E1E"
+                            Foreground="White"
+                            BorderBrush="#4A4A4A"
+                            BorderThickness="1"
+                            Padding="2,2,2,2"
+                            Click="ButtonAddConfigInPort_Click" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=PortEntries}"
+                              ItemTemplate="{StaticResource PortEntryTemplate}" />
+            </StackPanel>
+        </DataTemplate>
         <local:InspectorTemplateSelector x:Key="InspectorTemplateSelector"
                                          ConstTemplate="{StaticResource InspectorConstTemplate}"
                                          OpTemplate="{StaticResource InspectorOpTemplate}"
@@ -933,6 +969,7 @@
                                          ParamTemplate="{StaticResource InspectorParamTemplate}"
                                          IncludeTemplate="{StaticResource InspectorIncludeTemplate}"
                                          ConfigOutTemplate="{StaticResource InspectorConfigOutTemplate}"
+                                         ConfigInTemplate="{StaticResource InspectorConfigInTemplate}"
                                          LocalBusTemplate="{StaticResource InspectorLocalBusTemplate}" />
         <DrawingBrush x:Key="GraphGridBrush" TileMode="Tile" Viewport="0,0,20,20" ViewportUnits="Absolute">
             <DrawingBrush.Drawing>

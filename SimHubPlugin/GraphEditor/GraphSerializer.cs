@@ -247,6 +247,24 @@ namespace DiyFfb.GraphEditor
                         }
                     }
                 }
+                else if (node.Kind == GraphNodeKind.ConfigIn)
+                {
+                    // Each output port on a ConfigIn node is a config input. Like
+                    // ConfigOutputs they don't appear as Include node ports — they're
+                    // fed a scoped merged-config value when the parent has FunctionScope.
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
+                    {
+                        if (!string.IsNullOrWhiteSpace(port.Name) && !string.IsNullOrWhiteSpace(port.ConfigField))
+                        {
+                            result.ConfigInputs.Add(new ConfigInputPort
+                            {
+                                Name = port.Name,
+                                ConfigField = port.ConfigField,
+                                ConfigType = node.ConfigType ?? ""
+                            });
+                        }
+                    }
+                }
             }
 
             result.IsValid = true;
@@ -575,7 +593,7 @@ namespace DiyFfb.GraphEditor
         // v4: Library graph Input/Output/Param nodes need Title serialized (freeform names)
         public bool ShouldSerializeTitle() =>
             (Kind != GraphNodeKind.Input && Kind != GraphNodeKind.Output && Kind != GraphNodeKind.Param
-             && Kind != GraphNodeKind.ConfigOut) || !UsesSignalBinding;
+             && Kind != GraphNodeKind.ConfigOut && Kind != GraphNodeKind.ConfigIn) || !UsesSignalBinding;
         public bool ShouldSerializeOp() => Kind == GraphNodeKind.Op;
         public bool ShouldSerializeFunc() => Kind == GraphNodeKind.Func;
         public bool ShouldSerializeIncludePath() =>
@@ -590,7 +608,7 @@ namespace DiyFfb.GraphEditor
         public bool ShouldSerializeSignalGroup() => UsesSignalBinding && !Scoped;
         public bool ShouldSerializeFunctionScope() => Kind == GraphNodeKind.Include && !string.IsNullOrEmpty(FunctionScope);
         public bool ShouldSerializeScoped() => Scoped;
-        public bool ShouldSerializeConfigType() => Kind == GraphNodeKind.ConfigOut && !string.IsNullOrEmpty(ConfigType);
+        public bool ShouldSerializeConfigType() => (Kind == GraphNodeKind.ConfigOut || Kind == GraphNodeKind.ConfigIn) && !string.IsNullOrEmpty(ConfigType);
         // v3: Include node ports are auto-derived from included graph, so don't serialize them
         public bool ShouldSerializePorts() => Kind != GraphNodeKind.Include && Ports != null && Ports.Count > 0;
 
@@ -647,7 +665,7 @@ namespace DiyFfb.GraphEditor
                     if (node.OutputPortOrder != null && node.OutputPortOrder.Count > 0)
                         dto.OutputPortOrder = new List<string>(node.OutputPortOrder);
                 }
-                if (node.Kind == GraphNodeKind.ConfigOut)
+                if (node.Kind == GraphNodeKind.ConfigOut || node.Kind == GraphNodeKind.ConfigIn)
                     dto.ConfigType = node.ConfigType;
                 if (node.Kind == GraphNodeKind.Const)
                     dto.ConstValue = node.ConstValue;
@@ -716,7 +734,7 @@ namespace DiyFfb.GraphEditor
                     if (OutputPortOrder != null && OutputPortOrder.Count > 0)
                         node.OutputPortOrder = new List<string>(OutputPortOrder);
                 }
-                if (Kind == GraphNodeKind.ConfigOut)
+                if (Kind == GraphNodeKind.ConfigOut || Kind == GraphNodeKind.ConfigIn)
                     node.ConfigType = ConfigType ?? "";
                 if (Kind == GraphNodeKind.Const)
                     node.ConstValue = ConstValue;

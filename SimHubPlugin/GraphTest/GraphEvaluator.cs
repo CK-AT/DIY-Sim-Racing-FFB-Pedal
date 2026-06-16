@@ -14,6 +14,7 @@ namespace DiyFfb.GraphTest
         Include,
         Output,
         ConfigOut,
+        ConfigIn,
         Expr
     }
 
@@ -122,6 +123,7 @@ namespace DiyFfb.GraphTest
                 switch (node.Type)
                 {
                     case NodeType.Input:
+                    case NodeType.ConfigIn:
                         _values[node.Id] = inputs != null && inputs.TryGetValue(node.Name, out var inVal) ? inVal : 0.0;
                         break;
                     case NodeType.Param:

@@ -2813,6 +2813,38 @@ namespace DiyFfb
             GraphSignalCatalog.BuildMsfsInputs(this, data, graphInputs);
             GraphSignalCatalog.BuildGripInputs(_gripHeld, graphInputs);
             GraphSignalCatalog.BuildAxisInputs(this, graphInputs);
+            BuildConfigInInputs(graphInputs);
+        }
+
+        /// <summary>
+        /// Supplies ConfigIn node values: for each "Scope:FieldPath" key the active
+        /// graph reads, resolve the scoped function's MERGED config and read the
+        /// effective field value (e.g. the actual motion PosMin/PosMax). Mirror of
+        /// the ConfigOut write path — ConfigIn is feed-forward (reads the current
+        /// merged value; a same-frame ConfigOut write to the same field is seen next frame).
+        /// </summary>
+        private void BuildConfigInInputs(Dictionary<string, double> inputs)
+        {
+            var keys = activeGraphEvaluator?.ConfigInputKeys;
+            if (keys == null || keys.Count == 0) return;
+
+            foreach (var key in keys)
+            {
+                int sep = key.IndexOf(':');
+                if (sep <= 0 || sep >= key.Length - 1) continue;  // need both scope and field
+                string scope = key.Substring(0, sep);
+                string fieldPath = key.Substring(sep + 1);
+
+                FunctionID? fn = ResolveFunctionIdFromScope(scope);
+                if (fn == null) continue;
+
+                var field = ConfigInFieldCatalog.Get(fieldPath);
+                if (field?.GetMergedValue == null) continue;
+
+                var config = _functionConfigManager.GetCurrentConfig((int)fn.Value);
+                double? value = field.GetMergedValue(config);
+                if (value.HasValue) inputs[key] = value.Value;
+            }
         }
 
         internal Dictionary<string, double> GetLiveGraphInputs()
