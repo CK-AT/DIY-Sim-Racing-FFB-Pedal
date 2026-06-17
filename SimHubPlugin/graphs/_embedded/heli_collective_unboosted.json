@@ -240,8 +240,7 @@
           "Kind": "Output"
         }
       ],
-      "Func": "buffet",
-      "IncludePath": ""
+      "Func": "buffet"
     },
     {
       "Id": "in_rpm_norm",
@@ -316,8 +315,8 @@
     {
       "Id": "param_spring_center",
       "Kind": "Param",
-      "X": 420.0,
-      "Y": 1030.0,
+      "X": 230.0,
+      "Y": 1040.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -443,6 +442,106 @@
         }
       ],
       "ConstValue": 1.0
+    },
+    {
+      "Id": "bc3d073456474874be57c45eeb8386f1",
+      "Title": "Relative to PosMin",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 1040.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "94afdad9d9a44090a2b39ce094915918",
+      "Title": "ConfigIn",
+      "Kind": "ConfigIn",
+      "X": 60.0,
+      "Y": 1130.0,
+      "Ports": [
+        {
+          "Name": "FlightControl.PosMin",
+          "Kind": "Output",
+          "ConfigField": "FlightControl.PosMin"
+        },
+        {
+          "Name": "FlightControl.PosMax",
+          "Kind": "Output",
+          "ConfigField": "FlightControl.PosMax"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "d8b10c197189420d8ae27287cbf7c394",
+      "Title": "Op",
+      "Kind": "Op",
+      "X": 220.0,
+      "Y": 1130.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a-b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "sub"
+    },
+    {
+      "Id": "364678fb0cef4709b0b980feb6fb6edd",
+      "Title": "Op",
+      "Kind": "Op",
+      "X": 350.0,
+      "Y": 1130.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a/b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "div"
+    },
+    {
+      "Id": "1610b0aadeb842dcb1acbadfc4e6323a",
+      "Title": "2",
+      "Kind": "Const",
+      "X": 220.0,
+      "Y": 1240.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 2.0
     }
   ],
   "Links": [
@@ -557,8 +656,8 @@
     {
       "FromNodeId": "param_spring_center",
       "FromPort": "SpringCenter",
-      "ToNodeId": "out_spring",
-      "ToPort": "TrimOffset"
+      "ToNodeId": "bc3d073456474874be57c45eeb8386f1",
+      "ToPort": "a"
     },
     {
       "FromNodeId": "vrs_buffet",
@@ -595,6 +694,42 @@
       "FromPort": "out",
       "ToNodeId": "vrs_buffet",
       "ToPort": "qhat_eff"
+    },
+    {
+      "FromNodeId": "bc3d073456474874be57c45eeb8386f1",
+      "FromPort": "a+b",
+      "ToNodeId": "out_spring",
+      "ToPort": "TrimOffset"
+    },
+    {
+      "FromNodeId": "94afdad9d9a44090a2b39ce094915918",
+      "FromPort": "FlightControl.PosMin",
+      "ToNodeId": "d8b10c197189420d8ae27287cbf7c394",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "94afdad9d9a44090a2b39ce094915918",
+      "FromPort": "FlightControl.PosMax",
+      "ToNodeId": "d8b10c197189420d8ae27287cbf7c394",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "d8b10c197189420d8ae27287cbf7c394",
+      "FromPort": "a-b",
+      "ToNodeId": "364678fb0cef4709b0b980feb6fb6edd",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "1610b0aadeb842dcb1acbadfc4e6323a",
+      "FromPort": "out",
+      "ToNodeId": "364678fb0cef4709b0b980feb6fb6edd",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "364678fb0cef4709b0b980feb6fb6edd",
+      "FromPort": "a/b",
+      "ToNodeId": "bc3d073456474874be57c45eeb8386f1",
+      "ToPort": "b"
     }
   ],
   "Params": [
@@ -725,6 +860,22 @@
         "Precision": 1,
         "LogScale": false,
         "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "out",
+      "DefaultValue": 0.0,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": {
+        "Widget": "",
+        "Label": "",
+        "Group": "",
+        "Units": "",
+        "Step": null,
+        "Precision": null,
+        "LogScale": false,
         "Options": []
       }
     }
