@@ -209,9 +209,12 @@ void Sim::update(float &dt, float &f_in, bool final_f) {
     accum.f_sum += accum.f_vib;
 
     _a = accum.f_sum / _m * 1000.0;
-    float x_raw = (2.0 * _x) - _x_prev + (((_a * dt * dt) / 1000.0) / 1000.0);
+    // Keep x_raw double: 2.0*_x evaluates in double, and a float x_raw would
+    // truncate the result back to float ULP, re-introducing the stiction the
+    // double position state is meant to remove (see Physics.h _x comment).
+    double x_raw = (2.0 * _x) - _x_prev + (((_a * dt * dt) / 1000.0) / 1000.0);
     _x_prev = _x;
-    _x = constrain(x_raw, _x_min, _x_max);
+    _x = constrain(x_raw, (double)_x_min, (double)_x_max);
     _f_sum = accum.f_sum;
     // SyncVib position delta — the servo path in Main.cpp adds this on top
     // of x_contact_point so the integrator's mass/spring/damper feel is

@@ -214,8 +214,16 @@ class Sim {
         float _x_max = 0.0;
         float _x_min_tgt;
         float _x_max_tgt;
-        float _x = 0.0;
-        float _x_prev = 0.0;
+        // Position state is double, not float: the position-Verlet update
+        // (2*_x - _x_prev + a*dt^2) and the velocity difference (_x - _x_prev)
+        // both subtract two large near-equal positions. In float32 the ULP at
+        // _x~300mm (~3e-5mm) dwarfs the per-substep displacement (~1e-6mm with
+        // physics_iterations_per_sample sub-stepping), so small motions round
+        // away entirely — felt as stiction that worsens with |_x| (e.g. a
+        // one-sided contact coordinate reaching +328mm). Double drops the ULP
+        // to ~6e-14mm, eliminating it. The exposed get_x() stays float.
+        double _x = 0.0;
+        double _x_prev = 0.0;
         float _v = 0.0;
         float _a = 0.0;
         float _f_sum;

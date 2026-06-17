@@ -172,7 +172,13 @@ void test_integrator_comparison_spring_only(void) {
 
     char msg[160];
     std::snprintf(msg, sizeof(msg), "drift_verlet=%.7f drift_semi=%.7f drift_vv=%.7f", drift_verlet, drift_semi, drift_vv);
-    TEST_ASSERT_TRUE_MESSAGE(drift_verlet < 0.00000003f, msg);
+    // Bound is the true symplectic energy oscillation of the position-Verlet
+    // integrator (measured ~9.5e-5, same order as the semi-implicit / velocity-
+    // Verlet references ~1.6e-5). The old 3e-8 bound only held when _x was
+    // float: the per-step increment fell below float ULP and the integrator
+    // froze (drift exactly 0) — the same quantization that caused position-
+    // dependent stiction. _x is now double, so the real bounded drift shows.
+    TEST_ASSERT_TRUE_MESSAGE(drift_verlet < 0.0002f, msg);
 }
 
 void test_integrator_comparison_stiff_spring(void) {
@@ -227,7 +233,10 @@ void test_integrator_comparison_stiff_spring(void) {
 
     char msg[160];
     std::snprintf(msg, sizeof(msg), "stiff drift_verlet=%.7f drift_semi=%.7f drift_vv=%.7f", drift_verlet, drift_semi, drift_vv);
-    TEST_ASSERT_TRUE_MESSAGE(drift_verlet < 0.0000001f, msg);
+    // Stiffer spring -> larger but still bounded symplectic drift (~3.0e-4).
+    // Old 1e-7 bound only held with float _x frozen below ULP; see the
+    // spring-only test above.
+    TEST_ASSERT_TRUE_MESSAGE(drift_verlet < 0.0006f, msg);
 }
 
 void test_friction_no_input_no_drift(void) {
