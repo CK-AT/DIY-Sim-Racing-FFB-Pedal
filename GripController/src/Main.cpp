@@ -53,6 +53,33 @@ uint16_t read_as5600_angle() {
     return last_angle;
 }
 
+// Read one 8-bit AS5600 register (returns 0 on I2C failure).
+uint8_t read_as5600_reg8(uint8_t reg) {
+    Wire.beginTransmission(grip::AS5600_ADDRESS);
+    Wire.write(reg);
+    if (Wire.endTransmission(false) != 0) return 0;
+    if (Wire.requestFrom((uint8_t)grip::AS5600_ADDRESS, (uint8_t)1) != 1) return 0;
+    return Wire.read();
+}
+
+// Print AS5600 magnet health over USB serial — a bring-up aid for setting the
+// air gap. STATUS (0x0B) bits: MD=detected(0x20), MH=too weak/far(0x08),
+// ML=too strong/close(0x10). AGC (0x1A) is the gain (0..128 in 3.3V mode; aim
+// for mid-range): high = field too weak, low = field too strong.
+void report_magnet_status() {
+    uint8_t status = read_as5600_reg8(0x0B);
+    uint8_t agc = read_as5600_reg8(0x1A);
+    if (!(status & 0x20)) {
+        Serial.println("AS5600: NO MAGNET detected (check wiring / magnet present)");
+    } else if (status & 0x08) {
+        Serial.printf("AS5600: magnet too WEAK - reduce air gap (AGC=%u)\n", agc);
+    } else if (status & 0x10) {
+        Serial.printf("AS5600: magnet too STRONG - increase air gap (AGC=%u)\n", agc);
+    } else {
+        Serial.printf("AS5600: magnet OK (AGC=%u)\n", agc);
+    }
+}
+
 uint16_t read_axis() {
     uint16_t raw = read_as5600_angle();
 
@@ -93,6 +120,7 @@ void setup() {
         pinMode(grip::BUTTON_PINS[i], INPUT_PULLUP);
     }
     Wire.begin(grip::I2C_SDA_PIN, grip::I2C_SCL_PIN, grip::I2C_FREQ_HZ);
+    if (grip::MAGNET_DEBUG) Serial.begin(115200);  // USB CDC; baud is ignored
 
     joystick.setXAxisRange(grip::HID_AXIS_MIN, grip::HID_AXIS_MAX);
     joystick.begin(false);  // false = report manually via sendState()
@@ -125,4 +153,13 @@ void loop() {
     joystick.setXAxis(read_axis());
 
     joystick.sendState();
+
+    // Periodic magnet-health readout for air-gap setup (bring-up only).
+    if (grip::MAGNET_DEBUG) {
+        static uint32_t last_magnet_ms = 0;
+        if (now - last_magnet_ms >= grip::MAGNET_DEBUG_INTERVAL_MS) {
+            last_magnet_ms = now;
+            report_magnet_status();
+        }
+    }
 }

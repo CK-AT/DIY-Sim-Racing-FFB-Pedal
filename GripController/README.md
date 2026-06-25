@@ -24,6 +24,12 @@ HID output to that span, so sweep the grip end-to-end once after power-up. The
 raw angle is **unwrapped** first, so the travel may cross the encoder's 0/4095
 seam (consecutive samples that jump more than half-scale are treated as a wrap).
 
+**Magnet air-gap setup:** with `MAGNET_DEBUG` (in `GripConfig.h`, on by default)
+the firmware prints AS5600 magnet health over USB serial every 500 ms — `magnet
+OK` / `too WEAK` / `too STRONG` / `NO MAGNET`, plus the AGC value. Open the
+serial monitor (115200) and adjust the gap until it reads OK with AGC mid-range.
+Set `MAGNET_DEBUG = false` for production.
+
 ## Build & flash
 
 ```sh
