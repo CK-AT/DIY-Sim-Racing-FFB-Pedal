@@ -63,20 +63,21 @@ uint8_t read_as5600_reg8(uint8_t reg) {
 }
 
 // Print AS5600 magnet health over USB serial — a bring-up aid for setting the
-// air gap. STATUS (0x0B) bits: MD=detected(0x20), MH=too weak/far(0x08),
-// ML=too strong/close(0x10). AGC (0x1A) is the gain (0..128 in 3.3V mode; aim
+// air gap. STATUS (0x0B) bits: MD=detected(0x20), MH=too strong/close(0x08),
+// ML=too weak/far(0x10). AGC (0x1A) is the gain (0..128 in 3.3V mode; aim
 // for mid-range): high = field too weak, low = field too strong.
 void report_magnet_status() {
     uint8_t status = read_as5600_reg8(0x0B);
     uint8_t agc = read_as5600_reg8(0x1A);
+    uint16_t raw = read_as5600_angle();
     if (!(status & 0x20)) {
-        Serial.println("AS5600: NO MAGNET detected (check wiring / magnet present)");
+        Serial.printf("AS5600: NO MAGNET detected (check wiring / magnet present) (raw=%u)\n", raw);
     } else if (status & 0x08) {
-        Serial.printf("AS5600: magnet too WEAK - reduce air gap (AGC=%u)\n", agc);
+        Serial.printf("AS5600: magnet too STRONG - increase air gap (AGC=%u, raw=%u)\n", agc, raw);
     } else if (status & 0x10) {
-        Serial.printf("AS5600: magnet too STRONG - increase air gap (AGC=%u)\n", agc);
+        Serial.printf("AS5600: magnet too WEAK - reduce air gap (AGC=%u, raw=%u)\n", agc, raw);
     } else {
-        Serial.printf("AS5600: magnet OK (AGC=%u)\n", agc);
+        Serial.printf("AS5600: magnet OK (AGC=%u, raw=%u)\n", agc, raw);
     }
 }
 
