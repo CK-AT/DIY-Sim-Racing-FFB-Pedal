@@ -5,12 +5,24 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <Joystick_ESP32S2.h>
+#include <USB.h>
+#include <USBCDC.h>
 
 #include "GripConfig.h"
 
 // USB identity (product name, VID/PID) is set at compile time via build flags
-// in platformio.ini — with CDC-on-boot the core begins USB before setup(), so
-// runtime USB.* calls would be too late.
+// in platformio.ini and applied when we call USB.begin() in setup().
+//
+// Default: HID-only AND declared as a non-composite device, so games/SimHub
+// name the controller from the product string. Holding CAL_MODE_BUTTON_PIN at
+// boot instead brings up a CDC serial port (-> composite device) for
+// logging/calibration + 1200bps-touch flashing; that mode shows the HID
+// interface string as the name, which only matters while calibrating.
+//
+// The CDC instance is created ONLY in cal mode: USBCDC's constructor enables
+// the CDC interface, so a global instance would force composite every boot.
+static USBCDC *g_cdc = nullptr;
+static bool g_cal_mode = false;
 
 // One axis (X) for now. To add more, enable the relevant axes here and extend
 // the read path. Hats / rudder / throttle stay disabled.
@@ -70,15 +82,24 @@ void report_magnet_status() {
     uint8_t status = read_as5600_reg8(0x0B);
     uint8_t agc = read_as5600_reg8(0x1A);
     uint16_t raw = read_as5600_angle();
+    if (g_cdc == nullptr) return;
     if (!(status & 0x20)) {
-        Serial.printf("AS5600: NO MAGNET detected (check wiring / magnet present) (raw=%u)\n", raw);
+        g_cdc->printf("AS5600: NO MAGNET detected (check wiring / magnet present) (raw=%u)\n", raw);
     } else if (status & 0x08) {
-        Serial.printf("AS5600: magnet too STRONG - increase air gap (AGC=%u, raw=%u)\n", agc, raw);
+        g_cdc->printf("AS5600: magnet too STRONG - increase air gap (AGC=%u, raw=%u)\n", agc, raw);
     } else if (status & 0x10) {
-        Serial.printf("AS5600: magnet too WEAK - reduce air gap (AGC=%u, raw=%u)\n", agc, raw);
+        g_cdc->printf("AS5600: magnet too WEAK - reduce air gap (AGC=%u, raw=%u)\n", agc, raw);
     } else {
-        Serial.printf("AS5600: magnet OK (AGC=%u, raw=%u)\n", agc, raw);
+        g_cdc->printf("AS5600: magnet OK (AGC=%u, raw=%u)\n", agc, raw);
     }
+}
+
+// Reset the axis auto-calibration: the observed range regrows from the next
+// sample (re-zeros the continuous frame too). Exposed as a cal-mode command.
+void reset_calibration() {
+    observed_min = INT32_MAX;
+    observed_max = INT32_MIN;
+    have_sample = false;
 }
 
 uint16_t read_axis() {
@@ -121,10 +142,31 @@ void setup() {
         pinMode(grip::BUTTON_PINS[i], INPUT_PULLUP);
     }
     Wire.begin(grip::I2C_SDA_PIN, grip::I2C_SCL_PIN, grip::I2C_FREQ_HZ);
-    if (grip::MAGNET_DEBUG) Serial.begin(115200);  // USB CDC; baud is ignored
+
+    // Cal mode: button held at boot. Sampled before joystick.begin() so the
+    // descriptor is decided once, here, for this enumeration.
+    g_cal_mode = (digitalRead(grip::CAL_MODE_BUTTON_PIN) == LOW);
 
     joystick.setXAxisRange(grip::HID_AXIS_MIN, grip::HID_AXIS_MAX);
-    joystick.begin(false);  // false = report manually via sendState()
+    joystick.begin(false);  // registers the HID interface; report via sendState()
+
+    if (g_cal_mode) {
+        // Constructing USBCDC enables the CDC interface (-> composite device);
+        // keep the default IAD/composite device class so HID+CDC enumerate.
+        static USBCDC cdc;
+        g_cdc = &cdc;
+        g_cdc->begin();
+    } else {
+        // Single HID interface: declare a standard, non-composite device
+        // (bDeviceClass=0) so the OS names the controller from the product
+        // string instead of the HID interface string "TinyUSB HID". The core
+        // otherwise defaults to the IAD/composite class (0xEF), which forces
+        // interface-string naming even with one function.
+        USB.usbClass(0);
+        USB.usbSubClass(0);
+        USB.usbProtocol(0);
+    }
+    USB.begin();  // finalizes the descriptor + applies the compile-time identity
 
     // Centre the axis before the first report.
     joystick.setXAxis((grip::HID_AXIS_MIN + grip::HID_AXIS_MAX) / 2);
@@ -155,12 +197,21 @@ void loop() {
 
     joystick.sendState();
 
-    // Periodic magnet-health readout for air-gap setup (bring-up only).
-    if (grip::MAGNET_DEBUG) {
-        static uint32_t last_magnet_ms = 0;
-        if (now - last_magnet_ms >= grip::MAGNET_DEBUG_INTERVAL_MS) {
-            last_magnet_ms = now;
-            report_magnet_status();
+    // Cal mode only: serial commands + periodic magnet readout (CDC is up).
+    if (g_cal_mode && g_cdc != nullptr) {
+        while (g_cdc->available()) {
+            char c = g_cdc->read();
+            if (c == 'r') {
+                reset_calibration();
+                g_cdc->println("axis auto-calibration reset");
+            }
+        }
+        if (grip::MAGNET_DEBUG) {
+            static uint32_t last_magnet_ms = 0;
+            if (now - last_magnet_ms >= grip::MAGNET_DEBUG_INTERVAL_MS) {
+                last_magnet_ms = now;
+                report_magnet_status();
+            }
         }
     }
 }

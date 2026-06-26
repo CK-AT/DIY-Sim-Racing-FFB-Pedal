@@ -24,34 +24,45 @@ HID output to that span, so sweep the grip end-to-end once after power-up. The
 raw angle is **unwrapped** first, so the travel may cross the encoder's 0/4095
 seam (consecutive samples that jump more than half-scale are treated as a wrap).
 
-**Magnet air-gap setup:** with `MAGNET_DEBUG` (in `GripConfig.h`, on by default)
-the firmware prints AS5600 magnet health over USB serial every 500 ms — `magnet
-OK` / `too WEAK` / `too STRONG` / `NO MAGNET`, plus the AGC value. Open the
-serial monitor (115200) and adjust the gap until it reads OK with AGC mid-range.
-Set `MAGNET_DEBUG = false` for production.
+## Cal mode (logging / calibration / flashing)
+
+By default the device is **HID-only** so games/SimHub show the product name.
+Hold `CAL_MODE_BUTTON_PIN` (default = first button) **at boot** to enter **cal
+mode**, which adds a USB CDC serial port. This is decided once per boot. In cal
+mode you get:
+
+- **Magnet air-gap readout** (when `MAGNET_DEBUG`): every 500 ms it prints
+  `magnet OK` / `too WEAK` / `too STRONG` / `NO MAGNET` + AGC. Open the serial
+  monitor (115200) and adjust the gap until OK with AGC mid-range.
+- **Commands:** send `r` to reset the axis auto-calibration range.
+- **Button-free flashing:** the CDC port makes `1200bps-touch` work, so uploads
+  enter the bootloader automatically.
+
+Trade-off: in cal mode the device is a HID+CDC composite, so the controller
+name shows as the HID interface string (`TinyUSB HID`) rather than the product
+name — that only matters while calibrating, not while gaming.
 
 ## Build & flash
 
 ```sh
 pio run -e grip-s3-mini            # build
-pio run -e grip-s3-mini -t upload  # flash
+pio run -e grip-s3-mini -t upload  # flash (hold the cal-mode button at boot)
 ```
 
-No BOOT button needed: the firmware enumerates as a HID **+ CDC** composite
-(`ARDUINO_USB_CDC_ON_BOOT=1`), and `board_upload.use_1200bps_touch` drops the
-chip into the ROM bootloader automatically on upload. (The extra virtual COM
-port is the CDC side — harmless.)
+To flash: **boot in cal mode** (hold the cal-mode button) so the CDC port
+appears, then upload — `1200bps-touch` resets into the bootloader, no BOOT
+button. (Normal HID-only boots have no serial port, so flash from cal mode.)
 
 ## Notes
 
-- USB descriptor is **compile-time** (build flags in `platformio.ini`), because
-  CDC-on-boot starts USB before `setup()` runs. `VID 0x303b / PID 0x8230`,
-  product `DIY-FFB-Grip-MD500`, following the FFB firmware's PID scheme
-  (gateways `0x8210+N`, axes `0x8220+N`, grip `0x8230`) so every DIY-FFB device
-  is distinct on one PC. The stock `lolin_s3_mini` variant hard-defines
-  `USB_VID/PID` unguarded, so we use a project-local variant
-  ([`variants/grip_s3_mini`](variants/grip_s3_mini/pins_arduino.h)) — a copy
-  that `#ifndef`-guards them — selected via `board_build.variant`.
-- Up to 6 analog axes map to X, Y, Z, Rx, Ry, Rz. Hats, rudder, and throttle are
-  disabled in the `Joystick_` constructor — enable them there and extend
-  `apply_axis()` if you add more inputs later.
+- USB descriptor is **compile-time** (build flags in `platformio.ini`), applied
+  when `setup()` calls `USB.begin()`. `VID 0x303b / PID 0x8230`, product
+  `DIY-FFB-Grip-MD500-Collective`, following the FFB firmware's PID scheme
+  (gateways `0x8210+N`, axes `0x8220+N`, grip `0x8230`) so every device is
+  distinct on one PC. The stock `lolin_s3_mini` variant hard-defines `USB_VID/PID`
+  unguarded, so we use a project-local variant
+  ([`variants/grip_s3_mini`](variants/grip_s3_mini/pins_arduino.h)) — a copy that
+  `#ifndef`-guards them — selected via `board_build.variant`.
+- One axis (X) for now, fed by the AS5600. To add axes, enable them in the
+  `Joystick_` constructor and extend the read path. Hats / rudder / throttle are
+  disabled.

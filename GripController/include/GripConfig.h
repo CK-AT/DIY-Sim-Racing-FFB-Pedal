@@ -50,11 +50,16 @@ static constexpr uint16_t HID_AXIS_MAX = 65535;
 // Report cadence. ~250 Hz is plenty for buttons + pots and easy on USB.
 static constexpr uint32_t REPORT_INTERVAL_MS = 4;
 
-// ---- Diagnostics ------------------------------------------------------------
-// When true, periodically prints AS5600 magnet health over USB serial — magnet
-// detected? too weak (air gap too large) / too strong (too close)? plus the AGC
-// value. Handy for dialing in the magnet air gap during assembly; set false for
-// production (the output is otherwise harmless to leave on).
+// ---- Calibration / logging ("cal") mode -------------------------------------
+// Held at boot, this button brings up a USB CDC serial port for magnet
+// diagnostics + calibration commands, and re-enables 1200bps-touch flashing.
+// Without it the device stays HID-only, so games/SimHub show the product name
+// (a composite HID+CDC device would show the HID interface string instead).
+static constexpr uint8_t CAL_MODE_BUTTON_PIN = BUTTON_PINS[0];
+
+// When true, cal mode periodically prints AS5600 magnet health over the CDC
+// serial — magnet detected? too weak (gap too large) / too strong (too close)?
+// plus AGC. Handy for dialing in the magnet air gap during assembly.
 static constexpr bool MAGNET_DEBUG = true;
 static constexpr uint32_t MAGNET_DEBUG_INTERVAL_MS = 500;
 
