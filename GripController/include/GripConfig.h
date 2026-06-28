@@ -17,6 +17,20 @@ static constexpr uint8_t BUTTON_PINS[] = {8, 9, 10, 11};
 static constexpr uint8_t BUTTON_COUNT = sizeof(BUTTON_PINS) / sizeof(BUTTON_PINS[0]);
 static constexpr uint32_t BUTTON_DEBOUNCE_MS = 5;
 
+// ---- Virtual (axis-driven) buttons ------------------------------------------
+// Extra HID buttons reported after the physical ones, driven by axis position.
+// The axis-travel button is ON while travel is above AXIS_BUTTON_THRESHOLD and
+// stays on until travel drops AXIS_BUTTON_HYSTERESIS below it (Schmitt trigger),
+// so a value hovering near the threshold doesn't chatter. Travel is the same
+// 0..1 fraction the reported axis uses (post-invert), so 0.75 = 75% of travel.
+static constexpr uint8_t VIRTUAL_BUTTON_COUNT = 1;
+static constexpr float AXIS_BUTTON_THRESHOLD = 0.75f;
+static constexpr float AXIS_BUTTON_HYSTERESIS = 0.02f;
+
+// Total HID buttons: physical first, then virtual. The axis-travel virtual
+// button is at index BUTTON_COUNT.
+static constexpr uint8_t TOTAL_BUTTON_COUNT = BUTTON_COUNT + VIRTUAL_BUTTON_COUNT;
+
 // ---- Axis: AS5600 magnetic rotary encoder (I2C) -----------------------------
 // 12-bit angle (0..4095), read from the RAW ANGLE register over I2C. The axis
 // auto-calibrates: it tracks the observed angle min/max and scales the HID

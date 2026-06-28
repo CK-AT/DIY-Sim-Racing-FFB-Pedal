@@ -7,6 +7,7 @@
 #include <Joystick_ESP32S2.h>
 #include <USB.h>
 #include <USBCDC.h>
+#include <Preferences.h>
 
 #include "GripConfig.h"
 
@@ -27,7 +28,7 @@ static bool g_cal_mode = false;
 // One axis (X) for now. To add more, enable the relevant axes here and extend
 // the read path. Hats / rudder / throttle stay disabled.
 static Joystick_ joystick(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD,
-                          grip::BUTTON_COUNT, 0,    // button count, hat switch count
+                          grip::TOTAL_BUTTON_COUNT, 0,  // button count, hat switch count
                           true, false, false,       // X, Y, Z
                           false, false, false,      // Rx, Ry, Rz
                           false, false,             // rudder, throttle
@@ -51,6 +52,16 @@ uint16_t last_raw = 0;         // previous raw angle, for wrap detection
 bool have_sample = false;
 uint16_t last_angle = 0;       // last good raw, held on I2C read error
 uint16_t last_output = (grip::HID_AXIS_MIN + grip::HID_AXIS_MAX) / 2;  // held on error
+float last_travel = 0.5f;      // last normalized travel 0..1 (post-invert), for the axis button
+bool axis_button = false;      // virtual axis-travel button state (Schmitt-latched)
+
+// Stored calibration (NVS), in a boot-stable form: the absolute encoder angle
+// of the min end (0..4095) + the span in counts. Loaded on boot; the live
+// continuous frame is re-anchored to it on the first good sample.
+const char *kNvsNamespace = "grip";
+bool g_have_stored = false;
+int32_t g_stored_min_abs = 0;
+int32_t g_stored_span = 0;
 
 // Read the AS5600 12-bit RAW ANGLE register (0x0C high byte, 0x0D low byte).
 // Sets *ok=false and returns the last good value if the I2C transaction fails
@@ -104,6 +115,49 @@ void reset_calibration() {
     have_sample = false;
 }
 
+// Load stored calibration (NVS) into the g_stored_* statics. Applied to the
+// live frame on the first good sample in read_axis(). Read-only begin() returns
+// false if the namespace doesn't exist yet (first run) — then there's none.
+void load_calibration() {
+    Preferences prefs;
+    if (!prefs.begin(kNvsNamespace, true)) return;
+    if (prefs.isKey("span")) {
+        g_stored_span = prefs.getInt("span", 0);
+        g_stored_min_abs = prefs.getInt("min", 0);
+        g_have_stored = (g_stored_span > 0);
+    }
+    prefs.end();
+}
+
+// Save the current auto-calibrated range to NVS in boot-stable form.
+void save_calibration() {
+    if (!have_sample || observed_max <= observed_min) {
+        if (g_cdc) g_cdc->println("no calibration to save (sweep the axis first)");
+        return;
+    }
+    int32_t min_abs = ((observed_min % grip::ENCODER_COUNTS) + grip::ENCODER_COUNTS) % grip::ENCODER_COUNTS;
+    int32_t span = observed_max - observed_min;
+    Preferences prefs;
+    prefs.begin(kNvsNamespace, false);
+    prefs.putInt("min", min_abs);
+    prefs.putInt("span", span);
+    prefs.end();
+    g_stored_min_abs = min_abs;
+    g_stored_span = span;
+    g_have_stored = true;
+    if (g_cdc) g_cdc->printf("calibration saved (min_abs=%d span=%d)\n", (int)min_abs, (int)span);
+}
+
+// Erase stored calibration; next boot starts a fresh auto-calibration.
+void clear_calibration() {
+    Preferences prefs;
+    prefs.begin(kNvsNamespace, false);
+    prefs.clear();
+    prefs.end();
+    g_have_stored = false;
+    if (g_cdc) g_cdc->println("stored calibration cleared");
+}
+
 uint16_t read_axis() {
     bool ok = false;
     uint16_t raw = read_as5600_angle(&ok);
@@ -111,7 +165,17 @@ uint16_t read_axis() {
 
     // Seed the continuous frame on the first good sample.
     if (!have_sample) {
-        accumulated = raw;
+        if (g_have_stored) {
+            // Re-anchor to stored calibration: place the current absolute angle
+            // into the [min_abs, min_abs+span] window (mod 4096 handles the seam).
+            int32_t rel = ((int32_t)raw - g_stored_min_abs) % grip::ENCODER_COUNTS;
+            if (rel < 0) rel += grip::ENCODER_COUNTS;
+            accumulated = g_stored_min_abs + rel;
+            observed_min = g_stored_min_abs;
+            observed_max = g_stored_min_abs + g_stored_span;
+        } else {
+            accumulated = raw;
+        }
         last_raw = raw;
         have_sample = true;
     } else {
@@ -141,8 +205,20 @@ uint16_t read_axis() {
         t = float(accumulated - observed_min) / float(observed_max - observed_min);
     }
     if (grip::AXIS_INVERT) t = 1.0f - t;
+    last_travel = t;
     last_output = (uint16_t)lroundf(grip::HID_AXIS_MIN + t * (grip::HID_AXIS_MAX - grip::HID_AXIS_MIN));
     return last_output;
+}
+
+// Virtual button: ON above AXIS_BUTTON_THRESHOLD of travel, latched off only
+// once travel drops AXIS_BUTTON_HYSTERESIS below it (Schmitt trigger / deadband).
+bool axis_button_state(float travel) {
+    if (axis_button) {
+        if (travel < grip::AXIS_BUTTON_THRESHOLD - grip::AXIS_BUTTON_HYSTERESIS) axis_button = false;
+    } else {
+        if (travel >= grip::AXIS_BUTTON_THRESHOLD) axis_button = true;
+    }
+    return axis_button;
 }
 
 }  // namespace
@@ -152,6 +228,7 @@ void setup() {
         pinMode(grip::BUTTON_PINS[i], INPUT_PULLUP);
     }
     Wire.begin(grip::I2C_SDA_PIN, grip::I2C_SCL_PIN, grip::I2C_FREQ_HZ);
+    load_calibration();  // applied to the live frame on the first good sample
 
     // Cal mode: button held at boot. Sampled before joystick.begin() so the
     // descriptor is decided once, here, for this enumeration.
@@ -166,6 +243,10 @@ void setup() {
         static USBCDC cdc;
         g_cdc = &cdc;
         g_cdc->begin();
+        if (g_have_stored) {
+            g_cdc->printf("using stored calibration (min_abs=%d span=%d)\n",
+                          (int)g_stored_min_abs, (int)g_stored_span);
+        }
     } else {
         // Single HID interface: declare a standard, non-composite device
         // (bDeviceClass=0) so the OS names the controller from the product
@@ -205,6 +286,10 @@ void loop() {
     // AS5600 rotary axis -> X.
     joystick.setXAxis(read_axis());
 
+    // Virtual button: ON above 75% of axis travel (with hysteresis), reported
+    // immediately after the physical buttons.
+    joystick.setButton(grip::BUTTON_COUNT, axis_button_state(last_travel) ? 1 : 0);
+
     joystick.sendState();
 
     // Cal mode only: serial commands + periodic magnet readout (CDC is up).
@@ -214,6 +299,10 @@ void loop() {
             if (c == 'r') {
                 reset_calibration();
                 g_cdc->println("axis auto-calibration reset");
+            } else if (c == 's') {
+                save_calibration();
+            } else if (c == 'c') {
+                clear_calibration();
             }
         }
         if (grip::MAGNET_DEBUG) {
