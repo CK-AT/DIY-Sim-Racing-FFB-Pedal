@@ -27,7 +27,9 @@ static constexpr uint32_t BUTTON_DEBOUNCE_MS = 5;
 // pads. Defaults use edge pins — set to your actual wiring.
 static constexpr uint8_t I2C_SDA_PIN = 1;
 static constexpr uint8_t I2C_SCL_PIN = 2;
-static constexpr uint32_t I2C_FREQ_HZ = 400000;
+// 100 kHz for margin: this build runs without external I2C pull-ups (relying on
+// the ESP32's weak internal ones), where 400 kHz risks glitchy reads.
+static constexpr uint32_t I2C_FREQ_HZ = 100000;
 static constexpr uint8_t AS5600_ADDRESS = 0x36;   // fixed
 static constexpr bool AXIS_INVERT = false;
 
@@ -35,6 +37,12 @@ static constexpr bool AXIS_INVERT = false;
 // sample jump larger than half of it is treated as a 0/4095 wrap (see Main.cpp).
 static constexpr uint16_t ENCODER_RAW_MAX = 4095;
 static constexpr int32_t ENCODER_COUNTS = 4096;
+
+// Max plausible angle change per sample (counts) after wrap correction. A hand
+// can't move the axis more than this in one ~4 ms tick, and a true wrap leaves
+// only a small residual — so anything larger is a glitch (e.g. a corrupted I2C
+// read) and is rejected, so it can't poison the auto-calibration range.
+static constexpr int32_t MAX_ANGLE_STEP = 512;
 
 // ---- USB identity -----------------------------------------------------------
 // Set at COMPILE TIME in platformio.ini (USB_VID/PID/PRODUCT/MANUFACTURER build

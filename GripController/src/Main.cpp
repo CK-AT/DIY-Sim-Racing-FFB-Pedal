@@ -50,18 +50,20 @@ int32_t accumulated = 0;       // continuous angle, relative to the first sample
 uint16_t last_raw = 0;         // previous raw angle, for wrap detection
 bool have_sample = false;
 uint16_t last_angle = 0;       // last good raw, held on I2C read error
+uint16_t last_output = (grip::HID_AXIS_MIN + grip::HID_AXIS_MAX) / 2;  // held on error
 
 // Read the AS5600 12-bit RAW ANGLE register (0x0C high byte, 0x0D low byte).
-// Returns the last good value if the I2C transaction fails (sensor unplugged
-// / bus glitch), so the axis holds rather than snapping to zero.
-uint16_t read_as5600_angle() {
+// Sets *ok=false and returns the last good value if the I2C transaction fails
+// (sensor unplugged / bus glitch), so callers can hold rather than act on it.
+uint16_t read_as5600_angle(bool *ok = nullptr) {
     Wire.beginTransmission(grip::AS5600_ADDRESS);
     Wire.write(0x0C);
-    if (Wire.endTransmission(false) != 0) return last_angle;  // repeated start
-    if (Wire.requestFrom((uint8_t)grip::AS5600_ADDRESS, (uint8_t)2) != 2) return last_angle;
+    if (Wire.endTransmission(false) != 0) { if (ok) *ok = false; return last_angle; }
+    if (Wire.requestFrom((uint8_t)grip::AS5600_ADDRESS, (uint8_t)2) != 2) { if (ok) *ok = false; return last_angle; }
     uint16_t hi = Wire.read();
     uint16_t lo = Wire.read();
     last_angle = ((hi << 8) | lo) & 0x0FFF;
+    if (ok) *ok = true;
     return last_angle;
 }
 
@@ -103,27 +105,34 @@ void reset_calibration() {
 }
 
 uint16_t read_axis() {
-    uint16_t raw = read_as5600_angle();
+    bool ok = false;
+    uint16_t raw = read_as5600_angle(&ok);
+    if (!ok) return last_output;  // I2C error: hold last output, don't touch cal
 
-    // Unwrap the 0/4095 seam: a jump over half-scale between samples is a wrap,
-    // not real motion (the lever can't slew >180° within one ~4 ms tick).
+    // Seed the continuous frame on the first good sample.
     if (!have_sample) {
         accumulated = raw;
+        last_raw = raw;
         have_sample = true;
     } else {
+        // Unwrap the 0/4095 seam: a jump over half-scale is a wrap, not motion.
         int32_t delta = (int32_t)raw - (int32_t)last_raw;
         if (delta > grip::ENCODER_COUNTS / 2) {
             delta -= grip::ENCODER_COUNTS;  // wrapped down through 0
         } else if (delta < -grip::ENCODER_COUNTS / 2) {
             delta += grip::ENCODER_COUNTS;  // wrapped up through 0
         }
-        accumulated += delta;
+        // Reject implausible jumps (corrupted read / wrap-misdetect): ignore the
+        // sample so a glitch can't shift the frame or poison observed min/max.
+        // last_raw is left unchanged so a one-off spike resyncs next tick.
+        if (abs(delta) <= grip::MAX_ANGLE_STEP) {
+            accumulated += delta;
+            last_raw = raw;
+            // Auto-calibration: grow the observed range to whatever it reaches.
+            if (accumulated < observed_min) observed_min = accumulated;
+            if (accumulated > observed_max) observed_max = accumulated;
+        }
     }
-    last_raw = raw;
-
-    // Auto-calibration: grow the observed range to whatever the axis reaches.
-    if (accumulated < observed_min) observed_min = accumulated;
-    if (accumulated > observed_max) observed_max = accumulated;
 
     // Sit at centre until a usable range has been observed (avoids div-by-zero
     // and a stuck-at-extreme output before the axis has been moved).
@@ -132,7 +141,8 @@ uint16_t read_axis() {
         t = float(accumulated - observed_min) / float(observed_max - observed_min);
     }
     if (grip::AXIS_INVERT) t = 1.0f - t;
-    return (uint16_t)lroundf(grip::HID_AXIS_MIN + t * (grip::HID_AXIS_MAX - grip::HID_AXIS_MIN));
+    last_output = (uint16_t)lroundf(grip::HID_AXIS_MIN + t * (grip::HID_AXIS_MAX - grip::HID_AXIS_MIN));
+    return last_output;
 }
 
 }  // namespace
