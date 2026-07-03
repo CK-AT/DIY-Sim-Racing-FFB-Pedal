@@ -24,6 +24,10 @@ HID output to that span, so sweep the grip end-to-end once after power-up. The
 raw angle is **unwrapped** first, so the travel may cross the encoder's 0/4095
 seam (consecutive samples that jump more than half-scale are treated as a wrap).
 
+If a calibration has been **saved to NVS** (cal-mode `s`), it takes over on boot
+as a **fixed** range — auto-calibration no longer grows it, and over-travel
+saturates at the ends. Clear it (`c`) to return to live auto-calibration.
+
 A **virtual button** is reported after the physical ones (at HID index
 `BUTTON_COUNT`): it turns **on above 75 % of axis travel** and stays on until
 travel drops below 73 % (a 2 % hysteresis band, so it doesn't chatter near the

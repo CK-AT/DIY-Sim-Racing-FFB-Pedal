@@ -193,8 +193,12 @@ uint16_t read_axis() {
             accumulated += delta;
             last_raw = raw;
             // Auto-calibration: grow the observed range to whatever it reaches.
-            if (accumulated < observed_min) observed_min = accumulated;
-            if (accumulated > observed_max) observed_max = accumulated;
+            // Skipped when a stored calibration is in use — that range is fixed,
+            // so it defines the travel exactly rather than being a seed to grow.
+            if (!g_have_stored) {
+                if (accumulated < observed_min) observed_min = accumulated;
+                if (accumulated > observed_max) observed_max = accumulated;
+            }
         }
     }
 
@@ -203,6 +207,10 @@ uint16_t read_axis() {
     float t = 0.5f;
     if (observed_max > observed_min) {
         t = float(accumulated - observed_min) / float(observed_max - observed_min);
+        // A fixed (stored) range can be over-travelled; clamp so the output
+        // saturates at the ends instead of wrapping the uint16_t cast below.
+        if (t < 0.0f) t = 0.0f;
+        else if (t > 1.0f) t = 1.0f;
     }
     if (grip::AXIS_INVERT) t = 1.0f - t;
     last_travel = t;
