@@ -635,9 +635,11 @@ namespace DiyFfb.GraphEditor
             // ConfigOut nodes always use freeform Names (never signal-bound)
             bool isSignalNodeKind = node.Kind == GraphNodeKind.Input ||
                                     node.Kind == GraphNodeKind.Output ||
-                                    node.Kind == GraphNodeKind.Param;
+                                    node.Kind == GraphNodeKind.Param ||
+                                    node.Kind == GraphNodeKind.MsfsVarDef;
             bool usesSignalBinding = isSignalNodeKind &&
                                      (!isLibraryGraph || node.Kind == GraphNodeKind.Param ||
+                                      node.Kind == GraphNodeKind.MsfsVarDef ||
                                       (node.Kind == GraphNodeKind.Output && node.Scoped));
             dto.UsesSignalBinding = usesSignalBinding;
             dto.Scoped = node.Scoped;
@@ -708,9 +710,11 @@ namespace DiyFfb.GraphEditor
             node.Scoped = Scoped;
             bool isSignalNodeKind = Kind == GraphNodeKind.Input ||
                                     Kind == GraphNodeKind.Output ||
-                                    Kind == GraphNodeKind.Param;
+                                    Kind == GraphNodeKind.Param ||
+                                    Kind == GraphNodeKind.MsfsVarDef;
             bool usesSignalBinding = isSignalNodeKind &&
                                      (!isLibraryGraph || Kind == GraphNodeKind.Param ||
+                                      Kind == GraphNodeKind.MsfsVarDef ||
                                       (Kind == GraphNodeKind.Output && Scoped));
 
             if (usesSignalBinding)
@@ -772,6 +776,9 @@ namespace DiyFfb.GraphEditor
         public string ConfigField { get; set; } = "";
         public string BusName { get; set; } = "";
         public bool Negate { get; set; }
+        // Plan 23: MsfsVarDef port registration metadata (raw datum name + unit).
+        public string SimVar { get; set; } = "";
+        public string Unit { get; set; } = "";
 
         // Conditional serialization: Name for non-signal ports, SignalSuffix for signal ports
         public bool ShouldSerializeName() => string.IsNullOrEmpty(SignalSuffix);
@@ -779,6 +786,8 @@ namespace DiyFfb.GraphEditor
         public bool ShouldSerializeConfigField() => !string.IsNullOrEmpty(ConfigField);
         public bool ShouldSerializeBusName() => !string.IsNullOrEmpty(BusName);
         public bool ShouldSerializeNegate() => Negate;
+        public bool ShouldSerializeSimVar() => !string.IsNullOrEmpty(SimVar);
+        public bool ShouldSerializeUnit() => !string.IsNullOrEmpty(Unit);
 
         public static GraphPortDto FromModel(GraphPort port, bool isSignalNode)
         {
@@ -795,6 +804,8 @@ namespace DiyFfb.GraphEditor
             }
             dto.ConfigField = port.ConfigField;
             dto.BusName = port.BusName;
+            dto.SimVar = port.SimVar;
+            dto.Unit = port.Unit;
             return dto;
         }
 
@@ -819,6 +830,8 @@ namespace DiyFfb.GraphEditor
             port.Negate = Negate;
             port.ConfigField = ConfigField ?? "";
             port.BusName = BusName ?? "";
+            port.SimVar = SimVar ?? "";
+            port.Unit = Unit ?? "";
             return port;
         }
     }

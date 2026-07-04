@@ -47,7 +47,18 @@ namespace DiyFfb.GraphEditor
         /// those input port names as variables (built-in functions like Pow/Abs/if
         /// are allowed). The port name is the identifier used in the formula.
         /// </summary>
-        Expr
+        Expr,
+
+        /// <summary>
+        /// Plan 23: declares custom MSFS SimConnect variables (SimVars / LVARs)
+        /// on top of the fixed defaults. Each output port carries the raw datum
+        /// name (SimVar) + unit (Unit) to register, and its SignalSuffix is the
+        /// graph-facing alias — the port emits MSFS.&lt;alias&gt; like an Input node
+        /// port. Top-level graphs only. The plugin scans these nodes to build the
+        /// dynamic registration list; the runtime converter emits the ports as
+        /// ordinary MSFS input signals (raw name/unit are registration-only).
+        /// </summary>
+        MsfsVarDef
     }
 
     public enum GraphPortKind
@@ -246,6 +257,20 @@ namespace DiyFfb.GraphEditor
         /// port kinds.
         /// </summary>
         public string BusName { get; set; } = "";
+
+        /// <summary>
+        /// Plan 23: raw SimConnect datum name to register for MsfsVarDef output
+        /// ports (e.g. "L:HELI_COLL_TRIM_TGT", "GENERAL ENG RPM:1"). Registration
+        /// metadata only — never enters the runtime graph. Empty on other kinds.
+        /// </summary>
+        public string SimVar { get; set; } = "";
+
+        /// <summary>
+        /// Plan 23: SimConnect unit string for MsfsVarDef output ports (e.g.
+        /// "number", "percent", "radians"). Registration metadata only. Empty on
+        /// other kinds.
+        /// </summary>
+        public string Unit { get; set; } = "";
     }
 
     /// <summary>

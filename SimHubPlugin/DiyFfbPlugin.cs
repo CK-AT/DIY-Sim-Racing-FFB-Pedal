@@ -278,6 +278,9 @@ namespace DiyFfb
             public float AilTrimPct;
             public float RudTrimPct;
             public bool OnGround;
+            // Plan 23: graph-declared custom vars, keyed by alias. Null/empty
+            // when no MsfsVarDef vars are declared or none survived registration.
+            public IReadOnlyDictionary<string, double> Custom;
             public DateTime ReceivedUtc;
         }
 
@@ -1191,7 +1194,44 @@ namespace DiyFfb
                 onSample: ApplyMsfsSimConnectSample,
                 log: msg => SimHub.Logging.Current?.Info(msg));
             _msfsClient.Start();
+            // Feed any already-loaded graph's custom vars (graph may load before
+            // the client starts during Init).
+            UpdateMsfsCustomVars();
             SimHub.Logging.Current?.Info("[MsfsSimConnect] in-process client started.");
+        }
+
+        // Plan 23: scan the active graph's MsfsVarDef nodes and hand the
+        // SimConnect client the custom-var registration list. Called on
+        // graph/vehicle change and editor Apply. Dedups aliases (first wins);
+        // empties are dropped. No-op if the client isn't running. Always feeds
+        // the list (SetCustomVars re-registers) so per-aircraft LVAR availability
+        // is re-evaluated even when two aircraft share one graph (plan §9.2).
+        private void UpdateMsfsCustomVars()
+        {
+            var client = _msfsClient;
+            if (client == null) return;
+
+            var list = new List<DiyFfb.Msfs.MsfsCustomVar>();
+            var graph = activeVehicleGraph;
+            if (graph != null && graph.Nodes != null)
+            {
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var node in graph.Nodes)
+                {
+                    if (node == null || node.Kind != GraphNodeKind.MsfsVarDef || node.Ports == null)
+                        continue;
+                    foreach (var port in node.Ports)
+                    {
+                        if (port == null || port.Kind != GraphPortKind.Output) continue;
+                        string alias = port.SignalSuffix?.Trim() ?? "";
+                        string name = port.SimVar?.Trim() ?? "";
+                        if (alias.Length == 0 || name.Length == 0) continue;
+                        if (!seen.Add(alias)) continue; // duplicate alias — first wins
+                        list.Add(new DiyFfb.Msfs.MsfsCustomVar(alias, name, port.Unit?.Trim() ?? ""));
+                    }
+                }
+            }
+            client.SetCustomVars(list);
         }
 
         private void StopMsfsClient()
@@ -1249,6 +1289,7 @@ namespace DiyFfb
                 AilTrimPct                     = (float)s[(int)MsfsSampleIndex.AilTrimPct],
                 RudTrimPct                     = (float)s[(int)MsfsSampleIndex.RudTrimPct],
                 OnGround                       = s[(int)MsfsSampleIndex.SimOnGround] != 0.0,
+                Custom                         = customs,
                 ReceivedUtc                    = DateTime.UtcNow,
             };
             lock (msfsLock)
@@ -2336,6 +2377,9 @@ namespace DiyFfb
 
                     // Notify UI that graph has changed
                     ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
+
+                    // Plan 23: re-register MSFS custom vars for the new graph.
+                    UpdateMsfsCustomVars();
 
                     // Check for param migration needs
                     CheckParamMigration(resolvedPath, gameId, carId);
@@ -3682,6 +3726,9 @@ namespace DiyFfb
                 activeGraphRuntime, activeGraphResolver, activeIncludeContextCache, baseDir);
 
             ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
+
+            // Plan 23: re-register MSFS custom vars for the applied graph.
+            UpdateMsfsCustomVars();
         }
 
         public void SetVehicleGraphPath(string gameId, string carId, string path)

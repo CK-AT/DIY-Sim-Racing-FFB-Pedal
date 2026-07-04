@@ -128,6 +128,15 @@ namespace DiyFfb
             inputs["MSFS.Trim.Aileron"] = packet.AilTrimPct;
             inputs["MSFS.Trim.Rudder"] = packet.RudTrimPct;
             inputs["MSFS.OnGround"] = packet.OnGround ? 1.0 : 0.0;
+
+            // Plan 23: graph-declared custom vars (MsfsVarDef), keyed by alias.
+            if (packet.Custom != null)
+            {
+                foreach (var kv in packet.Custom)
+                {
+                    inputs["MSFS." + kv.Key] = kv.Value;
+                }
+            }
         }
 
         /// <summary>

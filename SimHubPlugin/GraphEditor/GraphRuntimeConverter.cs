@@ -268,8 +268,13 @@ namespace DiyFfb.GraphEditor
                     // Falls through to add runtimeNode (id == node.Id); consumers
                     // wired from its output port resolve to this id.
                 }
-                else if (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Param)
+                else if (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Param ||
+                         node.Kind == GraphNodeKind.MsfsVarDef)
                 {
+                    // Plan 23: MsfsVarDef output ports emit ordinary MSFS input
+                    // signals (MSFS.<alias>) — identical to an Input node's port.
+                    // The raw SimVar/Unit are registration-only and never reach
+                    // the runtime graph, so the value resolves via the inputs dict.
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
                     {
                         // Build full signal name from SignalGroup + SignalSuffix
@@ -284,7 +289,7 @@ namespace DiyFfb.GraphEditor
                         {
                             Id = BuildPortId(node.Id, port.Name),
                             Name = signalName,
-                            Type = node.Kind == GraphNodeKind.Input ? NodeType.Input : NodeType.Param,
+                            Type = node.Kind == GraphNodeKind.Param ? NodeType.Param : NodeType.Input,
                             ConstValue = constValue
                         };
                         runtime.Nodes[inputNode.Id] = inputNode;
@@ -341,6 +346,7 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.ConfigOut: return NodeType.ConfigOut;
                 case GraphNodeKind.ConfigIn: return NodeType.ConfigIn;
                 case GraphNodeKind.Expr: return NodeType.Expr;
+                case GraphNodeKind.MsfsVarDef: return NodeType.Input; // emits MSFS.<alias>
                 // LocalSend / LocalReceive collapse away at convert time and
                 // never reach the runtime; MapNodeType shouldn't be called on
                 // them, but if it is just return Const (harmless).
