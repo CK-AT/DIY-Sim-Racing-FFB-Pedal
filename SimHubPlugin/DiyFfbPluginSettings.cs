@@ -5,16 +5,6 @@ using DiyFfb.TieredConfig;
 
 namespace DiyFfb
 {
-    // Plan 19: MSFS connection mode. InProcess uses the pure-C# SimConnect
-    // client (DiyFfb.Msfs.MsfsSimConnectClient); Bridge keeps the legacy
-    // MsfsFfbDataProvider.exe + UDP path. Default InProcess; Bridge is the
-    // rollback escape hatch while phase 2 parity validation is in progress.
-    public enum MsfsConnectionMode
-    {
-        InProcess = 0,
-        Bridge = 1,
-    }
-
     /// <summary>
     /// Settings class, make sure it can be correctly serialized using JSON.net
     /// </summary>
@@ -154,12 +144,6 @@ namespace DiyFfb
         public int OtaLocalPort = 8000;
         public bool XPlaneUdpEnabled = true;
         public int XPlaneUdpPort = 27015;
-        public bool MsfsUdpEnabled = true;
-        public int MsfsUdpPort = 27016;
-        // Plan 19: connection mode. InProcess (default) runs the pure-C#
-        // SimConnect client; Bridge keeps the legacy EXE + UDP path alive
-        // for A/B parity validation and as a rollback escape hatch.
-        public MsfsConnectionMode MsfsConnectionMode = MsfsConnectionMode.InProcess;
         public Dictionary<string, AircraftFfbProfile> AircraftFfbProfiles = new Dictionary<string, AircraftFfbProfile>();
 
         // Tiered Config Override System

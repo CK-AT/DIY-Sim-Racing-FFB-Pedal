@@ -469,21 +469,6 @@ ilrepack /out:$(ProjectDir)bin\$(TargetFileName) /lib:"C:\Program Files (x86)\Si
   <PropertyGroup>
     <PreBuildEvent>protoc -I$(ProjectDir)\..\proto --csharp_out=$(ProjectDir) $(ProjectDir)\..\proto\diy_ffb_protocol.proto</PreBuildEvent>
   </PropertyGroup>
-  <!-- Plan 17: deploy MsfsFfbDataProvider.exe + SimConnect.dll alongside the
-       plugin so DiyFfbPlugin.StartMsfsBridgeProcess can spawn it. The bridge
-       must be built first (MsfsPlugin\MsfsFfbDataProvider.sln); we just copy
-       its output. If the bridge isn't built yet, the plugin falls back to
-       "MSFS support unavailable" at runtime without erroring at build time. -->
-  <Target Name="DeployMsfsBridge" AfterTargets="Build">
-    <ItemGroup>
-      <MsfsBridgeFiles Include="$(ProjectDir)..\MsfsPlugin\Release\MsfsFfbDataProvider.exe" />
-      <MsfsBridgeFiles Include="$(ProjectDir)..\MsfsPlugin\Release\SimConnect.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(MsfsBridgeFiles)"
-          DestinationFolder="$(OutputPath)"
-          SkipUnchangedFiles="true"
-          Condition="Exists('%(MsfsBridgeFiles.FullPath)')" />
-  </Target>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>

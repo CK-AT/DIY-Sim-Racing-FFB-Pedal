@@ -117,29 +117,15 @@ namespace DiyFfb
         private DateTime xplaneLastReceivedUtc = DateTime.MinValue;
         private DateTime xplaneLastSendUtc = DateTime.MinValue;
 
-        // Plan 17: MSFS SimConnect bridge over UDP. Bridge ships raw SimVars
-        // only; derivations (BladeAlph / VRS / Slap / Propwash / Torque)
-        // run in BuildMsfsInputs using per-aircraft graph params for tuning.
-        private const uint MsfsPacketMagic = 0x4D464642; // "MFFB"
-        private const ushort MsfsPacketVersion = 1;
-        private const int MsfsPacketSizeBytes = 152;
+        // Plan 17/19: MSFS telemetry snapshot. Derivations (BladeAlph / VRS /
+        // Slap / Propwash / Torque) run in BuildMsfsInputs using per-aircraft
+        // graph params for tuning.
         private const double MsfsTelemetryFreshnessMs = 200.0;
         private readonly object msfsLock = new object();
-        private UdpClient msfsUdpClient;
-        private Thread msfsUdpThread;
-        private CancellationTokenSource msfsUdpCts;
         private MsfsUdpPacket latestMsfsPacket;
-        private uint msfsLastSequence;
-        private int msfsDropouts;
-        // Plan 17: child process that runs the MSFS SimConnect bridge. The
-        // plugin auto-spawns it on Init so users don't have to launch a
-        // separate EXE. The bridge handles connect-to-MSFS retries on its
-        // own — safe to launch before MSFS is running.
-        private Process _msfsBridgeProcess;
-        // Plan 19: pure-C# in-process SimConnect client. Replaces the
-        // bridge EXE + UDP loopback when Settings.MsfsConnectionMode ==
-        // InProcess. Mutually exclusive with the UDP path; both populate
-        // latestMsfsPacket via the same lock so downstream is unaware.
+        // Plan 19: pure-C# in-process SimConnect client — the single MSFS
+        // transport. Populates latestMsfsPacket under msfsLock so downstream
+        // (GetLatestMsfsPacket / BuildMsfsInputs) sees one consistent snapshot.
         private MsfsSimConnectClient _msfsClient;
         private string activeCarId;
         private string activeCarName;
@@ -948,11 +934,8 @@ namespace DiyFfb
 
             StopGatewayAutoReconnect();
             StopXPlaneUdpReceiver();
-            // Plan 19: stop whichever MSFS path is running. Stop() is a
-            // no-op if the path was never started, so order doesn't matter.
+            // Plan 19: stop the in-process MSFS client (no-op if never started).
             StopMsfsClient();
-            StopMsfsUdpReceiver();
-            StopMsfsBridgeProcess();
 
             // close serial communication
             if (ui != null)
@@ -1222,8 +1205,8 @@ namespace DiyFfb
 
         // Worker-thread callback. The double[] is owned by the client and
         // reused per sample, so we must finish reading from it before
-        // returning. Lock matches the UDP path (ParseMsfsPacket) so
-        // downstream sees a single consistent latestMsfsPacket.
+        // returning. Publishes under msfsLock so downstream sees a single
+        // consistent latestMsfsPacket.
         private void ApplyMsfsSimConnectSample(double[] s)
         {
             var packet = new MsfsUdpPacket
@@ -1274,234 +1257,6 @@ namespace DiyFfb
         }
 
         private int _msfsClientSeq;
-
-        // Plan 17: spawn / kill MsfsFfbDataProvider.exe alongside the plugin
-        // lifecycle. The bridge sits next to the plugin DLL in SimHub's
-        // install dir (deployed by our post-build step). Bridge's own retry
-        // loop handles MSFS not being up yet; we don't need to gate on it.
-        private void StartMsfsBridgeProcess()
-        {
-            if (_msfsBridgeProcess != null && !_msfsBridgeProcess.HasExited)
-            {
-                return;
-            }
-
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            string exePath = Path.Combine(baseDir, "MsfsFfbDataProvider.exe");
-            if (!File.Exists(exePath))
-            {
-                SimHub.Logging.Current?.Info(
-                    $"[MsfsBridge] MsfsFfbDataProvider.exe not found at '{exePath}' — MSFS support will be unavailable until it is deployed.");
-                return;
-            }
-
-            try
-            {
-                var psi = new ProcessStartInfo(exePath)
-                {
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    WorkingDirectory = baseDir
-                };
-                _msfsBridgeProcess = Process.Start(psi);
-                SimHub.Logging.Current?.Info(
-                    $"[MsfsBridge] Launched '{exePath}' (PID {_msfsBridgeProcess?.Id}).");
-            }
-            catch (Exception ex)
-            {
-                SimHub.Logging.Current?.Error($"[MsfsBridge] Failed to launch: {ex.Message}");
-                _msfsBridgeProcess = null;
-            }
-        }
-
-        private void StopMsfsBridgeProcess()
-        {
-            var p = _msfsBridgeProcess;
-            _msfsBridgeProcess = null;
-            if (p == null) return;
-
-            try
-            {
-                if (!p.HasExited)
-                {
-                    p.Kill();
-                    p.WaitForExit(2000);
-                }
-            }
-            catch (Exception ex)
-            {
-                SimHub.Logging.Current?.Info($"[MsfsBridge] Stop encountered '{ex.Message}'.");
-            }
-            finally
-            {
-                try { p.Dispose(); } catch { }
-            }
-        }
-
-        // Plan 17: MSFS receiver lifecycle — mirrors the X-Plane pair.
-        private void StartMsfsUdpReceiver()
-        {
-            if (msfsUdpThread != null || Settings == null || !Settings.MsfsUdpEnabled)
-            {
-                return;
-            }
-
-            msfsUdpCts = new CancellationTokenSource();
-            try
-            {
-                msfsUdpClient = new UdpClient(Settings.MsfsUdpPort);
-                msfsUdpClient.Client.ReceiveTimeout = 500;
-            }
-            catch (Exception ex)
-            {
-                SimHub.Logging.Current.Error($"MSFS UDP receiver failed to start: {ex.Message}");
-                StopMsfsUdpReceiver();
-                return;
-            }
-
-            msfsUdpThread = new Thread(MsfsUdpLoop)
-            {
-                IsBackground = true,
-                Name = "MsfsUdpReceiver"
-            };
-            msfsUdpThread.Start();
-        }
-
-        private void StopMsfsUdpReceiver()
-        {
-            if (msfsUdpCts != null)
-            {
-                msfsUdpCts.Cancel();
-            }
-
-            if (msfsUdpClient != null)
-            {
-                try
-                {
-                    msfsUdpClient.Close();
-                }
-                catch
-                {
-                }
-            }
-
-            msfsUdpThread = null;
-            msfsUdpClient = null;
-            msfsUdpCts = null;
-        }
-
-        private void MsfsUdpLoop()
-        {
-            // Snapshot refs so we survive StopMsfsUdpReceiver nulling fields
-            // mid-loop (race between Cancel + Close and the next while-check).
-            var client = msfsUdpClient;
-            var cts = msfsUdpCts;
-            if (client == null || cts == null)
-            {
-                return;
-            }
-
-            var endpoint = new IPEndPoint(IPAddress.Any, 0);
-            while (!cts.IsCancellationRequested)
-            {
-                try
-                {
-                    byte[] data = client.Receive(ref endpoint);
-                    if (data != null && data.Length >= MsfsPacketSizeBytes)
-                    {
-                        ParseMsfsPacket(data);
-                    }
-                }
-                catch (SocketException ex)
-                {
-                    if (ex.SocketErrorCode != SocketError.TimedOut)
-                    {
-                        Thread.Sleep(50);
-                    }
-                }
-                catch (ObjectDisposedException)
-                {
-                    break;
-                }
-                catch (Exception)
-                {
-                }
-            }
-        }
-
-        private void ParseMsfsPacket(byte[] data)
-        {
-            int offset = 0;
-            uint magic = ReadUInt32(data, ref offset);
-            if (magic != MsfsPacketMagic)
-            {
-                return;
-            }
-
-            ushort version = ReadUInt16(data, ref offset);
-            if (version != MsfsPacketVersion)
-            {
-                return;
-            }
-
-            ushort size = ReadUInt16(data, ref offset);
-            if (size > data.Length || size < MsfsPacketSizeBytes)
-            {
-                return;
-            }
-
-            uint sequence = ReadUInt32(data, ref offset);
-            var packet = new MsfsUdpPacket
-            {
-                Sequence = sequence,
-                IasKts = ReadSingle(data, ref offset),
-                TasKts = ReadSingle(data, ref offset),
-                AlphaDeg = ReadSingle(data, ref offset),
-                BetaDeg = ReadSingle(data, ref offset),
-                PRateRadS = ReadSingle(data, ref offset),
-                QRateRadS = ReadSingle(data, ref offset),
-                RRateRadS = ReadSingle(data, ref offset),
-                GForce = ReadSingle(data, ref offset),
-                VviWorldFps = ReadSingle(data, ref offset),
-                VelocityBodyXFps = ReadSingle(data, ref offset),
-                VelocityBodyYFps = ReadSingle(data, ref offset),
-                VelocityBodyZFps = ReadSingle(data, ref offset),
-                PitchRad = ReadSingle(data, ref offset),
-                BankRad = ReadSingle(data, ref offset),
-                TotalWeightLb = ReadSingle(data, ref offset),
-                AmbientDensitySlugsFt3 = ReadSingle(data, ref offset),
-                MainRotorRpm = ReadSingle(data, ref offset),
-                TailRotorRpm = ReadSingle(data, ref offset),
-                EngTorquePct = ReadSingle(data, ref offset),
-                CollectivePosPct = ReadSingle(data, ref offset),
-                TailRotorPedalPct = ReadSingle(data, ref offset),
-                TailRotorBladePitchPct = ReadSingle(data, ref offset),
-                RotorCollectiveBladePitchPct = ReadSingle(data, ref offset),
-                RotorCyclicBladePitchPct = ReadSingle(data, ref offset),
-                RotorCyclicBladeMaxPitchPosRad = ReadSingle(data, ref offset),
-                DiskPitchAngleRad = ReadSingle(data, ref offset),
-                DiskBankAngleRad = ReadSingle(data, ref offset),
-                DiskConingPct = ReadSingle(data, ref offset),
-                RotorLateralTrimPct = ReadSingle(data, ref offset),
-                RotorLongitudinalTrimPct = ReadSingle(data, ref offset),
-                RotorRotationAngleRad = ReadSingle(data, ref offset),
-                ElevTrimPct = ReadSingle(data, ref offset),
-                AilTrimPct = ReadSingle(data, ref offset),
-                RudTrimPct = ReadSingle(data, ref offset),
-                OnGround = ReadByte(data, ref offset) != 0,
-                ReceivedUtc = DateTime.UtcNow
-            };
-
-            lock (msfsLock)
-            {
-                if (msfsLastSequence != 0 && sequence > msfsLastSequence + 1)
-                {
-                    msfsDropouts += (int)(sequence - msfsLastSequence - 1);
-                }
-                msfsLastSequence = sequence;
-                latestMsfsPacket = packet;
-            }
-        }
 
         internal MsfsUdpPacket GetLatestMsfsPacket()
         {
@@ -4592,17 +4347,9 @@ namespace DiyFfb
 
             StartGatewayAutoReconnect();
             StartXPlaneUdpReceiver();
-            // Plan 19: pick MSFS connection mode. InProcess = pure-C#
-            // SimConnect client; Bridge = legacy EXE + UDP (fallback).
-            if (Settings != null && Settings.MsfsConnectionMode == MsfsConnectionMode.Bridge)
-            {
-                StartMsfsUdpReceiver();
-                StartMsfsBridgeProcess();
-            }
-            else
-            {
-                StartMsfsClient();
-            }
+            // Plan 19/23: single MSFS transport — the pure-C# in-process
+            // SimConnect client.
+            StartMsfsClient();
 
         }
     }

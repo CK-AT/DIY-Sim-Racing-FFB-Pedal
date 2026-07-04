@@ -191,7 +191,6 @@ namespace DiyFfb.Msfs
 
         // -----------------------------------------------------------------
         //  Byte-level primitives. Plain LE writes/reads against a byte[].
-        //  Plugin already uses this style (see DiyFfbPlugin.ParseMsfsPacket).
         // -----------------------------------------------------------------
 
         private static int WriteHeaderPlaceholder(byte[] buf, uint protocol, uint sendType)
