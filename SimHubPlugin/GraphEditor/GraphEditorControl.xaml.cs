@@ -40,6 +40,7 @@ namespace DiyFfb.GraphEditor
         private readonly GraphPreviewEvaluator _previewEvaluator = new GraphPreviewEvaluator();
         private readonly ObservableCollection<PortEditEntry> _portEntries = new ObservableCollection<PortEditEntry>();
         private readonly ObservableCollection<BusPortEntry> _busPortEntries = new ObservableCollection<BusPortEntry>();
+        private readonly ObservableCollection<MsfsVarPortEntry> _msfsVarPortEntries = new ObservableCollection<MsfsVarPortEntry>();
         private readonly Dictionary<string, IReadOnlyList<string>> _configFieldOptionsCache = new Dictionary<string, IReadOnlyList<string>>();
         private bool _isPanning;
         private bool _panWasDragged;
@@ -81,6 +82,7 @@ namespace DiyFfb.GraphEditor
         private static readonly SolidColorBrush TitleBarInclude = new SolidColorBrush(Color.FromRgb(180, 80, 140));    // Magenta
         private static readonly SolidColorBrush TitleBarLocalSend = new SolidColorBrush(Color.FromRgb(190, 110, 60));   // Burnt-orange (sink, like Output but warmer)
         private static readonly SolidColorBrush TitleBarLocalReceive = new SolidColorBrush(Color.FromRgb(70, 170, 130));// Mint-green (source on the bus side)
+        private static readonly SolidColorBrush TitleBarMsfsVar = new SolidColorBrush(Color.FromRgb(90, 110, 210));    // Indigo (plan 23: custom MSFS var declarations)
 
         private static readonly FontFamily NodeFontFamily = new FontFamily("Segoe UI");
         private const double TitleFontSize = 11.0;
@@ -123,6 +125,16 @@ namespace DiyFfb.GraphEditor
         public IReadOnlyList<string> ParamWidgetChoices => _paramWidgetChoices;
         public ObservableCollection<PortEditEntry> PortEntries => _portEntries;
         public ObservableCollection<BusPortEntry> BusPortEntries => _busPortEntries;
+        public ObservableCollection<MsfsVarPortEntry> MsfsVarPortEntries => _msfsVarPortEntries;
+
+        // Plan 23: SimConnect unit presets offered in the MsfsVarDef inspector
+        // (freeform override allowed). "number" is the safe default for L: vars.
+        public static readonly IReadOnlyList<string> MsfsUnitPresets = new[]
+        {
+            "number", "bool", "percent", "percent over 100", "radians", "degrees",
+            "knots", "feet", "feet per second", "foot pounds", "pounds",
+            "slugs per cubic feet", "rpm", "gforce"
+        };
 
         public ObservableCollection<string> IncludeInputNames { get; } = new ObservableCollection<string>();
         public ObservableCollection<string> IncludeOutputNames { get; } = new ObservableCollection<string>();
@@ -1621,6 +1633,12 @@ namespace DiyFfb.GraphEditor
             menu.Items.Add(BuildMenuItem("Add ConfigIn", () => AddNode(GraphNodeKind.ConfigIn, position)));
             menu.Items.Add(BuildMenuItem("Add Local Send", () => AddNode(GraphNodeKind.LocalSend, position)));
             menu.Items.Add(BuildMenuItem("Add Local Receive", () => AddNode(GraphNodeKind.LocalReceive, position)));
+            // Plan 23: MsfsVarDef is a top-level-only concept (declares custom
+            // MSFS vars for the whole graph); don't offer it in library/embedded graphs.
+            if (_graph?.IsLibraryGraph != true)
+            {
+                menu.Items.Add(BuildMenuItem("Add MSFS Vars", () => AddNode(GraphNodeKind.MsfsVarDef, position)));
+            }
             menu.Items.Add(new Separator());
             menu.Items.Add(BuildMenuItem("Zoom to Fit", ZoomToFit));
             menu.Items.Add(BuildMenuItem("Align Left", AlignSelectedLeft));
@@ -1730,6 +1748,22 @@ namespace DiyFfb.GraphEditor
                 // Source node. Each output port taps a bus by BusName.
                 node.Title = "Local Receive";
                 node.Ports.Add(new GraphPort { Name = "out_0", Kind = GraphPortKind.Output, BusName = "" });
+            }
+            else if (kind == GraphNodeKind.MsfsVarDef)
+            {
+                // Plan 23: declares custom MSFS vars. SignalGroup MUST be "MSFS"
+                // so each output port resolves to MSFS.<alias>. Each output port
+                // carries its alias (SignalSuffix), raw datum name (SimVar) and unit.
+                node.Title = "MSFS Vars";
+                node.SignalGroup = "MSFS";
+                node.Ports.Add(new GraphPort
+                {
+                    Kind = GraphPortKind.Output,
+                    SignalSuffix = "Custom.Var1",
+                    Name = "Custom.Var1",
+                    SimVar = "",
+                    Unit = "number"
+                });
             }
 
             _graph.Nodes.Add(node);
@@ -2103,6 +2137,10 @@ namespace DiyFfb.GraphEditor
             if (UsesTemplateInspector(node) && (node.Kind == GraphNodeKind.LocalSend || node.Kind == GraphNodeKind.LocalReceive))
             {
                 SyncBusPortEntries(node);
+            }
+            if (UsesTemplateInspector(node) && node.Kind == GraphNodeKind.MsfsVarDef)
+            {
+                SyncMsfsVarPortEntries(node);
             }
         }
 
@@ -3748,8 +3786,10 @@ namespace DiyFfb.GraphEditor
                 return isNegatedOpInput ? "-" + port.Name : port.Name;
             }
 
-            // In top-level graphs, Input/Output nodes use SignalSuffix if set
-            if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output) &&
+            // In top-level graphs, Input/Output nodes use SignalSuffix if set.
+            // MsfsVarDef output ports likewise label with their alias (SignalSuffix).
+            if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output ||
+                 node.Kind == GraphNodeKind.MsfsVarDef) &&
                 !string.IsNullOrEmpty(port.SignalSuffix))
             {
                 return isNegatedOpInput ? "-" + port.SignalSuffix : port.SignalSuffix;
@@ -3875,7 +3915,8 @@ namespace DiyFfb.GraphEditor
                    || node.Kind == GraphNodeKind.Param
                    || node.Kind == GraphNodeKind.Include
                    || node.Kind == GraphNodeKind.LocalSend
-                   || node.Kind == GraphNodeKind.LocalReceive;
+                   || node.Kind == GraphNodeKind.LocalReceive
+                   || node.Kind == GraphNodeKind.MsfsVarDef;
         }
 
 
@@ -4522,6 +4563,99 @@ namespace DiyFfb.GraphEditor
             GraphChanged?.Invoke();
         }
 
+        // ---- Plan 23: MsfsVarDef inspector port grid (alias / SimVar / Unit) ----
+
+        private void SyncMsfsVarPortEntries(GraphNode node)
+        {
+            _msfsVarPortEntries.Clear();
+            if (node == null || node.Kind != GraphNodeKind.MsfsVarDef) return;
+            foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
+            {
+                _msfsVarPortEntries.Add(new MsfsVarPortEntry(
+                    port, MsfsUnitPresets, OnMsfsVarAliasChanged, OnMsfsVarPortChanged));
+            }
+        }
+
+        // Alias edit: keep port.Name in sync (signal-node convention Name ==
+        // SignalSuffix) and repoint any links from the old port name so wiring
+        // survives a rename.
+        private void OnMsfsVarAliasChanged(GraphPort port, string oldName, string newName)
+        {
+            if (_selectedNode == null || port == null) return;
+            RenamePort(_selectedNode.Node, oldName, newName);
+            port.Name = newName;
+            port.SignalSuffix = newName;
+        }
+
+        private void OnMsfsVarPortChanged()
+        {
+            // Repaint the node (alias label may have changed) + refresh preview.
+            // Runtime re-registration happens on Apply (UpdateMsfsCustomVars).
+            if (_selectedNode != null)
+            {
+                RebuildNodeVisual(_selectedNode.Node);
+                UpdateSelectionVisuals();
+            }
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        private void ButtonAddMsfsVar_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null) return;
+            var node = _selectedNode.Node;
+            if (node.Kind != GraphNodeKind.MsfsVarDef) return;
+
+            int idx = node.Ports.Count(p => p.Kind == GraphPortKind.Output) + 1;
+            string alias = $"Custom.Var{idx}";
+            while (node.Ports.Any(p => p.SignalSuffix == alias)) { idx++; alias = $"Custom.Var{idx}"; }
+            node.Ports.Add(new GraphPort
+            {
+                Kind = GraphPortKind.Output,
+                SignalSuffix = alias,
+                Name = alias,
+                SimVar = "",
+                Unit = "number"
+            });
+
+            RebuildSurface();
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+            SyncMsfsVarPortEntries(node);
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        private void ButtonRemoveMsfsVar_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null || !(sender is Button button)) return;
+            if (!(button.DataContext is MsfsVarPortEntry entry)) return;
+            var node = _selectedNode.Node;
+            if (node.Kind != GraphNodeKind.MsfsVarDef) return;
+            if (node.Ports.Count(p => p.Kind == GraphPortKind.Output) <= 1) return; // keep at least one
+
+            RemovePort(node, entry.Port);
+            RebuildSurface();
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+            SyncMsfsVarPortEntries(node);
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
         private void RebuildNodeVisual(GraphNode node)
         {
             if (node == null) return;
@@ -4572,6 +4706,70 @@ namespace DiyFfb.GraphEditor
                     if (Port.BusName == newValue) return;
                     Port.BusName = newValue;
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BusName)));
+                    _onChanged?.Invoke();
+                }
+            }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+        }
+
+        // Plan 23: inspector view-model for one MsfsVarDef output port. Wraps the
+        // port's alias (SignalSuffix), raw datum name (SimVar) and unit. Alias
+        // edits route through onAliasChanged so links + port.Name stay consistent.
+        public sealed class MsfsVarPortEntry : INotifyPropertyChanged
+        {
+            private readonly GraphPort _port;
+            private readonly Action<GraphPort, string, string> _onAliasChanged;
+            private readonly Action _onChanged;
+
+            public MsfsVarPortEntry(GraphPort port, IEnumerable<string> unitOptions,
+                Action<GraphPort, string, string> onAliasChanged, Action onChanged)
+            {
+                _port = port;
+                UnitOptions = new ObservableCollection<string>(unitOptions ?? Enumerable.Empty<string>());
+                _onAliasChanged = onAliasChanged;
+                _onChanged = onChanged;
+            }
+
+            public GraphPort Port => _port;
+            public ObservableCollection<string> UnitOptions { get; }
+
+            public string Alias
+            {
+                get => _port.SignalSuffix ?? "";
+                set
+                {
+                    string newValue = value ?? "";
+                    string old = _port.SignalSuffix ?? "";
+                    if (old == newValue) return;
+                    _onAliasChanged?.Invoke(_port, old, newValue);
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Alias)));
+                    _onChanged?.Invoke();
+                }
+            }
+
+            public string SimVar
+            {
+                get => _port.SimVar ?? "";
+                set
+                {
+                    string newValue = value ?? "";
+                    if ((_port.SimVar ?? "") == newValue) return;
+                    _port.SimVar = newValue;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SimVar)));
+                    _onChanged?.Invoke();
+                }
+            }
+
+            public string Unit
+            {
+                get => _port.Unit ?? "";
+                set
+                {
+                    string newValue = value ?? "";
+                    if ((_port.Unit ?? "") == newValue) return;
+                    _port.Unit = newValue;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Unit)));
                     _onChanged?.Invoke();
                 }
             }
@@ -5841,6 +6039,7 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.Include: return TitleBarInclude;
                 case GraphNodeKind.LocalSend: return TitleBarLocalSend;
                 case GraphNodeKind.LocalReceive: return TitleBarLocalReceive;
+                case GraphNodeKind.MsfsVarDef: return TitleBarMsfsVar;
                 default: return TitleBarConst;
             }
         }
@@ -7407,6 +7606,7 @@ namespace DiyFfb.GraphEditor
         public DataTemplate ConfigOutTemplate { get; set; }
         public DataTemplate ConfigInTemplate { get; set; }
         public DataTemplate LocalBusTemplate { get; set; }
+        public DataTemplate MsfsVarTemplate { get; set; }
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
@@ -7437,6 +7637,8 @@ namespace DiyFfb.GraphEditor
                     case GraphNodeKind.LocalSend:
                     case GraphNodeKind.LocalReceive:
                         return LocalBusTemplate;
+                    case GraphNodeKind.MsfsVarDef:
+                        return MsfsVarTemplate;
                 }
             }
 

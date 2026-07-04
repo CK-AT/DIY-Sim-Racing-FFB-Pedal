@@ -324,6 +324,106 @@
                         Click="ButtonAddBusPort_Click" />
             </StackPanel>
         </DataTemplate>
+        <!-- Plan 23: one custom-MSFS-variable row (alias / SimVar / Unit). -->
+        <DataTemplate x:Key="InspectorMsfsVarPortEntryTemplate">
+            <Border Background="#232323" BorderBrush="#3A3A3A" BorderThickness="1" Margin="0,2,0,4" Padding="6,4,6,6">
+                <StackPanel>
+                    <DockPanel LastChildFill="True">
+                        <Button DockPanel.Dock="Right"
+                                Content="×"
+                                Margin="6,0,0,0"
+                                Width="22" Height="22"
+                                Background="#1E1E1E" Foreground="#CC6666"
+                                BorderBrush="#4A4A4A" BorderThickness="1"
+                                Padding="0" FontSize="14"
+                                ToolTip="Remove this variable"
+                                Click="ButtonRemoveMsfsVar_Click" />
+                        <TextBlock Text="Alias  →  MSFS.&lt;alias&gt;" Foreground="#BBBBBB" FontSize="10" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBox Margin="0,2,0,4"
+                             Background="#1E1E1E" Foreground="White"
+                             BorderBrush="#4A4A4A" BorderThickness="1" Padding="3,2,3,2"
+                             Text="{Binding Alias, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Graph-facing alias. Wire from this port; the signal is MSFS.&lt;alias&gt;. Must be unique across all MSFS Vars nodes." />
+                    <TextBlock Text="SimVar / LVAR (raw name)" Foreground="#BBBBBB" FontSize="10" />
+                    <TextBox Margin="0,2,0,4"
+                             Background="#1E1E1E" Foreground="White"
+                             BorderBrush="#4A4A4A" BorderThickness="1" Padding="3,2,3,2"
+                             Text="{Binding SimVar, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Raw SimConnect datum, e.g. GENERAL ENG RPM:1 or L:MY_LVAR. LVAR names cannot be validated offline (a wrong one reads 0)." />
+                    <TextBlock Text="Unit" Foreground="#BBBBBB" FontSize="10" />
+                    <ComboBox IsEditable="True"
+                              IsTextSearchEnabled="True"
+                              Margin="0,2,0,0"
+                              Background="#1E1E1E" Foreground="White"
+                              BorderBrush="#4A4A4A" BorderThickness="1" Padding="2,0,2,0"
+                              ItemsSource="{Binding UnitOptions}"
+                              Text="{Binding Unit, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="SimConnect unit. Pick a preset or type your own. 'number' is the safe default for L: vars; a wrong unit for an A: var may mis-scale silently.">
+                        <ComboBox.Template>
+                            <ControlTemplate TargetType="ComboBox">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="20" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="PART_EditableTextBox"
+                                             Grid.Column="0"
+                                             Background="#1E1E1E"
+                                             Foreground="White"
+                                             BorderThickness="0"
+                                             Padding="2,1,2,1"
+                                             ContextMenu="{x:Null}"
+                                             Text="{TemplateBinding Text}" />
+                                    <ToggleButton Grid.Column="1"
+                                                  IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                                  Background="#1E1E1E"
+                                                  BorderBrush="#4A4A4A"
+                                                  BorderThickness="1"
+                                                  Focusable="False">
+                                        <TextBlock Text="▾" Foreground="White" HorizontalAlignment="Center" />
+                                    </ToggleButton>
+                                    <Popup Placement="Bottom"
+                                           IsOpen="{TemplateBinding IsDropDownOpen}"
+                                           AllowsTransparency="True"
+                                           PopupAnimation="None"
+                                           PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}">
+                                        <Border Background="#1E1E1E" BorderBrush="#4A4A4A" BorderThickness="1">
+                                            <ScrollViewer MaxHeight="240">
+                                                <ItemsPresenter />
+                                            </ScrollViewer>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+                            </ControlTemplate>
+                        </ComboBox.Template>
+                    </ComboBox>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+        <!-- Plan 23: MsfsVarDef node inspector — declares custom MSFS vars. -->
+        <DataTemplate x:Key="InspectorMsfsVarTemplate">
+            <StackPanel>
+                <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
+                <TextBox Margin="0,2,0,6"
+                         Background="#1E1E1E" Foreground="White"
+                         BorderBrush="#4A4A4A" BorderThickness="1" Padding="3,2,3,2"
+                         Text="{Binding Title, Mode=OneWay}"
+                         TextChanged="InspectorTitle_TextChanged" />
+                <TextBlock Text="Custom MSFS Variables" Foreground="#BBBBBB" Margin="0,2,0,2" FontSize="10" />
+                <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=MsfsVarPortEntries}"
+                              ItemTemplate="{StaticResource InspectorMsfsVarPortEntryTemplate}" />
+                <Button Content="+ Add Variable"
+                        Margin="0,6,0,0"
+                        HorizontalAlignment="Left"
+                        Background="#1E1E1E" Foreground="White"
+                        BorderBrush="#4A4A4A" BorderThickness="1"
+                        Padding="6,2,6,2"
+                        Click="ButtonAddMsfsVar_Click" />
+                <TextBlock TextWrapping="Wrap" Foreground="#888888" FontSize="10" Margin="0,8,0,0"
+                           Text="Each row registers a custom MSFS SimConnect variable and exposes it as MSFS.&lt;alias&gt;. A bad A: name is dropped (check the SimHub log); a wrong L: name reads 0. Changes take effect on Apply." />
+            </StackPanel>
+        </DataTemplate>
         <DataTemplate x:Key="InspectorOpTemplate">
             <StackPanel>
                 <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
@@ -1042,7 +1142,8 @@
                                          IncludeTemplate="{StaticResource InspectorIncludeTemplate}"
                                          ConfigOutTemplate="{StaticResource InspectorConfigOutTemplate}"
                                          ConfigInTemplate="{StaticResource InspectorConfigInTemplate}"
-                                         LocalBusTemplate="{StaticResource InspectorLocalBusTemplate}" />
+                                         LocalBusTemplate="{StaticResource InspectorLocalBusTemplate}"
+                                         MsfsVarTemplate="{StaticResource InspectorMsfsVarTemplate}" />
         <DrawingBrush x:Key="GraphGridBrush" TileMode="Tile" Viewport="0,0,20,20" ViewportUnits="Absolute">
             <DrawingBrush.Drawing>
                 <DrawingGroup>
