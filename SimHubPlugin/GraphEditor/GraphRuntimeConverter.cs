@@ -435,9 +435,12 @@ namespace DiyFfb.GraphEditor
 
             if (nodes.TryGetValue(fromNodeId, out var sourceNode) &&
                 (sourceNode.Kind == GraphNodeKind.Input || sourceNode.Kind == GraphNodeKind.Param ||
-                 sourceNode.Kind == GraphNodeKind.ConfigIn) &&
+                 sourceNode.Kind == GraphNodeKind.ConfigIn || sourceNode.Kind == GraphNodeKind.MsfsVarDef) &&
                 !string.IsNullOrWhiteSpace(fromPort))
             {
+                // Multi-output signal nodes (MsfsVarDef included) key each port
+                // distinctly — otherwise all ports collapse to the node-level id
+                // and every consumer reads the same value.
                 sourceId = BuildPortId(fromNodeId, fromPort);
                 return true;
             }

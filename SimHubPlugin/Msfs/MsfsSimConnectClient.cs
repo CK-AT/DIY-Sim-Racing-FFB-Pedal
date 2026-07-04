@@ -98,6 +98,7 @@ namespace DiyFfb.Msfs
         // worker; a snapshot is used per frame. Failed customs recorded aside.
         private List<MsfsCustomVar> _survivingCustoms = new List<MsfsCustomVar>();
         private List<MsfsFailedVar> _failed = new List<MsfsFailedVar>();
+        private bool _customSampleLogged;
 
         // Reused buffers. _rxBuffer holds one inbound packet; ~500 FLOAT64 slots
         // incl. header, ample for 36 defaults + up to MaxCustomVars customs.
@@ -360,6 +361,7 @@ namespace DiyFfb.Msfs
                 _survivingCustoms = survivors;
                 _failed = failed;
             }
+            _customSampleLogged = false;
 
             Subscribe(pipe);
             _log($"[MsfsSimConnect] connected, streaming SIM_FRAME: {DefaultCount} defaults + {survivors.Count} custom ({failed.Count} rejected).");
@@ -543,6 +545,20 @@ namespace DiyFfb.Msfs
                     map[customs[i].Alias] = _sampleBuffer[DefaultCount + i];
                 }
                 customValues = map;
+
+                // One-shot diagnostic: log the raw custom values the transport
+                // actually reads, so a "reads 0" report can be pinned to the
+                // transport vs. downstream. Reset each (re)registration.
+                if (!_customSampleLogged)
+                {
+                    _customSampleLogged = true;
+                    var sb = new System.Text.StringBuilder("[MsfsSimConnect] first custom sample:");
+                    for (int i = 0; i < customs.Count; i++)
+                    {
+                        sb.Append($" {customs[i].Alias}({customs[i].Name})={_sampleBuffer[DefaultCount + i]:0.###}");
+                    }
+                    _log(sb.ToString());
+                }
             }
 
             lock (_stateLock) { _lastSampleUtc = DateTime.UtcNow; }

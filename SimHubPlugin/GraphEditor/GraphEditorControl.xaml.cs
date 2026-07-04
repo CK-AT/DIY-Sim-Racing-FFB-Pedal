@@ -3045,7 +3045,11 @@ namespace DiyFfb.GraphEditor
         private void SyncPreviewEntries()
         {
             var inputNames = new HashSet<string>();
-            foreach (var node in _graph.Nodes.Where(n => n.Kind == GraphNodeKind.Input))
+            // Plan 23: MsfsVarDef output ports emit MSFS.<alias> input signals
+            // (like Input nodes), so they need preview entries too — otherwise
+            // the live value can't resolve and reads 0 in the editor preview.
+            foreach (var node in _graph.Nodes.Where(n => n.Kind == GraphNodeKind.Input ||
+                                                         n.Kind == GraphNodeKind.MsfsVarDef))
             {
                 foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
                 {
@@ -6038,7 +6042,8 @@ namespace DiyFfb.GraphEditor
                 node.Kind == GraphNodeKind.ConfigOut ||
                 node.Kind == GraphNodeKind.ConfigIn ||
                 node.Kind == GraphNodeKind.Input ||
-                node.Kind == GraphNodeKind.Param)
+                node.Kind == GraphNodeKind.Param ||
+                node.Kind == GraphNodeKind.MsfsVarDef)
             {
                 return $"{node.Id}:{portName}";
             }
