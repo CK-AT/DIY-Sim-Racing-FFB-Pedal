@@ -110,6 +110,18 @@ namespace DiyFfb.Msfs
             return o;
         }
 
+        // ClearDataDefinition body is just the define ID. Used to reset a
+        // data definition before re-registering (plan 23 re-registration) and
+        // to recycle the scratch definition between per-var probes.
+        public static int WriteClearDataDefinition(byte[] buf, uint protocol,
+            uint defineId, uint sendId)
+        {
+            int o = WriteHeaderPlaceholder(buf, protocol, SendIdClearDataDefinition);
+            o += WriteUInt32(buf, o, defineId);
+            FinaliseHeader(buf, o, sendId);
+            return o;
+        }
+
         public static int WriteRequestDataOnSimObject(byte[] buf, uint protocol,
             uint requestId, uint defineId, uint objectId, uint period,
             uint flags, uint origin, uint interval, uint limit, uint sendId)

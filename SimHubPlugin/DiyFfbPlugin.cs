@@ -1206,8 +1206,9 @@ namespace DiyFfb
         // Worker-thread callback. The double[] is owned by the client and
         // reused per sample, so we must finish reading from it before
         // returning. Publishes under msfsLock so downstream sees a single
-        // consistent latestMsfsPacket.
-        private void ApplyMsfsSimConnectSample(double[] s)
+        // consistent latestMsfsPacket. `customs` (alias -> value) is populated
+        // from graph-declared MsfsVarDef vars (plan 23 phase 1); ignored here.
+        private void ApplyMsfsSimConnectSample(double[] s, IReadOnlyDictionary<string, double> customs)
         {
             var packet = new MsfsUdpPacket
             {
