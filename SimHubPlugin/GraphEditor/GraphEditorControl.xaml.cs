@@ -289,6 +289,10 @@ namespace DiyFfb.GraphEditor
             }
         }
         public Func<IDictionary<string, double>> LiveInputProvider { get; set; }
+        // Plan 23: alias -> SimConnect exception code for custom vars the plugin
+        // failed to register (bad A: name / absent). Polled on the live tick to
+        // flag the offending MsfsVarDef rows.
+        public Func<IReadOnlyDictionary<string, uint>> MsfsFailedVarProvider { get; set; }
         public Func<Dictionary<string, double[]>> LiveStateProvider { get; set; }
         public Action<string, double> ParamValueChanged { get; set; }
 
@@ -3558,6 +3562,13 @@ namespace DiyFfb.GraphEditor
             {
                 RequestPreviewRefresh();
             }
+
+            // Plan 23: refresh MsfsVarDef runtime-rejection markers while a node
+            // is selected (cheap; Error setters no-op when unchanged).
+            if (_msfsVarPortEntries.Count > 0)
+            {
+                ValidateMsfsVarEntries();
+            }
         }
 
         private void RequestPreviewRefresh()
@@ -4607,6 +4618,11 @@ namespace DiyFfb.GraphEditor
                 }
             }
 
+            // Runtime rejections (bad A: name / absent on this aircraft), if the
+            // plugin is connected. Overlaid only on otherwise well-formed rows.
+            IReadOnlyDictionary<string, uint> failed = null;
+            try { failed = MsfsFailedVarProvider?.Invoke(); } catch { }
+
             foreach (var entry in _msfsVarPortEntries)
             {
                 string alias = (entry.Alias ?? "").Trim();
@@ -4616,6 +4632,8 @@ namespace DiyFfb.GraphEditor
                 else if (simVar.Length == 0) error = "SimVar / LVAR name is required.";
                 else if (aliasCounts.TryGetValue(alias, out int c) && c > 1) error = "Duplicate alias (must be unique across all MSFS Vars nodes).";
                 else if (builtins.Contains(alias)) error = "Alias shadows the built-in MSFS." + alias + " signal.";
+                else if (failed != null && failed.TryGetValue(alias, out uint code))
+                    error = $"Rejected by MSFS (exception {code}) — unknown SimVar name or absent on this aircraft.";
                 entry.Error = error;
             }
         }

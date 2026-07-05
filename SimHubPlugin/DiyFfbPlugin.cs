@@ -2663,6 +2663,25 @@ namespace DiyFfb
             return inputs;
         }
 
+        // Plan 23: custom vars whose PERIOD_ONCE probe was rejected by MSFS
+        // (bad A: name / absent on this aircraft), keyed by alias -> exception
+        // code. Used by the graph editor to flag the offending ports. LVAR typos
+        // don't appear here (unknown LVARs read 0 rather than raising).
+        internal IReadOnlyDictionary<string, uint> GetMsfsFailedVars()
+        {
+            var map = new Dictionary<string, uint>(StringComparer.Ordinal);
+            var client = _msfsClient;
+            if (client != null)
+            {
+                foreach (var f in client.FailedVars)
+                {
+                    if (f != null && !string.IsNullOrEmpty(f.Alias))
+                        map[f.Alias] = f.ExceptionCode;
+                }
+            }
+            return map;
+        }
+
         private void BuildGraphParams()
         {
             graphParams.Clear();

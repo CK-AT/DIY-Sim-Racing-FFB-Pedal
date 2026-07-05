@@ -55,6 +55,7 @@ namespace DiyFfb.GraphEditor
         private bool suppressTreeSelection;
         private DiyFfbPlugin plugin;
         private Func<IDictionary<string, double>> liveInputProvider;
+        private Func<IReadOnlyDictionary<string, uint>> msfsFailedVarProvider;
         private readonly System.Windows.Threading.DispatcherTimer _globalLiveTimer;
         private bool _globalLiveInputsEnabled = true;  // Enabled by default
         private GraphEditorControl _lastEditor;
@@ -113,6 +114,15 @@ namespace DiyFfb.GraphEditor
             foreach (var tab in tabManager.Tabs)
             {
                 tab.EditorControl.LiveInputProvider = provider;
+            }
+        }
+
+        public void SetMsfsFailedVarProvider(Func<IReadOnlyDictionary<string, uint>> provider)
+        {
+            msfsFailedVarProvider = provider;
+            foreach (var tab in tabManager.Tabs)
+            {
+                tab.EditorControl.MsfsFailedVarProvider = provider;
             }
         }
 
@@ -338,6 +348,10 @@ namespace DiyFfb.GraphEditor
             if (liveInputProvider != null)
             {
                 tab.EditorControl.LiveInputProvider = liveInputProvider;
+            }
+            if (msfsFailedVarProvider != null)
+            {
+                tab.EditorControl.MsfsFailedVarProvider = msfsFailedVarProvider;
             }
 
             // Provide runtime state snapshot for active graph tabs (top-level state sync)
