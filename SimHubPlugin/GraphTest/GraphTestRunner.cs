@@ -84,6 +84,7 @@ namespace DiyFfb.GraphTest
             // Node duplication tests
             results.Add(TestRunner.RunTest("Node serialization preserves SignalGroup", TestNodeSignalGroupPreservation));
             results.Add(TestRunner.RunTest("Port serialization preserves SignalSuffix", TestPortSignalSuffixPreservation));
+            results.Add(TestRunner.RunTest("MsfsVarDef multi-port resolution + roundtrip", TestMsfsVarDefMultiPort));
             results.Add(TestRunner.RunTest("Op input negate conversion", TestOpInputNegateConversion));
             results.Add(TestRunner.RunTest("Op input negate validation", TestOpInputNegateValidation));
 
@@ -2561,6 +2562,70 @@ namespace DiyFfb.GraphTest
 
             return port1 != null && port1.SignalSuffix == "IAS_kts" &&
                    port2 != null && port2.SignalSuffix == "Alpha_deg";
+        }
+
+        private static bool TestMsfsVarDefMultiPort()
+        {
+            // Regression (plan 23): MsfsVarDef is the first multi-output signal
+            // node. Each output port must resolve to its OWN MSFS.<alias> source;
+            // a prior bug collapsed all ports to the node-level id, so every
+            // consumer read the same value. Also assert SimVar/Unit round-trip.
+            var graph = new GraphEditor.GraphDefinition();
+
+            var vars = new GraphEditor.GraphNode
+            {
+                Id = "vars",
+                Kind = GraphEditor.GraphNodeKind.MsfsVarDef,
+                SignalGroup = "MSFS"
+            };
+            vars.Ports.Add(new GraphEditor.GraphPort { Kind = GraphEditor.GraphPortKind.Output, Name = "AP.A", SignalSuffix = "AP.A", SimVar = "L:A", Unit = "number" });
+            vars.Ports.Add(new GraphEditor.GraphPort { Kind = GraphEditor.GraphPortKind.Output, Name = "AP.B", SignalSuffix = "AP.B", SimVar = "L:B", Unit = "radians" });
+            graph.Nodes.Add(vars);
+
+            var negA = new GraphEditor.GraphNode { Id = "negA", Kind = GraphEditor.GraphNodeKind.Op, Op = "neg" };
+            negA.Ports.Add(new GraphEditor.GraphPort { Name = "a", Kind = GraphEditor.GraphPortKind.Input });
+            graph.Nodes.Add(negA);
+
+            var negB = new GraphEditor.GraphNode { Id = "negB", Kind = GraphEditor.GraphNodeKind.Op, Op = "neg" };
+            negB.Ports.Add(new GraphEditor.GraphPort { Name = "a", Kind = GraphEditor.GraphPortKind.Input });
+            graph.Nodes.Add(negB);
+
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "vars", FromPort = "AP.A", ToNodeId = "negA", ToPort = "a" });
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "vars", FromPort = "AP.B", ToNodeId = "negB", ToPort = "a" });
+
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+
+            // (1) Each port emits its own MSFS.<alias> input node.
+            var inputNames = runtime.Nodes.Values
+                .Where(n => n.Type.ToString() == "Input")
+                .Select(n => n.Name).ToList();
+            if (!inputNames.Contains("MSFS.AP.A") || !inputNames.Contains("MSFS.AP.B"))
+            {
+                return false;
+            }
+
+            // (2) Each consumer resolves to its OWN port source (the regression).
+            if (!runtime.Nodes.TryGetValue("negA", out var na) ||
+                !runtime.Nodes.TryGetValue("negB", out var nb))
+            {
+                return false;
+            }
+            if (na.Args.Count != 1 || nb.Args.Count != 1) return false;
+            if (na.Args[0] == nb.Args[0]) return false;                        // collapsed => bug
+            if (!na.Args[0].EndsWith("AP.A") || !nb.Args[0].EndsWith("AP.B")) return false;
+
+            // (3) SimVar / Unit / SignalGroup survive a serialization round-trip.
+            string json = GraphEditor.GraphSerializer.Serialize(graph);
+            var loaded = GraphEditor.GraphSerializer.Deserialize(json, out var validation);
+            if (!validation.IsValid) return false;
+            var loadedVars = loaded.Nodes.FirstOrDefault(n => n.Kind == GraphEditor.GraphNodeKind.MsfsVarDef);
+            if (loadedVars == null || loadedVars.SignalGroup != "MSFS") return false;
+            var pa = loadedVars.Ports.FirstOrDefault(p => p.SignalSuffix == "AP.A");
+            var pb = loadedVars.Ports.FirstOrDefault(p => p.SignalSuffix == "AP.B");
+            if (pa == null || pa.SimVar != "L:A" || pa.Unit != "number") return false;
+            if (pb == null || pb.SimVar != "L:B" || pb.Unit != "radians") return false;
+
+            return true;
         }
 
         private static bool TestOpInputNegateConversion()

@@ -21,6 +21,23 @@ import sys
 errors = []
 warnings = []
 
+# Plan 23: built-in MSFS.* input suffixes a custom MsfsVarDef alias must not
+# shadow. Source of truth is GraphSignalCatalogData.cs (InputNames, "MSFS." set)
+# — regenerate with:
+#   grep -oE '"MSFS\.[A-Za-z0-9_.]+"' SimHubPlugin/GraphSignalCatalogData.cs \
+#     | sed 's/"MSFS\.//;s/"//' | sort -u
+MSFS_BUILTIN_SUFFIXES = {
+    "Air.Density", "Angle.Alpha", "Angle.Beta", "Attitude.Bank", "Attitude.Pitch",
+    "Collective.BladePitchPct", "Collective.Position", "Cyclic.BladePitchPct",
+    "Cyclic.MaxPitchAngle", "Disk.BankAngle", "Disk.ConingPct", "Disk.PitchAngle",
+    "Eng.TorquePct", "G_Nrml", "GroundSpeed", "MainRotor.Speed", "OnGround",
+    "Rate.Pitch", "Rate.Roll", "Rate.Yaw", "Rotor.LateralTrim",
+    "Rotor.LongitudinalTrim", "Rotor.RotationAngle", "Speed.IAS", "Speed.TAS",
+    "TailRotor.BladePitchPct", "TailRotor.PedalPosition", "TailRotor.Speed",
+    "Trim.Aileron", "Trim.Elevator", "Trim.Rudder", "VVI.World", "Velocity.BodyX",
+    "Velocity.BodyY", "Velocity.BodyZ", "Weight.Total",
+}
+
 
 def port_id(port):
     return port.get("Name") or port.get("SignalSuffix")
@@ -109,6 +126,31 @@ def validate_graph(g, base_dir, fname):
         warnings.append(f"{fname}: bus '{b}' received but never sent")
     for b in sorted(sends - recvs):
         warnings.append(f"{fname}: bus '{b}' sent but never received")
+
+    # Plan 23: MsfsVarDef output ports need a non-empty alias (SignalSuffix)
+    # and SimVar; aliases must be unique across all MsfsVarDef nodes and must
+    # not shadow a built-in MSFS.* signal. (L: names can't be validated offline.)
+    msfs_alias_seen = {}
+    for nid, n in nodes.items():
+        if n.get("Kind") != "MsfsVarDef":
+            continue
+        for p in n.get("Ports", []):
+            if p.get("Kind") != "Output":
+                continue
+            alias = (p.get("SignalSuffix") or "").strip()
+            simvar = (p.get("SimVar") or "").strip()
+            if not alias:
+                errors.append(f"{fname}: MsfsVarDef {nid} has an output port with an empty alias")
+                continue
+            if not simvar:
+                errors.append(f"{fname}: MsfsVarDef {nid} alias '{alias}' has an empty SimVar/LVAR name")
+            if alias in MSFS_BUILTIN_SUFFIXES:
+                errors.append(f"{fname}: MsfsVarDef {nid} alias '{alias}' shadows built-in MSFS.{alias}")
+            if alias in msfs_alias_seen:
+                errors.append(f"{fname}: duplicate MsfsVarDef alias '{alias}' "
+                              f"(nodes {msfs_alias_seen[alias]} and {nid})")
+            else:
+                msfs_alias_seen[alias] = nid
 
     # links wired into Input-kind ports more than once
     seen = {}

@@ -4574,6 +4574,50 @@ namespace DiyFfb.GraphEditor
                 _msfsVarPortEntries.Add(new MsfsVarPortEntry(
                     port, MsfsUnitPresets, OnMsfsVarAliasChanged, OnMsfsVarPortChanged));
             }
+            ValidateMsfsVarEntries();
+        }
+
+        // Edit-time syntax validation for the current node's MsfsVarDef rows:
+        // empty alias/SimVar, duplicate alias (across ALL MsfsVarDef nodes), and
+        // alias colliding with a built-in MSFS.* signal. LVAR names can't be
+        // validated offline, so a well-formed row with an L: name is "valid" here.
+        private void ValidateMsfsVarEntries()
+        {
+            if (_msfsVarPortEntries.Count == 0) return;
+
+            // Built-in MSFS suffixes (e.g. "Speed.IAS") an alias must not shadow.
+            var builtins = new HashSet<string>(
+                GraphSignalCatalog.GetInputSignalsForGroup("MSFS"), StringComparer.OrdinalIgnoreCase);
+
+            // Alias occurrence counts across every MsfsVarDef node in the graph
+            // (aliases share one MSFS.* namespace, so cross-node dups collide).
+            var aliasCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            if (_graph?.Nodes != null)
+            {
+                foreach (var n in _graph.Nodes)
+                {
+                    if (n.Kind != GraphNodeKind.MsfsVarDef || n.Ports == null) continue;
+                    foreach (var p in n.Ports)
+                    {
+                        if (p.Kind != GraphPortKind.Output) continue;
+                        string a = (p.SignalSuffix ?? "").Trim();
+                        if (a.Length == 0) continue;
+                        aliasCounts[a] = aliasCounts.TryGetValue(a, out int c) ? c + 1 : 1;
+                    }
+                }
+            }
+
+            foreach (var entry in _msfsVarPortEntries)
+            {
+                string alias = (entry.Alias ?? "").Trim();
+                string simVar = (entry.SimVar ?? "").Trim();
+                string error = "";
+                if (alias.Length == 0) error = "Alias is required.";
+                else if (simVar.Length == 0) error = "SimVar / LVAR name is required.";
+                else if (aliasCounts.TryGetValue(alias, out int c) && c > 1) error = "Duplicate alias (must be unique across all MSFS Vars nodes).";
+                else if (builtins.Contains(alias)) error = "Alias shadows the built-in MSFS." + alias + " signal.";
+                entry.Error = error;
+            }
         }
 
         // Alias edit: keep port.Name in sync (signal-node convention Name ==
@@ -4596,6 +4640,7 @@ namespace DiyFfb.GraphEditor
                 RebuildNodeVisual(_selectedNode.Node);
                 UpdateSelectionVisuals();
             }
+            ValidateMsfsVarEntries();
             RefreshPreview();
             _pendingUndoDebounce = true;
             GraphChanged?.Invoke();
@@ -4733,6 +4778,22 @@ namespace DiyFfb.GraphEditor
 
             public GraphPort Port => _port;
             public ObservableCollection<string> UnitOptions { get; }
+
+            // Edit-time validation state, set by the control's validator.
+            private string _error = "";
+            public string Error
+            {
+                get => _error;
+                set
+                {
+                    string v = value ?? "";
+                    if (_error == v) return;
+                    _error = v;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Error)));
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasError)));
+                }
+            }
+            public bool HasError => !string.IsNullOrEmpty(_error);
 
             public string Alias
             {
