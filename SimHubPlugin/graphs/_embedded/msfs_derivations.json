@@ -1889,7 +1889,7 @@
           },
           {
             "Id": "const_60_u2",
-            "Title": "60 (fps->fpm)",
+            "Title": "60 kt",
             "Kind": "Const",
             "X": 290.0,
             "Y": 120.0,
@@ -3459,8 +3459,8 @@
           {
             "Id": "param_etl_speed",
             "Kind": "Param",
-            "X": 260.0,
-            "Y": 290.0,
+            "X": 30.0,
+            "Y": 180.0,
             "Ports": [
               {
                 "Kind": "Output",
@@ -3472,8 +3472,8 @@
           {
             "Id": "param_descent_max",
             "Kind": "Param",
-            "X": 660.0,
-            "Y": 80.0,
+            "X": 310.0,
+            "Y": 380.0,
             "Ports": [
               {
                 "Kind": "Output",
@@ -3485,8 +3485,8 @@
           {
             "Id": "param_vrs_tau_up",
             "Kind": "Param",
-            "X": 1920.0,
-            "Y": 380.0,
+            "X": 1640.0,
+            "Y": 400.0,
             "Ports": [
               {
                 "Kind": "Output",
@@ -3498,8 +3498,8 @@
           {
             "Id": "param_vrs_tau_down",
             "Kind": "Param",
-            "X": 1920.0,
-            "Y": 440.0,
+            "X": 1630.0,
+            "Y": 490.0,
             "Ports": [
               {
                 "Kind": "Output",
@@ -3512,8 +3512,8 @@
             "Id": "lag_asym_vrs",
             "Title": "VRS lag (asym)",
             "Kind": "Func",
-            "X": 2160.0,
-            "Y": 260.0,
+            "X": 1890.0,
+            "Y": 300.0,
             "Ports": [
               {
                 "Name": "input",
@@ -3538,8 +3538,8 @@
             "Id": "const_half",
             "Title": "0.5",
             "Kind": "Const",
-            "X": 1280.0,
-            "Y": 290.0,
+            "X": 900.0,
+            "Y": 200.0,
             "Ports": [
               {
                 "Name": "out",
@@ -3552,8 +3552,8 @@
             "Id": "div_desc",
             "Title": "d/DescentMax",
             "Kind": "Op",
-            "X": 960.0,
-            "Y": 40.0,
+            "X": 660.0,
+            "Y": 270.0,
             "Ports": [
               {
                 "Name": "a",
@@ -3574,8 +3574,8 @@
             "Id": "clamp_desc",
             "Title": "clamp 0..1",
             "Kind": "Op",
-            "X": 1260.0,
-            "Y": 110.0,
+            "X": 860.0,
+            "Y": 270.0,
             "Ports": [
               {
                 "Name": "a",
@@ -3600,8 +3600,8 @@
             "Id": "div_fwd",
             "Title": "IAS/EtlSpeed",
             "Kind": "Op",
-            "X": 530.0,
-            "Y": 230.0,
+            "X": 280.0,
+            "Y": 110.0,
             "Ports": [
               {
                 "Name": "a",
@@ -3622,8 +3622,8 @@
             "Id": "sub_fwd",
             "Title": "1-IAS/Etl",
             "Kind": "Op",
-            "X": 730.0,
-            "Y": 190.0,
+            "X": 450.0,
+            "Y": 70.0,
             "Ports": [
               {
                 "Name": "a",
@@ -3644,8 +3644,8 @@
             "Id": "clamp_fwd",
             "Title": "clamp 0..1",
             "Kind": "Op",
-            "X": 1030.0,
-            "Y": 150.0,
+            "X": 640.0,
+            "Y": 140.0,
             "Ports": [
               {
                 "Name": "a",
@@ -3670,8 +3670,8 @@
             "Id": "mul_half_desc",
             "Title": "0.5*desc",
             "Kind": "Op",
-            "X": 1440.0,
-            "Y": 150.0,
+            "X": 1040.0,
+            "Y": 190.0,
             "Ports": [
               {
                 "Name": "a",
@@ -3692,8 +3692,8 @@
             "Id": "mul_vrs_core",
             "Title": "2.5*fwd*half_desc",
             "Kind": "Op",
-            "X": 1640.0,
-            "Y": 240.0,
+            "X": 1220.0,
+            "Y": 110.0,
             "Ports": [
               {
                 "Name": "a",
@@ -3718,8 +3718,8 @@
             "Id": "5a7303a164f2449199694963c9e09942",
             "Title": "2.5",
             "Kind": "Const",
-            "X": 1460.0,
-            "Y": 330.0,
+            "X": 1040.0,
+            "Y": 90.0,
             "Ports": [
               {
                 "Name": "out",
@@ -3732,7 +3732,7 @@
             "Id": "mul_vrs_pwr",
             "Title": "× collective (no VRS in auto)",
             "Kind": "Op",
-            "X": 1840.0,
+            "X": 1410.0,
             "Y": 180.0,
             "Ports": [
               {
@@ -3754,8 +3754,8 @@
             "Id": "clamp_vrs_core",
             "Title": "clamp 0..1",
             "Kind": "Op",
-            "X": 2000.0,
-            "Y": 260.0,
+            "X": 1680.0,
+            "Y": 270.0,
             "Ports": [
               {
                 "Name": "a",
@@ -3780,8 +3780,8 @@
             "Id": "const_zero_u2",
             "Title": "0",
             "Kind": "Const",
-            "X": 1100.0,
-            "Y": 50.0,
+            "X": 680.0,
+            "Y": 370.0,
             "Ports": [
               {
                 "Name": "out",
@@ -3794,8 +3794,8 @@
             "Id": "const_zero_u3",
             "Title": "0",
             "Kind": "Const",
-            "X": 870.0,
-            "Y": 180.0,
+            "X": 450.0,
+            "Y": 170.0,
             "Ports": [
               {
                 "Name": "out",
@@ -3808,8 +3808,8 @@
             "Id": "const_zero_u8",
             "Title": "0",
             "Kind": "Const",
-            "X": 1850.0,
-            "Y": 260.0,
+            "X": 1500.0,
+            "Y": 280.0,
             "Ports": [
               {
                 "Name": "out",
@@ -3822,8 +3822,8 @@
             "Id": "const_one_u1",
             "Title": "1",
             "Kind": "Const",
-            "X": 1110.0,
-            "Y": 110.0,
+            "X": 680.0,
+            "Y": 440.0,
             "Ports": [
               {
                 "Name": "out",
@@ -3836,8 +3836,8 @@
             "Id": "const_one_u2",
             "Title": "1",
             "Kind": "Const",
-            "X": 590.0,
-            "Y": 110.0,
+            "X": 290.0,
+            "Y": 30.0,
             "Ports": [
               {
                 "Name": "out",
@@ -3850,8 +3850,8 @@
             "Id": "const_one_u3",
             "Title": "1",
             "Kind": "Const",
-            "X": 890.0,
-            "Y": 260.0,
+            "X": 450.0,
+            "Y": 240.0,
             "Ports": [
               {
                 "Name": "out",
@@ -3864,8 +3864,8 @@
             "Id": "const_one_u7",
             "Title": "1",
             "Kind": "Const",
-            "X": 1850.0,
-            "Y": 290.0,
+            "X": 1500.0,
+            "Y": 350.0,
             "Ports": [
               {
                 "Name": "out",
@@ -3878,8 +3878,8 @@
             "Id": "1b4ab2ff789c44d39dbb63775a060e5c",
             "Title": "descent",
             "Kind": "Input",
-            "X": 40.0,
-            "Y": 40.0,
+            "X": 450.0,
+            "Y": 310.0,
             "Ports": [
               {
                 "Name": "descent",
@@ -3891,8 +3891,8 @@
             "Id": "905304d7656f46ac98f8c80be4c80bfd",
             "Title": "tas_kts",
             "Kind": "Input",
-            "X": 40.0,
-            "Y": 100.0,
+            "X": 150.0,
+            "Y": 90.0,
             "Ports": [
               {
                 "Name": "tas_kts",
@@ -3904,8 +3904,8 @@
             "Id": "dad44f3a5d9f4518b271c61c2171714d",
             "Title": "collective_ratio",
             "Kind": "Input",
-            "X": 40.0,
-            "Y": 160.0,
+            "X": 1250.0,
+            "Y": 240.0,
             "Ports": [
               {
                 "Name": "collective_ratio",
@@ -3917,8 +3917,8 @@
             "Id": "58d8876f2c3642e9ab742e96872885fd",
             "Title": "vrs",
             "Kind": "Output",
-            "X": 2380.0,
-            "Y": 270.0,
+            "X": 2090.0,
+            "Y": 300.0,
             "Ports": [
               {
                 "Name": "vrs",
