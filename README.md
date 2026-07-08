@@ -1,206 +1,145 @@
-[![Arduino Build](https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal/actions/workflows/arduino.yml/badge.svg?branch=main)](https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal/actions/workflows/arduino.yml)
-[![Doxygen Action](https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal/actions/workflows/main.yml/badge.svg)](https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal/actions/workflows/main.yml)
- 
- 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](http://creativecommons.org/licenses/by-nc-sa/4.0/)
 
-# DIY-Sim-Racing-FFB-Pedal
+# DIY-FFB — Force-Feedback Actuator Platform
+
+> **Fork notice** — This is a substantially extended fork of
+> [ChrGri/DIY-Sim-Racing-FFB-Pedal](https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal).
+> It started as a DIY active *pedal* and has since grown into a general force-feedback
+> actuator platform with native flight-sim support (MSFS, X-Plane), a node-based signal-processing
+> engine, multiple host plugins, and reworked ESP32 firmware. See [Credits](#credits) for the
+> original authors, and [License](#license) for how attribution is handled.
 
 # Disclaimer
-This repository documents my research progress. I wanted to understand the necessary signal processing and control theory algorithms behind such a device. 
 
-The FFB pedal is a robot and can be dangerous. Please watch [The Terminator](https://en.wikipedia.org/wiki/The_Terminator) before continuing. If not interacted with care, it may cause harm. I'm not responsible for any harm caused by this design suggestion. Use responsibly and at your own risk.
+An FFB actuator is a robot and can be dangerous. If not interacted with carefully it may cause harm.
+The authors are not responsible for any harm caused by this design. Use responsibly and at your own risk.
 
-# License
-Shield: [![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
+# What this project is
 
-This work is licensed under a
-[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa].
+A force-feedback "ecosystem" (originally a sim-racing pedal) built around DIY actuators, each controlled by an ESP32-S3
+driving an A6-series servo (via a servo abstraction to make adding future support for other servo types easier), sensing force via a load cell measured by an ADS1256 ADC.
+A SimHub plugin provides the UI to configure the axes and functions and derives FFB cues from live simulator telemetry.
 
-[![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]
+The project now covers three broad use cases from the same firmware and config model:
 
-The reason for that license selection is that at some point in time, individuals start
-- to steal the sources and binaries and sell them on the internet
-- mass production of FFB pedals in their living rooms to make money by taking parts from this project and Simucubes design files.
-  
-All that, without contributing anything to this project.
+- **Sim racing** — throttle/brake/clutch pedals with force curves, ABS/TC/RPM effects (via SimHub).
+- **Flight simulation** — rudder pedals, emulated toe brakes, cyclic/collective sticks and helicopter/aircraft
+  load & vibration cues, driven from **Microsoft Flight Simulator (2020/2024)** and **X-Plane**.
+- **Input devices** — up to eight axes present as a single USB-HID device via a gateway (same hardware and firmware) to ease input mapping within simulators
 
-[cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
-[cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
-[cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
+# Highlights of this fork
 
-# Related repos
-For the sake of clarity, this project is divided into multiple repositorys:
-| Description           |  Link |
-:------------------------- | :------------------------- |
-| Mechanical and electrical design | https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal-Mechanical-Design |
-| Software (firmware, SimHub plugin, ...) |https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal |
+Relative to the upstream project, this repository adds:
 
-# Features
-## Control of pedal parameters
-To tune the pedal parameters, a SimHub plugin was developed, which communicates with the pedal over USB.
+| Area | What's new |
+| :--- | :--- |
+| **Flight sims** | Native MSFS SimConnect integration (pure-C#), X-Plane DataRef provider, helicopter & aircraft force models (load, vibration, trim). |
+| **Signal processing** | A node-based **graph engine** in the SimHub plugin: telemetry → DSP nodes → actuator force, editable in a visual graph editor with reusable templates and embedded subgraphs. |
+| **Config model** | **Axes** assigned to **Functions**, Tiered **Hardware → Profile → User** configuration with per-function overrides |
+| **New subprojects** | `XPlanePlugin` and `GripController` — none of which exist upstream. |
+| **Firmware** | Multi-axis sync over CAN, admittance control based on a custom physics engine, A6 servo protocol work, sensorless homing and Wi-Fi OTA. |
 
-## Effects
-Currently ABS, TC and RPM vibration are supported effects. The SimHub plugin communicates with the pedal and triggers game effects as parameterized.The effects and its description can be found in [wiki](https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal/wiki/Pedal-Effects).
+# Repository layout
 
-## Servo tuning
-The used microcontroller has software to communicate with the used iSV57 servo. Therefore, it can tune the servos PID loop and read certain servo states like position, torque, power. 
-
-## Joystick data stream
-The joystick/gamepad data is provided via three redundant channels
-1) Bluetooth
-2) 0V-3.3V output analog signal. Can be read by e.g. https://gp2040-ce.info/. The pin 25 was used for analog output.
-3) vJoy gamecontroller (only available when SimHub runs, also need enable control map plugin).
-
-To provide native USB HID output, development with ESP32 S3 started, it's working, but not stable yet, [see](https://github.com/espressif/arduino-esp32/issues/9582#issuecomment-2219722111).
-
-## Pedals in action
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/i2e1ukc1ylA/0.jpg)](https://www.youtube.com/watch?v=i2e1ukc1ylA)
-
-More pedal action examples can be found in the Discord.
-
-
-# Contributions
-A lot of awesome devs have helped this project grow. Just to name a few:
-
-- [tjfenwick](https://github.com/tjfenwick) started the project with an initial implementation.
-- [tcfshcrw](https://github.com/tcfshcrw) helped to elevate the Simhub plugin to its current form, added a ton of pedal effects, hardware and discord support, good guy and much more.
-- [MichaelJFr](https://github.com/MichaelJFr) helped with refactoring the code at the beginning of this project. Fruitful discussions let to the implementation of the control-loop strategies.
-- [Ibakha](https://github.com/Ibakha) Discord channel CEO.
-
-
-# Wiki
-Detailed descriptions of certain aspects can be found on the dedicated [Wiki page](https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal/wiki):
-
-
-# Discord
-A [Discord](https://discord.gg/j8QhD5hCv7) server has been created to allow joint research.
-
-
-# Hardware
-During the development of this project, PCBs to hold the electric components were developed, see below <br>
-<img src="https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal-Mechanical-Design/blob/main/Wiring/Esp32_V3/PCB_assembled.jpg" width="400"> .
-
-Also a (mostly) 3d printable mechanical design was designed and optimized to withstand the high forces of this application, see below <br>
-<img src="https://github.com/user-attachments/assets/f1a54fd9-5949-4dc0-b573-b34a77b52dd7" width="400"> .
-
-
-Please refer to the https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal/tree/main?tab=readme-ov-file#related-repos section to access the design files.
-
-<br>
-<br>
-<br>
-
-Examples other awesome DIYers have done are listed below:
-
-| Design           |  Link |
-:------------------------- | :-------------------------
-|<img src="https://user-images.githubusercontent.com/17485523/231913569-695fcab1-f0bb-4af6-8d90-b1bfaece13bc.png" height="200">  |  [Tjfenwick's design](https://github.com/tjfenwick/DIY-Sim-Racing-Active-Pedal)|
-|<img src="https://user-images.githubusercontent.com/79850208/261399337-b313371c-9262-416d-a131-44fa269f9557.png" height="200">  |  [Bjoes design](https://github.com/Bjoes/DIY-Active-pedal-mechanical-design)|
-|<img src="https://media.printables.com/media/prints/557527/images/4471984_0fbfebf6-7b91-47dd-9602-44a6c7e8b851/thumbs/inside/1600x1200/png/screenshot-2023-08-19-150158.webp" height="200">  |  [GWiz's design](https://www.printables.com/de/model/557527-simucube-style-active-pedal/files)|
-|<img src="https://cdn.thingiverse.com/assets/14/7d/56/cd/03/large_display_9d83a9a8-2c8a-4940-b9ce-b4ae4f9674c6.jpg" height="200">  | [shf90's design](https://www.thingiverse.com/thing:6414587)|
-
+| Path | Description |
+| :--- | :--- |
+| [`ESP32/`](ESP32/) | Actuator firmware (PlatformIO). See [`ESP32/README.md`](ESP32/README.md). |
+| [`SimHubPlugin/`](SimHubPlugin/) | SimHub plugin: config UI, graph engine, effects, in-process MSFS/X-Plane bridges. |
+| [`XPlanePlugin/`](XPlanePlugin/) | X-Plane DataRef data provider + DataRefLogger. |
+| [`GripController/`](GripController/) | Standalone USB-HID grip firmware (ESP32-S3, AS5600 + buttons). |
+| [`proto/`](proto/) | `diy_ffb_protocol` protobuf schema (host ↔ firmware). |
+| [`docs/`](docs/) | Design plans and architecture notes. |
+| [`SimHubPlugin/graphs/`](SimHubPlugin/graphs/) | Graph templates (automotive, heli, plane). |
 
 # Software
 
-## ESP32 code
+## ESP32 firmware
 
-### Architecture
-A Doxygen report of the sources can be found [here](https://chrgri.github.io/DIY-Sim-Racing-FFB-Pedal/Arduino/html/index.html).
+The firmware runs on a custom ESP32-S3 based control board for now, drives the motor/servo, samples the
+load cell via an ADS1256, exposes the axis as a **USB HID** device, and synchronises multiple axes
+over CAN. Config and telemetry are exchanged with the host using the `diy_ffb_protocol`
+protobuf schema.
 
-### Install ESP32 driver
-The drivers can be found here [here](https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers).
+**Build & flash (PlatformIO):**
 
-### Firmware generation and flashing
-Firmware can be built and flashed via VS Code. Prebuilt binaries can be flashed e.g. via ESP32 webflasher of the [flashing tool]([https://www.espressif.com/sites/default/files/tools/flash_download_tool_3.9.3.zip](https://www.espressif.com/en/support/download/other-tools)).
-
-#### Built from source (via VS Code)
-See this [guide](https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal/wiki/VScode-IDE-setup).
-
-#### Flash prebuilt binaries via web flasher
-The binaries are available [here](https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal/releases). They can be flashed via the ESP [webflasher](https://esp.huhn.me/). Another [Webflasher](https://nabucasa.github.io/esp-web-flasher/).
-##### ESP32
-Memory address            |  File
-:-------------------------:|:-------------------------:
-| 0x1000 | bootloader.bin |
-| 0x8000 | partitions.bin | 
-| 0xe000 | boot_app0.bin |
-| 0x10000 | firmware.bin |
-
-##### ESP32S3
-Memory address            |  File
-:-------------------------:|:-------------------------:
-| 0x0000 | bootloader.bin |
-| 0x8000 | partitions.bin | 
-| 0xe000 | boot_app0.bin |
-| 0x10000 | firmware.bin |
-
-## iSV57T-130 servo config tuning
-The iSV57T allows parameter tuning via its RS232 interface. To tune the servo towards this application, I executed the following [steps](StepperParameterization/StepperTuning.md).
-
-With the current [PCB](Wiring/Esp32_V3) design, the ESP can directly communicate with the iSV57T servo. Manual tuning as described before isn't necessary anymore. A description of the steps I undertook to decode the communication protocol can be found on the Disord server. Additional features such as sensorless homing and lost-step recovery were developed and integrated with the help of this communication.
-
-## SimHub plugin:
-The SimHub plugin was designed to communicate with the ESP to (a) modify the pedal configuration, e.g. the force vs. travel parameterization and (b) to trigger effects such as ABS oscillations.  
-
-![image](SimHubPlugin/Images/Plugin-UI.png)
-
-To install the plugin, the plugin [DiyFfbPlugin.dll](https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal/releases) has to be copied to the SimHub directory, e.g. C:/Program Files (x86)/SimHub
-
-# Steps after flashing the firmware
-The pedal will not move initially after flashing. One has to open the SimHub plugin, connect to the pedal, and send a config with non-zero PID values.
-Recommended PID values are:
-
-```
-P=0.2-0.4
-I=50-150
-D=0
+```sh
+# pick the environment matching your board (see ESP32/platformio.ini)
+pio run   -e a6-ffb-v10-ck-at            # build (default: ESP32-S3 + A6 servo, PCB v10)
+pio run   -e a6-ffb-v10-ck-at -t upload  # flash
+pio device monitor -b 3000000            # 3,000,000 baud for S3 builds; 115200 for early boards
 ```
 
-After sending the initial config, power cycling of the pedal is necessary. The pedal should move afterward.
+Full details in [`ESP32/README.md`](ESP32/README.md) and [`ESP32/BUILD.md`](ESP32/BUILD.md).
+OTA updates are supported via Wi-Fi + a `.ffbota` container (see the OTA helper in `ESP32/sim/`).
 
+Prebuilt binaries can be flashed with an [ESP web flasher](https://esp.huhn.me/):
 
-# Error handling
-## Pedal doesn't move after initial setup
-1. Make sure, that you follow the above instructions. The default PID values are set to 0 thus the pedal will not move. You have to send non-zero PID values and restart the pedal to observe pedal travel.
-2. Open the serial monitor in Arduino IDE, set the baud rate to 921600, and restart the pedal. You should see some debug info. Make a screenshot and kindly ask the Discord server for help.
+| ESP32 | ESP32-S3 | File |
+| :---: | :---: | :--- |
+| 0x1000 | 0x0000 | bootloader.bin |
+| 0x8000 | 0x8000 | partitions.bin |
+| 0xe000 | 0xe000 | boot_app0.bin |
+| 0x10000 | 0x10000 | firmware.bin |
 
-## Bluetooth doesn't show gamepad data
-Install DirectX 9
+## SimHub plugin
 
-## The serial monitor shows a message "Couldn't load config from EPROM due to version mismatch"
-Install a SimHub plugin matching the ESP firmware you installed and send a config to the pedal.
+The SimHub plugin is the primary tuning surface. It communicates with the actuator over USB to
+modify configuration (per-axis and per-function parameters) and to stream derived effects
+(ABS oscillations, flight cues).
 
-## The com port showed access denied or can not connect
-Check the arduino plugin scan setting, please use scan only specfiec port as below.<br>
-<img src="Images/ArduinoPlugin_0.png" width="800">
+Its core is a **node-based graph engine**: simulator telemetry enters as signals, flows through DSP
+nodes, and produces the actuator force. Graphs are edited visually, saved as reusable templates,
+and support embedded subgraphs. Design docs: [`SimHubPlugin/Docs/FFB_Graph_Design.md`](SimHubPlugin/Docs/FFB_Graph_Design.md),
+[`FFB_Graph_Signal_Catalog.md`](SimHubPlugin/Docs/FFB_Graph_Signal_Catalog.md), and the flight
+architecture in [`Flight_FFB_Architecture.md`](SimHubPlugin/Docs/Flight_FFB_Architecture.md).
 
+To install, copy the built `DiyFfbPlugin.dll` into your SimHub directory
+(e.g. `C:/Program Files (x86)/SimHub`).
 
+## Flight-sim data providers
 
-# Todo
+- **MSFS (2020/2024)** — talks to MSFS **directly from the SimHub plugin** via an in-process,
+  pure-C# SimConnect client over the SimConnect named pipe (no external EXE, no `SimConnect.dll`).
+  See `SimHubPlugin/Msfs/`.
+- **X-Plane** — [`XPlanePlugin/`](XPlanePlugin/) exposes DataRefs to the host (plus a `DataRefLogger`
+  for capture/analysis). See [`SimHubPlugin/Docs/XPlane_FFB.md`](SimHubPlugin/Docs/XPlane_FFB.md).
 
-ESP code:
-- [ ] Add automatic system identification of pedal response
-- [ ] Add model-predictive-control to the ESP code for the improved pedal response
-- [x] Add field to invert motor and losdcell direction
-- [x] send joystick data to simhub plugin and provide data as vJoy gamecontroller
-- [x] allow effects to move stepper beyond configured max/min position, but not the measured homing positions
-- [x] Optimize iSV57 communication
-  - [ ] Let the communication task run from the beginning of the setup routine
-  - [x] Read pedal state every cycle (currently, the pedal performance is degraded)
+## A6 servo tuning
 
-      
-SimHub plugin:
-- [ ] Send SimHub data via wifi to ESP 
-- [x] GUI design improvements for the SimHub plugin 
-- [x] JSON deserialization make compatible with older revisions
-- [ ] include the types header file and use it
-- [ ] Make use of effects from the ShakeIt plugin
-- [ ] add OTA update for esp firmware
-- [x] automatic serial monitor update
-- [ ] serial plotter
-- [x] add different abs effect patterns, e.g. sawtooth
-- [x] make effects proportional to force or travel selectable by dropdown menu
-      
-Misc:
-- [ ] Create a video describing the build progress and the features
-- [ ] Add Doxygen + Graphviz to the project to automatically generate documentation, architectural design overview, etc.
+You can find the initial provisioning procedure in [`ESP32/A6ServoSetup.md`](ESP32/A6ServoSetup.md); anything else is set by the ESP32-S3 via RS485. See [`ESP32/A6_SERVO.md`](ESP32/A6_SERVO.md) for the integration details.
+
+# Credits
+
+This project would not exist without the upstream work it forks. Original project and contributors:
+
+- [ChrGri](https://github.com/ChrGri) — upstream maintainer; carried the project to the form this fork branched from.
+- [tjfenwick](https://github.com/tjfenwick) — started the original project with the initial implementation.
+- [tcfshcrw](https://github.com/tcfshcrw) — elevated the SimHub plugin, added many effects, hardware and Discord support.
+- [MichaelJFr](https://github.com/MichaelJFr) — early refactoring and control-loop strategy discussions.
+- [Ibakha](https://github.com/Ibakha) — Discord community.
+
+Fork development and the flight-sim / graph-engine / multi-plugin extensions in this repository by
+[CK-AT](https://github.com/CK-AT).
+
+# License
+
+This work is licensed under the
+[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](http://creativecommons.org/licenses/by-nc-sa/4.0/)
+(**CC BY-NC-SA 4.0**), inherited from the upstream project.
+
+[![CC BY-NC-SA 4.0](https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png)](http://creativecommons.org/licenses/by-nc-sa/4.0/)
+
+**Copyright:**
+
+- © ChrGri, tjfenwick and the original contributors — original work.
+- © CK-AT — modifications and new subprojects in this fork.
+
+**Attribution & modification notice (CC BY-NC-SA 4.0 §3):** This repository is a *modified* fork of
+[ChrGri/DIY-Sim-Racing-FFB-Pedal](https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal). Changes have
+been made from the original, including new firmware, host plugins, and the graph engine described above.
+
+The **ShareAlike** term applies: because parts of this project (notably the ESP32 firmware) are
+derivative works of the CC BY-NC-SA-licensed upstream, the combined work remains under
+CC BY-NC-SA 4.0. The **NonCommercial** term prohibits commercial use — the license was chosen
+upstream to prevent others from reselling the sources/binaries or mass-producing the design for
+profit without contributing back.

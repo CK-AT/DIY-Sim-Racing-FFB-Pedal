@@ -13,7 +13,7 @@ The A6Servo class controls an A6-RS industrial servo drive via Modbus RTU over R
 | File | Purpose |
 |------|---------|
 | [include/A6Servo.h](include/A6Servo.h) | Class definition, Modbus helpers |
-| [src/A6Servo.cpp](src/A6Servo.cpp) | Implementation (337 lines) |
+| [src/A6Servo.cpp](src/A6Servo.cpp) | Implementation |
 | [include/Servo.h](include/Servo.h) | Abstract base class |
 | [A6ServoSetup.md](A6ServoSetup.md) | Initial commissioning steps |
 
@@ -22,7 +22,7 @@ The A6Servo class controls an A6-RS industrial servo drive via Modbus RTU over R
 ```
 Servo (abstract)
   ├─ State: Disabled, Enabled, Homing
-  ├─ HomingState: HomeUnknown, Pending, Homed, LockedIn, LockingError
+  ├─ HomingState: HomeUnknown, Pending, Homed, LockedIn, LockingError, LockingBlocked
   └─ A6Servo (concrete)
        ├─ ModbusClientRTU* _modbus
        └─ FastNonAccelStepper* _stepper_engine
@@ -75,7 +75,7 @@ Position commands sent as stepper pulses at up to 2 MHz. The A6-RS follows these
 |----------|------|-------|
 | 0x1000 | Homing Command | 1=start, 0=stop |
 | 0x1001 | Homing Mode | -1=reverse, -2=forward to mech limit |
-| 0x1002 | Homing Speed | RPM |
+| 0x1002 | Homing Speed | RPM — manual/panel parameter, not configured by firmware; homing speed is applied via the stepper (set_speed) |
 | 0x1030 | Homing Torque | 0.1%/LSB |
 
 ### Status Registers (read-only)
@@ -131,15 +131,24 @@ Position commands sent as stepper pulses at up to 2 MHz. The A6-RS follows these
                     └──────────────────┘
 ```
 
+`pause()` moves `LockedIn` → `LockingBlocked` (config/OTA/calibration guards);
+`resume()` moves `LockingBlocked` → `Homed`, from which the background task
+re-runs `lock_onto_curr_pos()` to return to `LockedIn`.
+
 ## Homing Sequence
 
-The homing process uses mode 35 plus stepper verification for reliability:
+The homing process uses mode 35 plus stepper verification for reliability.
+
+`home()` requests homing: if a fault is currently latched (`_last_fault_code != 0`),
+it first resets any resettable faults (F31.00 = 1), then sets the homing state to
+`Pending`. The background task then runs `do_homing()`, which performs the phases
+below. `do_homing()` itself does not reset faults — the autohome/`Pending` path
+reaches it without a fault reset.
 
 **Phase 1: Set Home Position**
-1. Reset any resettable faults (F31.00 = 1)
-2. Set homing mode to 35 (current position as home)
-3. Enable homing command (0x1000 = 1)
-4. This avoids Er47.1 that can occur with mechanical limit + Z pulse modes
+1. Set homing mode to 35 (current position as home)
+2. Enable homing command (0x1000 = 1)
+3. This avoids Er47.1 that can occur with mechanical limit + Z pulse modes
 
 **Phase 2: Stepper Endstop Detection**
 1. Command stepper to run toward first endstop (based on `_homing_direction`)

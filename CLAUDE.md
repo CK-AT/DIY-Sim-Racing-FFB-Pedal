@@ -10,9 +10,3 @@
 - Commit messages should be **4 lines maximum** (subject + blank + 1-2 body lines)
 - Do NOT include the `Co-Authored-By` footer
 - Keep it concise: subject line describes what, body line explains why if needed
-
-## HANDOFF.md
-
-- Update HANDOFF.md freely during the session to track progress
-- Only commit HANDOFF.md when explicitly requested by the user
-- Do NOT auto-commit HANDOFF.md after every update

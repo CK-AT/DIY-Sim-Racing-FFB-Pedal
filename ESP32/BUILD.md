@@ -41,8 +41,8 @@ pio run -e esp32s3usbotg
 # Upload specific environment
 pio run -e esp32s3usbotg -t upload
 
-# Monitor serial output
-pio device monitor -e a6-ffb-v10-ck-at
+# Monitor serial output (firmware emits at 3,000,000 baud)
+pio device monitor -e a6-ffb-v10-ck-at -b 3000000
 ```
 
 ## Versioning System
@@ -154,15 +154,16 @@ int main(int argc, char **argv) {
 
 ## Configuration Defines
 
-Key build flags (set in `platformio.ini`):
+Only `PCB_VERSION` (plus the USB/`ARDUINO_*` flags) is set in `platformio.ini`.
+The remaining flags below are derived per-board in `include/Main.h`, selected by `PCB_VERSION`:
 
-| Define | Description |
-|--------|-------------|
-| `PCB_VERSION` | Hardware revision (see `board_versions.json`) |
-| `A6SERVO` | Enable A6-series servo driver |
-| `HAS_CAN` | Enable CAN bus support |
-| `USB_JOYSTICK` | Enable USB HID gamepad |
-| `RGB_LED` | Enable WS2812 status LED |
+| Define | Description | Set in |
+|--------|-------------|--------|
+| `PCB_VERSION` | Hardware revision (see `board_versions.json`) | `platformio.ini` |
+| `A6SERVO` | Enable A6-series servo driver | `include/Main.h` |
+| `HAS_CAN` | Enable CAN bus support | `include/Main.h` |
+| `USB_JOYSTICK` | Enable USB HID gamepad | `include/Main.h` |
+| `RGB_LED` | Enable WS2812 status LED | `include/Main.h` |
 
 ## Troubleshooting
 

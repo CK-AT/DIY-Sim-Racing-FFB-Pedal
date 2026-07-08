@@ -77,7 +77,7 @@ namespace DiyFfb
 
         private const int UiLogMaxEntries = 200;
         private const int MaxWifiCredentialLength = 63;
-        private const string OtaInfoUrlDefault = "https://github.com/CK-AT/DIY-Sim-Racing-FFB-Pedal/raw/refs/heads/main/OTA/update_info.json";
+        private const string OtaInfoUrlDefault = "https://github.com/CK-AT/DIY-FFB/raw/refs/heads/main/OTA/update_info.json";
 
         private LocalOtaServer otaServer;
 

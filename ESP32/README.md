@@ -1,6 +1,6 @@
-# DIY Sim Racing FFB Pedal – ESP32 Firmware
+# DIY-FFB – ESP32 Firmware
 
-Firmware for the force‑feedback pedal axis used in the DIY Sim Racing project. It runs on several ESP32 / ESP32‑S3 control boards, drives the motor/servo, samples the load cell via an ADS1256, exposes the axis as a USB HID device, and synchronises multiple axes over CAN/ESP‑Now. Config and telemetry are exchanged with the PC host/gateway using the `diy_ffb_protocol` protobuf schema.
+Firmware for the force‑feedback axis used in the DIY-FFB project. It runs on several ESP32 / ESP32‑S3 control boards, drives the motor/servo, samples the load cell via an ADS1256, exposes the axis as a USB HID device, and synchronises multiple axes over CAN/ESP‑Now. Config and telemetry are exchanged with the PC host/gateway using the `diy_ffb_protocol` protobuf schema.
 
 ## Hardware Targets
 - Boards: ESP32 DevKit, ESP32‑S3 DevKit C, SpeedCrafter, CK-AT prototypes (see `platformio.ini` environments and `include/Main.h` pinouts).
@@ -14,17 +14,17 @@ Firmware for the force‑feedback pedal axis used in the DIY Sim Racing project.
 - `Physics.*` and `ForceCurve.*` – simple physics simulation (mass/friction) plus tunable force curves.
 - `LoadCell.*`, `SignalFilter*` – ADS1256 acquisition and Kalman-based filtering.
 - `A6Servo.*` / `FastNonAccelStepper.*` – motor/servo abstraction with lock-in, homing, and position commands.
-- `AutomotivePedalFunction.*`, `FlightPedalFunction.*`, `RudderBrake.*` – behaviour for different axis roles and auxiliary functions.
+- `AutomotivePedalFunction.*`, `FlightControlFunction.*`, `RudderBrake.*` – behaviour for different axis roles and auxiliary functions.
 
 ## Building & Flashing
 1) Install PlatformIO (VS Code extension or CLI).  
-2) Pick an environment from `platformio.ini` that matches your board; the default is `a6-ffb-v10-ck-at` (ESP32-S3 + A6 servo, PCB v10).  
+2) Pick an environment from `platformio.ini` that matches your board; the default is `a6-ffb-v10-ck-at` (ESP32-S3 + A6 servo, CK-AT A6 hardware rev V1.0 / `PCB_VERSION=13`).  
 3) Build and flash:
 ```sh
 pio run -e a6-ffb-v10-ck-at
 pio run -e a6-ffb-v10-ck-at -t upload
 ```
-4) Open a serial monitor (3,000,000 baud for S3 builds, 115,200 for early boards) to watch logs:
+4) Open a serial monitor at 3,000,000 baud to watch logs (the firmware calls `Serial.begin(3000000)` on every board; boards with native USB-CDC, i.e. `PCB_VERSION==6`, enumerate as USB serial where the baud rate is ignored):
 ```sh
 pio device monitor -b 3000000
 ```

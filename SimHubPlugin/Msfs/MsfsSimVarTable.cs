@@ -1,5 +1,4 @@
-// Plan 19 - SimVar registration table. Mirrors kSimVarDefs in the deleted
-// MsfsPlugin/MsfsFfbDataProvider.cpp. Order is the contract: the client
+// Plan 19 - SimVar registration table. Order is the contract: the client
 // registers SimVars in this order, MSFS streams doubles back in the same
 // order, and the plugin reads sample[(int)MsfsSampleIndex.X] to populate
 // MsfsUdpPacket fields.

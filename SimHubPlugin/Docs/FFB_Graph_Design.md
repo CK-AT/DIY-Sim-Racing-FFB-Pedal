@@ -11,29 +11,36 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 - Keep everything in a single SimHub plugin DLL.
 
 ## Non-goals
-- Full visual scripting language (loops, conditionals, or stateful nodes).
+- Full visual scripting language with imperative control flow — loops, or branching that changes *which* nodes run (the graph always evaluates the whole DAG). (Note: value-level conditionals *do* exist — the `select` op is a ternary `cond > 0.5 ? a : b` with `eq`/`gt` as predicates — and a small set of stateful funcs has shipped; see the Op list and the accumulator/sample_hold/edge_detect/lag_asym functions below.)
 - Real-time collaborative editing.
 - GPU-accelerated evaluation or live graph profiling.
 
 ## Core Concepts
 ### Graph Definition
-- Directed acyclic graph (DAG) of nodes with typed input/output ports.
+- Directed acyclic graph (DAG) of nodes with named input/output ports. Ports have a direction (`GraphPortKind.Input`/`Output`) but no data type — every signal is a scalar `double` (there is no float/bool/vector type system or type checking).
 - Graph schema versioned (currently v4).
 - Nodes:
   - Input: pulls a named input value.
   - Param: pulls a tunable parameter.
   - Const: constant numeric value.
-  - Op: arithmetic operations (add/sub/mul/div/min/max/abs/neg/clamp/lerp) with output ports labeled by formula; add/mul/min/max accept variable input counts and expand the output label to match (e.g., "a+b+c"). Add/mul inputs can be negated per-port and the output label reflects negation (e.g., "a+b-c", "a*b*-c").
-  - Func: known functions (qhat_eff, torque_norm, rpm_norm, assist_loss).
+  - Op: arithmetic/logic operations (add/sub/mul/div/min/max/abs/neg/clamp/lerp/select/eq/gt/exp/sqrt/pow) with output ports labeled by formula; add/mul/min/max accept variable input counts and expand the output label to match (e.g., "a+b+c"). Add/mul inputs can be negated per-port and the output label reflects negation (e.g., "a+b-c", "a*b*-c").
+  - Func: known functions — stateless (qhat_eff, torque_norm, rpm_norm, assist_loss, buffet) and stateful (accumulator, sample_hold, edge_detect, lag_asym; see Evaluation).
   - Include: references a sub-graph, either **file-backed** (by `IncludePath`) or **embedded** (an inline sub-graph definition stored in the parent node — no path). The two forms are mutually exclusive; a node is embedded iff it carries an inline graph and has no path.
   - Output: exposes a named output.
+  - ConfigOut: writes a graph value out to a config field (bound to an `OverrideFieldRegistry` field path), scoped via the parent Include's `FunctionScope`.
+  - ConfigIn: reads a config field value into the graph as a source (mirror of ConfigOut); output ports emit the current MERGED config value for the scoped function.
+  - LocalSend: "send" end of a graph-local named bus (one input port); publishes its value on `LocalBusName`. Collapsed into direct wiring by the editor→runtime converter.
+  - LocalReceive: "receive" end of a graph-local named bus (one output port); emits the matching LocalSend's value. Orphan receives evaluate to 0.
+  - Expr: evaluates a user-authored math formula (NCalc syntax) with one output port and any number of named input ports referenced as variables.
+  - MsfsVarDef: declares custom MSFS SimConnect variables (SimVars / LVARs) on top of the fixed defaults; each output port emits `MSFS.<alias>` like an Input port. Top-level graphs only.
 - Nodes can have multiple input/output ports to reduce total node count.
 - Layout metadata (positions, collapsed state, group/section) is stored in JSON.
 
 ### Evaluation
 - Graphs are compiled into a fast evaluation plan (topo order + node ops).
-- Pure evaluation: no side effects, no state in nodes.
-- Shared evaluator used by runtime and editor preview.
+- Most nodes are stateless and side-effect-free. A small set of stateful Func nodes (accumulator, sample_hold, edge_detect, lag_asym) carry persistent state across evaluations, stored in a flat per-evaluator state array. State is snapshotted per-vehicle (see below) so it survives vehicle/profile switches and can be reset via `ResetState()`.
+- The runtime and editor preview share one evaluator, `GraphCompiledEvaluator` (compiled to a flat node plan). A second, tree-walking interpreter, `GraphEvaluator` (in GraphTest), is used by the GraphTest CLI and unit tests as a parity oracle to validate the compiled evaluator.
+- Stateful-node state is captured/restored via `GetStateSnapshot()` / `RestoreStateSnapshot()` and persisted per-vehicle in the plugin (`GraphStateSnapshots[vehicleKey]`), recursing into cached Include sub-evaluators.
 - Missing inputs default to 0.0.
 - Division by near-zero returns 0.0.
 
@@ -132,7 +139,7 @@ Parameters support cascading overrides at three levels (later overrides earlier)
 **Storage**:
 ```json
 {
-  "version": 1,
+  "version": 4,
   "nodes": [...],
   "params": {
     "FlightStickPitch.SpringGain": {
@@ -231,7 +238,10 @@ When switching vehicles with unsaved param changes:
 ## Open Questions
 
 - Should we add typed ports or keep all numeric?
-- Should we allow stateful nodes (e.g., integrator, delay)?
+
+## Resolved
+
+- **Stateful nodes** (integrator/delay-style): shipped. Implemented as stateful Func nodes — `accumulator` (rate integrator with min/max clamp + reset), `sample_hold` (capture on falling edge), `edge_detect` (one-tick rising-edge pulse), and `lag_asym` (first-order lag with asymmetric rise/fall time constants). State lives in a per-evaluator array and is snapshotted per-vehicle (see Evaluation).
 
 ## Risks and Mitigations
 - Param UI schema complexity: start with slider/knob/checkbox, add advanced widgets later.

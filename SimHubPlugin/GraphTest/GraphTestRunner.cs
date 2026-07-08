@@ -632,10 +632,25 @@ namespace DiyFfb.GraphTest
         // (= file-include tab path) and clone a cue's InlineGraph (= embedded-tab
         // open path), then confirm each cue Param node's full signal name resolves
         // to a def carrying Ui in the clone — exactly what the inspector needs.
+        // Walks up from the test assembly location to locate a repo-relative file,
+        // so tests don't depend on an absolute checkout path. Returns null if not found.
+        private static string FindRepoFile(string relative)
+        {
+            var dir = new System.IO.DirectoryInfo(System.AppDomain.CurrentDomain.BaseDirectory);
+            while (dir != null)
+            {
+                string candidate = System.IO.Path.Combine(dir.FullName, relative);
+                if (System.IO.File.Exists(candidate)) return candidate;
+                dir = dir.Parent;
+            }
+            return null;
+        }
+
         private static bool TestRealDerivationsCueParamDefs()
         {
-            string path = @"d:\Projects\DIY-Sim-Racing-FFB-Pedal\SimHubPlugin\graphs\_embedded\msfs_derivations.json";
-            if (!System.IO.File.Exists(path))
+            string path = FindRepoFile(System.IO.Path.Combine(
+                "SimHubPlugin", "graphs", "_embedded", "msfs_derivations.json"));
+            if (path == null)
             {
                 return true; // skip if run outside the repo
             }

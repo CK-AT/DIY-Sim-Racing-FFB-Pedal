@@ -338,7 +338,7 @@ void setup() {
 
     LogOutput::printf("**************************************************************************************************************");
     LogOutput::printf("This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.");
-    LogOutput::printf("Please check github repo for more detail: https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal");
+    LogOutput::printf("Please check github repo for more detail: https://github.com/CK-AT/DIY-FFB");
     LogOutput::printf("Board: %s", CONTROL_BOARD);
     LogOutput::printf("FW Version: %s (%s)", VERSION, BUILD_TIMESTAMP);
     // TODO: printout the github releasing version
