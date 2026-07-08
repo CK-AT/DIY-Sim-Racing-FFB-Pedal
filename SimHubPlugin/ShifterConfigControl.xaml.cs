@@ -1,5 +1,5 @@
 using System;
-using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -10,6 +10,8 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using MahApps.Metro.Controls;
+using DiyFfb.Controls;
+using DiyFfb.TieredConfig;
 
 namespace DiyFfb
 {
@@ -273,6 +275,8 @@ namespace DiyFfb
         private double lastAxisYPosition = 0.0;
         private bool useRelativeGeometry = false;
         private bool isUpdating = true;
+        private bool allowOverrideCreation = false;
+        private BadgeHelper _badgeHelper;
 
         private readonly ObservableCollection<GateSegmentRow> gateRows = new ObservableCollection<GateSegmentRow>();
         private readonly ObservableCollection<DetentRow> detentRows = new ObservableCollection<DetentRow>();
@@ -301,7 +305,86 @@ namespace DiyFfb
             canvas_shifter_preview.SizeChanged += CanvasShifterPreview_SizeChanged;
             isUpdating = false;
             BuildPreview();
+            Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
         }
+
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            _badgeHelper?.Subscribe();
+        }
+
+        private void OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            _badgeHelper?.Unsubscribe();
+        }
+
+        private void OnBadgeOverrideCleared(object sender, LayerBadgeWrapper.OverrideClearedEventArgs e)
+        {
+            if (plugin == null || function == null) return;
+
+            var mergedConfig = plugin.FunctionConfigManager.GetCurrentConfig((int)function.ID);
+            if (mergedConfig == null) return;
+
+            isUpdating = true;
+            switch (e.FieldPath)
+            {
+                case "simulated_mass":
+                    function_config.SimulatedMass = mergedConfig.SimulatedMass;
+                    Slider_simulated_mass.Value = mergedConfig.SimulatedMass;
+                    label_simulated_mass.Content = string.Format(CultureInfo.CurrentCulture, "Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
+                    break;
+
+                case "friction":
+                    function_config.Friction = mergedConfig.Friction;
+                    Slider_friction.Value = mergedConfig.Friction;
+                    label_friction.Content = string.Format(CultureInfo.CurrentCulture, "Friction: {0:F1}N", mergedConfig.Friction);
+                    break;
+
+                case "shifter_config":
+                    if (mergedConfig.Shifter != null)
+                    {
+                        function_config.Shifter = mergedConfig.Shifter.Clone();
+                        shifter_config = function_config.Shifter;
+
+                        Rangeslider_x_range.LowerValue = shifter_config.PosXMin;
+                        Rangeslider_x_range.UpperValue = shifter_config.PosXMax;
+                        Rangeslider_y_range.LowerValue = shifter_config.PosYMin;
+                        Rangeslider_y_range.UpperValue = shifter_config.PosYMax;
+                        UpdateRangeLabels();
+
+                        Slider_damping.Value = shifter_config.Damping;
+                        TextMaxForce.Text = shifter_config.MaxForce.ToString("0.##", CultureInfo.CurrentCulture);
+                        TextGridStep.Text = FromTenthMillimetersUnsigned(shifter_config.GridStep).ToString("0.##", CultureInfo.CurrentCulture);
+
+                        Checkbox_sequential.IsChecked = shifter_config.Sequential;
+                    }
+                    if (mergedConfig.AuxFunction?.ShifterDetect != null)
+                    {
+                        function_config.AuxFunction.ShifterDetect = mergedConfig.AuxFunction.ShifterDetect.Clone();
+                        detect_config = function_config.AuxFunction.ShifterDetect;
+                    }
+                    LoadRowsFromConfig();
+                    break;
+            }
+            isUpdating = false;
+        }
+
+        private void MaybeCreateShifterConfigOverride()
+        {
+            if (!allowOverrideCreation || isUpdating || plugin == null || function == null ||
+                !plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+                return;
+
+            plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "shifter_config",
+                overrides =>
+                {
+                    overrides.ShifterConfig = shifter_config.Clone();
+                    if (detect_config != null)
+                        overrides.ShifterDetectConfig = detect_config.Clone();
+                });
+        }
+
 
         private void ApplyGearOptionsToColumn()
         {
@@ -320,6 +403,7 @@ namespace DiyFfb
         {
             this.ui = ui;
             this.plugin = plugin;
+            _badgeHelper = new BadgeHelper(this, () => this.plugin, () => function, OnBadgeOverrideCleared);
         }
 
         public void OnKinematicParametersChanged(KinematicParameters parameters)
@@ -380,6 +464,7 @@ namespace DiyFfb
             }
             EnsureDetectConfig();
             shifter_config = function_config.Shifter;
+            allowOverrideCreation = false;
 
             isUpdating = true;
             function_config.Base.OutputMode = OutputMode.Travel;
@@ -418,15 +503,22 @@ namespace DiyFfb
             UpdateSequentialUI();
 
             Slider_damping.Value = shifter_config.Damping;
+            label_damping.Content = string.Format(CultureInfo.CurrentCulture, "Damping: {0:F3}N*mm/s", shifter_config.Damping);
             TextMaxForce.Text = shifter_config.MaxForce.ToString("0.##", CultureInfo.CurrentCulture);
             TextGridStep.Text = FromTenthMillimetersUnsigned(shifter_config.GridStep).ToString("0.##", CultureInfo.CurrentCulture);
 
             Slider_friction.Value = function_config.Friction;
+            label_friction.Content = string.Format(CultureInfo.CurrentCulture, "Friction: {0:F1}N", function_config.Friction);
             Slider_simulated_mass.Value = function_config.SimulatedMass;
+            label_simulated_mass.Content = string.Format(CultureInfo.CurrentCulture, "Simulated Mass: {0:F2}kg", function_config.SimulatedMass);
 
             LoadRowsFromConfig();
             isUpdating = false;
             BuildPreview();
+            _badgeHelper?.InitializeBadges();
+
+            Dispatcher.BeginInvoke(new Action(() => allowOverrideCreation = true),
+                System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
         private AxisID GetLinkedAxis(int index)
@@ -556,16 +648,7 @@ namespace DiyFfb
 
         private void UpdateOutputRange()
         {
-            if (shifter_config.Sequential)
-            {
-                function_config.Base.OutputMin = shifter_config.PosYMin;
-                function_config.Base.OutputMax = shifter_config.PosYMax;
-            }
-            else
-            {
-                function_config.Base.OutputMin = shifter_config.PosXMin;
-                function_config.Base.OutputMax = shifter_config.PosXMax;
-            }
+            ShifterProcessor.ReconcileDerivedFields(function_config);
         }
 
         private void UpdateRangeLabels()
@@ -869,6 +952,7 @@ namespace DiyFfb
                     SpringWall = (float)row.SpringWall
                 });
             }
+            MaybeCreateShifterConfigOverride();
             if (notify)
             {
                 function?.OnAxisUpdate();
@@ -892,6 +976,7 @@ namespace DiyFfb
                     Spring = (float)row.Spring
                 });
             }
+            MaybeCreateShifterConfigOverride();
             if (notify)
             {
                 function?.OnAxisUpdate();
@@ -921,6 +1006,7 @@ namespace DiyFfb
                     Gear = row.GearCode
                 });
             }
+            MaybeCreateShifterConfigOverride();
             if (notify)
             {
                 function?.OnAxisUpdate();
@@ -958,6 +1044,7 @@ namespace DiyFfb
             UpdateOutputRange();
             SyncSlots();
             function?.OnAxisUpdate();
+            MaybeCreateShifterConfigOverride();
         }
 
         private void Checkbox_relative_geometry_Checked(object sender, RoutedEventArgs e)
@@ -976,6 +1063,7 @@ namespace DiyFfb
             {
                 shifter_config.PosXMin = Convert.ToInt32(e.NewValue);
                 UpdateOutputRange();
+                MaybeCreateShifterConfigOverride();
             }
             UpdateRangeLabels();
             if (!isUpdating && useRelativeGeometry)
@@ -996,6 +1084,7 @@ namespace DiyFfb
             {
                 shifter_config.PosXMax = Convert.ToInt32(e.NewValue);
                 UpdateOutputRange();
+                MaybeCreateShifterConfigOverride();
             }
             UpdateRangeLabels();
             if (!isUpdating && useRelativeGeometry)
@@ -1016,6 +1105,7 @@ namespace DiyFfb
             {
                 shifter_config.PosYMin = Convert.ToInt32(e.NewValue);
                 UpdateOutputRange();
+                MaybeCreateShifterConfigOverride();
             }
             UpdateRangeLabels();
             if (!isUpdating && useRelativeGeometry)
@@ -1036,6 +1126,7 @@ namespace DiyFfb
             {
                 shifter_config.PosYMax = Convert.ToInt32(e.NewValue);
                 UpdateOutputRange();
+                MaybeCreateShifterConfigOverride();
             }
             UpdateRangeLabels();
             if (!isUpdating && useRelativeGeometry)
@@ -1052,20 +1143,40 @@ namespace DiyFfb
 
         private void OnDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            if (isUpdating) return;
             shifter_config.Damping = (float)e.NewValue;
             label_damping.Content = string.Format(CultureInfo.CurrentCulture, "Damping: {0:F3}N*mm/s", e.NewValue);
+            MaybeCreateShifterConfigOverride();
         }
 
         private void OnFrictionChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            function_config.Friction = (float)e.NewValue;
-            label_friction.Content = string.Format(CultureInfo.CurrentCulture, "Friction: {0:F1}N", e.NewValue);
+            if (isUpdating) return;
+            var newValue = (float)e.NewValue;
+            function_config.Friction = newValue;
+            label_friction.Content = string.Format(CultureInfo.CurrentCulture, "Friction: {0:F1}N", newValue);
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "friction",
+                    overrides => overrides.Friction = newValue);
+            }
         }
 
         private void OnSimulatedMassChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            function_config.SimulatedMass = (float)e.NewValue;
-            label_simulated_mass.Content = string.Format(CultureInfo.CurrentCulture, "Simulated Mass: {0:F2}kg", e.NewValue);
+            if (isUpdating) return;
+            var newValue = (float)e.NewValue;
+            function_config.SimulatedMass = newValue;
+            label_simulated_mass.Content = string.Format(CultureInfo.CurrentCulture, "Simulated Mass: {0:F2}kg", newValue);
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
+                    overrides => overrides.SimulatedMass = newValue);
+            }
         }
 
         private void TextMaxForce_LostFocus(object sender, RoutedEventArgs e)
@@ -1076,6 +1187,7 @@ namespace DiyFfb
                 shifter_config.MaxForce = (float)value;
             }
             TextMaxForce.Text = shifter_config.MaxForce.ToString("0.##", CultureInfo.CurrentCulture);
+            MaybeCreateShifterConfigOverride();
         }
 
         private void TextGridStep_LostFocus(object sender, RoutedEventArgs e)
@@ -1086,6 +1198,7 @@ namespace DiyFfb
                 shifter_config.GridStep = ToTenthMillimetersUnsigned(value);
             }
             TextGridStep.Text = FromTenthMillimetersUnsigned(shifter_config.GridStep).ToString("0.##", CultureInfo.CurrentCulture);
+            MaybeCreateShifterConfigOverride();
             BuildPreview();
         }
 
@@ -1164,6 +1277,7 @@ namespace DiyFfb
                 detect_config.Hysteresis = ToTenthMillimetersUnsigned(value);
             }
             TextHysteresis.Text = FromTenthMillimetersUnsigned(detect_config.Hysteresis).ToString("0.##", CultureInfo.CurrentCulture);
+            MaybeCreateShifterConfigOverride();
         }
 
         private static int ToTenthMillimeters(double value)

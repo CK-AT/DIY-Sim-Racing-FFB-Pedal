@@ -199,17 +199,76 @@ namespace DiyFfb.GraphEditor
                 }
                 else if (node.Kind == GraphNodeKind.Output)
                 {
-                    // Each input port on an Output node is an interface output
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
                     {
-                        // Use SignalSuffix for UI display (shorter names)
-                        // Runtime name matching is handled in the evaluator
-                        string name = graph.IsLibraryGraph
-                            ? port.Name
-                            : (!string.IsNullOrEmpty(port.SignalSuffix) ? port.SignalSuffix : port.Name);
-                        if (!string.IsNullOrWhiteSpace(name) && !result.Outputs.Contains(name))
+                        if (node.Scoped)
                         {
-                            result.Outputs.Add(name);
+                            // Scoped outputs: use SignalSuffix for the scoped name,
+                            // Name for internal OutputMap lookup
+                            string suffix = !string.IsNullOrEmpty(port.SignalSuffix) ? port.SignalSuffix : port.Name;
+                            string name = port.Name;
+                            if (!string.IsNullOrWhiteSpace(suffix))
+                            {
+                                result.ScopedOutputs.Add(new ScopedOutputPort
+                                {
+                                    Name = name,
+                                    SignalSuffix = suffix
+                                });
+                            }
+                        }
+                        else
+                        {
+                            // Unscoped outputs: become ports on the Include node
+                            string name = graph.IsLibraryGraph
+                                ? port.Name
+                                : (!string.IsNullOrEmpty(port.SignalSuffix) ? port.SignalSuffix : port.Name);
+                            if (!string.IsNullOrWhiteSpace(name) && !result.Outputs.Contains(name))
+                            {
+                                result.Outputs.Add(name);
+                            }
+                        }
+                    }
+                }
+                else if (node.Kind == GraphNodeKind.ConfigOut)
+                {
+                    // Explicit (unscoped) ConfigOut nodes name their own target function
+                    // and must NOT be auto-bridged by the parent's FunctionScope.
+                    if (!string.IsNullOrEmpty(node.FunctionScope)) continue;
+                    // Each input port on a ConfigOut node is a config output.
+                    // These don't appear as Include node ports — they're only used
+                    // when the parent Include has FunctionScope.
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
+                    {
+                        if (!string.IsNullOrWhiteSpace(port.Name) && !string.IsNullOrWhiteSpace(port.ConfigField))
+                        {
+                            result.ConfigOutputs.Add(new ConfigOutputPort
+                            {
+                                Name = port.Name,
+                                ConfigField = port.ConfigField,
+                                ConfigType = node.ConfigType ?? ""
+                            });
+                        }
+                    }
+                }
+                else if (node.Kind == GraphNodeKind.ConfigIn)
+                {
+                    // Only scoped ConfigIn nodes are auto-wired by the parent's
+                    // FunctionScope (mirror of scoped Output). Unscoped ConfigIns name
+                    // their function explicitly and are populated directly by the plugin.
+                    if (!node.Scoped) continue;
+                    // Each output port on a ConfigIn node is a config input. Like
+                    // ConfigOutputs they don't appear as Include node ports — they're
+                    // fed a scoped merged-config value when the parent has FunctionScope.
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
+                    {
+                        if (!string.IsNullOrWhiteSpace(port.Name) && !string.IsNullOrWhiteSpace(port.ConfigField))
+                        {
+                            result.ConfigInputs.Add(new ConfigInputPort
+                            {
+                                Name = port.Name,
+                                ConfigField = port.ConfigField,
+                                ConfigType = node.ConfigType ?? ""
+                            });
                         }
                     }
                 }
@@ -277,22 +336,39 @@ namespace DiyFfb.GraphEditor
 
             foreach (var node in graph.Nodes)
             {
-                if (node.Kind != GraphNodeKind.Include || string.IsNullOrWhiteSpace(node.IncludePath))
+                if (node.Kind != GraphNodeKind.Include)
                 {
                     continue;
                 }
 
-                // Skip if ports are already populated
-                if (node.Ports.Count > 0)
+                IncludedGraphInterface iface;
+                if (node.InlineGraph != null)
                 {
-                    continue;
+                    // Embedded sub-graph: recurse so nested includes are ready, then
+                    // derive this node's ports from the inline graph itself (no file).
+                    PopulateIncludePorts(node.InlineGraph, baseDirectory);
+                    if (node.Ports.Count > 0)
+                    {
+                        continue;
+                    }
+                    iface = ExtractInterface(node.InlineGraph);
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(node.IncludePath) || node.Ports.Count > 0)
+                    {
+                        continue;
+                    }
+                    iface = ExtractInterfaceFromPath(node.IncludePath, baseDirectory);
                 }
 
-                var iface = ExtractInterfaceFromPath(node.IncludePath, baseDirectory);
                 if (!iface.IsValid)
                 {
                     continue;
                 }
+
+                // Cache the full interface for the converter (needed for FunctionScope)
+                node.CachedInterface = iface;
 
                 // Add input ports
                 foreach (var inputName in iface.Inputs)
@@ -300,7 +376,9 @@ namespace DiyFfb.GraphEditor
                     node.Ports.Add(new GraphPort { Name = inputName, Kind = GraphPortKind.Input });
                 }
 
-                // Add output ports
+                // Add output ports for unscoped outputs only.
+                // Scoped outputs are in iface.ScopedOutputs and are auto-registered
+                // by the converter — they don't appear as Include node ports.
                 foreach (var outputName in iface.Outputs)
                 {
                     node.Ports.Add(new GraphPort { Name = outputName, Kind = GraphPortKind.Output });
@@ -363,6 +441,48 @@ namespace DiyFfb.GraphEditor
                 if (!nodeIds.Contains(link.ToNodeId))
                 {
                     result.Errors.Add($"Link references missing node '{link.ToNodeId}'.");
+                }
+            }
+
+            // Local bus validation (per-port). Each Send port publishes on a
+            // unique bus name; Receive ports tap any matching Send port.
+            var sendBusNames = new HashSet<string>();
+            var duplicateSendNames = new HashSet<string>();
+            foreach (var node in graph.Nodes)
+            {
+                if (node.Kind != GraphNodeKind.LocalSend) continue;
+                foreach (var port in node.Ports)
+                {
+                    if (port.Kind != GraphPortKind.Input) continue;
+                    if (string.IsNullOrEmpty(port.BusName))
+                    {
+                        result.Errors.Add($"LocalSend '{node.Id}' port '{port.Name}' has no bus name.");
+                        continue;
+                    }
+                    if (!sendBusNames.Add(port.BusName))
+                    {
+                        duplicateSendNames.Add(port.BusName);
+                    }
+                }
+            }
+            foreach (var name in duplicateSendNames)
+            {
+                result.Errors.Add($"Local bus '{name}' has multiple LocalSend ports (must be exactly one).");
+            }
+            foreach (var node in graph.Nodes)
+            {
+                if (node.Kind != GraphNodeKind.LocalReceive) continue;
+                foreach (var port in node.Ports)
+                {
+                    if (port.Kind != GraphPortKind.Output) continue;
+                    if (string.IsNullOrEmpty(port.BusName))
+                    {
+                        result.Errors.Add($"LocalReceive '{node.Id}' port '{port.Name}' has no bus name.");
+                    }
+                    else if (!sendBusNames.Contains(port.BusName))
+                    {
+                        result.Warnings.Add($"LocalReceive '{node.Id}' port '{port.Name}' references bus '{port.BusName}' with no matching LocalSend (will evaluate to 0).");
+                    }
                 }
             }
 
@@ -458,7 +578,18 @@ namespace DiyFfb.GraphEditor
         public string Func { get; set; } = "";
         public string IncludePath { get; set; } = "";
         public double ConstValue { get; set; }
+        public string Expr { get; set; } = "";
         public string SignalGroup { get; set; } = "";
+        public string FunctionScope { get; set; } = "";
+        public bool Scoped { get; set; }
+        public string ConfigType { get; set; } = "";
+
+        /// <summary>Embedded sub-graph for an Include node (no IncludePath). Recursive.</summary>
+        public GraphDefinitionDto Inline { get; set; }
+
+        /// <summary>Optional display order overrides for an Include node's ports.</summary>
+        public List<string> InputPortOrder { get; set; }
+        public List<string> OutputPortOrder { get; set; }
 
         // Track whether this node uses signal binding (for ShouldSerialize methods)
         // Not serialized; set during FromModel based on graph context
@@ -468,13 +599,23 @@ namespace DiyFfb.GraphEditor
         // Conditional serialization: only include kind-specific fields when relevant
         // v4: Library graph Input/Output/Param nodes need Title serialized (freeform names)
         public bool ShouldSerializeTitle() =>
-            (Kind != GraphNodeKind.Input && Kind != GraphNodeKind.Output && Kind != GraphNodeKind.Param) || !UsesSignalBinding;
+            (Kind != GraphNodeKind.Input && Kind != GraphNodeKind.Output && Kind != GraphNodeKind.Param
+             && Kind != GraphNodeKind.ConfigOut && Kind != GraphNodeKind.ConfigIn) || !UsesSignalBinding;
         public bool ShouldSerializeOp() => Kind == GraphNodeKind.Op;
         public bool ShouldSerializeFunc() => Kind == GraphNodeKind.Func;
-        public bool ShouldSerializeIncludePath() => Kind == GraphNodeKind.Include || Kind == GraphNodeKind.Func;
+        public bool ShouldSerializeIncludePath() =>
+            (Kind == GraphNodeKind.Include || Kind == GraphNodeKind.Func) && !string.IsNullOrEmpty(IncludePath);
+        public bool ShouldSerializeInline() => Inline != null;
+        public bool ShouldSerializeInputPortOrder() => Kind == GraphNodeKind.Include && InputPortOrder != null && InputPortOrder.Count > 0;
+        public bool ShouldSerializeOutputPortOrder() => Kind == GraphNodeKind.Include && OutputPortOrder != null && OutputPortOrder.Count > 0;
         public bool ShouldSerializeConstValue() => Kind == GraphNodeKind.Const;
-        // v4: SignalGroup only for signal-bound nodes (top-level graphs, not library graphs)
-        public bool ShouldSerializeSignalGroup() => UsesSignalBinding;
+        public bool ShouldSerializeExpr() => Kind == GraphNodeKind.Expr;
+        // v4: SignalGroup only for signal-bound nodes, but NOT for Scoped Output nodes
+        // (scoped nodes inherit their group from the parent Include's FunctionScope)
+        public bool ShouldSerializeSignalGroup() => UsesSignalBinding && !Scoped;
+        public bool ShouldSerializeFunctionScope() => (Kind == GraphNodeKind.Include || Kind == GraphNodeKind.ConfigOut) && !string.IsNullOrEmpty(FunctionScope);
+        public bool ShouldSerializeScoped() => Scoped;
+        public bool ShouldSerializeConfigType() => (Kind == GraphNodeKind.ConfigOut || Kind == GraphNodeKind.ConfigIn) && !string.IsNullOrEmpty(ConfigType);
         // v3: Include node ports are auto-derived from included graph, so don't serialize them
         public bool ShouldSerializePorts() => Kind != GraphNodeKind.Include && Ports != null && Ports.Count > 0;
 
@@ -489,14 +630,19 @@ namespace DiyFfb.GraphEditor
             };
 
             // In library graphs, Input/Output nodes use freeform Names (not SignalGroup/SignalSuffix)
+            // Exception: Scoped Output nodes use SignalSuffix (dropdown) even in library graphs
             // In top-level graphs, Input/Output/Param nodes bind to signal catalog
+            // ConfigOut nodes always use freeform Names (never signal-bound)
             bool isSignalNodeKind = node.Kind == GraphNodeKind.Input ||
                                     node.Kind == GraphNodeKind.Output ||
-                                    node.Kind == GraphNodeKind.Param;
-            // Library graphs: Input/Output use freeform; Param still uses signal binding
+                                    node.Kind == GraphNodeKind.Param ||
+                                    node.Kind == GraphNodeKind.MsfsVarDef;
             bool usesSignalBinding = isSignalNodeKind &&
-                                     (!isLibraryGraph || node.Kind == GraphNodeKind.Param);
+                                     (!isLibraryGraph || node.Kind == GraphNodeKind.Param ||
+                                      node.Kind == GraphNodeKind.MsfsVarDef ||
+                                      (node.Kind == GraphNodeKind.Output && node.Scoped));
             dto.UsesSignalBinding = usesSignalBinding;
+            dto.Scoped = node.Scoped;
 
             if (usesSignalBinding)
             {
@@ -504,7 +650,7 @@ namespace DiyFfb.GraphEditor
             }
             else if (isSignalNodeKind)
             {
-                // Library graph Input/Output: use Title for node label (optional)
+                // Library graph Input/Output (unscoped): use Title for node label (optional)
                 dto.Title = node.Title;
             }
             else
@@ -518,9 +664,24 @@ namespace DiyFfb.GraphEditor
                     dto.IncludePath = node.IncludePath;
                 }
                 if (node.Kind == GraphNodeKind.Include)
+                {
                     dto.IncludePath = node.IncludePath;
+                    dto.FunctionScope = node.FunctionScope;
+                    if (node.InlineGraph != null)
+                        dto.Inline = GraphDefinitionDto.FromModel(node.InlineGraph);
+                    if (node.InputPortOrder != null && node.InputPortOrder.Count > 0)
+                        dto.InputPortOrder = new List<string>(node.InputPortOrder);
+                    if (node.OutputPortOrder != null && node.OutputPortOrder.Count > 0)
+                        dto.OutputPortOrder = new List<string>(node.OutputPortOrder);
+                }
+                if (node.Kind == GraphNodeKind.ConfigOut || node.Kind == GraphNodeKind.ConfigIn)
+                    dto.ConfigType = node.ConfigType;
+                if (node.Kind == GraphNodeKind.ConfigOut)
+                    dto.FunctionScope = node.FunctionScope;  // explicit (unscoped) target function; empty = auto
                 if (node.Kind == GraphNodeKind.Const)
                     dto.ConstValue = node.ConstValue;
+                if (node.Kind == GraphNodeKind.Expr)
+                    dto.Expr = node.Expr;
             }
 
             // v3: Skip ports for Include nodes (they're derived from the included graph)
@@ -545,11 +706,16 @@ namespace DiyFfb.GraphEditor
             };
 
             // In library graphs, Input/Output nodes use freeform Names
+            // Exception: Scoped Output nodes use SignalSuffix even in library graphs
+            node.Scoped = Scoped;
             bool isSignalNodeKind = Kind == GraphNodeKind.Input ||
                                     Kind == GraphNodeKind.Output ||
-                                    Kind == GraphNodeKind.Param;
+                                    Kind == GraphNodeKind.Param ||
+                                    Kind == GraphNodeKind.MsfsVarDef;
             bool usesSignalBinding = isSignalNodeKind &&
-                                     (!isLibraryGraph || Kind == GraphNodeKind.Param);
+                                     (!isLibraryGraph || Kind == GraphNodeKind.Param ||
+                                      Kind == GraphNodeKind.MsfsVarDef ||
+                                      (Kind == GraphNodeKind.Output && Scoped));
 
             if (usesSignalBinding)
             {
@@ -571,9 +737,24 @@ namespace DiyFfb.GraphEditor
                     node.IncludePath = IncludePath ?? "";
                 }
                 if (Kind == GraphNodeKind.Include)
+                {
                     node.IncludePath = IncludePath ?? "";
+                    node.FunctionScope = FunctionScope ?? "";
+                    if (Inline != null)
+                        node.InlineGraph = Inline.ToModel();
+                    if (InputPortOrder != null && InputPortOrder.Count > 0)
+                        node.InputPortOrder = new List<string>(InputPortOrder);
+                    if (OutputPortOrder != null && OutputPortOrder.Count > 0)
+                        node.OutputPortOrder = new List<string>(OutputPortOrder);
+                }
+                if (Kind == GraphNodeKind.ConfigOut || Kind == GraphNodeKind.ConfigIn)
+                    node.ConfigType = ConfigType ?? "";
+                if (Kind == GraphNodeKind.ConfigOut)
+                    node.FunctionScope = FunctionScope ?? "";
                 if (Kind == GraphNodeKind.Const)
                     node.ConstValue = ConstValue;
+                if (Kind == GraphNodeKind.Expr)
+                    node.Expr = Expr ?? "";
             }
 
             if (Ports != null)
@@ -592,12 +773,21 @@ namespace DiyFfb.GraphEditor
         public string Name { get; set; } = "";
         public GraphPortKind Kind { get; set; }
         public string SignalSuffix { get; set; } = "";
+        public string ConfigField { get; set; } = "";
+        public string BusName { get; set; } = "";
         public bool Negate { get; set; }
+        // Plan 23: MsfsVarDef port registration metadata (raw datum name + unit).
+        public string SimVar { get; set; } = "";
+        public string Unit { get; set; } = "";
 
         // Conditional serialization: Name for non-signal ports, SignalSuffix for signal ports
         public bool ShouldSerializeName() => string.IsNullOrEmpty(SignalSuffix);
         public bool ShouldSerializeSignalSuffix() => !string.IsNullOrEmpty(SignalSuffix);
+        public bool ShouldSerializeConfigField() => !string.IsNullOrEmpty(ConfigField);
+        public bool ShouldSerializeBusName() => !string.IsNullOrEmpty(BusName);
         public bool ShouldSerializeNegate() => Negate;
+        public bool ShouldSerializeSimVar() => !string.IsNullOrEmpty(SimVar);
+        public bool ShouldSerializeUnit() => !string.IsNullOrEmpty(Unit);
 
         public static GraphPortDto FromModel(GraphPort port, bool isSignalNode)
         {
@@ -612,6 +802,10 @@ namespace DiyFfb.GraphEditor
                 // Non-signal ports use Name only
                 dto.Name = port.Name;
             }
+            dto.ConfigField = port.ConfigField;
+            dto.BusName = port.BusName;
+            dto.SimVar = port.SimVar;
+            dto.Unit = port.Unit;
             return dto;
         }
 
@@ -634,6 +828,10 @@ namespace DiyFfb.GraphEditor
                 port.Name = Name ?? "";
             }
             port.Negate = Negate;
+            port.ConfigField = ConfigField ?? "";
+            port.BusName = BusName ?? "";
+            port.SimVar = SimVar ?? "";
+            port.Unit = Unit ?? "";
             return port;
         }
     }
@@ -710,7 +908,10 @@ namespace DiyFfb.GraphEditor
         public double? Step { get; set; }
         public int? Precision { get; set; }
         public bool LogScale { get; set; }
+        public double? MuteValue { get; set; }
         public List<GraphParamOptionDto> Options { get; set; } = new List<GraphParamOptionDto>();
+
+        public bool ShouldSerializeMuteValue() => MuteValue.HasValue;
 
         public static GraphParamUiDto FromModel(GraphParamUi ui)
         {
@@ -722,7 +923,8 @@ namespace DiyFfb.GraphEditor
                 Units = ui.Units,
                 Step = ui.Step,
                 Precision = ui.Precision,
-                LogScale = ui.LogScale
+                LogScale = ui.LogScale,
+                MuteValue = ui.MuteValue
             };
             foreach (var option in ui.Options)
             {
@@ -741,7 +943,8 @@ namespace DiyFfb.GraphEditor
                 Units = Units ?? "",
                 Step = Step,
                 Precision = Precision,
-                LogScale = LogScale
+                LogScale = LogScale,
+                MuteValue = MuteValue
             };
             if (Options != null)
             {

@@ -151,6 +151,59 @@ namespace {
         load_force = payload.load_force * kFfbScaleLoad;
         k_friction = payload.k_friction * kFfbScaleFriction;
     }
+
+    // FLIGHT_VIB CAN frame: 5 DDS1 + 2 DDS2 amps, raw 0.05 N/LSB.
+    // 7 bytes used, 1 byte spare in the 8-byte CAN frame.
+    struct FlightFfbVibPayload {
+        uint8_t vib_amps[5];
+        uint8_t vib2_amps[2];
+    };
+    static_assert(sizeof(FlightFfbVibPayload) == 7, "FLIGHT_VIB payload must be 7 bytes");
+
+    FlightFfbVibPayload pack_flight_ffb_vib(const FlightFfbAction &action) {
+        FlightFfbVibPayload payload = {};
+        // Proto fields are uint32 (with int_size:IS_8 → uint8 storage).
+        // Plugin pre-scales floats × 20 and clamps to 0..255 before sending.
+        payload.vib_amps[0] = (uint8_t)(action.vib_amp_slot1 & 0xFF);
+        payload.vib_amps[1] = (uint8_t)(action.vib_amp_slot2 & 0xFF);
+        payload.vib_amps[2] = (uint8_t)(action.vib_amp_slot3 & 0xFF);
+        payload.vib_amps[3] = (uint8_t)(action.vib_amp_slot4 & 0xFF);
+        payload.vib_amps[4] = (uint8_t)(action.vib_amp_slot5 & 0xFF);
+        payload.vib2_amps[0] = (uint8_t)(action.vib2_amp_slot1 & 0xFF);
+        payload.vib2_amps[1] = (uint8_t)(action.vib2_amp_slot2 & 0xFF);
+        return payload;
+    }
+
+    constexpr uint32_t kDdsSyncCanId = 0x0F0;
+    constexpr float kDdsHzScale = 0.001f;  // 0.001 Hz/LSB → 0..65.535 Hz range
+    constexpr float kTwoPi = 2.0f * (float)M_PI;
+    constexpr float kDdsPhasePackScale = 65536.0f / kTwoPi;
+    constexpr float kDdsPhaseUnpackScale = kTwoPi / 65536.0f;
+
+    // 8 bytes — fits one CAN frame exactly. Both ESP32 ends are little-endian
+    // so memcpy works; spec section 4 byte order matches naturally.
+    struct DdsSyncPayload {
+        uint16_t dds1_hz;
+        uint16_t dds1_phase;
+        uint16_t dds2_hz;
+        uint16_t dds2_phase;
+    };
+    static_assert(sizeof(DdsSyncPayload) == 8, "0x0F0 payload must be 8 bytes");
+
+    uint16_t pack_dds_phase(float phase_rad) {
+        // Wrap to [0, 2π). fmodf is O(1); the old iterative subtraction spins
+        // forever on a non-finite or large phase (same hazard fixed in SyncVib
+        // and MasterDds).
+        if (!isfinite(phase_rad)) phase_rad = 0.0f;
+        phase_rad = fmodf(phase_rad, kTwoPi);
+        if (phase_rad < 0.0f) phase_rad += kTwoPi;
+        int32_t scaled = (int32_t)lroundf(phase_rad * kDdsPhasePackScale);
+        return (uint16_t)(scaled & 0xFFFF);
+    }
+
+    float unpack_dds_phase(uint16_t raw) {
+        return raw * kDdsPhaseUnpackScale;
+    }
 }
 /*****************************************************************************************************************/
 bool CANManager::get_force(AxisID axis_id, float &f_contact_point) {
@@ -309,6 +362,7 @@ void CANManager::process(void) {
         if (ESP32Can.readFrame(&rx_frame, 0)) {
             if (try_process_high_prio_axis_frame(rx_frame, now)) continue;
             if (!_is_gateway) {
+                if (try_process_dds_sync_frame(rx_frame, now)) continue;
                 if (try_process_ffb_update_frame(rx_frame)) continue;
             }
             if (try_process_low_prio_axis_frame(rx_frame, now)) continue;
@@ -432,20 +486,24 @@ void CANManager::shared_setup(uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin) 
 /*****************************************************************************************************************/
 /* AxisCANManager */
 /*****************************************************************************************************************/
+void CANManager::mark_gateway_alive(uint32_t now) {
+    ti_last_ping = now;
+    if (!_gateway_online) {
+        LogOutput::printf("CANManager: Gateway online");
+        _gateway_online = true;
+        if (own_axis_index > 0) {
+            _is_gateway = false;
+            LogOutput::printf(" -> giving up Gateway role");
+        }
+        if (on_gateway_state_change) {
+            on_gateway_state_change(this, true);
+        }
+    }
+}
+
 bool CANManager::try_process_ping_frame(CanFrame &rx_frame, uint32_t now) {
     if (rx_frame.identifier == 0x7FE) {
-        ti_last_ping = now;
-        if (!_gateway_online) {
-            LogOutput::printf("CANManager: Gateway online");
-            _gateway_online = true;
-            if (own_axis_index > 0) {
-                _is_gateway = false;
-                LogOutput::printf(" -> giving up Gateway role");
-            }
-            if (on_gateway_state_change) {
-                on_gateway_state_change(this, true);
-            }
-        }
+        mark_gateway_alive(now);
         return true;
     }
     return false;
@@ -469,7 +527,7 @@ void CANManager::broadcast_state_updates(uint32_t now) {
 
 bool CANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload,
                        OnFFBAction on_ffb_action, OnAxisPayload on_axis_payload, OnAxisStateChange on_axis_state_change,
-                       OnGatewayStateChange on_gateway_state_change) {
+                       OnGatewayStateChange on_gateway_state_change, OnDdsSync on_dds_sync) {
     LogOutput::printf("CANManager: Performing setup...");
     own_axis_id = axis_id;
     own_axis_index = MessageTools::axis_index_from_id(axis_id);
@@ -478,6 +536,7 @@ bool CANManager::setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t
     this->on_axis_payload = on_axis_payload;
     this->on_axis_state_change = on_axis_state_change;
     this->on_gateway_state_change = on_gateway_state_change;
+    this->on_dds_sync = on_dds_sync;
     shared_setup(baud_rate, tx_pin, rx_pin);
     broadcast_state_updates();
     LogOutput::printf(" -> done");
@@ -493,6 +552,43 @@ bool CANManager::send_force_and_position(float &f_contact_point, float &x_contac
     tx_frame.identifier = 0x100 + (AxisFrameTypesHS::FORCE_AND_POSITION << 4) + own_axis_index;
     memcpy(tx_frame.data, &(axis_states[own_axis_index].force_and_position), sizeof(ForceAndPosition));
     tx_frame.data_length_code = sizeof(ForceAndPosition);
+    if (!ESP32Can.writeFrame(&tx_frame, 0)) {
+        if (tx_err_cnt < 0xFFFFFFFF) {
+            tx_err_cnt++;
+        }
+        return false;
+    }
+    return true;
+}
+
+bool CANManager::try_process_dds_sync_frame(CanFrame &rx_frame, uint32_t now) {
+    if (rx_frame.identifier != kDdsSyncCanId) return false;
+    // Doubles as a gateway liveness signal. 0x7FE remains the primary ping
+    // for now; this is a forward-compat fallback so the 10 Hz ping can be
+    // retired in a later firmware version with no coordinated upgrade.
+    mark_gateway_alive(now);
+    if (rx_frame.data_length_code < sizeof(DdsSyncPayload)) return true;
+    DdsSyncPayload payload;
+    memcpy(&payload, rx_frame.data, sizeof(payload));
+    if (on_dds_sync) {
+        on_dds_sync(0, unpack_dds_phase(payload.dds1_phase), payload.dds1_hz * kDdsHzScale);
+        on_dds_sync(1, unpack_dds_phase(payload.dds2_phase), payload.dds2_hz * kDdsHzScale);
+    }
+    return true;
+}
+
+bool CANManager::send_dds_sync(float dds1_hz, float dds1_phase,
+                               float dds2_hz, float dds2_phase) {
+    if (!_is_gateway) return false;
+    DdsSyncPayload payload = {};
+    payload.dds1_hz = clamp_ffb_u16(dds1_hz, kDdsHzScale);
+    payload.dds1_phase = pack_dds_phase(dds1_phase);
+    payload.dds2_hz = clamp_ffb_u16(dds2_hz, kDdsHzScale);
+    payload.dds2_phase = pack_dds_phase(dds2_phase);
+    CanFrame tx_frame = {};
+    tx_frame.identifier = kDdsSyncCanId;
+    tx_frame.data_length_code = sizeof(payload);
+    memcpy(tx_frame.data, &payload, sizeof(payload));
     if (!ESP32Can.writeFrame(&tx_frame, 0)) {
         if (tx_err_cnt < 0xFFFFFFFF) {
             tx_err_cnt++;
@@ -609,6 +705,15 @@ bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
                     cache.base.load_force = cache.load_force;
                     cache.base.k_friction = cache.k_friction;
                 }
+                if (cache.has_vib) {
+                    cache.base.vib_amp_slot1 = cache.vib_amps[0];
+                    cache.base.vib_amp_slot2 = cache.vib_amps[1];
+                    cache.base.vib_amp_slot3 = cache.vib_amps[2];
+                    cache.base.vib_amp_slot4 = cache.vib_amps[3];
+                    cache.base.vib_amp_slot5 = cache.vib_amps[4];
+                    cache.base.vib2_amp_slot1 = cache.vib2_amps[0];
+                    cache.base.vib2_amp_slot2 = cache.vib2_amps[1];
+                }
                 action.function_id = FunctionID(function_id);
                 action.which_function = FFBAction_flight_ffb_tag;
                 action.function.flight_ffb = cache.base;
@@ -635,6 +740,48 @@ bool CANManager::try_process_ffb_update_frame(CanFrame &rx_frame) {
                 action.function.flight_ffb = cache.base;
                 action.function.flight_ffb.load_force = cache.load_force;
                 action.function.flight_ffb.k_friction = cache.k_friction;
+                if (cache.has_vib) {
+                    action.function.flight_ffb.vib_amp_slot1 = cache.vib_amps[0];
+                    action.function.flight_ffb.vib_amp_slot2 = cache.vib_amps[1];
+                    action.function.flight_ffb.vib_amp_slot3 = cache.vib_amps[2];
+                    action.function.flight_ffb.vib_amp_slot4 = cache.vib_amps[3];
+                    action.function.flight_ffb.vib_amp_slot5 = cache.vib_amps[4];
+                    action.function.flight_ffb.vib2_amp_slot1 = cache.vib2_amps[0];
+                    action.function.flight_ffb.vib2_amp_slot2 = cache.vib2_amps[1];
+                }
+                on_ffb_action(action);
+                break;
+            }
+            case FFBFrameTypes::FLIGHT_VIB: {
+                if (function_id == 0 || function_id > MessageTools::MAX_AXES_COUNT) {
+                    break;
+                }
+                if (rx_frame.data_length_code < sizeof(FlightFfbVibPayload)) {
+                    break;
+                }
+                FlightFfbVibPayload payload = {};
+                memcpy(&payload, rx_frame.data, sizeof(payload));
+                FlightFfbCache &cache = flight_ffb_cache[function_id - 1];
+                memcpy(cache.vib_amps, payload.vib_amps, sizeof(cache.vib_amps));
+                memcpy(cache.vib2_amps, payload.vib2_amps, sizeof(cache.vib2_amps));
+                cache.has_vib = true;
+                if (!cache.has_base) {
+                    break;
+                }
+                action.function_id = FunctionID(function_id);
+                action.which_function = FFBAction_flight_ffb_tag;
+                action.function.flight_ffb = cache.base;
+                if (cache.has_load) {
+                    action.function.flight_ffb.load_force = cache.load_force;
+                    action.function.flight_ffb.k_friction = cache.k_friction;
+                }
+                action.function.flight_ffb.vib_amp_slot1 = cache.vib_amps[0];
+                action.function.flight_ffb.vib_amp_slot2 = cache.vib_amps[1];
+                action.function.flight_ffb.vib_amp_slot3 = cache.vib_amps[2];
+                action.function.flight_ffb.vib_amp_slot4 = cache.vib_amps[3];
+                action.function.flight_ffb.vib_amp_slot5 = cache.vib_amps[4];
+                action.function.flight_ffb.vib2_amp_slot1 = cache.vib2_amps[0];
+                action.function.flight_ffb.vib2_amp_slot2 = cache.vib2_amps[1];
                 on_ffb_action(action);
                 break;
             }
@@ -732,7 +879,18 @@ bool CANManager::send_flight_ffb(const FFBAction &action) {
             tx_err_cnt++;
         }
     }
-    return base_ok && load_ok;
+    FlightFfbVibPayload vib_payload = pack_flight_ffb_vib(action.function.flight_ffb);
+    CanFrame vib_frame = {};
+    vib_frame.identifier = 0x200 + (FFBFrameTypes::FLIGHT_VIB << 4) + action.function_id;
+    vib_frame.data_length_code = sizeof(vib_payload);
+    memcpy(vib_frame.data, &vib_payload, sizeof(vib_payload));
+    bool vib_ok = ESP32Can.writeFrame(&vib_frame, 0);
+    if (!vib_ok) {
+        if (tx_err_cnt < 0xFFFFFFFF) {
+            tx_err_cnt++;
+        }
+    }
+    return base_ok && load_ok && vib_ok;
 }
 
 bool CANManager::send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) {

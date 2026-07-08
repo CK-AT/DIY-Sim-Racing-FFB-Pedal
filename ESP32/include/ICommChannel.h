@@ -9,6 +9,7 @@ class ICommChannel {
         typedef std::function<void(const FFBAction &action)> OnFFBAction;
         typedef std::function<void(AxisID axis_id, bool is_online)> OnAxisStateChange;
         typedef std::function<void(ICommChannel *comm_channel, bool is_online)> OnGatewayStateChange;
+        typedef std::function<void(uint8_t dds_index, float phase, float hz)> OnDdsSync;
 
     public:
         virtual void process(void) = 0;
@@ -26,4 +27,8 @@ class ICommChannel {
         virtual bool update_function_id(FunctionID function_id) = 0;
         virtual bool get_function_id(AxisID axis_id, FunctionID &function_id) = 0;
         virtual void set_gateway_mode(bool enable) = 0;
+        // Broadcast DDS phase sync from gateway to all axes (gateway-only).
+        // Channels that don't carry DDS sync (e.g. USB) implement as no-op.
+        virtual bool send_dds_sync(float dds1_hz, float dds1_phase,
+                                   float dds2_hz, float dds2_phase) = 0;
     };

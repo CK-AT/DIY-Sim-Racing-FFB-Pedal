@@ -9,4 +9,9 @@ class IFunction : public CompoundElement {
         virtual float get_x_contact_point_min(void) = 0;
         virtual float get_x_contact_point_max(void) = 0;
         virtual void on_ffb_action(const FFBAction &ffb_action) = 0;
+        // Gateway DDS sync. Default no-op; only functions that own SyncVib
+        // instances (e.g. FlightStickFunction) override.
+        virtual void on_dds_sync(uint8_t dds_index, float phase, float hz) {
+            (void)dds_index; (void)phase; (void)hz;
+        }
 };

@@ -12,7 +12,10 @@ namespace DiyFfb.GraphTest
         Op,
         Func,
         Include,
-        Output
+        Output,
+        ConfigOut,
+        ConfigIn,
+        Expr
     }
 
     public enum OpType
@@ -26,7 +29,13 @@ namespace DiyFfb.GraphTest
         Abs,
         Neg,
         Clamp,
-        Lerp
+        Lerp,
+        Select,
+        Eq,
+        Gt,
+        Exp,
+        Sqrt,
+        Pow
     }
 
     public sealed class GraphNode
@@ -41,6 +50,7 @@ namespace DiyFfb.GraphTest
         public List<bool> ArgNegate = new List<bool>();
         public string Src = "";
         public string Path = "";
+        public string Expr = "";
         public Dictionary<string, string> InputMap = new Dictionary<string, string>();
         public Dictionary<string, string> OutputMap = new Dictionary<string, string>();
         public GraphDefinition InlineGraph;
@@ -55,6 +65,7 @@ namespace DiyFfb.GraphTest
     public sealed class GraphEvaluationResult
     {
         public Dictionary<string, double> Outputs { get; } = new Dictionary<string, double>();
+        public Dictionary<string, double> ConfigOutputs { get; } = new Dictionary<string, double>();
         public Dictionary<string, double> NodeValues { get; } = new Dictionary<string, double>();
         public List<string> Warnings { get; } = new List<string>();
     }
@@ -70,12 +81,28 @@ namespace DiyFfb.GraphTest
         private readonly List<GraphNode> _order;
         private readonly Dictionary<string, double> _values = new Dictionary<string, double>();
         private readonly IGraphResolver _resolver;
+        // Parsed Expr formulas, keyed by node id. Built once in the constructor;
+        // this evaluator is used for validation/preview, not the 60 Hz hot path.
+        private readonly Dictionary<string, NCalc.Expression> _exprCache = new Dictionary<string, NCalc.Expression>();
 
         public GraphEvaluator(GraphDefinition graph, IGraphResolver resolver = null)
         {
             _graph = graph ?? throw new ArgumentNullException(nameof(graph));
             _resolver = resolver;
             _order = TopoSort(graph);
+
+            foreach (var node in graph.Nodes.Values)
+            {
+                if (node.Type == NodeType.Expr)
+                {
+                    var expr = GraphExprSupport.TryParse(node.Expr, out _);
+                    if (expr != null)
+                    {
+                        GraphExprSupport.SeedConstants(expr, GraphExprSupport.CollectIdentifiers(expr));
+                        _exprCache[node.Id] = expr;
+                    }
+                }
+            }
         }
 
         public IReadOnlyDictionary<string, double> Evaluate(
@@ -96,6 +123,7 @@ namespace DiyFfb.GraphTest
                 switch (node.Type)
                 {
                     case NodeType.Input:
+                    case NodeType.ConfigIn:
                         _values[node.Id] = inputs != null && inputs.TryGetValue(node.Name, out var inVal) ? inVal : 0.0;
                         break;
                     case NodeType.Param:
@@ -110,10 +138,16 @@ namespace DiyFfb.GraphTest
                     case NodeType.Func:
                         _values[node.Id] = EvalFunc(node);
                         break;
+                    case NodeType.Expr:
+                        _values[node.Id] = EvalExpr(node);
+                        break;
                     case NodeType.Include:
                         _values[node.Id] = EvalInclude(node, inputs, parameters);
                         break;
                     case NodeType.Output:
+                        _values[node.Id] = Resolve(node.Src);
+                        break;
+                    case NodeType.ConfigOut:
                         _values[node.Id] = Resolve(node.Src);
                         break;
                 }
@@ -130,12 +164,41 @@ namespace DiyFfb.GraphTest
                 result.Outputs[node.Name] = _values[node.Id];
             }
 
+            foreach (var node in _order.Where(n => n.Type == NodeType.ConfigOut))
+            {
+                result.ConfigOutputs[node.Name] = _values[node.Id];
+            }
+
             return result;
         }
 
         private double Resolve(string id)
         {
             return _values.TryGetValue(id, out var v) ? v : 0.0;
+        }
+
+        private double EvalExpr(GraphNode node)
+        {
+            if (!_exprCache.TryGetValue(node.Id, out var expr) || expr == null)
+            {
+                return 0.0;
+            }
+
+            // Bind each wired inport (name -> source node value). Identifiers not
+            // present in InputMap are unwired ports and resolve to 0.
+            foreach (var mapping in node.InputMap)
+            {
+                expr.Parameters[mapping.Key] = Resolve(mapping.Value);
+            }
+
+            try
+            {
+                return GraphExprSupport.ToDouble(expr.Evaluate());
+            }
+            catch
+            {
+                return 0.0;
+            }
         }
 
         private double EvalOp(GraphNode node)
@@ -229,6 +292,41 @@ namespace DiyFfb.GraphTest
                     double b = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
                     double t = node.Args.Count > 2 ? Resolve(node.Args[2]) : 0.0;
                     return a + (b - a) * t;
+                }
+                case OpType.Select:
+                {
+                    double cond = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    double a = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
+                    double b = node.Args.Count > 2 ? Resolve(node.Args[2]) : 0.0;
+                    return cond > 0.5 ? a : b;
+                }
+                case OpType.Eq:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    double b = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
+                    return Math.Abs(a - b) < 0.001 ? 1.0 : 0.0;
+                }
+                case OpType.Gt:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    double b = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
+                    return a > b ? 1.0 : 0.0;
+                }
+                case OpType.Exp:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    return Math.Exp(a);
+                }
+                case OpType.Sqrt:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    return a <= 0.0 ? 0.0 : Math.Sqrt(a);
+                }
+                case OpType.Pow:
+                {
+                    double a = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    double b = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
+                    return Math.Pow(a, b);
                 }
             }
 
@@ -333,10 +431,14 @@ namespace DiyFfb.GraphTest
                 subInputs[mapping.Key] = Resolve(mapping.Value);
             }
 
-            var subOutputs = new GraphEvaluator(subGraph, _resolver).Evaluate(subInputs, parameters);
+            // EvaluateWithTrace returns both Outputs and ConfigOutputs. The parent's
+            // OutputMap mixes both kinds (a FunctionScope Include exposes ConfigOut
+            // ports alongside Output ports), so we have to look in both dicts.
+            var subResult = new GraphEvaluator(subGraph, _resolver).EvaluateWithTrace(subInputs, parameters);
             foreach (var mapping in node.OutputMap)
             {
-                if (subOutputs.TryGetValue(mapping.Key, out var value))
+                if (subResult.Outputs.TryGetValue(mapping.Key, out var value) ||
+                    subResult.ConfigOutputs.TryGetValue(mapping.Key, out value))
                 {
                     _values[mapping.Value] = value;
                 }
@@ -382,6 +484,18 @@ namespace DiyFfb.GraphTest
                     if (!string.IsNullOrEmpty(node.Src))
                     {
                         Visit(node.Src);
+                    }
+                    // Expr nodes depend on their wired inports (InputMap values),
+                    // like Include nodes; order those sources first.
+                    if (node.Type == NodeType.Expr && node.InputMap != null)
+                    {
+                        foreach (var dep in node.InputMap.Values)
+                        {
+                            if (!string.IsNullOrEmpty(dep))
+                            {
+                                Visit(dep);
+                            }
+                        }
                     }
                     result.Add(node);
                 }

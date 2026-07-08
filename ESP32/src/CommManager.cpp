@@ -63,8 +63,12 @@ void CommManager::periodic_task_func(void) {
         _config_manager_initialized = true;
         refresh_force_pos_rate(_config_manager->get_function_config()->base.linked_axes);
     } else {
-        if (!_physics_task_started) {
-            // process() is usualy called by the physics task but it has not been started (yet), so call process() here
+        if (!_physics_task_started || _ota_state != OtaState::OTA_IDLE) {
+            // process() is usually called by the physics task, but it hasn't been
+            // started yet (gateway) or is suspended during OTA. Pump it here so
+            // CAN/ISOTP keeps flowing — notably axis log egress to the gateway,
+            // which otherwise goes silent while updating. (During the blocking
+            // download itself periodic_task can't loop, so logs still pause then.)
             process();
         }
         can_manager.process_isotp();
@@ -86,6 +90,17 @@ void CommManager::periodic_task_func(void) {
             ti_last_joystick_update = now;
             send_joystick_values();
         }
+        if (is_gateway()) {
+            // Master DDS phase advance every periodic tick (~1 ms);
+            // broadcast 0x0F0 sync frame at 100 Hz.
+            _master_dds.tick(now);
+            if ((now - _ti_last_dds_sync) > 10000 && active_downlink_channel != nullptr) {
+                _ti_last_dds_sync = now;
+                active_downlink_channel->send_dds_sync(
+                    _master_dds.get_fundamental(0), _master_dds.get_phase(0),
+                    _master_dds.get_fundamental(1), _master_dds.get_phase(1));
+            }
+        }
         if (!_device_info_sent) {
             _device_info_sent = send_device_info(is_gateway() ? CommChannel::USB_SERIAL : CommChannel::ISOTP);
         }
@@ -96,11 +111,15 @@ void CommManager::periodic_task_func(void) {
 }
 
 void CommManager::setup_joystick() {
-    USB.PID(0x8211);
+    // Unique PID per device so the OS distinguishes them reliably.
+    // Gateway N: 0x8210 + N  (gateway 1 = 0x8211 for backward compat)
+    // Axis N:    0x8220 + N
     USB.VID(0x303b);
     if (_is_gateway) {
+        USB.PID(0x8210 + get_gateway_id());
         snprintf(_usb_product_name, sizeof(_usb_product_name) - 1, "DIY-FFB-Gateway-%d", get_gateway_id());
     } else {
+        USB.PID(0x8220 + get_axis_id());
         snprintf(_usb_product_name, sizeof(_usb_product_name) - 1, "DIY-FFB-Axis-%d", get_axis_id());
     }
     USB.productName(_usb_product_name);
@@ -194,11 +213,12 @@ void CommManager::update_ota_state() {
                 result = ESP32OTAPull::ErrorCode(ota.CheckForOTAUpdate(_ota_url.c_str(), VERSION));
                 switch (result) {
                     case ESP32OTAPull::ErrorCode::OTA_UPDATE_FAIL:
-                        LogOutput::printf("OTA: Failed to begin update");
+                        LogOutput::printf("OTA: Failed to begin update: %s", ota.GetUpdateFailReason());
                         switch_ota_state(OTA_ERROR);
                         break;
                     case ESP32OTAPull::ErrorCode::WRITE_ERROR:
-                        LogOutput::printf("OTA: Write error");
+                        LogOutput::printf("OTA: Write error: %s at %d/%d bytes", ota.GetWriteFailReason(), ota.GetWriteFailOffset(),
+                                          ota.GetWriteFailTotal());
                         switch_ota_state(OTA_ERROR);
                         break;
                     case ESP32OTAPull::ErrorCode::MD5_ERROR:
@@ -277,11 +297,13 @@ void CommManager::build_device_info_message(Message &msg) {
 }
 
 void CommManager::setup(Stream *serial, CANConfig &can_config, ConfigManager *config_manager, OnFFBAction on_ffb_action,
-                        OnAxisAction on_axis_action) {
+                        OnAxisAction on_axis_action, OnDdsSync on_dds_sync, GripReader *grip_reader) {
     _config_manager = config_manager;
     _on_ffb_action = on_ffb_action;
     _on_axis_action = on_axis_action;
+    _on_dds_sync = on_dds_sync;
     _can_config = can_config;
+    _grip_reader = grip_reader;
     _log_queue_data = xQueueCreate(20, MAX_LOG_LINE_LENGTH);
     setup_serial(serial);
     xTaskCreatePinnedToCore(this->periodic_task, "CommManagerTask", 8000, this, 1, nullptr, 0);
@@ -382,6 +404,12 @@ void CommManager::on_gateway_message(const Message &msg, const uint8_t *protobuf
                 if (MessageTools::check_axis_id(primary_axis_id)) {
                     send_message_to_axis(primary_axis_id, msg, protobuf_msg, len_protobuf_msg);
                 }
+            }
+            break;
+        case Message_dds_fundamentals_tag:
+            if (is_gateway() && (comm_channel == CommChannel::USB_SERIAL)) {
+                _master_dds.set_fundamental(0, msg.payload.dds_fundamentals.dds1_fundamental_hz);
+                _master_dds.set_fundamental(1, msg.payload.dds_fundamentals.dds2_fundamental_hz);
             }
             break;
         case Message_axis_action_tag: {
@@ -536,7 +564,8 @@ bool CommManager::setup_can(CANConfig &config) {
                       std::bind(&CommManager::on_axis_packet_received, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
                                 CommChannel::ISOTP),
                       std::bind(&CommManager::on_axis_state_change, this, std::placeholders::_1, std::placeholders::_2),
-                      std::bind(&CommManager::on_gateway_state_change, this, std::placeholders::_1, std::placeholders::_2));
+                      std::bind(&CommManager::on_gateway_state_change, this, std::placeholders::_1, std::placeholders::_2),
+                      _on_dds_sync);
     active_intercom_channel = &can_manager;
     if (_is_gateway) {
         active_downlink_channel = &can_manager;
@@ -811,6 +840,18 @@ void CommManager::send_joystick_values(void) {
         ControllerAxis controller_axis = MessageTools::controller_axis_id_from_index(controller_axis_idx);
         set_controller_axis(controller_axis, controller_axis_values[controller_axis_idx]);
     }
+    // Read grip shift registers into the upper 24 buttons (indices 24–47).
+    // Lower indices (0–23) are reserved for function outputs (e.g., shifter gears).
+    if (_grip_reader && _grip_reader->isReady()) {
+        _grip_reader->poll();
+        for (uint8_t bit = 0; bit < _grip_reader->getNumBits(); bit++) {
+            uint8_t buttonIdx = 24 + bit;
+            if (buttonIdx < JOYSTICK_BUTTON_COUNT) {
+                controller_button_values[buttonIdx] = _grip_reader->isPressed(bit) ? 1 : 0;
+            }
+        }
+    }
+
     for (uint8_t button_idx = 0; button_idx < CommManager::JOYSTICK_BUTTON_COUNT; button_idx++) {
         _joystick.setButton(button_idx, controller_button_values[button_idx]);
     }
@@ -854,46 +895,40 @@ bool CommManager::calc_input_force_sum(const AxisID *linked_axes, float &input_f
 }
 
 bool CommManager::calc_input_force_sum(float &input_force) {
-    return calc_input_force_sum(_config_manager->get_function_config()->base.linked_axes, input_force);
+    // Topology is precomputed in ConfigManager::update_topology_cache(). The
+    // walk over linked_axes happened at config-update time; the hot path just
+    // sums the cached fetch list.
+    float f_sum = 0.0f;
+    uint8_t n = _config_manager->get_force_fetch_count();
+    for (uint8_t i = 0; i < n; i++) {
+        const ForceFetchEntry &entry = _config_manager->get_force_fetch_entry(i);
+        float temp = 0.0f;
+        get_force(entry.axis_id, temp);  // get_force won't touch temp if the associated axis is not online
+        f_sum += entry.sign * temp;
+    }
+    input_force = f_sum;
+    return _config_manager->is_subtractive_axis();
 }
 
 bool CommManager::calc_final_position(float own_position, float &final_position) {
-    const FunctionBase &func_base = _config_manager->get_function_config()->base;
-    float other_position;
-    AxisID primary_axis_id = AxisID(func_base.linked_axes[0] & AxisID_AXIS_ID_MASK);
-    AxisID own_axis_id = get_axis_id();
-    for (uint8_t idx = 0; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
-        AxisID axis_id = AxisID(func_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
-        if (axis_id == AxisID_AXIS_UNDEFINED) break;
-        if (axis_id == own_axis_id && (func_base.linked_axes[idx] & AxisID_AXIS_INDEPENDENT)) {
+    switch (_config_manager->get_position_mode()) {
+        case POSITION_MODE_USE_OWN:
             final_position = own_position;
             return true;
+        case POSITION_MODE_FETCH_PRIMARY: {
+            float other;
+            if (!get_position(_config_manager->get_primary_axis_for_fetch(), other)) return false;
+            final_position = other;
+            return true;
         }
-    }
-    if (func_base.linked_axes[0] & AxisID_AXIS_INDEPENDENT) {
-        final_position = own_position;
-        return true;
-    }
-    if (primary_axis_id == own_axis_id) {
-        // we are the primary axis -> own_position is the final position
-        final_position = own_position;
-        return true;
-    } else if (get_position(primary_axis_id, other_position)) {
-        // we are NOT the primary axis, start at idx 1
-        for (uint8_t idx = 1; idx < (sizeof(FunctionBase::linked_axes) / sizeof(FunctionBase::linked_axes[0])); idx++) {
-            AxisID axis_id = AxisID(func_base.linked_axes[idx] & AxisID_AXIS_ID_MASK);
-            if (axis_id == own_axis_id) {
-                if (func_base.linked_axes[idx] & AxisID_AXIS_SUBTRACTIVE) {
-                    final_position = (_config_manager->get_x_contact_point_center() * 2.0f) - other_position;
-                    return true;
-                } else {
-                    final_position = other_position;
-                    return true;
-                }
-            } else if (axis_id == AxisID_AXIS_UNDEFINED) {
-                break;
-            }
+        case POSITION_MODE_FETCH_PRIMARY_MIRRORED: {
+            float other;
+            if (!get_position(_config_manager->get_primary_axis_for_fetch(), other)) return false;
+            final_position = _config_manager->get_x_contact_point_center_2x() - other;
+            return true;
         }
+        case POSITION_MODE_NOT_MEMBER:
+            return false;
     }
     return false;
 }

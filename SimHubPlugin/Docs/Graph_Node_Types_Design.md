@@ -16,7 +16,7 @@ This document covers all node types in the graph editor, their current implement
 | Const | Fixed constant value | 1 out | No | Yes (value) |
 | Op | Math operation | 2+ in (variadic add/mul/min/max), 1 out | Yes (variadic ops) | Yes (op selector) |
 | Func | Built-in function | varies, 1 out | No (auto) | Yes (func selector) |
-| Include | Subgraph reference | 1 in, 1 out | Yes (both) | Yes (path + ports) |
+| Include | Subgraph reference (file or embedded) | 1 in, 1 out | Derived (from sub-graph) | Yes (path/inline + port order) |
 
 ### Color Coding
 
@@ -742,7 +742,7 @@ User-defined functions via scripting or expression.
 ## Include Node
 
 ### Purpose
-References another graph file, enabling modular graph composition. The included graph is evaluated as a subgraph with mapped inputs/outputs.
+References a sub-graph, enabling modular graph composition. The sub-graph is evaluated with mapped inputs/outputs. An Include can be **file-backed** (references another graph file by `IncludePath`) or **embedded** (carries an inline sub-graph definition stored in the parent — no path). The two forms are mutually exclusive; a node is embedded iff `InlineGraph != null` and `IncludePath` is empty (`IsEmbeddedInclude`). Reuse across templates stays file-based; embedding is for one-off, template-specific clusters.
 
 ### Current Implementation
 
@@ -767,26 +767,39 @@ else if (kind == GraphNodeKind.Include)
 
 **Properties**:
 ```csharp
-public string IncludePath { get; set; }  // Path to included graph
-public List<GraphPort> Ports { get; }    // Input/Output port mappings
+public string IncludePath { get; set; }          // Path to included file (file-backed)
+public GraphDefinition InlineGraph { get; set; }  // Embedded sub-graph (no path); mutually exclusive with IncludePath
+public List<GraphPort> Ports { get; }             // Derived from sub-graph Input/Output nodes (not serialized)
+public List<string> InputPortOrder { get; set; }  // Optional cosmetic display order (serialized)
+public List<string> OutputPortOrder { get; set; } // Optional cosmetic display order (serialized)
 ```
+
+**Storage**:
+- File-backed: serialized as `IncludePath`; registered in the block library index for reuse.
+- Embedded: serialized as a nested `Inline` block on the node DTO (recursive — embeds can nest). Private to the parent; **not** registered in the block library.
+- Ports are never serialized; they are re-derived from the sub-graph's Input/Output nodes on load (`PopulateIncludePorts` / `SyncIncludePorts`) for both forms. Editing the sub-graph interface re-syncs the parent node's ports live.
 
 **Inspector Panel** ([GraphEditorControl.xaml.cs:2988-3063](SimHubPlugin/GraphEditor/GraphEditorControl.xaml.cs#L2988-L3063)):
 - Title field
-- Include path field with Browse button
-- Open Include button (opens in new tab)
-- **Input Ports** section:
-  - Add Input button
-  - Per-port: name editor + delete button
-- **Output Ports** section:
-  - Add Output button
-  - Per-port: name editor + delete button
+- Include path field with Browse button (file-backed only); Open Include button (opens in new tab)
+- **Input Ports** / **Output Ports** sections: read-only lists derived from the sub-graph interface, with a Refresh button. Add/remove are hidden (`AllowRemove` binding) — ports follow the sub-graph.
+- ▲/▼ reorder buttons per port: write `InputPortOrder` / `OutputPortOrder` to set a cosmetic display order without affecting wiring.
 
 **Port Management**:
-- Fully editable: add, remove, rename
-- Input ports map to included graph's Input nodes
-- Output ports map to included graph's Output nodes
-- **Manual configuration required** - ports don't auto-sync with included graph
+- Ports are **derived** from the sub-graph's Input/Output nodes (not manually edited) and re-synced on path change, sub-graph interface edits, and load.
+- Input ports map to the sub-graph's Input nodes; Output ports map to its Output nodes.
+- Display order can be customized via `InputPortOrder` / `OutputPortOrder` (name-keyed, purely cosmetic; unknown names ignored, new ports append in derived order).
+
+#### Embedded Sub-Graphs & Conversion Operations
+
+An Include can carry its sub-graph inline instead of by path. Embedded sub-graphs are evaluated from memory (cached per-node by `"inline:" + nodeId`, no disk spill) and nest recursively. Editor commands (right-click context menu):
+
+- **Add Embedded Sub-Graph** — inserts an Include node with a blank inline graph.
+- **Group N Nodes into Embedded Sub-Graph** (selection of ≥2) — collapses the selection into an embedded Include: boundary-crossing links become deduped Input/Output ports, the parent is rewired automatically, and the moved nodes are anchored near the sub-graph canvas top-left.
+- **Extract Embedded Sub-Graph to File…** (single embedded Include) — writes the inline block to a chosen `_embedded/*.json`, sets `IncludePath`, clears the inline content (embedded → file-backed).
+- **Inline This Include (detach from file)** (single file-backed Include) — reads the file into the inline content, clears `IncludePath` (file-backed → embedded). The shared file is left in place; only this node detaches.
+
+**Editing embedded sub-graphs**: double-click a path-less Include to open its inline graph in its own tab, titled `parent/node` (nesting chains, e.g. `file/outer/inner`, via the `EmbeddedOpenRequested` event keyed on `(parentTab, nodeId)`). Edits flush back into the parent node's inline content and mark the parent dirty; Save cascades to the root file (no filename prompt) and closing never prompts to save.
 
 **Runtime Conversion** ([GraphRuntimeConverter.cs:65-82](SimHubPlugin/GraphEditor/GraphRuntimeConverter.cs#L65-L82)):
 ```csharp
@@ -828,14 +841,16 @@ private double EvalInclude(GraphNode node, ...)
 
 ### Current Limitations
 
-1. **Manual port configuration**: Must manually add ports matching included graph's interface
+1. ~~**Manual port configuration**~~: Resolved — ports auto-surface from the sub-graph interface (see Port Management / `SyncIncludePorts`).
 2. **No parameter exposure**: Included graph's parameters not accessible on Include node
 3. **Silent mismatches**: Wrong port names cause silent failures (0.0 values)
-4. **No interface visibility**: Must open included graph to see its inputs/outputs
+4. ~~**No interface visibility**~~: Resolved — embedded sub-graphs open in their own tab via double-click; file includes open via Open Include.
 
 ### Proposed Improvements
 
 #### 1. Auto-Surface Ports
+
+**Status**: [x] Implemented — Include ports are derived from the sub-graph's Input/Output nodes (file-backed and embedded) and re-synced on change.
 
 Automatically populate Include node ports from included graph's Input/Output nodes.
 
@@ -975,8 +990,9 @@ Re-sync ports when:
 - Include path changed
 - Included graph saved (in another tab)
 - Manual refresh button clicked
+- Embedded sub-graph interface edited (live re-sync of the parent node's ports)
 
-**Status**: [ ] Not implemented
+**Status**: [x] Implemented
 
 ### Edge Cases
 

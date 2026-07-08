@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace DiyFfb.GraphEditor
@@ -15,6 +16,9 @@ namespace DiyFfb.GraphEditor
         private bool isPinned;
         private bool isActiveGraph;
         private string contextSuffix;
+        private GraphEditorTab parentTab;
+        private string embeddedNodeId;
+        private string embeddedNodeTitle;
 
         public GraphEditorTab()
         {
@@ -60,6 +64,12 @@ namespace DiyFfb.GraphEditor
         {
             get
             {
+                // Embedded sub-graph tabs show their chain: parent/node[/node...]
+                if (IsEmbedded)
+                {
+                    return ChainTitle;
+                }
+
                 string name = string.IsNullOrWhiteSpace(filePath)
                     ? "Untitled"
                     : Path.GetFileName(filePath);
@@ -76,6 +86,36 @@ namespace DiyFfb.GraphEditor
                 }
 
                 return name;
+            }
+        }
+
+        /// <summary>
+        /// The parent tab whose graph contains this embedded sub-graph's Include node,
+        /// or null for normal file/active tabs.
+        /// </summary>
+        public GraphEditorTab ParentTab => parentTab;
+
+        /// <summary>Id of the embedded Include node in the parent graph (embedded tabs only).</summary>
+        public string EmbeddedNodeId => embeddedNodeId;
+
+        /// <summary>True if this tab edits an embedded (inline, path-less) sub-graph.</summary>
+        public bool IsEmbedded => parentTab != null && !string.IsNullOrEmpty(embeddedNodeId);
+
+        /// <summary>
+        /// Title chain for the tab header. Root is the parent file name; embedded
+        /// tabs append "/nodeName", so nested embeds read "file/outer/inner".
+        /// </summary>
+        public string ChainTitle
+        {
+            get
+            {
+                if (IsEmbedded)
+                {
+                    string parentChain = parentTab?.ChainTitle ?? "?";
+                    string leaf = string.IsNullOrEmpty(embeddedNodeTitle) ? embeddedNodeId : embeddedNodeTitle;
+                    return parentChain + "/" + leaf;
+                }
+                return string.IsNullOrWhiteSpace(filePath) ? "Untitled" : Path.GetFileNameWithoutExtension(filePath);
             }
         }
 
@@ -192,6 +232,70 @@ namespace DiyFfb.GraphEditor
             catch
             {
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Loads an embedded sub-graph into this tab. The tab edits an independent
+        /// clone; FlushToParent() writes it back into the parent node's InlineGraph.
+        /// Base directory / file path mirror the parent so nested file-includes
+        /// inside the embedded graph resolve relative to the parent's location.
+        /// </summary>
+        public void LoadFromEmbedded(GraphEditorTab parent, GraphNode node)
+        {
+            if (parent == null || node == null)
+            {
+                return;
+            }
+
+            parentTab = parent;
+            embeddedNodeId = node.Id;
+            embeddedNodeTitle = string.IsNullOrWhiteSpace(node.Title) ? node.Id : node.Title;
+
+            EditorControl.BaseDirectory = parent.BaseDirectory;
+            EditorControl.FilePath = parent.FilePath;
+            // Live-preview context for an embedded sub-graph is keyed by the
+            // include node id, not a file path (it has none).
+            EditorControl.ContextKeyOverride = "inline:" + node.Id;
+
+            var source = node.InlineGraph ?? new GraphDefinition { IsLibraryGraph = true };
+            Graph = CloneGraph(source);
+            IsDirty = false;
+            OnPropertyChanged(nameof(DisplayName));
+        }
+
+        /// <summary>
+        /// Writes this embedded tab's current graph back into the parent node's
+        /// InlineGraph and marks the parent dirty. The embedded sub-graph has no
+        /// file of its own — saving the parent file persists it. No-op if the
+        /// parent node no longer exists (e.g. removed in the parent).
+        /// </summary>
+        public void FlushToParent()
+        {
+            if (!IsEmbedded || parentTab?.Graph == null)
+            {
+                return;
+            }
+
+            var node = parentTab.Graph.Nodes.FirstOrDefault(n => n.Id == embeddedNodeId);
+            if (node == null)
+            {
+                return;
+            }
+
+            node.InlineGraph = Graph;
+            parentTab.IsDirty = true;
+        }
+
+        private static GraphDefinition CloneGraph(GraphDefinition g)
+        {
+            try
+            {
+                return GraphSerializer.Deserialize(GraphSerializer.Serialize(g), out _);
+            }
+            catch
+            {
+                return new GraphDefinition { IsLibraryGraph = true };
             }
         }
 

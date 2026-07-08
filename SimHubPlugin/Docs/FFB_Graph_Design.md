@@ -11,36 +11,66 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 - Keep everything in a single SimHub plugin DLL.
 
 ## Non-goals
-- Full visual scripting language (loops, conditionals, or stateful nodes).
+- Full visual scripting language with imperative control flow — loops, or branching that changes *which* nodes run (the graph always evaluates the whole DAG). (Note: value-level conditionals *do* exist — the `select` op is a ternary `cond > 0.5 ? a : b` with `eq`/`gt` as predicates — and a small set of stateful funcs has shipped; see the Op list and the accumulator/sample_hold/edge_detect/lag_asym functions below.)
 - Real-time collaborative editing.
 - GPU-accelerated evaluation or live graph profiling.
 
 ## Core Concepts
 ### Graph Definition
-- Directed acyclic graph (DAG) of nodes with typed input/output ports.
-- Graph schema versioned (currently v3).
+- Directed acyclic graph (DAG) of nodes with named input/output ports. Ports have a direction (`GraphPortKind.Input`/`Output`) but no data type — every signal is a scalar `double` (there is no float/bool/vector type system or type checking).
+- Graph schema versioned (currently v4).
 - Nodes:
   - Input: pulls a named input value.
   - Param: pulls a tunable parameter.
   - Const: constant numeric value.
-  - Op: arithmetic operations (add/sub/mul/div/min/max/abs/neg/clamp/lerp) with output ports labeled by formula; add/mul/min/max accept variable input counts and expand the output label to match (e.g., "a+b+c"). Add/mul inputs can be negated per-port and the output label reflects negation (e.g., "a+b-c", "a*b*-c").
-  - Func: known functions (qhat_eff, torque_norm, rpm_norm, assist_loss).
-  - Include: references another graph by path or embedded content.
+  - Op: arithmetic/logic operations (add/sub/mul/div/min/max/abs/neg/clamp/lerp/select/eq/gt/exp/sqrt/pow) with output ports labeled by formula; add/mul/min/max accept variable input counts and expand the output label to match (e.g., "a+b+c"). Add/mul inputs can be negated per-port and the output label reflects negation (e.g., "a+b-c", "a*b*-c").
+  - Func: known functions — stateless (qhat_eff, torque_norm, rpm_norm, assist_loss, buffet) and stateful (accumulator, sample_hold, edge_detect, lag_asym; see Evaluation).
+  - Include: references a sub-graph, either **file-backed** (by `IncludePath`) or **embedded** (an inline sub-graph definition stored in the parent node — no path). The two forms are mutually exclusive; a node is embedded iff it carries an inline graph and has no path.
   - Output: exposes a named output.
+  - ConfigOut: writes a graph value out to a config field (bound to an `OverrideFieldRegistry` field path), scoped via the parent Include's `FunctionScope`.
+  - ConfigIn: reads a config field value into the graph as a source (mirror of ConfigOut); output ports emit the current MERGED config value for the scoped function.
+  - LocalSend: "send" end of a graph-local named bus (one input port); publishes its value on `LocalBusName`. Collapsed into direct wiring by the editor→runtime converter.
+  - LocalReceive: "receive" end of a graph-local named bus (one output port); emits the matching LocalSend's value. Orphan receives evaluate to 0.
+  - Expr: evaluates a user-authored math formula (NCalc syntax) with one output port and any number of named input ports referenced as variables.
+  - MsfsVarDef: declares custom MSFS SimConnect variables (SimVars / LVARs) on top of the fixed defaults; each output port emits `MSFS.<alias>` like an Input port. Top-level graphs only.
 - Nodes can have multiple input/output ports to reduce total node count.
 - Layout metadata (positions, collapsed state, group/section) is stored in JSON.
 
 ### Evaluation
 - Graphs are compiled into a fast evaluation plan (topo order + node ops).
-- Pure evaluation: no side effects, no state in nodes.
-- Shared evaluator used by runtime and editor preview.
+- Most nodes are stateless and side-effect-free. A small set of stateful Func nodes (accumulator, sample_hold, edge_detect, lag_asym) carry persistent state across evaluations, stored in a flat per-evaluator state array. State is snapshotted per-vehicle (see below) so it survives vehicle/profile switches and can be reset via `ResetState()`.
+- The runtime and editor preview share one evaluator, `GraphCompiledEvaluator` (compiled to a flat node plan). A second, tree-walking interpreter, `GraphEvaluator` (in GraphTest), is used by the GraphTest CLI and unit tests as a parity oracle to validate the compiled evaluator.
+- Stateful-node state is captured/restored via `GetStateSnapshot()` / `RestoreStateSnapshot()` and persisted per-vehicle in the plugin (`GraphStateSnapshots[vehicleKey]`), recursing into cached Include sub-evaluators.
 - Missing inputs default to 0.0.
 - Division by near-zero returns 0.0.
 
 ### Include Resolution
-- Include node can reference path or embedded graph content.
-- Resolver caches graphs and populates a block library index.
-- Include outputs are mapped into the parent graph with explicit port names.
+- Include node can reference a file path or carry embedded (inline) graph content.
+- File-backed includes are cached by the resolver and registered in the block library index for reuse across graphs.
+- Embedded sub-graphs are evaluated directly from memory (cached per-node by `"inline:" + nodeId`) with **no disk spill** — the resolver no longer materializes inline blocks to `_embedded/{hash}.json`. Embedded blocks are private to their parent and are deliberately *not* registered in the block library (no reuse).
+- Include outputs are mapped into the parent graph with explicit port names. For both forms, the Include node's ports are derived from the sub-graph's Input/Output nodes (re-derived on load, not stored on the Include node itself).
+
+### Embedded Sub-Graphs
+- An embedded sub-graph is an Include node whose definition lives **inline** in the parent rather than referenced by file path. Use it for one-off, template-specific clusters (e.g. a TR-gate, mu-buzz ramp, or ground-cue) that would otherwise clutter the top level. Reuse across templates stays file-based.
+- Stored in the editor JSON as a nested `Inline` block on the Include node DTO; embedding nests recursively (an embedded sub-graph may itself contain embedded includes). Ports are not serialized — they are re-derived from the inline graph's Input/Output nodes on load (`PopulateIncludePorts`), and re-sync live when the sub-graph's interface changes.
+- **Library graphs** (`IsLibraryGraph`, schema v4): a reusable sub-graph flagged as a library block whose Input/Output nodes use freeform port names (no signal-catalog binding), so the parent supplies the wiring. Library graphs are file-backed for sharing; embedding is for the non-reused case.
+
+#### Editor operations (right-click context menu)
+
+- **Add Embedded Sub-Graph** — inserts an Include node carrying a blank inline graph.
+- **Group N Nodes into Embedded Sub-Graph** — collapses the current selection into a new embedded Include: boundary-crossing links become deduped Input/Output ports, the parent is rewired automatically, and the moved contents are anchored near the sub-graph canvas top-left.
+- **Extract Embedded Sub-Graph to File…** — writes an inline block out to a chosen `_embedded/*.json`, sets `IncludePath`, and clears the inline content (embedded → file-backed).
+- **Inline This Include (detach from file)** — reads a file include into the node's inline content and clears `IncludePath` (file-backed → embedded). The shared file is left in place; only this node detaches.
+
+#### Embedded sub-graph tabs
+
+- Double-clicking a path-less Include opens its inline graph in its own editor tab, titled `parent/node` (nesting chains, e.g. `file/outer/inner`).
+- Edits flush back into the parent Include node's inline content and mark the parent dirty (there is no standalone file). Saving cascades up to the root file tab; an embedded tab never prompts for a filename, and closing it never prompts to save (its content already lives in the parent).
+- Embedded tabs key on `(parentTab, nodeId)` for dedupe, not a file path.
+
+#### Include port reordering
+
+- Per-node `InputPortOrder` / `OutputPortOrder` (lists of port names, serialized) let the parent fix the display order of an Include node's derived ports for tidy wiring. This is purely cosmetic — links and maps are name-keyed, so reordering never breaks wiring. Unknown names are ignored and new ports append in derived order. The inspector exposes ▲/▼ buttons to reorder.
 
 ## UI Editor Behavior
 ### Core UX
@@ -87,8 +117,10 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 - Library list for cached/embedded blocks.
 
 ## Data Model and Persistence
-- JSON schema (versioned) with nodes, ports, links, params.
-- Includes can be stored as paths or embedded graphs with block library index.
+- JSON schema (versioned, currently v4) with nodes, ports, links, params.
+- Includes are stored either as a file path (`IncludePath`, registered in the block library index) or as an embedded sub-graph (a nested `Inline` block on the Include node — recursive, private to the parent, never registered for reuse).
+- Include node ports are not serialized; they are re-derived from the sub-graph's Input/Output nodes on load. Optional `InputPortOrder` / `OutputPortOrder` lists are serialized to fix cosmetic port display order.
+- `IsLibraryGraph` (v4) flags a reusable sub-graph whose Input/Output nodes use freeform port names instead of signal-catalog binding.
 - Paths can be stored relative to the root graph directory.
 - Layout data persists in the JSON to preserve editor state.
 
@@ -107,7 +139,7 @@ Parameters support cascading overrides at three levels (later overrides earlier)
 **Storage**:
 ```json
 {
-  "version": 1,
+  "version": 4,
   "nodes": [...],
   "params": {
     "FlightStickPitch.SpringGain": {
@@ -206,7 +238,10 @@ When switching vehicles with unsaved param changes:
 ## Open Questions
 
 - Should we add typed ports or keep all numeric?
-- Should we allow stateful nodes (e.g., integrator, delay)?
+
+## Resolved
+
+- **Stateful nodes** (integrator/delay-style): shipped. Implemented as stateful Func nodes — `accumulator` (rate integrator with min/max clamp + reset), `sample_hold` (capture on falling edge), `edge_detect` (one-tick rising-edge pulse), and `lag_asym` (first-order lag with asymmetric rise/fall time constants). State lives in a per-evaluator array and is snapshotted per-vehicle (see Evaluation).
 
 ## Risks and Mitigations
 - Param UI schema complexity: start with slider/knob/checkbox, add advanced widgets later.

@@ -1,16 +1,13 @@
 #include "ConfigManager.h"
 
+#include <math.h>
+
+#include "FunctionConflict.h"
+#include "KinematicPoly.h"
 #include "LogOutput.h"
 
-float calc_poly(const float &in, const double *coeffs, size_t num_coeffs) {
-    double result = coeffs[0];
-    double temp = in;
-    for (uint8_t i = 1; i < num_coeffs; i++) {
-        result += temp * coeffs[i];
-        temp *= in;
-    }
-    return result;
-}
+using kinematic_poly::calc_poly_d;
+using kinematic_poly::horner5_f;
 
 void ConfigManager::set_axis_config_defaults(void) {
     _axis_config = AxisConfig_init_default;
@@ -271,9 +268,78 @@ void ConfigManager::on_config_update(void) {
         _active_funtion = _on_config_update_callback(_active_funtion, &_function_config);
     }
     update_x_contact_point_limits();
+    update_topology_cache();
+    update_kinematic_poly_cache();
+}
+
+void ConfigManager::update_kinematic_poly_cache(void) {
+    // Copy double coefficients to float. The double originals stay in
+    // _axis_config for inspection / round-trip / re-emit; the FFB hot path
+    // reads the float cache via horner5_f().
+    const KinematicParameters &kp = _axis_config.kinematic_parameters;
+    for (uint8_t i = 0; i < KINEMATIC_POLY_DEGREE; i++) {
+        _coeffs_force_factor_f[i] = static_cast<float>(kp.coeffs_force_factor_over_contact_point_pos[i]);
+        _coeffs_sled_pos_f[i] = static_cast<float>(kp.coeffs_sled_pos_over_contact_point_pos[i]);
+    }
+
+    // Self-check: sweep the configured contact-point range and compare
+    // float-Horner against the double-precision evaluation. If any axis
+    // fits coefficients that exceed the float threshold, fall back to the
+    // double path for that axis only — other axes keep their speedup.
+    constexpr int N_POINTS = 32;
+    constexpr float FORCE_THRESHOLD = 1e-5f;
+    constexpr float SLED_THRESHOLD = 1e-3f;
+    float x_min = static_cast<float>(kp.contact_point_pos_min_abs) / 10.0f;
+    float x_max = static_cast<float>(kp.contact_point_pos_max_abs) / 10.0f;
+    if (x_max <= x_min) {
+        // Defaults / unconfigured axis: no range to check. Trust the cache,
+        // skip self-check (will run again once a real config arrives).
+        _kinematic_use_double_fallback = false;
+        return;
+    }
+    float max_force_err = 0.0f;
+    float max_sled_err = 0.0f;
+    for (int i = 0; i < N_POINTS; i++) {
+        float t = float(i) / float(N_POINTS - 1);
+        float x = x_min + t * (x_max - x_min);
+        float force_d = calc_poly_d(x, kp.coeffs_force_factor_over_contact_point_pos, KINEMATIC_POLY_DEGREE);
+        float force_f = horner5_f(x, _coeffs_force_factor_f);
+        float fe = fabsf(force_d - force_f);
+        if (fe > max_force_err) max_force_err = fe;
+        float sled_d = calc_poly_d(x, kp.coeffs_sled_pos_over_contact_point_pos, KINEMATIC_POLY_DEGREE);
+        float sled_f = horner5_f(x, _coeffs_sled_pos_f);
+        float se = fabsf(sled_d - sled_f);
+        if (se > max_sled_err) max_sled_err = se;
+    }
+    if (max_force_err > FORCE_THRESHOLD || max_sled_err > SLED_THRESHOLD) {
+        _kinematic_use_double_fallback = true;
+        LogOutput::printf("ConfigManager: kinematic poly float cache failed self-check (force max err %g, sled max err %g) - falling back to double",
+                          static_cast<double>(max_force_err), static_cast<double>(max_sled_err));
+    } else {
+        _kinematic_use_double_fallback = false;
+    }
 }
 
 void ConfigManager::update_lookup_tables(const FunctionConfig &new_config) {
+    const FunctionID fid = new_config.base.function_id;
+
+    // Evict any other stored function that conflicts with the incoming one — it
+    // binds a shared physical axis or drives the same controller output axis.
+    // A physical axis / output channel belongs to one function at a time, so the
+    // new config supersedes the old (e.g. a stale flight-pedals function left
+    // over after switching to an automotive profile). The matching function_id
+    // is left alone; the insert below replaces it.
+    for (auto it = _function_lut.begin(); it != _function_lut.end();) {
+        if (it->first != fid && functions_conflict(it->second, new_config.base)) {
+            LogOutput::printf("ConfigManager: evicting function %d (axis/output conflict with function %d)",
+                              int(it->first), int(fid));
+            _aux_function_lut.erase(it->first);
+            it = _function_lut.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
     _function_lut[new_config.base.function_id] = new_config.base;
     if (new_config.has_aux_function) {
         if (_get_aux_function_callback) {
@@ -288,9 +354,19 @@ void ConfigManager::update_lookup_tables(const FunctionConfig &new_config) {
 }
 
 float ConfigManager::calc_force_conversion_factor(float &x_contact_point) {
-    return calc_poly(x_contact_point, _axis_config.kinematic_parameters.coeffs_force_factor_over_contact_point_pos, sizeof(KinematicParameters::coeffs_force_factor_over_contact_point_pos) / sizeof(KinematicParameters::coeffs_force_factor_over_contact_point_pos[0]));
+    if (_kinematic_use_double_fallback) {
+        return calc_poly_d(x_contact_point,
+                         _axis_config.kinematic_parameters.coeffs_force_factor_over_contact_point_pos,
+                         KINEMATIC_POLY_DEGREE);
+    }
+    return horner5_f(x_contact_point, _coeffs_force_factor_f);
 }
 
 float ConfigManager::calc_sled_position(float &x_contact_point) {
-    return calc_poly(x_contact_point, _axis_config.kinematic_parameters.coeffs_sled_pos_over_contact_point_pos, sizeof(KinematicParameters::coeffs_sled_pos_over_contact_point_pos) / sizeof(KinematicParameters::coeffs_sled_pos_over_contact_point_pos[0]));
+    if (_kinematic_use_double_fallback) {
+        return calc_poly_d(x_contact_point,
+                         _axis_config.kinematic_parameters.coeffs_sled_pos_over_contact_point_pos,
+                         KINEMATIC_POLY_DEGREE);
+    }
+    return horner5_f(x_contact_point, _coeffs_sled_pos_f);
 }

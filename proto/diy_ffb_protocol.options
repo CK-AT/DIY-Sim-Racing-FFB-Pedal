@@ -65,10 +65,11 @@ CustomVibrationEffectConfig.*               int_size:IS_8
 
 AutomotivePedalConfig.*                     int_size:IS_8
 
-FlightPedalsConfig.pos_*                    int_size:IS_16
-FlightStickPitchConfig.pos_*               int_size:IS_16
-FlightStickRollConfig.pos_*                int_size:IS_16
-FlightStickCollectiveConfig.pos_*          int_size:IS_16
+FlightControlConfig.pos_*                   int_size:IS_16
+FlightControlConfig.vib_harmonic_ratios     max_count:5 fixed_count:false
+FlightControlConfig.vib2_harmonic_ratios    max_count:5 fixed_count:false
+FlightFfbAction.vib_amp_slot*               int_size:IS_8
+FlightFfbAction.vib2_amp_slot*              int_size:IS_8
 
 AxisAction.*                                int_size:IS_8
 

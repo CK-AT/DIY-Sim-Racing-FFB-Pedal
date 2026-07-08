@@ -46,6 +46,11 @@ XPLMDataRef DFFB_DR_prop_ratio = NULL;
 XPLMDataRef DFFB_DR_l_aero = NULL;
 XPLMDataRef DFFB_DR_m_aero = NULL;
 XPLMDataRef DFFB_DR_n_aero = NULL;
+XPLMDataRef DFFB_DR_cyclic_elev_blad_alph = NULL;
+XPLMDataRef DFFB_DR_cyclic_ailn_blad_alph = NULL;
+XPLMDataRef DFFB_DR_rotor_blade_slap_rat = NULL;
+XPLMDataRef DFFB_DR_vortex_ring_state = NULL;
+XPLMDataRef DFFB_DR_propwash_mtr_sec = NULL;
 
 WSADATA wsaData;
 SOCKET sendSocket = INVALID_SOCKET;
@@ -92,11 +97,17 @@ struct FfbDataPacket {
     float n_aero;
     uint8_t on_ground;
     uint8_t reserved[3];
+    // v4: rotor vibration signals
+    float cyclic_elev_blad_alph[kMaxRotors];
+    float cyclic_ailn_blad_alph[kMaxRotors];
+    float rotor_blade_slap_rat[kMaxRotors];
+    float vortex_ring_state[kMaxRotors];     // element [0] per rotor from float[16][10]
+    float propwash_mtr_sec[kMaxRotors];
 };
 #pragma pack(pop)
 
 static const uint32_t kPacketMagic = 0x46464244; // "DFFB"
-static const uint16_t kPacketVersion = 3;
+static const uint16_t kPacketVersion = 4;
 static const char* kUdpConfigFile = "DiyFfbDataProvider.cfg";
 static uint32_t g_udp_sequence = 0;
 
@@ -138,7 +149,11 @@ PLUGIN_API int XPluginStart(
     DFFB_DR_l_aero = XPLMFindDataRef("sim/flightmodel/forces/L_aero");
     DFFB_DR_m_aero = XPLMFindDataRef("sim/flightmodel/forces/M_aero");
     DFFB_DR_n_aero = XPLMFindDataRef("sim/flightmodel/forces/N_aero");
-    
+    DFFB_DR_cyclic_elev_blad_alph = XPLMFindDataRef("sim/flightmodel/cyclic/cyclic_elev_blad_alph");
+    DFFB_DR_cyclic_ailn_blad_alph = XPLMFindDataRef("sim/flightmodel/cyclic/cyclic_ailn_blad_alph");
+    DFFB_DR_rotor_blade_slap_rat = XPLMFindDataRef("sim/flightmodel2/engines/rotor_blade_slap_rat");
+    DFFB_DR_vortex_ring_state = XPLMFindDataRef("sim/flightmodel/engine/vortex_ring_state");
+    DFFB_DR_propwash_mtr_sec = XPLMFindDataRef("sim/flightmodel2/engines/propwash_mtr_sec");
 
 	DFFB_LoadConfig();
 
@@ -265,6 +280,40 @@ void DFFB_CalculateMotionData(void)
     packet.m_aero = DFFB_DR_m_aero ? XPLMGetDataf(DFFB_DR_m_aero) : 0.0f;
     packet.n_aero = DFFB_DR_n_aero ? XPLMGetDataf(DFFB_DR_n_aero) : 0.0f;
 	packet.on_ground = DFFB_DR_on_ground ? (XPLMGetDatai(DFFB_DR_on_ground) != 0) : 0;
+
+    // v4: rotor vibration datarefs
+    if (DFFB_DR_cyclic_elev_blad_alph) {
+        int count = XPLMGetDatavf(DFFB_DR_cyclic_elev_blad_alph, packet.cyclic_elev_blad_alph, 0, kMaxRotors);
+        for (int idx = count; idx < kMaxRotors; ++idx) packet.cyclic_elev_blad_alph[idx] = 0.0f;
+    } else {
+        memset(packet.cyclic_elev_blad_alph, 0, sizeof(packet.cyclic_elev_blad_alph));
+    }
+    if (DFFB_DR_cyclic_ailn_blad_alph) {
+        int count = XPLMGetDatavf(DFFB_DR_cyclic_ailn_blad_alph, packet.cyclic_ailn_blad_alph, 0, kMaxRotors);
+        for (int idx = count; idx < kMaxRotors; ++idx) packet.cyclic_ailn_blad_alph[idx] = 0.0f;
+    } else {
+        memset(packet.cyclic_ailn_blad_alph, 0, sizeof(packet.cyclic_ailn_blad_alph));
+    }
+    if (DFFB_DR_rotor_blade_slap_rat) {
+        int count = XPLMGetDatavf(DFFB_DR_rotor_blade_slap_rat, packet.rotor_blade_slap_rat, 0, kMaxRotors);
+        for (int idx = count; idx < kMaxRotors; ++idx) packet.rotor_blade_slap_rat[idx] = 0.0f;
+    } else {
+        memset(packet.rotor_blade_slap_rat, 0, sizeof(packet.rotor_blade_slap_rat));
+    }
+    // VRS is float[16][10] — we need element [0] for each rotor (stride 10)
+    if (DFFB_DR_vortex_ring_state) {
+        for (int idx = 0; idx < kMaxRotors; ++idx) {
+            XPLMGetDatavf(DFFB_DR_vortex_ring_state, &packet.vortex_ring_state[idx], idx * 10, 1);
+        }
+    } else {
+        memset(packet.vortex_ring_state, 0, sizeof(packet.vortex_ring_state));
+    }
+    if (DFFB_DR_propwash_mtr_sec) {
+        int count = XPLMGetDatavf(DFFB_DR_propwash_mtr_sec, packet.propwash_mtr_sec, 0, kMaxRotors);
+        for (int idx = count; idx < kMaxRotors; ++idx) packet.propwash_mtr_sec[idx] = 0.0f;
+    } else {
+        memset(packet.propwash_mtr_sec, 0, sizeof(packet.propwash_mtr_sec));
+    }
 
 	struct sockaddr_in ClientAddr;
 	int clientAddrSize = (int)sizeof(ClientAddr);

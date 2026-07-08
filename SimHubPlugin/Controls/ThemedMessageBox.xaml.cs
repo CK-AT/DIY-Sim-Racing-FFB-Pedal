@@ -54,6 +54,7 @@ namespace DiyFfb.Controls
             }
             else
             {
+                dialog.Topmost = true;
                 dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             }
 

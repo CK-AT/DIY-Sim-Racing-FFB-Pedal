@@ -1,14 +1,12 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using MahApps.Metro.Controls;
-using DiyFfb.GraphEditor;
+using DiyFfb.Controls;
 
 namespace DiyFfb
 {
@@ -23,99 +21,180 @@ namespace DiyFfb
         private FunctionConfig function_config = new FunctionConfig();
         private Function function;
         private FunctionID current_function_id;
-        private FlightStickPitchConfig pitch_config;
-        private FlightStickRollConfig roll_config;
-        private FlightStickCollectiveConfig collective_config;
+        private FlightControlConfig stick_config;
         private bool is_updating = true;
-        private double latestAxisPosition;
-        private bool hasAxisPosition;
-        private double latestAxisForce;
-        private bool hasAxisForce;
-        private double latestTrimCenter;
-        private bool hasTrimCenter;
+        private bool allowOverrideCreation = false;  // Only true after initial load stabilizes
         private DispatcherTimer xplaneTimer;
         private bool hasAxisRange;
-        private Dictionary<string, FrameworkElement> graphParamControls = new Dictionary<string, FrameworkElement>();
-        private Dictionary<string, Label> graphParamLabels = new Dictionary<string, Label>();
-        private bool isUpdatingGraphParams = false;
         private bool isUpdatingOutputToggle = false;
+        private BadgeHelper _badgeHelper;
+        private GraphParamHelper _graphParamHelper;
+        private TravelDisplayHelper _travelHelper;
 
         public FlightStickConfigControl()
         {
-            pitch_config = GetDefaultPitchConfig();
-            roll_config = GetDefaultRollConfig();
-            collective_config = GetDefaultCollectiveConfig();
+            stick_config = GetDefaultConfig();
             InitializeComponent();
+            _travelHelper = new TravelDisplayHelper(
+                Canvas_travel_markers, Rect_axis_position, Rect_trim_center,
+                Rangeslider_travel_range,
+                () => (double)stick_config.PosMin, () => (double)stick_config.PosMax);
+            Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
         }
 
         public void SetGui(DiyFfbPluginUI ui, DiyFfbPlugin plugin)
         {
             this.ui = ui;
             this.plugin = plugin;
+            _badgeHelper = new BadgeHelper(this, () => this.plugin, () => function, OnBadgeOverrideCleared);
+            _graphParamHelper = new GraphParamHelper(
+                GraphParamsPanel,
+                () => this.plugin,
+                () =>
+                {
+                    switch (current_function_id)
+                    {
+                        case FunctionID.FlightStickPitch: return "FlightStickPitch";
+                        case FunctionID.FlightStickRoll: return "FlightStickRoll";
+                        case FunctionID.FlightStickCollective: return "FlightStickCollective";
+                        default: return "";
+                    }
+                },
+                "FlightStick",
+                Dispatcher);
 
             if (plugin != null)
             {
-                plugin.ActiveGraphChanged += OnActiveGraphChanged;
-                plugin.GraphParamChanged += OnGraphParamChanged;
+                _graphParamHelper.Subscribe();
+
+                if (IsLoaded)
+                {
+                    _badgeHelper.Subscribe();
+                    plugin.FlightSafetyDamperChanged += OnSafetyDamperChanged;
+                }
             }
 
             is_updating = false;
             StartXPlaneTimer();
-            RefreshGraphParams();
+            _graphParamHelper.Refresh();
         }
 
-        private void OnActiveGraphChanged(object sender, EventArgs e)
+        private void OnSafetyDamperChanged(bool engaged)
         {
-            Dispatcher.Invoke(RefreshGraphParams);
+            if (Toggle_safety_damper == null) return;
+            Dispatcher.BeginInvoke(new Action(() => {
+                isUpdatingOutputToggle = true;
+                Toggle_safety_damper.IsChecked = engaged;
+                isUpdatingOutputToggle = false;
+            }));
         }
 
-        private void OnGraphParamChanged(object sender, GraphParamChangedEventArgs e)
+        private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            if (isUpdatingGraphParams)
+            _badgeHelper?.Subscribe();
+            if (plugin != null)
             {
-                return;
+                // Re-subscribe on every Load — WPF's TabControl unloads tab content on
+                // switch, so without this the handler dies after the first tab change
+                // and the safety toggle stops reflecting external triggers.
+                plugin.FlightSafetyDamperChanged += OnSafetyDamperChanged;
             }
-
-            // Update label for changed parameter
-            Dispatcher.Invoke(() =>
-            {
-                isUpdatingGraphParams = true;
-                try
-                {
-                    if (graphParamLabels.TryGetValue(e.ParamName, out var label))
-                    {
-                        var allParams = plugin?.GetActiveGraphParams();
-                        if (allParams != null && allParams.TryGetValue(e.ParamName, out var param))
-                        {
-                            label.Content = FormatParamLabel(param, e.Value);
-                        }
-                    }
-
-                    // Also update the control value if it exists
-                    if (graphParamControls.TryGetValue(e.ParamName, out var control))
-                    {
-                        if (control is Slider slider)
-                        {
-                            slider.Value = e.Value;
-                        }
-                        else if (control is TextBox textBox)
-                        {
-                            int precision = 3;
-                            var allParams = plugin?.GetActiveGraphParams();
-                            if (allParams != null && allParams.TryGetValue(e.ParamName, out var param))
-                            {
-                                precision = param.Ui?.Precision ?? 3;
-                            }
-                            textBox.Text = e.Value.ToString($"F{precision}");
-                        }
-                    }
-                }
-                finally
-                {
-                    isUpdatingGraphParams = false;
-                }
-            });
+            // Catch up on any state changes that happened while we were unloaded.
+            UpdateDisableOutputsToggle();
         }
+
+        private void OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            _badgeHelper?.Unsubscribe();
+            if (plugin != null)
+                plugin.FlightSafetyDamperChanged -= OnSafetyDamperChanged;
+        }
+
+        private void OnBadgeOverrideCleared(object sender, LayerBadgeWrapper.OverrideClearedEventArgs e)
+        {
+            // When an override is cleared, update the slider to show the baseline value
+            if (plugin == null || function == null)
+                return;
+
+            // Get the merged config (now without the cleared override)
+            var mergedConfig = plugin.FunctionConfigManager.GetCurrentConfig((int)function.ID);
+            if (mergedConfig == null)
+                return;
+
+            // Update function_config and UI based on which field was cleared
+            bool deferUnlock = false;
+            is_updating = true;
+            try
+            {
+                switch (e.FieldPath)
+                {
+                    case "simulated_mass":
+                        function_config.SimulatedMass = mergedConfig.SimulatedMass;
+                        Slider_simulated_mass.Value = mergedConfig.SimulatedMass;
+                        label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", mergedConfig.SimulatedMass);
+                        break;
+
+                    case "flight_control.motion_range":
+                        var mergedStick = mergedConfig.FlightControl;
+                        if (mergedStick != null)
+                        {
+                            stick_config.PosMin = mergedStick.PosMin;
+                            stick_config.PosMax = mergedStick.PosMax;
+                            if (Rangeslider_travel_range != null)
+                            {
+                                Rangeslider_travel_range.LowerValue = stick_config.PosMin;
+                                Rangeslider_travel_range.UpperValue = stick_config.PosMax;
+                            }
+                            deferUnlock = true;
+                        }
+                        TieredConfig.FlightControlProcessor.ReconcileDerivedFields(function_config);
+                        if (Label_min_pos != null)
+                            Label_min_pos.Content = String.Format("Min\n{0}mm", stick_config.PosMin);
+                        if (Label_max_pos != null)
+                            Label_max_pos.Content = String.Format("Max\n{0}mm", stick_config.PosMax);
+                        _travelHelper?.UpdateTravelMarkers();
+                        break;
+
+                    case "flight_control.damping":
+                        if (mergedConfig.FlightControl != null)
+                        {
+                            stick_config.Damping = mergedConfig.FlightControl.Damping;
+                            Slider_damping.Value = mergedConfig.FlightControl.Damping;
+                            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", mergedConfig.FlightControl.Damping);
+                        }
+                        break;
+
+                    case "flight_control.centering_spring_const":
+                        if (mergedConfig.FlightControl != null)
+                        {
+                            stick_config.CenteringSpringConst = mergedConfig.FlightControl.CenteringSpringConst;
+                            Slider_centering_spring_const.Value = mergedConfig.FlightControl.CenteringSpringConst;
+                            label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", mergedConfig.FlightControl.CenteringSpringConst);
+                        }
+                        break;
+
+                    case "friction":
+                        function_config.Friction = mergedConfig.Friction;
+                        Slider_friction.Value = mergedConfig.Friction;
+                        label_friction.Content = String.Format("Friction: {0:F1}N", mergedConfig.Friction);
+                        break;
+                }
+            }
+            finally
+            {
+                if (deferUnlock)
+                {
+                    Dispatcher.BeginInvoke(new Action(() => is_updating = false),
+                        System.Windows.Threading.DispatcherPriority.ContextIdle);
+                }
+                else
+                {
+                    is_updating = false;
+                }
+            }
+        }
+
 
         private void StartXPlaneTimer()
         {
@@ -134,226 +213,50 @@ namespace DiyFfb
 
         public void OnKinematicParametersChanged(KinematicParameters parameters)
         {
+            if (!KinematicBoundsHelper.TryGetTravelBounds(parameters, out double boundsMin, out double boundsMax))
+                return;
+
             hasAxisRange = true;
-            double min = parameters.ContactPointPosMinAbs / 10.0f;
-            double max = parameters.ContactPointPosMaxAbs / 10.0f;
-            Rangeslider_travel_range.Minimum = Math.Min(min, max);
-            Rangeslider_travel_range.Maximum = Math.Max(min, max);
+
+            bool wasUpdating = is_updating;
+            if (!wasUpdating) is_updating = true;
+
+            KinematicBoundsHelper.ApplyBoundsToSlider(
+                Rangeslider_travel_range, boundsMin, boundsMax,
+                stick_config.PosMin, stick_config.PosMax);
+
+            if (!wasUpdating)
+            {
+                Dispatcher.BeginInvoke(new Action(() => is_updating = false),
+                    System.Windows.Threading.DispatcherPriority.ContextIdle);
+            }
         }
 
         public void OnAxisStateUpdate(global::AxisState axis_state)
         {
-            if (function_config?.Base == null || function_config.Base.LinkedAxes.Count == 0)
+            if (_travelHelper != null && _travelHelper.TryUpdateAxisState(function_config, axis_state))
             {
-                return;
+                _travelHelper.UpdateTrimCenter(plugin, current_function_id);
+                _travelHelper.UpdateTravelMarkers();
             }
+        }
 
-            AxisID primaryAxis = function_config.Base.LinkedAxes[0];
-            if (primaryAxis == AxisID.AxisUndefined || (primaryAxis & AxisID.Mask) != axis_state.AxisId)
+        public static FlightControlConfig GetDefaultConfig()
+        {
+            return new FlightControlConfig
             {
-                return;
-            }
-
-            latestAxisPosition = axis_state.Position;
-            hasAxisPosition = true;
-            latestAxisForce = axis_state.Force;
-            hasAxisForce = true;
-            UpdateTrimCenter();
-            UpdateTravelMarkers();
-        }
-
-        public static FlightStickPitchConfig GetDefaultPitchConfig()
-        {
-            FlightStickPitchConfig new_config = new FlightStickPitchConfig();
-            new_config.PosMin = -50;
-            new_config.PosMax = 50;
-            new_config.Damping = 0.5f;
-            new_config.CenteringSpringConst = 1.5f;
-            return new_config;
-        }
-
-        public static FlightStickRollConfig GetDefaultRollConfig()
-        {
-            FlightStickRollConfig new_config = new FlightStickRollConfig();
-            new_config.PosMin = -50;
-            new_config.PosMax = 50;
-            new_config.Damping = 0.5f;
-            new_config.CenteringSpringConst = 1.5f;
-            return new_config;
-        }
-
-        public static FlightStickCollectiveConfig GetDefaultCollectiveConfig()
-        {
-            FlightStickCollectiveConfig new_config = new FlightStickCollectiveConfig();
-            new_config.PosMin = -50;
-            new_config.PosMax = 50;
-            new_config.Damping = 0.5f;
-            new_config.CenteringSpringConst = 1.5f;
-            return new_config;
-        }
-
-        private enum FlightStickMode
-        {
-            Pitch,
-            Roll,
-            Collective
-        }
-
-        private FlightStickMode GetMode()
-        {
-            switch (current_function_id)
-            {
-                case FunctionID.FlightStickRoll:
-                    return FlightStickMode.Roll;
-                case FunctionID.FlightStickCollective:
-                    return FlightStickMode.Collective;
-                default:
-                    return FlightStickMode.Pitch;
-            }
+                PosMin = -50,
+                PosMax = 50,
+                Damping = 0.5f,
+                CenteringSpringConst = 1.5f
+            };
         }
 
         private void EnsureConfigInitialized()
         {
-            switch (GetMode())
-            {
-                case FlightStickMode.Roll:
-                    if (function_config.FlightStickRoll == null)
-                    {
-                        function_config.FlightStickRoll = GetDefaultRollConfig();
-                    }
-                    roll_config = function_config.FlightStickRoll;
-                    break;
-                case FlightStickMode.Collective:
-                    if (function_config.FlightStickCollective == null)
-                    {
-                        function_config.FlightStickCollective = GetDefaultCollectiveConfig();
-                    }
-                    collective_config = function_config.FlightStickCollective;
-                    break;
-                default:
-                    if (function_config.FlightStickPitch == null)
-                    {
-                        function_config.FlightStickPitch = GetDefaultPitchConfig();
-                    }
-                    pitch_config = function_config.FlightStickPitch;
-                    break;
-            }
-        }
-
-        private int GetPosMin()
-        {
-            switch (GetMode())
-            {
-                case FlightStickMode.Roll:
-                    return roll_config.PosMin;
-                case FlightStickMode.Collective:
-                    return collective_config.PosMin;
-                default:
-                    return pitch_config.PosMin;
-            }
-        }
-
-        private int GetPosMax()
-        {
-            switch (GetMode())
-            {
-                case FlightStickMode.Roll:
-                    return roll_config.PosMax;
-                case FlightStickMode.Collective:
-                    return collective_config.PosMax;
-                default:
-                    return pitch_config.PosMax;
-            }
-        }
-
-        private void SetPosMin(int value)
-        {
-            switch (GetMode())
-            {
-                case FlightStickMode.Roll:
-                    roll_config.PosMin = value;
-                    break;
-                case FlightStickMode.Collective:
-                    collective_config.PosMin = value;
-                    break;
-                default:
-                    pitch_config.PosMin = value;
-                    break;
-            }
-        }
-
-        private void SetPosMax(int value)
-        {
-            switch (GetMode())
-            {
-                case FlightStickMode.Roll:
-                    roll_config.PosMax = value;
-                    break;
-                case FlightStickMode.Collective:
-                    collective_config.PosMax = value;
-                    break;
-                default:
-                    pitch_config.PosMax = value;
-                    break;
-            }
-        }
-
-        private float GetDamping()
-        {
-            switch (GetMode())
-            {
-                case FlightStickMode.Roll:
-                    return roll_config.Damping;
-                case FlightStickMode.Collective:
-                    return collective_config.Damping;
-                default:
-                    return pitch_config.Damping;
-            }
-        }
-
-        private float GetCenteringSpringConst()
-        {
-            switch (GetMode())
-            {
-                case FlightStickMode.Roll:
-                    return roll_config.CenteringSpringConst;
-                case FlightStickMode.Collective:
-                    return collective_config.CenteringSpringConst;
-                default:
-                    return pitch_config.CenteringSpringConst;
-            }
-        }
-
-        private void SetDamping(float value)
-        {
-            switch (GetMode())
-            {
-                case FlightStickMode.Roll:
-                    roll_config.Damping = value;
-                    break;
-                case FlightStickMode.Collective:
-                    collective_config.Damping = value;
-                    break;
-                default:
-                    pitch_config.Damping = value;
-                    break;
-            }
-        }
-
-        private void SetCenteringSpringConst(float value)
-        {
-            switch (GetMode())
-            {
-                case FlightStickMode.Roll:
-                    roll_config.CenteringSpringConst = value;
-                    break;
-                case FlightStickMode.Collective:
-                    collective_config.CenteringSpringConst = value;
-                    break;
-                default:
-                    pitch_config.CenteringSpringConst = value;
-                    break;
-            }
+            if (function_config.FlightControl == null)
+                function_config.FlightControl = GetDefaultConfig();
+            stick_config = function_config.FlightControl;
         }
 
         public void SwitchFunction(Function function)
@@ -363,15 +266,18 @@ namespace DiyFfb
             current_function_id = function_config.Base.FunctionId;
             EnsureConfigInitialized();
             hasAxisRange = false;
+            allowOverrideCreation = false;  // Reset until function switch stabilizes
+
+            var linkedAxis = function_config.Base.LinkedAxes[0];
 
             is_updating = true;
             function_config.Base.OutputMode = OutputMode.Travel;
-            uc_axis_selector_stick.Value = function_config.Base.LinkedAxes[0];
+            uc_axis_selector_stick.Value = linkedAxis;
             uc_controller_axis_stick.Value = function_config.Base.ControllerOutputAxis;
 
-            if (function_config.Base.LinkedAxes[0] != AxisID.AxisUndefined)
+            if (linkedAxis != AxisID.AxisUndefined)
             {
-                var kinematic_parameters = ui.GetKinematicParameters(function_config.Base.LinkedAxes[0]);
+                var kinematic_parameters = ui.GetKinematicParameters(linkedAxis);
                 if (kinematic_parameters != null)
                 {
                     OnKinematicParametersChanged(kinematic_parameters);
@@ -384,18 +290,29 @@ namespace DiyFfb
 
             Slider_simulated_mass.Value = function_config.SimulatedMass;
             Slider_friction.Value = function_config.Friction;
-            Slider_centering_spring_const.Value = GetCenteringSpringConst();
-            Slider_damping.Value = GetDamping();
+            var sub = stick_config;
+            Slider_centering_spring_const.Value = sub.CenteringSpringConst;
+            Slider_damping.Value = sub.Damping;
 
-            Rangeslider_travel_range.LowerValue = GetPosMin();
-            function_config.Base.OutputMin = GetPosMin();
-            Rangeslider_travel_range.UpperValue = GetPosMax();
-            function_config.Base.OutputMax = GetPosMax();
-            UpdateTrimCenter();
-            UpdateTravelMarkers();
+            Rangeslider_travel_range.LowerValue = sub.PosMin;
+            Rangeslider_travel_range.UpperValue = sub.PosMax;
+            TieredConfig.FlightControlProcessor.ReconcileDerivedFields(function_config);
+            _travelHelper?.UpdateTrimCenter(plugin, current_function_id);
+            _travelHelper?.UpdateTravelMarkers();
             is_updating = false;
-            RefreshGraphParams();
+
+            // Update labels with merged config values (event handlers were blocked by is_updating flag)
+            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", function_config.SimulatedMass);
+            label_friction.Content = String.Format("Friction: {0:F1}N", function_config.Friction);
+            label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", sub.CenteringSpringConst);
+            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", sub.Damping);
+            _graphParamHelper?.Refresh();
             UpdateDisableOutputsToggle();
+            _badgeHelper?.InitializeBadges();
+
+            // Allow override creation only after all deferred events have been processed
+            Dispatcher.BeginInvoke(new Action(() => allowOverrideCreation = true),
+                System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
         private void OnAxisIDChanged(object sender, AxisSelector.AxisIDChangedEventArgs e)
@@ -415,234 +332,176 @@ namespace DiyFfb
                     ApplyFallbackTravelRange();
                 }
                 function?.OnAxisUpdate();
+                PersistAxisConfigToBaseline();
             }
+        }
+
+        // LinkedAxes (physical axis binding) and OutputMode live in the Baseline
+        // layer with no override-registry entry, so changing them must update the
+        // baseline and re-upload — otherwise the merge re-applies the baseline's
+        // old axes and the selection is silently discarded.
+        private void PersistAxisConfigToBaseline()
+        {
+            if (!allowOverrideCreation || plugin == null || function == null ||
+                !plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+                return;
+
+            plugin.ConfigOrchestrator.UpdateFunctionBaseline((int)function.ID, baseline =>
+            {
+                baseline.Base.OutputMode = function_config.Base.OutputMode;
+                baseline.Base.LinkedAxes.Clear();
+                baseline.Base.LinkedAxes.AddRange(function_config.Base.LinkedAxes);
+            });
         }
 
         private void uc_controller_axis_stick_ControllerAxisChanged(object sender, ControllerAxisSelector.ControllerAxisChangedEventArgs e)
         {
             function_config.Base.ControllerOutputAxis = e.Value;
+
+            // The HID controller-output-axis lives in the Baseline layer, not the
+            // override system, so persist it to the baseline and re-upload — otherwise
+            // the merged config keeps the baseline's axis and the selection is lost.
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+            {
+                var axis = e.Value;
+                plugin.ConfigOrchestrator.UpdateFunctionBaseline((int)function.ID,
+                    baseline => baseline.Base.ControllerOutputAxis = axis);
+            }
         }
 
         private void Rangeslider_travel_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
         {
             if (!is_updating)
             {
-                SetPosMin(Convert.ToInt16(e.NewValue));
-                function_config.Base.OutputMin = Convert.ToInt16(e.NewValue);
+                var newValue = Convert.ToInt16(e.NewValue);
+
+                // Skip stale deferred events - if newValue doesn't match slider's current value, ignore
+                if (Rangeslider_travel_range != null && Convert.ToInt16(Rangeslider_travel_range.LowerValue) != newValue)
+                    return;
+
+                var activeSub = stick_config;
+                var oldValue = activeSub.PosMin;
+
+                activeSub.PosMin = newValue;
+                TieredConfig.FlightControlProcessor.ReconcileDerivedFields(function_config);
+
+                // Create override for badge system (only after init stabilizes, baseline exists, AND value changed)
+                if (allowOverrideCreation && newValue != oldValue && plugin != null && function != null && plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+                {
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_control.motion_range",
+                        overrides =>
+                        {
+                            if (overrides.FlightControlMotionRange == null)
+                                overrides.FlightControlMotionRange = new TieredConfig.MotionRangeOverrides();
+                            overrides.FlightControlMotionRange.Min = newValue;
+                        });
+                }
             }
             if (Label_min_pos != null)
             {
-                Label_min_pos.Content = String.Format("Min\n{0}mm", GetPosMin());
+                Label_min_pos.Content = String.Format("Min\n{0}mm", stick_config.PosMin);
             }
-            UpdateTravelMarkers();
+            _travelHelper?.UpdateTravelMarkers();
         }
 
         private void Rangeslider_travel_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
         {
             if (!is_updating)
             {
-                SetPosMax(Convert.ToInt16(e.NewValue));
-                function_config.Base.OutputMax = Convert.ToInt16(e.NewValue);
+                var newValue = Convert.ToInt16(e.NewValue);
+
+                // Skip stale deferred events - if newValue doesn't match slider's current value, ignore
+                if (Rangeslider_travel_range != null && Convert.ToInt16(Rangeslider_travel_range.UpperValue) != newValue)
+                    return;
+
+                var activeSub = stick_config;
+                var oldValue = activeSub.PosMax;
+
+                activeSub.PosMax = newValue;
+                TieredConfig.FlightControlProcessor.ReconcileDerivedFields(function_config);
+
+                // Create override for badge system (only after init stabilizes, baseline exists, AND value changed)
+                if (allowOverrideCreation && newValue != oldValue && plugin != null && function != null && plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+                {
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_control.motion_range",
+                        overrides =>
+                        {
+                            if (overrides.FlightControlMotionRange == null)
+                                overrides.FlightControlMotionRange = new TieredConfig.MotionRangeOverrides();
+                            overrides.FlightControlMotionRange.Max = newValue;
+                        });
+                }
             }
             if (Label_max_pos != null)
             {
-                Label_max_pos.Content = String.Format("Max\n{0}mm", GetPosMax());
+                Label_max_pos.Content = String.Format("Max\n{0}mm", stick_config.PosMax);
             }
-            UpdateTravelMarkers();
+            _travelHelper?.UpdateTravelMarkers();
         }
 
         private void OnDampingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            SetDamping((float)e.NewValue);
-            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", e.NewValue);
+            if (is_updating) return;
+            var newValue = (float)e.NewValue;
+            stick_config.Damping = newValue;
+            label_damping.Content = String.Format("Damping: {0:F3}N*mm/s", newValue);
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_control.damping",
+                    overrides => overrides.FlightControlDamping = newValue);
+            }
         }
 
         private void OnCentringSpringChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            SetCenteringSpringConst((float)e.NewValue);
-            label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", e.NewValue);
+            if (is_updating) return;
+            var newValue = (float)e.NewValue;
+            stick_config.CenteringSpringConst = newValue;
+            label_centering_spring_const.Content = String.Format("Centering Spring Constant: {0:F2}N/mm", newValue);
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "flight_control.centering_spring_const",
+                    overrides => overrides.FlightControlCenteringSpringConst = newValue);
+            }
         }
 
         private void OnFrictionChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            label_friction.Content = String.Format("Friction: {0:F1}N", e.NewValue);
-            function_config.Friction = (float)e.NewValue;
+            if (is_updating) return;
+            var newValue = (float)e.NewValue;
+            label_friction.Content = String.Format("Friction: {0:F1}N", newValue);
+            function_config.Friction = newValue;
+
+            if (plugin != null && function != null &&
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "friction",
+                    overrides => overrides.Friction = newValue);
+            }
         }
 
         private void OnSimulatedMassChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", e.NewValue);
-            function_config.SimulatedMass = (float)e.NewValue;
-        }
+            if (is_updating) return;
 
-        private void RefreshGraphParams()
-        {
-            try
+            var newValue = (float)e.NewValue;
+
+            // Update label immediately for user feedback
+            label_simulated_mass.Content = String.Format("Simulated Mass: {0:F2}kg", newValue);
+
+            // Update function config
+            function_config.SimulatedMass = newValue;
+
+            // Create override for badge system (only if baseline exists to avoid config corruption)
+            if (plugin != null && function != null && plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
             {
-                GraphParamsPanel.Children.Clear();
-                graphParamControls.Clear();
-                graphParamLabels.Clear();
-
-                if (plugin == null)
-                {
-                    return;
-                }
-
-                var allParams = plugin.GetActiveGraphParams();
-                if (allParams == null || allParams.Count == 0)
-                {
-                    return;
-                }
-
-                // Filter by function group
-                string groupFilter = GetGraphParamGroupFilter();
-                var orderedNames = plugin.GetActiveGraphParamOrder();
-                var filteredParams = allParams.Values
-                    .Where(p => MatchesGroup(p.Ui?.Group, groupFilter))
-                    .ToList();
-                var orderedParams = OrderParamsByGraph(orderedNames, filteredParams);
-
-                foreach (var param in orderedParams)
-                {
-                    double currentValue = plugin.GetGraphParamValue(param.Name);
-
-                    var panel = new StackPanel
-                    {
-                        Width = 400,
-                        Height = 40,
-                        Orientation = Orientation.Vertical,
-                        Background = null
-                    };
-
-                    var label = new Label
-                    {
-                        Foreground = Brushes.White,
-                        FontSize = 10,
-                        FontFamily = new FontFamily("Arial"),
-                        HorizontalAlignment = HorizontalAlignment.Left,
-                        VerticalAlignment = VerticalAlignment.Top,
-                        Content = FormatParamLabel(param, currentValue),
-                        Padding = new Thickness(0, 0, 0, 8)
-                    };
-
-                    var control = GraphParamControlBuilder.BuildControl(
-                        param,
-                        value =>
-                        {
-                            if (!isUpdatingGraphParams)
-                            {
-                                try
-                                {
-                                    isUpdatingGraphParams = true;
-                                    plugin.SetGraphParamValue(param.Name, value);
-                                    // Update label to show new value
-                                    if (graphParamLabels.TryGetValue(param.Name, out var lbl))
-                                    {
-                                        lbl.Content = FormatParamLabel(param, value);
-                                    }
-                                }
-                                finally
-                                {
-                                    isUpdatingGraphParams = false;
-                                }
-                            }
-                        },
-                        width: 400,
-                        initialValue: currentValue
-                    );
-
-                    panel.Children.Add(label);
-                    panel.Children.Add(control);
-                    GraphParamsPanel.Children.Add(panel);
-                    graphParamControls[param.Name] = control;
-                    graphParamLabels[param.Name] = label;
-                }
-            }
-            catch (Exception ex)
-            {
-                SimHub.Logging.Current.Error($"[FlightStick] RefreshGraphParams failed: {ex.Message}", ex);
-            }
-        }
-
-        private static List<GraphParam> OrderParamsByGraph(IReadOnlyList<string> orderedNames, IEnumerable<GraphParam> parameters)
-        {
-            var map = new Dictionary<string, GraphParam>(StringComparer.OrdinalIgnoreCase);
-            foreach (var param in parameters)
-            {
-                if (!string.IsNullOrWhiteSpace(param?.Name))
-                {
-                    map[param.Name] = param;
-                }
-            }
-
-            var ordered = new List<GraphParam>();
-            if (orderedNames != null)
-            {
-                foreach (var name in orderedNames)
-                {
-                    if (map.TryGetValue(name, out var param))
-                    {
-                        ordered.Add(param);
-                        map.Remove(name);
-                    }
-                }
-            }
-
-            ordered.AddRange(map.Values.OrderBy(p => p.Ui?.Label ?? p.Name));
-            return ordered;
-        }
-
-        private string FormatParamLabel(GraphParam param, double currentValue)
-        {
-            string label = param.Ui?.Label ?? param.Name;
-
-            // Format value with appropriate precision
-            int precision = param.Ui?.Precision ?? 3;
-            string valueStr = currentValue.ToString($"F{precision}");
-
-            // Build label as: <name>: <value><unit>
-            if (!string.IsNullOrWhiteSpace(param.Ui?.Units))
-            {
-                return $"{label}: {valueStr}{param.Ui.Units}";
-            }
-            else
-            {
-                return $"{label}: {valueStr}";
-            }
-        }
-
-        private string GetGraphParamGroupFilter()
-        {
-            switch (current_function_id)
-            {
-                case FunctionID.FlightStickPitch:
-                    return "FlightStickPitch";
-                case FunctionID.FlightStickRoll:
-                    return "FlightStickRoll";
-                case FunctionID.FlightStickCollective:
-                    return "FlightStickCollective";
-                default:
-                    return "";
-            }
-        }
-
-        private bool MatchesGroup(string paramGroup, string filter)
-        {
-            if (string.IsNullOrWhiteSpace(filter))
-                return false; // No filter = show nothing (avoid clutter)
-            if (string.IsNullOrWhiteSpace(paramGroup))
-                return false; // Param has no group = don't show
-            return paramGroup.StartsWith(filter, StringComparison.OrdinalIgnoreCase);
-        }
-
-
-        private void UpdateTrimCenter()
-        {
-            float trimMm = 0.0f;
-            hasTrimCenter = plugin != null && plugin.TryGetGraphTrimOffset(current_function_id, out trimMm);
-            if (hasTrimCenter)
-            {
-                latestTrimCenter = trimMm;
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "simulated_mass",
+                    overrides => overrides.SimulatedMass = newValue);
             }
         }
 
@@ -656,6 +515,8 @@ namespace DiyFfb
             bool disabled = plugin != null && plugin.IsFunctionOutputDisabled(current_function_id);
             isUpdatingOutputToggle = true;
             Toggle_disable_outputs.IsChecked = disabled;
+            if (Toggle_safety_damper != null && plugin != null)
+                Toggle_safety_damper.IsChecked = plugin.IsFlightSafetyDamperEngaged();
             isUpdatingOutputToggle = false;
         }
 
@@ -677,6 +538,18 @@ namespace DiyFfb
             }
 
             plugin?.SetFunctionOutputDisabled(current_function_id, disabled);
+        }
+
+        private void Toggle_safety_damper_Checked(object sender, RoutedEventArgs e)
+        {
+            if (isUpdatingOutputToggle || is_updating) return;
+            plugin?.SetFlightSafetyDamperEngaged(true);
+        }
+
+        private void Toggle_safety_damper_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (isUpdatingOutputToggle || is_updating) return;
+            plugin?.SetFlightSafetyDamperEngaged(false);
         }
 
         private void UpdateXPlaneTelemetry()
@@ -717,46 +590,9 @@ namespace DiyFfb
             Label_Output_Buffet.Content = plugin.GetGraphOutputValue($"{prefix}.BuffetAmplitude").ToString("F2", CultureInfo.InvariantCulture);
         }
 
-        private void UpdateTravelMarkers()
-        {
-            if (Canvas_travel_markers == null || Rect_axis_position == null || Rect_trim_center == null)
-            {
-                return;
-            }
-
-            double width = Canvas_travel_markers.ActualWidth;
-            if (width <= 0.0)
-            {
-                return;
-            }
-
-            double posMin = Rangeslider_travel_range?.LowerValue ?? GetPosMin();
-            double posMax = Rangeslider_travel_range?.UpperValue ?? GetPosMax();
-            double rangeMin = Rangeslider_travel_range?.Minimum ?? GetPosMin();
-            double rangeMax = Rangeslider_travel_range?.Maximum ?? GetPosMax();
-
-            if (hasAxisPosition)
-            {
-                if (Tools.TryComputeMarkerX(latestAxisPosition, posMin, posMax, rangeMin, rangeMax, width, out double posX))
-                {
-                    Canvas.SetLeft(Rect_axis_position, posX - Rect_axis_position.Width / 2.0);
-                }
-            }
-
-            if (hasTrimCenter)
-            {
-                double center = (posMin + posMax) / 2.0;
-                double trimPos = center + latestTrimCenter;
-                if (Tools.TryComputeMarkerX(trimPos, posMin, posMax, rangeMin, rangeMax, width, out double trimX))
-                {
-                    Canvas.SetLeft(Rect_trim_center, trimX - Rect_trim_center.Width / 2.0);
-                }
-            }
-        }
-
         private void Rangeslider_travel_range_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            UpdateTravelMarkers();
+            _travelHelper?.UpdateTravelMarkers();
         }
 
         private void ApplyFallbackTravelRange()
@@ -766,10 +602,10 @@ namespace DiyFfb
                 return;
             }
 
-            double min = Math.Min(GetPosMin(), GetPosMax());
-            double max = Math.Max(GetPosMin(), GetPosMax());
-            Rangeslider_travel_range.Minimum = min;
-            Rangeslider_travel_range.Maximum = max;
+            // Use reasonable fixed limits when axis kinematics not available
+            // Don't use current pos min/max - that would lock the slider to current range!
+            Rangeslider_travel_range.Minimum = -100;
+            Rangeslider_travel_range.Maximum = 100;
         }
     }
 }

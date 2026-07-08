@@ -1,0 +1,466 @@
+{
+  "Version": 4,
+  "IsLibraryGraph": true,
+  "Nodes": [
+    {
+      "Id": "in_precalc",
+      "Title": "Precalc Inputs",
+      "Kind": "Input",
+      "X": 60.0,
+      "Y": 100.0,
+      "Ports": [
+        {
+          "Name": "torque_norm",
+          "Kind": "Output"
+        },
+        {
+          "Name": "assist_loss",
+          "Kind": "Output"
+        },
+        {
+          "Name": "damp_scale",
+          "Kind": "Output"
+        },
+        {
+          "Name": "rpm_norm",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_k_spring",
+      "Kind": "Param",
+      "X": 190.0,
+      "Y": 550.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "SpringGain"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "param_k_damper",
+      "Kind": "Param",
+      "X": 240.0,
+      "Y": 40.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "DamperGain"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "param_k_friction_base",
+      "Kind": "Param",
+      "X": 460.0,
+      "Y": 440.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FrictionBase"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "param_k_friction_torque",
+      "Kind": "Param",
+      "X": 60.0,
+      "Y": 350.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FrictionTorque"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "param_k_friction_lowrpm",
+      "Kind": "Param",
+      "X": 60.0,
+      "Y": 430.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "FrictionLowRpm"
+        }
+      ],
+      "SignalGroup": "FlightPedals"
+    },
+    {
+      "Id": "spring_calc",
+      "Title": "Spring * RPM",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 520.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "damper",
+      "Title": "Damper",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 130.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "fric_torque",
+      "Title": "Fric Torque",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 230.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "fric_lowrpm",
+      "Title": "Fric LowRPM",
+      "Kind": "Op",
+      "X": 500.0,
+      "Y": 330.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "friction",
+      "Title": "Friction",
+      "Kind": "Op",
+      "X": 750.0,
+      "Y": 270.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b+c",
+          "Kind": "Output"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "out_spring",
+      "Kind": "Output",
+      "X": 900.0,
+      "Y": 520.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "SpringGain"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "out_damper",
+      "Kind": "Output",
+      "X": 900.0,
+      "Y": 130.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "DamperGain"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "out_friction",
+      "Kind": "Output",
+      "X": 900.0,
+      "Y": 270.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Friction"
+        }
+      ],
+      "Scoped": true
+    }
+  ],
+  "Links": [
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "spring_calc",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_k_damper",
+      "FromPort": "DamperGain",
+      "ToNodeId": "damper",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "torque_norm",
+      "ToNodeId": "fric_torque",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_k_friction_torque",
+      "FromPort": "FrictionTorque",
+      "ToNodeId": "fric_torque",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "assist_loss",
+      "ToNodeId": "fric_lowrpm",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_k_friction_lowrpm",
+      "FromPort": "FrictionLowRpm",
+      "ToNodeId": "fric_lowrpm",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "fric_torque",
+      "FromPort": "a*b",
+      "ToNodeId": "friction",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "fric_lowrpm",
+      "FromPort": "a*b",
+      "ToNodeId": "friction",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_k_friction_base",
+      "FromPort": "FrictionBase",
+      "ToNodeId": "friction",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "spring_calc",
+      "FromPort": "a*b",
+      "ToNodeId": "out_spring",
+      "ToPort": "SpringGain"
+    },
+    {
+      "FromNodeId": "damper",
+      "FromPort": "a*b",
+      "ToNodeId": "out_damper",
+      "ToPort": "DamperGain"
+    },
+    {
+      "FromNodeId": "friction",
+      "FromPort": "a+b+c",
+      "ToNodeId": "out_friction",
+      "ToPort": "Friction"
+    },
+    {
+      "FromNodeId": "param_k_spring",
+      "FromPort": "SpringGain",
+      "ToNodeId": "spring_calc",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_precalc",
+      "FromPort": "damp_scale",
+      "ToNodeId": "damper",
+      "ToPort": "b"
+    }
+  ],
+  "Params": [
+    {
+      "Name": "Aircraft.Rotor.TorqueNom",
+      "DefaultValue": 1000.0,
+      "Min": 100.0,
+      "Max": 100000.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Nominal Rotor Torque",
+        "Group": "Aircraft",
+        "Units": "Nm",
+        "Step": 10.0,
+        "Precision": 0,
+        "LogScale": true,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.Rotor.SpeedNom",
+      "DefaultValue": 400.0,
+      "Min": 100.0,
+      "Max": 1000.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Nominal Rotor Speed",
+        "Group": "Aircraft",
+        "Units": "RPM",
+        "Step": 1.0,
+        "Precision": 0,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Aircraft.RpmBlend",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 1.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RPM Blend Factor",
+        "Group": "Aircraft",
+        "Units": "ratio",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.SpringGain",
+      "DefaultValue": 1.0,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Spring Gain",
+        "Group": "FlightPedals",
+        "Units": "N/mm @ RPM nom",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.DamperGain",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Damper Gain",
+        "Group": "FlightPedals",
+        "Units": "N*s/mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.FrictionBase",
+      "DefaultValue": 0.1,
+      "Min": 0.0,
+      "Max": 2.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Friction Base",
+        "Group": "FlightPedals",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.FrictionTorque",
+      "DefaultValue": 0.3,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Friction (Torque)",
+        "Group": "FlightPedals",
+        "Units": "N @ trq_ref",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightPedals.FrictionLowRpm",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 5.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Friction (Low RPM)",
+        "Group": "FlightPedals",
+        "Units": "N",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    }
+  ],
+  "ParamValues": null
+}

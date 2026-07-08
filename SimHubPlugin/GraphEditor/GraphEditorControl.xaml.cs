@@ -39,6 +39,9 @@ namespace DiyFfb.GraphEditor
         private string _previewStatusText = "";
         private readonly GraphPreviewEvaluator _previewEvaluator = new GraphPreviewEvaluator();
         private readonly ObservableCollection<PortEditEntry> _portEntries = new ObservableCollection<PortEditEntry>();
+        private readonly ObservableCollection<BusPortEntry> _busPortEntries = new ObservableCollection<BusPortEntry>();
+        private readonly ObservableCollection<MsfsVarPortEntry> _msfsVarPortEntries = new ObservableCollection<MsfsVarPortEntry>();
+        private readonly Dictionary<string, IReadOnlyList<string>> _configFieldOptionsCache = new Dictionary<string, IReadOnlyList<string>>();
         private bool _isPanning;
         private bool _panWasDragged;
         private bool _hasUserPanned;
@@ -77,6 +80,9 @@ namespace DiyFfb.GraphEditor
         private static readonly SolidColorBrush TitleBarOp = new SolidColorBrush(Color.FromRgb(80, 150, 80));          // Green
         private static readonly SolidColorBrush TitleBarFunc = new SolidColorBrush(Color.FromRgb(60, 140, 160));       // Teal
         private static readonly SolidColorBrush TitleBarInclude = new SolidColorBrush(Color.FromRgb(180, 80, 140));    // Magenta
+        private static readonly SolidColorBrush TitleBarLocalSend = new SolidColorBrush(Color.FromRgb(190, 110, 60));   // Burnt-orange (sink, like Output but warmer)
+        private static readonly SolidColorBrush TitleBarLocalReceive = new SolidColorBrush(Color.FromRgb(70, 170, 130));// Mint-green (source on the bus side)
+        private static readonly SolidColorBrush TitleBarMsfsVar = new SolidColorBrush(Color.FromRgb(90, 110, 210));    // Indigo (plan 23: custom MSFS var declarations)
 
         private static readonly FontFamily NodeFontFamily = new FontFamily("Segoe UI");
         private const double TitleFontSize = 11.0;
@@ -92,8 +98,8 @@ namespace DiyFfb.GraphEditor
         private const double ParamControlWidth = 120.0;
         private const int PreviewRefreshThrottleMs = 500;
         private bool _isInspectorUpdating;
-        private readonly string[] _opChoices = { "add", "sub", "mul", "div", "min", "max", "abs", "neg", "clamp", "lerp" };
-        private readonly string[] _funcChoices = { "qhat_eff", "torque_norm", "rpm_norm", "assist_loss", "buffet" };
+        private readonly string[] _opChoices = { "add", "sub", "mul", "div", "min", "max", "abs", "neg", "clamp", "lerp", "select", "eq", "gt", "exp", "sqrt", "pow" };
+        private readonly string[] _funcChoices = { "qhat_eff", "torque_norm", "rpm_norm", "assist_loss", "buffet", "accumulator", "sample_hold", "edge_detect" };
         private readonly string[] _paramWidgetChoices = { "slider", "knob", "checkbox", "enum", "text" };
         private double _curveTension = 0.5;
         private const double HandleSize = 10.0;
@@ -108,6 +114,7 @@ namespace DiyFfb.GraphEditor
         private bool _previewRefreshPending;
 
         public event Action<string, string> IncludeOpenRequested;  // (path, includeNodeId)
+        public event Action<string, string> EmbeddedOpenRequested;  // (embeddedIncludeNodeId, contextId)
         public event Action GraphChanged;
         public event Action<bool> DirtyChanged;
         public event EventHandler<string> ContextChanged;  // string = contextId or null
@@ -117,9 +124,47 @@ namespace DiyFfb.GraphEditor
         public IReadOnlyList<string> FuncChoices => _funcChoices;
         public IReadOnlyList<string> ParamWidgetChoices => _paramWidgetChoices;
         public ObservableCollection<PortEditEntry> PortEntries => _portEntries;
+        public ObservableCollection<BusPortEntry> BusPortEntries => _busPortEntries;
+        public ObservableCollection<MsfsVarPortEntry> MsfsVarPortEntries => _msfsVarPortEntries;
+
+        // Plan 23: SimConnect unit presets offered in the MsfsVarDef inspector
+        // (freeform override allowed). "number" is the safe default for L: vars.
+        public static readonly IReadOnlyList<string> MsfsUnitPresets = new[]
+        {
+            "number", "bool", "percent", "percent over 100", "radians", "degrees",
+            "knots", "feet", "feet per second", "foot pounds", "pounds",
+            "slugs per cubic feet", "rpm", "gforce"
+        };
 
         public ObservableCollection<string> IncludeInputNames { get; } = new ObservableCollection<string>();
         public ObservableCollection<string> IncludeOutputNames { get; } = new ObservableCollection<string>();
+
+        /// <summary>
+        /// FunctionScope dropdown options for Include nodes.
+        /// </summary>
+        public IReadOnlyList<string> FunctionScopeOptions => GraphSignalCatalogData.FunctionScopeOptions;
+
+        public IReadOnlyList<string> ConfigTypeOptions => GraphSignalCatalogData.ConfigTypeOptions;
+
+        public static readonly DependencyProperty ConfigTypeMismatchMessageProperty =
+            DependencyProperty.Register(nameof(ConfigTypeMismatchMessage), typeof(string), typeof(GraphEditorControl),
+                new PropertyMetadata(""));
+
+        public string ConfigTypeMismatchMessage
+        {
+            get => (string)GetValue(ConfigTypeMismatchMessageProperty);
+            private set => SetValue(ConfigTypeMismatchMessageProperty, value ?? "");
+        }
+
+        public static readonly DependencyProperty ConfigTypeMismatchVisibleProperty =
+            DependencyProperty.Register(nameof(ConfigTypeMismatchVisible), typeof(bool), typeof(GraphEditorControl),
+                new PropertyMetadata(false));
+
+        public bool ConfigTypeMismatchVisible
+        {
+            get => (bool)GetValue(ConfigTypeMismatchVisibleProperty);
+            private set => SetValue(ConfigTypeMismatchVisibleProperty, value);
+        }
 
         public static readonly DependencyProperty IncludeErrorMessageProperty =
             DependencyProperty.Register(nameof(IncludeErrorMessage), typeof(string), typeof(GraphEditorControl),
@@ -168,6 +213,29 @@ namespace DiyFfb.GraphEditor
         private HashSet<string> _lastContextIds = new HashSet<string>();
         private bool _hadLiveContext;
         private Func<string, IReadOnlyList<IncludeCallContext>> _contextProvider;
+
+        /// <summary>
+        /// When set (embedded sub-graph tabs), live-preview context is requested
+        /// under this key (e.g. "inline:&lt;nodeId&gt;") instead of the file path —
+        /// embedded sub-graphs have no file of their own.
+        /// </summary>
+        public string ContextKeyOverride { get; set; }
+
+        /// <summary>The key used to look up live-preview context for this graph.</summary>
+        private string ContextLookupKey()
+        {
+            if (!string.IsNullOrEmpty(ContextKeyOverride))
+            {
+                return ContextKeyOverride;
+            }
+            if (string.IsNullOrEmpty(_filePath))
+            {
+                return null;
+            }
+            try { return System.IO.Path.GetFullPath(_filePath); }
+            catch { return _filePath; }
+        }
+
         public string BaseDirectory
         {
             get => _baseDirectory;
@@ -221,6 +289,11 @@ namespace DiyFfb.GraphEditor
             }
         }
         public Func<IDictionary<string, double>> LiveInputProvider { get; set; }
+        // Plan 23: alias -> SimConnect exception code for custom vars the plugin
+        // failed to register (bad A: name / absent). Polled on the live tick to
+        // flag the offending MsfsVarDef rows.
+        public Func<IReadOnlyDictionary<string, uint>> MsfsFailedVarProvider { get; set; }
+        public Func<Dictionary<string, double[]>> LiveStateProvider { get; set; }
         public Action<string, double> ParamValueChanged { get; set; }
 
         /// <summary>
@@ -1245,13 +1318,23 @@ namespace DiyFfb.GraphEditor
             if (sender is Border border && border.Tag is GraphNode node)
             {
                 // Handle double-click on Include nodes
-                if (e.ClickCount == 2 && node.Kind == GraphNodeKind.Include && !string.IsNullOrWhiteSpace(node.IncludePath))
+                if (e.ClickCount == 2 && node.Kind == GraphNodeKind.Include)
                 {
                     // Pass node.Id so the new tab can auto-select this context when live mode is active
                     string contextId = _liveInputsEnabled ? node.Id : null;
-                    IncludeOpenRequested?.Invoke(node.IncludePath, contextId);
-                    e.Handled = true;
-                    return;
+                    if (node.InlineGraph != null)
+                    {
+                        // Embedded sub-graph: open it in its own tab (no file).
+                        EmbeddedOpenRequested?.Invoke(node.Id, contextId);
+                        e.Handled = true;
+                        return;
+                    }
+                    if (!string.IsNullOrWhiteSpace(node.IncludePath))
+                    {
+                        IncludeOpenRequested?.Invoke(node.IncludePath, contextId);
+                        e.Handled = true;
+                        return;
+                    }
                 }
 
                 _dragNode = _nodeVisuals[node.Id];
@@ -1541,8 +1624,25 @@ namespace DiyFfb.GraphEditor
             menu.Items.Add(BuildMenuItem("Add Const", () => AddNode(GraphNodeKind.Const, position)));
             menu.Items.Add(BuildMenuItem("Add Op", () => AddNode(GraphNodeKind.Op, position)));
             menu.Items.Add(BuildMenuItem("Add Func", () => AddNode(GraphNodeKind.Func, position)));
+            menu.Items.Add(BuildMenuItem("Add Expr", () => AddNode(GraphNodeKind.Expr, position)));
             menu.Items.Add(BuildMenuItem("Add Include", () => AddNode(GraphNodeKind.Include, position)));
+            menu.Items.Add(BuildMenuItem("Add Embedded Sub-Graph", () => AddEmbeddedSubgraph(position)));
+            if (_selectedNodes.Count >= 2)
+            {
+                menu.Items.Add(BuildMenuItem($"Group {_selectedNodes.Count} Nodes into Embedded Sub-Graph",
+                    GroupSelectionIntoSubgraph));
+            }
             menu.Items.Add(BuildMenuItem("Add Output", () => AddNode(GraphNodeKind.Output, position)));
+            menu.Items.Add(BuildMenuItem("Add ConfigOut", () => AddNode(GraphNodeKind.ConfigOut, position)));
+            menu.Items.Add(BuildMenuItem("Add ConfigIn", () => AddNode(GraphNodeKind.ConfigIn, position)));
+            menu.Items.Add(BuildMenuItem("Add Local Send", () => AddNode(GraphNodeKind.LocalSend, position)));
+            menu.Items.Add(BuildMenuItem("Add Local Receive", () => AddNode(GraphNodeKind.LocalReceive, position)));
+            // Plan 23: MsfsVarDef is a top-level-only concept (declares custom
+            // MSFS vars for the whole graph); don't offer it in library/embedded graphs.
+            if (_graph?.IsLibraryGraph != true)
+            {
+                menu.Items.Add(BuildMenuItem("Add MSFS Vars", () => AddNode(GraphNodeKind.MsfsVarDef, position)));
+            }
             menu.Items.Add(new Separator());
             menu.Items.Add(BuildMenuItem("Zoom to Fit", ZoomToFit));
             menu.Items.Add(BuildMenuItem("Align Left", AlignSelectedLeft));
@@ -1552,6 +1652,23 @@ namespace DiyFfb.GraphEditor
             menu.Items.Add(new Separator());
             menu.Items.Add(BuildMenuItem("Increase Edge Curvature", () => AdjustCurveTension(0.1)));
             menu.Items.Add(BuildMenuItem("Decrease Edge Curvature", () => AdjustCurveTension(-0.1)));
+
+            // Include-node conversions (single Include node selected)
+            if (_selectedNodes.Count == 1 && _selectedNode?.Node?.Kind == GraphNodeKind.Include)
+            {
+                var incNode = _selectedNode.Node;
+                menu.Items.Add(new Separator());
+                if (incNode.InlineGraph != null)
+                {
+                    menu.Items.Add(BuildMenuItem("Extract Embedded Sub-Graph to File…",
+                        () => ExtractEmbeddedToFile(incNode)));
+                }
+                else if (!string.IsNullOrWhiteSpace(incNode.IncludePath))
+                {
+                    menu.Items.Add(BuildMenuItem("Inline This Include (detach from file)",
+                        () => InlineFileInclude(incNode)));
+                }
+            }
             return menu;
         }
 
@@ -1596,6 +1713,14 @@ namespace DiyFfb.GraphEditor
             {
                 node.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
             }
+            else if (kind == GraphNodeKind.Expr)
+            {
+                node.Title = "Expr";
+                node.Expr = "a + b";
+                node.Ports.Add(new GraphPort { Name = "a", Kind = GraphPortKind.Input });
+                node.Ports.Add(new GraphPort { Name = "b", Kind = GraphPortKind.Input });
+                node.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
+            }
             else if (kind == GraphNodeKind.Include)
             {
                 node.Ports.Add(new GraphPort { Name = "in", Kind = GraphPortKind.Input });
@@ -1605,8 +1730,56 @@ namespace DiyFfb.GraphEditor
             {
                 node.Ports.Add(new GraphPort { Name = "in", Kind = GraphPortKind.Input });
             }
+            else if (kind == GraphNodeKind.ConfigOut)
+            {
+                node.Ports.Add(new GraphPort { Name = "cfg_0", Kind = GraphPortKind.Input });
+            }
+            else if (kind == GraphNodeKind.ConfigIn)
+            {
+                // In a library/embedded sub-graph, default to scoped (function comes
+                // from the parent Include); at top level, default to explicit.
+                node.Scoped = _graph?.IsLibraryGraph == true;
+                node.Ports.Add(new GraphPort { Name = "cfg_0", Kind = GraphPortKind.Output });
+            }
+            else if (kind == GraphNodeKind.LocalSend)
+            {
+                // Sink node. Each input port publishes on its own BusName.
+                node.Title = "Local Send";
+                node.Ports.Add(new GraphPort { Name = "in_0", Kind = GraphPortKind.Input, BusName = "" });
+            }
+            else if (kind == GraphNodeKind.LocalReceive)
+            {
+                // Source node. Each output port taps a bus by BusName.
+                node.Title = "Local Receive";
+                node.Ports.Add(new GraphPort { Name = "out_0", Kind = GraphPortKind.Output, BusName = "" });
+            }
+            else if (kind == GraphNodeKind.MsfsVarDef)
+            {
+                // Plan 23: declares custom MSFS vars. SignalGroup MUST be "MSFS"
+                // so each output port resolves to MSFS.<alias>. Each output port
+                // carries its alias (SignalSuffix), raw datum name (SimVar) and unit.
+                node.Title = "MSFS Vars";
+                node.SignalGroup = "MSFS";
+                node.Ports.Add(new GraphPort
+                {
+                    Kind = GraphPortKind.Output,
+                    SignalSuffix = "Custom.Var1",
+                    Name = "Custom.Var1",
+                    SimVar = "",
+                    Unit = "number"
+                });
+            }
 
             _graph.Nodes.Add(node);
+            FinalizeAddedNode(node);
+        }
+
+        /// <summary>
+        /// Shared tail for adding a node: build its visual, select it, refresh, notify.
+        /// The node must already be in _graph.Nodes.
+        /// </summary>
+        private void FinalizeAddedNode(GraphNode node)
+        {
             var visual = BuildNodeVisual(node);
             _nodeVisuals[node.Id] = visual;
             CanvasSurface.Children.Add(visual.Container);
@@ -1618,6 +1791,320 @@ namespace DiyFfb.GraphEditor
             RefreshPreview();
             UpdateInspector();
             GraphChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Collapses the selected nodes into an embedded sub-graph Include node.
+        /// Links crossing the selection boundary become the sub-graph's Input /
+        /// Output ports (deduped by external source / internal source), so wiring
+        /// is preserved. Nodes NOT selected stay at the top level and feed the
+        /// new Include as inputs — that's how shared intermediates (mu, descent,
+        /// constants) remain shared rather than duplicated.
+        /// </summary>
+        private void GroupSelectionIntoSubgraph()
+        {
+            var selected = _selectedNodes.Select(v => v.Node).Where(n => n != null).ToList();
+            if (selected.Count < 1)
+            {
+                return;
+            }
+            var selIds = new HashSet<string>(selected.Select(n => n.Id));
+
+            // Partition links relative to the selection.
+            var internalLinks = new List<GraphLink>();
+            var boundaryIn = new List<GraphLink>();   // external source -> selected
+            var boundaryOut = new List<GraphLink>();  // selected -> external consumer
+            foreach (var l in _graph.Links)
+            {
+                bool fromIn = selIds.Contains(l.FromNodeId);
+                bool toIn = selIds.Contains(l.ToNodeId);
+                if (fromIn && toIn) internalLinks.Add(l);
+                else if (!fromIn && toIn) boundaryIn.Add(l);
+                else if (fromIn && !toIn) boundaryOut.Add(l);
+            }
+
+            double minX = selected.Min(n => n.X), maxX = selected.Max(n => n.X), minY = selected.Min(n => n.Y);
+            double cx = selected.Average(n => n.X), cy = selected.Average(n => n.Y);
+
+            var inline = new GraphDefinition { IsLibraryGraph = true };
+            foreach (var n in selected) inline.Nodes.Add(n);
+            foreach (var l in internalLinks) inline.Links.Add(l);
+
+            // Carry the parameter definitions for any moved Param nodes into the
+            // sub-graph, so its tab shows the param widgets/metadata (defs are
+            // looked up in the editing graph's Params, not just the node).
+            foreach (var n in selected.Where(n => n.Kind == GraphNodeKind.Param))
+            {
+                foreach (var port in n.Ports.Where(p => p.Kind == GraphPortKind.Output))
+                {
+                    string full = (n.SignalGroup ?? "") + "." +
+                                  (string.IsNullOrEmpty(port.SignalSuffix) ? port.Name : port.SignalSuffix);
+                    if (_graph.Params.TryGetValue(full, out var def) && !inline.Params.ContainsKey(full))
+                    {
+                        inline.Params[full] = def;
+                    }
+                }
+            }
+
+            var includeNode = new GraphNode
+            {
+                Kind = GraphNodeKind.Include,
+                Title = "Sub-Graph",
+                X = cx,
+                Y = cy,
+                InlineGraph = inline
+            };
+
+            var usedNames = new HashSet<string>();
+
+            // Boundary inputs: one port per distinct external (node, port) source.
+            var inPortBySource = new Dictionary<string, string>();
+            var inNodeIdByPort = new Dictionary<string, string>();
+            double iy = minY;
+            foreach (var l in boundaryIn)
+            {
+                string key = l.FromNodeId + " " + l.FromPort;
+                if (!inPortBySource.TryGetValue(key, out var portName))
+                {
+                    portName = UniqueName(SuggestPortName(l.FromNodeId, l.FromPort), usedNames);
+                    inPortBySource[key] = portName;
+                    var inNode = new GraphNode { Kind = GraphNodeKind.Input, Title = portName, X = minX - 220, Y = iy };
+                    inNode.Ports.Add(new GraphPort { Name = portName, Kind = GraphPortKind.Output });
+                    inline.Nodes.Add(inNode);
+                    inNodeIdByPort[portName] = inNode.Id;
+                    includeNode.Ports.Add(new GraphPort { Name = portName, Kind = GraphPortKind.Input });
+                    iy += 60;
+                }
+                // inside: feed the consumer from the new Input node
+                inline.Links.Add(new GraphLink
+                {
+                    FromNodeId = inNodeIdByPort[portName],
+                    FromPort = portName,
+                    ToNodeId = l.ToNodeId,
+                    ToPort = l.ToPort
+                });
+                // parent: external source now feeds the Include's input port
+                l.ToNodeId = includeNode.Id;
+                l.ToPort = portName;
+            }
+
+            // Boundary outputs: one port per distinct internal (node, port) source.
+            var outPortBySource = new Dictionary<string, string>();
+            double oy = minY;
+            foreach (var l in boundaryOut)
+            {
+                string key = l.FromNodeId + " " + l.FromPort;
+                if (!outPortBySource.TryGetValue(key, out var portName))
+                {
+                    portName = UniqueName(SuggestPortName(l.FromNodeId, l.FromPort), usedNames);
+                    outPortBySource[key] = portName;
+                    var outNode = new GraphNode { Kind = GraphNodeKind.Output, Title = portName, X = maxX + 220, Y = oy };
+                    outNode.Ports.Add(new GraphPort { Name = portName, Kind = GraphPortKind.Input });
+                    inline.Nodes.Add(outNode);
+                    includeNode.Ports.Add(new GraphPort { Name = portName, Kind = GraphPortKind.Output });
+                    oy += 60;
+                    // inside: internal source feeds the new Output node
+                    inline.Links.Add(new GraphLink
+                    {
+                        FromNodeId = l.FromNodeId,
+                        FromPort = l.FromPort,
+                        ToNodeId = outNode.Id,
+                        ToPort = portName
+                    });
+                }
+                // parent: external consumer now reads from the Include's output port
+                l.FromNodeId = includeNode.Id;
+                l.FromPort = portName;
+            }
+
+            // Anchor the sub-graph's contents near its own canvas top-left. The
+            // grouped nodes otherwise keep their parent-graph coordinates and land
+            // far off-grid when the sub-graph is opened in its own tab.
+            if (inline.Nodes.Count > 0)
+            {
+                double offX = inline.Nodes.Min(n => n.X) - 40.0;
+                double offY = inline.Nodes.Min(n => n.Y) - 40.0;
+                foreach (var n in inline.Nodes)
+                {
+                    n.X -= offX;
+                    n.Y -= offY;
+                }
+            }
+
+            // Remove the grouped nodes and their internal links from the parent.
+            _graph.Nodes.RemoveAll(n => selIds.Contains(n.Id));
+            _graph.Links.RemoveAll(l => internalLinks.Contains(l));
+            _graph.Nodes.Add(includeNode);
+
+            _selectedNodes.Clear();
+            _selectedNode = null;
+            RebuildSurface();
+            UpdateInspector();
+            GraphChanged?.Invoke();
+        }
+
+        /// <summary>Suggests a readable boundary port name from a source node/port.</summary>
+        private string SuggestPortName(string nodeId, string portName)
+        {
+            var node = _graph.Nodes.FirstOrDefault(n => n.Id == nodeId);
+            string basis = portName;
+            if (node != null)
+            {
+                // Signal nodes carry the most meaningful name in their port; Op/Func
+                // ports are like "a*b", so prefer a sanitized node title there.
+                if (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Param ||
+                    node.Kind == GraphNodeKind.Output)
+                {
+                    basis = portName;
+                }
+                else if (!string.IsNullOrWhiteSpace(node.Title))
+                {
+                    basis = node.Title;
+                }
+            }
+            return string.IsNullOrWhiteSpace(SanitizeName(basis)) ? "port" : SanitizeName(basis);
+        }
+
+        private static string SanitizeName(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in s)
+            {
+                if (char.IsLetterOrDigit(c)) sb.Append(char.ToLowerInvariant(c));
+                else if (sb.Length > 0 && sb[sb.Length - 1] != '_') sb.Append('_');
+            }
+            return sb.ToString().Trim('_');
+        }
+
+        private static string UniqueName(string baseName, HashSet<string> used)
+        {
+            if (string.IsNullOrEmpty(baseName)) baseName = "port";
+            string name = baseName;
+            int i = 2;
+            while (!used.Add(name))
+            {
+                name = baseName + "_" + i++;
+            }
+            return name;
+        }
+
+        /// <summary>
+        /// Creates a new embedded (inline, path-less) sub-graph Include node. Its
+        /// inline graph starts with one Input ("in") and one Output ("out") so the
+        /// node has matching boundary ports; double-click opens it to build the body.
+        /// </summary>
+        private void AddEmbeddedSubgraph(Point position)
+        {
+            var inline = new GraphDefinition { IsLibraryGraph = true };
+            var subIn = new GraphNode { Kind = GraphNodeKind.Input, Title = "Input", X = 40, Y = 40 };
+            subIn.Ports.Add(new GraphPort { Name = "in", Kind = GraphPortKind.Output });
+            var subOut = new GraphNode { Kind = GraphNodeKind.Output, Title = "Output", X = 320, Y = 40 };
+            subOut.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Input });
+            inline.Nodes.Add(subIn);
+            inline.Nodes.Add(subOut);
+
+            var node = new GraphNode
+            {
+                Kind = GraphNodeKind.Include,
+                Title = "Embedded",
+                X = position.X,
+                Y = position.Y,
+                InlineGraph = inline
+            };
+            node.Ports.Add(new GraphPort { Name = "in", Kind = GraphPortKind.Input });
+            node.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
+
+            _graph.Nodes.Add(node);
+            FinalizeAddedNode(node);
+        }
+
+        /// <summary>
+        /// Extracts an embedded sub-graph to a standalone include file. Writes the
+        /// inline graph to a chosen path, sets IncludePath (relative to this graph),
+        /// and clears InlineGraph. Ports are unchanged (same interface).
+        /// </summary>
+        private void ExtractEmbeddedToFile(GraphNode node)
+        {
+            if (node == null || node.Kind != GraphNodeKind.Include || node.InlineGraph == null)
+            {
+                return;
+            }
+
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "Graph JSON (*.json)|*.json",
+                DefaultExt = "json",
+                Title = "Extract embedded sub-graph to file",
+                InitialDirectory = string.IsNullOrWhiteSpace(BaseDirectory)
+                    ? null : System.IO.Path.GetFullPath(BaseDirectory)
+            };
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            try
+            {
+                node.InlineGraph.IsLibraryGraph = true;
+                System.IO.File.WriteAllText(dialog.FileName, GraphSerializer.Serialize(node.InlineGraph));
+                node.IncludePath = MakeRelativePath(BaseDirectory, dialog.FileName);
+                node.InlineGraph = null;
+                GraphChanged?.Invoke();
+                UpdateInspector();
+            }
+            catch (Exception ex)
+            {
+                ThemedMessageBox.Show($"Extract failed:\n{ex.Message}", "Extract embedded sub-graph",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>
+        /// Inlines a file-backed include: reads the referenced file into InlineGraph
+        /// and clears IncludePath, detaching this node from the shared file (the file
+        /// itself is left in place). Ports are unchanged (same interface).
+        /// </summary>
+        private void InlineFileInclude(GraphNode node)
+        {
+            if (node == null || node.Kind != GraphNodeKind.Include || string.IsNullOrWhiteSpace(node.IncludePath))
+            {
+                return;
+            }
+
+            string resolved = node.IncludePath;
+            if (!System.IO.Path.IsPathRooted(resolved) && !string.IsNullOrWhiteSpace(BaseDirectory))
+            {
+                resolved = System.IO.Path.GetFullPath(System.IO.Path.Combine(BaseDirectory, resolved));
+            }
+
+            if (!System.IO.File.Exists(resolved))
+            {
+                ThemedMessageBox.Show($"Include file not found:\n{node.IncludePath}", "Inline file include",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                var loaded = GraphSerializer.Deserialize(System.IO.File.ReadAllText(resolved), out var validation);
+                if (loaded == null || (validation != null && !validation.IsValid))
+                {
+                    ThemedMessageBox.Show("Include file is not a valid graph.", "Inline file include",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                loaded.IsLibraryGraph = true;
+                node.InlineGraph = loaded;
+                node.IncludePath = "";
+                GraphChanged?.Invoke();
+                UpdateInspector();
+            }
+            catch (Exception ex)
+            {
+                ThemedMessageBox.Show($"Inline failed:\n{ex.Message}", "Inline file include",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private void UpdateInspector()
@@ -1639,14 +2126,25 @@ namespace DiyFfb.GraphEditor
             TextNoSelection.Visibility = Visibility.Collapsed;
             if (UsesTemplateInspector(node) && (node.Kind == GraphNodeKind.Input ||
                                                 node.Kind == GraphNodeKind.Output ||
+                                                node.Kind == GraphNodeKind.ConfigOut ||
+                                                node.Kind == GraphNodeKind.ConfigIn ||
                                                 node.Kind == GraphNodeKind.Param ||
-                                                node.Kind == GraphNodeKind.Op))
+                                                node.Kind == GraphNodeKind.Op ||
+                                                node.Kind == GraphNodeKind.Expr))
             {
                 SyncPortEntries(node);
             }
             if (UsesTemplateInspector(node) && node.Kind == GraphNodeKind.Include)
             {
                 RebuildIncludePortEditors(node);
+            }
+            if (UsesTemplateInspector(node) && (node.Kind == GraphNodeKind.LocalSend || node.Kind == GraphNodeKind.LocalReceive))
+            {
+                SyncBusPortEntries(node);
+            }
+            if (UsesTemplateInspector(node) && node.Kind == GraphNodeKind.MsfsVarDef)
+            {
+                SyncMsfsVarPortEntries(node);
             }
         }
 
@@ -1920,6 +2418,63 @@ namespace DiyFfb.GraphEditor
                 if (node.Kind == GraphNodeKind.Include)
                 {
                     SyncIncludePorts(node);
+                }
+            }
+
+            // Param entries in _graph.Params are keyed by the resolved full signal name
+            // (Group.Suffix). When a Param node is pasted into a graph that already
+            // has an entry under the same key, the merge step below drops the cloned
+            // param — leaving the pasted node sharing the source's GraphParam object,
+            // so editing the copy mutates the source. Detect collisions up front and
+            // give the pasted Param nodes unique suffixes.
+            if (clipboardData.Params != null)
+            {
+                var pasteRemaps = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var node in clipboardData.Nodes.Where(n => n.Kind == GraphNodeKind.Param))
+                {
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
+                    {
+                        string oldFull = GetPortSignalName(node, port);
+                        if (string.IsNullOrEmpty(oldFull) || !_graph.Params.ContainsKey(oldFull))
+                            continue;
+
+                        // Reuse a remap already chosen for this name (e.g., several pasted
+                        // Param nodes share the same key — they should all migrate together).
+                        if (pasteRemaps.TryGetValue(oldFull, out var assigned))
+                        {
+                            string assignedSuffix = string.IsNullOrEmpty(node.SignalGroup)
+                                ? assigned
+                                : assigned.Substring(node.SignalGroup.Length + 1);
+                            port.SignalSuffix = assignedSuffix;
+                            port.Name = assignedSuffix;
+                            continue;
+                        }
+
+                        string baseSuffix = !string.IsNullOrEmpty(port.SignalSuffix) ? port.SignalSuffix : port.Name;
+                        if (string.IsNullOrEmpty(baseSuffix))
+                            continue;
+
+                        string newSuffix;
+                        string newFull;
+                        int n = 2;
+                        do
+                        {
+                            newSuffix = baseSuffix + "_" + n++;
+                            newFull = string.IsNullOrEmpty(node.SignalGroup) ? newSuffix : node.SignalGroup + "." + newSuffix;
+                        } while (_graph.Params.ContainsKey(newFull) || pasteRemaps.ContainsValue(newFull));
+
+                        port.SignalSuffix = newSuffix;
+                        port.Name = newSuffix;
+
+                        if (clipboardData.Params.TryGetValue(oldFull, out var clonedParam))
+                        {
+                            clonedParam.Name = newFull;
+                            clipboardData.Params.Remove(oldFull);
+                            clipboardData.Params[newFull] = clonedParam;
+                        }
+
+                        pasteRemaps[oldFull] = newFull;
+                    }
                 }
             }
 
@@ -2532,7 +3087,11 @@ namespace DiyFfb.GraphEditor
         private void SyncPreviewEntries()
         {
             var inputNames = new HashSet<string>();
-            foreach (var node in _graph.Nodes.Where(n => n.Kind == GraphNodeKind.Input))
+            // Plan 23: MsfsVarDef output ports emit MSFS.<alias> input signals
+            // (like Input nodes), so they need preview entries too — otherwise
+            // the live value can't resolve and reads 0 in the editor preview.
+            foreach (var node in _graph.Nodes.Where(n => n.Kind == GraphNodeKind.Input ||
+                                                         n.Kind == GraphNodeKind.MsfsVarDef))
             {
                 foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
                 {
@@ -2713,18 +3272,10 @@ namespace DiyFfb.GraphEditor
                 // Check if we should use context-provided inputs
                 if (_selectedContextId != null && _contextProvider != null)
                 {
-                    // Normalize path for cache lookup (same as RefreshContextDropdown)
-                    string normalizedPath = _filePath;
-                    try
-                    {
-                        normalizedPath = System.IO.Path.GetFullPath(_filePath);
-                    }
-                    catch
-                    {
-                        // Keep original if normalization fails
-                    }
-
-                    var contexts = _contextProvider(normalizedPath);
+                    // Lookup key: embedded sub-graphs use ContextKeyOverride; file
+                    // graphs use the normalized path.
+                    string normalizedPath = ContextLookupKey();
+                    var contexts = normalizedPath != null ? _contextProvider(normalizedPath) : null;
                     IncludeCallContext ctx = null;
                     if (contexts != null)
                     {
@@ -2763,6 +3314,9 @@ namespace DiyFfb.GraphEditor
                                 parameters[entry.Name] = entry.Value;
                             }
                         }
+
+                        // Sync stateful nodes (accumulators, sample_holds) from runtime
+                        _previewEvaluator.SetStateSnapshot(ctx.StateSnapshot);
                     }
                     else
                     {
@@ -2793,6 +3347,12 @@ namespace DiyFfb.GraphEditor
                     foreach (var entry in _previewParamEntries)
                     {
                         parameters[entry.Name] = entry.Value;
+                    }
+
+                    // Sync stateful nodes from runtime for top-level graph
+                    if (LiveStateProvider != null)
+                    {
+                        _previewEvaluator.SetStateSnapshot(LiveStateProvider());
                     }
                 }
 
@@ -3002,6 +3562,13 @@ namespace DiyFfb.GraphEditor
             {
                 RequestPreviewRefresh();
             }
+
+            // Plan 23: refresh MsfsVarDef runtime-rejection markers while a node
+            // is selected (cheap; Error setters no-op when unchanged).
+            if (_msfsVarPortEntries.Count > 0)
+            {
+                ValidateMsfsVarEntries();
+            }
         }
 
         private void RequestPreviewRefresh()
@@ -3013,8 +3580,13 @@ namespace DiyFfb.GraphEditor
             }
 
             _previewRefreshPending = true;
-            _previewRefreshTimer.Stop();
-            _previewRefreshTimer.Start();
+            // Only start the timer if it isn't already running — don't restart it,
+            // otherwise rapid callers (like TickLiveInputs at 200ms) keep resetting
+            // the 500ms throttle and it never fires.
+            if (!_previewRefreshTimer.IsEnabled)
+            {
+                _previewRefreshTimer.Start();
+            }
         }
 
         private void OnPreviewRefreshTimer(object sender, EventArgs e)
@@ -3031,7 +3603,7 @@ namespace DiyFfb.GraphEditor
 
         private void RefreshContextDropdown(bool force = false)
         {
-            if (_contextProvider == null || string.IsNullOrEmpty(_filePath))
+            if (_contextProvider == null || ContextLookupKey() == null)
             {
                 // Only clear selection if not user-selected (sticky behavior)
                 if (!_contextIsUserSelected)
@@ -3052,17 +3624,9 @@ namespace DiyFfb.GraphEditor
                 return;
             }
 
-            // Normalize path for cache lookup (use GetFullPath for consistent format)
-            string normalizedPath = _filePath;
-            try
-            {
-                normalizedPath = System.IO.Path.GetFullPath(_filePath);
-            }
-            catch
-            {
-                // Keep original if normalization fails
-            }
-
+            // Lookup key: embedded sub-graphs use ContextKeyOverride; file graphs
+            // use the normalized path.
+            string normalizedPath = ContextLookupKey();
             var contexts = _contextProvider(normalizedPath);
 
             if (contexts == null || contexts.Count == 0)
@@ -3208,6 +3772,14 @@ namespace DiyFfb.GraphEditor
         /// </summary>
         private string GetPortDisplayLabel(GraphNode node, GraphPort port)
         {
+            // Bus ports surface their bus name on the canvas (the local
+            // port.Name like "in_0" / "out_0" carries no semantic value here).
+            if (node != null && (node.Kind == GraphNodeKind.LocalSend || node.Kind == GraphNodeKind.LocalReceive))
+            {
+                string busLabel = string.IsNullOrEmpty(port?.BusName) ? "(unnamed)" : port.BusName;
+                return node.Kind == GraphNodeKind.LocalSend ? "▸ " + busLabel : busLabel + " ▸";
+            }
+
             bool isLibraryGraph = _graph != null && _graph.IsLibraryGraph;
             bool isNegatedOpInput = node != null &&
                 node.Kind == GraphNodeKind.Op &&
@@ -3216,13 +3788,19 @@ namespace DiyFfb.GraphEditor
                 IsNegateSupportedOp(node.Op);
 
             // In library graphs, Input/Output nodes use Name directly (freeform)
-            if (isLibraryGraph && (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output))
+            // Exception: Scoped Output nodes use SignalSuffix even in library graphs
+            // ConfigOut nodes always use freeform Names
+            if (node.Kind == GraphNodeKind.ConfigOut || node.Kind == GraphNodeKind.ConfigIn ||
+                (isLibraryGraph && (node.Kind == GraphNodeKind.Input ||
+                                    (node.Kind == GraphNodeKind.Output && !node.Scoped))))
             {
                 return isNegatedOpInput ? "-" + port.Name : port.Name;
             }
 
-            // In top-level graphs, Input/Output nodes use SignalSuffix if set
-            if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output) &&
+            // In top-level graphs, Input/Output nodes use SignalSuffix if set.
+            // MsfsVarDef output ports likewise label with their alias (SignalSuffix).
+            if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output ||
+                 node.Kind == GraphNodeKind.MsfsVarDef) &&
                 !string.IsNullOrEmpty(port.SignalSuffix))
             {
                 return isNegatedOpInput ? "-" + port.SignalSuffix : port.SignalSuffix;
@@ -3262,17 +3840,28 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.Func:
                     label = $"Func ({node.Func ?? "?"})";
                     break;
+                case GraphNodeKind.Expr:
+                    label = "Expr";
+                    break;
                 case GraphNodeKind.Input:
                     label = BuildSignalNodeHeader("Input", node);
                     break;
                 case GraphNodeKind.Output:
-                    label = BuildSignalNodeHeader("Output", node);
+                    label = node.Scoped
+                        ? $"Output (Scoped, Ports: {node.Ports?.Count ?? 0})"
+                        : BuildSignalNodeHeader("Output", node);
                     break;
                 case GraphNodeKind.Param:
                     label = BuildSignalNodeHeader("Param", node);
                     break;
                 case GraphNodeKind.Include:
                     label = BuildIncludeHeader(node);
+                    break;
+                case GraphNodeKind.ConfigOut:
+                    label = string.IsNullOrWhiteSpace(node.Title) ? "ConfigOut" : $"ConfigOut ({node.Title})";
+                    break;
+                case GraphNodeKind.ConfigIn:
+                    label = string.IsNullOrWhiteSpace(node.Title) ? "ConfigIn" : $"ConfigIn ({node.Title})";
                     break;
                 default:
                     label = node.Kind.ToString();
@@ -3329,10 +3918,16 @@ namespace DiyFfb.GraphEditor
             return node.Kind == GraphNodeKind.Const
                    || node.Kind == GraphNodeKind.Op
                    || node.Kind == GraphNodeKind.Func
+                   || node.Kind == GraphNodeKind.Expr
                    || node.Kind == GraphNodeKind.Input
                    || node.Kind == GraphNodeKind.Output
+                   || node.Kind == GraphNodeKind.ConfigOut
+                   || node.Kind == GraphNodeKind.ConfigIn
                    || node.Kind == GraphNodeKind.Param
-                   || node.Kind == GraphNodeKind.Include;
+                   || node.Kind == GraphNodeKind.Include
+                   || node.Kind == GraphNodeKind.LocalSend
+                   || node.Kind == GraphNodeKind.LocalReceive
+                   || node.Kind == GraphNodeKind.MsfsVarDef;
         }
 
 
@@ -3438,7 +4033,51 @@ namespace DiyFfb.GraphEditor
                 return;
             }
 
+            // For Param nodes, the param entries in _graph.Params are keyed by the
+            // resolved full signal name (Group.Suffix). Changing SignalGroup invalidates
+            // those keys, so rename them in lockstep — otherwise the old entries become
+            // orphans and SyncPortEntries below creates fresh defaulted entries under
+            // the new keys, dropping any user edits to defaults/min/max/UI metadata.
+            List<(string oldFull, string newFull)> paramRenames = null;
+            if (node.Kind == GraphNodeKind.Param)
+            {
+                paramRenames = new List<(string, string)>();
+                foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
+                {
+                    string oldFull = GetPortSignalName(node, port);
+                    string suffix = !string.IsNullOrEmpty(port.SignalSuffix) ? port.SignalSuffix : port.Name;
+                    if (string.IsNullOrEmpty(suffix))
+                        continue;
+                    string newFull = string.IsNullOrEmpty(selectedGroup) ? suffix : selectedGroup + "." + suffix;
+                    if (!string.IsNullOrEmpty(oldFull) && !string.Equals(oldFull, newFull, StringComparison.Ordinal))
+                    {
+                        paramRenames.Add((oldFull, newFull));
+                    }
+                }
+            }
+
             node.SignalGroup = selectedGroup;
+
+            if (paramRenames != null)
+            {
+                foreach (var (oldFull, newFull) in paramRenames)
+                {
+                    if (!_graph.Params.TryGetValue(oldFull, out var oldParam))
+                        continue;
+                    if (_graph.Params.ContainsKey(newFull))
+                    {
+                        // Another Param node already owns the new key — drop the old entry
+                        // rather than overwrite the existing metadata.
+                        _graph.Params.Remove(oldFull);
+                    }
+                    else
+                    {
+                        _graph.Params.Remove(oldFull);
+                        oldParam.Name = newFull;
+                        _graph.Params[newFull] = oldParam;
+                    }
+                }
+            }
 
             // Rebuild node visual to show new group and port labels
             RebuildSurface();
@@ -3456,6 +4095,222 @@ namespace DiyFfb.GraphEditor
             GraphChanged?.Invoke();
         }
 
+        private void InspectorFunctionScope_Loaded(object sender, RoutedEventArgs e)
+        {
+            SyncFunctionScopeComboBox(sender as ComboBox);
+        }
+
+        private void InspectorFunctionScope_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            SyncFunctionScopeComboBox(sender as ComboBox);
+        }
+
+        private void SyncFunctionScopeComboBox(ComboBox comboBox)
+        {
+            if (comboBox?.DataContext is GraphNode node)
+            {
+                _isInspectorUpdating = true;
+                comboBox.SelectedItem = string.IsNullOrEmpty(node.FunctionScope) ? "" : node.FunctionScope;
+                _isInspectorUpdating = false;
+            }
+        }
+
+        // ConfigOut "Scoped" checkbox: checked = empty FunctionScope (auto: parent-scoped
+        // in includes, or top-level fan-out); unchecked = explicit single target function.
+        // IsChecked is bound to FunctionScope-emptiness, so it stays in sync via INPC.
+        private void ConfigOutScoped_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null) return;
+            if (sender is System.Windows.Controls.CheckBox cb &&
+                cb.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
+            {
+                // Checked = auto (empty FunctionScope: parent-scoped / top-level fan-out).
+                // Unchecked = explicit: seed a default function so the dropdown (shown when
+                // FunctionScope is non-empty) appears; the user then picks the target.
+                bool wantScoped = cb.IsChecked == true;
+                bool isScoped = string.IsNullOrEmpty(node.FunctionScope);
+                if (wantScoped == isScoped) return;  // already in the desired state
+
+                node.FunctionScope = wantScoped
+                    ? ""
+                    : (GraphSignalCatalogData.FunctionScopeOptions.FirstOrDefault(s => !string.IsNullOrEmpty(s)) ?? "");
+
+                RebuildSurface();
+                if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+                {
+                    _selectedNode = visual;
+                    _selectedNodes.Clear();
+                    _selectedNodes.Add(visual);
+                    UpdateSelectionVisuals();
+                }
+                GraphChanged?.Invoke();
+            }
+        }
+
+        private void InspectorConfigOutScope_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null) return;
+            if (sender is ComboBox comboBox &&
+                comboBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
+            {
+                string selected = comboBox.SelectedItem as string ?? "";
+                if (node.FunctionScope != selected)
+                {
+                    node.FunctionScope = selected;
+                    RebuildSurface();
+                    if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+                    {
+                        _selectedNode = visual;
+                        _selectedNodes.Clear();
+                        _selectedNodes.Add(visual);
+                        UpdateSelectionVisuals();
+                    }
+                    GraphChanged?.Invoke();
+                }
+            }
+        }
+
+        private void InspectorFunctionScope_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null)
+            {
+                return;
+            }
+
+            if (sender is ComboBox comboBox &&
+                comboBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
+            {
+                string selected = comboBox.SelectedItem as string ?? "";
+                if (node.FunctionScope != selected)
+                {
+                    node.FunctionScope = selected;
+                    // Re-sync ports: scoped includes hide output ports
+                    SyncIncludePorts(node);
+                    RebuildSurface();
+                    if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+                    {
+                        _selectedNode = visual;
+                        _selectedNodes.Clear();
+                        _selectedNodes.Add(visual);
+                    }
+                    UpdateSelectionVisuals();
+                    UpdateInspector();
+                    CheckConfigTypeMismatch(node);
+                    GraphChanged?.Invoke();
+                }
+            }
+        }
+
+        private void InspectorConfigType_Loaded(object sender, RoutedEventArgs e)
+        {
+            SyncConfigTypeComboBox(sender as ComboBox);
+        }
+
+        private void InspectorConfigType_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            SyncConfigTypeComboBox(sender as ComboBox);
+        }
+
+        private void SyncConfigTypeComboBox(ComboBox comboBox)
+        {
+            if (comboBox?.DataContext is GraphNode node)
+            {
+                _isInspectorUpdating = true;
+                comboBox.SelectedItem = string.IsNullOrEmpty(node.ConfigType) ? "" : node.ConfigType;
+                _isInspectorUpdating = false;
+            }
+        }
+
+        private void InspectorConfigType_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null)
+            {
+                return;
+            }
+
+            if (sender is ComboBox comboBox &&
+                comboBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
+            {
+                string selected = comboBox.SelectedItem as string ?? "";
+                if (node.ConfigType != selected)
+                {
+                    node.ConfigType = selected;
+                    // Re-sync port entries to update field dropdown options
+                    SyncPortEntries(node);
+                    GraphChanged?.Invoke();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks if an Include node's FunctionScope is compatible with the ConfigType
+        /// of any ConfigOut nodes in the included sub-graph. Shows a warning if not.
+        /// </summary>
+        private void CheckConfigTypeMismatch(GraphNode node)
+        {
+            ConfigTypeMismatchVisible = false;
+            ConfigTypeMismatchMessage = "";
+
+            if (node == null || node.Kind != GraphNodeKind.Include ||
+                string.IsNullOrEmpty(node.FunctionScope) || node.CachedInterface == null)
+            {
+                return;
+            }
+
+            string expectedType = GraphSignalCatalogData.GetConfigTypeForScope(node.FunctionScope);
+            if (string.IsNullOrEmpty(expectedType))
+            {
+                return;
+            }
+
+            foreach (var cfgOut in node.CachedInterface.ConfigOutputs)
+            {
+                if (!string.IsNullOrEmpty(cfgOut.ConfigType) && cfgOut.ConfigType != expectedType)
+                {
+                    ConfigTypeMismatchVisible = true;
+                    ConfigTypeMismatchMessage =
+                        $"ConfigOut type mismatch: sub-graph has ConfigType '{cfgOut.ConfigType}' " +
+                        $"but FunctionScope '{node.FunctionScope}' expects '{expectedType}'.";
+                    return;
+                }
+            }
+        }
+
+        private void InspectorScoped_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null)
+            {
+                return;
+            }
+
+            if (sender is System.Windows.Controls.CheckBox checkBox &&
+                checkBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
+            {
+                bool isScoped = checkBox.IsChecked == true;
+                if (node.Scoped != isScoped)
+                {
+                    node.Scoped = isScoped;
+                    // When toggling Scoped, ports switch between freeform and signal-bound.
+                    // Rebuild the node visual and re-sync port entries.
+                    RebuildSurface();
+                    if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+                    {
+                        _selectedNode = visual;
+                        _selectedNodes.Clear();
+                        _selectedNodes.Add(visual);
+                    }
+                    UpdateSelectionVisuals();
+                    SyncPortEntries(node);
+                    GraphChanged?.Invoke();
+                }
+            }
+        }
+
         private void ButtonAddInputPort_Click(object sender, RoutedEventArgs e)
         {
             AddPort(GraphPortKind.Input, "in");
@@ -3464,6 +4319,12 @@ namespace DiyFfb.GraphEditor
         private void ButtonAddOutputPort_Click(object sender, RoutedEventArgs e)
         {
             AddPort(GraphPortKind.Output, "out");
+        }
+
+        private void ButtonAddConfigInPort_Click(object sender, RoutedEventArgs e)
+        {
+            // ConfigIn fields are output ports (the node is a source).
+            AddPort(GraphPortKind.Output, "cfg");
         }
 
         private void ButtonAddOpInput_Click(object sender, RoutedEventArgs e)
@@ -3565,6 +4426,434 @@ namespace DiyFfb.GraphEditor
             SyncPortEntries(node);
             RefreshPreview();
             GraphChanged?.Invoke();
+        }
+
+        private void ButtonAddBusPort_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null) return;
+            var node = _selectedNode.Node;
+            if (node.Kind != GraphNodeKind.LocalSend && node.Kind != GraphNodeKind.LocalReceive) return;
+
+            var portKind = node.Kind == GraphNodeKind.LocalSend ? GraphPortKind.Input : GraphPortKind.Output;
+            string prefix = node.Kind == GraphNodeKind.LocalSend ? "in_" : "out_";
+            int idx = node.Ports.Count(p => p.Kind == portKind);
+            node.Ports.Add(new GraphPort { Name = $"{prefix}{idx}", Kind = portKind, BusName = "" });
+
+            RebuildSurface();
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+            SyncBusPortEntries(node);
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        private void ButtonRemoveBusPort_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null || !(sender is Button button)) return;
+            if (!(button.DataContext is BusPortEntry entry)) return;
+            var node = _selectedNode.Node;
+            if (node.Kind != GraphNodeKind.LocalSend && node.Kind != GraphNodeKind.LocalReceive) return;
+            if (node.Ports.Count <= 1) return;  // keep at least one port
+
+            RemovePort(node, entry.Port);
+            RebuildSurface();
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+            SyncBusPortEntries(node);
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        private void ButtonJumpToSend_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button button) || !(button.DataContext is BusPortEntry entry)) return;
+            if (string.IsNullOrEmpty(entry.BusName)) return;
+            // Find the LocalSend node that has a port with this bus name.
+            foreach (var n in _graph.Nodes)
+            {
+                if (n.Kind != GraphNodeKind.LocalSend) continue;
+                foreach (var port in n.Ports)
+                {
+                    if (port.Kind == GraphPortKind.Input && port.BusName == entry.BusName)
+                    {
+                        if (_nodeVisuals.TryGetValue(n.Id, out var visual))
+                        {
+                            CenterOnNode(visual);
+                            _selectedNode = visual;
+                            _selectedNodes.Clear();
+                            _selectedNodes.Add(visual);
+                            UpdateSelectionVisuals();
+                            UpdateInspector();
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+
+        private void CenterOnNode(NodeVisual visual)
+        {
+            if (visual?.Container == null) return;
+
+            // Visible viewport = RootGrid (ClipToBounds=True), NOT
+            // CanvasSurface. SimHub embeds the editor in an unconstrained
+            // vertical container, so the Canvas's own ActualHeight balloons
+            // to fit its content (e.g. 3012px when the visible area is
+            // ~1500px). RootGrid's ActualHeight tracks the visible window.
+            // Horizontally, subtract the inspector column + splitter so the
+            // centre lands in the visible canvas region, not under the panel.
+            double viewportW = RootGrid?.ActualWidth ?? CanvasSurface.ActualWidth;
+            double viewportH = RootGrid?.ActualHeight ?? CanvasSurface.ActualHeight;
+            double inspectorW = (InspectorColumn?.ActualWidth ?? 0) + (SplitterColumn?.ActualWidth ?? 0);
+            double canvasViewportW = Math.Max(10, viewportW - inspectorW);
+            if (canvasViewportW < 10 || viewportH < 10) return;
+
+            CanvasSurface.UpdateLayout();
+            double width = visual.Container.ActualWidth > 0 ? visual.Container.ActualWidth : 120.0;
+            double height = visual.Container.ActualHeight > 0 ? visual.Container.ActualHeight : 50.0;
+            double nodeCx = visual.Node.X + width * 0.5;
+            double nodeCy = visual.Node.Y + height * 0.5;
+            double scale = SurfaceScale.ScaleX > 0 ? SurfaceScale.ScaleX : 1.0;
+            SurfaceTranslate.X = (canvasViewportW * 0.5) - nodeCx * scale;
+            SurfaceTranslate.Y = (viewportH * 0.5) - nodeCy * scale;
+        }
+
+        private void SyncBusPortEntries(GraphNode node)
+        {
+            _busPortEntries.Clear();
+            if (node == null || (node.Kind != GraphNodeKind.LocalSend && node.Kind != GraphNodeKind.LocalReceive)) return;
+
+            // Build the suggestion list: all bus names already declared on
+            // LocalSend ports in this graph (so Receive dropdowns auto-fill).
+            // Sorted alphabetically — order of declaration is not meaningful.
+            var busOptions = new List<string>();
+            foreach (var n in _graph.Nodes)
+            {
+                if (n.Kind != GraphNodeKind.LocalSend) continue;
+                foreach (var p in n.Ports)
+                {
+                    if (p.Kind == GraphPortKind.Input && !string.IsNullOrEmpty(p.BusName) && !busOptions.Contains(p.BusName))
+                    {
+                        busOptions.Add(p.BusName);
+                    }
+                }
+            }
+            busOptions.Sort(StringComparer.OrdinalIgnoreCase);
+
+            bool isReceive = node.Kind == GraphNodeKind.LocalReceive;
+            var wantedKind = isReceive ? GraphPortKind.Output : GraphPortKind.Input;
+            foreach (var port in node.Ports.Where(p => p.Kind == wantedKind))
+            {
+                _busPortEntries.Add(new BusPortEntry(port, busOptions, isReceive, OnBusPortNameChanged));
+            }
+        }
+
+        private void OnBusPortNameChanged()
+        {
+            // Bus name edited inline — mark dirty + repaint affected node so
+            // the canvas label updates immediately.
+            if (_selectedNode != null)
+            {
+                RebuildNodeVisual(_selectedNode.Node);
+                UpdateSelectionVisuals();
+            }
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        // ---- Plan 23: MsfsVarDef inspector port grid (alias / SimVar / Unit) ----
+
+        private void SyncMsfsVarPortEntries(GraphNode node)
+        {
+            _msfsVarPortEntries.Clear();
+            if (node == null || node.Kind != GraphNodeKind.MsfsVarDef) return;
+            foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
+            {
+                _msfsVarPortEntries.Add(new MsfsVarPortEntry(
+                    port, MsfsUnitPresets, OnMsfsVarAliasChanged, OnMsfsVarPortChanged));
+            }
+            ValidateMsfsVarEntries();
+        }
+
+        // Edit-time syntax validation for the current node's MsfsVarDef rows:
+        // empty alias/SimVar, duplicate alias (across ALL MsfsVarDef nodes), and
+        // alias colliding with a built-in MSFS.* signal. LVAR names can't be
+        // validated offline, so a well-formed row with an L: name is "valid" here.
+        private void ValidateMsfsVarEntries()
+        {
+            if (_msfsVarPortEntries.Count == 0) return;
+
+            // Built-in MSFS suffixes (e.g. "Speed.IAS") an alias must not shadow.
+            var builtins = new HashSet<string>(
+                GraphSignalCatalog.GetInputSignalsForGroup("MSFS"), StringComparer.OrdinalIgnoreCase);
+
+            // Alias occurrence counts across every MsfsVarDef node in the graph
+            // (aliases share one MSFS.* namespace, so cross-node dups collide).
+            var aliasCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            if (_graph?.Nodes != null)
+            {
+                foreach (var n in _graph.Nodes)
+                {
+                    if (n.Kind != GraphNodeKind.MsfsVarDef || n.Ports == null) continue;
+                    foreach (var p in n.Ports)
+                    {
+                        if (p.Kind != GraphPortKind.Output) continue;
+                        string a = (p.SignalSuffix ?? "").Trim();
+                        if (a.Length == 0) continue;
+                        aliasCounts[a] = aliasCounts.TryGetValue(a, out int c) ? c + 1 : 1;
+                    }
+                }
+            }
+
+            // Runtime rejections (bad A: name / absent on this aircraft), if the
+            // plugin is connected. Overlaid only on otherwise well-formed rows.
+            IReadOnlyDictionary<string, uint> failed = null;
+            try { failed = MsfsFailedVarProvider?.Invoke(); } catch { }
+
+            foreach (var entry in _msfsVarPortEntries)
+            {
+                string alias = (entry.Alias ?? "").Trim();
+                string simVar = (entry.SimVar ?? "").Trim();
+                string error = "";
+                if (alias.Length == 0) error = "Alias is required.";
+                else if (simVar.Length == 0) error = "SimVar / LVAR name is required.";
+                else if (aliasCounts.TryGetValue(alias, out int c) && c > 1) error = "Duplicate alias (must be unique across all MSFS Vars nodes).";
+                else if (builtins.Contains(alias)) error = "Alias shadows the built-in MSFS." + alias + " signal.";
+                else if (failed != null && failed.TryGetValue(alias, out uint code))
+                    error = $"Rejected by MSFS (exception {code}) — unknown SimVar name or absent on this aircraft.";
+                entry.Error = error;
+            }
+        }
+
+        // Alias edit: keep port.Name in sync (signal-node convention Name ==
+        // SignalSuffix) and repoint any links from the old port name so wiring
+        // survives a rename.
+        private void OnMsfsVarAliasChanged(GraphPort port, string oldName, string newName)
+        {
+            if (_selectedNode == null || port == null) return;
+            RenamePort(_selectedNode.Node, oldName, newName);
+            port.Name = newName;
+            port.SignalSuffix = newName;
+        }
+
+        private void OnMsfsVarPortChanged()
+        {
+            // Repaint the node (alias label may have changed) + refresh preview.
+            // Runtime re-registration happens on Apply (UpdateMsfsCustomVars).
+            if (_selectedNode != null)
+            {
+                RebuildNodeVisual(_selectedNode.Node);
+                UpdateSelectionVisuals();
+            }
+            ValidateMsfsVarEntries();
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        private void ButtonAddMsfsVar_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null) return;
+            var node = _selectedNode.Node;
+            if (node.Kind != GraphNodeKind.MsfsVarDef) return;
+
+            int idx = node.Ports.Count(p => p.Kind == GraphPortKind.Output) + 1;
+            string alias = $"Custom.Var{idx}";
+            while (node.Ports.Any(p => p.SignalSuffix == alias)) { idx++; alias = $"Custom.Var{idx}"; }
+            node.Ports.Add(new GraphPort
+            {
+                Kind = GraphPortKind.Output,
+                SignalSuffix = alias,
+                Name = alias,
+                SimVar = "",
+                Unit = "number"
+            });
+
+            RebuildSurface();
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+            SyncMsfsVarPortEntries(node);
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        private void ButtonRemoveMsfsVar_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null || !(sender is Button button)) return;
+            if (!(button.DataContext is MsfsVarPortEntry entry)) return;
+            var node = _selectedNode.Node;
+            if (node.Kind != GraphNodeKind.MsfsVarDef) return;
+            if (node.Ports.Count(p => p.Kind == GraphPortKind.Output) <= 1) return; // keep at least one
+
+            RemovePort(node, entry.Port);
+            RebuildSurface();
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+            SyncMsfsVarPortEntries(node);
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        private void RebuildNodeVisual(GraphNode node)
+        {
+            if (node == null) return;
+            if (!_nodeVisuals.TryGetValue(node.Id, out var oldVisual)) return;
+            CanvasSurface.Children.Remove(oldVisual.Container);
+            var newVisual = BuildNodeVisual(node);
+            _nodeVisuals[node.Id] = newVisual;
+            CanvasSurface.Children.Add(newVisual.Container);
+            Canvas.SetLeft(newVisual.Container, node.X);
+            Canvas.SetTop(newVisual.Container, node.Y);
+            if (ReferenceEquals(_selectedNode?.Node, node))
+            {
+                _selectedNode = newVisual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(newVisual);
+            }
+            UpdateAllLinkGeometry();
+        }
+
+        public sealed class BusPortEntry : INotifyPropertyChanged
+        {
+            private readonly Action _onChanged;
+
+            public BusPortEntry(GraphPort port, IEnumerable<string> busOptions, bool isReceive, Action onChanged)
+            {
+                Port = port;
+                PortName = port.Name;
+                BusOptions = new ObservableCollection<string>(busOptions ?? Enumerable.Empty<string>());
+                IsReceive = isReceive;
+                _onChanged = onChanged;
+            }
+
+            public GraphPort Port { get; }
+            public string PortName { get; }
+            /// <summary>True for Receive ports (gates dropdown vs free-form text, and the jump-to-Send button).</summary>
+            public bool IsReceive { get; }
+            public ObservableCollection<string> BusOptions { get; }
+
+            public string BusName
+            {
+                get => Port.BusName ?? "";
+                set
+                {
+                    // PropertyChanged-trigger binding: do NOT trim here, or the
+                    // TextBox loses characters mid-typing when the user has a
+                    // trailing space. Trim is purely cosmetic in this UI.
+                    string newValue = value ?? "";
+                    if (Port.BusName == newValue) return;
+                    Port.BusName = newValue;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BusName)));
+                    _onChanged?.Invoke();
+                }
+            }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+        }
+
+        // Plan 23: inspector view-model for one MsfsVarDef output port. Wraps the
+        // port's alias (SignalSuffix), raw datum name (SimVar) and unit. Alias
+        // edits route through onAliasChanged so links + port.Name stay consistent.
+        public sealed class MsfsVarPortEntry : INotifyPropertyChanged
+        {
+            private readonly GraphPort _port;
+            private readonly Action<GraphPort, string, string> _onAliasChanged;
+            private readonly Action _onChanged;
+
+            public MsfsVarPortEntry(GraphPort port, IEnumerable<string> unitOptions,
+                Action<GraphPort, string, string> onAliasChanged, Action onChanged)
+            {
+                _port = port;
+                UnitOptions = new ObservableCollection<string>(unitOptions ?? Enumerable.Empty<string>());
+                _onAliasChanged = onAliasChanged;
+                _onChanged = onChanged;
+            }
+
+            public GraphPort Port => _port;
+            public ObservableCollection<string> UnitOptions { get; }
+
+            // Edit-time validation state, set by the control's validator.
+            private string _error = "";
+            public string Error
+            {
+                get => _error;
+                set
+                {
+                    string v = value ?? "";
+                    if (_error == v) return;
+                    _error = v;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Error)));
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasError)));
+                }
+            }
+            public bool HasError => !string.IsNullOrEmpty(_error);
+
+            public string Alias
+            {
+                get => _port.SignalSuffix ?? "";
+                set
+                {
+                    string newValue = value ?? "";
+                    string old = _port.SignalSuffix ?? "";
+                    if (old == newValue) return;
+                    _onAliasChanged?.Invoke(_port, old, newValue);
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Alias)));
+                    _onChanged?.Invoke();
+                }
+            }
+
+            public string SimVar
+            {
+                get => _port.SimVar ?? "";
+                set
+                {
+                    string newValue = value ?? "";
+                    if ((_port.SimVar ?? "") == newValue) return;
+                    _port.SimVar = newValue;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SimVar)));
+                    _onChanged?.Invoke();
+                }
+            }
+
+            public string Unit
+            {
+                get => _port.Unit ?? "";
+                set
+                {
+                    string newValue = value ?? "";
+                    if ((_port.Unit ?? "") == newValue) return;
+                    _port.Unit = newValue;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Unit)));
+                    _onChanged?.Invoke();
+                }
+            }
+
+            public event PropertyChangedEventHandler PropertyChanged;
         }
 
         private void EnsureFuncPorts(GraphNode node)
@@ -3736,6 +5025,14 @@ namespace DiyFfb.GraphEditor
                     return new[] { "rpm_norm" };
                 case "buffet":
                     return new[] { "alpha", "start", "full", "gain", "qhat_eff" };
+                case "accumulator":
+                    return new[] { "trigger", "step", "min", "max", "reset" };
+                case "sample_hold":
+                    return new[] { "input", "trigger" };
+                case "edge_detect":
+                    return new[] { "input" };
+                case "lag_asym":
+                    return new[] { "input", "tau_up_sec", "tau_down_sec" };
                 default:
                     return new[] { "a", "b" };
             }
@@ -3773,9 +5070,12 @@ namespace DiyFfb.GraphEditor
             {
                 case "abs":
                 case "neg":
+                case "exp":
+                case "sqrt":
                     return 1;
                 case "clamp":
                 case "lerp":
+                case "select":
                     return 3;
                 default:
                     return 2;
@@ -3810,6 +5110,12 @@ namespace DiyFfb.GraphEditor
                 case "neg": return "-a";
                 case "clamp": return "clamp(a,min,max)";
                 case "lerp": return "lerp(a,b,t)";
+                case "select": return "cond?a:b";
+                case "eq": return "a==b";
+                case "gt": return "a>b";
+                case "exp": return "exp(a)";
+                case "sqrt": return "sqrt(a)";
+                case "pow": return "pow(a,b)";
                 default: return "out";
             }
         }
@@ -3877,11 +5183,15 @@ namespace DiyFfb.GraphEditor
             {
                 case "abs":
                 case "neg":
+                case "exp":
+                case "sqrt":
                     return new[] { "a" };
                 case "clamp":
                     return new[] { "a", "min", "max" };
                 case "lerp":
                     return new[] { "a", "b", "t" };
+                case "select":
+                    return new[] { "cond", "a", "b" };
                 default:
                     return new[] { "a", "b" };
             }
@@ -3948,6 +5258,26 @@ namespace DiyFfb.GraphEditor
             {
                 string desired = textBox.Text?.Trim() ?? "";
                 node.Title = string.IsNullOrWhiteSpace(desired) ? null : desired;
+                UpdateNodeTitleVisual(node);
+                SyncPreviewEntries();
+                RefreshPreview();
+                _pendingUndoDebounce = true;
+                GraphChanged?.Invoke();
+            }
+        }
+
+        private void InspectorExpr_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isInspectorUpdating || _selectedNode == null)
+            {
+                return;
+            }
+
+            if (sender is TextBox textBox &&
+                textBox.DataContext is GraphNode node &&
+                ReferenceEquals(node, _selectedNode.Node))
+            {
+                node.Expr = textBox.Text ?? "";
                 UpdateNodeTitleVisual(node);
                 SyncPreviewEntries();
                 RefreshPreview();
@@ -4092,13 +5422,15 @@ namespace DiyFfb.GraphEditor
 
             string effectiveSignalGroup = GetEffectiveSignalGroup(node);
             bool isOpNode = node.Kind == GraphNodeKind.Op;
+            bool isExprNode = node.Kind == GraphNodeKind.Expr;
             bool opVariadic = isOpNode && IsVariadicOp(node.Op);
             int opMinInputs = isOpNode ? GetOpMinInputCount(node.Op) : 0;
             var opInputPorts = isOpNode ? node.Ports.Where(p => p.Kind == GraphPortKind.Input).ToList() : null;
             foreach (var port in node.Ports)
             {
-                if (isOpNode && port.Kind == GraphPortKind.Output)
+                if ((isOpNode || isExprNode) && port.Kind == GraphPortKind.Output)
                 {
+                    // The single output is implicit for Op/Expr; only inputs are editable.
                     continue;
                 }
                 bool useSignalOptions = false;
@@ -4118,12 +5450,40 @@ namespace DiyFfb.GraphEditor
                 }
                 else if (node.Kind == GraphNodeKind.Output && port.Kind == GraphPortKind.Input)
                 {
-                    // Library graphs use freeform port names; top-level graphs use signal catalog
-                    if (!isLibraryGraph)
+                    if (node.Scoped)
                     {
+                        // Scoped Output: group-independent suffix dropdown
+                        useSignalOptions = true;
+                        signalOptions = GraphSignalCatalogData.OutputSuffixes;
+                    }
+                    else if (!isLibraryGraph)
+                    {
+                        // Top-level graph Output: group-specific suffix dropdown
                         useSignalOptions = true;
                         signalOptions = GraphSignalCatalog.GetOutputSignalsForGroup(effectiveSignalGroup);
                         MigratePortSignalSuffix(port, effectiveSignalGroup);
+                    }
+                }
+                else if (node.Kind == GraphNodeKind.ConfigOut && port.Kind == GraphPortKind.Input)
+                {
+                    // ConfigOut ports select from OverrideFieldRegistry field paths,
+                    // filtered by the node's ConfigType
+                    useSignalOptions = true;
+                    signalOptions = GetConfigFieldOptionsForType(node.ConfigType);
+                    // Use ConfigField as the display name if set
+                    if (!string.IsNullOrEmpty(port.ConfigField) && string.IsNullOrEmpty(port.Name))
+                    {
+                        port.Name = port.ConfigField;
+                    }
+                }
+                else if (node.Kind == GraphNodeKind.ConfigIn && port.Kind == GraphPortKind.Output)
+                {
+                    // ConfigIn output ports select from the readable-field catalog.
+                    useSignalOptions = true;
+                    signalOptions = ConfigInFieldCatalog.FieldPaths;
+                    if (!string.IsNullOrEmpty(port.ConfigField) && string.IsNullOrEmpty(port.Name))
+                    {
+                        port.Name = port.ConfigField;
                     }
                 }
                 else if (node.Kind == GraphNodeKind.Param && port.Kind == GraphPortKind.Output)
@@ -4194,6 +5554,52 @@ namespace DiyFfb.GraphEditor
             }
         }
 
+        // Groups that are shared across all function types (not tied to a specific config type)
+        private static readonly HashSet<TieredConfig.OverrideFieldGroup> SharedFieldGroups = new HashSet<TieredConfig.OverrideFieldGroup>
+        {
+            TieredConfig.OverrideFieldGroup.OutputScaling,
+            TieredConfig.OverrideFieldGroup.Physics,
+            TieredConfig.OverrideFieldGroup.StaticBalanceTuning,
+            TieredConfig.OverrideFieldGroup.ForceFeedback,
+        };
+
+        private IReadOnlyList<string> GetConfigFieldOptionsForType(string configType)
+        {
+            string key = configType ?? "";
+            if (_configFieldOptionsCache.TryGetValue(key, out var cached))
+            {
+                return cached;
+            }
+
+            IEnumerable<TieredConfig.OverrideFieldDefinition> fields;
+            if (!string.IsNullOrEmpty(key))
+            {
+                // Map ConfigType string to OverrideFieldGroup enum
+                TieredConfig.OverrideFieldGroup? typeGroup = null;
+                if (key == "FlightControl") typeGroup = TieredConfig.OverrideFieldGroup.FlightControl;
+                // Legacy aliases — old saved graphs may still use these ConfigType names
+                else if (key == "FlightStick" || key == "FlightPedals") typeGroup = TieredConfig.OverrideFieldGroup.FlightControl;
+
+                // Include type-specific fields + shared fields
+                fields = TieredConfig.OverrideFieldRegistry.GetAllFields()
+                    .Where(f => SharedFieldGroups.Contains(f.Group) ||
+                                (typeGroup.HasValue && f.Group == typeGroup.Value));
+            }
+            else
+            {
+                fields = TieredConfig.OverrideFieldRegistry.GetAllFields();
+            }
+
+            var options = fields
+                .Where(f => f.FieldType == TieredConfig.OverrideFieldType.Float)
+                .Select(f => f.FieldPath)
+                .OrderBy(p => p)
+                .ToArray();
+
+            _configFieldOptionsCache[key] = options;
+            return options;
+        }
+
         private void OnPortNameChanged(object sender, EventArgs e)
         {
             if (_isInspectorUpdating || _selectedNode == null)
@@ -4224,11 +5630,17 @@ namespace DiyFfb.GraphEditor
 
                 // For signal-bound Input/Output nodes, also update SignalSuffix
                 // Library graph Input/Output nodes use freeform Name, not SignalSuffix
+                // Exception: Scoped Output nodes use SignalSuffix even in library graphs
                 bool isLibraryGraph = _graph != null && _graph.IsLibraryGraph;
                 if ((node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Output) &&
-                    entry.UseSignalOptions && !isLibraryGraph)
+                    entry.UseSignalOptions && (!isLibraryGraph || node.Scoped))
                 {
                     entry.Port.SignalSuffix = unique;
+                }
+                else if ((node.Kind == GraphNodeKind.ConfigOut || node.Kind == GraphNodeKind.ConfigIn) && entry.UseSignalOptions)
+                {
+                    // ConfigOut/ConfigIn ports: the selected field path IS the ConfigField
+                    entry.Port.ConfigField = unique;
                 }
                 else if (node.Kind == GraphNodeKind.Param && entry.Port.Kind == GraphPortKind.Output)
                 {
@@ -4450,6 +5862,24 @@ namespace DiyFfb.GraphEditor
             }
         }
 
+        private void SignalPickerCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isInspectorUpdating)
+            {
+                return;
+            }
+
+            if (sender is ComboBox comboBox && comboBox.SelectedItem is string selected && !string.IsNullOrEmpty(selected))
+            {
+                // Walk up to find the PortEditEntry DataContext
+                var entry = comboBox.DataContext as PortEditEntry;
+                if (entry != null && entry.Name != selected)
+                {
+                    entry.Name = selected;
+                }
+            }
+        }
+
         private void SignalTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
             var tree = sender as TreeView;
@@ -4635,6 +6065,10 @@ namespace DiyFfb.GraphEditor
             {
                 return $"{title} ({node.Func})";
             }
+            if (node.Kind == GraphNodeKind.Expr && !string.IsNullOrWhiteSpace(node.Expr))
+            {
+                return $"{title} (= {node.Expr})";
+            }
 
             return title;
         }
@@ -4674,11 +6108,17 @@ namespace DiyFfb.GraphEditor
             {
                 case GraphNodeKind.Input: return TitleBarInput;
                 case GraphNodeKind.Output: return TitleBarOutput;
+                case GraphNodeKind.ConfigOut: return TitleBarOutput;
+                case GraphNodeKind.ConfigIn: return TitleBarInput;
                 case GraphNodeKind.Param: return TitleBarParam;
                 case GraphNodeKind.Const: return TitleBarConst;
                 case GraphNodeKind.Op: return TitleBarOp;
                 case GraphNodeKind.Func: return TitleBarFunc;
+                case GraphNodeKind.Expr: return TitleBarFunc;
                 case GraphNodeKind.Include: return TitleBarInclude;
+                case GraphNodeKind.LocalSend: return TitleBarLocalSend;
+                case GraphNodeKind.LocalReceive: return TitleBarLocalReceive;
+                case GraphNodeKind.MsfsVarDef: return TitleBarMsfsVar;
                 default: return TitleBarConst;
             }
         }
@@ -4695,9 +6135,13 @@ namespace DiyFfb.GraphEditor
             double maxOutput = 0.0;
             foreach (var port in node.Ports)
             {
-                if (!string.IsNullOrWhiteSpace(port.Name))
+                // Measure the actual displayed label, not the underlying
+                // port.Name — bus ports show "▸ BusName" / "BusName ▸"
+                // and would otherwise overflow when bus names get long.
+                string displayLabel = GetPortDisplayLabel(node, port);
+                if (!string.IsNullOrWhiteSpace(displayLabel))
                 {
-                    double labelWidth = MeasureTextWidth(port.Name, PortFontSize);
+                    double labelWidth = MeasureTextWidth(displayLabel, PortFontSize);
                     if (port.Kind == GraphPortKind.Input)
                     {
                         maxInput = Math.Max(maxInput, labelWidth);
@@ -4862,15 +6306,78 @@ namespace DiyFfb.GraphEditor
                 return "";
             }
 
+            // LocalReceive nodes don't exist in the runtime graph — they
+            // collapse into direct wires by the converter. To show a live
+            // preview value here, walk the bus back to the upstream source
+            // that feeds the matching LocalSend port and use *its* key.
+            if (node.Kind == GraphNodeKind.LocalReceive)
+            {
+                return ResolveBusReceiveValueKey(node, portName);
+            }
+
             if (node.Kind == GraphNodeKind.Include ||
                 node.Kind == GraphNodeKind.Output ||
+                node.Kind == GraphNodeKind.ConfigOut ||
+                node.Kind == GraphNodeKind.ConfigIn ||
                 node.Kind == GraphNodeKind.Input ||
-                node.Kind == GraphNodeKind.Param)
+                node.Kind == GraphNodeKind.Param ||
+                node.Kind == GraphNodeKind.MsfsVarDef)
             {
                 return $"{node.Id}:{portName}";
             }
 
             return node.Id;
+        }
+
+        private string ResolveBusReceiveValueKey(GraphNode receiveNode, string receivePortName)
+        {
+            if (_graph?.Nodes == null) return "";
+            var recvPort = receiveNode.Ports.FirstOrDefault(p =>
+                p.Kind == GraphPortKind.Output && p.Name == receivePortName);
+            if (recvPort == null || string.IsNullOrEmpty(recvPort.BusName)) return "";
+
+            // Find the LocalSend port with the matching bus name.
+            GraphNode sendNode = null;
+            GraphPort sendPort = null;
+            foreach (var n in _graph.Nodes)
+            {
+                if (n.Kind != GraphNodeKind.LocalSend) continue;
+                foreach (var p in n.Ports)
+                {
+                    if (p.Kind == GraphPortKind.Input && p.BusName == recvPort.BusName)
+                    {
+                        sendNode = n;
+                        sendPort = p;
+                        break;
+                    }
+                }
+                if (sendNode != null) break;
+            }
+            if (sendNode == null) return "";
+
+            // Find the link feeding the Send port → that's the bus source.
+            var feeder = _graph.Links.FirstOrDefault(l =>
+                l.ToNodeId == sendNode.Id && l.ToPort == sendPort.Name);
+            if (feeder == null) return "";
+
+            // Resolve the source's runtime value key. Mirrors the runtime
+            // converter's source-key derivation (Op/Func/Const collapse to
+            // node.Id; Include/Input/Param/Output/ConfigOut use node.Id:port).
+            var fromNode = _graph.Nodes.FirstOrDefault(n => n.Id == feeder.FromNodeId);
+            if (fromNode == null)
+            {
+                return string.IsNullOrEmpty(feeder.FromPort)
+                    ? feeder.FromNodeId
+                    : $"{feeder.FromNodeId}:{feeder.FromPort}";
+            }
+
+            // Recurse for chained buses (a Receive feeding a Send).
+            if (fromNode.Kind == GraphNodeKind.LocalReceive)
+            {
+                return ResolveBusReceiveValueKey(fromNode, feeder.FromPort);
+            }
+
+            return GetOutputValueKey(fromNode, feeder.FromPort);
         }
 
         private void UpdatePortHandleVisibility(NodeVisual node)
@@ -5096,6 +6603,8 @@ namespace DiyFfb.GraphEditor
             }
 
             // Legacy panel removed; collections drive the template.
+
+            CheckConfigTypeMismatch(node);
         }
 
         /// <summary>
@@ -5104,13 +6613,28 @@ namespace DiyFfb.GraphEditor
         /// </summary>
         private void SyncIncludePorts(GraphNode node)
         {
-            if (node == null || node.Kind != GraphNodeKind.Include || string.IsNullOrWhiteSpace(node.IncludePath))
+            if (node == null || node.Kind != GraphNodeKind.Include)
             {
                 return;
             }
 
-            // Extract interface from included graph
-            var iface = GraphSerializer.ExtractInterfaceFromPath(node.IncludePath, BaseDirectory);
+            // Extract interface from the embedded inline graph, or from the
+            // referenced file. Embedded nodes have no path — their ports come
+            // from the inline graph's Input/Output nodes.
+            IncludedGraphInterface iface;
+            if (node.InlineGraph != null)
+            {
+                iface = GraphSerializer.ExtractInterface(node.InlineGraph);
+            }
+            else if (!string.IsNullOrWhiteSpace(node.IncludePath))
+            {
+                iface = GraphSerializer.ExtractInterfaceFromPath(node.IncludePath, BaseDirectory);
+            }
+            else
+            {
+                return;
+            }
+
             node.CachedInterface = iface;
 
             if (!iface.IsValid)
@@ -5132,7 +6656,8 @@ namespace DiyFfb.GraphEditor
                 node.Ports.Add(new GraphPort { Name = inputName, Kind = GraphPortKind.Input });
             }
 
-            // Add output ports from interface
+            // Add output ports for unscoped outputs only.
+            // Scoped outputs are in iface.ScopedOutputs — they don't appear as Include node ports.
             foreach (var outputName in iface.Outputs)
             {
                 node.Ports.Add(new GraphPort { Name = outputName, Kind = GraphPortKind.Output });
@@ -5147,6 +6672,143 @@ namespace DiyFfb.GraphEditor
                     return true;
                 return false;
             });
+
+            // Apply any saved per-node display order on top of the derived order.
+            ApplyIncludePortOrder(node);
+        }
+
+        /// <summary>
+        /// Reorders an Include node's ports to match its saved InputPortOrder /
+        /// OutputPortOrder. Known names come first in saved order; ports not named
+        /// (new since the override was set) keep their derived order, appended.
+        /// Purely cosmetic — links are name-keyed.
+        /// </summary>
+        private void ApplyIncludePortOrder(GraphNode node)
+        {
+            if (node == null || node.Kind != GraphNodeKind.Include)
+            {
+                return;
+            }
+
+            var inputs = OrderPortsByNames(
+                node.Ports.Where(p => p.Kind == GraphPortKind.Input).ToList(), node.InputPortOrder);
+            var outputs = OrderPortsByNames(
+                node.Ports.Where(p => p.Kind == GraphPortKind.Output).ToList(), node.OutputPortOrder);
+
+            node.Ports.Clear();
+            foreach (var p in inputs) node.Ports.Add(p);
+            foreach (var p in outputs) node.Ports.Add(p);
+        }
+
+        private static List<GraphPort> OrderPortsByNames(List<GraphPort> ports, List<string> order)
+        {
+            if (order == null || order.Count == 0)
+            {
+                return ports;
+            }
+
+            var remaining = ports.ToList();
+            var result = new List<GraphPort>();
+            foreach (var name in order)
+            {
+                var match = remaining.FirstOrDefault(p => p.Name == name);
+                if (match != null)
+                {
+                    result.Add(match);
+                    remaining.Remove(match);
+                }
+            }
+            result.AddRange(remaining); // new/unknown ports keep derived order
+            return result;
+        }
+
+        /// <summary>
+        /// Moves a port one slot within its kind on an Include node, records the
+        /// new order on the node, and redraws.
+        /// </summary>
+        private void MoveIncludePort(GraphNode node, string name, GraphPortKind kind, int dir)
+        {
+            if (node == null || string.IsNullOrEmpty(name))
+            {
+                return;
+            }
+
+            var names = node.Ports.Where(p => p.Kind == kind).Select(p => p.Name).ToList();
+            int i = names.IndexOf(name);
+            int j = i + dir;
+            if (i < 0 || j < 0 || j >= names.Count)
+            {
+                return;
+            }
+
+            var tmp = names[i];
+            names[i] = names[j];
+            names[j] = tmp;
+
+            if (kind == GraphPortKind.Input)
+            {
+                node.InputPortOrder = names;
+            }
+            else
+            {
+                node.OutputPortOrder = names;
+            }
+
+            ApplyIncludePortOrder(node);
+            RebuildSurface();
+            RebuildIncludePortEditors(node);
+            GraphChanged?.Invoke();
+        }
+
+        private void MoveSelectedIncludePort(object sender, GraphPortKind kind, int dir)
+        {
+            if (_selectedNode?.Node == null || _selectedNode.Node.Kind != GraphNodeKind.Include)
+            {
+                return;
+            }
+
+            string name = (sender as FrameworkElement)?.DataContext as string;
+            if (string.IsNullOrEmpty(name) || name == "(none)")
+            {
+                return;
+            }
+
+            MoveIncludePort(_selectedNode.Node, name, kind, dir);
+        }
+
+        private void MoveIncludeInputUp_Click(object sender, RoutedEventArgs e)
+            => MoveSelectedIncludePort(sender, GraphPortKind.Input, -1);
+
+        private void MoveIncludeInputDown_Click(object sender, RoutedEventArgs e)
+            => MoveSelectedIncludePort(sender, GraphPortKind.Input, +1);
+
+        private void MoveIncludeOutputUp_Click(object sender, RoutedEventArgs e)
+            => MoveSelectedIncludePort(sender, GraphPortKind.Output, -1);
+
+        private void MoveIncludeOutputDown_Click(object sender, RoutedEventArgs e)
+            => MoveSelectedIncludePort(sender, GraphPortKind.Output, +1);
+
+        /// <summary>
+        /// Re-derives the ports of a single Include node (by id) from its current
+        /// source (inline graph or file) and redraws. Used to keep a parent's
+        /// embedded Include node ports in sync after its sub-graph's interface
+        /// (Input/Output nodes) is edited in another tab.
+        /// </summary>
+        public void RefreshIncludeNode(string nodeId)
+        {
+            if (string.IsNullOrEmpty(nodeId) || _graph == null)
+            {
+                return;
+            }
+
+            var node = _graph.Nodes.FirstOrDefault(n => n.Id == nodeId && n.Kind == GraphNodeKind.Include);
+            if (node == null)
+            {
+                return;
+            }
+
+            SyncIncludePorts(node);
+            RebuildSurface();
         }
 
         private void ButtonRefreshIncludePorts_Click(object sender, RoutedEventArgs e)
@@ -5412,6 +7074,7 @@ namespace DiyFfb.GraphEditor
             private string _uiStep;
             private string _uiPrecision;
             private bool _uiLogScale;
+            private string _uiMuteValue;
             private string _uiOptionsText;
             private GraphParam _param;
             private GraphParamUi _paramUi;
@@ -5423,13 +7086,26 @@ namespace DiyFfb.GraphEditor
             {
                 Port = port;
                 // For Input/Output nodes with signal options, use SignalSuffix for display
+                // For ConfigOut nodes, use ConfigField for display
                 // For Param nodes or other cases, use Name
-                _name = useSignalOptions && !string.IsNullOrEmpty(port.SignalSuffix)
-                    ? port.SignalSuffix
-                    : port.Name;
+                if (useSignalOptions && !string.IsNullOrEmpty(port.ConfigField))
+                    _name = port.ConfigField;
+                else if (useSignalOptions && !string.IsNullOrEmpty(port.SignalSuffix))
+                    _name = port.SignalSuffix;
+                else
+                    _name = port.Name;
                 _isNegated = port.Negate;
                 UseSignalOptions = useSignalOptions;
-                SignalOptions = signalOptions ?? Array.Empty<string>();
+                // Sort signal options alphabetically so both the flat ComboBox
+                // list and the hierarchical SignalTree popup come out ordered.
+                if (signalOptions != null && signalOptions.Count > 0)
+                {
+                    SignalOptions = signalOptions.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+                }
+                else
+                {
+                    SignalOptions = Array.Empty<string>();
+                }
                 SignalTree = BuildSignalTree(SignalOptions);
                 ShowParamFields = showParamFields;
                 HideParamUiButton = hideParamUiButton;
@@ -5694,6 +7370,25 @@ namespace DiyFfb.GraphEditor
                 }
             }
 
+            public string UiMuteValue
+            {
+                get => _uiMuteValue;
+                set
+                {
+                    if (_uiMuteValue == value)
+                    {
+                        return;
+                    }
+                    _uiMuteValue = value;
+                    if (_paramUi != null)
+                    {
+                        _paramUi.MuteValue = ParseNullableDouble(value);
+                        ParamChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiMuteValue)));
+                }
+            }
+
             public string UiOptionsText
             {
                 get => _uiOptionsText;
@@ -5733,6 +7428,7 @@ namespace DiyFfb.GraphEditor
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiStep)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiPrecision)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiLogScale)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiMuteValue)));
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UiOptionsText)));
             }
 
@@ -5764,6 +7460,7 @@ namespace DiyFfb.GraphEditor
                     _uiStep = "";
                     _uiPrecision = "";
                     _uiLogScale = false;
+                    _uiMuteValue = "";
                     _uiOptionsText = "";
                     return;
                 }
@@ -5775,6 +7472,7 @@ namespace DiyFfb.GraphEditor
                 _uiStep = _paramUi.Step?.ToString("G", CultureInfo.InvariantCulture) ?? "";
                 _uiPrecision = _paramUi.Precision?.ToString(CultureInfo.InvariantCulture) ?? "";
                 _uiLogScale = _paramUi.LogScale;
+                _uiMuteValue = _paramUi.MuteValue?.ToString("G", CultureInfo.InvariantCulture) ?? "";
                 _uiOptionsText = FormatOptionsText(_paramUi.Options);
             }
 
@@ -5979,10 +7677,15 @@ namespace DiyFfb.GraphEditor
         public DataTemplate ConstTemplate { get; set; }
         public DataTemplate OpTemplate { get; set; }
         public DataTemplate FuncTemplate { get; set; }
+        public DataTemplate ExprTemplate { get; set; }
         public DataTemplate InputTemplate { get; set; }
         public DataTemplate OutputTemplate { get; set; }
         public DataTemplate ParamTemplate { get; set; }
         public DataTemplate IncludeTemplate { get; set; }
+        public DataTemplate ConfigOutTemplate { get; set; }
+        public DataTemplate ConfigInTemplate { get; set; }
+        public DataTemplate LocalBusTemplate { get; set; }
+        public DataTemplate MsfsVarTemplate { get; set; }
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
@@ -5996,6 +7699,8 @@ namespace DiyFfb.GraphEditor
                         return OpTemplate;
                     case GraphNodeKind.Func:
                         return FuncTemplate;
+                    case GraphNodeKind.Expr:
+                        return ExprTemplate;
                     case GraphNodeKind.Input:
                         return InputTemplate;
                     case GraphNodeKind.Output:
@@ -6004,6 +7709,15 @@ namespace DiyFfb.GraphEditor
                         return ParamTemplate;
                     case GraphNodeKind.Include:
                         return IncludeTemplate;
+                    case GraphNodeKind.ConfigOut:
+                        return ConfigOutTemplate;
+                    case GraphNodeKind.ConfigIn:
+                        return ConfigInTemplate;
+                    case GraphNodeKind.LocalSend:
+                    case GraphNodeKind.LocalReceive:
+                        return LocalBusTemplate;
+                    case GraphNodeKind.MsfsVarDef:
+                        return MsfsVarTemplate;
                 }
             }
 

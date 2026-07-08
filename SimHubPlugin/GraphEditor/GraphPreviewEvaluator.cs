@@ -1,5 +1,6 @@
 using DiyFfb.GraphTest;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using RuntimeGraphDefinition = DiyFfb.GraphTest.GraphDefinition;
 
@@ -15,6 +16,17 @@ namespace DiyFfb.GraphEditor
         private IGraphResolver _cachedResolver;
         private string _cachedBaseDirectory;
         private bool _cacheDirty = true;
+        private long _lastEvalTicks;
+        private Dictionary<string, double[]> _pendingStateSnapshot;
+
+        /// <summary>
+        /// Sets a state snapshot to restore before the next evaluation.
+        /// Used to sync preview stateful nodes with runtime values.
+        /// </summary>
+        public void SetStateSnapshot(Dictionary<string, double[]> snapshot)
+        {
+            _pendingStateSnapshot = snapshot;
+        }
 
         /// <summary>
         /// Enable or disable debug logging for preview evaluation.
@@ -101,7 +113,19 @@ namespace DiyFfb.GraphEditor
                 }
             }
 
-            var result = _cachedEvaluator.EvaluateWithTrace(inputs, parameters);
+            // Restore state snapshot if provided (syncs stateful nodes from runtime)
+            if (_pendingStateSnapshot != null)
+            {
+                _cachedEvaluator.RestoreStateSnapshot(_pendingStateSnapshot);
+                _pendingStateSnapshot = null;
+            }
+
+            long now = Stopwatch.GetTimestamp();
+            double dt = _lastEvalTicks > 0
+                ? (double)(now - _lastEvalTicks) / Stopwatch.Frequency
+                : 0.0;
+            _lastEvalTicks = now;
+            var result = _cachedEvaluator.EvaluateWithTrace(inputs, parameters, dt);
 
             if (GraphDebugLogger.Enabled)
             {

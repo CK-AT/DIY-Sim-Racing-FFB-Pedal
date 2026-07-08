@@ -5,9 +5,31 @@ using System.Globalization;
 using System.Collections.Generic;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Linq;
+using DiyFfb.TieredConfig;
 
 namespace DiyFfb
 {
+    /// <summary>
+    /// Item for the function selector ComboBox.
+    /// </summary>
+    public class FunctionSelectorItem
+    {
+        public int FunctionId { get; set; }
+        public string DisplayName { get; set; }
+        public bool HasOverride { get; set; }
+        public bool IsAxisBase { get; set; }
+    }
+
+    /// <summary>
+    /// Editing mode for axis config - base or function override.
+    /// </summary>
+    public enum AxisEditingMode
+    {
+        AxisBase,
+        FunctionOverride
+    }
+
     /// <summary>
     /// Interaction logic for AxisConfigControl.xaml
     /// </summary>
@@ -27,6 +49,29 @@ namespace DiyFfb
         public delegate void KinematicParametersChangedEventHandler(KinematicParameters parameters);
         public event KinematicParametersChangedEventHandler KinematicParametersChanged;
 
+        // Function override editing state
+        private AxisEditingMode _editingMode = AxisEditingMode.AxisBase;
+        private int _selectedFunctionId = -1;
+        private bool _suppressOverrideSave = false;
+
+        /// <summary>
+        /// Fired when an axis override is created or modified (e.g. kinematics/static-balance edit in override mode).
+        /// The parent should refresh the selector badges and show the clear button.
+        /// </summary>
+        public event Action OverrideChanged;
+
+        // Baseline snapshots: fallback for when the manager doesn't yet have a
+        // base config (before first ESP32 config arrives).  Once the manager has
+        // a baseline, it is the authoritative source.
+        private GeneralKinematicConfig _baselineGeometry;
+        private KinematicParameters _baselineKinematics;
+        private AxisConfig.Types.StaticBalanceConfig _baselineStaticBalance;
+
+        private static readonly Google.Protobuf.JsonFormatter _protoJsonFormatter =
+            new Google.Protobuf.JsonFormatter(Google.Protobuf.JsonFormatter.Settings.Default);
+        private static readonly Google.Protobuf.JsonParser _protoJsonParser =
+            new Google.Protobuf.JsonParser(Google.Protobuf.JsonParser.Settings.Default);
+
         public AxisConfigControl()
         {
             config = GetDefaultConfig(AxisID.AxisUndefined);
@@ -41,7 +86,19 @@ namespace DiyFfb
         private void GeneralKinematicsControl_KinematicParametersChanged(KinematicParameters parameters)
         {
             config.KinematicParameters = parameters;
-            KinematicParametersChanged?.Invoke(parameters);
+
+            if (_suppressOverrideSave)
+                return;
+
+            // In override mode, save to function override instead of raising the event
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0)
+            {
+                SaveKinematicsChange(parameters);
+            }
+            else
+            {
+                KinematicParametersChanged?.Invoke(parameters);
+            }
         }
 
         public void OnAxisStateUpdate(global::AxisState axis_state)
@@ -58,6 +115,238 @@ namespace DiyFfb
             this.plugin = plugin;
             GeneralKinematicsControl.SetGui(ui, plugin);
         }
+
+        #region Function Override Editing
+
+        /// <summary>
+        /// Switch to baseline editing mode. Called by the parent UI.
+        /// </summary>
+        public void SwitchToBaseline()
+        {
+            _editingMode = AxisEditingMode.AxisBase;
+            _selectedFunctionId = -1;
+            ReloadBaseConfig();
+        }
+
+        /// <summary>
+        /// Switch to function override editing mode. Called by the parent UI.
+        /// Returns true if an override exists for this function/axis pair.
+        /// </summary>
+        public bool SwitchToFunction(int functionId)
+        {
+            _editingMode = AxisEditingMode.FunctionOverride;
+            _selectedFunctionId = functionId;
+            LoadFunctionOverrideConfig();
+
+            int axisId = (int)config.AxisId;
+            var overrides = plugin?.ConfigOrchestrator.GetAxisParameterOverride(functionId, axisId);
+            return overrides != null && !overrides.IsEmpty;
+        }
+
+        /// <summary>
+        /// Clear the override for the currently selected function, then reload.
+        /// </summary>
+        public void ClearCurrentOverride()
+        {
+            if (plugin == null || config == null || _selectedFunctionId < 0)
+                return;
+
+            int axisId = (int)config.AxisId;
+            plugin.ConfigOrchestrator.ClearAxisParameterOverride(_selectedFunctionId, axisId);
+            LoadFunctionOverrideConfig();
+            DebugMessage?.Invoke($"Cleared axis override for function {_selectedFunctionId}, axis {axisId}");
+        }
+
+        /// <summary>
+        /// Reload the base axis config from the UI cache.
+        /// Restores baseline geometry/kinematics/static-balance that may have been
+        /// overwritten while editing a function override (config == axis.Config).
+        /// </summary>
+        private void ReloadBaseConfig()
+        {
+            if (ui == null || config == null)
+                return;
+
+            if (ui.axes.TryGetValue(config.AxisId, out var axis) && axis.Config != null)
+            {
+                // Restore baseline values that were overwritten by function overrides.
+                // Prefer the manager's authoritative baseline; fall back to snapshots.
+                var managerBaseline = plugin?.AxisConfigManager?.GetBaseConfig((int)config.AxisId);
+                if (managerBaseline != null)
+                {
+                    axis.Config.GeneralKinematic = managerBaseline.GeneralKinematic;
+                    axis.Config.KinematicParameters = managerBaseline.KinematicParameters;
+                    axis.Config.StaticBalanceConfig = managerBaseline.StaticBalanceConfig;
+                }
+                else
+                {
+                    if (_baselineGeometry != null)
+                        axis.Config.GeneralKinematic = _baselineGeometry;
+                    if (_baselineKinematics != null)
+                        axis.Config.KinematicParameters = _baselineKinematics;
+                    if (_baselineStaticBalance != null)
+                        axis.Config.StaticBalanceConfig = _baselineStaticBalance;
+                }
+                _baselineGeometry = null;
+                _baselineKinematics = null;
+                _baselineStaticBalance = null;
+
+                UpdateConfig(axis.Config);
+            }
+        }
+
+        /// <summary>
+        /// Load the axis config for function override editing.
+        /// If an override exists, use it; otherwise use the base axis config.
+        /// </summary>
+        private void LoadFunctionOverrideConfig()
+        {
+            if (plugin == null || config == null || _selectedFunctionId < 0)
+                return;
+
+            // Suppress override saves while loading - QueueRebuild fires a 200ms timer
+            // that would otherwise overwrite stored overrides with base values.
+            _suppressOverrideSave = true;
+
+            // Restore axis.Config to baseline before loading UI and applying overrides.
+            // Prefer manager's authoritative baseline; fall back to snapshots.
+            var managerBaseline = plugin.AxisConfigManager.GetBaseConfig((int)config.AxisId);
+            if (ui != null && ui.axes.TryGetValue(config.AxisId, out var axis) && axis.Config != null)
+            {
+                if (managerBaseline != null)
+                {
+                    axis.Config.GeneralKinematic = managerBaseline.GeneralKinematic;
+                    axis.Config.KinematicParameters = managerBaseline.KinematicParameters;
+                    axis.Config.StaticBalanceConfig = managerBaseline.StaticBalanceConfig;
+                }
+                else
+                {
+                    if (_baselineGeometry != null)
+                        axis.Config.GeneralKinematic = _baselineGeometry;
+                    if (_baselineKinematics != null)
+                        axis.Config.KinematicParameters = _baselineKinematics;
+                    if (_baselineStaticBalance != null)
+                        axis.Config.StaticBalanceConfig = _baselineStaticBalance;
+                }
+
+                LoadConfigIntoUi(axis.Config);
+            }
+
+            // Snapshot as fallback (for when manager doesn't have a baseline yet)
+            _baselineGeometry = config.GeneralKinematic?.Clone();
+            _baselineKinematics = config.KinematicParameters?.Clone();
+            _baselineStaticBalance = config.StaticBalanceConfig?.Clone();
+
+            int axisId = (int)config.AxisId;
+            var overrides = plugin.ConfigOrchestrator.GetAxisParameterOverride(_selectedFunctionId, axisId);
+
+            if (overrides != null)
+            {
+                if (overrides.GeometryJson != null)
+                {
+                    try
+                    {
+                        var geometry = _protoJsonParser.Parse<GeneralKinematicConfig>(overrides.GeometryJson);
+                        config.GeneralKinematic = geometry;
+                        GeneralKinematicsControl.UpdateConfig(geometry);
+                    }
+                    catch
+                    {
+                        // Fall back to base geometry if parse fails
+                    }
+                }
+
+                if (overrides.Kinematics != null)
+                {
+                    config.KinematicParameters = overrides.Kinematics.Clone();
+                }
+
+                if (overrides.StaticBalance != null)
+                {
+                    config.StaticBalanceConfig = overrides.StaticBalance.Clone();
+                    UpdateStaticBalanceUi(config.StaticBalanceConfig);
+                    UpdateStaticBalancePlot();
+                }
+            }
+
+            // Re-enable override saves after the QueueRebuild timer has had a chance to fire
+            Dispatcher.BeginInvoke(new Action(() => _suppressOverrideSave = false),
+                System.Windows.Threading.DispatcherPriority.ContextIdle);
+        }
+
+        /// <summary>
+        /// Save kinematics changes to the appropriate location (base or override).
+        /// </summary>
+        private void SaveKinematicsChange(KinematicParameters parameters)
+        {
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0 && plugin != null)
+            {
+                int axisId = (int)config.AxisId;
+                string geometryJson = null;
+                if (config.GeneralKinematic != null)
+                {
+                    try { geometryJson = _protoJsonFormatter.Format(config.GeneralKinematic); }
+                    catch { /* best-effort */ }
+                }
+                plugin.ConfigOrchestrator.UpdateAxisParameterOverride(_selectedFunctionId, axisId, overrides =>
+                {
+                    overrides.Kinematics = parameters.Clone();
+                    overrides.GeometryJson = geometryJson;
+                });
+
+                OverrideChanged?.Invoke();
+            }
+            // In AxisBase mode, the existing KinematicParametersChanged event handles it
+        }
+
+        /// <summary>
+        /// Save static balance changes to the appropriate location (base or override).
+        /// </summary>
+        private void SaveStaticBalanceChange(AxisConfig.Types.StaticBalanceConfig staticBalance)
+        {
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0 && plugin != null)
+            {
+                int axisId = (int)config.AxisId;
+                plugin.ConfigOrchestrator.UpdateAxisParameterOverride(_selectedFunctionId, axisId, overrides =>
+                {
+                    overrides.StaticBalance = staticBalance.Clone();
+                });
+
+                OverrideChanged?.Invoke();
+            }
+            // In AxisBase mode, the base config is already modified
+        }
+
+        /// <summary>
+        /// Save oscillation guard changes to the appropriate location (base or override).
+        /// </summary>
+        private void SaveOscillationGuardChange(AxisConfig.Types.OscillationGuard guard)
+        {
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0 && plugin != null)
+            {
+                int axisId = (int)config.AxisId;
+                plugin.ConfigOrchestrator.UpdateAxisParameterOverride(_selectedFunctionId, axisId, overrides =>
+                {
+                    overrides.OscillationGuard = guard.Clone();
+                });
+
+                OverrideChanged?.Invoke();
+            }
+            // In AxisBase mode, the base config is already modified
+        }
+
+        /// <summary>
+        /// Get the current editing mode.
+        /// </summary>
+        public AxisEditingMode EditingMode => _editingMode;
+
+        /// <summary>
+        /// Get the currently selected function ID for override editing.
+        /// Returns -1 if in AxisBase mode.
+        /// </summary>
+        public int SelectedFunctionId => _selectedFunctionId;
+
+        #endregion
 
         public static AxisConfig GetDefaultConfig(AxisID axis_id)
         {
@@ -183,6 +472,21 @@ namespace DiyFfb
         }
         public void UpdateConfig(AxisConfig new_config)
         {
+            LoadConfigIntoUi(new_config);
+
+            // Reset to base mode when loading a new axis config
+            _editingMode = AxisEditingMode.AxisBase;
+            _selectedFunctionId = -1;
+            OverrideChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Load axis config into UI controls without resetting the function selector.
+        /// Used by LoadFunctionOverrideConfig to reload base geometry while keeping
+        /// the editing mode and selected function intact.
+        /// </summary>
+        private void LoadConfigIntoUi(AxisConfig new_config)
+        {
             config = new_config;
             GeneralKinematicsControl.Visibility = Visibility.Visible;
             ClearStaticBalanceSamples();
@@ -247,6 +551,7 @@ namespace DiyFfb
             Slider_physics_oversampling.Value = config.PhysicsIterationsPerSample;
 
             UpdateOscillationGuardUi(EnsureOscillationGuardConfig());
+            UpdateMinDampingUi();
             UpdateStaticBalanceUi(EnsureStaticBalanceConfig());
             UpdateStaticBalancePlot();
             if (LabelStaticBalanceStatus != null && staticBalanceSamples.Count == 0)
@@ -547,6 +852,13 @@ namespace DiyFfb
                     guard.RequiredHits = Math.Max(1U, value);
                 }
             }
+
+            // In FunctionOverride mode, persist to the per-function axis override layer
+            // so the merge pipeline can re-apply on top of baseline.
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0)
+            {
+                SaveOscillationGuardChange(guard);
+            }
         }
 
         private void OscillationGuard_LostFocus(object sender, RoutedEventArgs e)
@@ -557,6 +869,42 @@ namespace DiyFfb
             }
 
             UpdateOscillationGuardUi(EnsureOscillationGuardConfig());
+        }
+
+        // === Min damping (axis-level safety damping floor, plan 10 §3.8) ===
+
+        private void MinDamping_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (config == null) return;
+            if (!TryParseFloat(TextMinDamping.Text, out float value)) return;
+            float clamped = Math.Max(0.0f, value);
+
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0 && plugin != null)
+            {
+                int axisId = (int)config.AxisId;
+                plugin.ConfigOrchestrator.UpdateAxisParameterOverride(_selectedFunctionId, axisId, overrides =>
+                {
+                    overrides.MinDamping = clamped;
+                });
+                OverrideChanged?.Invoke();
+            }
+            else
+            {
+                // AxisBase mode — write into the base config directly.
+                config.MinDamping = clamped;
+            }
+        }
+
+        private void MinDamping_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (config == null) return;
+            UpdateMinDampingUi();
+        }
+
+        private void UpdateMinDampingUi()
+        {
+            if (TextMinDamping == null || config == null) return;
+            TextMinDamping.Text = config.MinDamping.ToString("0.###", CultureInfo.CurrentCulture);
         }
 
         private void UpdateOscillationGuardUi(AxisConfig.Types.OscillationGuard guard)
@@ -691,6 +1039,12 @@ namespace DiyFfb
             }
 
             UpdateStaticBalancePlot();
+
+            // In override mode, save to function override
+            if (_editingMode == AxisEditingMode.FunctionOverride && _selectedFunctionId >= 0)
+            {
+                SaveStaticBalanceChange(staticCfg);
+            }
         }
 
         private void StaticBalance_LostFocus(object sender, RoutedEventArgs e)

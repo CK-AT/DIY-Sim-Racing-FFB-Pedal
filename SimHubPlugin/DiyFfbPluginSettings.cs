@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Windows.Media.Converters;
+using DiyFfb.TieredConfig;
 
 namespace DiyFfb
 {
@@ -38,6 +39,18 @@ namespace DiyFfb
             /// Key: param name, Value: default/min/max at that time.
             /// </summary>
             public Dictionary<string, ParamSnapshot> LastReviewedParamSnapshots = new Dictionary<string, ParamSnapshot>();
+
+            /// <summary>
+            /// Vehicle-specific function config overrides.
+            /// Key: function ID, Value: delta overlay for that function.
+            /// </summary>
+            public Dictionary<int, FunctionConfigOverrides> FunctionOverrides = new Dictionary<int, FunctionConfigOverrides>();
+
+            /// <summary>
+            /// Which functions are active for this profile.
+            /// On profile load, only these functions have their overrides applied.
+            /// </summary>
+            public HashSet<int> ActiveFunctionIds = new HashSet<int>();
         }
 
         /// <summary>
@@ -132,7 +145,60 @@ namespace DiyFfb
         public bool XPlaneUdpEnabled = true;
         public int XPlaneUdpPort = 27015;
         public Dictionary<string, AircraftFfbProfile> AircraftFfbProfiles = new Dictionary<string, AircraftFfbProfile>();
+
+        // Tiered Config Override System
+        /// <summary>
+        /// Current user profile name. Defaults to Windows username.
+        /// User preferences are stored per-profile to support multiple users on shared rigs.
+        /// </summary>
+        public string CurrentUserProfile = System.Environment.UserName;
+
+        /// <summary>
+        /// Per-user preferences keyed by user profile name.
+        /// Contains function config overrides that follow the user across vehicles.
+        /// </summary>
+        public Dictionary<string, UserPreferences> UserPreferencesProfiles = new Dictionary<string, UserPreferences>();
+
+        /// <summary>
+        /// Per-function axis parameter overrides (function_id → axis_id → overrides).
+        /// Defined globally; only applied when function is active for current profile.
+        /// </summary>
+        public Dictionary<int, Dictionary<int, AxisParameterOverrides>> FunctionAxisOverrides = new Dictionary<int, Dictionary<int, AxisParameterOverrides>>();
+
+        /// <summary>
+        /// Function baselines (complete FunctionConfig snapshots) stored in SimHub.
+        /// These serve as the "Baseline layer" for tiered config merge operations.
+        /// Updated only by: importing compound configs, or explicit "Save to Baseline" action.
+        /// Key: function ID, Value: complete FunctionConfig snapshot.
+        /// </summary>
+        // Store as JSON strings because FunctionConfig (protobuf) doesn't serialize correctly with JSON.NET
+        public Dictionary<int, string> FunctionBaselines = new Dictionary<int, string>();
+
+        /// <summary>
+        /// Axis baselines (complete AxisConfig snapshots) stored in SimHub.
+        /// Prevents ESP32 reconnect from overwriting axis geometry with overridden values.
+        /// Key: axis ID, Value: complete AxisConfig snapshot as JSON.
+        /// </summary>
+        public Dictionary<int, string> AxisBaselines = new Dictionary<int, string>();
+
+        /// <summary>
+        /// DEPRECATED (plan 11): grip signals now bind through SimHub's standard
+        /// control panel as named actions (Grip.TrimHat.Up, etc.). Retained only so
+        /// existing settings.json files from older plugin versions still load. The
+        /// runtime ignores this dict; users must rebind once via SimHub Controls.
+        /// Slated for removal one minor release after plan 11 ships.
+        /// </summary>
+        [System.Obsolete("Replaced by SimHub control bindings — see plan 11. Kept for one release for settings deserialization.")]
+        public Dictionary<string, ButtonBinding> GripButtonBindings = new Dictionary<string, ButtonBinding>();
+
+        /// <summary>
+        /// Persisted graph state (trim accumulators, sample-holds, etc.) per vehicle.
+        /// Key: vehicle profile key (gameId/carId), Value: flattened state snapshot.
+        /// Survives SimHub restarts so trim is preserved across sessions.
+        /// </summary>
+        public Dictionary<string, Dictionary<string, double[]>> GraphStateSnapshots
+            = new Dictionary<string, Dictionary<string, double[]>>();
     }
-        
+
 
 }

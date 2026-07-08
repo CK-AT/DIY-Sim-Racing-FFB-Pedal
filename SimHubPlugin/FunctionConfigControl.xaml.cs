@@ -14,6 +14,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using SimHub.Plugins.OutputPlugins.ControlRemapper.Models;
+using DiyFfb.Controls;
 
 namespace DiyFfb
 {
@@ -26,6 +27,8 @@ namespace DiyFfb
         {
             config = GetDefaultConfig(FunctionID.Undefined);
             InitializeComponent();
+            Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
         }
 
         public delegate void DebugMessageEventHandler(string message);
@@ -37,17 +40,23 @@ namespace DiyFfb
         private FunctionConfig config;
         private FunctionID current_function_id;
         private bool updatingStaticBalanceUi;
+        private bool allowOverrideCreation = false;
+        private BadgeHelper _badgeHelper;
 
         public void SetGui(DiyFfbPluginUI ui, DiyFfbPlugin plugin)
         {
             this.ui = ui;
             this.plugin = plugin;
+            _badgeHelper = new BadgeHelper(this, () => this.plugin, () => function, OnBadgeOverrideCleared);
             AutomotivePedalConfig.SetGui(ui, plugin);
             AutomotivePedalConfig.ABSTestStateChange += OnABSTestStateChange;
             AutomotivePedalConfig.DebugMessage += OnDebugMessage;
             FlightPedalsConfig.SetGui(ui, plugin);
-            FlightStickConfig.SetGui(ui, plugin);
+            uc_flight_stick.SetGui(ui, plugin);
             ShifterConfig.SetGui(ui, plugin);
+
+            if (IsLoaded)
+                _badgeHelper.Subscribe();
         }
 
         private void OnDebugMessage(string message)
@@ -83,17 +92,13 @@ namespace DiyFfb
                     new_config.AutomotivePedal = AutomotivePedalConfigControl.GetDefaultConfig();
                     break;
                 case FunctionID.FlightPedals:
-                    new_config.FlightPedals = FlightPedalsConfigControl.GetDefaultConfig();
-                    new_config.AuxFunction = FlightPedalsConfigControl.GetRudderBrakeDefaultConfig(); 
+                    new_config.FlightControl = FlightPedalsConfigControl.GetDefaultConfig();
+                    new_config.AuxFunction = FlightPedalsConfigControl.GetRudderBrakeDefaultConfig();
                     break;
                 case FunctionID.FlightStickPitch:
-                    new_config.FlightStickPitch = FlightStickConfigControl.GetDefaultPitchConfig();
-                    break;
                 case FunctionID.FlightStickRoll:
-                    new_config.FlightStickRoll = FlightStickConfigControl.GetDefaultRollConfig();
-                    break;
                 case FunctionID.FlightStickCollective:
-                    new_config.FlightStickCollective = FlightStickConfigControl.GetDefaultCollectiveConfig();
+                    new_config.FlightControl = FlightStickConfigControl.GetDefaultConfig();
                     break;
                 case FunctionID.Shifter:
                     new_config.Shifter = ShifterConfigControl.GetDefaultConfig();
@@ -114,7 +119,7 @@ namespace DiyFfb
                     FlightPedalsConfig.OnKinematicParametersChanged(parameters);
                     break;
                 case 2:
-                    FlightStickConfig.OnKinematicParametersChanged(parameters);
+                    uc_flight_stick.OnKinematicParametersChanged(parameters);
                     break;
                 case 3:
                     ShifterConfig.OnKinematicParametersChanged(parameters);
@@ -133,7 +138,7 @@ namespace DiyFfb
                     FlightPedalsConfig.OnAxisStateUpdate(axis_state);
                     break;
                 case 2:
-                    FlightStickConfig.OnAxisStateUpdate(axis_state);
+                    uc_flight_stick.OnAxisStateUpdate(axis_state);
                     break;
                 case 3:
                     ShifterConfig.OnAxisStateUpdate(axis_state);
@@ -146,8 +151,17 @@ namespace DiyFfb
         {
             this.function = function;
             config = function.Config;
+            allowOverrideCreation = false;
             EnsureStaticBalanceTuningConfig();
             UpdateStaticBalanceTuningUi();
+
+            // Defer badge initialization until after the UI has been fully rendered
+            Dispatcher.BeginInvoke(new Action(() => _badgeHelper?.InitializeBadges()), System.Windows.Threading.DispatcherPriority.ContextIdle);
+
+            // Allow override creation only after all deferred events have been processed
+            Dispatcher.BeginInvoke(new Action(() => allowOverrideCreation = true),
+                System.Windows.Threading.DispatcherPriority.ContextIdle);
+
             switch (function.ID)
             {
                 case FunctionID.BrakePedal:
@@ -167,15 +181,15 @@ namespace DiyFfb
                     tc_specific_function.SelectedIndex = 1;
                     break;
                 case FunctionID.FlightStickPitch:
-                    FlightStickConfig.SwitchFunction(function);
+                    uc_flight_stick.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 2;
                     break;
                 case FunctionID.FlightStickRoll:
-                    FlightStickConfig.SwitchFunction(function);
+                    uc_flight_stick.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 2;
                     break;
                 case FunctionID.FlightStickCollective:
-                    FlightStickConfig.SwitchFunction(function);
+                    uc_flight_stick.SwitchFunction(function);
                     tc_specific_function.SelectedIndex = 2;
                     break;
                 case FunctionID.Shifter:
@@ -214,20 +228,38 @@ namespace DiyFfb
 
         private void StaticBalanceEnabled_Checked(object sender, RoutedEventArgs e)
         {
-            if (config == null)
-            {
-                return;
-            }
+            if (config == null || updatingStaticBalanceUi) return;
             EnsureStaticBalanceTuningConfig().Enabled = true;
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.enabled",
+                    overrides =>
+                    {
+                        if (overrides.StaticBalanceTuning == null)
+                            overrides.StaticBalanceTuning = new TieredConfig.StaticBalanceTuningOverrides();
+                        overrides.StaticBalanceTuning.Enabled = true;
+                    });
+            }
         }
 
         private void StaticBalanceEnabled_Unchecked(object sender, RoutedEventArgs e)
         {
-            if (config == null)
-            {
-                return;
-            }
+            if (config == null || updatingStaticBalanceUi) return;
             EnsureStaticBalanceTuningConfig().Enabled = false;
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.enabled",
+                    overrides =>
+                    {
+                        if (overrides.StaticBalanceTuning == null)
+                            overrides.StaticBalanceTuning = new TieredConfig.StaticBalanceTuningOverrides();
+                        overrides.StaticBalanceTuning.Enabled = false;
+                    });
+            }
         }
 
         private void StaticBalanceGain_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -237,10 +269,23 @@ namespace DiyFfb
                 return;
             }
             var tuning = EnsureStaticBalanceTuningConfig();
-            tuning.Gain = (float)e.NewValue;
+            var newValue = (float)e.NewValue;
+            tuning.Gain = newValue;
             updatingStaticBalanceUi = true;
             TextStaticBalanceGain.Text = tuning.Gain.ToString("0.###", CultureInfo.CurrentCulture);
             updatingStaticBalanceUi = false;
+
+            if (allowOverrideCreation && plugin != null && function != null &&
+                plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+            {
+                plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.gain",
+                    overrides =>
+                    {
+                        if (overrides.StaticBalanceTuning == null)
+                            overrides.StaticBalanceTuning = new TieredConfig.StaticBalanceTuningOverrides();
+                        overrides.StaticBalanceTuning.Gain = newValue;
+                    });
+            }
         }
 
         private void StaticBalanceGain_TextChanged(object sender, TextChangedEventArgs e)
@@ -256,12 +301,77 @@ namespace DiyFfb
                 updatingStaticBalanceUi = true;
                 SliderStaticBalanceGain.Value = value;
                 updatingStaticBalanceUi = false;
+
+                if (allowOverrideCreation && plugin != null && function != null &&
+                    plugin.ConfigOrchestrator.HasFunctionBaseline((int)function.ID))
+                {
+                    plugin.ConfigOrchestrator.UpdateFunctionOverrideField((int)function.ID, "static_balance_tuning.gain",
+                        overrides =>
+                        {
+                            if (overrides.StaticBalanceTuning == null)
+                                overrides.StaticBalanceTuning = new TieredConfig.StaticBalanceTuningOverrides();
+                            overrides.StaticBalanceTuning.Gain = value;
+                        });
+                }
             }
         }
 
         private void StaticBalanceGain_LostFocus(object sender, RoutedEventArgs e)
         {
             UpdateStaticBalanceTuningUi();
+        }
+
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            _badgeHelper?.Subscribe();
+
+            // Initialize badges for the currently displayed function after UI is fully loaded
+            Dispatcher.BeginInvoke(new Action(() => _badgeHelper?.InitializeBadges()), System.Windows.Threading.DispatcherPriority.ContextIdle);
+        }
+
+        private void OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            _badgeHelper?.Unsubscribe();
+        }
+
+        private void OnBadgeOverrideCleared(object sender, LayerBadgeWrapper.OverrideClearedEventArgs e)
+        {
+            if (plugin == null || function == null) return;
+
+            var mergedConfig = plugin.FunctionConfigManager.GetCurrentConfig((int)function.ID);
+            if (mergedConfig == null) return;
+
+            updatingStaticBalanceUi = true;
+            switch (e.FieldPath)
+            {
+                case "static_balance_tuning.enabled":
+                    var tuningEnabled = mergedConfig.StaticBalanceTuning ?? new FunctionConfig.Types.StaticBalanceTuning { Enabled = false, Gain = 1.0f };
+                    config.StaticBalanceTuning.Enabled = tuningEnabled.Enabled;
+                    ToggleStaticBalanceEnabled.IsChecked = tuningEnabled.Enabled;
+                    break;
+
+                case "static_balance_tuning.gain":
+                    var tuningGain = mergedConfig.StaticBalanceTuning ?? new FunctionConfig.Types.StaticBalanceTuning { Enabled = false, Gain = 1.0f };
+                    config.StaticBalanceTuning.Gain = tuningGain.Gain;
+                    SliderStaticBalanceGain.Value = tuningGain.Gain;
+                    TextStaticBalanceGain.Text = tuningGain.Gain.ToString("0.###", CultureInfo.CurrentCulture);
+                    break;
+
+                case "static_balance_tuning":
+                    var tuningFull = mergedConfig.StaticBalanceTuning ?? new FunctionConfig.Types.StaticBalanceTuning { Enabled = false, Gain = 1.0f };
+                    config.StaticBalanceTuning.Enabled = tuningFull.Enabled;
+                    config.StaticBalanceTuning.Gain = tuningFull.Gain;
+                    ToggleStaticBalanceEnabled.IsChecked = tuningFull.Enabled;
+                    SliderStaticBalanceGain.Value = tuningFull.Gain;
+                    TextStaticBalanceGain.Text = tuningFull.Gain.ToString("0.###", CultureInfo.CurrentCulture);
+                    break;
+            }
+            updatingStaticBalanceUi = false;
+        }
+
+        public void RefreshAllBadges()
+        {
+            _badgeHelper?.RefreshAllBadges();
         }
     }
 }

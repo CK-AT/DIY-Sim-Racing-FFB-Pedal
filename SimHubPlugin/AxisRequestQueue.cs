@@ -36,6 +36,7 @@ namespace DiyFfb
             public bool AwaitResponse;
             public DateTime NextSendUtc;
             public Message Payload;
+            public bool VerifyAfterSend;
         }
 
         private readonly IAxisRequestSender sender;
@@ -49,6 +50,13 @@ namespace DiyFfb
 
         private const int RetryDelayMs = 250;
         private const int MaxRetries = 3;
+
+        // Minimum delay after sending an upload before processing the next queue item.
+        // Gives ESP32 time to deserialize and apply configs (especially force curve splines).
+        // Relaxed from 200ms: per-function throttle (~1/sec) in TieredConfigOrchestrator
+        // already limits how fast configs are generated during slider dragging.
+        private const int PostUploadCooldownMs = 100;
+        private DateTime _cooldownUntilUtc = DateTime.MinValue;
 
         public AxisRequestQueue(DiyFfbPluginUI ui)
             : this(new PluginUISender(ui), manualTick: false)
@@ -113,7 +121,8 @@ namespace DiyFfb
                 => ui.SendAxisRequest(axisId, type, payload);
         }
 
-        public void Enqueue(AxisID axisId, AxisRequestType type, Message payload = null)
+        public void Enqueue(AxisID axisId, AxisRequestType type, Message payload = null,
+            bool verifyAfterSend = false)
         {
             lock (sync)
             {
@@ -128,7 +137,8 @@ namespace DiyFfb
                     RemainingRetries = MaxRetries,
                     AwaitResponse = RequiresResponse(type),
                     NextSendUtc = nowProvider(),
-                    Payload = payload
+                    Payload = payload,
+                    VerifyAfterSend = verifyAfterSend && IsUploadType(type)
                 });
             }
         }
@@ -195,6 +205,11 @@ namespace DiyFfb
             RequestItem item = null;
             lock (sync)
             {
+                var now = nowProvider();
+                if (!hasCurrent && now < _cooldownUntilUtc)
+                {
+                    return;
+                }
                 if (!hasCurrent && queue.Count > 0)
                 {
                     current = queue.Dequeue();
@@ -204,7 +219,7 @@ namespace DiyFfb
                 {
                     return;
                 }
-                if (nowProvider() < current.NextSendUtc)
+                if (now < current.NextSendUtc)
                 {
                     return;
                 }
@@ -232,7 +247,29 @@ namespace DiyFfb
 
                 if (!current.AwaitResponse)
                 {
+                    if (IsUploadType(current.Type))
+                    {
+                        _cooldownUntilUtc = nowProvider().AddMilliseconds(PostUploadCooldownMs);
+                    }
+                    bool verify = current.VerifyAfterSend;
+                    var verifyAxis = current.AxisId;
+                    var verifyType = current.Type == AxisRequestType.AxisConfigUpload
+                        ? AxisRequestType.AxisConfig
+                        : AxisRequestType.FunctionConfig;
                     hasCurrent = false;
+                    if (verify && verifyAxis != AxisID.AxisUndefined
+                        && !IsDuplicate(verifyAxis, verifyType))
+                    {
+                        queue.Enqueue(new RequestItem
+                        {
+                            AxisId = verifyAxis,
+                            Type = verifyType,
+                            RemainingRetries = MaxRetries,
+                            AwaitResponse = true,
+                            NextSendUtc = nowProvider(),
+                            Payload = null
+                        });
+                    }
                     return;
                 }
 
@@ -263,6 +300,12 @@ namespace DiyFfb
                 default:
                     return false;
             }
+        }
+
+        private static bool IsUploadType(AxisRequestType type)
+        {
+            return type == AxisRequestType.AxisConfigUpload ||
+                   type == AxisRequestType.FunctionConfigUpload;
         }
 
         private bool IsDuplicate(AxisID axisId, AxisRequestType type)

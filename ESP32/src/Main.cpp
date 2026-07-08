@@ -14,6 +14,8 @@
 #include "Main.h"
 
 #include "Arduino.h"
+#include "esp_ota_ops.h"
+#include "esp_task_wdt.h"
 #include "ConfigManager.h"
 #include "IFunction.h"
 #include "Physics.h"
@@ -30,17 +32,14 @@
 void physics_task_func(void *pv_parameters);
 
 #include "AutomotivePedalFunction.h"
-#include "FlightPedalsFunction.h"
-#include "FlightStickFunction.h"
+#include "FlightControlFunction.h"
 #include "RudderBrake.h"
 #include "ShifterDetect.h"
 #include "ShifterFunction.h"
+#include "GripReader.h"
 
 AutomotivePedalFunction automotive_pedal_function = {};
-FlightPedalsFunction flight_pedals_function = {};
-FlightStickFunction flight_stick_pitch_function = {};
-FlightStickFunction flight_stick_roll_function = {};
-FlightStickFunction flight_stick_collective_function = {};
+FlightControlFunction flight_control_function = {};
 RudderBrake rudder_brake = {};
 ShifterDetect shifter_detect = {};
 ShifterFunction shifter_function = {};
@@ -146,6 +145,7 @@ void IRAM_ATTR adc_isr(void) {
 
 void on_ffb_action(const FFBAction &ffb_action);
 void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel);
+void on_dds_sync(uint8_t dds_index, float phase, float hz);
 void on_ota_state_change(bool ota_active);
 
 static void apply_oscillation_guard_config(const AxisConfig *axis_cfg) {
@@ -230,6 +230,7 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
         servo->set_homing_direction(to_homing_direction(axis_cfg));
     }
     apply_oscillation_guard_config(axis_cfg);
+    sim.set_min_damping(axis_cfg ? max(axis_cfg->min_damping, 0.0f) : 0.0f);
 
     if (active_function) {
         active_function->disable();
@@ -241,21 +242,9 @@ IFunction *on_config_update(IFunction *active_function, const FunctionConfig *fu
                 automotive_pedal_function.update_config(function_cfg->specific.automotive_pedal);
                 active_function = &automotive_pedal_function;
                 break;
-            case FunctionConfig_flight_pedals_tag:
-                flight_pedals_function.update_config(function_cfg->specific.flight_pedals);
-                active_function = &flight_pedals_function;
-                break;
-            case FunctionConfig_flight_stick_pitch_tag:
-                flight_stick_pitch_function.update_config(function_cfg->specific.flight_stick_pitch);
-                active_function = &flight_stick_pitch_function;
-                break;
-            case FunctionConfig_flight_stick_roll_tag:
-                flight_stick_roll_function.update_config(function_cfg->specific.flight_stick_roll);
-                active_function = &flight_stick_roll_function;
-                break;
-            case FunctionConfig_flight_stick_collective_tag:
-                flight_stick_collective_function.update_config(function_cfg->specific.flight_stick_collective);
-                active_function = &flight_stick_collective_function;
+            case FunctionConfig_flight_control_tag:
+                flight_control_function.update_config(function_cfg->specific.flight_control);
+                active_function = &flight_control_function;
                 break;
             case FunctionConfig_shifter_tag:
                 shifter_function.update_config(function_cfg->specific.shifter, function_cfg->aux_function.specific.shifter_detect, comm_manager, function_cfg->base.linked_axes);
@@ -306,14 +295,50 @@ void setup() {
     Serial.begin(3000000);
 #endif
 
+    // OTA boot diagnostic: which slot booted, its rollback state, and why we last
+    // reset. A freshly-OTA'd image that got rolled back shows up here as the OLD
+    // partition (e.g. app0) with a fault reset_reason (PANIC/TASK_WDT/INT_WDT) and
+    // a VALID state — i.e. it never reached initArduino's mark-app-valid before
+    // resetting in the PENDING_VERIFY window. A clean stick shows the NEW partition.
+    {
+        const esp_partition_t *running = esp_ota_get_running_partition();
+        esp_ota_img_states_t ota_state = ESP_OTA_IMG_UNDEFINED;
+        if (running) esp_ota_get_state_partition(running, &ota_state);
+        const char *state_str =
+            ota_state == ESP_OTA_IMG_NEW            ? "NEW" :
+            ota_state == ESP_OTA_IMG_PENDING_VERIFY ? "PENDING_VERIFY" :
+            ota_state == ESP_OTA_IMG_VALID          ? "VALID" :
+            ota_state == ESP_OTA_IMG_INVALID        ? "INVALID" :
+            ota_state == ESP_OTA_IMG_ABORTED        ? "ABORTED" : "UNDEFINED";
+        esp_reset_reason_t rr = esp_reset_reason();
+        const char *rr_str =
+            rr == ESP_RST_POWERON  ? "POWERON" :
+            rr == ESP_RST_EXT      ? "EXT" :
+            rr == ESP_RST_SW       ? "SW" :
+            rr == ESP_RST_PANIC    ? "PANIC" :
+            rr == ESP_RST_INT_WDT  ? "INT_WDT" :
+            rr == ESP_RST_TASK_WDT ? "TASK_WDT" :
+            rr == ESP_RST_WDT      ? "WDT" :
+            rr == ESP_RST_BROWNOUT ? "BROWNOUT" :
+            rr == ESP_RST_DEEPSLEEP ? "DEEPSLEEP" : "OTHER";
+        Serial.printf("Boot: v%s part=%s ota_state=%s reset_reason=%s(%d)",
+                          VERSION, running ? running->label : "?", state_str, rr_str, (int)rr);
+    }
+
     CommManager::CANConfig can_config = {.baud_rate = 1000, .tx_pin = CAN_TX, .rx_pin = CAN_RX};
 
-    comm_manager.setup(&Serial, can_config, &config_manager, on_ffb_action, on_axis_action);
+#ifdef HAS_GRIP_SPI
+    static GripReader gripReader;
+    gripReader.setup(GRIP_CS, GRIP_SCK, GRIP_MISO, GRIP_BYTES);
+    comm_manager.setup(&Serial, can_config, &config_manager, on_ffb_action, on_axis_action, on_dds_sync, &gripReader);
+#else
+    comm_manager.setup(&Serial, can_config, &config_manager, on_ffb_action, on_axis_action, on_dds_sync);
+#endif
     comm_manager.set_ota_state_callback(on_ota_state_change);
 
     LogOutput::printf("**************************************************************************************************************");
     LogOutput::printf("This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.");
-    LogOutput::printf("Please check github repo for more detail: https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal");
+    LogOutput::printf("Please check github repo for more detail: https://github.com/CK-AT/DIY-FFB");
     LogOutput::printf("Board: %s", CONTROL_BOARD);
     LogOutput::printf("FW Version: %s (%s)", VERSION, BUILD_TIMESTAMP);
     // TODO: printout the github releasing version
@@ -387,10 +412,7 @@ void setup() {
         }
 
         function_elements.add_element(&automotive_pedal_function);
-        function_elements.add_element(&flight_pedals_function);
-        function_elements.add_element(&flight_stick_pitch_function);
-        function_elements.add_element(&flight_stick_roll_function);
-        function_elements.add_element(&flight_stick_collective_function);
+        function_elements.add_element(&flight_control_function);
         function_elements.add_element(&shifter_function);
         sim.add_element(&static_balancer);
         sim.add_element(&function_elements);
@@ -405,7 +427,9 @@ void setup() {
                                 &physics_task_handle, /* Task handle to keep track of created task */
                                 1);                   /* pin task to core 1 */
 
-        enableCore1WDT();
+        // Note: core 1 is watched via PhysicsTask's own esp_task_wdt progress
+        // reset (see physics_task_func), not enableCore1WDT()/IDLE1 — a busy FFB
+        // loop legitimately starves IDLE1 and would otherwise false-trip.
 
         attachInterrupt(PIN_DRDY, &adc_isr, FALLING);
     } else {
@@ -496,7 +520,15 @@ void physics_task_func(void *pv_parameters) {
 
     comm_manager.on_physics_task_start();
 
+    // Watch THIS task's progress rather than IDLE1: PhysicsTask is pinned, high
+    // priority and legitimately CPU-bound under load, so an IDLE1 watchdog
+    // (enableCore1WDT) false-trips whenever the loop saturates core 1 for a few
+    // seconds (CAN/config bursts). Resetting once per iteration still catches a
+    // real single-iteration hang (iterations stop), without the false reboots.
+    esp_task_wdt_add(NULL);
+
     for (;;) {
+        esp_task_wdt_reset();
         if (ulTaskNotifyTake(pdTRUE, 10) == 0) {
             continue;
         }
@@ -570,7 +602,17 @@ void physics_task_func(void *pv_parameters) {
             comm_manager.calc_final_position(sim.get_x(), x_contact_point);
         }
 
-        x_sled = config_manager.calc_sled_position(x_contact_point);
+        // SyncVib position delta — added in contact frame post-calc_final_position
+        // (own_position is dropped on the floor for non-primary axes, so the
+        // delta cannot be injected upstream). For subtractive axes the contact
+        // frame is mirrored, so a positive sample in local sim convention must
+        // be applied with inverted sign — same flip pattern as
+        // calc_input_force_sum. Cached on ConfigManager at config-update time.
+        // send_force_and_position broadcasts the un-vibrated x_contact_point.
+        float vib_sign = config_manager.is_subtractive_axis() ? -1.0f : 1.0f;
+        float x_contact_servo = x_contact_point + vib_sign * sim.get_x_vib();
+
+        x_sled = config_manager.calc_sled_position(x_contact_servo);
 
         config_manager.release_config_semaphore();
 
@@ -610,6 +652,13 @@ void on_ffb_action(const FFBAction &ffb_action) {
     }
 }
 
+void on_dds_sync(uint8_t dds_index, float phase, float hz) {
+    IFunction *active_function = config_manager.get_active_function();
+    if (active_function) {
+        active_function->on_dds_sync(dds_index, phase, hz);
+    }
+}
+
 void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel) {
     switch (axis_action.which_action) {
         case AxisAction_restart_tag:
@@ -635,10 +684,25 @@ void on_axis_action(const AxisAction &axis_action, CommChannel comm_channel) {
 }
 
 void on_ota_state_change(bool ota_active) {
-    if (!servo) return;
+    // Free core 1 for the duration of OTA. PhysicsTask (prio 10, pinned core 1)
+    // otherwise keeps spinning its loop even with the servo paused, and under the
+    // added WiFi/lwIP load it starves IDLE1 long enough to trip the task watchdog
+    // -> TASK_WDT reboot mid-download (the OTA "flakiness"). Suspending it lets
+    // IDLE1 run and feed the WDT. vTaskSuspend/Resume are not nested, so repeated
+    // active-state transitions are harmless; a single resume undoes it.
     if (ota_active) {
-        servo->pause();
+        if (physics_task_handle) {
+            // Unsubscribe from the task WDT before suspending: a suspended task
+            // can't reset its watchdog and would otherwise trip it during OTA.
+            esp_task_wdt_delete(physics_task_handle);
+            vTaskSuspend(physics_task_handle);
+        }
+        if (servo) servo->pause();
     } else {
-        servo->resume();
+        if (servo) servo->resume();
+        if (physics_task_handle) {
+            vTaskResume(physics_task_handle);
+            esp_task_wdt_add(physics_task_handle);
+        }
     }
 }

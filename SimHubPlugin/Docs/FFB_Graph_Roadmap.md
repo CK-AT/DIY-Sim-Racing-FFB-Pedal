@@ -5,7 +5,8 @@ Status: iteration plan for the node-graph system and editor.
 ## Phase 1: Core Editor and Preview (Done)
 - Graph editor control with pan/zoom, node creation, links.
 - Inspector with live preview and basic editing.
-- Include support with port add/remove and path selection.
+- Include support with auto-derived ports and path selection.
+- Embedded sub-graphs (Done): Include nodes can carry an inline sub-graph (no file path) for one-off, template-specific clusters — edited in their own tab, with group/extract-to-file/inline-a-file conversions and cosmetic per-node port reordering. Reuse across templates stays file-based.
 - Hierarchy panel for root/include navigation.
 
 ## Phase 2: Runtime Integration

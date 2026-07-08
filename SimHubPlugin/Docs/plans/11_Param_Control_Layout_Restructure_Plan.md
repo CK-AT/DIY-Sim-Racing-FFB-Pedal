@@ -1,5 +1,7 @@
 # Parameter Control Layout Restructure Plan
 
+**Status**: COMPLETED
+
 ## Goal
 Restructure parameter control layout so:
 - Function parameters also appear on the Vehicle tab.

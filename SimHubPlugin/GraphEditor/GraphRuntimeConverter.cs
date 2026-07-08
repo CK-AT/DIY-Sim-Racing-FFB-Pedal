@@ -62,8 +62,22 @@ namespace DiyFfb.GraphEditor
             var runtime = new DiyFfb.GraphTest.GraphDefinition { Version = graph.Version };
             var nodes = graph.Nodes.ToDictionary(n => n.Id, n => n);
 
+            // Resolve graph-local named buses: each LocalReceive maps to the
+            // (FromNodeId, FromPort) that feeds the matching LocalSend. This
+            // is consulted by TryGetInputSource so consumers wired from a
+            // LocalReceive transparently read the bus source.
+            var localBusReceiveMap = BuildLocalBusReceiveMap(graph);
+
             foreach (var node in graph.Nodes)
             {
+                // LocalSend / LocalReceive nodes are pure editor sugar — they
+                // collapse away here; consumers wired from them get redirected
+                // via localBusReceiveMap in TryGetInputSource.
+                if (node.Kind == GraphNodeKind.LocalSend || node.Kind == GraphNodeKind.LocalReceive)
+                {
+                    continue;
+                }
+
                 var runtimeNode = new DiyFfb.GraphTest.GraphNode
                 {
                     Id = node.Id,
@@ -79,7 +93,7 @@ namespace DiyFfb.GraphEditor
                     runtimeNode.Op = MapOp(node.Op);
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
                     {
-                        if (TryGetInputSource(nodes, graph.Links, node.Id, port.Name, out var source))
+                        if (TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
                         {
                             runtimeNode.Args.Add(source);
                             runtimeNode.ArgNegate.Add(IsNegateSupportedOp(node.Op) && port.Negate);
@@ -90,7 +104,7 @@ namespace DiyFfb.GraphEditor
                 {
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
                     {
-                        if (TryGetInputSource(nodes, graph.Links, node.Id, port.Name, out var source))
+                        if (TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
                         {
                             runtimeNode.Args.Add(source);
                         }
@@ -100,7 +114,7 @@ namespace DiyFfb.GraphEditor
                 {
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
                     {
-                        if (TryGetInputSource(nodes, graph.Links, node.Id, port.Name, out var source))
+                        if (TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
                         {
                             // Build full signal name from SignalGroup + SignalSuffix
                             string signalName = BuildFullSignalName(node.SignalGroup, port.SignalSuffix, port.Name);
@@ -116,11 +130,48 @@ namespace DiyFfb.GraphEditor
                     }
                     continue;
                 }
-                else if (node.Kind == GraphNodeKind.Include)
+                else if (node.Kind == GraphNodeKind.ConfigOut)
                 {
+                    // ConfigOut nodes are like Output but write to config fields.
+                    // In a sub-graph: converted normally using ConfigField as the name.
+                    // In a parent graph with FunctionScope: converter creates scoped ConfigOut
+                    // nodes from the Include's CachedInterface (see Include handling below).
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
                     {
-                        if (TryGetInputSource(nodes, graph.Links, node.Id, port.Name, out var source))
+                        if (!string.IsNullOrEmpty(port.ConfigField) &&
+                            TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
+                        {
+                            // Explicit (unscoped) ConfigOut: FunctionScope names the single
+                            // target function ("Function:field"). Empty = current behavior
+                            // (parent-scoped in includes, or top-level fan-out by group).
+                            string name = string.IsNullOrEmpty(node.FunctionScope)
+                                ? port.ConfigField
+                                : node.FunctionScope + ":" + port.ConfigField;
+                            var configOutNode = new DiyFfb.GraphTest.GraphNode
+                            {
+                                Id = BuildPortId(node.Id, port.Name),
+                                Name = name,
+                                Type = NodeType.ConfigOut,
+                                Src = source
+                            };
+                            runtime.Nodes[configOutNode.Id] = configOutNode;
+                        }
+                    }
+                    continue;
+                }
+                else if (node.Kind == GraphNodeKind.Include)
+                {
+                    // Embedded sub-graph: recursively convert the inline definition.
+                    // The runtime resolver checks InlineGraph before Path, so a
+                    // path-less embedded include evaluates straight from memory.
+                    if (node.InlineGraph != null)
+                    {
+                        runtimeNode.InlineGraph = Convert(node.InlineGraph);
+                    }
+
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
+                    {
+                        if (TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
                         {
                             runtimeNode.InputMap[port.Name] = source;
                         }
@@ -133,9 +184,97 @@ namespace DiyFfb.GraphEditor
                             runtimeNode.OutputMap[port.Name] = BuildIncludeOutputId(node.Id, port.Name);
                         }
                     }
+
+                    // FunctionScope: auto-register scoped outputs and config outputs
+                    if (!string.IsNullOrEmpty(node.FunctionScope) && node.CachedInterface != null)
+                    {
+                        string scope = node.FunctionScope;
+
+                        // Scoped outputs: sub-graph Scoped Output ports → top-level Output nodes
+                        foreach (var scopedOut in node.CachedInterface.ScopedOutputs)
+                        {
+                            string includeOutputId = BuildIncludeOutputId(node.Id, scopedOut.Name);
+                            // Ensure the OutputMap entry exists for the sub-graph evaluator
+                            if (!runtimeNode.OutputMap.ContainsKey(scopedOut.Name))
+                            {
+                                runtimeNode.OutputMap[scopedOut.Name] = includeOutputId;
+                            }
+                            string scopedName = scope + "." + scopedOut.SignalSuffix;
+                            var scopedOutput = new DiyFfb.GraphTest.GraphNode
+                            {
+                                Id = node.Id + ":scoped:" + scopedOut.Name,
+                                Name = scopedName,
+                                Type = NodeType.Output,
+                                Src = includeOutputId
+                            };
+                            runtime.Nodes[scopedOutput.Id] = scopedOutput;
+                        }
+
+                        // Scoped config outputs: sub-graph ConfigOut ports → top-level ConfigOut nodes
+                        foreach (var cfgOut in node.CachedInterface.ConfigOutputs)
+                        {
+                            string includeOutputId = BuildIncludeOutputId(node.Id, cfgOut.Name);
+                            // Add OutputMap entry so the sub-graph's ConfigOut value flows through
+                            if (!runtimeNode.OutputMap.ContainsKey(cfgOut.Name))
+                            {
+                                runtimeNode.OutputMap[cfgOut.Name] = includeOutputId;
+                            }
+                            string scopedName = scope + ":" + cfgOut.ConfigField;
+                            var scopedConfigOut = new DiyFfb.GraphTest.GraphNode
+                            {
+                                Id = node.Id + ":scoped_cfg:" + cfgOut.Name,
+                                Name = scopedName,
+                                Type = NodeType.ConfigOut,
+                                Src = includeOutputId
+                            };
+                            runtime.Nodes[scopedConfigOut.Id] = scopedConfigOut;
+                        }
+
+                        // Scoped config inputs (inverse of scoped config outputs): feed
+                        // each sub-graph ConfigIn the scoped function's merged config value.
+                        // A parent-level ConfigIn source node carries the scoped key
+                        // "scope:ConfigField" (the plugin populates it); it is wired into
+                        // the sub-graph via the Include's InputMap. The library ConfigIn
+                        // node reads inputs["ConfigField"] (no scope prefix), so we key the
+                        // InputMap entry by ConfigField — EvalInclude passes it through
+                        // unmapped (it isn't an Input port) straight into subInputs.
+                        foreach (var cfgIn in node.CachedInterface.ConfigInputs)
+                        {
+                            string scopedNodeId = node.Id + ":scoped_cfgin:" + cfgIn.Name;
+                            var scopedConfigIn = new DiyFfb.GraphTest.GraphNode
+                            {
+                                Id = scopedNodeId,
+                                Name = scope + ":" + cfgIn.ConfigField,
+                                Type = NodeType.ConfigIn
+                            };
+                            runtime.Nodes[scopedConfigIn.Id] = scopedConfigIn;
+                            runtimeNode.InputMap[cfgIn.ConfigField] = scopedNodeId;
+                        }
+                    }
                 }
-                else if (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Param)
+                else if (node.Kind == GraphNodeKind.Expr)
                 {
+                    // Expr is a single-output node (like Op/Func) but binds its
+                    // inputs by name: each wired input port becomes an InputMap
+                    // entry whose key is the identifier usable in the formula.
+                    runtimeNode.Expr = node.Expr ?? "";
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
+                    {
+                        if (TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
+                        {
+                            runtimeNode.InputMap[port.Name] = source;
+                        }
+                    }
+                    // Falls through to add runtimeNode (id == node.Id); consumers
+                    // wired from its output port resolve to this id.
+                }
+                else if (node.Kind == GraphNodeKind.Input || node.Kind == GraphNodeKind.Param ||
+                         node.Kind == GraphNodeKind.MsfsVarDef)
+                {
+                    // Plan 23: MsfsVarDef output ports emit ordinary MSFS input
+                    // signals (MSFS.<alias>) — identical to an Input node's port.
+                    // The raw SimVar/Unit are registration-only and never reach
+                    // the runtime graph, so the value resolves via the inputs dict.
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
                     {
                         // Build full signal name from SignalGroup + SignalSuffix
@@ -150,10 +289,39 @@ namespace DiyFfb.GraphEditor
                         {
                             Id = BuildPortId(node.Id, port.Name),
                             Name = signalName,
-                            Type = node.Kind == GraphNodeKind.Input ? NodeType.Input : NodeType.Param,
+                            Type = node.Kind == GraphNodeKind.Param ? NodeType.Param : NodeType.Input,
                             ConstValue = constValue
                         };
                         runtime.Nodes[inputNode.Id] = inputNode;
+                    }
+                    continue;
+                }
+                else if (node.Kind == GraphNodeKind.ConfigIn)
+                {
+                    // ConfigIn nodes are sources (like Input) that read a merged config
+                    // field value supplied by the plugin. One runtime node per output
+                    // port; Name is "ConfigType:ConfigField" so the plugin can resolve
+                    // the target function + field. Consumers wired from the output port
+                    // resolve via TryGetInputSource → BuildPortId, same as Input/Param.
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Output))
+                    {
+                        if (string.IsNullOrEmpty(port.ConfigField))
+                        {
+                            continue;
+                        }
+                        // Scoped: the parent Include's FunctionScope supplies the function,
+                        // so the runtime key is the bare field (fed via the parent's InputMap).
+                        // Unscoped: ConfigType names the function explicitly ("Function:Field").
+                        string key = node.Scoped
+                            ? port.ConfigField
+                            : (string.IsNullOrEmpty(node.ConfigType) ? port.ConfigField : node.ConfigType + ":" + port.ConfigField);
+                        var configInNode = new DiyFfb.GraphTest.GraphNode
+                        {
+                            Id = BuildPortId(node.Id, port.Name),
+                            Name = key,
+                            Type = NodeType.ConfigIn
+                        };
+                        runtime.Nodes[configInNode.Id] = configInNode;
                     }
                     continue;
                 }
@@ -175,6 +343,15 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.Func: return NodeType.Func;
                 case GraphNodeKind.Include: return NodeType.Include;
                 case GraphNodeKind.Output: return NodeType.Output;
+                case GraphNodeKind.ConfigOut: return NodeType.ConfigOut;
+                case GraphNodeKind.ConfigIn: return NodeType.ConfigIn;
+                case GraphNodeKind.Expr: return NodeType.Expr;
+                case GraphNodeKind.MsfsVarDef: return NodeType.Input; // emits MSFS.<alias>
+                // LocalSend / LocalReceive collapse away at convert time and
+                // never reach the runtime; MapNodeType shouldn't be called on
+                // them, but if it is just return Const (harmless).
+                case GraphNodeKind.LocalSend: return NodeType.Const;
+                case GraphNodeKind.LocalReceive: return NodeType.Const;
                 default: return NodeType.Const;
             }
         }
@@ -197,6 +374,12 @@ namespace DiyFfb.GraphEditor
                 case "neg": return OpType.Neg;
                 case "clamp": return OpType.Clamp;
                 case "lerp": return OpType.Lerp;
+                case "select": return OpType.Select;
+                case "eq": return OpType.Eq;
+                case "gt": return OpType.Gt;
+                case "exp": return OpType.Exp;
+                case "sqrt": return OpType.Sqrt;
+                case "pow": return OpType.Pow;
                 default: return OpType.Add;
             }
         }
@@ -216,6 +399,7 @@ namespace DiyFfb.GraphEditor
         }
 
         private static bool TryGetInputSource(Dictionary<string, GraphNode> nodes, List<GraphLink> links,
+            Dictionary<(string NodeId, string PortName), (string FromNodeId, string FromPort)> localBusReceiveMap,
             string nodeId, string portName, out string sourceId)
         {
             sourceId = null;
@@ -225,29 +409,89 @@ namespace DiyFfb.GraphEditor
                 return false;
             }
 
-            if (!nodes.ContainsKey(link.FromNodeId))
+            string fromNodeId = link.FromNodeId;
+            string fromPort = link.FromPort;
+
+            // If the link originates at a LocalReceive node's port, follow the
+            // bus back to the source that feeds the matching LocalSend port.
+            if (localBusReceiveMap != null && localBusReceiveMap.TryGetValue((fromNodeId, fromPort), out var busSource))
+            {
+                fromNodeId = busSource.FromNodeId;
+                fromPort = busSource.FromPort;
+            }
+
+            if (string.IsNullOrEmpty(fromNodeId) || !nodes.ContainsKey(fromNodeId))
             {
                 return false;
             }
 
-            if (nodes.TryGetValue(link.FromNodeId, out var fromNode) &&
+            if (nodes.TryGetValue(fromNodeId, out var fromNode) &&
                 fromNode.Kind == GraphNodeKind.Include &&
-                link.FromPort != null)
+                fromPort != null)
             {
-                sourceId = BuildIncludeOutputId(link.FromNodeId, link.FromPort);
+                sourceId = BuildIncludeOutputId(fromNodeId, fromPort);
                 return true;
             }
 
-            if (nodes.TryGetValue(link.FromNodeId, out var sourceNode) &&
-                (sourceNode.Kind == GraphNodeKind.Input || sourceNode.Kind == GraphNodeKind.Param) &&
-                !string.IsNullOrWhiteSpace(link.FromPort))
+            if (nodes.TryGetValue(fromNodeId, out var sourceNode) &&
+                (sourceNode.Kind == GraphNodeKind.Input || sourceNode.Kind == GraphNodeKind.Param ||
+                 sourceNode.Kind == GraphNodeKind.ConfigIn || sourceNode.Kind == GraphNodeKind.MsfsVarDef) &&
+                !string.IsNullOrWhiteSpace(fromPort))
             {
-                sourceId = BuildPortId(link.FromNodeId, link.FromPort);
+                // Multi-output signal nodes (MsfsVarDef included) key each port
+                // distinctly — otherwise all ports collapse to the node-level id
+                // and every consumer reads the same value.
+                sourceId = BuildPortId(fromNodeId, fromPort);
                 return true;
             }
 
-            sourceId = link.FromNodeId;
+            sourceId = fromNodeId;
             return true;
+        }
+
+        /// <summary>
+        /// Per-port bus resolution. Each entry maps (LocalReceive nodeId,
+        /// receive output portName) → (FromNodeId, FromPort) of whatever
+        /// feeds the matching LocalSend input port. A LocalSend/LocalReceive
+        /// node can carry many bus ports; each port has its own BusName.
+        /// Orphan receives (no matching send for the bus name) are omitted —
+        /// TryGetInputSource will then fail to resolve them and the consumer
+        /// port becomes unconnected (evaluates to 0).
+        /// </summary>
+        private static Dictionary<(string NodeId, string PortName), (string FromNodeId, string FromPort)> BuildLocalBusReceiveMap(GraphDefinition graph)
+        {
+            var result = new Dictionary<(string, string), (string, string)>();
+            if (graph?.Nodes == null) return result;
+
+            // bus name → (FromNodeId, FromPort) feeding the Send port
+            var busSource = new Dictionary<string, (string, string)>(StringComparer.Ordinal);
+            foreach (var sendNode in graph.Nodes)
+            {
+                if (sendNode.Kind != GraphNodeKind.LocalSend) continue;
+                foreach (var port in sendNode.Ports)
+                {
+                    if (port.Kind != GraphPortKind.Input) continue;
+                    if (string.IsNullOrEmpty(port.BusName)) continue;
+                    var feeder = graph.Links.FirstOrDefault(l => l.ToNodeId == sendNode.Id && l.ToPort == port.Name);
+                    if (feeder == null) continue;
+                    busSource[port.BusName] = (feeder.FromNodeId, feeder.FromPort);
+                }
+            }
+
+            foreach (var recvNode in graph.Nodes)
+            {
+                if (recvNode.Kind != GraphNodeKind.LocalReceive) continue;
+                foreach (var port in recvNode.Ports)
+                {
+                    if (port.Kind != GraphPortKind.Output) continue;
+                    if (string.IsNullOrEmpty(port.BusName)) continue;
+                    if (busSource.TryGetValue(port.BusName, out var src))
+                    {
+                        result[(recvNode.Id, port.Name)] = src;
+                    }
+                }
+            }
+            return result;
         }
 
         private static string BuildIncludeOutputId(string nodeId, string portName)

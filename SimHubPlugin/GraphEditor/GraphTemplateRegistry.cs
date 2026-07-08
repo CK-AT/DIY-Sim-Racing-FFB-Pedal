@@ -19,11 +19,61 @@ namespace DiyFfb.GraphEditor
             },
             new GraphTemplateEntry
             {
-                Name = "Helicopter (Basic)",
-                Description = "Basic FFB graph for helicopters with collective force feedback and rotor dynamics.",
+                Name = "Helicopter \u2014 Unboosted (X-Plane)",
+                Description = "Unboosted helicopter (MD 500E, R22). Blade-alpha load force, OWL option, mechanical friction. Uses X-Plane ground-truth rotor signals.",
                 Category = "Flight",
-                TemplatePath = "graphs/templates/heli_default.json",
+                TemplatePath = "graphs/templates/heli_unboosted.json",
+                GameIds = new[] { "X-Plane", "XPlane", "XPlane11", "XPlane12" }
+            },
+            new GraphTemplateEntry
+            {
+                Name = "Helicopter \u2014 Unboosted (MSFS)",
+                Description = "Unboosted helicopter for MSFS 2020/2024. Same feel model as the X-Plane variant; blade-alpha/VRS/slap/propwash derived in-plugin from IAS + descent rate + weight (plan 17 \u00a73). Per-aircraft tuning via Aircraft.* graph params.",
+                Category = "Flight",
+                TemplatePath = "graphs/templates/heli_unboosted_msfs.json",
+                GameIds = new[] {
+                    "MSFS2020", "MSFS2024",
+                    "FlightSimulator", "FlightSimulator2020", "FlightSimulator2024",
+                    "MicrosoftFlightSimulator", "MicrosoftFlightSimulator2020", "MicrosoftFlightSimulator2024",
+                    "MSFS", "MSFS20", "MSFS24"
+                }
+            },
+            new GraphTemplateEntry
+            {
+                Name = "Helicopter \u2014 Boosted",
+                Description = "Boosted helicopter (Bell 206, H125). No load force, hydraulic friction/damping model.",
+                Category = "Flight",
+                TemplatePath = "graphs/templates/heli_boosted.json",
                 GameIds = new[] { "X-Plane", "XPlane", "XPlane11", "XPlane12", "MSFS2020", "MSFS2024" }
+            },
+            new GraphTemplateEntry
+            {
+                Name = "Helicopter \u2014 SAS",
+                Description = "SAS-equipped helicopter (Bell 222). G-load + rate load force, hydraulic friction/damping.",
+                Category = "Flight",
+                TemplatePath = "graphs/templates/heli_sas.json",
+                GameIds = new[] { "X-Plane", "XPlane", "XPlane11", "XPlane12", "MSFS2020", "MSFS2024" }
+            },
+            new GraphTemplateEntry
+            {
+                Name = "Automotive (Basic)",
+                Description = "Placeholder graph for sim racing vehicles. No signal processing yet \u2014 pedal forces use hardware config only.",
+                Category = "Automotive",
+                TemplatePath = "graphs/templates/vehicle_default.json",
+                GameIds = new[]
+                {
+                    "BeamNGdrive", "BeamNG",
+                    "AssettoCorsa", "AssettoCorsaCompetizione",
+                    "iRacing",
+                    "rFactor2",
+                    "RaceRoom",
+                    "Automobilista2",
+                    "LeMansUltimate",
+                    "F12024", "F12023",
+                    "ProjectCARS2", "ProjectCARS3",
+                    "DirtRally2", "WRC",
+                    "ForzaMotorsport"
+                }
             }
         };
 
@@ -35,6 +85,11 @@ namespace DiyFfb.GraphEditor
         /// <returns>Enumerable of template entries that match the game ID.</returns>
         public static IEnumerable<GraphTemplateEntry> GetTemplates(string gameId, string baseDirectory)
         {
+            // Log so the user can see what SimHub actually reports when a template
+            // is missing for their game (game-ID strings aren't documented anywhere).
+            SimHub.Logging.Current?.Info(
+                $"[GraphTemplateRegistry] GetTemplates(gameId='{gameId ?? "(null)"}')");
+
             var filtered = string.IsNullOrWhiteSpace(gameId)
                 ? AllTemplates
                 : AllTemplates.Where(t => t.GameIds != null &&

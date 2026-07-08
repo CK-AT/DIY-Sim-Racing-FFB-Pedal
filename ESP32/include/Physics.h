@@ -70,6 +70,16 @@ struct SimAccumulators {
     float f_static_sum = 0.0f;
     float f_kin_sum = 0.0f;
     float v_eps_max = 0.0f;
+    // Vibration force (Buffet only): bypasses damping and friction.
+    // Injected into f_sum post-friction in Sim::update so coherent vibration
+    // is not attenuated. SyncVib does NOT use this — it routes its sample
+    // through accum.x_vib instead, see plan 12.
+    float f_vib = 0.0f;
+    // Vibration position delta (mm), summed across SyncVib instances each
+    // tick. Captured by Sim::update into _x_vib for the servo command path
+    // in Main.cpp; never enters the integrator. Coupling is independent
+    // of damping so amplitude tuning is orthogonal to feel.
+    float x_vib = 0.0f;
     bool has_limits_override = false;
     bool limits_immediate = false;
     float x_min_override = 0.0f;
@@ -137,6 +147,9 @@ class Sim {
         float get_f_sum(void) {
             return _f_sum;
         }
+        float get_x_vib(void) const {
+            return _x_vib;
+        }
         float get_m(void) const {
             return _m;
         }
@@ -158,6 +171,15 @@ class Sim {
 #endif
         void set_m(float val) {
             _m = val;
+        }
+        // Axis-level safety damping floor in (N*s)/mm. Applied unconditionally
+        // to accum.k_damp_sum at the integrator before the stability cap.
+        // 0 = no floor (default).
+        void set_min_damping(float val) {
+            _min_damping = val < 0.0f ? 0.0f : val;
+        }
+        float get_min_damping(void) const {
+            return _min_damping;
         }
         void set_x_min(float val, bool immediate = false) {
             _x_min_tgt = val;
@@ -192,12 +214,22 @@ class Sim {
         float _x_max = 0.0;
         float _x_min_tgt;
         float _x_max_tgt;
-        float _x = 0.0;
-        float _x_prev = 0.0;
+        // Position state is double, not float: the position-Verlet update
+        // (2*_x - _x_prev + a*dt^2) and the velocity difference (_x - _x_prev)
+        // both subtract two large near-equal positions. In float32 the ULP at
+        // _x~300mm (~3e-5mm) dwarfs the per-substep displacement (~1e-6mm with
+        // physics_iterations_per_sample sub-stepping), so small motions round
+        // away entirely — felt as stiction that worsens with |_x| (e.g. a
+        // one-sided contact coordinate reaching +328mm). Double drops the ULP
+        // to ~6e-14mm, eliminating it. The exposed get_x() stays float.
+        double _x = 0.0;
+        double _x_prev = 0.0;
         float _v = 0.0;
         float _a = 0.0;
         float _f_sum;
+        float _x_vib = 0.0f;
         float _dt_ms = 0.0f;
+        float _min_damping = 0.0f;
 };
 
 class CompoundElement : public SimElement {
@@ -265,6 +297,64 @@ class Buffet : public SimElement {
         float _slow_state = 0.0f;
         uint32_t _last_update_us = 0;
         uint32_t _rng_state = 0x6d2b79f5;
+};
+
+// Coherent multi-harmonic vibration oscillator. Phase advances at
+// fundamental_hz, each slot evaluates sin(ratio * phase + phase_offset)
+// with a smoothed amplitude. Output is a position delta (mm) routed via
+// accum.x_vib. Sim::update captures the per-tick sum into _x_vib for the
+// servo command path; it never enters the integrator (damping orthogonal
+// to vibration).
+//
+// PLL state is present but dormant in phase 1 — until on_sync() is fed
+// from a gateway sync frame (phase 3), the oscillator free-runs at
+// whatever fundamental was last set via on_sync().
+class SyncVib : public SimElement {
+    public:
+        static constexpr uint8_t MAX_SLOTS = 5;
+
+        // Set harmonic ratios (multipliers on fundamental_hz per slot) and
+        // phase offset (radians, applied uniformly to every slot).
+        // Does not reset phase or amplitudes — safe to call on profile reload.
+        void set_config(float phase_offset, const float *ratios, uint8_t num_slots);
+
+        // Set target amplitudes; the LPF in update() smooths to these.
+        // Slots beyond num_slots are forced to zero.
+        void set_amplitudes(const float *targets, uint8_t count);
+
+        // Accept gateway sync — sets fundamental_hz and updates PLL phase
+        // error. In phase 1 callers also use this just to seed fundamental.
+        void on_sync(float gateway_phase, float gateway_hz);
+
+        void update(const SimState &state, SimAccumulators &accum) override;
+
+        // Reset DDS + PLL state to a known-safe start. Call on (re)activation so
+        // the first post-enable cycle can't consume stale phase/frequency and
+        // produce a runaway phase step.
+        void reset(void);
+
+    private:
+        // Local DDS
+        float _phase = 0.0f;
+        float _fundamental_hz = 0.0f;
+
+        // Configurable harmonic ratios (set once per aircraft load)
+        float _ratios[MAX_SLOTS] = {};
+        uint8_t _num_slots = 0;
+        float _phase_offset = 0.0f;
+
+        // PLL state (dormant in phase 1)
+        float _phase_error = 0.0f;
+        float _error_integral = 0.0f;
+        static constexpr float PLL_KP = 10.0f;
+        static constexpr float PLL_KI = 20.0f;
+        static constexpr float PLL_INT_MAX = 5.0f;
+
+        // Smoothed amplitudes (first-order LPF, tau = 50 ms)
+        float _amp[MAX_SLOTS] = {};
+        float _target[MAX_SLOTS] = {};
+
+        static float wrap_pm_pi(float x);
 };
 
 class Friction : public SimElement {

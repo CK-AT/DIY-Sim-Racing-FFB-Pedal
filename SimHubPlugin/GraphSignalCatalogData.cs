@@ -7,11 +7,22 @@ namespace DiyFfb
     public static class GraphSignalCatalogData
     {
         // Input signal groups (top-level namespaces)
-        public static readonly IReadOnlyList<string> InputGroups = new[] { "XPlane" };
+        public static readonly IReadOnlyList<string> InputGroups = new[] { "XPlane", "MSFS", "Grip", "Axis" };
 
-        // Output signal groups (function names)
+        // Output signal groups (function names + global Shared scope)
         public static readonly IReadOnlyList<string> OutputGroups = new[]
         {
+            "FlightStickPitch",
+            "FlightStickRoll",
+            "FlightPedals",
+            "FlightStickCollective",
+            "Shared"
+        };
+
+        // FunctionScope options for Include nodes: empty string = "(none)" / unscoped
+        public static readonly IReadOnlyList<string> FunctionScopeOptions = new[]
+        {
+            "",
             "FlightStickPitch",
             "FlightStickRoll",
             "FlightPedals",
@@ -49,7 +60,64 @@ namespace DiyFfb
             "XPlane.AeroTorque.Yaw",
             "XPlane.MainRotor.Torque",
             "XPlane.MainRotor.Speed",
-            "XPlane.OnGround"
+            "XPlane.Rotor.BladeAlphPitch",
+            "XPlane.Rotor.BladeAlphRoll",
+            "XPlane.Rotor.Slap",
+            "XPlane.Rotor.VRS",
+            "XPlane.Rotor.Propwash",
+            "XPlane.OnGround",
+            // MSFS (plan 17). Mirrors XPlane.* where possible; rotor signals here
+            // are derived in the SimConnect bridge (tier C — IAS-only baselines).
+            "MSFS.Speed.IAS",
+            "MSFS.Speed.TAS",
+            "MSFS.Angle.Alpha",
+            "MSFS.Angle.Beta",
+            "MSFS.Attitude.Pitch",
+            "MSFS.Attitude.Bank",
+            "MSFS.Rate.Roll",
+            "MSFS.Rate.Pitch",
+            "MSFS.Rate.Yaw",
+            "MSFS.G_Nrml",
+            "MSFS.VVI.World",
+            "MSFS.Velocity.BodyX",
+            "MSFS.Velocity.BodyY",
+            "MSFS.Velocity.BodyZ",
+            "MSFS.GroundSpeed",
+            "MSFS.Weight.Total",
+            "MSFS.Air.Density",
+            "MSFS.MainRotor.Speed",
+            "MSFS.TailRotor.Speed",
+            "MSFS.Eng.TorquePct",
+            "MSFS.Collective.Position",
+            "MSFS.Collective.BladePitchPct",
+            "MSFS.Cyclic.BladePitchPct",
+            "MSFS.Cyclic.MaxPitchAngle",
+            "MSFS.TailRotor.PedalPosition",
+            "MSFS.TailRotor.BladePitchPct",
+            "MSFS.Disk.PitchAngle",
+            "MSFS.Disk.BankAngle",
+            "MSFS.Disk.ConingPct",
+            "MSFS.Rotor.LateralTrim",
+            "MSFS.Rotor.LongitudinalTrim",
+            "MSFS.Rotor.RotationAngle",
+            "MSFS.Trim.Elevator",
+            "MSFS.Trim.Aileron",
+            "MSFS.Trim.Rudder",
+            "MSFS.OnGround",
+            "Grip.TrimHat.Up",
+            "Grip.TrimHat.Down",
+            "Grip.TrimHat.Left",
+            "Grip.TrimHat.Right",
+            "Grip.ForceTrimRelease",
+            "Grip.TrimReset",
+            "Axis.FlightStickPitch.Position",
+            "Axis.FlightStickPitch.Center",
+            "Axis.FlightStickRoll.Position",
+            "Axis.FlightStickRoll.Center",
+            "Axis.FlightPedals.Position",
+            "Axis.FlightPedals.Center",
+            "Axis.FlightStickCollective.Position",
+            "Axis.FlightStickCollective.Center"
         };
 
         public static readonly IReadOnlyList<string> OutputNames = new[]
@@ -60,24 +128,96 @@ namespace DiyFfb
             "FlightStickPitch.LoadForce",
             "FlightStickPitch.TrimOffset",
             "FlightStickPitch.BuffetAmplitude",
+            "FlightStickPitch.Vib1Ampl1",
+            "FlightStickPitch.Vib1Ampl2",
+            "FlightStickPitch.Vib1Ampl3",
+            "FlightStickPitch.Vib1Ampl4",
+            "FlightStickPitch.Vib1Ampl5",
+            "FlightStickPitch.Vib2Ampl1",
+            "FlightStickPitch.Vib2Ampl2",
             "FlightStickRoll.SpringGain",
             "FlightStickRoll.DamperGain",
             "FlightStickRoll.Friction",
             "FlightStickRoll.LoadForce",
             "FlightStickRoll.TrimOffset",
             "FlightStickRoll.BuffetAmplitude",
+            "FlightStickRoll.Vib1Ampl1",
+            "FlightStickRoll.Vib1Ampl2",
+            "FlightStickRoll.Vib1Ampl3",
+            "FlightStickRoll.Vib1Ampl4",
+            "FlightStickRoll.Vib1Ampl5",
+            "FlightStickRoll.Vib2Ampl1",
+            "FlightStickRoll.Vib2Ampl2",
             "FlightPedals.SpringGain",
             "FlightPedals.DamperGain",
             "FlightPedals.Friction",
             "FlightPedals.LoadForce",
             "FlightPedals.TrimOffset",
             "FlightPedals.BuffetAmplitude",
+            "FlightPedals.Vib1Ampl1",
+            "FlightPedals.Vib1Ampl2",
+            "FlightPedals.Vib1Ampl3",
+            "FlightPedals.Vib1Ampl4",
+            "FlightPedals.Vib1Ampl5",
+            "FlightPedals.Vib2Ampl1",
+            "FlightPedals.Vib2Ampl2",
             "FlightStickCollective.SpringGain",
             "FlightStickCollective.DamperGain",
             "FlightStickCollective.Friction",
             "FlightStickCollective.LoadForce",
-            "FlightStickCollective.TrimOffset"
+            "FlightStickCollective.TrimOffset",
+            "FlightStickCollective.BuffetAmplitude",
+            "FlightStickCollective.Vib1Ampl1",
+            "FlightStickCollective.Vib1Ampl2",
+            "FlightStickCollective.Vib1Ampl3",
+            "FlightStickCollective.Vib1Ampl4",
+            "FlightStickCollective.Vib1Ampl5",
+            "FlightStickCollective.Vib2Ampl1",
+            "FlightStickCollective.Vib2Ampl2",
+            // Shared scope: DDS fundamentals broadcast by gateway to all axes.
+            // Routed via plain (non-scoped) Output node — excluded from
+            // per-function OutputSuffixes filter below.
+            "Shared.Vib1Fund",
+            "Shared.Vib2Fund"
         };
+
+        // ConfigType options for ConfigOut nodes (post-plan-10 consolidation)
+        public static readonly IReadOnlyList<string> ConfigTypeOptions = new[]
+        {
+            "",
+            "FlightControl"
+        };
+
+        /// <summary>
+        /// Maps a FunctionScope value to the config type it implies. After the
+        /// FlightControl consolidation (plan 10), all four flight scopes share
+        /// the same config type.
+        /// </summary>
+        public static string GetConfigTypeForScope(string functionScope)
+        {
+            switch (functionScope ?? "")
+            {
+                case "FlightStickPitch":
+                case "FlightStickRoll":
+                case "FlightStickCollective":
+                case "FlightPedals":
+                    return "FlightControl";
+                default:
+                    return "";
+            }
+        }
+
+        /// <summary>
+        /// All distinct output signal suffixes across all function groups.
+        /// Used by scoped Output nodes where the group is determined by the parent Include's FunctionScope.
+        /// </summary>
+        public static readonly IReadOnlyList<string> OutputSuffixes =
+            OutputNames
+                .Where(n => !n.StartsWith("Shared.", StringComparison.Ordinal))
+                .Select(n => n.Substring(n.IndexOf('.') + 1))
+                .Distinct()
+                .OrderBy(s => s)
+                .ToArray();
 
         /// <summary>
         /// Gets signal suffixes for a given input group.

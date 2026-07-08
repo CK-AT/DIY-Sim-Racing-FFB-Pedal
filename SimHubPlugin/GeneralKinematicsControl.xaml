@@ -34,8 +34,13 @@
                     <TextBox x:Name="TextTestForce" TextChanged="TestPose_TextChanged" LostFocus="TestPose_LostFocus" PreviewMouseWheel="TestPose_MouseWheel" Height="20" Width="60" Padding="0,0,0,0" FontFamily="Arial" FontSize="10" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="#00252525" Foreground="White" BorderThickness="0,0,0,0"/>
                 </StackPanel>
                 <Label x:Name="Label_status" Content="" Height="15" Width="400" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="9" Foreground="White" HorizontalAlignment="Left" Margin="70,2,0,0"/>
-                <Label Content="Pins" Height="15" Width="100" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial Black" FontSize="10" HorizontalAlignment="Left" Margin="70,6,0,0"/>
-                <DataGrid x:Name="PinGrid" Width="400" Height="120" Margin="15,0,0,0" AutoGenerateColumns="False" HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False" RowHeaderWidth="0" GridLinesVisibility="Horizontal" Background="#00252525" Foreground="White" PreviewMouseWheel="PinGrid_PreviewMouseWheel">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="70,6,0,0">
+                    <Label Content="Pins" Height="15" Width="40" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial Black" FontSize="10"/>
+                    <Label Content="Polar ref:" Height="15" Padding="0,0,0,0" VerticalContentAlignment="Center" FontFamily="Arial" FontSize="10" Margin="20,0,0,0"/>
+                    <ComboBox x:Name="PolarRefCombo" SelectionChanged="PolarRefCombo_SelectionChanged" Width="60" Height="20" FontSize="10" Margin="3,0,0,0" VerticalContentAlignment="Center" BorderThickness="0,0,0,0"
+                              ToolTip="Pin that the Dist/Angle columns are measured relative to (angle in degrees from +X, CCW)."/>
+                </StackPanel>
+                <DataGrid x:Name="PinGrid" Width="450" Height="120" Margin="15,0,0,0" AutoGenerateColumns="False" HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False" RowHeaderWidth="0" GridLinesVisibility="Horizontal" Background="#00252525" Foreground="White" PreviewMouseWheel="PinGrid_PreviewMouseWheel">
                     <DataGrid.ColumnHeaderStyle>
                         <Style TargetType="DataGridColumnHeader">
                             <Setter Property="Background" Value="#334E4E4E"/>
@@ -49,6 +54,8 @@
                         <DataGridTextColumn Header="ID" Binding="{Binding PinId, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="40"/>
                         <DataGridTextColumn Header="X" Binding="{Binding X, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
                         <DataGridTextColumn Header="Y" Binding="{Binding Y, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                        <DataGridTextColumn Header="Dist" Binding="{Binding Distance, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="58"/>
+                        <DataGridTextColumn Header="Angle" Binding="{Binding Angle, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="58"/>
                         <DataGridCheckBoxColumn Header="Ground" Binding="{Binding Grounded, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="55"/>
                         <DataGridCheckBoxColumn Header="Contact" Binding="{Binding IsContactPoint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="55"/>
                         <DataGridCheckBoxColumn Header="Rail" Binding="{Binding IsRailInterface, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="45"/>

@@ -21,6 +21,15 @@ namespace DiyFfb.GraphTest
             public bool[] IncludeInputIsExtra = Array.Empty<bool>();
             public string[] IncludeOutputNames = Array.Empty<string>();
             public int[] IncludeOutputIndices = Array.Empty<int>();
+            /// <summary>Starting index in _state for this node's persistent state slots. -1 if not stateful.</summary>
+            public int StateBaseIndex = -1;
+
+            // Expr nodes: formula parsed once at compile, plus the resolved array
+            // slots for each inport identifier referenced by the formula.
+            public NCalc.Expression CompiledExpr;
+            public string[] ExprParamNames = Array.Empty<string>();
+            public int[] ExprParamIndices = Array.Empty<int>();
+            public bool[] ExprParamIsExtra = Array.Empty<bool>();
         }
 
         private readonly GraphDefinition _graph;
@@ -34,8 +43,13 @@ namespace DiyFfb.GraphTest
         private readonly Dictionary<string, IncludeNameMap> _includeNameMapCache = new Dictionary<string, IncludeNameMap>();
         private readonly int[] _outputIndices;
         private readonly string[] _outputNames;
+        private readonly int[] _configOutIndices;
+        private readonly string[] _configOutNames;
+        private readonly string[] _configInKeys;
         private readonly double[] _values;
         private readonly double[] _extraValues;
+        private readonly double[] _state;  // persists across evaluations for stateful Func nodes
+        private double _dt;  // seconds since last evaluation, set each cycle for stateful funcs
 
         public GraphCompiledEvaluator(GraphDefinition graph, IGraphResolver resolver = null)
             : this(graph, resolver, null, null)
@@ -67,6 +81,7 @@ namespace DiyFfb.GraphTest
             _extraValues = new double[_extraIndexById.Count];
 
             var ordered = TopoSort(_graph, includeOutputs);
+            int stateSlotCount = 0;
             foreach (var node in ordered)
             {
                 var compiled = new CompiledNode
@@ -77,8 +92,20 @@ namespace DiyFfb.GraphTest
                 BuildArgs(compiled);
                 BuildSrc(compiled);
                 BuildIncludeBindings(compiled);
+                BuildExpr(compiled);
+
+                // Assign persistent state slots for stateful Func nodes
+                int slotsNeeded = GetStateSlotsNeeded(node);
+                if (slotsNeeded > 0)
+                {
+                    compiled.StateBaseIndex = stateSlotCount;
+                    stateSlotCount += slotsNeeded;
+                }
+
                 _order.Add(compiled);
             }
+
+            _state = new double[stateSlotCount];
 
             var outputIndices = new List<int>();
             var outputNames = new List<string>();
@@ -95,18 +122,53 @@ namespace DiyFfb.GraphTest
 
             _outputIndices = outputIndices.ToArray();
             _outputNames = outputNames.ToArray();
+
+            var configOutIndices = new List<int>();
+            var configOutNames = new List<string>();
+            foreach (var node in _order)
+            {
+                if (node.Node.Type != NodeType.ConfigOut)
+                {
+                    continue;
+                }
+
+                configOutIndices.Add(node.Index);
+                configOutNames.Add(node.Node.Name ?? "");
+            }
+
+            _configOutIndices = configOutIndices.ToArray();
+            _configOutNames = configOutNames.ToArray();
+
+            var configInKeys = new List<string>();
+            foreach (var node in _order)
+            {
+                if (node.Node.Type == NodeType.ConfigIn && !string.IsNullOrEmpty(node.Node.Name))
+                {
+                    configInKeys.Add(node.Node.Name);
+                }
+            }
+            _configInKeys = configInKeys.ToArray();
         }
+
+        /// <summary>
+        /// The (scoped) config field keys this graph reads via ConfigIn nodes, in
+        /// "ConfigType:FieldPath" form. The host resolves each to a function + merged
+        /// config value and supplies it in the inputs dictionary before evaluation.
+        /// </summary>
+        public IReadOnlyList<string> ConfigInputKeys => _configInKeys;
 
         public IReadOnlyDictionary<string, double> Evaluate(
             IReadOnlyDictionary<string, double> inputs,
-            IReadOnlyDictionary<string, double> parameters)
+            IReadOnlyDictionary<string, double> parameters,
+            double dt = 0.0)
         {
-            return EvaluateWithTrace(inputs, parameters).Outputs;
+            return EvaluateWithTrace(inputs, parameters, dt).Outputs;
         }
 
         public GraphEvaluationResult EvaluateWithTrace(
             IReadOnlyDictionary<string, double> inputs,
-            IReadOnlyDictionary<string, double> parameters)
+            IReadOnlyDictionary<string, double> parameters,
+            double dt = 0.0)
         {
             if (GraphDebugLogger.Enabled)
             {
@@ -117,6 +179,7 @@ namespace DiyFfb.GraphTest
             // NOTE: Context cache clearing moved to plugin level (before top-level evaluation)
             // to avoid sub-evaluators clearing parent context during Include evaluation.
 
+            _dt = dt;
             Array.Clear(_values, 0, _values.Length);
             if (_extraValues.Length > 0)
             {
@@ -130,6 +193,9 @@ namespace DiyFfb.GraphTest
                 switch (compiled.Node.Type)
                 {
                     case NodeType.Input:
+                    case NodeType.ConfigIn:
+                        // ConfigIn is a source like Input: the plugin supplies the
+                        // merged config value under the node's (scoped) field key.
                         _values[compiled.Index] = inputs != null && inputs.TryGetValue(compiled.Node.Name, out var inVal) ? inVal : 0.0;
                         break;
                     case NodeType.Param:
@@ -144,10 +210,16 @@ namespace DiyFfb.GraphTest
                     case NodeType.Func:
                         _values[compiled.Index] = EvalFunc(compiled);
                         break;
+                    case NodeType.Expr:
+                        _values[compiled.Index] = EvalExpr(compiled);
+                        break;
                     case NodeType.Include:
                         EvalInclude(compiled, inputs, parameters, warnings);
                         break;
                     case NodeType.Output:
+                        _values[compiled.Index] = Resolve(compiled.SrcIndex, compiled.SrcIsExtra);
+                        break;
+                    case NodeType.ConfigOut:
                         _values[compiled.Index] = Resolve(compiled.SrcIndex, compiled.SrcIsExtra);
                         break;
                 }
@@ -173,6 +245,10 @@ namespace DiyFfb.GraphTest
             for (int i = 0; i < _outputIndices.Length; i++)
             {
                 result.Outputs[_outputNames[i]] = _values[_outputIndices[i]];
+            }
+            for (int i = 0; i < _configOutIndices.Length; i++)
+            {
+                result.ConfigOutputs[_configOutNames[i]] = _values[_configOutIndices[i]];
             }
             foreach (var w in warnings)
             {
@@ -259,6 +335,82 @@ namespace DiyFfb.GraphTest
                 }
                 node.IncludeOutputNames = names;
                 node.IncludeOutputIndices = indices;
+            }
+        }
+
+        // Parses an Expr node's formula once and pre-resolves each referenced
+        // inport identifier to its value-array slot. Enforces that the formula
+        // only references wired inports (InputMap keys): any other free identifier
+        // throws here, failing graph compile rather than a runtime tick.
+        private void BuildExpr(CompiledNode node)
+        {
+            if (node.Node.Type != NodeType.Expr)
+            {
+                return;
+            }
+
+            var expr = GraphExprSupport.TryParse(node.Node.Expr, out string parseError);
+            if (expr == null)
+            {
+                throw new InvalidOperationException(
+                    $"Expr '{node.Node.Id}': {parseError}");
+            }
+
+            var inputMap = node.Node.InputMap ?? new Dictionary<string, string>();
+            var used = GraphExprSupport.CollectIdentifiers(expr);
+
+            var names = new List<string>();
+            var indices = new List<int>();
+            var extras = new List<bool>();
+            foreach (var name in used)
+            {
+                if (GraphExprSupport.IsConstant(name))
+                {
+                    continue; // built-in constant (e.g. Pi), not an inport
+                }
+                if (!inputMap.TryGetValue(name, out var sourceId))
+                {
+                    throw new InvalidOperationException(
+                        $"Expr '{node.Node.Id}': '{name}' is not a wired inport " +
+                        $"(available: [{string.Join(", ", inputMap.Keys)}]).");
+                }
+                BuildArgRef(sourceId, out int idx, out bool isExtra);
+                names.Add(name);
+                indices.Add(idx);
+                extras.Add(isExtra);
+            }
+
+            GraphExprSupport.SeedConstants(expr, used);
+            node.CompiledExpr = expr;
+            node.ExprParamNames = names.ToArray();
+            node.ExprParamIndices = indices.ToArray();
+            node.ExprParamIsExtra = extras.ToArray();
+        }
+
+        private double EvalExpr(CompiledNode node)
+        {
+            var expr = node.CompiledExpr;
+            if (expr == null)
+            {
+                return 0.0;
+            }
+
+            // Feed only the wired inports the formula actually references, read
+            // straight from the value arrays. (Boxing here is the known GC cost
+            // of the tree-walking path — acceptable for a handful of Expr nodes.)
+            for (int i = 0; i < node.ExprParamNames.Length; i++)
+            {
+                expr.Parameters[node.ExprParamNames[i]] =
+                    Resolve(node.ExprParamIndices[i], node.ExprParamIsExtra[i]);
+            }
+
+            try
+            {
+                return GraphExprSupport.ToDouble(expr.Evaluate());
+            }
+            catch
+            {
+                return 0.0;
             }
         }
 
@@ -399,6 +551,41 @@ namespace DiyFfb.GraphTest
                     double t = node.ArgIndices.Length > 2 ? Resolve(node.ArgIndices[2], node.ArgIsExtra[2]) : 0.0;
                     return a + (b - a) * t;
                 }
+                case OpType.Select:
+                {
+                    double cond = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    double a = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
+                    double b = node.ArgIndices.Length > 2 ? Resolve(node.ArgIndices[2], node.ArgIsExtra[2]) : 0.0;
+                    return cond > 0.5 ? a : b;
+                }
+                case OpType.Eq:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    double b = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
+                    return Math.Abs(a - b) < 0.001 ? 1.0 : 0.0;
+                }
+                case OpType.Gt:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    double b = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
+                    return a > b ? 1.0 : 0.0;
+                }
+                case OpType.Exp:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    return Math.Exp(a);
+                }
+                case OpType.Sqrt:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    return a <= 0.0 ? 0.0 : Math.Sqrt(a);
+                }
+                case OpType.Pow:
+                {
+                    double a = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    double b = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
+                    return Math.Pow(a, b);
+                }
             }
 
             return 0.0;
@@ -447,9 +634,179 @@ namespace DiyFfb.GraphTest
                     double t = Math.Max(0.0, Math.Min(1.0, (alpha - start) / (full - start)));
                     return t * gain * qhatEff;
                 }
+
+                // --- Stateful functions (use persistent _state slots) ---
+
+                // accumulator(trigger, step, min, max [, reset])
+                // While trigger > 0.5, adds step * dt each cycle (step is in units/sec).
+                // Optional reset arg: if > 0.5, zeros the accumulator.
+                // State slot 0: accumulated value.
+                case "accumulator":
+                {
+                    int si = node.StateBaseIndex;
+                    double trigger = node.ArgIndices.Length > 0 ? ResolveArg(node, 0) : 0.0;
+                    double step = node.ArgIndices.Length > 1 ? ResolveArg(node, 1) : 0.0;
+                    double min = node.ArgIndices.Length > 2 ? ResolveArg(node, 2) : double.MinValue;
+                    double max = node.ArgIndices.Length > 3 ? ResolveArg(node, 3) : double.MaxValue;
+                    double reset = node.ArgIndices.Length > 4 ? ResolveArg(node, 4) : 0.0;
+                    if (reset > 0.5)
+                    {
+                        _state[si] = 0.0;
+                    }
+                    else if (trigger > 0.5)
+                    {
+                        _state[si] = Math.Min(max, Math.Max(min, _state[si] + step * _dt));
+                    }
+                    return _state[si];
+                }
+
+                // sample_hold(input, trigger)
+                // Captures input on falling edge of trigger (1→0 transition).
+                // State slot 0: previous trigger value. Slot 1: held value.
+                case "sample_hold":
+                {
+                    int si = node.StateBaseIndex;
+                    double input = node.ArgIndices.Length > 0 ? ResolveArg(node, 0) : 0.0;
+                    double trigger = node.ArgIndices.Length > 1 ? ResolveArg(node, 1) : 0.0;
+                    double prevTrigger = _state[si];
+                    _state[si] = trigger;
+                    if (prevTrigger > 0.5 && trigger <= 0.5)
+                    {
+                        _state[si + 1] = input;
+                    }
+                    return _state[si + 1];
+                }
+
+                // edge_detect(input)
+                // Outputs 1.0 for one tick on rising edge (0→1), 0.0 otherwise.
+                // State slot 0: previous input value.
+                case "edge_detect":
+                {
+                    int si = node.StateBaseIndex;
+                    double input = node.ArgIndices.Length > 0 ? ResolveArg(node, 0) : 0.0;
+                    double prev = _state[si];
+                    _state[si] = input;
+                    return (prev <= 0.5 && input > 0.5) ? 1.0 : 0.0;
+                }
+
+                // lag_asym(input, tau_up_sec, tau_down_sec)
+                // First-order lag with direction-dependent time constant.
+                // tau_up applies when input > prev (rising); tau_down when input <= prev (falling).
+                // State slot 0: prev_output.
+                case "lag_asym":
+                {
+                    int si = node.StateBaseIndex;
+                    double input = node.ArgIndices.Length > 0 ? ResolveArg(node, 0) : 0.0;
+                    double tauUp = node.ArgIndices.Length > 1 ? ResolveArg(node, 1) : 0.25;
+                    double tauDown = node.ArgIndices.Length > 2 ? ResolveArg(node, 2) : 2.0;
+                    double prev = _state[si];
+                    double tau = (input > prev) ? tauUp : tauDown;
+                    if (tau <= 0.0 || _dt <= 0.0)
+                    {
+                        _state[si] = input;
+                        return input;
+                    }
+                    double alpha = 1.0 - Math.Exp(-_dt / tau);
+                    double output = prev + alpha * (input - prev);
+                    _state[si] = output;
+                    return output;
+                }
             }
 
             return 0.0;
+        }
+
+        /// <summary>
+        /// Returns the number of persistent state slots needed by a node, or 0 if stateless.
+        /// </summary>
+        private static int GetStateSlotsNeeded(GraphNode node)
+        {
+            if (node.Type != NodeType.Func) return 0;
+            switch (node.Func)
+            {
+                case "accumulator":  return 1;  // accumulated value
+                case "sample_hold":  return 2;  // previous trigger + held value
+                case "edge_detect":  return 1;  // previous input value
+                case "lag_asym":     return 1;  // previous output
+                default: return 0;
+            }
+        }
+
+        /// <summary>
+        /// Resets all persistent state to zero. Call on profile/vehicle switch.
+        /// Also resets state in cached sub-graph evaluators (Include nodes).
+        /// </summary>
+        public void ResetState()
+        {
+            if (_state.Length > 0)
+            {
+                Array.Clear(_state, 0, _state.Length);
+            }
+            foreach (var sub in _includeCache.Values)
+            {
+                sub.ResetState();
+            }
+        }
+
+        /// <summary>
+        /// Captures all persistent state (this evaluator + sub-evaluators) as a flat dictionary.
+        /// Keys are scoped by include cache key to disambiguate sub-graph state.
+        /// </summary>
+        public Dictionary<string, double[]> GetStateSnapshot()
+        {
+            var snapshot = new Dictionary<string, double[]>();
+            if (_state.Length > 0)
+            {
+                snapshot[""] = (double[])_state.Clone();
+            }
+            foreach (var kv in _includeCache)
+            {
+                var subSnapshot = kv.Value.GetStateSnapshot();
+                foreach (var sub in subSnapshot)
+                {
+                    string key = string.IsNullOrEmpty(sub.Key)
+                        ? kv.Key
+                        : kv.Key + "|" + sub.Key;
+                    snapshot[key] = sub.Value;
+                }
+            }
+            return snapshot;
+        }
+
+        /// <summary>
+        /// Restores persistent state from a snapshot previously captured by GetStateSnapshot().
+        /// Mismatched keys or array lengths are silently skipped (graph structure may have changed).
+        /// </summary>
+        public void RestoreStateSnapshot(Dictionary<string, double[]> snapshot)
+        {
+            if (snapshot == null) return;
+
+            if (snapshot.TryGetValue("", out var root) && root.Length == _state.Length)
+            {
+                Array.Copy(root, _state, _state.Length);
+            }
+
+            foreach (var kv in _includeCache)
+            {
+                // Build the sub-snapshot for this include by stripping our prefix
+                var subSnapshot = new Dictionary<string, double[]>();
+                string prefix = kv.Key + "|";
+                foreach (var entry in snapshot)
+                {
+                    if (entry.Key == kv.Key)
+                    {
+                        subSnapshot[""] = entry.Value;
+                    }
+                    else if (entry.Key.StartsWith(prefix, StringComparison.Ordinal))
+                    {
+                        subSnapshot[entry.Key.Substring(prefix.Length)] = entry.Value;
+                    }
+                }
+                if (subSnapshot.Count > 0)
+                {
+                    kv.Value.RestoreStateSnapshot(subSnapshot);
+                }
+            }
         }
 
         private void EvalInclude(CompiledNode node, IReadOnlyDictionary<string, double> inputs,
@@ -468,7 +825,9 @@ namespace DiyFfb.GraphTest
                 // Resolve path relative to current graph's directory for nested include support.
                 // This ensures inner/inner.json in sub/middle.json resolves to sub/inner/inner.json.
                 string resolvedSubGraphPath = ResolveToAbsolutePath(node.Node.Path);
-                key = resolvedSubGraphPath;  // Use absolute path as cache key
+                // Key by node ID + path so each Include node gets its own evaluator
+                // instance (and its own _state for stateful funcs like accumulator).
+                key = node.Node.Id + ":" + resolvedSubGraphPath;
                 if (!_includeCache.TryGetValue(key, out var cached))
                 {
                     subGraph = _resolver.GetGraph(resolvedSubGraphPath);  // Pass absolute path to resolver
@@ -529,27 +888,47 @@ namespace DiyFfb.GraphTest
                 GraphDebugLogger.LogDict("parent parameters", parameters);
             }
 
+            // Seed with the parent's parameters so resolved values/overrides
+            // propagate THROUGH intermediate sub-graphs that don't have the param
+            // node themselves (e.g. a cue param two includes deep:
+            // template -> msfs_derivations -> cue). Then fill this sub-graph's own
+            // param-node defaults for any the parent didn't supply.
             var subParams = new Dictionary<string, double>();
+            if (parameters != null)
+            {
+                foreach (var kv in parameters)
+                {
+                    subParams[kv.Key] = kv.Value;
+                }
+            }
             foreach (var subNode in subGraph.Nodes.Values)
             {
-                if (subNode.Type == NodeType.Param && !string.IsNullOrEmpty(subNode.Name))
+                if (subNode.Type == NodeType.Param && !string.IsNullOrEmpty(subNode.Name)
+                    && !subParams.ContainsKey(subNode.Name))
                 {
-                    // Use parent's override if available, otherwise use sub-graph's default value
-                    double pVal = 0;
-                    bool foundInParent = parameters != null && parameters.TryGetValue(subNode.Name, out pVal);
-                    double value = foundInParent ? pVal : subNode.ConstValue;
-                    subParams[subNode.Name] = value;
+                    subParams[subNode.Name] = subNode.ConstValue;
                     if (GraphDebugLogger.Enabled)
                     {
-                        GraphDebugLogger.Log($"    Param '{subNode.Name}': {(foundInParent ? "from parent" : "default")} = {value} (default={subNode.ConstValue})");
+                        GraphDebugLogger.Log($"    Param '{subNode.Name}': default = {subNode.ConstValue}");
                     }
                 }
             }
 
-            // Capture context for sub-graph preview
-            if (_contextCache != null && !string.IsNullOrEmpty(key) && !key.StartsWith("inline:"))
+            // Use EvaluateWithTrace so we can bridge BOTH Outputs and ConfigOutputs.
+            // The parent's Include OutputMap mixes both kinds — Evaluate(...) returns
+            // only Outputs, which silently drops sub-graph ConfigOut values and leaves
+            // the parent's scoped ConfigOut nodes reading 0.
+            var subResult = evaluator.EvaluateWithTrace(subInputs, subParams, _dt);
+            var outputs = subResult.Outputs;
+
+            // Capture context for sub-graph preview (after evaluate so state is current).
+            // File includes key by resolved path; embedded (inline) sub-graphs key by
+            // "inline:<nodeId>" so their tabs can request live context too.
+            if (_contextCache != null && !string.IsNullOrEmpty(key))
             {
-                string resolvedPath = ResolveToAbsolutePath(node.Node.Path);
+                string resolvedPath = key.StartsWith("inline:")
+                    ? key
+                    : ResolveToAbsolutePath(node.Node.Path);
 
                 _contextCache.Add(resolvedPath, new IncludeCallContext
                 {
@@ -557,11 +936,10 @@ namespace DiyFfb.GraphTest
                     IncludeNodeTitle = !string.IsNullOrEmpty(node.Node.Name) ? node.Node.Name : node.Node.Id,
                     IncludePath = resolvedPath,
                     Inputs = new Dictionary<string, double>(subInputs),
-                    Parameters = new Dictionary<string, double>(subParams)
+                    Parameters = new Dictionary<string, double>(subParams),
+                    StateSnapshot = evaluator.GetStateSnapshot()
                 });
             }
-
-            var outputs = evaluator.Evaluate(subInputs, subParams);
 
             if (GraphDebugLogger.Enabled)
             {
@@ -582,9 +960,13 @@ namespace DiyFfb.GraphTest
             {
                 string shortName = node.IncludeOutputNames[i];
                 string outputName = shortToFullOutput != null && shortToFullOutput.TryGetValue(shortName, out var fullOutName) ? fullOutName : shortName;
-                if (!outputs.TryGetValue(outputName, out var value))
+                // The OutputMap entry can refer to either an Output or a ConfigOut port
+                // in the sub-graph (parent treats them uniformly when wiring scoped
+                // outputs / config outputs from a FunctionScope Include).
+                if (!outputs.TryGetValue(outputName, out var value) &&
+                    !subResult.ConfigOutputs.TryGetValue(outputName, out value))
                 {
-                    warnings?.Add($"Include '{node.Node.Id}' output '{shortName}': no match for '{outputName}' in sub-graph outputs [{string.Join(", ", outputs.Keys)}]");
+                    warnings?.Add($"Include '{node.Node.Id}' output '{shortName}': no match for '{outputName}' in sub-graph outputs [{string.Join(", ", outputs.Keys)}] or configOutputs [{string.Join(", ", subResult.ConfigOutputs.Keys)}]");
                     continue;
                 }
                 int extraIndex = node.IncludeOutputIndices[i];
@@ -719,8 +1101,8 @@ namespace DiyFfb.GraphTest
                     {
                         Visit(node.Src);
                     }
-                    // Include nodes have dependencies via InputMap values
-                    if (node.Type == NodeType.Include && node.InputMap != null)
+                    // Include and Expr nodes have dependencies via InputMap values
+                    if ((node.Type == NodeType.Include || node.Type == NodeType.Expr) && node.InputMap != null)
                     {
                         foreach (var dep in node.InputMap.Values)
                         {

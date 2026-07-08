@@ -20,7 +20,7 @@
       "Title": "Alpha",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 180.0,
+      "Y": 670.0,
       "Ports": [
         {
           "Name": "alpha",
@@ -29,14 +29,27 @@
       ]
     },
     {
-      "Id": "in_aero_trq",
-      "Title": "Aero Torque",
+      "Id": "in_g_nrml",
+      "Title": "G_Nrml",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 250.0,
+      "Y": 330.0,
       "Ports": [
         {
-          "Name": "aero_trq",
+          "Name": "g_nrml",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_q_rate",
+      "Title": "Q (pitch rate)",
+      "Kind": "Input",
+      "X": 30.0,
+      "Y": 530.0,
+      "Ports": [
+        {
+          "Name": "q_rate",
           "Kind": "Output"
         }
       ]
@@ -55,17 +68,30 @@
       "SignalGroup": "Aircraft"
     },
     {
-      "Id": "param_aero_max",
+      "Id": "param_load_g_gain",
       "Kind": "Param",
-      "X": 40.0,
-      "Y": 390.0,
+      "X": 360.0,
+      "Y": 430.0,
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "AeroTorque.PitchMax"
+          "SignalSuffix": "LoadGGain"
         }
       ],
-      "SignalGroup": "Aircraft"
+      "SignalGroup": "FlightStickPitch"
+    },
+    {
+      "Id": "param_load_rate_gain",
+      "Kind": "Param",
+      "X": 30.0,
+      "Y": 600.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "LoadRateGain"
+        }
+      ],
+      "SignalGroup": "FlightStickPitch"
     },
     {
       "Id": "param_alpha_start",
@@ -96,8 +122,8 @@
     {
       "Id": "param_k_spring",
       "Kind": "Param",
-      "X": 40.0,
-      "Y": 320.0,
+      "X": 560.0,
+      "Y": 40.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -109,8 +135,8 @@
     {
       "Id": "param_k_damper",
       "Kind": "Param",
-      "X": 40.0,
-      "Y": 460.0,
+      "X": 560.0,
+      "Y": 160.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -120,10 +146,23 @@
       "SignalGroup": "FlightStickPitch"
     },
     {
+      "Id": "param_k_damper_base",
+      "Kind": "Param",
+      "X": 930.0,
+      "Y": 170.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "DamperBase"
+        }
+      ],
+      "SignalGroup": "FlightStickPitch"
+    },
+    {
       "Id": "param_k_friction_base",
       "Kind": "Param",
-      "X": 40.0,
-      "Y": 530.0,
+      "X": 920.0,
+      "Y": 300.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -135,25 +174,12 @@
     {
       "Id": "param_k_friction",
       "Kind": "Param",
-      "X": 40.0,
-      "Y": 600.0,
+      "X": 320.0,
+      "Y": 230.0,
       "Ports": [
         {
           "Kind": "Output",
           "SignalSuffix": "FrictionGain"
-        }
-      ],
-      "SignalGroup": "FlightStickPitch"
-    },
-    {
-      "Id": "param_k_load",
-      "Kind": "Param",
-      "X": 40.0,
-      "Y": 670.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "LoadGain"
         }
       ],
       "SignalGroup": "FlightStickPitch"
@@ -198,8 +224,30 @@
       "Id": "spring",
       "Title": "Spring",
       "Kind": "Op",
-      "X": 670.0,
-      "Y": 120.0,
+      "X": 810.0,
+      "Y": 0.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "damp_scaled",
+      "Title": "Damp Scaled",
+      "Kind": "Op",
+      "X": 810.0,
+      "Y": 110.0,
       "Ports": [
         {
           "Name": "a",
@@ -220,8 +268,8 @@
       "Id": "damper",
       "Title": "Damper",
       "Kind": "Op",
-      "X": 670.0,
-      "Y": 220.0,
+      "X": 1160.0,
+      "Y": 110.0,
       "Ports": [
         {
           "Name": "a",
@@ -232,18 +280,18 @@
           "Kind": "Input"
         },
         {
-          "Name": "a*b",
+          "Name": "a+b",
           "Kind": "Output"
         }
       ],
-      "Op": "mul"
+      "Op": "add"
     },
     {
       "Id": "fric_scaled",
       "Title": "Fric Scaled",
       "Kind": "Op",
-      "X": 670.0,
-      "Y": 320.0,
+      "X": 680.0,
+      "Y": 240.0,
       "Ports": [
         {
           "Name": "a",
@@ -264,8 +312,8 @@
       "Id": "friction",
       "Title": "Friction",
       "Kind": "Op",
-      "X": 830.0,
-      "Y": 320.0,
+      "X": 1190.0,
+      "Y": 230.0,
       "Ports": [
         {
           "Name": "a",
@@ -283,11 +331,25 @@
       "Op": "add"
     },
     {
-      "Id": "load_norm",
-      "Title": "Load Norm",
+      "Id": "const_one",
+      "Title": "1.0",
+      "Kind": "Const",
+      "X": 200.0,
+      "Y": 390.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
+    },
+    {
+      "Id": "sub_g",
+      "Title": "g - 1",
       "Kind": "Op",
-      "X": 670.0,
-      "Y": 420.0,
+      "X": 340.0,
+      "Y": 330.0,
       "Ports": [
         {
           "Name": "a",
@@ -298,11 +360,57 @@
           "Kind": "Input"
         },
         {
-          "Name": "a/b",
+          "Name": "a-b",
           "Kind": "Output"
         }
       ],
-      "Op": "div"
+      "Op": "sub"
+    },
+    {
+      "Id": "mul_g",
+      "Title": "g_gain × (g-1)",
+      "Kind": "Op",
+      "X": 610.0,
+      "Y": 350.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input",
+          "Negate": true
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "-a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_q",
+      "Title": "q_gain × q",
+      "Kind": "Op",
+      "X": 600.0,
+      "Y": 460.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input",
+          "Negate": true
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "-a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
     },
     {
       "Id": "load",
@@ -317,22 +425,21 @@
         },
         {
           "Name": "b",
-          "Kind": "Input",
-          "Negate": true
+          "Kind": "Input"
         },
         {
-          "Name": "a*-b",
+          "Name": "a+b",
           "Kind": "Output"
         }
       ],
-      "Op": "mul"
+      "Op": "add"
     },
     {
       "Id": "buffet",
       "Title": "Buffet",
       "Kind": "Func",
-      "X": 670.0,
-      "Y": 520.0,
+      "X": 650.0,
+      "Y": 650.0,
       "Ports": [
         {
           "Name": "alpha",
@@ -366,8 +473,8 @@
       "Id": "out_spring",
       "Title": "Spring Out",
       "Kind": "Output",
-      "X": 990.0,
-      "Y": 120.0,
+      "X": 1130.0,
+      "Y": 0.0,
       "Ports": [
         {
           "Name": "spring",
@@ -379,8 +486,8 @@
       "Id": "out_damper",
       "Title": "Damper Out",
       "Kind": "Output",
-      "X": 990.0,
-      "Y": 220.0,
+      "X": 1380.0,
+      "Y": 110.0,
       "Ports": [
         {
           "Name": "damper",
@@ -392,8 +499,8 @@
       "Id": "out_friction",
       "Title": "Friction Out",
       "Kind": "Output",
-      "X": 990.0,
-      "Y": 320.0,
+      "X": 1380.0,
+      "Y": 230.0,
       "Ports": [
         {
           "Name": "friction",
@@ -418,11 +525,88 @@
       "Id": "out_buffet",
       "Title": "Buffet Out",
       "Kind": "Output",
-      "X": 990.0,
-      "Y": 520.0,
+      "X": 970.0,
+      "Y": 650.0,
       "Ports": [
         {
           "Name": "buffet",
+          "Kind": "Input"
+        }
+      ]
+    },
+    {
+      "Id": "f7c853be9880429fb2fc17fad59d73f5",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 1050.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimStep"
+        }
+      ],
+      "SignalGroup": "FlightStickPitch"
+    },
+    {
+      "Id": "e03cdfbdfd5b47009a732be4eaa85376",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 1120.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimMin"
+        }
+      ],
+      "SignalGroup": "FlightStickPitch"
+    },
+    {
+      "Id": "f9646b773f2a432191c0e52b9689a408",
+      "Kind": "Param",
+      "X": 40.0,
+      "Y": 1190.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "TrimMax"
+        }
+      ],
+      "SignalGroup": "FlightStickPitch"
+    },
+    {
+      "Id": "8e49d8e1d67040b6ae7ae293d2299479",
+      "Title": "Grip",
+      "Kind": "Input",
+      "X": 40.0,
+      "Y": 950.0,
+      "Ports": [
+        {
+          "Name": "hat_pos",
+          "Kind": "Output"
+        },
+        {
+          "Name": "hat_neg",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "Title": "Hat Trim",
+      "Kind": "Include",
+      "X": 660.0,
+      "Y": 890.0,
+      "IncludePath": "trim_hat.json"
+    },
+    {
+      "Id": "5cd8768a44d74689a18200b9f4076995",
+      "Title": "Trim Out",
+      "Kind": "Output",
+      "X": 990.0,
+      "Y": 890.0,
+      "Ports": [
+        {
+          "Name": "trim",
           "Kind": "Input"
         }
       ]
@@ -456,12 +640,24 @@
     {
       "FromNodeId": "qhat",
       "FromPort": "out",
-      "ToNodeId": "damper",
+      "ToNodeId": "damp_scaled",
       "ToPort": "a"
     },
     {
       "FromNodeId": "param_k_damper",
       "FromPort": "DamperGain",
+      "ToNodeId": "damp_scaled",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "damp_scaled",
+      "FromPort": "a*b",
+      "ToNodeId": "damper",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_k_damper_base",
+      "FromPort": "DamperBase",
       "ToNodeId": "damper",
       "ToPort": "b"
     },
@@ -484,26 +680,50 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "in_aero_trq",
-      "FromPort": "aero_trq",
-      "ToNodeId": "load_norm",
+      "FromNodeId": "in_g_nrml",
+      "FromPort": "g_nrml",
+      "ToNodeId": "sub_g",
       "ToPort": "a"
     },
     {
-      "FromNodeId": "param_aero_max",
-      "FromPort": "AeroTorque.PitchMax",
-      "ToNodeId": "load_norm",
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "sub_g",
       "ToPort": "b"
     },
     {
-      "FromNodeId": "load_norm",
-      "FromPort": "a/b",
+      "FromNodeId": "sub_g",
+      "FromPort": "a-b",
+      "ToNodeId": "mul_g",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_load_g_gain",
+      "FromPort": "LoadGGain",
+      "ToNodeId": "mul_g",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_q_rate",
+      "FromPort": "q_rate",
+      "ToNodeId": "mul_q",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_load_rate_gain",
+      "FromPort": "LoadRateGain",
+      "ToNodeId": "mul_q",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_g",
+      "FromPort": "-a*b",
       "ToNodeId": "load",
       "ToPort": "a"
     },
     {
-      "FromNodeId": "param_k_load",
-      "FromPort": "LoadGain",
+      "FromNodeId": "mul_q",
+      "FromPort": "-a*b",
       "ToNodeId": "load",
       "ToPort": "b"
     },
@@ -545,7 +765,7 @@
     },
     {
       "FromNodeId": "damper",
-      "FromPort": "a*b",
+      "FromPort": "a+b",
       "ToNodeId": "out_damper",
       "ToPort": "damper"
     },
@@ -557,7 +777,7 @@
     },
     {
       "FromNodeId": "load",
-      "FromPort": "a*-b",
+      "FromPort": "a+b",
       "ToNodeId": "out_load",
       "ToPort": "load"
     },
@@ -572,6 +792,42 @@
       "FromPort": "a*b",
       "ToNodeId": "friction",
       "ToPort": "a"
+    },
+    {
+      "FromNodeId": "8e49d8e1d67040b6ae7ae293d2299479",
+      "FromPort": "hat_pos",
+      "ToNodeId": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "ToPort": "hat_pos"
+    },
+    {
+      "FromNodeId": "8e49d8e1d67040b6ae7ae293d2299479",
+      "FromPort": "hat_neg",
+      "ToNodeId": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "ToPort": "hat_neg"
+    },
+    {
+      "FromNodeId": "f7c853be9880429fb2fc17fad59d73f5",
+      "FromPort": "TrimStep",
+      "ToNodeId": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "ToPort": "trim_step"
+    },
+    {
+      "FromNodeId": "e03cdfbdfd5b47009a732be4eaa85376",
+      "FromPort": "TrimMin",
+      "ToNodeId": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "ToPort": "trim_min"
+    },
+    {
+      "FromNodeId": "f9646b773f2a432191c0e52b9689a408",
+      "FromPort": "TrimMax",
+      "ToNodeId": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "ToPort": "trim_max"
+    },
+    {
+      "FromNodeId": "a8aa4b907c2f4f1ca6ebe8ef36442fc8",
+      "FromPort": "trim",
+      "ToNodeId": "5cd8768a44d74689a18200b9f4076995",
+      "ToPort": "trim"
     }
   ],
   "Params": [
@@ -588,22 +844,6 @@
         "Step": 1.0,
         "Precision": 0,
         "LogScale": false,
-        "Options": []
-      }
-    },
-    {
-      "Name": "Aircraft.AeroTorque.PitchMax",
-      "DefaultValue": 2000.0,
-      "Min": 100.0,
-      "Max": 20000.0,
-      "Ui": {
-        "Widget": "slider",
-        "Label": "Max Pitch Torque",
-        "Group": "Aircraft",
-        "Units": "Nm",
-        "Step": 10.0,
-        "Precision": 0,
-        "LogScale": true,
         "Options": []
       }
     },
@@ -672,6 +912,22 @@
       }
     },
     {
+      "Name": "FlightStickPitch.DamperBase",
+      "DefaultValue": 0.05,
+      "Min": 0.0,
+      "Max": 2.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Damper Base",
+        "Group": "FlightStickPitch",
+        "Units": "N*s/mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
       "Name": "FlightStickPitch.FrictionBase",
       "DefaultValue": 0.1,
       "Min": 0.0,
@@ -704,16 +960,32 @@
       }
     },
     {
-      "Name": "FlightStickPitch.LoadGain",
-      "DefaultValue": 0.5,
+      "Name": "FlightStickPitch.LoadGGain",
+      "DefaultValue": 5.0,
       "Min": 0.0,
-      "Max": 5.0,
+      "Max": 30.0,
       "Ui": {
         "Widget": "slider",
-        "Label": "Load Gain",
+        "Label": "Load Gain (g)",
         "Group": "FlightStickPitch",
-        "Units": "N @ torque_ref",
-        "Step": 0.01,
+        "Units": "N/g",
+        "Step": 0.1,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickPitch.LoadRateGain",
+      "DefaultValue": 0.0,
+      "Min": 0.0,
+      "Max": 10.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Load Gain (pitch rate)",
+        "Group": "FlightStickPitch",
+        "Units": "N/(rad/s)",
+        "Step": 0.05,
         "Precision": 2,
         "LogScale": false,
         "Options": []
@@ -723,7 +995,7 @@
       "Name": "FlightStickPitch.BuffetGain",
       "DefaultValue": 0.5,
       "Min": 0.0,
-      "Max": 5.0,
+      "Max": 100.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Buffet Gain",
@@ -731,6 +1003,54 @@
         "Units": "N @ Vref",
         "Step": 0.01,
         "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickPitch.TrimStep",
+      "DefaultValue": 5.0,
+      "Min": 0.1,
+      "Max": 50.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Trim Rate",
+        "Group": "FlightStickPitch",
+        "Units": "mm/s",
+        "Step": 0.1,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickPitch.TrimMin",
+      "DefaultValue": -20.0,
+      "Min": -50.0,
+      "Max": 0.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Hat Trim Min",
+        "Group": "FlightStickPitch",
+        "Units": "mm",
+        "Step": 0.5,
+        "Precision": 1,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
+      "Name": "FlightStickPitch.TrimMax",
+      "DefaultValue": 20.0,
+      "Min": 0.0,
+      "Max": 50.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Hat Trim Max",
+        "Group": "FlightStickPitch",
+        "Units": "mm",
+        "Step": 0.5,
+        "Precision": 1,
         "LogScale": false,
         "Options": []
       }

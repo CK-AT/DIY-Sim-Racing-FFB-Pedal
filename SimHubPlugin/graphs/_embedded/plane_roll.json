@@ -20,7 +20,7 @@
       "Title": "Alpha",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 180.0,
+      "Y": 680.0,
       "Ports": [
         {
           "Name": "alpha",
@@ -29,14 +29,14 @@
       ]
     },
     {
-      "Id": "in_aero_trq",
-      "Title": "Aero Torque",
+      "Id": "in_p_rate",
+      "Title": "P (roll rate)",
       "Kind": "Input",
       "X": 40.0,
-      "Y": 250.0,
+      "Y": 530.0,
       "Ports": [
         {
-          "Name": "aero_trq",
+          "Name": "p_rate",
           "Kind": "Output"
         }
       ]
@@ -55,23 +55,23 @@
       "SignalGroup": "Aircraft"
     },
     {
-      "Id": "param_aero_max",
+      "Id": "param_load_rate_gain",
       "Kind": "Param",
-      "X": 40.0,
-      "Y": 390.0,
+      "X": 390.0,
+      "Y": 580.0,
       "Ports": [
         {
           "Kind": "Output",
-          "SignalSuffix": "AeroTorque.RollMax"
+          "SignalSuffix": "LoadRateGain"
         }
       ],
-      "SignalGroup": "Aircraft"
+      "SignalGroup": "FlightStickRoll"
     },
     {
       "Id": "param_alpha_start",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 740.0,
+      "Y": 760.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -84,7 +84,7 @@
       "Id": "param_alpha_full",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 810.0,
+      "Y": 830.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -96,8 +96,8 @@
     {
       "Id": "param_k_spring",
       "Kind": "Param",
-      "X": 40.0,
-      "Y": 320.0,
+      "X": 400.0,
+      "Y": 170.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -109,8 +109,8 @@
     {
       "Id": "param_k_damper",
       "Kind": "Param",
-      "X": 40.0,
-      "Y": 460.0,
+      "X": 390.0,
+      "Y": 250.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -120,10 +120,23 @@
       "SignalGroup": "FlightStickRoll"
     },
     {
+      "Id": "param_k_damper_base",
+      "Kind": "Param",
+      "X": 840.0,
+      "Y": 270.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "DamperBase"
+        }
+      ],
+      "SignalGroup": "FlightStickRoll"
+    },
+    {
       "Id": "param_k_friction_base",
       "Kind": "Param",
-      "X": 40.0,
-      "Y": 530.0,
+      "X": 590.0,
+      "Y": 450.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -135,8 +148,8 @@
     {
       "Id": "param_k_friction",
       "Kind": "Param",
-      "X": 40.0,
-      "Y": 600.0,
+      "X": 390.0,
+      "Y": 380.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -146,23 +159,10 @@
       "SignalGroup": "FlightStickRoll"
     },
     {
-      "Id": "param_k_load",
-      "Kind": "Param",
-      "X": 40.0,
-      "Y": 670.0,
-      "Ports": [
-        {
-          "Kind": "Output",
-          "SignalSuffix": "LoadGain"
-        }
-      ],
-      "SignalGroup": "FlightStickRoll"
-    },
-    {
       "Id": "param_k_buffet",
       "Kind": "Param",
       "X": 40.0,
-      "Y": 880.0,
+      "Y": 900.0,
       "Ports": [
         {
           "Kind": "Output",
@@ -217,8 +217,8 @@
       "Op": "mul"
     },
     {
-      "Id": "damper",
-      "Title": "Damper",
+      "Id": "damp_scaled",
+      "Title": "Damp Scaled",
       "Kind": "Op",
       "X": 670.0,
       "Y": 220.0,
@@ -239,11 +239,33 @@
       "Op": "mul"
     },
     {
+      "Id": "damper",
+      "Title": "Damper",
+      "Kind": "Op",
+      "X": 1120.0,
+      "Y": 220.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
       "Id": "fric_scaled",
       "Title": "Fric Scaled",
       "Kind": "Op",
       "X": 670.0,
-      "Y": 320.0,
+      "Y": 340.0,
       "Ports": [
         {
           "Name": "a",
@@ -265,7 +287,7 @@
       "Title": "Friction",
       "Kind": "Op",
       "X": 830.0,
-      "Y": 320.0,
+      "Y": 340.0,
       "Ports": [
         {
           "Name": "a",
@@ -283,45 +305,45 @@
       "Op": "add"
     },
     {
-      "Id": "load_norm",
-      "Title": "Load Norm",
+      "Id": "mul_p_gain",
+      "Title": "p_gain × P",
       "Kind": "Op",
       "X": 670.0,
-      "Y": 420.0,
+      "Y": 530.0,
       "Ports": [
         {
           "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
-          "Kind": "Input"
-        },
-        {
-          "Name": "a/b",
-          "Kind": "Output"
-        }
-      ],
-      "Op": "div"
-    },
-    {
-      "Id": "load",
-      "Title": "Load",
-      "Kind": "Op",
-      "X": 830.0,
-      "Y": 420.0,
-      "Ports": [
-        {
-          "Name": "a",
-          "Kind": "Input"
-        },
-        {
-          "Name": "b",
           "Kind": "Input",
           "Negate": true
         },
         {
-          "Name": "a*-b",
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "-a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "load",
+      "Title": "Load (× qhat)",
+      "Kind": "Op",
+      "X": 830.0,
+      "Y": 530.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
           "Kind": "Output"
         }
       ],
@@ -331,8 +353,8 @@
       "Id": "buffet",
       "Title": "Buffet",
       "Kind": "Func",
-      "X": 670.0,
-      "Y": 520.0,
+      "X": 660.0,
+      "Y": 690.0,
       "Ports": [
         {
           "Name": "alpha",
@@ -379,7 +401,7 @@
       "Id": "out_damper",
       "Title": "Damper Out",
       "Kind": "Output",
-      "X": 990.0,
+      "X": 1260.0,
       "Y": 220.0,
       "Ports": [
         {
@@ -393,7 +415,7 @@
       "Title": "Friction Out",
       "Kind": "Output",
       "X": 990.0,
-      "Y": 320.0,
+      "Y": 340.0,
       "Ports": [
         {
           "Name": "friction",
@@ -406,7 +428,7 @@
       "Title": "Load Out",
       "Kind": "Output",
       "X": 990.0,
-      "Y": 420.0,
+      "Y": 530.0,
       "Ports": [
         {
           "Name": "load",
@@ -418,8 +440,8 @@
       "Id": "out_buffet",
       "Title": "Buffet Out",
       "Kind": "Output",
-      "X": 990.0,
-      "Y": 520.0,
+      "X": 980.0,
+      "Y": 690.0,
       "Ports": [
         {
           "Name": "buffet",
@@ -456,12 +478,24 @@
     {
       "FromNodeId": "qhat",
       "FromPort": "out",
-      "ToNodeId": "damper",
+      "ToNodeId": "damp_scaled",
       "ToPort": "a"
     },
     {
       "FromNodeId": "param_k_damper",
       "FromPort": "DamperGain",
+      "ToNodeId": "damp_scaled",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "damp_scaled",
+      "FromPort": "a*b",
+      "ToNodeId": "damper",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_k_damper_base",
+      "FromPort": "DamperBase",
       "ToNodeId": "damper",
       "ToPort": "b"
     },
@@ -484,26 +518,26 @@
       "ToPort": "b"
     },
     {
-      "FromNodeId": "in_aero_trq",
-      "FromPort": "aero_trq",
-      "ToNodeId": "load_norm",
+      "FromNodeId": "in_p_rate",
+      "FromPort": "p_rate",
+      "ToNodeId": "mul_p_gain",
       "ToPort": "a"
     },
     {
-      "FromNodeId": "param_aero_max",
-      "FromPort": "AeroTorque.RollMax",
-      "ToNodeId": "load_norm",
+      "FromNodeId": "param_load_rate_gain",
+      "FromPort": "LoadRateGain",
+      "ToNodeId": "mul_p_gain",
       "ToPort": "b"
     },
     {
-      "FromNodeId": "load_norm",
-      "FromPort": "a/b",
+      "FromNodeId": "mul_p_gain",
+      "FromPort": "-a*b",
       "ToNodeId": "load",
       "ToPort": "a"
     },
     {
-      "FromNodeId": "param_k_load",
-      "FromPort": "LoadGain",
+      "FromNodeId": "qhat",
+      "FromPort": "out",
       "ToNodeId": "load",
       "ToPort": "b"
     },
@@ -545,7 +579,7 @@
     },
     {
       "FromNodeId": "damper",
-      "FromPort": "a*b",
+      "FromPort": "a+b",
       "ToNodeId": "out_damper",
       "ToPort": "damper"
     },
@@ -557,7 +591,7 @@
     },
     {
       "FromNodeId": "load",
-      "FromPort": "a*-b",
+      "FromPort": "a*b",
       "ToNodeId": "out_load",
       "ToPort": "load"
     },
@@ -588,22 +622,6 @@
         "Step": 1.0,
         "Precision": 0,
         "LogScale": false,
-        "Options": []
-      }
-    },
-    {
-      "Name": "Aircraft.AeroTorque.RollMax",
-      "DefaultValue": 2000.0,
-      "Min": 100.0,
-      "Max": 20000.0,
-      "Ui": {
-        "Widget": "slider",
-        "Label": "Max Roll Torque",
-        "Group": "Aircraft",
-        "Units": "Nm",
-        "Step": 10.0,
-        "Precision": 0,
-        "LogScale": true,
         "Options": []
       }
     },
@@ -672,6 +690,22 @@
       }
     },
     {
+      "Name": "FlightStickRoll.DamperBase",
+      "DefaultValue": 0.05,
+      "Min": 0.0,
+      "Max": 2.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "Damper Base",
+        "Group": "FlightStickRoll",
+        "Units": "N*s/mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "Options": []
+      }
+    },
+    {
       "Name": "FlightStickRoll.FrictionBase",
       "DefaultValue": 0.1,
       "Min": 0.0,
@@ -704,16 +738,16 @@
       }
     },
     {
-      "Name": "FlightStickRoll.LoadGain",
-      "DefaultValue": 0.5,
+      "Name": "FlightStickRoll.LoadRateGain",
+      "DefaultValue": 0.0,
       "Min": 0.0,
       "Max": 5.0,
       "Ui": {
         "Widget": "slider",
-        "Label": "Load Gain",
+        "Label": "Load Gain (roll rate × qhat)",
         "Group": "FlightStickRoll",
-        "Units": "N @ torque_ref",
-        "Step": 0.01,
+        "Units": "N/(rad/s) @ Vref",
+        "Step": 0.05,
         "Precision": 2,
         "LogScale": false,
         "Options": []
@@ -723,7 +757,7 @@
       "Name": "FlightStickRoll.BuffetGain",
       "DefaultValue": 0.5,
       "Min": 0.0,
-      "Max": 5.0,
+      "Max": 100.0,
       "Ui": {
         "Widget": "slider",
         "Label": "Buffet Gain",

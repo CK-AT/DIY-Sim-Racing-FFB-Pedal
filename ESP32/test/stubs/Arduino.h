@@ -6,6 +6,10 @@
 #include <type_traits>
 
 using std::abs;
+// <cmath> exposes isfinite only as std::isfinite (the C macro is undef'd),
+// but the real Arduino/ESP32 headers provide a global isfinite. Bring it
+// into global scope so firmware code using bare isfinite() compiles here too.
+using std::isfinite;
 
 #ifdef min
 #undef min

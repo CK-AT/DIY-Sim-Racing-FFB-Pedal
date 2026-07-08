@@ -1,0 +1,373 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.Serialization;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace DiyFfb.TieredConfig
+{
+    /// <summary>
+    /// Shared protobuf JSON formatter/parser for types that don't round-trip through JSON.NET.
+    /// </summary>
+    internal static class ProtobufJsonHelper
+    {
+        internal static readonly Google.Protobuf.JsonFormatter Formatter =
+            new Google.Protobuf.JsonFormatter(Google.Protobuf.JsonFormatter.Settings.Default);
+        internal static readonly Google.Protobuf.JsonParser Parser =
+            new Google.Protobuf.JsonParser(Google.Protobuf.JsonParser.Settings.Default);
+
+        internal static string ToJson(Google.Protobuf.IMessage message)
+        {
+            return message == null ? null : Formatter.Format(message);
+        }
+
+        internal static T FromJson<T>(string json) where T : Google.Protobuf.IMessage<T>, new()
+        {
+            if (string.IsNullOrEmpty(json)) return default;
+            try { return Parser.Parse<T>(json); }
+            catch { return default; }
+        }
+    }
+    /// <summary>
+    /// Configuration layer in the override hierarchy.
+    /// Resolution order: User > Profile > Baseline (first non-null wins).
+    /// </summary>
+    public enum ConfigLayer
+    {
+        Baseline,   // ESP32 EEPROM defaults
+        Profile,    // Vehicle-specific settings (AircraftFfbProfile)
+        User        // Personal preferences (UserPreferences)
+    }
+
+    /// <summary>
+    /// User-level preferences that follow the user across vehicles.
+    /// Contains function config overrides for personal tuning.
+    /// </summary>
+    public class UserPreferences
+    {
+        /// <summary>
+        /// Function config overrides keyed by function ID.
+        /// Only user-tunable fields are stored here.
+        /// </summary>
+        public Dictionary<int, FunctionConfigOverrides> FunctionOverrides { get; set; }
+            = new Dictionary<int, FunctionConfigOverrides>();
+    }
+
+    /// <summary>
+    /// Delta overlay for FunctionConfig. All fields are nullable.
+    /// Non-null values override the corresponding field in the base config.
+    /// </summary>
+    public class FunctionConfigOverrides
+    {
+        // Output scaling (user-tunable)
+        public float? OutputMin { get; set; }
+        public float? OutputMax { get; set; }
+
+        // Common physics parameters (user-tunable)
+        public float? SimulatedMass { get; set; }
+        public float? Friction { get; set; }
+
+        // Static balance tuning (user-tunable)
+        public StaticBalanceTuningOverrides StaticBalanceTuning { get; set; }
+
+        // AutomotivePedals overrides
+        [JsonIgnore]
+        public SplineForceCurveConfig ForceCurve { get; set; }
+        [JsonProperty("ForceCurveJson")]
+        public string ForceCurveJson
+        {
+            get => ProtobufJsonHelper.ToJson(ForceCurve);
+            set => ForceCurve = ProtobufJsonHelper.FromJson<SplineForceCurveConfig>(value);
+        }
+        public DamperConfigOverrides DamperConfig { get; set; }
+
+        // FlightControl overrides — applies to all four flight functions
+        // (FlightStickPitch/Roll/Collective + FlightPedals; differentiation by FunctionID).
+        // Replaces the previous parallel FlightStick* / FlightPedals* property pairs.
+        public MotionRangeOverrides FlightControlMotionRange { get; set; }
+        public float? FlightControlDamping { get; set; }
+        public float? FlightControlCenteringSpringConst { get; set; }
+
+        // FlightControl DDS vibration overrides (graph-driven via ConfigOut, Profile-tier).
+        // Per-slot scalar decomposition for repeated proto fields (see plan 07b).
+        // Phase offset is stored in DEGREES at this layer; FlightControlProcessor
+        // converts to radians when writing the proto field.
+        public float? FlightControlPhaseOffset { get; set; }
+        public float?[] FlightControlVibHarmonicRatios { get; set; }   // length 5
+        public float?[] FlightControlVib2HarmonicRatios { get; set; }  // length 2
+
+        // Legacy JSON property names from before plan 10's FlightControl consolidation.
+        // Captured by JsonExtensionData and migrated by OnDeserialized below.
+        // Setters never fire directly; deserializer routes here only via the extension-data dict.
+        [JsonExtensionData]
+        private IDictionary<string, JToken> _legacyExtensionData;
+
+        [OnDeserialized]
+        private void MigrateLegacyFlightOverrides(StreamingContext ctx)
+        {
+            if (_legacyExtensionData == null) return;
+
+            // Old name → new property assignment (only if the new property is unset,
+            // so a profile that already has both shapes prefers the new one).
+            void TakeMotionRange(string key, ref MotionRangeOverrides target)
+            {
+                if (target != null) return;
+                if (_legacyExtensionData.TryGetValue(key, out var token) && token != null && token.Type != JTokenType.Null)
+                    target = token.ToObject<MotionRangeOverrides>();
+            }
+            void TakeFloat(string key, ref float? target)
+            {
+                if (target.HasValue) return;
+                if (_legacyExtensionData.TryGetValue(key, out var token) && token != null && token.Type != JTokenType.Null)
+                    target = token.ToObject<float?>();
+            }
+            void TakeFloatArray(string key, ref float?[] target)
+            {
+                if (target != null && target.Any(x => x.HasValue)) return;
+                if (_legacyExtensionData.TryGetValue(key, out var token) && token != null && token.Type != JTokenType.Null)
+                    target = token.ToObject<float?[]>();
+            }
+
+            var motion = FlightControlMotionRange;
+            TakeMotionRange("FlightStickMotionRange", ref motion);
+            TakeMotionRange("FlightPedalsMotionRange", ref motion);
+            FlightControlMotionRange = motion;
+
+            var damping = FlightControlDamping;
+            TakeFloat("FlightStickDamping", ref damping);
+            TakeFloat("FlightPedalsDamping", ref damping);
+            FlightControlDamping = damping;
+
+            var spring = FlightControlCenteringSpringConst;
+            TakeFloat("FlightStickCenteringSpringConst", ref spring);
+            TakeFloat("FlightPedalsCenteringSpringConst", ref spring);
+            FlightControlCenteringSpringConst = spring;
+
+            var phase = FlightControlPhaseOffset;
+            TakeFloat("FlightStickPhaseOffset", ref phase);
+            FlightControlPhaseOffset = phase;
+
+            var vib = FlightControlVibHarmonicRatios;
+            TakeFloatArray("FlightStickVibHarmonicRatios", ref vib);
+            FlightControlVibHarmonicRatios = vib;
+
+            var vib2 = FlightControlVib2HarmonicRatios;
+            TakeFloatArray("FlightStickVib2HarmonicRatios", ref vib2);
+            FlightControlVib2HarmonicRatios = vib2;
+
+            _legacyExtensionData = null;  // don't re-serialize
+        }
+
+        // RudderBrake overrides (aux_function in FlightPedals)
+        public ForceRangeOverrides RudderBrakeForceRange { get; set; }
+
+        // AutomotivePedal effect overrides
+        [JsonIgnore]
+        public ABSEffectConfig AbsEffect { get; set; }
+        [JsonProperty("AbsEffectJson")]
+        public string AbsEffectJson
+        {
+            get => ProtobufJsonHelper.ToJson(AbsEffect);
+            set => AbsEffect = ProtobufJsonHelper.FromJson<ABSEffectConfig>(value);
+        }
+
+        // Shifter overrides
+        [JsonIgnore]
+        public ShifterConfig ShifterConfig { get; set; }
+        [JsonProperty("ShifterConfigJson")]
+        public string ShifterConfigJson
+        {
+            get => ProtobufJsonHelper.ToJson(ShifterConfig);
+            set => ShifterConfig = ProtobufJsonHelper.FromJson<ShifterConfig>(value);
+        }
+        [JsonIgnore]
+        public ShifterDetectConfig ShifterDetectConfig { get; set; }
+        [JsonProperty("ShifterDetectConfigJson")]
+        public string ShifterDetectConfigJson
+        {
+            get => ProtobufJsonHelper.ToJson(ShifterDetectConfig);
+            set => ShifterDetectConfig = ProtobufJsonHelper.FromJson<ShifterDetectConfig>(value);
+        }
+
+        /// <summary>
+        /// Returns true if all override fields are null/empty.
+        /// </summary>
+        public bool IsEmpty =>
+            OutputMin == null &&
+            OutputMax == null &&
+            SimulatedMass == null &&
+            Friction == null &&
+            (StaticBalanceTuning == null || StaticBalanceTuning.IsEmpty) &&
+            ForceCurve == null &&
+            (DamperConfig == null || DamperConfig.IsEmpty) &&
+            (FlightControlMotionRange == null || FlightControlMotionRange.IsEmpty) &&
+            FlightControlDamping == null &&
+            FlightControlCenteringSpringConst == null &&
+            FlightControlPhaseOffset == null &&
+            (FlightControlVibHarmonicRatios == null || FlightControlVibHarmonicRatios.All(r => r == null)) &&
+            (FlightControlVib2HarmonicRatios == null || FlightControlVib2HarmonicRatios.All(r => r == null)) &&
+            (RudderBrakeForceRange == null || RudderBrakeForceRange.IsEmpty) &&
+            AbsEffect == null &&
+            ShifterConfig == null &&
+            ShifterDetectConfig == null;
+    }
+
+    /// <summary>
+    /// Delta overlay for StaticBalanceTuning parameters.
+    /// Matches FunctionConfig.Types.StaticBalanceTuning protobuf fields.
+    /// </summary>
+    public class StaticBalanceTuningOverrides
+    {
+        public bool? Enabled { get; set; }
+        public float? Gain { get; set; }
+
+        public bool IsEmpty => Enabled == null && Gain == null;
+    }
+
+    /// <summary>
+    /// Delta overlay for DamperConfig parameters (AutomotivePedals).
+    /// </summary>
+    public class DamperConfigOverrides
+    {
+        public float? PositiveFactor { get; set; }
+        public float? NegativeFactor { get; set; }
+
+        public bool IsEmpty => PositiveFactor == null && NegativeFactor == null;
+    }
+
+    /// <summary>
+    /// Delta overlay for FlightControl motion range. Stores position limits
+    /// as a pair (pos_min / pos_max in mm).
+    /// </summary>
+    public class MotionRangeOverrides
+    {
+        public int? Min { get; set; }
+        public int? Max { get; set; }
+
+        // Legacy JSON property names (FlightPedalsConfig used pos_near_lim / pos_far_lim).
+        // Captured by JsonExtensionData and migrated to Min / Max in OnDeserialized.
+        [JsonExtensionData]
+        private IDictionary<string, JToken> _legacy;
+
+        [OnDeserialized]
+        private void MigrateLegacy(StreamingContext ctx)
+        {
+            if (_legacy == null) return;
+            if (Min == null && _legacy.TryGetValue("NearLim", out var v) && v != null && v.Type != JTokenType.Null)
+                Min = v.ToObject<int?>();
+            if (Max == null && _legacy.TryGetValue("FarLim", out v) && v != null && v.Type != JTokenType.Null)
+                Max = v.ToObject<int?>();
+            _legacy = null;
+        }
+
+        public bool IsEmpty => Min == null && Max == null;
+    }
+
+    /// <summary>
+    /// Delta overlay for rudder brake force range.
+    /// </summary>
+    public class ForceRangeOverrides
+    {
+        public float? Min { get; set; }  // f_min
+        public float? Max { get; set; }  // f_max
+
+        public bool IsEmpty => Min == null && Max == null;
+    }
+
+    /// <summary>
+    /// ViewModel row for the override review dialog.
+    /// </summary>
+    public class OverrideReviewItem
+    {
+        public int FunctionId { get; set; }
+        public string FunctionName { get; set; }
+        public string FieldPath { get; set; }
+        public string FieldDisplayName { get; set; }
+        public string ValueDisplay { get; set; }
+        public ConfigLayer CurrentLayer { get; set; }
+        public bool CanMoveToUser { get; set; }
+        public bool CanMoveToProfile { get; set; }
+
+        // Display properties for DataGrid binding
+        public string LayerDisplay => CurrentLayer == ConfigLayer.User ? "[U]" : "[P]";
+        public bool CanMove => CanMoveToUser || CanMoveToProfile;
+        public string MoveTooltip => CanMoveToUser
+            ? "Move to User layer"
+            : CanMoveToProfile
+                ? "Move to Profile layer"
+                : null;
+    }
+
+    /// <summary>
+    /// Per-axis parameter overrides for use by functions.
+    /// Allows functions to override axis physics without modifying the hardware config.
+    /// Uses protobuf types directly for serialization compatibility.
+    /// </summary>
+    public class AxisParameterOverrides
+    {
+        /// <summary>
+        /// Kinematic parameters override (linkage geometry, travel limits).
+        /// If non-null, replaces the axis's kinematic_parameters entirely.
+        /// </summary>
+        [JsonIgnore]
+        public KinematicParameters Kinematics { get; set; }
+        [JsonProperty("KinematicsJson")]
+        public string KinematicsJson
+        {
+            get => ProtobufJsonHelper.ToJson(Kinematics);
+            set => Kinematics = ProtobufJsonHelper.FromJson<KinematicParameters>(value);
+        }
+
+        /// <summary>
+        /// The GeneralKinematicConfig geometry that produced these Kinematics.
+        /// Stored as JSON string because protobuf RepeatedField doesn't round-trip through JSON.NET.
+        /// Used to restore the kinematics editor when switching functions.
+        /// </summary>
+        public string GeometryJson { get; set; }
+
+        /// <summary>
+        /// Static balance config override (position-dependent force compensation).
+        /// If non-null, replaces the axis's static_balance_config entirely.
+        /// </summary>
+        [JsonIgnore]
+        public AxisConfig.Types.StaticBalanceConfig StaticBalance { get; set; }
+        [JsonProperty("StaticBalanceJson")]
+        public string StaticBalanceJson
+        {
+            get => ProtobufJsonHelper.ToJson(StaticBalance);
+            set => StaticBalance = ProtobufJsonHelper.FromJson<AxisConfig.Types.StaticBalanceConfig>(value);
+        }
+
+        /// <summary>
+        /// Oscillation guard override (per-function tuning of the runaway-detector
+        /// thresholds and ramp behavior). If non-null, replaces the axis's
+        /// oscillation_guard block entirely.
+        /// </summary>
+        [JsonIgnore]
+        public AxisConfig.Types.OscillationGuard OscillationGuard { get; set; }
+        [JsonProperty("OscillationGuardJson")]
+        public string OscillationGuardJson
+        {
+            get => ProtobufJsonHelper.ToJson(OscillationGuard);
+            set => OscillationGuard = ProtobufJsonHelper.FromJson<AxisConfig.Types.OscillationGuard>(value);
+        }
+
+        /// <summary>
+        /// Per-function override for AxisConfig.min_damping (axis-level safety
+        /// damping floor in (N*s)/mm, applied unconditionally by Sim at the
+        /// integrator). Nullable scalar overlay: non-null replaces the axis
+        /// baseline value when this function is active.
+        /// </summary>
+        public float? MinDamping { get; set; }
+
+        /// <summary>
+        /// Returns true if no overrides are defined.
+        /// </summary>
+        public bool IsEmpty => Kinematics == null && StaticBalance == null && OscillationGuard == null && MinDamping == null;
+
+        /// <summary>
+        /// Returns true if this override has any effective content.
+        /// </summary>
+        public bool HasOverrides => !IsEmpty;
+    }
+}

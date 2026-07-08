@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cmath>
+#include <vector>
 
 #include <unity.h>
 
@@ -171,7 +172,13 @@ void test_integrator_comparison_spring_only(void) {
 
     char msg[160];
     std::snprintf(msg, sizeof(msg), "drift_verlet=%.7f drift_semi=%.7f drift_vv=%.7f", drift_verlet, drift_semi, drift_vv);
-    TEST_ASSERT_TRUE_MESSAGE(drift_verlet < 0.00000003f, msg);
+    // Bound is the true symplectic energy oscillation of the position-Verlet
+    // integrator (measured ~9.5e-5, same order as the semi-implicit / velocity-
+    // Verlet references ~1.6e-5). The old 3e-8 bound only held when _x was
+    // float: the per-step increment fell below float ULP and the integrator
+    // froze (drift exactly 0) — the same quantization that caused position-
+    // dependent stiction. _x is now double, so the real bounded drift shows.
+    TEST_ASSERT_TRUE_MESSAGE(drift_verlet < 0.0002f, msg);
 }
 
 void test_integrator_comparison_stiff_spring(void) {
@@ -226,7 +233,10 @@ void test_integrator_comparison_stiff_spring(void) {
 
     char msg[160];
     std::snprintf(msg, sizeof(msg), "stiff drift_verlet=%.7f drift_semi=%.7f drift_vv=%.7f", drift_verlet, drift_semi, drift_vv);
-    TEST_ASSERT_TRUE_MESSAGE(drift_verlet < 0.0000001f, msg);
+    // Stiffer spring -> larger but still bounded symplectic drift (~3.0e-4).
+    // Old 1e-7 bound only held with float _x frozen below ULP; see the
+    // spring-only test above.
+    TEST_ASSERT_TRUE_MESSAGE(drift_verlet < 0.0006f, msg);
 }
 
 void test_friction_no_input_no_drift(void) {
@@ -492,6 +502,90 @@ void test_damping_map_negative_entries_clamped(void) {
     TEST_ASSERT_TRUE(std::isfinite(v));
 }
 
+// Drive a SyncVib with a fixed dt and return the x_vib (mm) output trace.
+static std::vector<float> RunSyncVib(SyncVib &vib, float dt_ms, int steps) {
+    std::vector<float> trace;
+    trace.reserve(steps);
+    SimState state;
+    state.dt_ms = dt_ms;
+    for (int i = 0; i < steps; ++i) {
+        SimAccumulators accum;
+        vib.update(state, accum);
+        trace.push_back(accum.x_vib);
+    }
+    return trace;
+}
+
+void test_syncvib_continuity_at_10hz(void) {
+    SyncVib vib;
+    float ratios[1] = {1.0f};
+    vib.set_config(0.0f, ratios, 1);
+    vib.on_sync(0.0f, 10.0f);  // seed fundamental = 10 Hz
+    float amps[1] = {1.0f};
+    vib.set_amplitudes(amps, 1);
+
+    auto trace = RunSyncVib(vib, 1.0f, 1000);  // 1 ms dt, 1 second
+
+    // Count zero crossings — at 10 Hz over 1 s, expect ~20 (two per cycle)
+    int zero_crossings = 0;
+    for (size_t i = 1; i < trace.size(); ++i) {
+        if ((trace[i] >= 0.0f) != (trace[i - 1] >= 0.0f)) {
+            zero_crossings++;
+        }
+    }
+    // Allow some tolerance for the LPF settle on amplitude (starts at 0)
+    TEST_ASSERT_INT_WITHIN(2, 20, zero_crossings);
+
+    // No NaN / no discontinuities (max step between adjacent samples
+    // should be much less than peak amplitude)
+    for (size_t i = 1; i < trace.size(); ++i) {
+        TEST_ASSERT_TRUE(std::isfinite(trace[i]));
+        // 10 Hz, dt 1 ms => max delta ≈ 2*pi*10*amp*dt = 0.063, give margin
+        TEST_ASSERT_LESS_THAN_FLOAT(0.2f, std::fabs(trace[i] - trace[i - 1]));
+    }
+}
+
+void test_syncvib_phase_offset_90_degrees(void) {
+    SyncVib pitch;
+    SyncVib roll;
+    float ratios[1] = {1.0f};
+    pitch.set_config(0.0f, ratios, 1);
+    roll.set_config((float)M_PI / 2.0f, ratios, 1);
+    pitch.on_sync(0.0f, 10.0f);
+    roll.on_sync(0.0f, 10.0f);
+    float amps[1] = {1.0f};
+    pitch.set_amplitudes(amps, 1);
+    roll.set_amplitudes(amps, 1);
+
+    auto trace_p = RunSyncVib(pitch, 1.0f, 1000);
+    auto trace_r = RunSyncVib(roll, 1.0f, 1000);
+
+    // After amp LPF settles (~250 ms), roll should equal cos(2*pi*10*t)
+    // and pitch should equal sin(...). At any time t after settle, the
+    // identity sin^2 + cos^2 = amp^2 must hold.
+    for (size_t i = 500; i < trace_p.size(); ++i) {
+        float sumsq = trace_p[i] * trace_p[i] + trace_r[i] * trace_r[i];
+        TEST_ASSERT_FLOAT_WITHIN(0.05f, 1.0f, sumsq);
+    }
+}
+
+void test_syncvib_amplitude_smoothing(void) {
+    SyncVib vib;
+    float ratios[1] = {1.0f};
+    vib.set_config((float)M_PI / 2.0f, ratios, 1);  // cos so output starts at amp at phase=0
+    vib.on_sync(0.0f, 0.001f);  // tiny fundamental so phase barely moves
+    float amps[1] = {1.0f};
+    vib.set_amplitudes(amps, 1);
+
+    // Drive 200 ms (4 * tau with tau=50ms) at 1 ms dt — output should be ~0.99 of amplitude
+    auto trace = RunSyncVib(vib, 1.0f, 200);
+
+    // Final sample should be close to 1.0 (cos of nearly-zero phase, with smoothed amp ~0.99)
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 1.0f, trace.back());
+    // First sample should be close to 0 (amp not yet smoothed up)
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 0.0f, trace.front());
+}
+
 void test_oscillation_guard_ramps_damping(void) {
     Sim sim(1.0f, -100.0f, 100.0f);
     OscillationGuard guard(1.0f, 0.2f, 0.5f, 4000, 20000, 50000, 20000, 1);
@@ -530,6 +624,9 @@ int main(int argc, char **argv) {
     RUN_TEST(test_limit_clamp_no_nan);
     RUN_TEST(test_damping_map_negative_entries_clamped);
     RUN_TEST(test_oscillation_guard_ramps_damping);
+    RUN_TEST(test_syncvib_continuity_at_10hz);
+    RUN_TEST(test_syncvib_phase_offset_90_degrees);
+    RUN_TEST(test_syncvib_amplitude_smoothing);
     // RUN_TEST(test_integrator_comparison_stiff_damped_friction);
     return UNITY_END();
 }

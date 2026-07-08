@@ -33,12 +33,29 @@ namespace DiyFfb.GraphEditor
         }
     }
 
+    /// <summary>
+    /// Converts a null/empty string to true (e.g. "no explicit function set" → Scoped checked).
+    /// </summary>
+    public sealed class StringEmptyToBoolConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return string.IsNullOrEmpty(value as string);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public partial class GraphEditorWindow : Window
     {
         private readonly GraphEditorTabManager tabManager;
         private bool suppressTreeSelection;
         private DiyFfbPlugin plugin;
         private Func<IDictionary<string, double>> liveInputProvider;
+        private Func<IReadOnlyDictionary<string, uint>> msfsFailedVarProvider;
         private readonly System.Windows.Threading.DispatcherTimer _globalLiveTimer;
         private bool _globalLiveInputsEnabled = true;  // Enabled by default
         private GraphEditorControl _lastEditor;
@@ -100,6 +117,15 @@ namespace DiyFfb.GraphEditor
             }
         }
 
+        public void SetMsfsFailedVarProvider(Func<IReadOnlyDictionary<string, uint>> provider)
+        {
+            msfsFailedVarProvider = provider;
+            foreach (var tab in tabManager.Tabs)
+            {
+                tab.EditorControl.MsfsFailedVarProvider = provider;
+            }
+        }
+
         public void SetPlugin(DiyFfbPlugin pluginInstance)
         {
             // Unsubscribe from old plugin if any
@@ -155,6 +181,7 @@ namespace DiyFfb.GraphEditor
         {
             // Unsubscribe first to avoid duplicate handlers
             tab.EditorControl.IncludeOpenRequested -= OnIncludeOpenRequested;
+            tab.EditorControl.EmbeddedOpenRequested -= OnEmbeddedOpenRequested;
 
             tab.EditorControl.ParamValueChanged = (paramName, value) =>
             {
@@ -182,6 +209,7 @@ namespace DiyFfb.GraphEditor
             }
 
             tab.EditorControl.IncludeOpenRequested += OnIncludeOpenRequested;
+            tab.EditorControl.EmbeddedOpenRequested += OnEmbeddedOpenRequested;
         }
 
         private readonly HashSet<string> _wiredTabs = new HashSet<string>();
@@ -231,6 +259,15 @@ namespace DiyFfb.GraphEditor
             bool dirty = tab.UndoStack?.IsDirty == true;
             tab.IsDirty = dirty;
             tab.EditorControl.SetDirtyState(dirty);
+            // Embedded sub-graph edits flush back into the parent node's InlineGraph
+            // and dirty the parent, so saving the parent file persists them.
+            if (dirty && tab.IsEmbedded)
+            {
+                tab.FlushToParent();
+                // Keep the parent's Include node ports in sync if the sub-graph's
+                // interface (Input/Output nodes) changed.
+                tab.ParentTab?.EditorControl.RefreshIncludeNode(tab.EmbeddedNodeId);
+            }
             UpdateUndoRedoButtons();
         }
 
@@ -312,6 +349,16 @@ namespace DiyFfb.GraphEditor
             {
                 tab.EditorControl.LiveInputProvider = liveInputProvider;
             }
+            if (msfsFailedVarProvider != null)
+            {
+                tab.EditorControl.MsfsFailedVarProvider = msfsFailedVarProvider;
+            }
+
+            // Provide runtime state snapshot for active graph tabs (top-level state sync)
+            if (tab.IsActiveGraph)
+            {
+                tab.EditorControl.LiveStateProvider = () => plugin?.GetActiveGraphStateSnapshot();
+            }
 
             // Set context provider for include context preview
             tab.EditorControl.ContextProvider = path => plugin?.ActiveIncludeContextCache?.GetContexts(path);
@@ -336,6 +383,7 @@ namespace DiyFfb.GraphEditor
         {
             // Clean up event handlers
             tab.EditorControl.IncludeOpenRequested -= OnIncludeOpenRequested;
+            tab.EditorControl.EmbeddedOpenRequested -= OnEmbeddedOpenRequested;
             tab.EditorControl.LiveInputsStateChanged -= OnTabLiveInputsStateChanged;
             UpdateUndoRedoButtons();
         }
@@ -464,9 +512,24 @@ namespace DiyFfb.GraphEditor
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(CurrentTab.FilePath))
+            // Embedded sub-graphs have no file of their own. Flush the edit
+            // chain up into the parent node(s) and save the root file tab,
+            // which serializes the inline graphs. The embedded chain is then
+            // marked clean since its content is now persisted.
+            GraphEditorTab target = CurrentTab;
+            if (CurrentTab.IsEmbedded)
             {
-                // No path yet, do Save As
+                target = FlushEmbeddedChainToRoot(CurrentTab);
+                if (target == null)
+                {
+                    return;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(target.FilePath))
+            {
+                // No path yet, do Save As (operates on the selected tab; only
+                // reached for a genuinely unsaved root, never for embedded).
                 ButtonSaveAs_Click(sender, e);
                 return;
             }
@@ -475,7 +538,7 @@ namespace DiyFfb.GraphEditor
             if (plugin != null)
             {
                 var scanner = new GraphUsageScanner(plugin);
-                var report = scanner.GetUsageReport(CurrentTab.FilePath, plugin.GetActiveProfileKey());
+                var report = scanner.GetUsageReport(target.FilePath, plugin.GetActiveProfileKey());
 
                 if (report.IsShared)
                 {
@@ -494,21 +557,50 @@ namespace DiyFfb.GraphEditor
                 }
             }
 
-            if (CurrentTab.Save())
+            if (target.Save())
             {
                 // Auto-apply to runtime when saving the active graph
-                if (CurrentTab.IsActiveGraph)
+                if (target.IsActiveGraph)
                 {
-                    plugin?.ApplyGraphToRuntime(CurrentTab.Graph, CurrentTab.FilePath);
+                    plugin?.ApplyGraphToRuntime(target.Graph, target.FilePath);
                 }
 
-                CurrentTab.EditorControl.MarkUndoClean();
-                UpdateUndoState(CurrentTab);
+                target.EditorControl.MarkUndoClean();
+                UpdateUndoState(target);
+                if (CurrentTab.IsEmbedded)
+                {
+                    MarkEmbeddedChainClean(CurrentTab);
+                }
             }
             else
             {
                 ThemedMessageBox.Show(this, "Failed to save graph.", "Save Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Flushes an embedded tab's edits up through every ancestor embedded tab
+        /// into the parent node InlineGraphs, returning the root file-backed tab.
+        /// </summary>
+        private GraphEditorTab FlushEmbeddedChainToRoot(GraphEditorTab tab)
+        {
+            var t = tab;
+            while (t != null && t.IsEmbedded)
+            {
+                t.FlushToParent();
+                t = t.ParentTab;
+            }
+            return t;
+        }
+
+        /// <summary>Clears the dirty state on an embedded tab and its ancestors after a save.</summary>
+        private void MarkEmbeddedChainClean(GraphEditorTab tab)
+        {
+            for (var t = tab; t != null && t.IsEmbedded; t = t.ParentTab)
+            {
+                t.EditorControl.MarkUndoClean();
+                UpdateUndoState(t);
             }
         }
 
@@ -767,6 +859,17 @@ namespace DiyFfb.GraphEditor
                 return;
             }
 
+            // Embedded sub-graph tabs have no file and their edits are already
+            // flushed into the parent (which carries the dirty state). Closing
+            // loses nothing — flush once more and close without prompting.
+            if (tab.IsEmbedded)
+            {
+                tab.FlushToParent();
+                tabManager.CloseTab(tab);
+                RefreshHierarchy();
+                return;
+            }
+
             if (tab.IsDirty)
             {
                 var result = ThemedMessageBox.Show(
@@ -935,6 +1038,35 @@ namespace DiyFfb.GraphEditor
             {
                 ButtonLoad_Click(sender, e);
                 e.Handled = true;
+            }
+        }
+
+        private void OnEmbeddedOpenRequested(string nodeId, string contextId)
+        {
+            var parent = CurrentTab;
+            if (parent?.Graph == null || string.IsNullOrEmpty(nodeId))
+            {
+                return;
+            }
+
+            var node = parent.Graph.Nodes.FirstOrDefault(n => n.Id == nodeId && n.IsEmbeddedInclude);
+            if (node == null)
+            {
+                return;
+            }
+
+            var tab = tabManager.OpenEmbedded(parent, node);
+            if (tab == null)
+            {
+                return;
+            }
+
+            EditorTabs.SelectedItem = tab;
+            RefreshHierarchy();
+
+            if (!string.IsNullOrEmpty(contextId))
+            {
+                tab.EditorControl.SetSelectedContext(contextId);
             }
         }
 

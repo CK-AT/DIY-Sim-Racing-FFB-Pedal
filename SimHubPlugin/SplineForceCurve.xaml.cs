@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using MahApps.Metro.Controls;
+using DiyFfb.Controls;
 
 namespace DiyFfb
 {
@@ -61,16 +62,29 @@ namespace DiyFfb
         }
         public void OnKinematicParametersChanged(KinematicParameters parameters)
         {
+            if (!KinematicBoundsHelper.TryGetTravelBounds(parameters, out double boundsMin, out double boundsMax))
+                return;
+
             hasAxisRange = true;
-            double min = parameters.ContactPointPosMinAbs / 10.0;
-            double max = parameters.ContactPointPosMaxAbs / 10.0;
-            Rangeslider_travel_range.Minimum = Math.Min(min, max);
-            Rangeslider_travel_range.Maximum = Math.Max(min, max);
+
+            bool wasUpdating = is_updating;
+            if (!wasUpdating) is_updating = true;
+
+            KinematicBoundsHelper.ApplyBoundsToSlider(
+                Rangeslider_travel_range, boundsMin, boundsMax,
+                config.PosMin, config.PosMax);
+
+            if (!wasUpdating)
+            {
+                Dispatcher.BeginInvoke(
+                    new Action(() => is_updating = false),
+                    System.Windows.Threading.DispatcherPriority.ContextIdle);
+            }
         }
 
         public void UpdateConfig(SplineForceCurveConfig new_config)
         {
-            config = new_config;
+            config = new_config ?? GetDefaultConfig();
             is_updating = true;
             if (!hasAxisRange)
             {
@@ -313,6 +327,7 @@ namespace DiyFfb
             config.FRelPoints[4] = 93;
             config.FRelPoints[5] = 100;
             UpdateSpline();
+            RangeSettingsChanged?.Invoke(this);
         }
         private void btn_10xcurve_Click(object sender, RoutedEventArgs e)
         {
@@ -323,6 +338,7 @@ namespace DiyFfb
             config.FRelPoints[4] = 95;
             config.FRelPoints[5] = 100;
             UpdateSpline();
+            RangeSettingsChanged?.Invoke(this);
         }
         private void btn_logcurve_Click(object sender, RoutedEventArgs e)
         {
@@ -333,6 +349,7 @@ namespace DiyFfb
             config.FRelPoints[4] = 59;
             config.FRelPoints[5] = 100;
             UpdateSpline();
+            RangeSettingsChanged?.Invoke(this);
         }
         private void btn_linearcurve_Click(object sender, RoutedEventArgs e)
         {
@@ -343,6 +360,7 @@ namespace DiyFfb
             config.FRelPoints[4] = 80;
             config.FRelPoints[5] = 100;
             UpdateSpline();
+            RangeSettingsChanged?.Invoke(this);
         }
         private void Rectangle_MouseMove_ABS(object sender, MouseEventArgs e)
         {
@@ -470,7 +488,10 @@ namespace DiyFfb
             {
                 Label_min_pos.Content = String.Format("Min\n{0}mm", config.PosMin);
             }
-            RangeSettingsChanged?.Invoke(this);
+            if (!is_updating)
+            {
+                RangeSettingsChanged?.Invoke(this);
+            }
         }
 
         private void Rangeslider_travel_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -483,7 +504,10 @@ namespace DiyFfb
             {
                 Label_max_pos.Content = String.Format("Max\n{0}mm", config.PosMax);
             }
-            RangeSettingsChanged?.Invoke(this);
+            if (!is_updating)
+            {
+                RangeSettingsChanged?.Invoke(this);
+            }
         }
 
         private void Rangeslider_force_range_UpperValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -496,7 +520,10 @@ namespace DiyFfb
             {
                 Label_max_force.Content = String.Format("Max force\n{0:F1}kg", e.NewValue);
             }
-            RangeSettingsChanged?.Invoke(this);
+            if (!is_updating)
+            {
+                RangeSettingsChanged?.Invoke(this);
+            }
         }
 
         private void Rangeslider_force_range_LowerValueChanged(object sender, RangeParameterChangedEventArgs e)
@@ -509,7 +536,10 @@ namespace DiyFfb
             {
                 Label_min_force.Content = String.Format("Preload\n{0:F1}kg", e.NewValue);
             }
-            RangeSettingsChanged?.Invoke(this);
+            if (!is_updating)
+            {
+                RangeSettingsChanged?.Invoke(this);
+            }
         }
 
         private void Rectangle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -550,6 +580,7 @@ namespace DiyFfb
                     };
                     rectangle.Fill = ui.MouseUpColor;
                     rectangle.Effect = dropShadowEffect;
+                    RangeSettingsChanged?.Invoke(this);
                 }
             }
         }

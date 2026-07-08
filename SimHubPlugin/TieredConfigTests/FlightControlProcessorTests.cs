@@ -1,0 +1,504 @@
+using System;
+using System.Collections.Generic;
+using DiyFfb;
+using DiyFfb.TieredConfig;
+using SimHubPlugin.TestCommon;
+
+namespace DiyFfb.TieredConfigTests
+{
+    public static class FlightControlProcessorTests
+    {
+        public static List<TestResult> RunAll()
+        {
+            return new List<TestResult>
+            {
+                // Reconciliation tests
+                TestRunner.RunTest("Reconcile_Pitch_SetsOutputFromPosRange", Reconcile_Pitch_SetsOutputFromPosRange),
+                TestRunner.RunTest("Reconcile_Roll_SetsOutputFromPosRange", Reconcile_Roll_SetsOutputFromPosRange),
+                TestRunner.RunTest("Reconcile_Collective_SetsOutputFromPosRange", Reconcile_Collective_SetsOutputFromPosRange),
+                TestRunner.RunTest("Reconcile_NullSubConfig_NoOp", Reconcile_NullSubConfig_NoOp),
+                TestRunner.RunTest("Reconcile_NullConfig_NoOp", Reconcile_NullConfig_NoOp),
+                TestRunner.RunTest("Reconcile_NullBase_NoOp", Reconcile_NullBase_NoOp),
+
+                // Override application tests — Pitch
+                TestRunner.RunTest("Apply_Pitch_MotionRange_Min", Apply_Pitch_MotionRange_Min),
+                TestRunner.RunTest("Apply_Pitch_MotionRange_Max", Apply_Pitch_MotionRange_Max),
+                TestRunner.RunTest("Apply_Pitch_MotionRange_Both", Apply_Pitch_MotionRange_Both),
+                TestRunner.RunTest("Apply_Pitch_Damping", Apply_Pitch_Damping),
+                TestRunner.RunTest("Apply_Pitch_CenteringSpringConst", Apply_Pitch_CenteringSpringConst),
+
+                // Override application tests — Roll
+                TestRunner.RunTest("Apply_Roll_MotionRange", Apply_Roll_MotionRange),
+                TestRunner.RunTest("Apply_Roll_Damping", Apply_Roll_Damping),
+
+                // Override application tests — Collective
+                TestRunner.RunTest("Apply_Collective_MotionRange", Apply_Collective_MotionRange),
+                TestRunner.RunTest("Apply_Collective_CenteringSpringConst", Apply_Collective_CenteringSpringConst),
+
+                // Null/empty delta
+                TestRunner.RunTest("Apply_NullDelta_NoOp", Apply_NullDelta_NoOp),
+                TestRunner.RunTest("Apply_EmptyDelta_NoOp", Apply_EmptyDelta_NoOp),
+                TestRunner.RunTest("Apply_NullBase_NoOp", Apply_NullBase_NoOp),
+
+                // Null FlightStick is a no-op (don't clobber other oneof arms)
+                TestRunner.RunTest("Apply_NullFlightStick_NoOp", Apply_NullFlightStick_NoOp),
+
+                // Per-slot harmonic ratio override semantics
+                TestRunner.RunTest("Apply_VibHarmRatios_AllNullPreservesBaseline", Apply_VibHarmRatios_AllNullPreservesBaseline),
+                TestRunner.RunTest("Apply_VibHarmRatios_PartialPreservesUnsetBaseline", Apply_VibHarmRatios_PartialPreservesUnsetBaseline),
+                TestRunner.RunTest("Apply_Vib2HarmRatios_AllNullPreservesBaseline", Apply_Vib2HarmRatios_AllNullPreservesBaseline),
+                TestRunner.RunTest("Apply_Vib2HarmRatios_PartialPreservesUnsetBaseline", Apply_Vib2HarmRatios_PartialPreservesUnsetBaseline),
+
+                // Migration tests
+                TestRunner.RunTest("Migrate_PitchJson", Migrate_PitchJson),
+                TestRunner.RunTest("Migrate_RollJson", Migrate_RollJson),
+                TestRunner.RunTest("Migrate_CollectiveJson", Migrate_CollectiveJson),
+                TestRunner.RunTest("Migrate_FlightStickToControl", Migrate_FlightStickToControl),
+                TestRunner.RunTest("Migrate_FlightPedalsToControl", Migrate_FlightPedalsToControl),
+                TestRunner.RunTest("Migrate_AlreadyMigrated_NoOp", Migrate_AlreadyMigrated_NoOp),
+                TestRunner.RunTest("Migrate_NullJson_ReturnsNull", Migrate_NullJson_ReturnsNull),
+            };
+        }
+
+        // === Reconciliation Tests ===
+
+        private static void Reconcile_Pitch_SetsOutputFromPosRange()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+
+            FlightControlProcessor.ReconcileDerivedFields(config);
+
+            AssertNear(-20.0f, config.Base.OutputMin, 1e-6f, "OutputMin should be PosMin");
+            AssertNear(20.0f, config.Base.OutputMax, 1e-6f, "OutputMax should be PosMax");
+        }
+
+        private static void Reconcile_Roll_SetsOutputFromPosRange()
+        {
+            var config = CreateConfig(FunctionID.FlightStickRoll, posMin: -15, posMax: 15);
+
+            FlightControlProcessor.ReconcileDerivedFields(config);
+
+            AssertNear(-15.0f, config.Base.OutputMin, 1e-6f, "OutputMin should be PosMin");
+            AssertNear(15.0f, config.Base.OutputMax, 1e-6f, "OutputMax should be PosMax");
+        }
+
+        private static void Reconcile_Collective_SetsOutputFromPosRange()
+        {
+            var config = CreateConfig(FunctionID.FlightStickCollective, posMin: 0, posMax: 50);
+
+            FlightControlProcessor.ReconcileDerivedFields(config);
+
+            AssertNear(0.0f, config.Base.OutputMin, 1e-6f, "OutputMin should be PosMin");
+            AssertNear(50.0f, config.Base.OutputMax, 1e-6f, "OutputMax should be PosMax");
+        }
+
+        private static void Reconcile_NullSubConfig_NoOp()
+        {
+            var config = new FunctionConfig
+            {
+                Base = new FunctionBase
+                {
+                    FunctionId = FunctionID.FlightStickPitch,
+                    OutputMin = 1.0f,
+                    OutputMax = 2.0f
+                },
+                FlightControl = null
+            };
+
+            FlightControlProcessor.ReconcileDerivedFields(config);
+
+            AssertNear(1.0f, config.Base.OutputMin, 1e-6f, "OutputMin should be unchanged");
+            AssertNear(2.0f, config.Base.OutputMax, 1e-6f, "OutputMax should be unchanged");
+        }
+
+        private static void Reconcile_NullConfig_NoOp()
+        {
+            // Should not throw
+            FlightControlProcessor.ReconcileDerivedFields(null);
+        }
+
+        private static void Reconcile_NullBase_NoOp()
+        {
+            var config = new FunctionConfig
+            {
+                Base = null,
+                FlightControl = new FlightControlConfig { PosMin = -10, PosMax = 10 }
+            };
+
+            // Should not throw
+            FlightControlProcessor.ReconcileDerivedFields(config);
+        }
+
+        // === Override Application Tests — Pitch ===
+
+        private static void Apply_Pitch_MotionRange_Min()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlMotionRange = new MotionRangeOverrides { Min = -30 }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(-30, config.FlightControl.PosMin, "PosMin should be overridden");
+            AssertEqual(20, config.FlightControl.PosMax, "PosMax should be preserved");
+        }
+
+        private static void Apply_Pitch_MotionRange_Max()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlMotionRange = new MotionRangeOverrides { Max = 30 }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(-20, config.FlightControl.PosMin, "PosMin should be preserved");
+            AssertEqual(30, config.FlightControl.PosMax, "PosMax should be overridden");
+        }
+
+        private static void Apply_Pitch_MotionRange_Both()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlMotionRange = new MotionRangeOverrides { Min = -25, Max = 25 }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(-25, config.FlightControl.PosMin, "PosMin should be overridden");
+            AssertEqual(25, config.FlightControl.PosMax, "PosMax should be overridden");
+        }
+
+        private static void Apply_Pitch_Damping()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            var delta = new FunctionConfigOverrides { FlightControlDamping = 1.5f };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertNear(1.5f, config.FlightControl.Damping, 1e-6f, "Damping should be overridden");
+        }
+
+        private static void Apply_Pitch_CenteringSpringConst()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            var delta = new FunctionConfigOverrides { FlightControlCenteringSpringConst = 3.0f };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertNear(3.0f, config.FlightControl.CenteringSpringConst, 1e-6f, "CenteringSpringConst should be overridden");
+        }
+
+        // === Override Application Tests — Roll ===
+
+        private static void Apply_Roll_MotionRange()
+        {
+            var config = CreateConfig(FunctionID.FlightStickRoll, posMin: -15, posMax: 15);
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlMotionRange = new MotionRangeOverrides { Min = -10, Max = 10 }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(-10, config.FlightControl.PosMin, "PosMin should be overridden");
+            AssertEqual(10, config.FlightControl.PosMax, "PosMax should be overridden");
+        }
+
+        private static void Apply_Roll_Damping()
+        {
+            var config = CreateConfig(FunctionID.FlightStickRoll, posMin: -15, posMax: 15);
+            var delta = new FunctionConfigOverrides { FlightControlDamping = 2.0f };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertNear(2.0f, config.FlightControl.Damping, 1e-6f, "Damping should be overridden");
+        }
+
+        // === Override Application Tests — Collective ===
+
+        private static void Apply_Collective_MotionRange()
+        {
+            var config = CreateConfig(FunctionID.FlightStickCollective, posMin: 0, posMax: 50);
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlMotionRange = new MotionRangeOverrides { Min = 5, Max = 45 }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(5, config.FlightControl.PosMin, "PosMin should be overridden");
+            AssertEqual(45, config.FlightControl.PosMax, "PosMax should be overridden");
+        }
+
+        private static void Apply_Collective_CenteringSpringConst()
+        {
+            var config = CreateConfig(FunctionID.FlightStickCollective, posMin: 0, posMax: 50);
+            var delta = new FunctionConfigOverrides { FlightControlCenteringSpringConst = 0.5f };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertNear(0.5f, config.FlightControl.CenteringSpringConst, 1e-6f, "CenteringSpringConst should be overridden");
+        }
+
+        // === Null/Empty Delta Tests ===
+
+        private static void Apply_NullDelta_NoOp()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            config.FlightControl.Damping = 0.5f;
+
+            FlightControlProcessor.ApplyOverrides(config, null);
+
+            AssertEqual(-20, config.FlightControl.PosMin, "PosMin should be unchanged");
+            AssertEqual(20, config.FlightControl.PosMax, "PosMax should be unchanged");
+            AssertNear(0.5f, config.FlightControl.Damping, 1e-6f, "Damping should be unchanged");
+        }
+
+        private static void Apply_EmptyDelta_NoOp()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            config.FlightControl.Damping = 0.5f;
+            var delta = new FunctionConfigOverrides();
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(-20, config.FlightControl.PosMin, "PosMin should be unchanged");
+            AssertEqual(20, config.FlightControl.PosMax, "PosMax should be unchanged");
+            AssertNear(0.5f, config.FlightControl.Damping, 1e-6f, "Damping should be unchanged");
+        }
+
+        private static void Apply_NullBase_NoOp()
+        {
+            var config = new FunctionConfig
+            {
+                Base = null,
+                FlightControl = new FlightControlConfig { PosMin = -20, PosMax = 20 }
+            };
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlMotionRange = new MotionRangeOverrides { Min = -30 }
+            };
+
+            // Should not throw
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            // Sub-config unchanged because Base is null — can't dispatch
+            AssertEqual(-20, config.FlightControl.PosMin, "PosMin should be unchanged");
+        }
+
+        // === Null FlightStick Tests ===
+
+        /// <summary>
+        /// When FlightStick is null (e.g. config is AutomotivePedal), ApplyOverrides
+        /// must be a no-op. Previously it auto-created a FlightControlConfig, which
+        /// clobbered the active oneof arm (AutomotivePedal/FlightPedals/Shifter).
+        /// </summary>
+        private static void Apply_NullFlightStick_NoOp()
+        {
+            var config = new FunctionConfig
+            {
+                Base = new FunctionBase { FunctionId = FunctionID.BrakePedal },
+                AutomotivePedal = new AutomotivePedalConfig
+                {
+                    DamperConfig = new DamperConfig { PositiveFactor = 0.05f }
+                }
+            };
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlMotionRange = new MotionRangeOverrides { Min = -10, Max = 10 }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertTrue(config.FlightControl == null, "FlightStick should remain null");
+            AssertTrue(config.AutomotivePedal != null, "AutomotivePedal oneof should be preserved");
+            AssertNear(0.05f, config.AutomotivePedal.DamperConfig.PositiveFactor, 1e-6f, "Damper should be unchanged");
+        }
+
+        // === Per-slot harmonic ratio override tests ===
+
+        // Regression: clearing every slot in the harmonic-ratios override array left the
+        // array non-null with all-null entries. The processor used to .Clear() the
+        // baseline RepeatedField and re-add 0.0f for each null slot, silently zeroing
+        // the baseline harmonic ratios. Per-slot semantics: null = preserve baseline.
+        private static void Apply_VibHarmRatios_AllNullPreservesBaseline()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            config.FlightControl.VibHarmonicRatios.Add(1.0f);
+            config.FlightControl.VibHarmonicRatios.Add(2.0f);
+            config.FlightControl.VibHarmonicRatios.Add(3.0f);
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlVibHarmonicRatios = new float?[] { null, null, null, null, null }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(3, config.FlightControl.VibHarmonicRatios.Count, "Baseline count should be preserved");
+            AssertNear(1.0f, config.FlightControl.VibHarmonicRatios[0], 1e-6f, "Slot 0 baseline preserved");
+            AssertNear(2.0f, config.FlightControl.VibHarmonicRatios[1], 1e-6f, "Slot 1 baseline preserved");
+            AssertNear(3.0f, config.FlightControl.VibHarmonicRatios[2], 1e-6f, "Slot 2 baseline preserved");
+        }
+
+        private static void Apply_VibHarmRatios_PartialPreservesUnsetBaseline()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            config.FlightControl.VibHarmonicRatios.Add(1.0f);
+            config.FlightControl.VibHarmonicRatios.Add(2.0f);
+            config.FlightControl.VibHarmonicRatios.Add(3.0f);
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlVibHarmonicRatios = new float?[] { null, 99.0f, null, 7.5f, null }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(5, config.FlightControl.VibHarmonicRatios.Count, "Count grows to override length");
+            AssertNear(1.0f, config.FlightControl.VibHarmonicRatios[0], 1e-6f, "Slot 0 baseline preserved");
+            AssertNear(99.0f, config.FlightControl.VibHarmonicRatios[1], 1e-6f, "Slot 1 overridden");
+            AssertNear(3.0f, config.FlightControl.VibHarmonicRatios[2], 1e-6f, "Slot 2 baseline preserved");
+            AssertNear(7.5f, config.FlightControl.VibHarmonicRatios[3], 1e-6f, "Slot 3 overridden");
+            AssertNear(0.0f, config.FlightControl.VibHarmonicRatios[4], 1e-6f, "Slot 4 padded to 0 (no baseline, no override)");
+        }
+
+        private static void Apply_Vib2HarmRatios_AllNullPreservesBaseline()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            config.FlightControl.Vib2HarmonicRatios.Add(0.5f);
+            config.FlightControl.Vib2HarmonicRatios.Add(1.5f);
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlVib2HarmonicRatios = new float?[] { null, null }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(2, config.FlightControl.Vib2HarmonicRatios.Count, "Baseline count preserved");
+            AssertNear(0.5f, config.FlightControl.Vib2HarmonicRatios[0], 1e-6f, "Slot 0 baseline preserved");
+            AssertNear(1.5f, config.FlightControl.Vib2HarmonicRatios[1], 1e-6f, "Slot 1 baseline preserved");
+        }
+
+        private static void Apply_Vib2HarmRatios_PartialPreservesUnsetBaseline()
+        {
+            var config = CreateConfig(FunctionID.FlightStickPitch, posMin: -20, posMax: 20);
+            config.FlightControl.Vib2HarmonicRatios.Add(0.5f);
+            config.FlightControl.Vib2HarmonicRatios.Add(1.5f);
+            var delta = new FunctionConfigOverrides
+            {
+                FlightControlVib2HarmonicRatios = new float?[] { 4.0f, null }
+            };
+
+            FlightControlProcessor.ApplyOverrides(config, delta);
+
+            AssertEqual(2, config.FlightControl.Vib2HarmonicRatios.Count, "Count unchanged");
+            AssertNear(4.0f, config.FlightControl.Vib2HarmonicRatios[0], 1e-6f, "Slot 0 overridden");
+            AssertNear(1.5f, config.FlightControl.Vib2HarmonicRatios[1], 1e-6f, "Slot 1 baseline preserved");
+        }
+
+        // === Migration Tests ===
+
+        private static void Migrate_PitchJson()
+        {
+            string old = "{\"base\":{\"functionId\":\"FUNCTION_ID_FLIGHT_STICK_PITCH\"},\"flightStickPitch\":{\"posMin\":-20,\"posMax\":20}}";
+            string migrated = TieredConfigOrchestrator.MigrateFlightControlJson(old);
+            AssertTrue(migrated.Contains("\"flightControl\""), "Should contain flightControl");
+            AssertTrue(!migrated.Contains("\"flightStickPitch\""), "Should not contain flightStickPitch");
+        }
+
+        private static void Migrate_RollJson()
+        {
+            string old = "{\"base\":{\"functionId\":\"FUNCTION_ID_FLIGHT_STICK_ROLL\"},\"flightStickRoll\":{\"posMin\":-15,\"posMax\":15}}";
+            string migrated = TieredConfigOrchestrator.MigrateFlightControlJson(old);
+            AssertTrue(migrated.Contains("\"flightControl\""), "Should contain flightControl");
+            AssertTrue(!migrated.Contains("\"flightStickRoll\""), "Should not contain flightStickRoll");
+        }
+
+        private static void Migrate_CollectiveJson()
+        {
+            string old = "{\"base\":{\"functionId\":\"FUNCTION_ID_FLIGHT_STICK_COLLECTIVE\"},\"flightStickCollective\":{\"posMin\":0,\"posMax\":50}}";
+            string migrated = TieredConfigOrchestrator.MigrateFlightControlJson(old);
+            AssertTrue(migrated.Contains("\"flightControl\""), "Should contain flightControl");
+            AssertTrue(!migrated.Contains("\"flightStickCollective\""), "Should not contain flightStickCollective");
+        }
+
+        private static void Migrate_FlightStickToControl()
+        {
+            // Plan 10: flightStick → flightControl
+            string old = "{\"base\":{\"functionId\":\"FUNCTION_ID_FLIGHT_STICK_PITCH\"},\"flightStick\":{\"posMin\":-20,\"posMax\":20}}";
+            string migrated = TieredConfigOrchestrator.MigrateFlightControlJson(old);
+            AssertTrue(migrated.Contains("\"flightControl\""), "Should contain flightControl");
+            AssertTrue(!migrated.Contains("\"flightStick\":"), "Should not contain flightStick:");
+        }
+
+        private static void Migrate_FlightPedalsToControl()
+        {
+            // Plan 10: flightPedals → flightControl, plus posNearLim/posFarLim → posMin/posMax
+            string old = "{\"base\":{\"functionId\":\"FUNCTION_ID_FLIGHT_PEDALS\"},\"flightPedals\":{\"posNearLim\":-30,\"posFarLim\":30}}";
+            string migrated = TieredConfigOrchestrator.MigrateFlightControlJson(old);
+            AssertTrue(migrated.Contains("\"flightControl\""), "Should contain flightControl");
+            AssertTrue(migrated.Contains("\"posMin\""), "Should rename posNearLim to posMin");
+            AssertTrue(migrated.Contains("\"posMax\""), "Should rename posFarLim to posMax");
+            AssertTrue(!migrated.Contains("\"flightPedals\""), "Should not contain flightPedals");
+            AssertTrue(!migrated.Contains("\"posNearLim\""), "Should not contain posNearLim");
+            AssertTrue(!migrated.Contains("\"posFarLim\""), "Should not contain posFarLim");
+        }
+
+        private static void Migrate_AlreadyMigrated_NoOp()
+        {
+            string current = "{\"base\":{\"functionId\":\"FUNCTION_ID_FLIGHT_STICK_PITCH\"},\"flightControl\":{\"posMin\":-20,\"posMax\":20}}";
+            string migrated = TieredConfigOrchestrator.MigrateFlightControlJson(current);
+            AssertTrue(current == migrated, "Already-migrated JSON should be unchanged");
+        }
+
+        private static void Migrate_NullJson_ReturnsNull()
+        {
+            string migrated = TieredConfigOrchestrator.MigrateFlightControlJson(null);
+            AssertTrue(migrated == null, "Null input should return null");
+        }
+
+        // === Helper Methods ===
+
+        private static FunctionConfig CreateConfig(FunctionID functionId, int posMin, int posMax)
+        {
+            return new FunctionConfig
+            {
+                Base = new FunctionBase
+                {
+                    FunctionId = functionId,
+                    OutputMin = 0,
+                    OutputMax = 0
+                },
+                FlightControl = new FlightControlConfig
+                {
+                    PosMin = posMin,
+                    PosMax = posMax,
+                    Damping = 0.5f,
+                    CenteringSpringConst = 1.5f
+                }
+            };
+        }
+
+        private static void AssertTrue(bool condition, string message)
+        {
+            if (!condition)
+                throw new Exception($"Assertion failed: {message}");
+        }
+
+        private static void AssertEqual(int expected, int actual, string message)
+        {
+            if (expected != actual)
+                throw new Exception($"Assertion failed: {message} (expected {expected}, got {actual})");
+        }
+
+        private static void AssertNear(float expected, float actual, float tolerance, string message)
+        {
+            if (Math.Abs(expected - actual) > tolerance)
+                throw new Exception($"Assertion failed: {message} (expected {expected}, got {actual})");
+        }
+    }
+}

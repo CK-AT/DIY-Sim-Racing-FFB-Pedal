@@ -29,6 +29,10 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("JSON load/save roundtrip", TestJsonRoundtrip));
             results.Add(TestRunner.RunTest("Validation catches missing output", TestIncludeOutputValidation));
             results.Add(TestRunner.RunTest("Inline include mapping", TestInlineIncludeMapping));
+            results.Add(TestRunner.RunTest("Embedded sub-graph editor roundtrip", TestEmbeddedSubgraphEditorRoundtrip));
+            results.Add(TestRunner.RunTest("Include port-order override roundtrip", TestIncludePortOrderRoundtrip));
+            results.Add(TestRunner.RunTest("Embedded sub-graph carries param defs", TestEmbeddedSubgraphParamDefs));
+            results.Add(TestRunner.RunTest("Real derivations: cue param def resolves after clone", TestRealDerivationsCueParamDefs));
             results.Add(TestRunner.RunTest("Block library index", TestBlockLibraryIndex));
             results.Add(TestRunner.RunTest("Schema version mismatch", TestSchemaVersionMismatch));
             results.Add(TestRunner.RunTest("Unknown function validation", TestUnknownFunctionValidation));
@@ -43,6 +47,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Diamond dependency includes", TestDiamondDependencyIncludes));
             results.Add(TestRunner.RunTest("Include chaining", TestIncludeChaining));
             results.Add(TestRunner.RunTest("Include with parameters", TestIncludeWithParameters));
+            results.Add(TestRunner.RunTest("Nested param override propagates two levels", TestNestedParamPropagationTwoLevels));
             results.Add(TestRunner.RunTest("Include with multiple outputs", TestIncludeMultipleOutputs));
             results.Add(TestRunner.RunTest("Cyclic include detection", TestCyclicIncludeDetection));
             results.Add(TestRunner.RunTest("Op arg count validation", TestOpArgValidation));
@@ -79,6 +84,7 @@ namespace DiyFfb.GraphTest
             // Node duplication tests
             results.Add(TestRunner.RunTest("Node serialization preserves SignalGroup", TestNodeSignalGroupPreservation));
             results.Add(TestRunner.RunTest("Port serialization preserves SignalSuffix", TestPortSignalSuffixPreservation));
+            results.Add(TestRunner.RunTest("MsfsVarDef multi-port resolution + roundtrip", TestMsfsVarDefMultiPort));
             results.Add(TestRunner.RunTest("Op input negate conversion", TestOpInputNegateConversion));
             results.Add(TestRunner.RunTest("Op input negate validation", TestOpInputNegateValidation));
 
@@ -179,6 +185,32 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Converter: editor JSON detects links", TestConvertEditorJson_DetectsLinks));
             results.Add(TestRunner.RunTest("Converter: editor JSON detects kind", TestConvertEditorJson_DetectsKind));
 
+            // FunctionScope / ConfigOut / Scoped Output tests
+            results.Add(TestRunner.RunTest("Converter: scoped output creates runtime output", TestConvert_ScopedOutput));
+            results.Add(TestRunner.RunTest("Converter: unscoped output still appears as include port", TestConvert_UnscopedOutputWithFunctionScope));
+            results.Add(TestRunner.RunTest("Converter: ConfigOut creates runtime config output", TestConvert_ConfigOut));
+            results.Add(TestRunner.RunTest("Converter: ConfigOut scoped via FunctionScope", TestConvert_ConfigOutScoped));
+            results.Add(TestRunner.RunTest("Evaluator: ConfigOut values in ConfigOutputs", TestEval_ConfigOutValues));
+            results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigOut values in ConfigOutputs", TestCompiledEval_ConfigOutValues));
+            results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigIn reads inputs + exposes keys", TestCompiledEval_ConfigInValues));
+            results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigIn auto-scoped through Include", TestCompiledEval_ConfigInScopedThroughInclude));
+            results.Add(TestRunner.RunTest("Evaluator: ConfigOut bridges through Include", TestEval_ConfigOutBridgesThroughInclude));
+            results.Add(TestRunner.RunTest("CompiledEvaluator: ConfigOut bridges through Include", TestCompiledEval_ConfigOutBridgesThroughInclude));
+            results.Add(TestRunner.RunTest("ExtractInterface: scoped vs unscoped outputs", TestExtractInterface_ScopedOutputs));
+            results.Add(TestRunner.RunTest("ExtractInterface: ConfigOut with ConfigType", TestExtractInterface_ConfigOutputs));
+
+            // Conditional op tests
+            results.Add(TestRunner.RunTest("Select: true branch", TestSelect_TrueBranch));
+            results.Add(TestRunner.RunTest("Select: false branch", TestSelect_FalseBranch));
+            results.Add(TestRunner.RunTest("Select: boundary at 0.5", TestSelect_Boundary));
+            results.Add(TestRunner.RunTest("Eq: equal values", TestEq_Equal));
+            results.Add(TestRunner.RunTest("Eq: unequal values", TestEq_Unequal));
+            results.Add(TestRunner.RunTest("Eq: near tolerance", TestEq_NearTolerance));
+            results.Add(TestRunner.RunTest("Gt: greater", TestGt_Greater));
+            results.Add(TestRunner.RunTest("Gt: less", TestGt_Less));
+            results.Add(TestRunner.RunTest("Gt: equal", TestGt_Equal));
+            results.Add(TestRunner.RunTest("Tri-state routing via select+eq", TestTriStateRouting));
+
             // AxisRequestQueue tests
             results.Add(TestRunner.RunTest("Queue: enqueue adds to queue", TestEnqueue_AddsToQueue));
             results.Add(TestRunner.RunTest("Queue: duplicate ignored", TestEnqueue_DuplicateIgnored));
@@ -189,6 +221,26 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Queue: requires response types", TestRequiresResponse_RequestTypes));
             results.Add(TestRunner.RunTest("Queue: retry on send failure", TestRetry_OnSendFailure));
             results.Add(TestRunner.RunTest("Queue: max retries exhausted", TestRetry_MaxRetriesExhausted));
+
+            // Stateful graph node tests
+            results.Add(TestRunner.RunTest("Accumulator: basic increment", TestAccumulator_BasicIncrement));
+            results.Add(TestRunner.RunTest("Accumulator: clamp bounds", TestAccumulator_ClampBounds));
+            results.Add(TestRunner.RunTest("Accumulator: reset", TestAccumulator_Reset));
+            results.Add(TestRunner.RunTest("Accumulator: no trigger no change", TestAccumulator_NoTrigger));
+            results.Add(TestRunner.RunTest("SampleHold: capture on falling edge", TestSampleHold_FallingEdge));
+            results.Add(TestRunner.RunTest("SampleHold: hold during trigger high", TestSampleHold_HoldDuringHigh));
+            results.Add(TestRunner.RunTest("EdgeDetect: rising edge pulse", TestEdgeDetect_RisingEdge));
+            results.Add(TestRunner.RunTest("EdgeDetect: no pulse on sustained", TestEdgeDetect_NoPulseOnSustained));
+            results.Add(TestRunner.RunTest("ResetState: clears accumulator", TestResetState_ClearsAccumulator));
+
+            // Expr node tests
+            results.Add(TestRunner.RunTest("Expr: arithmetic over inports", TestExpr_Arithmetic));
+            results.Add(TestRunner.RunTest("Expr: builtin functions allowed", TestExpr_BuiltinFunctions));
+            results.Add(TestRunner.RunTest("Expr: Pi constant usable", TestExpr_PiConstant));
+            results.Add(TestRunner.RunTest("Expr: compiled matches interpreter", TestExpr_CompiledMatchesInterpreter));
+            results.Add(TestRunner.RunTest("Expr: non-inport identifier rejected", TestExpr_NonInportRejected));
+            results.Add(TestRunner.RunTest("Expr: parse error rejected", TestExpr_ParseErrorRejected));
+            results.Add(TestRunner.RunTest("Expr: editor roundtrip + conversion", TestExpr_EditorRoundtripAndConversion));
 
             TestRunner.PrintResults("FFB Graph Tests", results);
         }
@@ -258,6 +310,110 @@ namespace DiyFfb.GraphTest
 
             Console.WriteLine($"PerfHarnessMs: {sw.Elapsed.TotalMilliseconds:F2}");
             Console.WriteLine($"PerfHarnessIterations: {iterations}");
+
+            RunExprPerfHarness();
+        }
+
+        // Measures the cost of Expr (tree-walking NCalc) nodes against an
+        // identically-shaped Op graph, isolating the marginal ns + GC cost of the
+        // boxing path. Decision metric for whether a compiled-lambda path is worth
+        // its semantic-divergence risk. Runs under FFB_PERF_ONLY=1.
+        private static void RunExprPerfHarness()
+        {
+            const int nodeCount = 12;     // compute nodes (Expr or Op), each over 3 inports
+            const int iterations = 200000;
+
+            // Build two graphs with identical shape: N inputs feeding N 3-input
+            // compute nodes ("a * b * c"), each exposed as an output.
+            GraphCompiledEvaluator BuildGraph(bool useExpr)
+            {
+                var g = new GraphDefinition();
+                for (int i = 0; i < nodeCount * 3; i++)
+                {
+                    string id = $"in_{i}";
+                    g.Nodes[id] = new GraphNode { Id = id, Type = NodeType.Input, Name = id };
+                }
+                for (int n = 0; n < nodeCount; n++)
+                {
+                    string a = $"in_{n * 3}", b = $"in_{n * 3 + 1}", c = $"in_{n * 3 + 2}";
+                    string nodeId = $"calc_{n}";
+                    if (useExpr)
+                    {
+                        var expr = new GraphNode { Id = nodeId, Type = NodeType.Expr, Expr = "a * b * c" };
+                        expr.InputMap["a"] = a; expr.InputMap["b"] = b; expr.InputMap["c"] = c;
+                        g.Nodes[nodeId] = expr;
+                    }
+                    else
+                    {
+                        g.Nodes[nodeId] = new GraphNode
+                        {
+                            Id = nodeId, Type = NodeType.Op, Op = OpType.Mul,
+                            Args = new List<string> { a, b, c }
+                        };
+                    }
+                    g.Nodes[$"out_{n}"] = new GraphNode { Id = $"out_{n}", Type = NodeType.Output, Name = $"R{n}", Src = nodeId };
+                }
+                return new GraphCompiledEvaluator(g);
+            }
+
+            var inputs = new Dictionary<string, double>();
+            for (int i = 0; i < nodeCount * 3; i++) inputs[$"in_{i}"] = (i % 7) + 1;
+
+            try { AppDomain.MonitoringIsEnabled = true; } catch { /* may already be on */ }
+
+            var exprStats = MeasureEval(BuildGraph(true), inputs, iterations);
+            var opStats = MeasureEval(BuildGraph(false), inputs, iterations);
+
+            // Marginal Expr cost over the native Op path (both share the per-eval
+            // result-dictionary overhead, which cancels in the delta).
+            double dNs = (exprStats.NsPerTick - opStats.NsPerTick) / nodeCount;
+            double dBytes = (double)(exprStats.Bytes - opStats.Bytes) / iterations / nodeCount;
+
+            Console.WriteLine($"ExprPerf: nodes={nodeCount} iters={iterations}");
+            Console.WriteLine($"ExprPerf: Expr {exprStats.NsPerTick:F0} ns/tick, {(double)exprStats.Bytes / iterations:F0} B/tick, gen0={exprStats.Gen0}");
+            Console.WriteLine($"ExprPerf: Op   {opStats.NsPerTick:F0} ns/tick, {(double)opStats.Bytes / iterations:F0} B/tick, gen0={opStats.Gen0}");
+            Console.WriteLine($"ExprPerf: marginal Expr cost = {dNs:F0} ns/node, {dBytes:F0} B/node");
+            Console.WriteLine($"ExprPerf: projected at 60 Hz = {(exprStats.Bytes - opStats.Bytes) / iterations * 60.0 / 1024.0:F1} KB/s for {nodeCount} Expr nodes");
+        }
+
+        private struct EvalStats
+        {
+            public double NsPerTick;
+            public long Bytes;
+            public int Gen0;
+        }
+
+        private static EvalStats MeasureEval(GraphCompiledEvaluator eval, Dictionary<string, double> inputs, int iterations)
+        {
+            eval.Evaluate(inputs, null); // warm up (compile + JIT)
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            long bytes0 = AllocatedBytes();
+            int gen0 = GC.CollectionCount(0);
+
+            var sw = Stopwatch.StartNew();
+            for (int i = 0; i < iterations; i++)
+            {
+                eval.Evaluate(inputs, null);
+            }
+            sw.Stop();
+
+            return new EvalStats
+            {
+                NsPerTick = sw.Elapsed.TotalMilliseconds * 1e6 / iterations,
+                Bytes = AllocatedBytes() - bytes0,
+                Gen0 = GC.CollectionCount(0) - gen0
+            };
+        }
+
+        // Cumulative process allocation. AppDomain monitoring (available on .NET
+        // Framework) gives an accurate byte count; falls back to a coarse estimate.
+        private static long AllocatedBytes()
+        {
+            try { return AppDomain.CurrentDomain.MonitoringTotalAllocatedMemorySize; }
+            catch { return GC.GetTotalMemory(false); }
         }
 
         private static bool TestEvaluatorBasicOutputs()
@@ -380,25 +536,233 @@ namespace DiyFfb.GraphTest
             return outputs.TryGetValue("out", out var value) && Math.Abs(value - 2.0) < 0.0001;
         }
 
+        // An Include node's per-node port display-order override must survive a
+        // serialize/deserialize round-trip (Include ports themselves aren't
+        // serialized — only the order override is).
+        private static bool TestIncludePortOrderRoundtrip()
+        {
+            const string json = @"{
+  ""Version"": 4,
+  ""Nodes"": [
+    { ""Id"": ""emb"", ""Kind"": ""Include"", ""Title"": ""Embedded"",
+      ""InputPortOrder"": [ ""b"", ""a"" ],
+      ""OutputPortOrder"": [ ""q"", ""p"" ],
+      ""Inline"": {
+        ""Version"": 4, ""IsLibraryGraph"": true,
+        ""Nodes"": [
+          { ""Id"": ""ia"", ""Kind"": ""Input"", ""Ports"": [{ ""Name"": ""a"", ""Kind"": ""Output"" }] },
+          { ""Id"": ""ib"", ""Kind"": ""Input"", ""Ports"": [{ ""Name"": ""b"", ""Kind"": ""Output"" }] },
+          { ""Id"": ""op"", ""Kind"": ""Output"", ""Ports"": [{ ""Name"": ""p"", ""Kind"": ""Input"" }] },
+          { ""Id"": ""oq"", ""Kind"": ""Output"", ""Ports"": [{ ""Name"": ""q"", ""Kind"": ""Input"" }] }
+        ],
+        ""Links"": []
+      }
+    }
+  ],
+  ""Links"": []
+}";
+            var g = DiyFfb.GraphEditor.GraphSerializer.Deserialize(json, out var v);
+            if (g == null || !v.IsValid) return false;
+            var inc = g.Nodes.FirstOrDefault(n => n.Id == "emb");
+            if (inc?.InputPortOrder == null || inc.OutputPortOrder == null) return false;
+            if (string.Join(",", inc.InputPortOrder) != "b,a") return false;
+            if (string.Join(",", inc.OutputPortOrder) != "q,p") return false;
+
+            // Round-trip: order survives re-serialize.
+            var g2 = DiyFfb.GraphEditor.GraphSerializer.Deserialize(
+                DiyFfb.GraphEditor.GraphSerializer.Serialize(g), out var v2);
+            var inc2 = g2?.Nodes.FirstOrDefault(n => n.Id == "emb");
+            return v2 != null && v2.IsValid && inc2?.InputPortOrder != null
+                   && string.Join(",", inc2.InputPortOrder) == "b,a"
+                   && string.Join(",", inc2.OutputPortOrder) == "q,p";
+        }
+
+        // An embedded sub-graph's param DEFINITIONS (the Params list with Ui) must
+        // survive deserialize into the parent node's InlineGraph, so the sub-graph
+        // tab can show param widget metadata (GetOrCreateParam looks them up there).
+        private static bool TestEmbeddedSubgraphParamDefs()
+        {
+            const string json = @"{
+  ""Version"": 4,
+  ""Nodes"": [
+    { ""Id"": ""emb"", ""Kind"": ""Include"", ""Title"": ""Cue"",
+      ""Inline"": {
+        ""Version"": 4, ""IsLibraryGraph"": true,
+        ""Nodes"": [
+          { ""Id"": ""pn"", ""Kind"": ""Param"", ""SignalGroup"": ""Aircraft"",
+            ""Ports"": [{ ""Kind"": ""Output"", ""SignalSuffix"": ""MuBuzzOnset"" }] },
+          { ""Id"": ""o"", ""Kind"": ""Output"", ""Ports"": [{ ""Name"": ""y"", ""Kind"": ""Input"" }] }
+        ],
+        ""Links"": [ { ""FromNodeId"": ""pn"", ""FromPort"": ""MuBuzzOnset"", ""ToNodeId"": ""o"", ""ToPort"": ""y"" } ],
+        ""Params"": [
+          { ""Name"": ""Aircraft.MuBuzzOnset"", ""DefaultValue"": 0.32, ""Min"": 0.2, ""Max"": 0.5,
+            ""Ui"": { ""Widget"": ""slider"", ""Label"": ""Mu Buzz Onset"", ""Group"": ""Aircraft"" } }
+        ]
+      }
+    }
+  ],
+  ""Links"": []
+}";
+            var g = DiyFfb.GraphEditor.GraphSerializer.Deserialize(json, out var v);
+            if (g == null || !v.IsValid) return false;
+            var inc = g.Nodes.FirstOrDefault(n => n.Id == "emb");
+            if (inc?.InlineGraph == null) return false;
+            // The def must be present and carry its Ui (widget metadata).
+            if (!inc.InlineGraph.Params.TryGetValue("Aircraft.MuBuzzOnset", out var def)) return false;
+            if (def.Ui == null || def.Ui.Widget != "slider") return false;
+            // And survive a re-serialize round-trip.
+            var g2 = DiyFfb.GraphEditor.GraphSerializer.Deserialize(
+                DiyFfb.GraphEditor.GraphSerializer.Serialize(g), out var v2);
+            var inc2 = g2?.Nodes.FirstOrDefault(n => n.Id == "emb");
+            if (v2 == null || !v2.IsValid || inc2?.InlineGraph == null) return false;
+            if (!inc2.InlineGraph.Params.TryGetValue("Aircraft.MuBuzzOnset", out var d2)
+                || d2.Ui == null || Math.Abs(d2.DefaultValue - 0.32) >= 1e-9) return false;
+
+            // CRITICAL: the embedded-tab open path clones the InlineGraph *standalone*
+            // (Deserialize(Serialize(inlineGraph))). The clone must keep its Params or
+            // the sub-graph tab's param inspector is blank.
+            var cloned = DiyFfb.GraphEditor.GraphSerializer.Deserialize(
+                DiyFfb.GraphEditor.GraphSerializer.Serialize(inc2.InlineGraph), out var v3);
+            return v3 != null && v3.IsValid
+                   && cloned.Params.TryGetValue("Aircraft.MuBuzzOnset", out var d3)
+                   && d3.Ui != null && d3.Ui.Widget == "slider";
+        }
+
+        // End-to-end against the real partitioned msfs_derivations.json: load it
+        // (= file-include tab path) and clone a cue's InlineGraph (= embedded-tab
+        // open path), then confirm each cue Param node's full signal name resolves
+        // to a def carrying Ui in the clone — exactly what the inspector needs.
+        // Walks up from the test assembly location to locate a repo-relative file,
+        // so tests don't depend on an absolute checkout path. Returns null if not found.
+        private static string FindRepoFile(string relative)
+        {
+            var dir = new System.IO.DirectoryInfo(System.AppDomain.CurrentDomain.BaseDirectory);
+            while (dir != null)
+            {
+                string candidate = System.IO.Path.Combine(dir.FullName, relative);
+                if (System.IO.File.Exists(candidate)) return candidate;
+                dir = dir.Parent;
+            }
+            return null;
+        }
+
+        private static bool TestRealDerivationsCueParamDefs()
+        {
+            string path = FindRepoFile(System.IO.Path.Combine(
+                "SimHubPlugin", "graphs", "_embedded", "msfs_derivations.json"));
+            if (path == null)
+            {
+                return true; // skip if run outside the repo
+            }
+            var g = DiyFfb.GraphEditor.GraphSerializer.Deserialize(System.IO.File.ReadAllText(path), out var v);
+            if (g == null || !v.IsValid) return false;
+
+            int checkedParams = 0;
+            foreach (var inc in g.Nodes.Where(n => n.Kind == DiyFfb.GraphEditor.GraphNodeKind.Include && n.InlineGraph != null))
+            {
+                // Clone the inline graph the way LoadFromEmbedded does.
+                var clone = DiyFfb.GraphEditor.GraphSerializer.Deserialize(
+                    DiyFfb.GraphEditor.GraphSerializer.Serialize(inc.InlineGraph), out var vc);
+                if (clone == null || !vc.IsValid) return false;
+                foreach (var pnode in clone.Nodes.Where(n => n.Kind == DiyFfb.GraphEditor.GraphNodeKind.Param))
+                {
+                    foreach (var port in pnode.Ports.Where(p => p.Kind == DiyFfb.GraphEditor.GraphPortKind.Output))
+                    {
+                        string full = (pnode.SignalGroup ?? "") + "." +
+                                      (string.IsNullOrEmpty(port.SignalSuffix) ? port.Name : port.SignalSuffix);
+                        // The inspector needs the def AND a populated Ui (widget) — a
+                        // present-but-empty Ui (Widget == "") renders blank too.
+                        if (!clone.Params.TryGetValue(full, out var def) || def.Ui == null
+                            || string.IsNullOrEmpty(def.Ui.Widget))
+                        {
+                            return false;
+                        }
+                        checkedParams++;
+                    }
+                }
+            }
+            return checkedParams > 0;
+        }
+
         private static bool TestBlockLibraryIndex()
         {
+            // The block library index is populated when a FILE include is
+            // resolved. Embedded (inline, path-less) includes deliberately do
+            // NOT register or spill to disk — they stay self-contained in the
+            // parent. So exercise the index via a real include file.
             string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ffb_graph_test");
-            System.IO.Directory.CreateDirectory(tempDir);
+            string embeddedDir = System.IO.Path.Combine(tempDir, "graphs", "_embedded");
+            string indexPath = System.IO.Path.Combine(embeddedDir, "index.json");
+            if (System.IO.File.Exists(indexPath)) System.IO.File.Delete(indexPath); // isolate
+            System.IO.Directory.CreateDirectory(embeddedDir);
+
+            string blockPath = System.IO.Path.Combine(embeddedDir, "test_block.json");
+            System.IO.File.WriteAllText(blockPath, new GraphSaver().SaveToJson(BuildInlineGraph()));
+
             var resolver = new GraphIncludeResolver(tempDir);
-
-            var graph = BuildInlineGraph();
-            var includeNode = new GraphNode
-            {
-                Id = "inc",
-                Type = NodeType.Include,
-                InlineGraph = graph,
-                InputMap = { ["cmd_force"] = "cmd_force" },
-                OutputMap = { ["out_force"] = "out_force" }
-            };
-
-            resolver.ResolveInclude(includeNode);
-            string indexPath = System.IO.Path.Combine(tempDir, "graphs", "_embedded", "index.json");
+            resolver.GetGraph(blockPath);
             return System.IO.File.Exists(indexPath);
+        }
+
+        // Editor-format embedded sub-graph: a path-less Include carrying an
+        // inline definition must deserialize, derive its ports, convert, and
+        // evaluate straight from memory (no file, no disk spill).
+        private static bool TestEmbeddedSubgraphEditorRoundtrip()
+        {
+            const string json = @"{
+  ""Version"": 4,
+  ""Nodes"": [
+    { ""Id"": ""in_rpm"", ""Kind"": ""Input"", ""SignalGroup"": ""MSFS"",
+      ""Ports"": [{ ""Kind"": ""Output"", ""SignalSuffix"": ""MainRotor.Speed"" }] },
+    { ""Id"": ""emb"", ""Kind"": ""Include"", ""Title"": ""Embedded Double"",
+      ""Inline"": {
+        ""Version"": 4, ""IsLibraryGraph"": true,
+        ""Nodes"": [
+          { ""Id"": ""s_in"", ""Kind"": ""Input"", ""Ports"": [{ ""Name"": ""x"", ""Kind"": ""Output"" }] },
+          { ""Id"": ""s_two"", ""Kind"": ""Const"", ""ConstValue"": 2.0, ""Ports"": [{ ""Name"": ""out"", ""Kind"": ""Output"" }] },
+          { ""Id"": ""s_mul"", ""Kind"": ""Op"", ""Op"": ""mul"",
+            ""Ports"": [{ ""Name"": ""a"", ""Kind"": ""Input"" }, { ""Name"": ""b"", ""Kind"": ""Input"" }, { ""Name"": ""a*b"", ""Kind"": ""Output"" }] },
+          { ""Id"": ""s_out"", ""Kind"": ""Output"", ""Ports"": [{ ""Name"": ""y"", ""Kind"": ""Input"" }] }
+        ],
+        ""Links"": [
+          { ""FromNodeId"": ""s_in"", ""FromPort"": ""x"", ""ToNodeId"": ""s_mul"", ""ToPort"": ""a"" },
+          { ""FromNodeId"": ""s_two"", ""FromPort"": ""out"", ""ToNodeId"": ""s_mul"", ""ToPort"": ""b"" },
+          { ""FromNodeId"": ""s_mul"", ""FromPort"": ""a*b"", ""ToNodeId"": ""s_out"", ""ToPort"": ""y"" }
+        ]
+      }
+    },
+    { ""Id"": ""out_v"", ""Kind"": ""Output"", ""SignalGroup"": ""Shared"",
+      ""Ports"": [{ ""Kind"": ""Input"", ""SignalSuffix"": ""Vib1Fund"" }] }
+  ],
+  ""Links"": [
+    { ""FromNodeId"": ""in_rpm"", ""FromPort"": ""MainRotor.Speed"", ""ToNodeId"": ""emb"", ""ToPort"": ""x"" },
+    { ""FromNodeId"": ""emb"", ""FromPort"": ""y"", ""ToNodeId"": ""out_v"", ""ToPort"": ""Vib1Fund"" }
+  ]
+}";
+            // Deserialize editor format: the path-less Include must carry the inline graph.
+            var editorGraph = DiyFfb.GraphEditor.GraphSerializer.Deserialize(json, out var validation);
+            if (editorGraph == null || !validation.IsValid) return false;
+            var inc = editorGraph.Nodes.FirstOrDefault(n => n.Id == "emb");
+            if (inc == null || inc.InlineGraph == null || !string.IsNullOrEmpty(inc.IncludePath)) return false;
+
+            // Ports must be derived from the inline graph's Input/Output nodes.
+            DiyFfb.GraphEditor.GraphSerializer.PopulateIncludePorts(editorGraph, AppContext.BaseDirectory);
+            bool hasX = inc.Ports.Any(p => p.Name == "x" && p.Kind == DiyFfb.GraphEditor.GraphPortKind.Input);
+            bool hasY = inc.Ports.Any(p => p.Name == "y" && p.Kind == DiyFfb.GraphEditor.GraphPortKind.Output);
+            if (!hasX || !hasY) return false;
+
+            // Convert to runtime: the include node carries the converted InlineGraph
+            // (resolver/evaluator read it straight from memory) and maps boundary ports.
+            var runtime = DiyFfb.GraphEditor.GraphRuntimeConverter.Convert(editorGraph);
+            if (!runtime.Nodes.TryGetValue("emb", out var rn)) return false;
+            if (rn.InlineGraph == null || !rn.InputMap.ContainsKey("x") || !rn.OutputMap.ContainsKey("y")) return false;
+
+            // Re-serialize: the inline block must survive the round-trip.
+            string roundtrip = DiyFfb.GraphEditor.GraphSerializer.Serialize(editorGraph);
+            var reloaded = DiyFfb.GraphEditor.GraphSerializer.Deserialize(roundtrip, out var v2);
+            var inc2 = reloaded?.Nodes.FirstOrDefault(n => n.Id == "emb");
+            return v2 != null && v2.IsValid && inc2 != null && inc2.InlineGraph != null
+                   && inc2.InlineGraph.Nodes.Count == 4;
         }
 
         private static bool TestSchemaVersionMismatch()
@@ -1330,6 +1694,46 @@ namespace DiyFfb.GraphTest
             return interpOk && compOk;
         }
 
+        // Does a param override propagate TWO levels deep when the intermediate
+        // graph has no node for it? (Mirrors template -> msfs_derivations -> cue
+        // sub-graph: the cue param node lives only in the leaf.)
+        private static bool TestNestedParamPropagationTwoLevels()
+        {
+            // Leaf: scaled = value * gain ; gain node default (ConstValue) = 1.0
+            var leaf = new GraphDefinition();
+            leaf.Nodes["in"] = new GraphNode { Id = "in", Type = NodeType.Input, Name = "value" };
+            leaf.Nodes["k"] = new GraphNode { Id = "k", Type = NodeType.Param, Name = "gain", ConstValue = 1.0 };
+            leaf.Nodes["mul"] = new GraphNode { Id = "mul", Type = NodeType.Op, Op = OpType.Mul, Args = { "in", "k" } };
+            leaf.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "scaled", Src = "mul" };
+
+            // Mid: just forwards value through the leaf. NO param node here.
+            var mid = new GraphDefinition();
+            mid.Nodes["min"] = new GraphNode { Id = "min", Type = NodeType.Input, Name = "mval" };
+            mid.Nodes["leaf"] = new GraphNode
+            {
+                Id = "leaf", Type = NodeType.Include, InlineGraph = leaf,
+                InputMap = { ["value"] = "min" }, OutputMap = { ["scaled"] = "leaf_out" }
+            };
+            mid.Nodes["mout"] = new GraphNode { Id = "mout", Type = NodeType.Output, Name = "midout", Src = "leaf_out" };
+
+            // Top: const 10 -> mid; override gain = 3.
+            var top = new GraphDefinition();
+            top.Nodes["ten"] = new GraphNode { Id = "ten", Type = NodeType.Const, ConstValue = 10.0 };
+            top.Nodes["mid"] = new GraphNode
+            {
+                Id = "mid", Type = NodeType.Include, InlineGraph = mid,
+                InputMap = { ["mval"] = "ten" }, OutputMap = { ["midout"] = "mid_out" }
+            };
+            top.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "mid_out" };
+
+            var compiled = new GraphCompiledEvaluator(top, new GraphIncludeResolver(AppContext.BaseDirectory));
+            var compOut = compiled.Evaluate(new Dictionary<string, double>(),
+                                            new Dictionary<string, double> { ["gain"] = 3.0 });
+            // If the override propagates to the leaf: 10*3=30. If it's dropped at
+            // the intermediate and the leaf falls back to its node default: 10*1=10.
+            return compOut.TryGetValue("result", out var v) && Math.Abs(v - 30.0) < 0.0001;
+        }
+
         private static bool TestIncludeWithParameters()
         {
             // Test that parameters flow through to included graphs
@@ -2173,6 +2577,70 @@ namespace DiyFfb.GraphTest
 
             return port1 != null && port1.SignalSuffix == "IAS_kts" &&
                    port2 != null && port2.SignalSuffix == "Alpha_deg";
+        }
+
+        private static bool TestMsfsVarDefMultiPort()
+        {
+            // Regression (plan 23): MsfsVarDef is the first multi-output signal
+            // node. Each output port must resolve to its OWN MSFS.<alias> source;
+            // a prior bug collapsed all ports to the node-level id, so every
+            // consumer read the same value. Also assert SimVar/Unit round-trip.
+            var graph = new GraphEditor.GraphDefinition();
+
+            var vars = new GraphEditor.GraphNode
+            {
+                Id = "vars",
+                Kind = GraphEditor.GraphNodeKind.MsfsVarDef,
+                SignalGroup = "MSFS"
+            };
+            vars.Ports.Add(new GraphEditor.GraphPort { Kind = GraphEditor.GraphPortKind.Output, Name = "AP.A", SignalSuffix = "AP.A", SimVar = "L:A", Unit = "number" });
+            vars.Ports.Add(new GraphEditor.GraphPort { Kind = GraphEditor.GraphPortKind.Output, Name = "AP.B", SignalSuffix = "AP.B", SimVar = "L:B", Unit = "radians" });
+            graph.Nodes.Add(vars);
+
+            var negA = new GraphEditor.GraphNode { Id = "negA", Kind = GraphEditor.GraphNodeKind.Op, Op = "neg" };
+            negA.Ports.Add(new GraphEditor.GraphPort { Name = "a", Kind = GraphEditor.GraphPortKind.Input });
+            graph.Nodes.Add(negA);
+
+            var negB = new GraphEditor.GraphNode { Id = "negB", Kind = GraphEditor.GraphNodeKind.Op, Op = "neg" };
+            negB.Ports.Add(new GraphEditor.GraphPort { Name = "a", Kind = GraphEditor.GraphPortKind.Input });
+            graph.Nodes.Add(negB);
+
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "vars", FromPort = "AP.A", ToNodeId = "negA", ToPort = "a" });
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "vars", FromPort = "AP.B", ToNodeId = "negB", ToPort = "a" });
+
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+
+            // (1) Each port emits its own MSFS.<alias> input node.
+            var inputNames = runtime.Nodes.Values
+                .Where(n => n.Type.ToString() == "Input")
+                .Select(n => n.Name).ToList();
+            if (!inputNames.Contains("MSFS.AP.A") || !inputNames.Contains("MSFS.AP.B"))
+            {
+                return false;
+            }
+
+            // (2) Each consumer resolves to its OWN port source (the regression).
+            if (!runtime.Nodes.TryGetValue("negA", out var na) ||
+                !runtime.Nodes.TryGetValue("negB", out var nb))
+            {
+                return false;
+            }
+            if (na.Args.Count != 1 || nb.Args.Count != 1) return false;
+            if (na.Args[0] == nb.Args[0]) return false;                        // collapsed => bug
+            if (!na.Args[0].EndsWith("AP.A") || !nb.Args[0].EndsWith("AP.B")) return false;
+
+            // (3) SimVar / Unit / SignalGroup survive a serialization round-trip.
+            string json = GraphEditor.GraphSerializer.Serialize(graph);
+            var loaded = GraphEditor.GraphSerializer.Deserialize(json, out var validation);
+            if (!validation.IsValid) return false;
+            var loadedVars = loaded.Nodes.FirstOrDefault(n => n.Kind == GraphEditor.GraphNodeKind.MsfsVarDef);
+            if (loadedVars == null || loadedVars.SignalGroup != "MSFS") return false;
+            var pa = loadedVars.Ports.FirstOrDefault(p => p.SignalSuffix == "AP.A");
+            var pb = loadedVars.Ports.FirstOrDefault(p => p.SignalSuffix == "AP.B");
+            if (pa == null || pa.SimVar != "L:A" || pa.Unit != "number") return false;
+            if (pb == null || pb.SimVar != "L:B" || pb.Unit != "radians") return false;
+
+            return true;
         }
 
         private static bool TestOpInputNegateConversion()
@@ -4392,6 +4860,816 @@ namespace DiyFfb.GraphTest
 
             // Should have dropped the request after max retries
             return !queue.HasCurrentRequest && sender.Requests.Count == 3;
+        }
+
+        #endregion
+
+        #region Stateful graph node tests
+
+        /// <summary>Helper: build a graph with a single stateful Func node and evaluate it.</summary>
+        // Builds a runtime graph: one Expr node fed by Input nodes (one per inport,
+        // node id == inport name), output exposed as "result".
+        private static GraphDefinition BuildExprGraphDef(string formula, params string[] inports)
+        {
+            var graph = new GraphDefinition();
+            var expr = new GraphNode { Id = "expr", Type = NodeType.Expr, Expr = formula };
+            foreach (var p in inports)
+            {
+                graph.Nodes[p] = new GraphNode { Id = p, Type = NodeType.Input, Name = p };
+                expr.InputMap[p] = p;
+            }
+            graph.Nodes["expr"] = expr;
+            graph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "expr" };
+            return graph;
+        }
+
+        private static bool TestExpr_Arithmetic()
+        {
+            var eval = new GraphCompiledEvaluator(BuildExprGraphDef("a + b * 2", "a", "b"));
+            var outputs = eval.Evaluate(new Dictionary<string, double> { ["a"] = 3.0, ["b"] = 4.0 }, null);
+            return outputs.TryGetValue("result", out var v) && Math.Abs(v - 11.0) < 1e-9;
+        }
+
+        private static bool TestExpr_BuiltinFunctions()
+        {
+            // Built-in functions are allowed and are NOT treated as inports.
+            var eval = new GraphCompiledEvaluator(BuildExprGraphDef("Pow(x, 2) + Abs(y)", "x", "y"));
+            var outputs = eval.Evaluate(new Dictionary<string, double> { ["x"] = 3.0, ["y"] = -4.0 }, null);
+            return outputs.TryGetValue("result", out var v) && Math.Abs(v - 13.0) < 1e-9;
+        }
+
+        private static bool TestExpr_PiConstant()
+        {
+            // Pi is a built-in constant: usable without being a wired inport.
+            var def = BuildExprGraphDef("x * Pi", "x");
+            var eval = new GraphCompiledEvaluator(def);
+            var outputs = eval.Evaluate(new Dictionary<string, double> { ["x"] = 2.0 }, null);
+            return outputs.TryGetValue("result", out var v) && Math.Abs(v - 2.0 * Math.PI) < 1e-9;
+        }
+
+        private static bool TestExpr_CompiledMatchesInterpreter()
+        {
+            var def = BuildExprGraphDef("(a - b) * 0.5 + Max(a, b)", "a", "b");
+            var inputs = new Dictionary<string, double> { ["a"] = 7.0, ["b"] = 2.0 };
+            double interp = new GraphEvaluator(def).Evaluate(inputs, null)["result"];
+            double compiled = new GraphCompiledEvaluator(def).Evaluate(inputs, null)["result"];
+            return Math.Abs(interp - compiled) < 1e-9 && Math.Abs(compiled - 9.5) < 1e-9;
+        }
+
+        private static bool TestExpr_NonInportRejected()
+        {
+            // 'z' is not a wired inport — compiling the formula must fail, naming 'z'.
+            var def = BuildExprGraphDef("a + z", "a");
+            try
+            {
+                _ = new GraphCompiledEvaluator(def);
+                return false; // should have thrown
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ex.Message.Contains("'z'");
+            }
+        }
+
+        private static bool TestExpr_ParseErrorRejected()
+        {
+            var def = BuildExprGraphDef("a + * b", "a", "b");
+            try
+            {
+                _ = new GraphCompiledEvaluator(def);
+                return false; // malformed formula should fail to compile
+            }
+            catch (InvalidOperationException)
+            {
+                return true;
+            }
+        }
+
+        private static bool TestExpr_EditorRoundtripAndConversion()
+        {
+            var graph = new GraphEditor.GraphDefinition { IsLibraryGraph = true };
+
+            var input = new GraphEditor.GraphNode { Id = "in", Kind = GraphNodeKind.Input, Title = "In" };
+            input.Ports.Add(new GraphEditor.GraphPort { Name = "a", Kind = GraphEditor.GraphPortKind.Output });
+            graph.Nodes.Add(input);
+
+            var expr = new GraphEditor.GraphNode { Id = "expr", Kind = GraphNodeKind.Expr, Title = "Expr", Expr = "a * 3 + 1" };
+            expr.Ports.Add(new GraphEditor.GraphPort { Name = "a", Kind = GraphEditor.GraphPortKind.Input });
+            expr.Ports.Add(new GraphEditor.GraphPort { Name = "out", Kind = GraphEditor.GraphPortKind.Output });
+            graph.Nodes.Add(expr);
+
+            var output = new GraphEditor.GraphNode { Id = "out", Kind = GraphNodeKind.Output, Title = "Out" };
+            output.Ports.Add(new GraphEditor.GraphPort { Name = "result", Kind = GraphEditor.GraphPortKind.Input });
+            graph.Nodes.Add(output);
+
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "in", FromPort = "a", ToNodeId = "expr", ToPort = "a" });
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "expr", FromPort = "out", ToNodeId = "out", ToPort = "result" });
+
+            // Formula must survive JSON roundtrip.
+            string json = GraphSerializer.Serialize(graph);
+            var loaded = GraphSerializer.Deserialize(json, out var validation);
+            if (!validation.IsValid) return false;
+            var loadedExpr = loaded.Nodes.FirstOrDefault(n => n.Kind == GraphNodeKind.Expr);
+            if (loadedExpr == null || loadedExpr.Expr != "a * 3 + 1") return false;
+
+            // Convert to runtime and verify the Expr node wired correctly.
+            // (Inspect via ToString to avoid the local/plugin-DLL type conflict that
+            // prevents feeding a converted graph to the locally-compiled evaluator;
+            // evaluation itself is covered by the runtime-graph tests above.)
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(loaded);
+            var exprNode = runtime.Nodes.Values.FirstOrDefault(n => n.Type.ToString() == "Expr");
+            return exprNode != null
+                   && exprNode.Expr == "a * 3 + 1"
+                   && exprNode.InputMap.ContainsKey("a");
+        }
+
+        private static GraphCompiledEvaluator BuildStatefulGraph(string func, string[] argNodeIds, Dictionary<string, double> constNodes = null)
+        {
+            var graph = new GraphDefinition();
+            if (constNodes != null)
+            {
+                foreach (var kv in constNodes)
+                {
+                    graph.Nodes[kv.Key] = new GraphNode { Id = kv.Key, Type = NodeType.Const, ConstValue = kv.Value };
+                }
+            }
+            foreach (var id in argNodeIds)
+            {
+                if (!graph.Nodes.ContainsKey(id))
+                {
+                    graph.Nodes[id] = new GraphNode { Id = id, Type = NodeType.Input, Name = id };
+                }
+            }
+            graph.Nodes["func"] = new GraphNode
+            {
+                Id = "func",
+                Type = NodeType.Func,
+                Func = func,
+                Args = new List<string>(argNodeIds)
+            };
+            graph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "func" };
+            return new GraphCompiledEvaluator(graph);
+        }
+
+        private static double Eval(GraphCompiledEvaluator eval, Dictionary<string, double> inputs, double dt = 0.0)
+        {
+            var outputs = eval.Evaluate(inputs, new Dictionary<string, double>(), dt);
+            return outputs.TryGetValue("result", out var v) ? v : double.NaN;
+        }
+
+        private static bool TestAccumulator_BasicIncrement()
+        {
+            // accumulator(trigger, step, min, max) — step is in units/sec, dt = 1.0s per tick
+            var eval = BuildStatefulGraph("accumulator",
+                new[] { "trigger", "step", "min", "max" },
+                new Dictionary<string, double> { ["step"] = 2.0, ["min"] = -100.0, ["max"] = 100.0 });
+
+            var on = new Dictionary<string, double> { ["trigger"] = 1.0 };
+            double v1 = Eval(eval, on, 1.0);  // 0 + 2*1 = 2
+            double v2 = Eval(eval, on, 1.0);  // 2 + 2*1 = 4
+            double v3 = Eval(eval, on, 0.5);  // 4 + 2*0.5 = 5
+            return Math.Abs(v1 - 2.0) < 1e-9 && Math.Abs(v2 - 4.0) < 1e-9 && Math.Abs(v3 - 5.0) < 1e-9;
+        }
+
+        private static bool TestAccumulator_ClampBounds()
+        {
+            var eval = BuildStatefulGraph("accumulator",
+                new[] { "trigger", "step", "min", "max" },
+                new Dictionary<string, double> { ["step"] = 50.0, ["min"] = -10.0, ["max"] = 10.0 });
+
+            var on = new Dictionary<string, double> { ["trigger"] = 1.0 };
+            for (int i = 0; i < 10; i++) Eval(eval, on, 1.0);  // Would be 500, but clamped
+            double v = Eval(eval, on, 1.0);
+            return Math.Abs(v - 10.0) < 1e-9;
+        }
+
+        private static bool TestAccumulator_Reset()
+        {
+            var eval = BuildStatefulGraph("accumulator",
+                new[] { "trigger", "step", "min", "max", "reset" },
+                new Dictionary<string, double> { ["step"] = 3.0, ["min"] = -100.0, ["max"] = 100.0 });
+
+            var on = new Dictionary<string, double> { ["trigger"] = 1.0, ["reset"] = 0.0 };
+            Eval(eval, on, 1.0);  // 3
+            Eval(eval, on, 1.0);  // 6
+            double before = Eval(eval, on, 1.0);  // 9
+
+            var resetInputs = new Dictionary<string, double> { ["trigger"] = 0.0, ["reset"] = 1.0 };
+            double after = Eval(eval, resetInputs, 1.0);  // should be 0
+
+            return Math.Abs(before - 9.0) < 1e-9 && Math.Abs(after) < 1e-9;
+        }
+
+        private static bool TestAccumulator_NoTrigger()
+        {
+            var eval = BuildStatefulGraph("accumulator",
+                new[] { "trigger", "step", "min", "max" },
+                new Dictionary<string, double> { ["step"] = 5.0, ["min"] = -100.0, ["max"] = 100.0 });
+
+            var off = new Dictionary<string, double> { ["trigger"] = 0.0 };
+            Eval(eval, off, 1.0);
+            Eval(eval, off, 1.0);
+            double v = Eval(eval, off, 1.0);
+            return Math.Abs(v) < 1e-9;
+        }
+
+        private static bool TestSampleHold_FallingEdge()
+        {
+            // sample_hold(input, trigger) — captures on falling edge (1→0)
+            var eval = BuildStatefulGraph("sample_hold", new[] { "input", "trigger" });
+
+            // Trigger high, input = 42
+            Eval(eval, new Dictionary<string, double> { ["input"] = 42.0, ["trigger"] = 1.0 });
+            // Trigger goes low → should capture input
+            double captured = Eval(eval, new Dictionary<string, double> { ["input"] = 42.0, ["trigger"] = 0.0 });
+            // Input changes but trigger stays low → held value unchanged
+            double held = Eval(eval, new Dictionary<string, double> { ["input"] = 99.0, ["trigger"] = 0.0 });
+
+            return Math.Abs(captured - 42.0) < 1e-9 && Math.Abs(held - 42.0) < 1e-9;
+        }
+
+        private static bool TestSampleHold_HoldDuringHigh()
+        {
+            var eval = BuildStatefulGraph("sample_hold", new[] { "input", "trigger" });
+
+            // No falling edge yet — held value should be 0 (initial)
+            double v1 = Eval(eval, new Dictionary<string, double> { ["input"] = 10.0, ["trigger"] = 1.0 });
+            double v2 = Eval(eval, new Dictionary<string, double> { ["input"] = 20.0, ["trigger"] = 1.0 });
+            return Math.Abs(v1) < 1e-9 && Math.Abs(v2) < 1e-9;
+        }
+
+        private static bool TestEdgeDetect_RisingEdge()
+        {
+            // edge_detect(input) — 1.0 for one tick on rising edge, 0.0 otherwise
+            var eval = BuildStatefulGraph("edge_detect", new[] { "input" });
+
+            double v1 = Eval(eval, new Dictionary<string, double> { ["input"] = 0.0 });  // no edge
+            double v2 = Eval(eval, new Dictionary<string, double> { ["input"] = 1.0 });  // rising edge → 1
+            double v3 = Eval(eval, new Dictionary<string, double> { ["input"] = 1.0 });  // sustained → 0
+            double v4 = Eval(eval, new Dictionary<string, double> { ["input"] = 0.0 });  // falling → 0
+            double v5 = Eval(eval, new Dictionary<string, double> { ["input"] = 1.0 });  // rising again → 1
+
+            return Math.Abs(v1) < 1e-9
+                && Math.Abs(v2 - 1.0) < 1e-9
+                && Math.Abs(v3) < 1e-9
+                && Math.Abs(v4) < 1e-9
+                && Math.Abs(v5 - 1.0) < 1e-9;
+        }
+
+        private static bool TestEdgeDetect_NoPulseOnSustained()
+        {
+            var eval = BuildStatefulGraph("edge_detect", new[] { "input" });
+
+            // Start high → no edge (prev was 0, input is 1 → actually this IS a rising edge)
+            double v1 = Eval(eval, new Dictionary<string, double> { ["input"] = 1.0 });
+            // Stay high
+            double v2 = Eval(eval, new Dictionary<string, double> { ["input"] = 1.0 });
+            double v3 = Eval(eval, new Dictionary<string, double> { ["input"] = 1.0 });
+
+            // First tick: prev=0 (initial), input=1 → rising edge → 1.0
+            // Subsequent: prev=1, input=1 → no edge → 0.0
+            return Math.Abs(v1 - 1.0) < 1e-9
+                && Math.Abs(v2) < 1e-9
+                && Math.Abs(v3) < 1e-9;
+        }
+
+        private static bool TestResetState_ClearsAccumulator()
+        {
+            var eval = BuildStatefulGraph("accumulator",
+                new[] { "trigger", "step", "min", "max" },
+                new Dictionary<string, double> { ["step"] = 5.0, ["min"] = -100.0, ["max"] = 100.0 });
+
+            var on = new Dictionary<string, double> { ["trigger"] = 1.0 };
+            Eval(eval, on, 1.0);  // 5
+            Eval(eval, on, 1.0);  // 10
+            double before = Eval(eval, on, 1.0);  // 15
+
+            eval.ResetState();
+
+            double after = Eval(eval, on, 1.0);  // should be 5 (fresh start + one step)
+            return Math.Abs(before - 15.0) < 1e-9 && Math.Abs(after - 5.0) < 1e-9;
+        }
+
+        #endregion
+
+        #region Conditional op tests
+
+        private static bool TestSelect_TrueBranch()
+        {
+            var g = new GraphDefinition();
+            g.Nodes["cond"] = new GraphNode { Id = "cond", Type = NodeType.Const, ConstValue = 1.0 };
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 10.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 20.0 };
+            g.Nodes["sel"] = new GraphNode { Id = "sel", Type = NodeType.Op, Op = OpType.Select, Args = { "cond", "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "sel" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v - 10.0) < 1e-9;
+        }
+
+        private static bool TestSelect_FalseBranch()
+        {
+            var g = new GraphDefinition();
+            g.Nodes["cond"] = new GraphNode { Id = "cond", Type = NodeType.Const, ConstValue = 0.0 };
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 10.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 20.0 };
+            g.Nodes["sel"] = new GraphNode { Id = "sel", Type = NodeType.Op, Op = OpType.Select, Args = { "cond", "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "sel" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v - 20.0) < 1e-9;
+        }
+
+        private static bool TestSelect_Boundary()
+        {
+            // Exactly 0.5 should select false branch (> 0.5, not >=)
+            var g = new GraphDefinition();
+            g.Nodes["cond"] = new GraphNode { Id = "cond", Type = NodeType.Const, ConstValue = 0.5 };
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 10.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 20.0 };
+            g.Nodes["sel"] = new GraphNode { Id = "sel", Type = NodeType.Op, Op = OpType.Select, Args = { "cond", "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "sel" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v - 20.0) < 1e-9;
+        }
+
+        private static bool TestEq_Equal()
+        {
+            var g = new GraphDefinition();
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["eq"] = new GraphNode { Id = "eq", Type = NodeType.Op, Op = OpType.Eq, Args = { "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "eq" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v - 1.0) < 1e-9;
+        }
+
+        private static bool TestEq_Unequal()
+        {
+            var g = new GraphDefinition();
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 6.0 };
+            g.Nodes["eq"] = new GraphNode { Id = "eq", Type = NodeType.Op, Op = OpType.Eq, Args = { "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "eq" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v) < 1e-9;
+        }
+
+        private static bool TestEq_NearTolerance()
+        {
+            // 0.0005 apart — within 0.001 tolerance, should be equal
+            var g = new GraphDefinition();
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 1.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 1.0005 };
+            g.Nodes["eq"] = new GraphNode { Id = "eq", Type = NodeType.Op, Op = OpType.Eq, Args = { "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "eq" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v - 1.0) < 1e-9;
+        }
+
+        private static bool TestGt_Greater()
+        {
+            var g = new GraphDefinition();
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 10.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["gt"] = new GraphNode { Id = "gt", Type = NodeType.Op, Op = OpType.Gt, Args = { "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "gt" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v - 1.0) < 1e-9;
+        }
+
+        private static bool TestGt_Less()
+        {
+            var g = new GraphDefinition();
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 3.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["gt"] = new GraphNode { Id = "gt", Type = NodeType.Op, Op = OpType.Gt, Args = { "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "gt" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v) < 1e-9;
+        }
+
+        private static bool TestGt_Equal()
+        {
+            // Equal values: gt should return 0 (strict greater-than)
+            var g = new GraphDefinition();
+            g.Nodes["a"] = new GraphNode { Id = "a", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["b"] = new GraphNode { Id = "b", Type = NodeType.Const, ConstValue = 5.0 };
+            g.Nodes["gt"] = new GraphNode { Id = "gt", Type = NodeType.Op, Op = OpType.Gt, Args = { "a", "b" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "gt" };
+            var result = new GraphEvaluator(g).Evaluate(null, null);
+            return result.TryGetValue("result", out var v) && Math.Abs(v) < 1e-9;
+        }
+
+        private static bool TestTriStateRouting()
+        {
+            // type=0 → 100, type=1 → 200, type=2 → 300
+            // select(eq(type, 0), 100, select(eq(type, 1), 200, 300))
+            var g = new GraphDefinition();
+            g.Nodes["type"] = new GraphNode { Id = "type", Type = NodeType.Param, Name = "type" };
+            g.Nodes["c0"] = new GraphNode { Id = "c0", Type = NodeType.Const, ConstValue = 0.0 };
+            g.Nodes["c1"] = new GraphNode { Id = "c1", Type = NodeType.Const, ConstValue = 1.0 };
+            g.Nodes["v0"] = new GraphNode { Id = "v0", Type = NodeType.Const, ConstValue = 100.0 };
+            g.Nodes["v1"] = new GraphNode { Id = "v1", Type = NodeType.Const, ConstValue = 200.0 };
+            g.Nodes["v2"] = new GraphNode { Id = "v2", Type = NodeType.Const, ConstValue = 300.0 };
+            g.Nodes["eq0"] = new GraphNode { Id = "eq0", Type = NodeType.Op, Op = OpType.Eq, Args = { "type", "c0" } };
+            g.Nodes["eq1"] = new GraphNode { Id = "eq1", Type = NodeType.Op, Op = OpType.Eq, Args = { "type", "c1" } };
+            g.Nodes["sel1"] = new GraphNode { Id = "sel1", Type = NodeType.Op, Op = OpType.Select, Args = { "eq1", "v1", "v2" } };
+            g.Nodes["sel0"] = new GraphNode { Id = "sel0", Type = NodeType.Op, Op = OpType.Select, Args = { "eq0", "v0", "sel1" } };
+            g.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "sel0" };
+
+            var eval = new GraphEvaluator(g);
+            var params0 = new Dictionary<string, double> { { "type", 0.0 } };
+            var params1 = new Dictionary<string, double> { { "type", 1.0 } };
+            var params2 = new Dictionary<string, double> { { "type", 2.0 } };
+
+            double r0 = eval.Evaluate(null, params0).TryGetValue("result", out var v0) ? v0 : -1;
+            double r1 = eval.Evaluate(null, params1).TryGetValue("result", out var v1) ? v1 : -1;
+            double r2 = eval.Evaluate(null, params2).TryGetValue("result", out var v2) ? v2 : -1;
+
+            return Math.Abs(r0 - 100.0) < 1e-9 &&
+                   Math.Abs(r1 - 200.0) < 1e-9 &&
+                   Math.Abs(r2 - 300.0) < 1e-9;
+        }
+
+        #endregion
+
+        #region FunctionScope / ConfigOut / Scoped Output tests
+
+        private static bool TestConvert_ScopedOutput()
+        {
+            // A scoped Output in a sub-graph should create a runtime Output node
+            // with Name = FunctionScope + "." + SignalSuffix when the Include has FunctionScope.
+            var graph = new GraphEditor.GraphDefinition();
+
+            var constNode = new GraphEditor.GraphNode { Id = "k", Kind = GraphEditor.GraphNodeKind.Const, ConstValue = 7.0 };
+            graph.Nodes.Add(constNode);
+
+            var includeNode = new GraphEditor.GraphNode
+            {
+                Id = "inc",
+                Kind = GraphEditor.GraphNodeKind.Include,
+                IncludePath = "sub.json",
+                FunctionScope = "FlightStickPitch"
+            };
+            // Simulate CachedInterface with one scoped output
+            includeNode.CachedInterface = new GraphEditor.IncludedGraphInterface { IsValid = true };
+            includeNode.CachedInterface.ScopedOutputs.Add(new GraphEditor.ScopedOutputPort
+            {
+                Name = "spring",
+                SignalSuffix = "SpringGain"
+            });
+            // No output ports on the Include node (scoped outputs are hidden)
+            graph.Nodes.Add(includeNode);
+
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+
+            // Should have created a scoped runtime Output node
+            return runtime.Nodes.TryGetValue("inc:scoped:spring", out var rOut) &&
+                   rOut.Type.ToString() == "Output" &&
+                   rOut.Name == "FlightStickPitch.SpringGain" &&
+                   rOut.Src == "inc:spring";
+        }
+
+        private static bool TestConvert_UnscopedOutputWithFunctionScope()
+        {
+            // An unscoped output should still appear in the Include's OutputMap
+            // even when FunctionScope is set — only scoped outputs are auto-registered.
+            var graph = new GraphEditor.GraphDefinition();
+
+            var includeNode = new GraphEditor.GraphNode
+            {
+                Id = "inc",
+                Kind = GraphEditor.GraphNodeKind.Include,
+                IncludePath = "sub.json",
+                FunctionScope = "FlightStickPitch"
+            };
+            includeNode.CachedInterface = new GraphEditor.IncludedGraphInterface { IsValid = true };
+            // Unscoped output appears as a regular port on the Include node
+            includeNode.Ports.Add(new GraphEditor.GraphPort { Name = "custom_out", Kind = GraphEditor.GraphPortKind.Output });
+            graph.Nodes.Add(includeNode);
+
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+
+            // Unscoped output should be in OutputMap, NOT auto-registered as a scoped output
+            bool hasOutputMap = runtime.Nodes.TryGetValue("inc", out var rInc) &&
+                                rInc.OutputMap.ContainsKey("custom_out");
+            bool noScopedNode = !runtime.Nodes.ContainsKey("inc:scoped:custom_out");
+            return hasOutputMap && noScopedNode;
+        }
+
+        private static bool TestConvert_ConfigOut()
+        {
+            // A ConfigOut node in a graph should create a runtime ConfigOut node
+            // with Name = ConfigField and Type = ConfigOut.
+            var graph = new GraphEditor.GraphDefinition();
+
+            var constNode = new GraphEditor.GraphNode { Id = "k", Kind = GraphEditor.GraphNodeKind.Const, ConstValue = 5.0 };
+            graph.Nodes.Add(constNode);
+
+            var cfgOutNode = new GraphEditor.GraphNode
+            {
+                Id = "cfg",
+                Kind = GraphEditor.GraphNodeKind.ConfigOut,
+                ConfigType = "FlightStick"
+            };
+            cfgOutNode.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "ratio_0",
+                Kind = GraphEditor.GraphPortKind.Input,
+                ConfigField = "flight_stick.damping"
+            });
+            graph.Nodes.Add(cfgOutNode);
+
+            graph.Links.Add(new GraphEditor.GraphLink
+            {
+                FromNodeId = "k",
+                ToNodeId = "cfg",
+                ToPort = "ratio_0"
+            });
+
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+
+            return runtime.Nodes.TryGetValue("cfg:ratio_0", out var rCfg) &&
+                   rCfg.Type.ToString() == "ConfigOut" &&
+                   rCfg.Name == "flight_stick.damping" &&
+                   rCfg.Src == "k";
+        }
+
+        private static bool TestConvert_ConfigOutScoped()
+        {
+            // ConfigOut in a sub-graph should create a scoped runtime ConfigOut node
+            // with Name = FunctionScope + ":" + ConfigField when Include has FunctionScope.
+            var graph = new GraphEditor.GraphDefinition();
+
+            var includeNode = new GraphEditor.GraphNode
+            {
+                Id = "inc",
+                Kind = GraphEditor.GraphNodeKind.Include,
+                IncludePath = "sub.json",
+                FunctionScope = "FlightStickRoll"
+            };
+            includeNode.CachedInterface = new GraphEditor.IncludedGraphInterface { IsValid = true };
+            includeNode.CachedInterface.ConfigOutputs.Add(new GraphEditor.ConfigOutputPort
+            {
+                Name = "ratio_0",
+                ConfigField = "flight_stick.damping",
+                ConfigType = "FlightStick"
+            });
+            graph.Nodes.Add(includeNode);
+
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+
+            return runtime.Nodes.TryGetValue("inc:scoped_cfg:ratio_0", out var rCfg) &&
+                   rCfg.Type.ToString() == "ConfigOut" &&
+                   rCfg.Name == "FlightStickRoll:flight_stick.damping" &&
+                   rCfg.Src == "inc:ratio_0";
+        }
+
+        private static bool TestEval_ConfigOutValues()
+        {
+            // ConfigOut runtime nodes should appear in result.ConfigOutputs, not result.Outputs.
+            var runtime = new GraphDefinition();
+
+            runtime.Nodes["k"] = new GraphNode { Id = "k", Type = NodeType.Const, ConstValue = 3.14 };
+            runtime.Nodes["cfg"] = new GraphNode { Id = "cfg", Type = NodeType.ConfigOut, Name = "FlightStickPitch:flight_stick.damping", Src = "k" };
+            runtime.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "FlightStickPitch.SpringGain", Src = "k" };
+
+            var eval = new GraphEvaluator(runtime);
+            var result = eval.EvaluateWithTrace(null, null);
+
+            bool cfgInConfigOutputs = result.ConfigOutputs.TryGetValue("FlightStickPitch:flight_stick.damping", out var cfgVal) &&
+                                      Math.Abs(cfgVal - 3.14) < 1e-9;
+            bool cfgNotInOutputs = !result.Outputs.ContainsKey("FlightStickPitch:flight_stick.damping");
+            bool outInOutputs = result.Outputs.TryGetValue("FlightStickPitch.SpringGain", out var outVal) &&
+                                Math.Abs(outVal - 3.14) < 1e-9;
+            bool outNotInConfigOutputs = !result.ConfigOutputs.ContainsKey("FlightStickPitch.SpringGain");
+
+            return cfgInConfigOutputs && cfgNotInOutputs && outInOutputs && outNotInConfigOutputs;
+        }
+
+        private static bool TestCompiledEval_ConfigInValues()
+        {
+            // ConfigIn runtime nodes are sources that read the inputs dict by their
+            // scoped key, and the compiled evaluator exposes those keys so the host
+            // knows which config values to supply.
+            var runtime = new GraphDefinition();
+            runtime.Nodes["cfgin"] = new GraphNode { Id = "cfgin", Type = NodeType.ConfigIn, Name = "FlightStickCollective:FlightControl.PosMin" };
+            runtime.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "FlightStickCollective.SpringGain", Src = "cfgin" };
+
+            var eval = new GraphCompiledEvaluator(runtime);
+
+            bool keyExposed = eval.ConfigInputKeys.Contains("FlightStickCollective:FlightControl.PosMin");
+
+            var inputs = new Dictionary<string, double> { { "FlightStickCollective:FlightControl.PosMin", 12.5 } };
+            var result = eval.EvaluateWithTrace(inputs, null);
+            bool valueFlows = result.Outputs.TryGetValue("FlightStickCollective.SpringGain", out var v) && Math.Abs(v - 12.5) < 1e-9;
+
+            // Missing input → 0 (no throw).
+            var result0 = eval.EvaluateWithTrace(null, null);
+            bool defaultsZero = result0.Outputs.TryGetValue("FlightStickCollective.SpringGain", out var v0) && Math.Abs(v0) < 1e-9;
+
+            return keyExposed && valueFlows && defaultsZero;
+        }
+
+        private static bool TestCompiledEval_ConfigInScopedThroughInclude()
+        {
+            // Auto-scoping: a library sub-graph ConfigIn reads inputs["ConfigField"];
+            // the parent feeds it the scoped merged value via a scoped ConfigIn source
+            // node wired through the Include's InputMap. Mirrors the runtime shape the
+            // converter produces for a FunctionScope Include.
+            var sub = new GraphDefinition();
+            sub.Nodes["cfgin"] = new GraphNode { Id = "cfgin", Type = NodeType.ConfigIn, Name = "FlightControl.PosMin" };
+            sub.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "value", Src = "cfgin" };
+
+            var parent = new GraphDefinition();
+            var include = new GraphNode { Id = "inc", Type = NodeType.Include, InlineGraph = sub };
+            include.InputMap["FlightControl.PosMin"] = "scoped_in";   // scope feed into sub-graph
+            include.OutputMap["value"] = "inc_out_value";            // bridge sub Output out
+            parent.Nodes["inc"] = include;
+            parent.Nodes["scoped_in"] = new GraphNode
+            {
+                Id = "scoped_in",
+                Type = NodeType.ConfigIn,
+                Name = "FlightStickCollective:FlightControl.PosMin"
+            };
+            parent.Nodes["result"] = new GraphNode { Id = "result", Type = NodeType.Output, Name = "Result", Src = "inc_out_value" };
+
+            var resolver = new GraphIncludeResolver(AppContext.BaseDirectory);
+            var eval = new GraphCompiledEvaluator(parent, resolver);
+
+            bool keyExposed = eval.ConfigInputKeys.Contains("FlightStickCollective:FlightControl.PosMin");
+            var inputs = new Dictionary<string, double> { { "FlightStickCollective:FlightControl.PosMin", 9.0 } };
+            var result = eval.EvaluateWithTrace(inputs, null);
+            bool flows = result.Outputs.TryGetValue("Result", out var v) && Math.Abs(v - 9.0) < 1e-9;
+
+            return keyExposed && flows;
+        }
+
+        private static bool TestCompiledEval_ConfigOutValues()
+        {
+            // Same as above but using GraphCompiledEvaluator.
+            var runtime = new GraphDefinition();
+
+            runtime.Nodes["k"] = new GraphNode { Id = "k", Type = NodeType.Const, ConstValue = 2.72 };
+            runtime.Nodes["cfg"] = new GraphNode { Id = "cfg", Type = NodeType.ConfigOut, Name = "FlightPedals:flight_pedals.damping", Src = "k" };
+            runtime.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "FlightPedals.SpringGain", Src = "k" };
+
+            var eval = new GraphCompiledEvaluator(runtime);
+            var result = eval.EvaluateWithTrace(null, null);
+
+            bool cfgInConfigOutputs = result.ConfigOutputs.TryGetValue("FlightPedals:flight_pedals.damping", out var cfgVal) &&
+                                      Math.Abs(cfgVal - 2.72) < 1e-9;
+            bool cfgNotInOutputs = !result.Outputs.ContainsKey("FlightPedals:flight_pedals.damping");
+            bool outInOutputs = result.Outputs.TryGetValue("FlightPedals.SpringGain", out var outVal) &&
+                                Math.Abs(outVal - 2.72) < 1e-9;
+
+            return cfgInConfigOutputs && cfgNotInOutputs && outInOutputs;
+        }
+
+        // Regression: include's ConfigOut values must propagate through the parent's
+        // OutputMap bridging loop alongside Output values. The bridge used to call
+        // evaluator.Evaluate() which returned only Outputs, silently dropping ConfigOutputs
+        // — leaving the parent's scoped ConfigOut nodes reading 0 even when the sub-graph
+        // produced correct values from Const nodes.
+        private static bool TestEval_ConfigOutBridgesThroughInclude()
+        {
+            // Sub-graph: Const(7.0) → ConfigOut named after the ConfigField.
+            var sub = new GraphDefinition();
+            sub.Nodes["k"] = new GraphNode { Id = "k", Type = NodeType.Const, ConstValue = 7.0 };
+            sub.Nodes["cfg"] = new GraphNode
+            {
+                Id = "cfg",
+                Type = NodeType.ConfigOut,
+                Name = "flight_stick.damping",
+                Src = "k"
+            };
+
+            // Parent: Include with OutputMap bridging the sub's ConfigOut name to a
+            // parent runtime ID, plus a scoped ConfigOut reading from that ID.
+            var parent = new GraphDefinition();
+            var include = new GraphNode
+            {
+                Id = "inc",
+                Type = NodeType.Include,
+                InlineGraph = sub
+            };
+            include.OutputMap["flight_stick.damping"] = "inc_out_damping";
+            parent.Nodes["inc"] = include;
+            parent.Nodes["scoped"] = new GraphNode
+            {
+                Id = "scoped",
+                Type = NodeType.ConfigOut,
+                Name = "FlightStickPitch:flight_stick.damping",
+                Src = "inc_out_damping"
+            };
+
+            // Interpreter requires an IGraphResolver to traverse Include nodes,
+            // even when InlineGraph is set.
+            var resolver = new GraphIncludeResolver(AppContext.BaseDirectory);
+            var result = new GraphEvaluator(parent, resolver).EvaluateWithTrace(null, null);
+
+            return result.ConfigOutputs.TryGetValue("FlightStickPitch:flight_stick.damping", out var v) &&
+                   Math.Abs(v - 7.0) < 1e-9;
+        }
+
+        private static bool TestCompiledEval_ConfigOutBridgesThroughInclude()
+        {
+            // Same shape as the interpreter test, exercised through GraphCompiledEvaluator
+            // (the production path).
+            var sub = new GraphDefinition();
+            sub.Nodes["k"] = new GraphNode { Id = "k", Type = NodeType.Const, ConstValue = 7.0 };
+            sub.Nodes["cfg"] = new GraphNode
+            {
+                Id = "cfg",
+                Type = NodeType.ConfigOut,
+                Name = "flight_stick.damping",
+                Src = "k"
+            };
+
+            var parent = new GraphDefinition();
+            var include = new GraphNode
+            {
+                Id = "inc",
+                Type = NodeType.Include,
+                InlineGraph = sub
+            };
+            include.OutputMap["flight_stick.damping"] = "inc_out_damping";
+            parent.Nodes["inc"] = include;
+            parent.Nodes["scoped"] = new GraphNode
+            {
+                Id = "scoped",
+                Type = NodeType.ConfigOut,
+                Name = "FlightStickPitch:flight_stick.damping",
+                Src = "inc_out_damping"
+            };
+
+            var result = new GraphCompiledEvaluator(parent).EvaluateWithTrace(null, null);
+
+            return result.ConfigOutputs.TryGetValue("FlightStickPitch:flight_stick.damping", out var v) &&
+                   Math.Abs(v - 7.0) < 1e-9;
+        }
+
+        private static bool TestExtractInterface_ScopedOutputs()
+        {
+            // ExtractInterface should separate scoped and unscoped outputs.
+            var graph = new GraphEditor.GraphDefinition { IsLibraryGraph = true };
+
+            // Unscoped Output node
+            var unscopedOut = new GraphEditor.GraphNode { Id = "out1", Kind = GraphEditor.GraphNodeKind.Output };
+            unscopedOut.Ports.Add(new GraphEditor.GraphPort { Name = "custom", Kind = GraphEditor.GraphPortKind.Input });
+            graph.Nodes.Add(unscopedOut);
+
+            // Scoped Output node
+            var scopedOut = new GraphEditor.GraphNode { Id = "out2", Kind = GraphEditor.GraphNodeKind.Output, Scoped = true };
+            scopedOut.Ports.Add(new GraphEditor.GraphPort { Name = "SpringGain", Kind = GraphEditor.GraphPortKind.Input, SignalSuffix = "SpringGain" });
+            scopedOut.Ports.Add(new GraphEditor.GraphPort { Name = "DamperGain", Kind = GraphEditor.GraphPortKind.Input, SignalSuffix = "DamperGain" });
+            graph.Nodes.Add(scopedOut);
+
+            var iface = GraphEditor.GraphSerializer.ExtractInterface(graph);
+
+            bool unscopedCorrect = iface.Outputs.Count == 1 && iface.Outputs[0] == "custom";
+            bool scopedCorrect = iface.ScopedOutputs.Count == 2 &&
+                                 iface.ScopedOutputs[0].Name == "SpringGain" &&
+                                 iface.ScopedOutputs[0].SignalSuffix == "SpringGain" &&
+                                 iface.ScopedOutputs[1].Name == "DamperGain" &&
+                                 iface.ScopedOutputs[1].SignalSuffix == "DamperGain";
+
+            return iface.IsValid && unscopedCorrect && scopedCorrect;
+        }
+
+        private static bool TestExtractInterface_ConfigOutputs()
+        {
+            // ExtractInterface should extract ConfigOut ports with ConfigType.
+            var graph = new GraphEditor.GraphDefinition { IsLibraryGraph = true };
+
+            var cfgOut = new GraphEditor.GraphNode
+            {
+                Id = "cfg",
+                Kind = GraphEditor.GraphNodeKind.ConfigOut,
+                ConfigType = "FlightStick"
+            };
+            cfgOut.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "ratio_0",
+                Kind = GraphEditor.GraphPortKind.Input,
+                ConfigField = "flight_stick.damping"
+            });
+            cfgOut.Ports.Add(new GraphEditor.GraphPort
+            {
+                Name = "spring",
+                Kind = GraphEditor.GraphPortKind.Input,
+                ConfigField = "flight_stick.centering_spring_const"
+            });
+            graph.Nodes.Add(cfgOut);
+
+            var iface = GraphEditor.GraphSerializer.ExtractInterface(graph);
+
+            return iface.IsValid &&
+                   iface.ConfigOutputs.Count == 2 &&
+                   iface.ConfigOutputs[0].Name == "ratio_0" &&
+                   iface.ConfigOutputs[0].ConfigField == "flight_stick.damping" &&
+                   iface.ConfigOutputs[0].ConfigType == "FlightStick" &&
+                   iface.ConfigOutputs[1].Name == "spring" &&
+                   iface.ConfigOutputs[1].ConfigField == "flight_stick.centering_spring_const";
         }
 
         #endregion

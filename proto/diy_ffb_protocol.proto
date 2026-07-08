@@ -191,6 +191,10 @@ message AxisConfig {
   OscillationGuard oscillation_guard = 17;
   // static balance curve and metadata
   StaticBalanceConfig static_balance_config = 18;
+  // axis-level safety damping floor in (N*s)/mm. Applied unconditionally by Sim
+  // at the integrator regardless of which function is active or what frames are
+  // flowing. 0 = no floor (default).
+  float min_damping = 19;
 }
 
 enum ControllerAxis {
@@ -451,48 +455,29 @@ message AuxFunctionConfig {
   }
 }
 
-message FlightPedalsConfig {
-   // pedal near position limit in mm
-  int32 pos_near_lim = 1;
-   // pedal far position limit in mm
-  int32 pos_far_lim = 2;
-  // damping in (N*s)/mm
-  float damping = 3;
-  // centering spring constant in N/mm
-  float centering_spring_const = 4;
-}
-
-message FlightStickPitchConfig {
+// Unified config for all four flight functions: FlightStickPitch, FlightStickRoll,
+// FlightStickCollective, FlightPedals. Differentiated by FunctionID alone.
+// The damping field is the rest/safety value applied when no FlightFFB frames
+// flow; per-frame FlightFfbAction.k_damper is authoritative while frames are
+// flowing. AxisConfig.min_damping is the unconditional axis-level floor.
+message FlightControlConfig {
   // minimum position in mm
   int32 pos_min = 1;
   // maximum position in mm
   int32 pos_max = 2;
-  // damping in (N*s)/mm
+  // rest/safety damping in (N*s)/mm (applied when no FlightFFB frames flow)
   float damping = 3;
   // centering spring constant in N/mm
   float centering_spring_const = 4;
-}
-
-message FlightStickRollConfig {
-  // minimum position in mm
-  int32 pos_min = 1;
-  // maximum position in mm
-  int32 pos_max = 2;
-  // damping in (N*s)/mm
-  float damping = 3;
-  // centering spring constant in N/mm
-  float centering_spring_const = 4;
-}
-
-message FlightStickCollectiveConfig {
-  // minimum position in mm
-  int32 pos_min = 1;
-  // maximum position in mm
-  int32 pos_max = 2;
-  // damping in (N*s)/mm
-  float damping = 3;
-  // centering spring constant in N/mm
-  float centering_spring_const = 4;
+  // phase offset in radians, applied uniformly to all DDS 1 harmonics.
+  // Encodes both axis (pitch=0, roll=+/-pi/2) and rotor handedness.
+  // DDS 2 always uses 0 (engine vibration is isotropic).
+  float phase_offset = 5;
+  // DDS 1 harmonic ratios (multipliers on fundamental_hz per slot, up to 5).
+  // Slot count = array length. Slot semantics paired with FlightFfbAction.vib_amp_slotN.
+  repeated float vib_harmonic_ratios = 6;
+  // DDS 2 harmonic ratios (engine 2 / tail rotor / etc).
+  repeated float vib2_harmonic_ratios = 7;
 }
 
 message ShifterGateSegment {
@@ -543,12 +528,14 @@ message FunctionConfig {
   FunctionBase base = 1;
   oneof specific {
     AutomotivePedalConfig automotive_pedal = 2;
-    FlightPedalsConfig flight_pedals = 3;
-    FlightStickPitchConfig flight_stick_pitch = 7;
-    FlightStickRollConfig flight_stick_roll = 8;
+    FlightControlConfig flight_control = 12;
     ShifterConfig shifter = 9;
-    FlightStickCollectiveConfig flight_stick_collective = 11;
   }
+  // Reserved tags from previous proto revisions:
+  //   3 = FlightPedalsConfig (subsumed by flight_control)
+  //   7 = FlightStickConfig (subsumed by flight_control)
+  //   8, 11 = unrelated historical reservations
+  reserved 3, 7, 8, 11;
   AuxFunctionConfig aux_function = 4;
   // simulated mass in kg
   float simulated_mass = 5;
@@ -631,6 +618,19 @@ message FlightFfbAction {
   float buffet_amp = 4;
   // constant load force in N
   float load_force = 5;
+  // DDS 1 amplitudes per slot, encoded as uint8 at 0.01 mm/LSB (range 0..2.55 mm).
+  // SyncVib output is a position delta applied on the servo command path
+  // (plan 12 — feel decoupled from damping).
+  // Slot semantics set by FlightControlConfig.vib_harmonic_ratios.
+  uint32 vib_amp_slot1 = 7;
+  uint32 vib_amp_slot2 = 8;
+  uint32 vib_amp_slot3 = 9;
+  uint32 vib_amp_slot4 = 10;
+  uint32 vib_amp_slot5 = 11;
+  // DDS 2 amplitudes per slot, encoded as uint8 at 0.01 mm/LSB.
+  // Slot semantics set by FlightControlConfig.vib2_harmonic_ratios.
+  uint32 vib2_amp_slot1 = 12;
+  uint32 vib2_amp_slot2 = 13;
 }
 
 message FFBAction {
@@ -687,6 +687,14 @@ message DeviceInfoRequest {
   }
 }
 
+// DDS oscillator fundamentals broadcast by the SimHub plugin.
+// Sent once per FFB tick. Gateway snoops these out of the message
+// stream and feeds its master DDS for the 0x0F0 CAN sync frame.
+message DdsFundamentals {
+  float dds1_fundamental_hz = 1;
+  float dds2_fundamental_hz = 2;
+}
+
 message Message {
   oneof payload {
     AxisLogMessage axis_log_message = 1;
@@ -702,6 +710,7 @@ message Message {
     DeviceInfo device_info = 11;
     DeviceInfoRequest device_info_request = 12;
     StaticBalanceResult static_balance_result = 13;
+    DdsFundamentals dds_fundamentals = 14;
   }
 }
 

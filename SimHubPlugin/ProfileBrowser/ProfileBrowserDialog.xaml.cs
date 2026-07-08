@@ -21,6 +21,9 @@ namespace DiyFfb.ProfileBrowser
         public ProfileBrowserEntry SelectedEntry { get; private set; }
         public bool UseGraphOnly { get; private set; }
         public bool UseTuning { get; private set; }
+        // Plan 17: when false, caller keeps the current vehicle's graph and
+        // applies only the source profile's tuning. Set by "Use Tuning Only".
+        public bool UseSourceGraph { get; private set; } = true;
 
         // Data binding
         public ObservableCollection<ProfileBrowserEntry> Items { get; } = new ObservableCollection<ProfileBrowserEntry>();
@@ -390,18 +393,27 @@ namespace DiyFfb.ProfileBrowser
             ButtonUseGraphOnly.IsEnabled = singleSelection;
             ButtonUseGraphTuning.IsEnabled = singleSelection && entry != null &&
                 (entry.HasTuning || entry.Source != ProfileEntrySource.Template);
+            // Use Tuning Only: source must have tuning, and current vehicle
+            // must already have a graph assigned (otherwise "tuning only" has
+            // no graph to apply against).
+            bool currentVehicleHasGraph = !string.IsNullOrWhiteSpace(_plugin?.GetActiveGraphPath());
+            ButtonUseTuningOnly.IsEnabled = singleSelection && entry != null &&
+                entry.HasTuning && currentVehicleHasGraph;
 
             // Export: only for single selection of exportable item
             ButtonExport.IsEnabled = singleSelection && entry?.CanExport == true;
 
-            // Hide "Use Graph + Tuning" for templates
+            // Hide "Use Graph + Tuning" and "Use Tuning Only" for templates
+            // (templates have no stored tuning to copy).
             if (entry != null && entry.Source == ProfileEntrySource.Template)
             {
                 ButtonUseGraphTuning.Visibility = Visibility.Collapsed;
+                ButtonUseTuningOnly.Visibility = Visibility.Collapsed;
             }
             else
             {
                 ButtonUseGraphTuning.Visibility = Visibility.Visible;
+                ButtonUseTuningOnly.Visibility = Visibility.Visible;
             }
         }
 
@@ -421,6 +433,7 @@ namespace DiyFfb.ProfileBrowser
             if (ListItems.SelectedItem is ProfileBrowserEntry entry)
             {
                 SelectedEntry = entry;
+                UseSourceGraph = true;
                 UseGraphOnly = true;
                 UseTuning = false;
                 DialogResult = true;
@@ -432,6 +445,19 @@ namespace DiyFfb.ProfileBrowser
             if (ListItems.SelectedItem is ProfileBrowserEntry entry)
             {
                 SelectedEntry = entry;
+                UseSourceGraph = true;
+                UseGraphOnly = false;
+                UseTuning = true;
+                DialogResult = true;
+            }
+        }
+
+        private void OnUseTuningOnlyClick(object sender, RoutedEventArgs e)
+        {
+            if (ListItems.SelectedItem is ProfileBrowserEntry entry)
+            {
+                SelectedEntry = entry;
+                UseSourceGraph = false;
                 UseGraphOnly = false;
                 UseTuning = true;
                 DialogResult = true;

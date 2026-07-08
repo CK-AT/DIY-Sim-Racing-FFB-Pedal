@@ -1,8 +1,6 @@
 # AGENTS
 
 ## Always-on rules
-- Always update `CONVERSATION_LOG.md`.
-- Add new entries in the conversation log on top, but only for actual conceptual or coding work
 - Adhere to the coding style of existing sources.
 - Prefer separation of concerns where feasible.
 - Prefer a single source of truth.
@@ -17,10 +15,10 @@
 - When adding per-port metadata, update GraphPortDto serialization and clipboard serializer, and add GraphTest roundtrip coverage.
 - For inspector text inputs, ensure Enter commits the binding (explicit UpdateSource) so edits persist without focus changes.
 - When extending CAN payloads, document frame sizing and update both pack/unpack and cache handling.
-- Maintain a short "Commit highlights" list in the latest conversation log entry and confirm it before committing.
 - Add unit tests for new features whenever feasible.
 - Keep graph runtime logic in a shared evaluator and reuse it for editor previews/tests to avoid divergence.
 - Keep `SimHubPlugin/Docs/FFB_Graph_Progress.md` updated with Done/In Progress/Open items whenever graph work changes.
+- Function override UI must route edits/clears via `FieldRouter` and display effective values (User > Profile), updating badges immediately after edits.
 - Always adhere to the project's current C# language version and .NET target framework.
 - Ensure the SimHub plugin builds as a self-contained DLL with all dependencies merged via ILRepack (Release builds only). Any new package references must be added to the ILRepack merge list in the post-build event.
 - When changing graph behavior, update both `SimHubPlugin/Docs/FFB_Graph_Design.md` and `SimHubPlugin/Docs/FFB_Graph_Progress.md`.

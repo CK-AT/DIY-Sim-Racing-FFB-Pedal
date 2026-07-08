@@ -119,7 +119,7 @@ def _write_ffbota(source, target, env):
         branch_name = "unknown"
 
     url = (
-        "https://raw.githubusercontent.com/CK-AT/DIY-Sim-Racing-FFB-Pedal/"
+        "https://raw.githubusercontent.com/CK-AT/DIY-FFB/"
         f"refs/heads/{branch_name}/OTA/{bin_name}"
     )
     entry = {"Board": board_id, "Version": version, "URL": url, "MD5": md5_hex}

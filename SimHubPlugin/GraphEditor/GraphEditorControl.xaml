@@ -12,6 +12,7 @@
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
         <local:SignalGroupOptionsConverter x:Key="SignalGroupOptionsConverter" />
         <local:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+        <local:StringEmptyToBoolConverter x:Key="StringEmptyToBool" />
         <local:OpVariadicVisibilityConverter x:Key="OpVariadicVisibilityConverter" />
         <DataTemplate x:Key="PortEntryTemplate">
             <DockPanel Margin="0,2,0,2">
@@ -69,6 +70,7 @@
                                   StaysOpenOnEdit="True"
                                   ItemsSource="{Binding SignalOptions}"
                                   Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
+                                  SelectionChanged="SignalPickerCombo_SelectionChanged"
                                   KeyDown="PortName_KeyDown">
                             <ComboBox.Template>
                                 <ControlTemplate TargetType="ComboBox">
@@ -184,6 +186,257 @@
                          TextChanged="InspectorConst_TextChanged" />
             </StackPanel>
         </DataTemplate>
+        <DataTemplate x:Key="InspectorBusPortEntryTemplate">
+            <DockPanel LastChildFill="True" Margin="0,2,0,2">
+                <Button DockPanel.Dock="Right"
+                        Content="×"
+                        Margin="6,0,0,0"
+                        Width="22"
+                        Height="22"
+                        Background="#1E1E1E"
+                        Foreground="#CC6666"
+                        BorderBrush="#4A4A4A"
+                        BorderThickness="1"
+                        Padding="0"
+                        FontSize="14"
+                        ToolTip="Remove this bus port"
+                        Click="ButtonRemoveBusPort_Click" />
+                <Button DockPanel.Dock="Right"
+                        Content="→"
+                        Margin="6,0,0,0"
+                        Width="22"
+                        Height="22"
+                        Background="#1E1E1E"
+                        Foreground="#88AAFF"
+                        BorderBrush="#4A4A4A"
+                        BorderThickness="1"
+                        Padding="0"
+                        FontSize="12"
+                        ToolTip="Jump to the matching Send"
+                        Visibility="{Binding IsReceive, Converter={StaticResource BoolToVisibility}}"
+                        Click="ButtonJumpToSend_Click" />
+                <!-- Port.Name is an internal identifier; the bus name itself is
+                     the meaningful label, so we don't show port.Name here. -->
+                <Grid>
+                    <!-- Receive: editable ComboBox listing existing Send buses -->
+                    <ComboBox IsEditable="True"
+                              IsTextSearchEnabled="True"
+                              Background="#1E1E1E"
+                              Foreground="White"
+                              BorderBrush="#4A4A4A"
+                              BorderThickness="1"
+                              Padding="2,0,2,0"
+                              ItemsSource="{Binding BusOptions}"
+                              Text="{Binding BusName, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="Bus name. Pick an existing Send, or type a new name (will be flagged as orphan until a matching Send exists).">
+                        <ComboBox.Style>
+                            <Style TargetType="ComboBox">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsReceive}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ComboBox.Style>
+                        <ComboBox.Template>
+                            <ControlTemplate TargetType="ComboBox">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="20" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="PART_EditableTextBox"
+                                             Grid.Column="0"
+                                             Background="#1E1E1E"
+                                             Foreground="White"
+                                             BorderThickness="0"
+                                             Padding="2,1,2,1"
+                                             ContextMenu="{x:Null}"
+                                             Text="{TemplateBinding Text}" />
+                                    <ToggleButton Grid.Column="1"
+                                                  IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                                  Background="#1E1E1E"
+                                                  BorderBrush="#4A4A4A"
+                                                  BorderThickness="1"
+                                                  Focusable="False">
+                                        <TextBlock Text="▾" Foreground="White" HorizontalAlignment="Center" />
+                                    </ToggleButton>
+                                    <Popup Placement="Bottom"
+                                           IsOpen="{TemplateBinding IsDropDownOpen}"
+                                           AllowsTransparency="True"
+                                           PopupAnimation="None"
+                                           PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}">
+                                        <Border Background="#1E1E1E" BorderBrush="#4A4A4A" BorderThickness="1">
+                                            <ScrollViewer MaxHeight="240">
+                                                <ItemsPresenter />
+                                            </ScrollViewer>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+                            </ControlTemplate>
+                        </ComboBox.Template>
+                    </ComboBox>
+                    <!-- Send: plain TextBox; the Send declares the bus name. -->
+                    <TextBox Background="#1E1E1E"
+                             Foreground="White"
+                             BorderBrush="#4A4A4A"
+                             BorderThickness="1"
+                             Padding="3,2,3,2"
+                             Text="{Binding BusName, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Bus name this Send publishes. Must be unique across all Send ports in this graph.">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsReceive}" Value="False">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+                </Grid>
+            </DockPanel>
+        </DataTemplate>
+        <DataTemplate x:Key="InspectorLocalBusTemplate">
+            <StackPanel>
+                <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
+                <TextBox Margin="0,2,0,6"
+                         Background="#1E1E1E"
+                         Foreground="White"
+                         BorderBrush="#4A4A4A"
+                         BorderThickness="1"
+                         Padding="3,2,3,2"
+                         Text="{Binding Title, Mode=OneWay}"
+                         TextChanged="InspectorTitle_TextChanged" />
+                <TextBlock Text="Bus Ports" Foreground="#BBBBBB" Margin="0,2,0,2" FontSize="10" />
+                <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=BusPortEntries}"
+                              ItemTemplate="{StaticResource InspectorBusPortEntryTemplate}" />
+                <Button Content="+ Add Bus Port"
+                        Margin="0,6,0,0"
+                        HorizontalAlignment="Left"
+                        Background="#1E1E1E"
+                        Foreground="White"
+                        BorderBrush="#4A4A4A"
+                        BorderThickness="1"
+                        Padding="6,2,6,2"
+                        Click="ButtonAddBusPort_Click" />
+            </StackPanel>
+        </DataTemplate>
+        <!-- Plan 23: one custom-MSFS-variable row (alias / SimVar / Unit). -->
+        <DataTemplate x:Key="InspectorMsfsVarPortEntryTemplate">
+            <Border Background="#232323" BorderThickness="1" Margin="0,2,0,4" Padding="6,4,6,6">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="BorderBrush" Value="#3A3A3A" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasError}" Value="True">
+                                <Setter Property="BorderBrush" Value="#E06666" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel>
+                    <DockPanel LastChildFill="True">
+                        <Button DockPanel.Dock="Right"
+                                Content="×"
+                                Margin="6,0,0,0"
+                                Width="22" Height="22"
+                                Background="#1E1E1E" Foreground="#CC6666"
+                                BorderBrush="#4A4A4A" BorderThickness="1"
+                                Padding="0" FontSize="14"
+                                ToolTip="Remove this variable"
+                                Click="ButtonRemoveMsfsVar_Click" />
+                        <TextBlock Text="Alias  →  MSFS.&lt;alias&gt;" Foreground="#BBBBBB" FontSize="10" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBox Margin="0,2,0,4"
+                             Background="#1E1E1E" Foreground="White"
+                             BorderBrush="#4A4A4A" BorderThickness="1" Padding="3,2,3,2"
+                             Text="{Binding Alias, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Graph-facing alias. Wire from this port; the signal is MSFS.&lt;alias&gt;. Must be unique across all MSFS Vars nodes." />
+                    <TextBlock Text="SimVar / LVAR (raw name)" Foreground="#BBBBBB" FontSize="10" />
+                    <TextBox Margin="0,2,0,4"
+                             Background="#1E1E1E" Foreground="White"
+                             BorderBrush="#4A4A4A" BorderThickness="1" Padding="3,2,3,2"
+                             Text="{Binding SimVar, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Raw SimConnect datum, e.g. GENERAL ENG RPM:1 or L:MY_LVAR. LVAR names cannot be validated offline (a wrong one reads 0)." />
+                    <TextBlock Text="Unit" Foreground="#BBBBBB" FontSize="10" />
+                    <ComboBox IsEditable="True"
+                              IsTextSearchEnabled="True"
+                              Margin="0,2,0,0"
+                              Background="#1E1E1E" Foreground="White"
+                              BorderBrush="#4A4A4A" BorderThickness="1" Padding="2,0,2,0"
+                              ItemsSource="{Binding UnitOptions}"
+                              Text="{Binding Unit, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="SimConnect unit. Pick a preset or type your own. 'number' is the safe default for L: vars; a wrong unit for an A: var may mis-scale silently.">
+                        <ComboBox.Template>
+                            <ControlTemplate TargetType="ComboBox">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="20" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="PART_EditableTextBox"
+                                             Grid.Column="0"
+                                             Background="#1E1E1E"
+                                             Foreground="White"
+                                             BorderThickness="0"
+                                             Padding="2,1,2,1"
+                                             ContextMenu="{x:Null}"
+                                             Text="{TemplateBinding Text}" />
+                                    <ToggleButton Grid.Column="1"
+                                                  IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                                  Background="#1E1E1E"
+                                                  BorderBrush="#4A4A4A"
+                                                  BorderThickness="1"
+                                                  Focusable="False">
+                                        <TextBlock Text="▾" Foreground="White" HorizontalAlignment="Center" />
+                                    </ToggleButton>
+                                    <Popup Placement="Bottom"
+                                           IsOpen="{TemplateBinding IsDropDownOpen}"
+                                           AllowsTransparency="True"
+                                           PopupAnimation="None"
+                                           PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}">
+                                        <Border Background="#1E1E1E" BorderBrush="#4A4A4A" BorderThickness="1">
+                                            <ScrollViewer MaxHeight="240">
+                                                <ItemsPresenter />
+                                            </ScrollViewer>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+                            </ControlTemplate>
+                        </ComboBox.Template>
+                    </ComboBox>
+                    <TextBlock Text="{Binding Error}"
+                               Foreground="#E06666" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+        <!-- Plan 23: MsfsVarDef node inspector — declares custom MSFS vars. -->
+        <DataTemplate x:Key="InspectorMsfsVarTemplate">
+            <StackPanel>
+                <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
+                <TextBox Margin="0,2,0,6"
+                         Background="#1E1E1E" Foreground="White"
+                         BorderBrush="#4A4A4A" BorderThickness="1" Padding="3,2,3,2"
+                         Text="{Binding Title, Mode=OneWay}"
+                         TextChanged="InspectorTitle_TextChanged" />
+                <TextBlock Text="Custom MSFS Variables" Foreground="#BBBBBB" Margin="0,2,0,2" FontSize="10" />
+                <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=MsfsVarPortEntries}"
+                              ItemTemplate="{StaticResource InspectorMsfsVarPortEntryTemplate}" />
+                <Button Content="+ Add Variable"
+                        Margin="0,6,0,0"
+                        HorizontalAlignment="Left"
+                        Background="#1E1E1E" Foreground="White"
+                        BorderBrush="#4A4A4A" BorderThickness="1"
+                        Padding="6,2,6,2"
+                        Click="ButtonAddMsfsVar_Click" />
+                <TextBlock TextWrapping="Wrap" Foreground="#888888" FontSize="10" Margin="0,8,0,0"
+                           Text="Each row registers a custom MSFS SimConnect variable and exposes it as MSFS.&lt;alias&gt;. A bad A: name is dropped (check the SimHub log); a wrong L: name reads 0. Changes take effect on Apply." />
+            </StackPanel>
+        </DataTemplate>
         <DataTemplate x:Key="InspectorOpTemplate">
             <StackPanel>
                 <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
@@ -240,6 +493,48 @@
                           ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=FuncChoices}"
                           SelectedItem="{Binding Func, Mode=OneWay}"
                           SelectionChanged="InspectorFunc_SelectionChanged" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate x:Key="InspectorExprTemplate">
+            <StackPanel>
+                <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
+                <TextBox Margin="0,2,0,6"
+                         Background="#1E1E1E"
+                         Foreground="White"
+                         BorderBrush="#4A4A4A"
+                         BorderThickness="1"
+                         Padding="3,2,3,2"
+                         Text="{Binding Title, Mode=OneWay}"
+                         TextChanged="InspectorTitle_TextChanged" />
+                <TextBlock Text="Formula" Foreground="#BBBBBB" FontSize="10" />
+                <TextBox Margin="0,2,0,2"
+                         Background="#1E1E1E"
+                         Foreground="White"
+                         BorderBrush="#4A4A4A"
+                         BorderThickness="1"
+                         Padding="3,2,3,2"
+                         MinLines="2"
+                         MaxLines="6"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         FontFamily="Consolas"
+                         Text="{Binding Expr, Mode=OneWay}"
+                         TextChanged="InspectorExpr_TextChanged" />
+                <TextBlock Foreground="#888888" FontSize="9" TextWrapping="Wrap" Margin="0,0,0,6">
+                    Variables = input port names below.&#x0a;Ops: + - * / %  **=power  (^ is XOR, not power).&#x0a;Compare/logic: &lt; &gt; == != &amp;&amp; || ! → 1/0.&#x0a;Funcs: Pow Sqrt Abs Min Max Round Floor Sin Cos if(c,a,b).&#x0a;Constant: Pi.
+                </TextBlock>
+                <TextBlock Text="Inputs" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <Button Content="Add Input"
+                            Background="#1E1E1E"
+                            Foreground="White"
+                            BorderBrush="#4A4A4A"
+                            BorderThickness="1"
+                            Padding="2,2,2,2"
+                            Click="ButtonAddInputPort_Click" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=PortEntries}"
+                              ItemTemplate="{StaticResource PortEntryTemplate}" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate x:Key="InspectorInputTemplate">
@@ -306,6 +601,7 @@
         </DataTemplate>
         <DataTemplate x:Key="InspectorOutputTemplate">
             <StackPanel>
+                <!-- Signal Group: shown only in top-level graphs (scoped nodes inherit group from FunctionScope) -->
                 <StackPanel>
                     <StackPanel.Style>
                         <Style TargetType="StackPanel">
@@ -329,15 +625,19 @@
                               Loaded="InspectorSignalGroup_Loaded"
                               SelectionChanged="InspectorSignalGroup_SelectionChanged" />
                 </StackPanel>
+                <!-- Title: shown in library graphs when NOT scoped -->
                 <StackPanel>
                     <StackPanel.Style>
                         <Style TargetType="StackPanel">
                             <Setter Property="Visibility" Value="Collapsed" />
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsLibraryGraph}"
-                                             Value="True">
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsLibraryGraph}" Value="True" />
+                                        <Condition Binding="{Binding Scoped}" Value="False" />
+                                    </MultiDataTrigger.Conditions>
                                     <Setter Property="Visibility" Value="Visible" />
-                                </DataTrigger>
+                                </MultiDataTrigger>
                             </Style.Triggers>
                         </Style>
                     </StackPanel.Style>
@@ -350,6 +650,26 @@
                              Padding="3,2,3,2"
                              Text="{Binding Title, Mode=OneWay}"
                              TextChanged="InspectorTitle_TextChanged" />
+                </StackPanel>
+                <!-- Scoped checkbox: only visible in library graphs -->
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsLibraryGraph}"
+                                             Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <CheckBox Content="Scoped"
+                              Foreground="#BBBBBB"
+                              Margin="0,0,0,6"
+                              IsChecked="{Binding Scoped, Mode=OneWay}"
+                              Checked="InspectorScoped_Changed"
+                              Unchecked="InspectorScoped_Changed" />
                 </StackPanel>
                 <TextBlock Text="Ports" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
@@ -553,6 +873,22 @@
                                     <ColumnDefinition Width="120" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Mute Value" Foreground="#BBBBBB" FontSize="10" VerticalAlignment="Center"
+                                           ToolTip="Leave blank to disable. When set, a mute checkbox substitutes this value during evaluation." />
+                                <TextBox Grid.Column="1"
+                                         Background="#1E1E1E"
+                                         Foreground="White"
+                                         BorderBrush="#4A4A4A"
+                                         BorderThickness="1"
+                                         Padding="3,2,3,2"
+                                         ToolTip="Leave blank to disable. When set, a mute checkbox substitutes this value during evaluation."
+                                         Text="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=SelectedPortEntry.UiMuteValue, UpdateSourceTrigger=PropertyChanged}" />
+                            </Grid>
+                            <Grid Margin="0,4,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Options" Foreground="#BBBBBB" FontSize="10" VerticalAlignment="Top" />
                                 <TextBox Grid.Column="1"
                                          Background="#1E1E1E"
@@ -614,32 +950,213 @@
                            Margin="0,0,0,6"
                            Visibility="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IncludeErrorVisible, Converter={StaticResource BoolToVisibility}}"
                            Text="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IncludeErrorMessage}" />
-                <TextBlock Text="Inputs (from included graph)" Foreground="#BBBBBB" FontSize="10" />
+                <TextBlock Text="Function Scope" Foreground="#BBBBBB" FontSize="10" />
+                <ComboBox Margin="0,2,0,6"
+                          Background="#1E1E1E"
+                          Foreground="White"
+                          BorderBrush="#4A4A4A"
+                          BorderThickness="1"
+                          ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=FunctionScopeOptions}"
+                          SelectedItem="{Binding FunctionScope, Mode=OneWay}"
+                          Loaded="InspectorFunctionScope_Loaded"
+                          DataContextChanged="InspectorFunctionScope_DataContextChanged"
+                          SelectionChanged="InspectorFunctionScope_SelectionChanged" />
+                <TextBlock Foreground="#FFAA00"
+                           FontSize="10"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,6"
+                           Visibility="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=ConfigTypeMismatchVisible, Converter={StaticResource BoolToVisibility}}"
+                           Text="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=ConfigTypeMismatchMessage}" />
+                <TextBlock Text="Inputs (order — ▲▼ to reorder)" Foreground="#BBBBBB" FontSize="10" />
                 <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IncludeInputNames}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}" Foreground="#CCCCCC" FontSize="10" />
+                            <DockPanel Margin="0,1,0,1">
+                                <Button DockPanel.Dock="Right" Content="▼" Width="20" Height="18" FontSize="9"
+                                        Background="#2D2D2D" Foreground="White" BorderBrush="#4A4A4A" BorderThickness="1"
+                                        Padding="0" Click="MoveIncludeInputDown_Click" />
+                                <Button DockPanel.Dock="Right" Content="▲" Width="20" Height="18" FontSize="9" Margin="0,0,2,0"
+                                        Background="#2D2D2D" Foreground="White" BorderBrush="#4A4A4A" BorderThickness="1"
+                                        Padding="0" Click="MoveIncludeInputUp_Click" />
+                                <TextBlock Text="{Binding}" Foreground="#CCCCCC" FontSize="10" VerticalAlignment="Center" />
+                            </DockPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <TextBlock Text="Outputs (from included graph)" Foreground="#BBBBBB" FontSize="10" Margin="0,6,0,0" />
+                <TextBlock Text="Outputs (order — ▲▼ to reorder)" Foreground="#BBBBBB" FontSize="10" Margin="0,6,0,0" />
                 <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IncludeOutputNames}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}" Foreground="#CCCCCC" FontSize="10" />
+                            <DockPanel Margin="0,1,0,1">
+                                <Button DockPanel.Dock="Right" Content="▼" Width="20" Height="18" FontSize="9"
+                                        Background="#2D2D2D" Foreground="White" BorderBrush="#4A4A4A" BorderThickness="1"
+                                        Padding="0" Click="MoveIncludeOutputDown_Click" />
+                                <Button DockPanel.Dock="Right" Content="▲" Width="20" Height="18" FontSize="9" Margin="0,0,2,0"
+                                        Background="#2D2D2D" Foreground="White" BorderBrush="#4A4A4A" BorderThickness="1"
+                                        Padding="0" Click="MoveIncludeOutputUp_Click" />
+                                <TextBlock Text="{Binding}" Foreground="#CCCCCC" FontSize="10" VerticalAlignment="Center" />
+                            </DockPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate x:Key="InspectorConfigOutTemplate">
+            <StackPanel>
+                <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
+                <TextBox Margin="0,2,0,6"
+                         Background="#1E1E1E"
+                         Foreground="White"
+                         BorderBrush="#4A4A4A"
+                         BorderThickness="1"
+                         Padding="3,2,3,2"
+                         Text="{Binding Title, Mode=OneWay}"
+                         TextChanged="InspectorTitle_TextChanged" />
+                <TextBlock Text="Config Type" Foreground="#BBBBBB" FontSize="10" />
+                <ComboBox Margin="0,2,0,6"
+                          Background="#1E1E1E"
+                          Foreground="White"
+                          BorderBrush="#4A4A4A"
+                          BorderThickness="1"
+                          ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=ConfigTypeOptions}"
+                          SelectedItem="{Binding ConfigType, Mode=OneWay}"
+                          Loaded="InspectorConfigType_Loaded"
+                          DataContextChanged="InspectorConfigType_DataContextChanged"
+                          SelectionChanged="InspectorConfigType_SelectionChanged" />
+                <!-- Scoped: checked = function comes from the parent Include's FunctionScope
+                     (or top-level fan-out); unchecked = explicit single target function. -->
+                <CheckBox x:Name="ConfigOutScopedCheck"
+                          Content="Scoped (write to parent's / all functions)"
+                          Foreground="#BBBBBB"
+                          Margin="0,0,0,6"
+                          IsChecked="{Binding FunctionScope, Converter={StaticResource StringEmptyToBool}, Mode=OneWay}"
+                          Checked="ConfigOutScoped_Changed"
+                          Unchecked="ConfigOutScoped_Changed" />
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <!-- Scoped (empty FunctionScope) = auto; hide the explicit dropdown. -->
+                                <DataTrigger Binding="{Binding FunctionScope}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Text="Function (write to)" Foreground="#BBBBBB" FontSize="10" />
+                    <ComboBox Margin="0,2,0,6"
+                              Background="#1E1E1E"
+                              Foreground="White"
+                              BorderBrush="#4A4A4A"
+                              BorderThickness="1"
+                              ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=FunctionScopeOptions}"
+                              SelectedItem="{Binding FunctionScope, Mode=OneWay}"
+                              Loaded="InspectorFunctionScope_Loaded"
+                              DataContextChanged="InspectorFunctionScope_DataContextChanged"
+                              SelectionChanged="InspectorConfigOutScope_SelectionChanged" />
+                </StackPanel>
+                <TextBlock Text="Config Ports" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <Button Content="Add Port"
+                            Background="#1E1E1E"
+                            Foreground="White"
+                            BorderBrush="#4A4A4A"
+                            BorderThickness="1"
+                            Padding="2,2,2,2"
+                            Click="ButtonAddInputPort_Click" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=PortEntries}"
+                              ItemTemplate="{StaticResource PortEntryTemplate}" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate x:Key="InspectorConfigInTemplate">
+            <StackPanel>
+                <TextBlock Text="Title" Foreground="#BBBBBB" FontSize="10" />
+                <TextBox Margin="0,2,0,6"
+                         Background="#1E1E1E"
+                         Foreground="White"
+                         BorderBrush="#4A4A4A"
+                         BorderThickness="1"
+                         Padding="3,2,3,2"
+                         Text="{Binding Title, Mode=OneWay}"
+                         TextChanged="InspectorTitle_TextChanged" />
+                <!-- Scoped checkbox: only in library/embedded sub-graphs. When scoped the
+                     function comes from the parent Include's FunctionScope. -->
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsLibraryGraph}"
+                                             Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <CheckBox Content="Scoped (read from parent's function)"
+                              Foreground="#BBBBBB"
+                              Margin="0,0,0,6"
+                              IsChecked="{Binding Scoped, Mode=OneWay}"
+                              Checked="InspectorScoped_Changed"
+                              Unchecked="InspectorScoped_Changed" />
+                </StackPanel>
+                <!-- Function dropdown: shown unless (library AND scoped) -->
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsLibraryGraph}" Value="True" />
+                                        <Condition Binding="{Binding Scoped}" Value="True" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Text="Function (read from)" Foreground="#BBBBBB" FontSize="10" />
+                    <ComboBox Margin="0,2,0,6"
+                              Background="#1E1E1E"
+                              Foreground="White"
+                              BorderBrush="#4A4A4A"
+                              BorderThickness="1"
+                              ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=FunctionScopeOptions}"
+                              SelectedItem="{Binding ConfigType, Mode=OneWay}"
+                              Loaded="InspectorConfigType_Loaded"
+                              DataContextChanged="InspectorConfigType_DataContextChanged"
+                              SelectionChanged="InspectorConfigType_SelectionChanged" />
+                </StackPanel>
+                <TextBlock Text="Config Fields" Foreground="#BBBBBB" Margin="0,6,0,2" FontSize="10" />
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <Button Content="Add Field"
+                            Background="#1E1E1E"
+                            Foreground="White"
+                            BorderBrush="#4A4A4A"
+                            BorderThickness="1"
+                            Padding="2,2,2,2"
+                            Click="ButtonAddConfigInPort_Click" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=PortEntries}"
+                              ItemTemplate="{StaticResource PortEntryTemplate}" />
             </StackPanel>
         </DataTemplate>
         <local:InspectorTemplateSelector x:Key="InspectorTemplateSelector"
                                          ConstTemplate="{StaticResource InspectorConstTemplate}"
                                          OpTemplate="{StaticResource InspectorOpTemplate}"
                                          FuncTemplate="{StaticResource InspectorFuncTemplate}"
+                                         ExprTemplate="{StaticResource InspectorExprTemplate}"
                                          InputTemplate="{StaticResource InspectorInputTemplate}"
                                          OutputTemplate="{StaticResource InspectorOutputTemplate}"
                                          ParamTemplate="{StaticResource InspectorParamTemplate}"
-                                         IncludeTemplate="{StaticResource InspectorIncludeTemplate}" />
+                                         IncludeTemplate="{StaticResource InspectorIncludeTemplate}"
+                                         ConfigOutTemplate="{StaticResource InspectorConfigOutTemplate}"
+                                         ConfigInTemplate="{StaticResource InspectorConfigInTemplate}"
+                                         LocalBusTemplate="{StaticResource InspectorLocalBusTemplate}"
+                                         MsfsVarTemplate="{StaticResource InspectorMsfsVarTemplate}" />
         <DrawingBrush x:Key="GraphGridBrush" TileMode="Tile" Viewport="0,0,20,20" ViewportUnits="Absolute">
             <DrawingBrush.Drawing>
                 <DrawingGroup>

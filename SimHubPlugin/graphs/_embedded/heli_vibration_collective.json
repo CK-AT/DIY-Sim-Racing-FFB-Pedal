@@ -1,0 +1,1083 @@
+{
+  "Version": 4,
+  "IsLibraryGraph": true,
+  "Nodes": [
+    {
+      "Id": "in_rpm_norm",
+      "Title": "RPM (norm)",
+      "Kind": "Input",
+      "X": 60.0,
+      "Y": 50.0,
+      "Ports": [
+        {
+          "Name": "rpm_norm",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_blade_count",
+      "Title": "Blade Count",
+      "Kind": "Input",
+      "X": 50.0,
+      "Y": 990.0,
+      "Ports": [
+        {
+          "Name": "blade_count",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_vrs",
+      "Title": "VRS",
+      "Kind": "Input",
+      "X": 60.0,
+      "Y": 210.0,
+      "Ports": [
+        {
+          "Name": "vrs",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_slap",
+      "Title": "Slap",
+      "Kind": "Input",
+      "X": 50.0,
+      "Y": 600.0,
+      "Ports": [
+        {
+          "Name": "slap_rat",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "in_etl_bump",
+      "Title": "ETL Bump",
+      "Kind": "Input",
+      "X": 50.0,
+      "Y": 480.0,
+      "Ports": [
+        {
+          "Name": "etl_bump",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_etl_bump_gain",
+      "Kind": "Param",
+      "X": 650.0,
+      "Y": 520.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "EtlBumpGain"
+        }
+      ],
+      "SignalGroup": "Collective"
+    },
+    {
+      "Id": "mul_etl_bump",
+      "Title": "etl_bump × gain",
+      "Kind": "Op",
+      "X": 1000.0,
+      "Y": 450.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "in_rbs",
+      "Title": "RBS",
+      "Kind": "Input",
+      "X": 50.0,
+      "Y": 810.0,
+      "Ports": [
+        {
+          "Name": "rbs",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "param_rbs_heave_gain",
+      "Kind": "Param",
+      "X": 50.0,
+      "Y": 880.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "RbsHeaveGain"
+        }
+      ],
+      "SignalGroup": "Collective"
+    },
+    {
+      "Id": "mul_rbs_heave",
+      "Title": "rbs × heave gain",
+      "Kind": "Op",
+      "X": 820.0,
+      "Y": 870.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "param_gain_1rev",
+      "Kind": "Param",
+      "X": 750.0,
+      "Y": 20.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "gain_1rev"
+        }
+      ],
+      "SignalGroup": "Collective"
+    },
+    {
+      "Id": "param_base_nrev",
+      "Kind": "Param",
+      "X": 750.0,
+      "Y": 150.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "base_nrev"
+        }
+      ],
+      "SignalGroup": "Collective"
+    },
+    {
+      "Id": "param_slap_gain",
+      "Kind": "Param",
+      "X": 760.0,
+      "Y": 620.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "slap_gain"
+        }
+      ],
+      "SignalGroup": "Collective"
+    },
+    {
+      "Id": "param_base_2nrev",
+      "Kind": "Param",
+      "X": 400.0,
+      "Y": 760.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "base_2nrev"
+        }
+      ],
+      "SignalGroup": "Collective"
+    },
+    {
+      "Id": "const_one",
+      "Title": "1.0",
+      "Kind": "Const",
+      "X": 180.0,
+      "Y": 960.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
+    },
+    {
+      "Id": "const_two",
+      "Title": "2.0",
+      "Kind": "Const",
+      "X": 50.0,
+      "Y": 1110.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 2.0
+    },
+    {
+      "Id": "const_zero",
+      "Title": "0.0",
+      "Kind": "Const",
+      "X": 1080.0,
+      "Y": 1240.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "const_phase_zero",
+      "Title": "0 deg",
+      "Kind": "Const",
+      "X": 170.0,
+      "Y": 1190.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 0.0
+    },
+    {
+      "Id": "mul_rpm_sq",
+      "Title": "rpm × rpm",
+      "Kind": "Op",
+      "X": 650.0,
+      "Y": 80.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_1rev_ampl",
+      "Title": "Vib1Ampl1 = gain_1rev × rpm²",
+      "Kind": "Op",
+      "X": 1000.0,
+      "Y": 50.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_nrev_base",
+      "Title": "base × rpm",
+      "Kind": "Op",
+      "X": 1000.0,
+      "Y": 200.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_slap",
+      "Title": "slap × gain",
+      "Kind": "Op",
+      "X": 1000.0,
+      "Y": 570.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "add_nrev_total",
+      "Title": "Vib1Ampl2 = base + etl + slap + etl_bump",
+      "Kind": "Op",
+      "X": 1200.0,
+      "Y": 470.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b+c",
+          "Kind": "Output"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "mul_2nrev",
+      "Title": "Vib1Ampl3 = 2nrev × rpm",
+      "Kind": "Op",
+      "X": 820.0,
+      "Y": 770.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_blade_2",
+      "Title": "blade × 2",
+      "Kind": "Op",
+      "X": 170.0,
+      "Y": 1090.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "out_ampl1",
+      "Kind": "Output",
+      "X": 2000.0,
+      "Y": 90.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Vib1Ampl1"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "out_ampl2",
+      "Kind": "Output",
+      "X": 2120.0,
+      "Y": 320.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Vib1Ampl2"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "out_ampl3",
+      "Kind": "Output",
+      "X": 1440.0,
+      "Y": 840.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Vib1Ampl3"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "out_ampl4",
+      "Kind": "Output",
+      "X": 1450.0,
+      "Y": 1230.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Vib1Ampl4"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "out_ampl5",
+      "Kind": "Output",
+      "X": 1450.0,
+      "Y": 1380.0,
+      "Ports": [
+        {
+          "Kind": "Input",
+          "SignalSuffix": "Vib1Ampl5"
+        }
+      ],
+      "Scoped": true
+    },
+    {
+      "Id": "cfg_ratios",
+      "Title": "ConfigOut",
+      "Kind": "ConfigOut",
+      "X": 350.0,
+      "Y": 1050.0,
+      "Ports": [
+        {
+          "Name": "FlightControl.Vib1HarmRatio1",
+          "Kind": "Input",
+          "ConfigField": "FlightControl.Vib1HarmRatio1"
+        },
+        {
+          "Name": "FlightControl.Vib1HarmRatio2",
+          "Kind": "Input",
+          "ConfigField": "FlightControl.Vib1HarmRatio2"
+        },
+        {
+          "Name": "FlightControl.Vib1HarmRatio3",
+          "Kind": "Input",
+          "ConfigField": "FlightControl.Vib1HarmRatio3"
+        },
+        {
+          "Name": "FlightControl.Vib1HarmRatio4",
+          "Kind": "Input",
+          "ConfigField": "FlightControl.Vib1HarmRatio4"
+        },
+        {
+          "Name": "FlightControl.Vib1HarmRatio5",
+          "Kind": "Input",
+          "ConfigField": "FlightControl.Vib1HarmRatio5"
+        },
+        {
+          "Name": "FlightControl.Vib1Phase",
+          "Kind": "Input",
+          "ConfigField": "FlightControl.Vib1Phase"
+        }
+      ],
+      "ConfigType": "FlightControl"
+    },
+    {
+      "Id": "param_vrs_vib_gain",
+      "Kind": "Param",
+      "X": 460.0,
+      "Y": 370.0,
+      "Ports": [
+        {
+          "Kind": "Output",
+          "SignalSuffix": "VrsVibGain"
+        }
+      ],
+      "SignalGroup": "Collective"
+    },
+    {
+      "Id": "mul_vrs_vib",
+      "Title": "vrs × gain × rpm",
+      "Kind": "Op",
+      "X": 820.0,
+      "Y": 350.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "c",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b*c",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "add_1rev_total",
+      "Title": "1/rev + VRS shake",
+      "Kind": "Op",
+      "X": 1420.0,
+      "Y": 110.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "add_nrev_total2",
+      "Title": "N/rev + RBS heave",
+      "Kind": "Op",
+      "X": 1510.0,
+      "Y": 540.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "in_gnd_boost",
+      "Title": "Ground boost (0..gain)",
+      "Kind": "Input",
+      "X": 1310.0,
+      "Y": 310.0,
+      "Ports": [
+        {
+          "Name": "gnd_boost",
+          "Kind": "Output"
+        }
+      ]
+    },
+    {
+      "Id": "add_gnd_factor",
+      "Title": "1 + gnd boost",
+      "Kind": "Op",
+      "X": 1510.0,
+      "Y": 250.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a+b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "add"
+    },
+    {
+      "Id": "mul_gnd_1rev",
+      "Title": "1/rev x gnd",
+      "Kind": "Op",
+      "X": 1770.0,
+      "Y": 90.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "mul_gnd_nrev",
+      "Title": "N/rev x gnd",
+      "Kind": "Op",
+      "X": 1880.0,
+      "Y": 320.0,
+      "Ports": [
+        {
+          "Name": "a",
+          "Kind": "Input"
+        },
+        {
+          "Name": "b",
+          "Kind": "Input"
+        },
+        {
+          "Name": "a*b",
+          "Kind": "Output"
+        }
+      ],
+      "Op": "mul"
+    },
+    {
+      "Id": "f58e087a1adf456db9109424f5f227e1",
+      "Title": "1.0",
+      "Kind": "Const",
+      "X": 1330.0,
+      "Y": 240.0,
+      "Ports": [
+        {
+          "Name": "out",
+          "Kind": "Output"
+        }
+      ],
+      "ConstValue": 1.0
+    }
+  ],
+  "Links": [
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_rpm_sq",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_rpm_sq",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_gain_1rev",
+      "FromPort": "gain_1rev",
+      "ToNodeId": "mul_1rev_ampl",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_rpm_sq",
+      "FromPort": "a*b",
+      "ToNodeId": "mul_1rev_ampl",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_gnd_1rev",
+      "FromPort": "a*b",
+      "ToNodeId": "out_ampl1",
+      "ToPort": "Vib1Ampl1"
+    },
+    {
+      "FromNodeId": "param_base_nrev",
+      "FromPort": "base_nrev",
+      "ToNodeId": "mul_nrev_base",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_nrev_base",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_slap",
+      "FromPort": "slap_rat",
+      "ToNodeId": "mul_slap",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_slap_gain",
+      "FromPort": "slap_gain",
+      "ToNodeId": "mul_slap",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_nrev_base",
+      "FromPort": "a*b",
+      "ToNodeId": "add_nrev_total",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_gnd_nrev",
+      "FromPort": "a*b",
+      "ToNodeId": "out_ampl2",
+      "ToPort": "Vib1Ampl2"
+    },
+    {
+      "FromNodeId": "in_etl_bump",
+      "FromPort": "etl_bump",
+      "ToNodeId": "mul_etl_bump",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_etl_bump_gain",
+      "FromPort": "EtlBumpGain",
+      "ToNodeId": "mul_etl_bump",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_rbs",
+      "FromPort": "rbs",
+      "ToNodeId": "mul_rbs_heave",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_rbs_heave_gain",
+      "FromPort": "RbsHeaveGain",
+      "ToNodeId": "mul_rbs_heave",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "param_base_2nrev",
+      "FromPort": "base_2nrev",
+      "ToNodeId": "mul_2nrev",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_2nrev",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "out_ampl4",
+      "ToPort": "Vib1Ampl4"
+    },
+    {
+      "FromNodeId": "const_zero",
+      "FromPort": "out",
+      "ToNodeId": "out_ampl5",
+      "ToPort": "Vib1Ampl5"
+    },
+    {
+      "FromNodeId": "in_blade_count",
+      "FromPort": "blade_count",
+      "ToNodeId": "mul_blade_2",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "const_two",
+      "FromPort": "out",
+      "ToNodeId": "mul_blade_2",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "const_one",
+      "FromPort": "out",
+      "ToNodeId": "cfg_ratios",
+      "ToPort": "FlightControl.Vib1HarmRatio1"
+    },
+    {
+      "FromNodeId": "in_blade_count",
+      "FromPort": "blade_count",
+      "ToNodeId": "cfg_ratios",
+      "ToPort": "FlightControl.Vib1HarmRatio2"
+    },
+    {
+      "FromNodeId": "mul_blade_2",
+      "FromPort": "a*b",
+      "ToNodeId": "cfg_ratios",
+      "ToPort": "FlightControl.Vib1HarmRatio3"
+    },
+    {
+      "FromNodeId": "const_phase_zero",
+      "FromPort": "out",
+      "ToNodeId": "cfg_ratios",
+      "ToPort": "FlightControl.Vib1Phase"
+    },
+    {
+      "FromNodeId": "const_phase_zero",
+      "FromPort": "out",
+      "ToNodeId": "cfg_ratios",
+      "ToPort": "FlightControl.Vib1HarmRatio5"
+    },
+    {
+      "FromNodeId": "const_phase_zero",
+      "FromPort": "out",
+      "ToNodeId": "cfg_ratios",
+      "ToPort": "FlightControl.Vib1HarmRatio4"
+    },
+    {
+      "FromNodeId": "mul_etl_bump",
+      "FromPort": "a*b",
+      "ToNodeId": "add_nrev_total",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_slap",
+      "FromPort": "a*b",
+      "ToNodeId": "add_nrev_total",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "in_vrs",
+      "FromPort": "vrs",
+      "ToNodeId": "mul_vrs_vib",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "param_vrs_vib_gain",
+      "FromPort": "VrsVibGain",
+      "ToNodeId": "mul_vrs_vib",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "in_rpm_norm",
+      "FromPort": "rpm_norm",
+      "ToNodeId": "mul_vrs_vib",
+      "ToPort": "c"
+    },
+    {
+      "FromNodeId": "mul_1rev_ampl",
+      "FromPort": "a*b",
+      "ToNodeId": "add_1rev_total",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_vrs_vib",
+      "FromPort": "a*b*c",
+      "ToNodeId": "add_1rev_total",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_nrev_total",
+      "FromPort": "a+b+c",
+      "ToNodeId": "add_nrev_total2",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "mul_rbs_heave",
+      "FromPort": "a*b",
+      "ToNodeId": "add_nrev_total2",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "mul_2nrev",
+      "FromPort": "a*b",
+      "ToNodeId": "out_ampl3",
+      "ToPort": "Vib1Ampl3"
+    },
+    {
+      "FromNodeId": "in_gnd_boost",
+      "FromPort": "gnd_boost",
+      "ToNodeId": "add_gnd_factor",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_1rev_total",
+      "FromPort": "a+b",
+      "ToNodeId": "mul_gnd_1rev",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "add_gnd_factor",
+      "FromPort": "a+b",
+      "ToNodeId": "mul_gnd_1rev",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "add_nrev_total2",
+      "FromPort": "a+b",
+      "ToNodeId": "mul_gnd_nrev",
+      "ToPort": "a"
+    },
+    {
+      "FromNodeId": "add_gnd_factor",
+      "FromPort": "a+b",
+      "ToNodeId": "mul_gnd_nrev",
+      "ToPort": "b"
+    },
+    {
+      "FromNodeId": "f58e087a1adf456db9109424f5f227e1",
+      "FromPort": "out",
+      "ToNodeId": "add_gnd_factor",
+      "ToPort": "a"
+    }
+  ],
+  "Params": [
+    {
+      "Name": "Collective.gain_1rev",
+      "DefaultValue": 0.05,
+      "Min": 0.0,
+      "Max": 2.55,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "1/rev mass-imbalance",
+        "Group": "Collective Vibration",
+        "Units": "mm",
+        "Step": 0.005,
+        "Precision": 3,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Collective.base_nrev",
+      "DefaultValue": 0.3,
+      "Min": 0.0,
+      "Max": 2.55,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "N/rev base (blade-passing)",
+        "Group": "Collective Vibration",
+        "Units": "mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Collective.slap_gain",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 2.55,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "N/rev slap (BVI) boost",
+        "Group": "Collective Vibration",
+        "Units": "mm",
+        "Step": 0.001,
+        "Precision": 3,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Collective.base_2nrev",
+      "DefaultValue": 0.1,
+      "Min": 0.0,
+      "Max": 2.55,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "2N/rev base",
+        "Group": "Collective Vibration",
+        "Units": "mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Collective.EtlBumpGain",
+      "DefaultValue": 0.4,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "ETL Bump Vibration",
+        "Group": "Collective Vibration",
+        "Units": "mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Collective.RbsHeaveGain",
+      "DefaultValue": 0.5,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "RBS Heave Vibration",
+        "Group": "Collective Vibration",
+        "Units": "mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    },
+    {
+      "Name": "Collective.VrsVibGain",
+      "DefaultValue": 0.3,
+      "Min": 0.0,
+      "Max": 3.0,
+      "Ui": {
+        "Widget": "slider",
+        "Label": "VRS 1/rev shake",
+        "Group": "Collective Vibration",
+        "Units": "mm",
+        "Step": 0.01,
+        "Precision": 2,
+        "LogScale": false,
+        "MuteValue": 0.0,
+        "Options": []
+      }
+    }
+  ],
+  "ParamValues": null
+}

@@ -7,6 +7,7 @@ using ProtbufTest;
 using SimHub.Plugins;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
@@ -15,6 +16,8 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Windows.Media;
 using DiyFfb.GraphEditor;
+using DiyFfb.Msfs;
+using DiyFfb.TieredConfig;
 using Windows.UI.Notifications;
 using IPlugin = SimHub.Plugins.IPlugin;
 namespace DiyFfb
@@ -99,9 +102,9 @@ namespace DiyFfb
         private Timer gatewayReconnectTimer;
         private int gatewayReconnectBusy = 0;
         private const uint XPlanePacketMagic = 0x46464244;
-        private const ushort XPlanePacketVersion = 3;
+        private const ushort XPlanePacketVersion = 4;
         private const int XPlaneMaxRotors = 4;
-        private const int XPlanePacketSizeBytes = 132;
+        private const int XPlanePacketSizeBytes = 212;
         private const double XPlaneTelemetryFreshnessMs = 200.0;
         private const double XPlaneRotorWindowSeconds = 3.0;
         private readonly object xplaneLock = new object();
@@ -113,6 +116,17 @@ namespace DiyFfb
         private int xplaneDropouts;
         private DateTime xplaneLastReceivedUtc = DateTime.MinValue;
         private DateTime xplaneLastSendUtc = DateTime.MinValue;
+
+        // Plan 17/19: MSFS telemetry snapshot. Derivations (BladeAlph / VRS /
+        // Slap / Propwash / Torque) run in BuildMsfsInputs using per-aircraft
+        // graph params for tuning.
+        private const double MsfsTelemetryFreshnessMs = 200.0;
+        private readonly object msfsLock = new object();
+        private MsfsUdpPacket latestMsfsPacket;
+        // Plan 19: pure-C# in-process SimConnect client — the single MSFS
+        // transport. Populates latestMsfsPacket under msfsLock so downstream
+        // (GetLatestMsfsPacket / BuildMsfsInputs) sees one consistent snapshot.
+        private MsfsSimConnectClient _msfsClient;
         private string activeCarId;
         private string activeCarName;
         private string activeGameId;
@@ -126,15 +140,64 @@ namespace DiyFfb
         private DiyFfb.GraphTest.IncludeContextCache activeIncludeContextCache;
         private readonly Dictionary<string, double> graphInputs = new Dictionary<string, double>();
         private readonly Dictionary<string, double> graphParams = new Dictionary<string, double>();
+        private long _lastGraphEvalTicks;
+
+        // Grip-button held-state table (plan 11). Populated by SimHub input-mapping
+        // callbacks: inputPressed → true, inputReleased → false. BuildGripInputs reads
+        // the bool directly. SimHub's AddInputMapping primitive enforces held semantics,
+        // so no heartbeat/timeout heuristic is needed.
+        private readonly Dictionary<string, bool> _gripHeld = new Dictionary<string, bool>();
         private DiyFfb.GraphTest.GraphEvaluationResult lastGraphEvaluation;
+        private readonly Dictionary<string, double> _lastConfigOutValues = new Dictionary<string, double>();
         private static Func<GameData, string> gameIdGetter;
         private DiyFfbPluginSettings.AircraftFfbProfile pendingFfbProfile;
         private bool hasPendingFfbProfile;
         private readonly HashSet<FunctionID> disabledOutputFunctions = new HashSet<FunctionID>();
+
+        // Safety damper state (plan 10 §3.7). Runtime-only, defaults to ENGAGED on every
+        // SimHub start. When engaged, FlightFFB frame emission is gated for all four
+        // flight functions; the ESP32 falls back to FlightControlConfig.damping (rest
+        // value) within ~200ms, holding the stick at safe damping until the user
+        // disengages via the FlightControl.SafetyDamperToggle action.
+        private bool _flightSafetyDamperEngaged = true;
+        private static readonly FunctionID[] _flightFunctionIds = new[] {
+            FunctionID.FlightStickPitch, FunctionID.FlightStickRoll,
+            FunctionID.FlightStickCollective, FunctionID.FlightPedals,
+        };
+        public event System.Action<bool> FlightSafetyDamperChanged;
+        public bool IsFlightSafetyDamperEngaged() => _flightSafetyDamperEngaged;
+        public void SetFlightSafetyDamperEngaged(bool engaged)
+        {
+            if (_flightSafetyDamperEngaged == engaged) return;
+            _flightSafetyDamperEngaged = engaged;
+            foreach (var fid in _flightFunctionIds)
+                SetFunctionOutputDisabled(fid, engaged);
+            try { FlightSafetyDamperChanged?.Invoke(engaged); } catch { }
+        }
         private readonly object outputDisableLock = new object();
         private readonly Queue<RotorRpmSample>[] rotorRpmHistory = new Queue<RotorRpmSample>[XPlaneMaxRotors];
         private int lastAutoRotorIndex = 0;
         private bool hasAutoRotorIndex = false;
+
+        // Tiered config managers for profile/user overrides
+        private readonly FunctionConfigManager _functionConfigManager = new FunctionConfigManager();
+        private readonly AxisConfigManager _axisConfigManager = new AxisConfigManager();
+        private TieredConfigOrchestrator _configOrchestrator;
+
+        /// <summary>
+        /// Orchestrates tiered config lifecycle (Baseline → Profile → User).
+        /// </summary>
+        public TieredConfigOrchestrator ConfigOrchestrator => _configOrchestrator;
+
+        /// <summary>
+        /// Manages function config lifecycle for profile/user overrides.
+        /// </summary>
+        public FunctionConfigManager FunctionConfigManager => _functionConfigManager;
+
+        /// <summary>
+        /// Manages axis config lifecycle for function overrides.
+        /// </summary>
+        public AxisConfigManager AxisConfigManager => _axisConfigManager;
 
         internal sealed class XPlaneUdpPacket
         {
@@ -160,6 +223,64 @@ namespace DiyFfb
             public float MAero;
             public float NAero;
             public bool OnGround;
+            // v4: rotor vibration signals
+            public float[] CyclicElevBladAlph = new float[XPlaneMaxRotors];
+            public float[] CyclicAilnBladAlph = new float[XPlaneMaxRotors];
+            public float[] RotorBladeSlapRat = new float[XPlaneMaxRotors];
+            public float[] VortexRingState = new float[XPlaneMaxRotors];
+            public float[] PropwashMtrSec = new float[XPlaneMaxRotors];
+            public DateTime ReceivedUtc;
+        }
+
+        // Plan 17: MSFS UDP packet — v1, 152 bytes.
+        // Magic 'MFFB' = 0x4D464642. Bridge ships raw SimVars only;
+        // derivations live in GraphSignals.BuildMsfsInputs so per-aircraft
+        // tuning happens through the existing graph-param mechanism.
+        internal sealed class MsfsUdpPacket
+        {
+            public uint Sequence;
+            // Native non-rotor SimVars
+            public float IasKts;
+            public float TasKts;
+            public float AlphaDeg;
+            public float BetaDeg;
+            public float PRateRadS;
+            public float QRateRadS;
+            public float RRateRadS;
+            public float GForce;
+            public float VviWorldFps;
+            public float VelocityBodyXFps;
+            public float VelocityBodyYFps;
+            public float VelocityBodyZFps;
+            public float GroundVelocityKts;
+            public float PitchRad;
+            public float BankRad;
+            public float TotalWeightLb;
+            public float AmbientDensitySlugsFt3;
+            // Native rotor / heli SimVars
+            public float MainRotorRpm;
+            public float TailRotorRpm;
+            public float EngTorquePct;
+            public float CollectivePosPct;
+            public float TailRotorPedalPct;
+            public float TailRotorBladePitchPct;
+            public float RotorCollectiveBladePitchPct;
+            public float RotorCyclicBladePitchPct;
+            public float RotorCyclicBladeMaxPitchPosRad;
+            public float DiskPitchAngleRad;
+            public float DiskBankAngleRad;
+            public float DiskConingPct;
+            public float RotorLateralTrimPct;
+            public float RotorLongitudinalTrimPct;
+            public float RotorRotationAngleRad;
+            // Fixed-wing trims (future use)
+            public float ElevTrimPct;
+            public float AilTrimPct;
+            public float RudTrimPct;
+            public bool OnGround;
+            // Plan 23: graph-declared custom vars, keyed by alias. Null/empty
+            // when no MsfsVarDef vars are declared or none survived registration.
+            public IReadOnlyDictionary<string, double> Custom;
             public DateTime ReceivedUtc;
         }
 
@@ -805,11 +926,19 @@ namespace DiyFfb
                 }
             }
 
+            // Save graph state for current vehicle before shutdown
+            if (!string.IsNullOrWhiteSpace(activeCarId))
+            {
+                SaveGraphState(BuildProfileKey(activeGameId, activeCarId));
+            }
+
             // Save settings
             this.SaveCommonSettings("GeneralSettings", Settings);
 
             StopGatewayAutoReconnect();
             StopXPlaneUdpReceiver();
+            // Plan 19: stop the in-process MSFS client (no-op if never started).
+            StopMsfsClient();
 
             // close serial communication
             if (ui != null)
@@ -925,17 +1054,21 @@ namespace DiyFfb
 
         private void XPlaneUdpLoop()
         {
-            if (xplaneUdpClient == null || xplaneUdpCts == null)
+            // Snapshot refs so we survive StopXPlaneUdpReceiver nulling fields
+            // mid-loop (race between Cancel + Close and the next while-check).
+            var client = xplaneUdpClient;
+            var cts = xplaneUdpCts;
+            if (client == null || cts == null)
             {
                 return;
             }
 
             var endpoint = new IPEndPoint(IPAddress.Any, 0);
-            while (!xplaneUdpCts.IsCancellationRequested)
+            while (!cts.IsCancellationRequested)
             {
                 try
                 {
-                    byte[] data = xplaneUdpClient.Receive(ref endpoint);
+                    byte[] data = client.Receive(ref endpoint);
                     if (data != null && data.Length >= XPlanePacketSizeBytes)
                     {
                         ParseXPlanePacket(data);
@@ -1017,6 +1150,27 @@ namespace DiyFfb
             packet.NAero = ReadSingle(data, ref offset);
             packet.OnGround = ReadByte(data, ref offset) != 0;
             offset += 3;
+            // v4: rotor vibration signals
+            for (int idx = 0; idx < XPlaneMaxRotors; idx++)
+            {
+                packet.CyclicElevBladAlph[idx] = ReadSingle(data, ref offset);
+            }
+            for (int idx = 0; idx < XPlaneMaxRotors; idx++)
+            {
+                packet.CyclicAilnBladAlph[idx] = ReadSingle(data, ref offset);
+            }
+            for (int idx = 0; idx < XPlaneMaxRotors; idx++)
+            {
+                packet.RotorBladeSlapRat[idx] = ReadSingle(data, ref offset);
+            }
+            for (int idx = 0; idx < XPlaneMaxRotors; idx++)
+            {
+                packet.VortexRingState[idx] = ReadSingle(data, ref offset);
+            }
+            for (int idx = 0; idx < XPlaneMaxRotors; idx++)
+            {
+                packet.PropwashMtrSec[idx] = ReadSingle(data, ref offset);
+            }
 
             lock (xplaneLock)
             {
@@ -1028,6 +1182,210 @@ namespace DiyFfb
                 latestXPlanePacket = packet;
                 xplaneLastReceivedUtc = packet.ReceivedUtc;
                 UpdateRotorRpmHistory(packet);
+            }
+        }
+
+        // Plan 19: in-process SimConnect client lifecycle. Mutually exclusive
+        // with the bridge EXE path — caller chooses based on Settings.
+        private void StartMsfsClient()
+        {
+            if (_msfsClient != null) return;
+            _msfsClient = new MsfsSimConnectClient(
+                onSample: ApplyMsfsSimConnectSample,
+                log: msg => SimHub.Logging.Current?.Info(msg));
+            _msfsClient.Start();
+            // Feed any already-loaded graph's custom vars (graph may load before
+            // the client starts during Init).
+            UpdateMsfsCustomVars();
+            SimHub.Logging.Current?.Info("[MsfsSimConnect] in-process client started.");
+        }
+
+        // Plan 23: scan the active graph's MsfsVarDef nodes and hand the
+        // SimConnect client the custom-var registration list. Called on
+        // graph/vehicle change and editor Apply. Dedups aliases (first wins);
+        // empties are dropped. No-op if the client isn't running. Always feeds
+        // the list (SetCustomVars re-registers) so per-aircraft LVAR availability
+        // is re-evaluated even when two aircraft share one graph (plan §9.2).
+        private void UpdateMsfsCustomVars()
+        {
+            var client = _msfsClient;
+            if (client == null) return;
+
+            var list = new List<DiyFfb.Msfs.MsfsCustomVar>();
+            var graph = activeVehicleGraph;
+            if (graph != null && graph.Nodes != null)
+            {
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var node in graph.Nodes)
+                {
+                    if (node == null || node.Kind != GraphNodeKind.MsfsVarDef || node.Ports == null)
+                        continue;
+                    foreach (var port in node.Ports)
+                    {
+                        if (port == null || port.Kind != GraphPortKind.Output) continue;
+                        string alias = port.SignalSuffix?.Trim() ?? "";
+                        string name = port.SimVar?.Trim() ?? "";
+                        if (alias.Length == 0 || name.Length == 0) continue;
+                        if (!seen.Add(alias)) continue; // duplicate alias — first wins
+                        list.Add(new DiyFfb.Msfs.MsfsCustomVar(alias, name, port.Unit?.Trim() ?? ""));
+                    }
+                }
+            }
+            client.SetCustomVars(list);
+        }
+
+        private void StopMsfsClient()
+        {
+            var c = _msfsClient;
+            _msfsClient = null;
+            if (c == null) return;
+            try { c.Stop(); } catch { }
+            try { c.Dispose(); } catch { }
+        }
+
+        // Worker-thread callback. The double[] is owned by the client and
+        // reused per sample, so we must finish reading from it before
+        // returning. Publishes under msfsLock so downstream sees a single
+        // consistent latestMsfsPacket. `customs` (alias -> value) is populated
+        // from graph-declared MsfsVarDef vars (plan 23 phase 1); ignored here.
+        private void ApplyMsfsSimConnectSample(double[] s, IReadOnlyDictionary<string, double> customs)
+        {
+            var packet = new MsfsUdpPacket
+            {
+                Sequence                       = unchecked((uint)Interlocked.Increment(ref _msfsClientSeq)),
+                IasKts                         = (float)s[(int)MsfsSampleIndex.IasKts],
+                TasKts                         = (float)s[(int)MsfsSampleIndex.TasKts],
+                AlphaDeg                       = (float)s[(int)MsfsSampleIndex.AlphaDeg],
+                BetaDeg                        = (float)s[(int)MsfsSampleIndex.BetaDeg],
+                PRateRadS                      = (float)s[(int)MsfsSampleIndex.PRateRadS],
+                QRateRadS                      = (float)s[(int)MsfsSampleIndex.QRateRadS],
+                RRateRadS                      = (float)s[(int)MsfsSampleIndex.RRateRadS],
+                GForce                         = (float)s[(int)MsfsSampleIndex.GForce],
+                VviWorldFps                    = (float)s[(int)MsfsSampleIndex.VviWorldFps],
+                VelocityBodyXFps               = (float)s[(int)MsfsSampleIndex.VelocityBodyXFps],
+                VelocityBodyYFps               = (float)s[(int)MsfsSampleIndex.VelocityBodyYFps],
+                VelocityBodyZFps               = (float)s[(int)MsfsSampleIndex.VelocityBodyZFps],
+                GroundVelocityKts              = (float)s[(int)MsfsSampleIndex.GroundVelocityKts],
+                PitchRad                       = (float)s[(int)MsfsSampleIndex.PitchRad],
+                BankRad                        = (float)s[(int)MsfsSampleIndex.BankRad],
+                TotalWeightLb                  = (float)s[(int)MsfsSampleIndex.TotalWeightLb],
+                AmbientDensitySlugsFt3         = (float)s[(int)MsfsSampleIndex.AmbientDensitySlugsFt3],
+                MainRotorRpm                   = (float)s[(int)MsfsSampleIndex.MainRotorRpm],
+                TailRotorRpm                   = (float)s[(int)MsfsSampleIndex.TailRotorRpm],
+                EngTorquePct                   = (float)s[(int)MsfsSampleIndex.EngTorquePct],
+                CollectivePosPct               = (float)s[(int)MsfsSampleIndex.CollectivePosPct],
+                TailRotorPedalPct              = (float)s[(int)MsfsSampleIndex.TailRotorPedalPct],
+                TailRotorBladePitchPct         = (float)s[(int)MsfsSampleIndex.TailRotorBladePitchPct],
+                RotorCollectiveBladePitchPct   = (float)s[(int)MsfsSampleIndex.RotorCollectiveBladePitchPct],
+                RotorCyclicBladePitchPct       = (float)s[(int)MsfsSampleIndex.RotorCyclicBladePitchPct],
+                RotorCyclicBladeMaxPitchPosRad = (float)s[(int)MsfsSampleIndex.RotorCyclicBladeMaxPitchPosRad],
+                DiskPitchAngleRad              = (float)s[(int)MsfsSampleIndex.DiskPitchAngleRad],
+                DiskBankAngleRad               = (float)s[(int)MsfsSampleIndex.DiskBankAngleRad],
+                DiskConingPct                  = (float)s[(int)MsfsSampleIndex.DiskConingPct],
+                RotorLateralTrimPct            = (float)s[(int)MsfsSampleIndex.RotorLateralTrimPct],
+                RotorLongitudinalTrimPct       = (float)s[(int)MsfsSampleIndex.RotorLongitudinalTrimPct],
+                RotorRotationAngleRad          = (float)s[(int)MsfsSampleIndex.RotorRotationAngleRad],
+                ElevTrimPct                    = (float)s[(int)MsfsSampleIndex.ElevTrimPct],
+                AilTrimPct                     = (float)s[(int)MsfsSampleIndex.AilTrimPct],
+                RudTrimPct                     = (float)s[(int)MsfsSampleIndex.RudTrimPct],
+                OnGround                       = s[(int)MsfsSampleIndex.SimOnGround] != 0.0,
+                Custom                         = customs,
+                ReceivedUtc                    = DateTime.UtcNow,
+            };
+            lock (msfsLock)
+            {
+                latestMsfsPacket = packet;
+            }
+        }
+
+        private int _msfsClientSeq;
+
+        internal MsfsUdpPacket GetLatestMsfsPacket()
+        {
+            lock (msfsLock)
+            {
+                return latestMsfsPacket;
+            }
+        }
+
+        internal static bool IsMsfsTelemetryFresh(DateTime utc)
+        {
+            return (DateTime.UtcNow - utc).TotalMilliseconds <= MsfsTelemetryFreshnessMs;
+        }
+
+        // Plan 17: graph-param lookup for signal-source derivations.
+        // BuildMsfsInputs uses this to read per-aircraft tuning constants
+        // (rotor tip speed, k_speed_pitch, etc.) from the active graph
+        // so per-aircraft persistence falls out of GraphParamValues for free.
+        // Returns the default if the param isn't defined on the active graph.
+        internal double GetGraphParamValue(string name, double defaultValue)
+        {
+            if (string.IsNullOrEmpty(name)) return defaultValue;
+            if (graphParams != null && graphParams.TryGetValue(name, out double v))
+            {
+                return v;
+            }
+            return defaultValue;
+        }
+
+        // Transient per-session "muted" param set. When a param is muted AND
+        // its GraphParamUi has MuteValue set, BuildGraphParams substitutes
+        // MuteValue for the resolved value. Used for the "solo a cue" tuning
+        // workflow — not saved to profile.
+        private readonly HashSet<string> _mutedParams = new HashSet<string>(StringComparer.Ordinal);
+
+        public event EventHandler ParamMuteChanged;
+        // Fired on any bulk mute change (profile/vehicle/user switch, or the
+        // mute-checkbox context menu's mute/unmute all/others). Subscribers
+        // should rebuild any UI that displays mute state — checkbox values
+        // may have changed without an originating user click.
+        public event EventHandler ParamMutesCleared;
+
+        public bool IsParamMuted(string name)
+        {
+            return !string.IsNullOrEmpty(name) && _mutedParams.Contains(name);
+        }
+
+        public void SetParamMuted(string name, bool muted)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            bool changed = muted ? _mutedParams.Add(name) : _mutedParams.Remove(name);
+            if (changed)
+            {
+                ParamMuteChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        public void ClearAllParamMutes()
+        {
+            if (_mutedParams.Count == 0) return;
+            _mutedParams.Clear();
+            ParamMutesCleared?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// Bulk mute/unmute for the mute-checkbox context menu. Operates over
+        /// every active-graph param that exposes a MuteValue. When
+        /// <paramref name="exceptName"/> is non-null that param is left untouched
+        /// ("mute/unmute others"). Fires <see cref="ParamMutesCleared"/> so all
+        /// mute checkboxes rebuild to reflect the new state.
+        /// </summary>
+        public void SetAllParamMutes(bool muted, string exceptName = null)
+        {
+            var allParams = GetActiveGraphParams();
+            if (allParams == null) return;
+
+            bool changed = false;
+            foreach (var kv in allParams)
+            {
+                if (kv.Value?.Ui?.MuteValue.HasValue != true) continue;
+                if (exceptName != null && string.Equals(kv.Key, exceptName, StringComparison.Ordinal)) continue;
+                changed |= muted ? _mutedParams.Add(kv.Key) : _mutedParams.Remove(kv.Key);
+            }
+
+            if (changed)
+            {
+                ParamMutesCleared?.Invoke(this, EventArgs.Empty);
             }
         }
 
@@ -1131,17 +1489,25 @@ namespace DiyFfb
                 return;
             }
 
-            XPlaneUdpPacket packet;
+            // Plan 17: gate on ANY sim having fresh telemetry, not just X-Plane.
+            // Graphs read whichever prefix (XPlane.* or MSFS.*) they were authored
+            // against; the unused prefix sits at zero — it's the graph's job to
+            // pick the right inputs, not this gate's.
+            bool xplaneFresh;
+            XPlaneUdpPacket xpacket;
             lock (xplaneLock)
             {
-                if (latestXPlanePacket == null)
-                {
-                    return;
-                }
-                packet = latestXPlanePacket;
+                xpacket = latestXPlanePacket;
+                xplaneFresh = xpacket != null && IsTelemetryFresh(xpacket.ReceivedUtc);
             }
-
-            if (!IsTelemetryFresh(packet.ReceivedUtc))
+            bool msfsFresh;
+            MsfsUdpPacket mpacket;
+            lock (msfsLock)
+            {
+                mpacket = latestMsfsPacket;
+                msfsFresh = mpacket != null && IsMsfsTelemetryFresh(mpacket.ReceivedUtc);
+            }
+            if (!xplaneFresh && !msfsFresh)
             {
                 return;
             }
@@ -1161,6 +1527,25 @@ namespace DiyFfb
             SendGraphFfbForFunction(FunctionID.FlightStickRoll);
             SendGraphFfbForFunction(FunctionID.FlightPedals);
             SendGraphFfbForFunction(FunctionID.FlightStickCollective);
+
+            SendDdsFundamentals();
+        }
+
+        private void SendDdsFundamentals()
+        {
+            // Shared scope: read once, send to gateway. Gateway snoops and
+            // broadcasts via 0x0F0 sync frame to all axes.
+            float dds1Hz = TryGetGraphOutput("Shared.Vib1Fund", out float v1) ? v1 : 0.0f;
+            float dds2Hz = TryGetGraphOutput("Shared.Vib2Fund", out float v2) ? v2 : 0.0f;
+            Message msg = new Message
+            {
+                DdsFundamentals = new DdsFundamentals
+                {
+                    Dds1FundamentalHz = dds1Hz,
+                    Dds2FundamentalHz = dds2Hz
+                }
+            };
+            ESPsync_serialPort.WriteMessage(msg);
         }
 
         private int ResolveXPlaneRotorIndex(XPlaneUdpPacket packet)
@@ -1238,7 +1623,21 @@ namespace DiyFfb
             return ResolveXPlaneRotorIndex(packet);
         }
 
-        private void SendFlightFfb(FunctionID functionId, float kSpring, float kDamper, float kFriction, float trimOffset, float buffetAmp, float loadForce)
+        // Vib amplitudes go on the wire as uint8 at 0.01 mm/LSB (range 0..2.55 mm).
+        // Plugin pre-scales here; firmware reads raw and multiplies by 0.01.
+        // SyncVib output is now a position delta on the servo command path
+        // (plan 12) — feel is decoupled from damping, but profiles tuned in
+        // the previous "N" units must be retuned for the new mm scale.
+        private static uint PackVibAmp(float amp)
+        {
+            int scaled = (int)Math.Round(amp * 100f);
+            if (scaled < 0) return 0;
+            if (scaled > 255) return 255;
+            return (uint)scaled;
+        }
+
+        private void SendFlightFfb(FunctionID functionId, float kSpring, float kDamper, float kFriction, float trimOffset, float buffetAmp, float loadForce,
+            float[] vibSlots, float[] vib2Slots)
         {
             Message msg = new Message
             {
@@ -1252,7 +1651,14 @@ namespace DiyFfb
                         KFriction = kFriction,
                         TrimOffset = trimOffset,
                         BuffetAmp = buffetAmp,
-                        LoadForce = loadForce
+                        LoadForce = loadForce,
+                        VibAmpSlot1 = PackVibAmp(vibSlots[0]),
+                        VibAmpSlot2 = PackVibAmp(vibSlots[1]),
+                        VibAmpSlot3 = PackVibAmp(vibSlots[2]),
+                        VibAmpSlot4 = PackVibAmp(vibSlots[3]),
+                        VibAmpSlot5 = PackVibAmp(vibSlots[4]),
+                        Vib2AmpSlot1 = PackVibAmp(vib2Slots[0]),
+                        Vib2AmpSlot2 = PackVibAmp(vib2Slots[1])
                     }
                 }
             };
@@ -1266,16 +1672,199 @@ namespace DiyFfb
                 return;
             }
 
-            if (!TryGetGraphFlightOutputs(functionId, out float spring, out float damper, out float friction, out float trim, out float buffet, out float load))
+            if (!TryGetGraphFlightOutputs(functionId, out float spring, out float damper, out float friction, out float trim, out float buffet, out float load,
+                    out float[] vibSlots, out float[] vib2Slots))
             {
                 return;
             }
 
-            SendFlightFfb(functionId, spring, damper, friction, trim, buffet, load);
+            SendFlightFfb(functionId, spring, damper, friction, trim, buffet, load, vibSlots, vib2Slots);
+        }
+
+        /// <summary>
+        /// Checks ConfigOut values from the graph evaluation and triggers config uploads
+        /// when any value changes. ConfigOut keys come in two shapes:
+        ///   - Scoped (inside a FunctionScope Include): "FunctionScope:FieldPath"
+        ///     applies the value to the named function only.
+        ///   - Top-level (no FunctionScope): bare "FieldPath" — fans out to every
+        ///     function whose group matches the field (e.g. a top-level
+        ///     "FlightStick.Vib1HarmRatio1" writes Pitch + Roll + Collective).
+        /// </summary>
+        private void CheckConfigOutChanges()
+        {
+            var configOutputs = lastGraphEvaluation?.ConfigOutputs;
+            if (configOutputs == null || configOutputs.Count == 0)
+            {
+                return;
+            }
+
+            // Collect all functions touched in this pass; schedule a single merge per
+            // function once every value has been written to the tier. Otherwise the
+            // first write per function fires the throttled leading-edge merge against
+            // a partially-populated tier, sending zeros for slots not yet written.
+            HashSet<FunctionID> functionsTouched = null;
+
+            foreach (var kvp in configOutputs)
+            {
+                string key = kvp.Key;
+                double newValue = kvp.Value;
+
+                // Check if value changed (with tolerance for floating point)
+                if (_lastConfigOutValues.TryGetValue(key, out double oldValue) &&
+                    Math.Abs(newValue - oldValue) < 1e-6)
+                {
+                    continue;
+                }
+
+                bool firstSeen = !_lastConfigOutValues.ContainsKey(key);
+                _lastConfigOutValues[key] = newValue;
+
+                int sepIndex = key.IndexOf(':');
+                string scopeName;
+                string fieldPath;
+                if (sepIndex > 0 && sepIndex < key.Length - 1)
+                {
+                    // Scoped: "FunctionScope:FieldPath"
+                    scopeName = key.Substring(0, sepIndex);
+                    fieldPath = key.Substring(sepIndex + 1);
+                }
+                else
+                {
+                    // Top-level: bare field path. Fan out by ConfigType below.
+                    scopeName = null;
+                    fieldPath = key;
+                }
+
+                var field = TieredConfig.OverrideFieldRegistry.GetField(fieldPath);
+                if (field == null)
+                {
+                    if (firstSeen)
+                    {
+                        SimHub.Logging.Current.Warn(
+                            $"[ConfigOut] '{key}' — unknown field path '{fieldPath}'; ignored");
+                    }
+                    continue;
+                }
+
+                // Determine target functions: explicit scope or fan out by group.
+                var targets = ResolveConfigOutTargets(scopeName, field);
+                if (targets.Count == 0)
+                {
+                    if (firstSeen)
+                    {
+                        SimHub.Logging.Current.Warn(
+                            $"[ConfigOut] '{key}' — no matching function for field group '{field.Group}'; ignored");
+                    }
+                    continue;
+                }
+
+                if (firstSeen)
+                {
+                    string canonical = field.FieldPath;
+                    string targetList = string.Join(",", targets.Select(f => f.ToString()));
+                    SimHub.Logging.Current.Info(
+                        $"[ConfigOut] '{key}' = {newValue:F3} → field '{canonical}', targets [{targetList}]");
+                }
+
+                // ConfigOut writes go to the in-memory ConfigOut tier, never to the
+                // persisted profile/user overrides. The orchestrator clears this tier
+                // on graph reload, so phantom defaults can't leak across sessions.
+                if (ConfigOrchestrator != null)
+                {
+                    foreach (var fn in targets)
+                    {
+                        ConfigOrchestrator.StoreConfigOutField(
+                            (int)fn,
+                            overrides => OverrideFieldRegistry.SetValue(overrides, field.FieldPath, (float)newValue));
+                        (functionsTouched ?? (functionsTouched = new HashSet<FunctionID>())).Add(fn);
+                    }
+                }
+            }
+
+            // Now that every ConfigOut value has been written, schedule one throttled
+            // merge per affected function so the leading edge sees the full tier.
+            if (functionsTouched != null && ConfigOrchestrator != null)
+            {
+                foreach (var fn in functionsTouched)
+                {
+                    ConfigOrchestrator.ScheduleConfigOutMerge((int)fn);
+                }
+            }
+        }
+
+        // Map a (scopeName, field) pair to the function IDs that should receive
+        // the override. scopeName == null means top-level — fan out to all
+        // functions whose ConfigType matches the field's group.
+        private static IReadOnlyList<FunctionID> ResolveConfigOutTargets(
+            string scopeName,
+            TieredConfig.OverrideFieldDefinition field)
+        {
+            if (!string.IsNullOrEmpty(scopeName))
+            {
+                FunctionID? functionId = ResolveFunctionIdFromScope(scopeName);
+                if (functionId == null) return Array.Empty<FunctionID>();
+
+                string expectedConfigType = GraphSignalCatalogData.GetConfigTypeForScope(scopeName);
+                if (!string.IsNullOrEmpty(expectedConfigType) && !IsSharedFieldGroup(field.Group))
+                {
+                    if (!string.Equals(field.Group.ToString(), expectedConfigType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return Array.Empty<FunctionID>();
+                    }
+                }
+                return new[] { functionId.Value };
+            }
+
+            // Top-level fan-out: every function in the catalog whose ConfigType
+            // matches the field's group, OR all flight functions for shared groups.
+            var result = new List<FunctionID>();
+            foreach (var scope in GraphSignalCatalogData.OutputGroups)
+            {
+                var fn = ResolveFunctionIdFromScope(scope);
+                if (fn == null) continue;
+                if (IsSharedFieldGroup(field.Group))
+                {
+                    result.Add(fn.Value);
+                    continue;
+                }
+                string scopeType = GraphSignalCatalogData.GetConfigTypeForScope(scope);
+                if (!string.IsNullOrEmpty(scopeType) &&
+                    string.Equals(field.Group.ToString(), scopeType, StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Add(fn.Value);
+                }
+            }
+            return result;
+        }
+
+        private static bool IsSharedFieldGroup(TieredConfig.OverrideFieldGroup group)
+        {
+            switch (group)
+            {
+                case TieredConfig.OverrideFieldGroup.OutputScaling:
+                case TieredConfig.OverrideFieldGroup.Physics:
+                case TieredConfig.OverrideFieldGroup.StaticBalanceTuning:
+                case TieredConfig.OverrideFieldGroup.ForceFeedback:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static FunctionID? ResolveFunctionIdFromScope(string scopeName)
+        {
+            switch (scopeName)
+            {
+                case "FlightStickPitch": return FunctionID.FlightStickPitch;
+                case "FlightStickRoll": return FunctionID.FlightStickRoll;
+                case "FlightPedals": return FunctionID.FlightPedals;
+                case "FlightStickCollective": return FunctionID.FlightStickCollective;
+                default: return null;
+            }
         }
 
         private bool TryGetGraphFlightOutputs(FunctionID functionId, out float spring, out float damper, out float friction,
-            out float trimOffset, out float buffetAmp, out float loadForce)
+            out float trimOffset, out float buffetAmp, out float loadForce, out float[] vibSlots, out float[] vib2Slots)
         {
             spring = 0.0f;
             damper = 0.0f;
@@ -1283,6 +1872,8 @@ namespace DiyFfb
             trimOffset = 0.0f;
             buffetAmp = 0.0f;
             loadForce = 0.0f;
+            vibSlots = new float[5];
+            vib2Slots = new float[2];
 
             string prefix = GetGraphFunctionPrefix(functionId);
             if (string.IsNullOrWhiteSpace(prefix))
@@ -1320,6 +1911,22 @@ namespace DiyFfb
             {
                 buffetAmp = value;
                 hasOutput = true;
+            }
+            for (int i = 0; i < 5; i++)
+            {
+                if (TryGetGraphOutput($"{prefix}.Vib1Ampl{i + 1}", out value))
+                {
+                    vibSlots[i] = value;
+                    hasOutput = true;
+                }
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                if (TryGetGraphOutput($"{prefix}.Vib2Ampl{i + 1}", out value))
+                {
+                    vib2Slots[i] = value;
+                    hasOutput = true;
+                }
             }
 
             return hasOutput;
@@ -1445,6 +2052,7 @@ namespace DiyFfb
             {
                 ResolveActiveGraph(activeGameId, activeCarId);
                 BuildGraphParams();
+                RestoreGraphState(BuildProfileKey(activeGameId, activeCarId));
             }
         }
 
@@ -1697,18 +2305,47 @@ namespace DiyFfb
             activeGraphResolver = null;
             activeIncludeContextCache = null;
             lastGraphEvaluation = null;
+            _lastConfigOutValues.Clear();
+            ConfigOrchestrator?.ClearConfigOutOverrides();
 
+            bool autoAssigned = false;
             if (string.IsNullOrWhiteSpace(activeGraphPath))
             {
-                // No graph configured for this vehicle - prompt user to select a template
-                string templatePath = PromptForGraphTemplate(gameId, carId);
-                if (!string.IsNullOrWhiteSpace(templatePath))
+                // Check if exactly one template matches this game — auto-assign without dialog
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                var templates = GraphEditor.GraphTemplateRegistry.GetTemplates(gameId, baseDir).ToList();
+                if (templates.Count == 1)
                 {
-                    activeGraphPath = templatePath;
+                    string templatePath = GraphEditor.GraphTemplateRegistry.ResolveTemplatePath(
+                        templates[0].TemplatePath, baseDir);
+                    if (!string.IsNullOrWhiteSpace(templatePath))
+                    {
+                        string key = BuildProfileKey(gameId, carId);
+                        if (!string.IsNullOrWhiteSpace(key))
+                        {
+                            if (Settings.AircraftFfbProfiles == null)
+                                Settings.AircraftFfbProfiles = new Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+                            if (!Settings.AircraftFfbProfiles.TryGetValue(key, out var profile))
+                            {
+                                profile = new DiyFfbPluginSettings.AircraftFfbProfile();
+                                Settings.AircraftFfbProfiles[key] = profile;
+                            }
+                            profile.GraphPath = templatePath;
+                        }
+                        activeGraphPath = templatePath;
+                        autoAssigned = true;
+                        SimHub.Logging.Current.Info($"[Graph] Auto-assigned template '{templates[0].Name}' for {gameId}/{carId}");
+                    }
                 }
-                else
+
+                if (string.IsNullOrWhiteSpace(activeGraphPath))
                 {
-                    return;
+                    // Multiple templates or auto-assign failed — prompt user
+                    string templatePath = PromptForGraphTemplate(gameId, carId);
+                    if (!string.IsNullOrWhiteSpace(templatePath))
+                        activeGraphPath = templatePath;
+                    else
+                        return;
                 }
             }
 
@@ -1741,8 +2378,15 @@ namespace DiyFfb
                     // Notify UI that graph has changed
                     ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
 
+                    // Plan 23: re-register MSFS custom vars for the new graph.
+                    UpdateMsfsCustomVars();
+
                     // Check for param migration needs
                     CheckParamMigration(resolvedPath, gameId, carId);
+
+                    // Seed default active functions for auto-assigned templates
+                    if (autoAssigned)
+                        _configOrchestrator.SeedDefaultActiveFunctionIds(gameId, carId);
                 }
             }
             catch (Exception ex)
@@ -1848,7 +2492,18 @@ namespace DiyFfb
                 BuildGraphParams();
                 // Clear context cache before top-level evaluation so include contexts are fresh
                 activeIncludeContextCache?.Clear();
-                lastGraphEvaluation = activeGraphEvaluator.EvaluateWithTrace(graphInputs, graphParams);
+                long now = System.Diagnostics.Stopwatch.GetTimestamp();
+                double dt = _lastGraphEvalTicks > 0
+                    ? (double)(now - _lastGraphEvalTicks) / System.Diagnostics.Stopwatch.Frequency
+                    : 0.0;
+                _lastGraphEvalTicks = now;
+                lastGraphEvaluation = activeGraphEvaluator.EvaluateWithTrace(graphInputs, graphParams, dt);
+                ApplyPendingStateRestore();
+
+                // Propagate ConfigOut values to the in-memory ConfigOut tier on every eval.
+                // These are graph-derived static config (harm ratios, phase, etc.) computed
+                // from params + math nodes — they don't depend on telemetry freshness.
+                CheckConfigOutChanges();
             }
             catch
             {
@@ -1856,17 +2511,175 @@ namespace DiyFfb
             }
         }
 
+        /// <summary>
+        /// Resets persistent state in the active graph evaluator (accumulators, sample-holds, etc.).
+        /// Call on user profile switch.
+        /// </summary>
+        internal void ResetGraphState()
+        {
+            activeGraphEvaluator?.ResetState();
+        }
+
+        /// <summary>
+        /// Saves the current graph state (trim accumulators etc.) for the given vehicle key.
+        /// </summary>
+        private void SaveGraphState(string vehicleKey)
+        {
+            if (string.IsNullOrWhiteSpace(vehicleKey) || activeGraphEvaluator == null) return;
+            if (Settings.GraphStateSnapshots == null)
+                Settings.GraphStateSnapshots = new Dictionary<string, Dictionary<string, double[]>>();
+            Settings.GraphStateSnapshots[vehicleKey] = activeGraphEvaluator.GetStateSnapshot();
+        }
+
+        /// <summary>
+        /// Queues a graph state restore for the given vehicle key.
+        /// The actual restore is deferred until after the first evaluation cycle,
+        /// because sub-graph evaluators (Include cache) are lazily created and
+        /// don't exist yet when the evaluator is first constructed.
+        /// </summary>
+        private Dictionary<string, double[]> _pendingStateRestore;
+
+        private void RestoreGraphState(string vehicleKey)
+        {
+            _pendingStateRestore = null;
+            if (string.IsNullOrWhiteSpace(vehicleKey)) return;
+            if (Settings.GraphStateSnapshots != null
+                && Settings.GraphStateSnapshots.TryGetValue(vehicleKey, out var snapshot))
+            {
+                _pendingStateRestore = snapshot;
+            }
+        }
+
+        private void ApplyPendingStateRestore()
+        {
+            if (_pendingStateRestore == null || activeGraphEvaluator == null) return;
+            activeGraphEvaluator.RestoreStateSnapshot(_pendingStateRestore);
+            _pendingStateRestore = null;
+        }
+
+        // --- Axis position tracking for graph inputs ---
+        private readonly Dictionary<AxisID, float> _lastAxisPositions = new Dictionary<AxisID, float>();
+
+        /// <summary>
+        /// Called from UI layer when AxisState message is received.
+        /// Caches position for use as graph input.
+        /// </summary>
+        internal void UpdateAxisPosition(AxisID axisId, float position)
+        {
+            _lastAxisPositions[axisId] = position;
+        }
+
+        /// <summary>
+        /// Returns the last known position (mm) for the given axis, or 0 if unknown.
+        /// </summary>
+        internal double GetLastAxisPosition(AxisID axisId)
+        {
+            return _lastAxisPositions.TryGetValue(axisId, out var pos) ? pos : 0.0;
+        }
+
+        /// <summary>
+        /// Returns the last known position (mm) for the axis linked to the given function.
+        /// Resolves function → primary linked axis → cached AxisState position.
+        /// </summary>
+        internal double GetFunctionPosition(FunctionID functionId)
+        {
+            var config = _functionConfigManager.GetCurrentConfig((int)functionId);
+            if (config?.Base == null || config.Base.LinkedAxes.Count == 0)
+                return 0.0;
+            var axisId = config.Base.LinkedAxes[0];
+            if (axisId == AxisID.AxisUndefined)
+                return 0.0;
+            return GetLastAxisPosition(axisId);
+        }
+
+        /// <summary>
+        /// Returns the center position (mm) for the given function, computed from its
+        /// FlightControl config's (pos_min + pos_max) / 2.
+        /// </summary>
+        internal double GetFunctionCenter(FunctionID functionId)
+        {
+            var config = _functionConfigManager.GetCurrentConfig((int)functionId);
+            if (config == null) return 0.0;
+
+            if (config.FlightControl != null)
+                return (config.FlightControl.PosMin + config.FlightControl.PosMax) / 2.0;
+            return 0.0;
+        }
+
         private void BuildGraphInputs(GameData data)
         {
             graphInputs.Clear();
             GraphSignalCatalog.BuildXPlaneInputs(this, data, graphInputs);
+            GraphSignalCatalog.BuildMsfsInputs(this, data, graphInputs);
+            GraphSignalCatalog.BuildGripInputs(_gripHeld, graphInputs);
+            GraphSignalCatalog.BuildAxisInputs(this, graphInputs);
+            BuildConfigInInputs(graphInputs);
+        }
+
+        /// <summary>
+        /// Supplies ConfigIn node values: for each "Scope:FieldPath" key the active
+        /// graph reads, resolve the scoped function's MERGED config and read the
+        /// effective field value (e.g. the actual motion PosMin/PosMax). Mirror of
+        /// the ConfigOut write path — ConfigIn is feed-forward (reads the current
+        /// merged value; a same-frame ConfigOut write to the same field is seen next frame).
+        /// </summary>
+        private void BuildConfigInInputs(Dictionary<string, double> inputs)
+        {
+            var keys = activeGraphEvaluator?.ConfigInputKeys;
+            if (keys == null || keys.Count == 0) return;
+
+            foreach (var key in keys)
+            {
+                int sep = key.IndexOf(':');
+                if (sep <= 0 || sep >= key.Length - 1) continue;  // need both scope and field
+                string scope = key.Substring(0, sep);
+                string fieldPath = key.Substring(sep + 1);
+
+                FunctionID? fn = ResolveFunctionIdFromScope(scope);
+                if (fn == null) continue;
+
+                var field = ConfigInFieldCatalog.Get(fieldPath);
+                if (field?.GetMergedValue == null) continue;
+
+                var config = _functionConfigManager.GetCurrentConfig((int)fn.Value);
+                double? value = field.GetMergedValue(config);
+                if (value.HasValue) inputs[key] = value.Value;
+            }
         }
 
         internal Dictionary<string, double> GetLiveGraphInputs()
         {
             var inputs = new Dictionary<string, double>();
             GraphSignalCatalog.BuildXPlaneInputs(this, null, inputs);
+            GraphSignalCatalog.BuildMsfsInputs(this, null, inputs);
+            // Grip/Axis inputs: only include cached values, no COM calls.
+            // These may be zero if no bindings are configured — that's fine.
+            try
+            {
+                GraphSignalCatalog.BuildGripInputs(_gripHeld, inputs);
+                GraphSignalCatalog.BuildAxisInputs(this, inputs);
+            }
+            catch { }
             return inputs;
+        }
+
+        // Plan 23: custom vars whose PERIOD_ONCE probe was rejected by MSFS
+        // (bad A: name / absent on this aircraft), keyed by alias -> exception
+        // code. Used by the graph editor to flag the offending ports. LVAR typos
+        // don't appear here (unknown LVARs read 0 rather than raising).
+        internal IReadOnlyDictionary<string, uint> GetMsfsFailedVars()
+        {
+            var map = new Dictionary<string, uint>(StringComparer.Ordinal);
+            var client = _msfsClient;
+            if (client != null)
+            {
+                foreach (var f in client.FailedVars)
+                {
+                    if (f != null && !string.IsNullOrEmpty(f.Alias))
+                        map[f.Alias] = f.ExceptionCode;
+                }
+            }
+            return map;
         }
 
         private void BuildGraphParams()
@@ -1882,7 +2695,12 @@ namespace DiyFfb
 
             foreach (var param in allParams)
             {
-                graphParams[param.Name] = ResolveParamValue(param.Name, param.DefaultValue);
+                double value = ResolveParamValue(param.Name, param.DefaultValue);
+                if (param.Ui?.MuteValue.HasValue == true && _mutedParams.Contains(param.Name))
+                {
+                    value = param.Ui.MuteValue.Value;
+                }
+                graphParams[param.Name] = value;
             }
         }
 
@@ -1919,6 +2737,15 @@ namespace DiyFfb
             GraphEditor.GraphDefinition graph,
             DiyFfb.GraphTest.GraphIncludeResolver resolver)
         {
+            string baseDir = GetActiveGraphBaseDirectory();
+            return CollectAllGraphParams(graph, resolver, baseDir);
+        }
+
+        private List<GraphParam> CollectAllGraphParams(
+            GraphEditor.GraphDefinition graph,
+            DiyFfb.GraphTest.GraphIncludeResolver resolver,
+            string baseDir)
+        {
             var result = new Dictionary<string, GraphEditor.GraphParam>();
 
             if (graph == null)
@@ -1934,10 +2761,12 @@ namespace DiyFfb
                     if (node.Kind == GraphEditor.GraphNodeKind.Include
                         && !string.IsNullOrWhiteSpace(node.IncludePath))
                     {
-                        var includedGraph = LoadIncludeGraphForParams(node.IncludePath);
+                        string resolvedPath = ResolveIncludePath(baseDir, node.IncludePath);
+                        var includedGraph = LoadIncludeGraphFromPath(resolvedPath);
                         if (includedGraph != null)
                         {
-                            var includeParams = CollectAllGraphParams(includedGraph, resolver);
+                            string includeDir = Path.GetDirectoryName(resolvedPath) ?? baseDir;
+                            var includeParams = CollectAllGraphParams(includedGraph, resolver, includeDir);
                             foreach (var param in includeParams)
                             {
                                 // Add if not already present (parent can override)
@@ -1951,43 +2780,42 @@ namespace DiyFfb
                 }
             }
 
-            // Then collect params from this graph (these override include defaults)
+            // Then merge params from this graph. For a param that originates in an
+            // include, the included (library) graph stays the authority for range
+            // (Min/Max) and UI metadata — so editing the library's range propagates
+            // even when the parent holds a copy (e.g. an auto-created value stub or a
+            // stale range). The parent may still override the default value. Params
+            // defined only in the parent are taken as-is.
             foreach (var param in graph.Params.Values)
             {
-                result[param.Name] = param;
+                if (result.TryGetValue(param.Name, out var includeParam))
+                {
+                    includeParam.DefaultValue = param.DefaultValue;
+                    if (param.Ui != null)
+                    {
+                        includeParam.Ui = param.Ui;
+                    }
+                    // Keep includeParam.Min/Max: the library defines the range.
+                }
+                else
+                {
+                    result[param.Name] = param;
+                }
             }
 
             return result.Values.ToList();
         }
 
-        private GraphEditor.GraphDefinition LoadIncludeGraphForParams(string includePath)
+        private GraphEditor.GraphDefinition LoadIncludeGraphFromPath(string resolvedPath)
         {
-            if (string.IsNullOrWhiteSpace(includePath))
-            {
-                return null;
-            }
-
-            // Resolve path relative to active graph
-            string resolved = includePath;
-            if (!Path.IsPathRooted(includePath) && !string.IsNullOrWhiteSpace(activeGraphPath))
-            {
-                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                string graphFullPath = Path.Combine(baseDir, activeGraphPath);
-                string graphDir = Path.GetDirectoryName(graphFullPath);
-                if (!string.IsNullOrWhiteSpace(graphDir))
-                {
-                    resolved = Path.Combine(graphDir, includePath);
-                }
-            }
-
-            if (!File.Exists(resolved))
+            if (string.IsNullOrWhiteSpace(resolvedPath) || !File.Exists(resolvedPath))
             {
                 return null;
             }
 
             try
             {
-                string json = File.ReadAllText(resolved);
+                string json = File.ReadAllText(resolvedPath);
                 return GraphEditor.GraphSerializer.Deserialize(json, out _);
             }
             catch
@@ -1996,7 +2824,7 @@ namespace DiyFfb
             }
         }
 
-        private DiyFfbPluginSettings.AircraftFfbProfile GetCurrentAircraftProfile()
+        public DiyFfbPluginSettings.AircraftFfbProfile GetCurrentAircraftProfile()
         {
             if (Settings?.AircraftFfbProfiles == null || string.IsNullOrWhiteSpace(activeCarId))
             {
@@ -2028,6 +2856,13 @@ namespace DiyFfb
             if (string.Equals(carId, activeCarId, StringComparison.Ordinal))
             {
                 return;
+            }
+
+            // Save graph state (trim accumulators etc.) for the outgoing vehicle
+            if (!string.IsNullOrWhiteSpace(activeCarId))
+            {
+                string outgoingKey = BuildProfileKey(activeGameId, activeCarId);
+                SaveGraphState(outgoingKey);
             }
 
             if (!string.IsNullOrWhiteSpace(activeCarId) && HasUnsavedProfileChanges(activeGameId, activeCarId))
@@ -2076,11 +2911,32 @@ namespace DiyFfb
                 hasPendingFfbProfile = false;
             }
 
-            ApplyAircraftProfile(gameId, carId);
+            // Set activeCarId before applying profile so IsFunctionActive()
+            // checks the NEW profile during config-changed event handling.
             activeCarId = carId;
-            activeCarName = data.NewData?.CarModel;
+            activeCarName = !string.IsNullOrWhiteSpace(data.NewData?.CarModel) ? data.NewData.CarModel : carId;
+
+            // Migrate old-style key before resolving graph so ResolveGraphPath
+            // finds the profile under the new key format.
+            MigrateProfileKeyIfNeeded(gameId, carId);
+
+            // Mute state is per-vehicle: a different aircraft shouldn't inherit
+            // tuning-session mutes. Clear before BuildGraphParams so the new
+            // params dict isn't built with stale mute substitutions.
+            ClearAllParamMutes();
+
+            // Resolve graph first — auto-assign creates the profile and
+            // SeedDefaultActiveFunctionIds populates ActiveFunctionIds.
+            // ApplyAircraftProfile must run after so it sees populated IDs.
             ResolveActiveGraph(gameId, carId);
+            ApplyAircraftProfile(gameId, carId);
             BuildGraphParams();
+
+            // Restore graph state (trim accumulators etc.) for the incoming vehicle
+            RestoreGraphState(BuildProfileKey(gameId, carId));
+
+            // Fire ContextChanged event for badge/UI refresh
+            _configOrchestrator.OnContextChanged();
 
             if (ui != null)
             {
@@ -2091,6 +2947,7 @@ namespace DiyFfb
                 {
                     ui.RefreshGraphSelection();
                     ui.UpdateActiveAircraftLabel(carName, carIdLabel, gameIdCapture);
+                    ui.RefreshVehicleParams();
                     ui.RefreshFunctionSelection();
                 }));
             }
@@ -2158,6 +3015,12 @@ namespace DiyFfb
             if (Settings.AircraftFfbProfiles.TryGetValue(profileKey, out var profile))
             {
                 Settings.XPlaneRotorIndex = profile.XPlaneRotorIndex;
+                _configOrchestrator.ApplyProfileFunctionOverrides(profile);
+            }
+            else
+            {
+                // No profile - clear any active overrides
+                _configOrchestrator.ApplyProfileFunctionOverrides(null);
             }
         }
 
@@ -2166,15 +3029,20 @@ namespace DiyFfb
             var profile = new DiyFfbPluginSettings.AircraftFfbProfile();
             profile.XPlaneRotorIndex = Settings.XPlaneRotorIndex;
 
-            // Include GraphPath and param values from current profile
+            // Copy all fields from current stored profile
             var currentProfile = GetCurrentAircraftProfile();
             if (currentProfile != null)
             {
                 profile.GraphPath = currentProfile.GraphPath;
                 if (currentProfile.GraphParamValues != null)
-                {
                     profile.GraphParamValues = new Dictionary<string, double>(currentProfile.GraphParamValues);
-                }
+                profile.LastReviewedGraphHash = currentProfile.LastReviewedGraphHash;
+                if (currentProfile.LastReviewedParamSnapshots != null)
+                    profile.LastReviewedParamSnapshots = new Dictionary<string, DiyFfbPluginSettings.ParamSnapshot>(currentProfile.LastReviewedParamSnapshots);
+                if (currentProfile.FunctionOverrides != null)
+                    profile.FunctionOverrides = new Dictionary<int, FunctionConfigOverrides>(currentProfile.FunctionOverrides);
+                if (currentProfile.ActiveFunctionIds != null)
+                    profile.ActiveFunctionIds = new HashSet<int>(currentProfile.ActiveFunctionIds);
             }
 
             return profile;
@@ -2218,7 +3086,9 @@ namespace DiyFfb
 
             return string.Equals(left.GraphPath, right.GraphPath, System.StringComparison.OrdinalIgnoreCase) &&
                    left.XPlaneRotorIndex == right.XPlaneRotorIndex &&
-                   AreGraphParamValuesEqual(left.GraphParamValues, right.GraphParamValues);
+                   AreGraphParamValuesEqual(left.GraphParamValues, right.GraphParamValues) &&
+                   AreFunctionOverridesEqual(left.FunctionOverrides, right.FunctionOverrides) &&
+                   AreActiveFunctionIdsEqual(left.ActiveFunctionIds, right.ActiveFunctionIds);
         }
 
         private bool AreGraphParamValuesEqual(Dictionary<string, double> left, Dictionary<string, double> right)
@@ -2242,9 +3112,64 @@ namespace DiyFfb
             return true;
         }
 
+        private static bool AreFunctionOverridesEqual(
+            Dictionary<int, FunctionConfigOverrides> left,
+            Dictionary<int, FunctionConfigOverrides> right)
+        {
+            // Collect non-empty entries from each side (null/empty dict treated as equivalent)
+            var leftEffective = new Dictionary<int, FunctionConfigOverrides>();
+            var rightEffective = new Dictionary<int, FunctionConfigOverrides>();
+
+            if (left != null)
+            {
+                foreach (var kvp in left)
+                {
+                    if (kvp.Value != null && !kvp.Value.IsEmpty)
+                        leftEffective[kvp.Key] = kvp.Value;
+                }
+            }
+
+            if (right != null)
+            {
+                foreach (var kvp in right)
+                {
+                    if (kvp.Value != null && !kvp.Value.IsEmpty)
+                        rightEffective[kvp.Key] = kvp.Value;
+                }
+            }
+
+            if (leftEffective.Count != rightEffective.Count) return false;
+
+            foreach (var kvp in leftEffective)
+            {
+                if (!rightEffective.TryGetValue(kvp.Key, out var rightVal))
+                    return false;
+                if (!ConfigComparer.AreEqual(kvp.Value, rightVal))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static bool AreActiveFunctionIdsEqual(HashSet<int> left, HashSet<int> right)
+        {
+            bool leftEmpty = left == null || left.Count == 0;
+            bool rightEmpty = right == null || right.Count == 0;
+
+            if (leftEmpty && rightEmpty) return true;
+            if (leftEmpty || rightEmpty) return false;
+
+            return left.SetEquals(right);
+        }
+
         public string GetActiveCarId()
         {
             return activeCarId;
+        }
+
+        public string GetActiveCarName()
+        {
+            return activeCarName;
         }
 
         public string GetActiveGameId()
@@ -2367,6 +3292,10 @@ namespace DiyFfb
             if (string.IsNullOrWhiteSpace(activeCarId))
                 return;
 
+            // Mute state is per-vehicle-profile: loading a different saved
+            // profile resets any tuning-session mutes.
+            ClearAllParamMutes();
+
             // 1. Set graph path for current vehicle if provided
             if (!string.IsNullOrWhiteSpace(graphPath))
             {
@@ -2416,6 +3345,15 @@ namespace DiyFfb
         /// Used by the graph editor to show sub-graph previews with parent context.
         /// </summary>
         public DiyFfb.GraphTest.IncludeContextCache ActiveIncludeContextCache => activeIncludeContextCache;
+
+        /// <summary>
+        /// Returns a state snapshot from the active runtime graph evaluator.
+        /// Used to sync top-level preview stateful nodes with runtime values.
+        /// </summary>
+        public Dictionary<string, double[]> GetActiveGraphStateSnapshot()
+        {
+            return activeGraphEvaluator?.GetStateSnapshot();
+        }
 
         public IReadOnlyDictionary<string, GraphParam> GetActiveGraphParams()
         {
@@ -2642,7 +3580,12 @@ namespace DiyFfb
                 profile.GraphParamValues[paramName] = value;
             }
 
-            // Notify listeners of parameter change
+            // Notify listeners of parameter change. The next DataUpdate tick picks up
+            // the new graphParams[paramName] and re-evaluates the graph; an explicit
+            // re-eval here would race that tick (two threads writing the ConfigOut
+            // tier within <1ms can fire the throttled merge with stale zero values
+            // — see plan 12 follow-up). Without a connected game there is no active
+            // profile, so deferring the eval costs nothing.
             GraphParamChanged?.Invoke(this, new GraphParamChangedEventArgs(paramName, value));
         }
 
@@ -2802,6 +3745,9 @@ namespace DiyFfb
                 activeGraphRuntime, activeGraphResolver, activeIncludeContextCache, baseDir);
 
             ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
+
+            // Plan 23: re-register MSFS custom vars for the applied graph.
+            UpdateMsfsCustomVars();
         }
 
         public void SetVehicleGraphPath(string gameId, string carId, string path)
@@ -2893,9 +3839,42 @@ namespace DiyFfb
             }
 
             Settings.AircraftFfbProfiles = profiles ?? new System.Collections.Generic.Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+            BackupAircraftProfiles();
             if (!string.IsNullOrWhiteSpace(activeCarId))
             {
                 ApplyAircraftProfile(activeGameId, activeCarId);
+            }
+        }
+
+        /// <summary>
+        /// Safety net: backs up non-empty profiles, restores from backup if profiles are empty.
+        /// Protects against JSON.NET silently dropping protobuf data on deserialize.
+        /// </summary>
+        private void BackupOrRestoreAircraftProfiles()
+        {
+            if (Settings.AircraftFfbProfiles != null && Settings.AircraftFfbProfiles.Count > 0)
+            {
+                BackupAircraftProfiles();
+            }
+            else
+            {
+                // Profiles empty — try to restore from backup
+                var backup = this.ReadCommonSettings<Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>>(
+                    "AircraftProfilesBackup", () => null);
+                if (backup != null && backup.Count > 0)
+                {
+                    SimHub.Logging.Current.Warn(
+                        $"[Profiles] AircraftFfbProfiles empty — restoring {backup.Count} profiles from backup");
+                    Settings.AircraftFfbProfiles = backup;
+                }
+            }
+        }
+
+        private void BackupAircraftProfiles()
+        {
+            if (Settings.AircraftFfbProfiles != null && Settings.AircraftFfbProfiles.Count > 0)
+            {
+                this.SaveCommonSettings("AircraftProfilesBackup", Settings.AircraftFfbProfiles);
             }
         }
 
@@ -2975,6 +3954,51 @@ namespace DiyFfb
 
             // Migrate VehicleGraphPaths to AircraftFfbProfiles.GraphPath
             MigrateVehicleGraphPaths();
+
+            // Safety net: backup non-empty profiles, restore if empty
+            BackupOrRestoreAircraftProfiles();
+
+            // Create tiered config orchestrator
+            _configOrchestrator = new TieredConfigOrchestrator(
+                _functionConfigManager,
+                _axisConfigManager,
+                Settings,
+                () => this.SaveCommonSettings("GeneralSettings", Settings),
+                GetCurrentAircraftProfile,
+                GetActiveGraphCategory,
+                BuildProfileKey,
+                () => activeGameId,
+                () => activeCarId);
+
+            // Initialize manager with stored baselines and overrides
+            _configOrchestrator.InitializeManagerFromSettings();
+
+            // Plan 10 §3.7: safety damper defaults to ENGAGED on every SimHub start.
+            // Force-apply by adding all four flight functions to the disabled-output set
+            // (the engaged-state field already defaults to true; the set is empty so we
+            // need to populate it explicitly here).
+            foreach (var fid in _flightFunctionIds)
+                SetFunctionOutputDisabled(fid, true);
+
+            // Plan 11: warn once if a settings.json carries grip bindings from before the
+            // SimHub-actions migration. The dict is no longer read at runtime; users must
+            // rebind in SimHub Controls.
+#pragma warning disable CS0618 // GripButtonBindings is intentionally read here for the migration warning.
+            if (Settings?.GripButtonBindings != null && Settings.GripButtonBindings.Count > 0)
+            {
+                SimHub.Logging.Current.Info(
+                    $"DiyFfb: {Settings.GripButtonBindings.Count} grip binding(s) from a previous version were found in settings.json. " +
+                    "Grip controls now bind through SimHub Controls — search for actions starting with 'Grip.' and rebind. " +
+                    "See the INPUT tab for details.");
+            }
+#pragma warning restore CS0618
+
+            // Populate function and axis configs from manager
+            if (ui != null)
+            {
+                ui.PopulateFunctionConfigsFromBaselines();
+                ui.PopulateAxisConfigsFromBaselines();
+            }
 
             Simhub_version = (String)pluginManager.GetPropertyValue("DataCorePlugin.SimHubVersion");
             // Declare a property available in the property list, this gets evaluated "on demand" (when shown or used in formulas)
@@ -3147,6 +4171,60 @@ namespace DiyFfb
                 SimHub.Logging.Current.Info("PreviousPedal");
                 current_action = "Previous Pedal";
             });
+            // Plan 10 §3.7: safety damper toggle. Single global action that flips
+            // frame-emission gating for all four flight functions together. Engaged
+            // = frames gated, ESP32 falls back to FlightControlConfig.damping (rest
+            // value). Disengaged = frames flow, per-frame k_damper authoritative.
+            // Registered as an input mapping (not an action) so the user doesn't have
+            // to pick the right Input mode in SimHub Controls — AddInputMapping enforces
+            // press/release semantics. SimHub fires inputPressed repeatedly while the
+            // bound control is held (same "during" cadence as AddAction's During mode),
+            // so a naive toggle inside inputPressed flips rapidly during a hold. Track
+            // held state explicitly so the toggle fires exactly once per press-down
+            // edge regardless of how long the user holds the button.
+            // SimHub treats a held control as a stream of release+press tick events.
+            // The first press fires inputPressed only; ~500 ms later (typical key
+            // auto-repeat delay) SimHub starts firing inputReleased+inputPressed
+            // pairs every ~30 ms. To detect a real new user press without false-
+            // toggling on the first auto-repeat, track the most recent event of
+            // EITHER kind: inputReleased advances the timestamp so the auto-repeat
+            // inputPressed that follows it sees a near-zero gap and is suppressed.
+            // A real user re-press always has at least one tick of silence (>75 ms)
+            // separating it from any prior event.
+            DateTime lastSafetyDamperEventUtc = DateTime.MinValue;
+            const int SafetyDamperGapMs = 75;
+            this.AddInputMapping(
+                "FlightControl.SafetyDamperToggle",
+                inputPressed: (a, b) =>
+                {
+                    var now = DateTime.UtcNow;
+                    bool isNewPress = (now - lastSafetyDamperEventUtc).TotalMilliseconds > SafetyDamperGapMs;
+                    lastSafetyDamperEventUtc = now;
+                    if (!isNewPress) return;
+                    bool nowEngaged = !_flightSafetyDamperEngaged;
+                    SetFlightSafetyDamperEngaged(nowEngaged);
+                    SimHub.Logging.Current.Info("FlightControl Safety Damper: " + (nowEngaged ? "ENGAGED" : "Disengaged"));
+                    current_action = "Safety Damper " + (nowEngaged ? "On" : "Off");
+                },
+                inputReleased: (a, b) =>
+                {
+                    lastSafetyDamperEventUtc = DateTime.UtcNow;
+                });
+            // Plan 11: grip-button signals are SimHub input mappings (replacing the
+            // custom DirectInput path). AddInputMapping enforces held-state semantics
+            // — inputPressed/inputReleased fire on the press and release edges of the
+            // bound control, so the plugin keeps a clean held bool per signal. The
+            // graph reads the same 0.0/1.0 booleans it did under the previous polling
+            // path; downstream nodes (trim integration, edge detection on TrimReset)
+            // are unchanged.
+            foreach (var gripSignal in GraphSignalCatalog.GripSignalNames)
+            {
+                string captured = gripSignal;
+                this.AddInputMapping(
+                    captured,
+                    inputPressed: (a, b) => { _gripHeld[captured] = true; },
+                    inputReleased: (a, b) => { _gripHeld[captured] = false; });
+            }
             this.AddAction("ABStoggle", (a, b) =>
             {
                 if (!Settings.function_settings[Settings.function_tab_selected].ABS_enabled)
@@ -3336,6 +4414,9 @@ namespace DiyFfb
 
             StartGatewayAutoReconnect();
             StartXPlaneUdpReceiver();
+            // Plan 19/23: single MSFS transport — the pure-C# in-process
+            // SimConnect client.
+            StartMsfsClient();
 
         }
     }
@@ -3352,6 +4433,21 @@ namespace DiyFfb
         {
             ParamName = paramName;
             Value = value;
+        }
+    }
+
+    /// <summary>
+    /// Event args for override field changes.
+    /// </summary>
+    public class OverrideFieldChangedEventArgs : EventArgs
+    {
+        public int FunctionId { get; }
+        public string FieldPath { get; }
+
+        public OverrideFieldChangedEventArgs(int functionId, string fieldPath)
+        {
+            FunctionId = functionId;
+            FieldPath = fieldPath;
         }
     }
 }

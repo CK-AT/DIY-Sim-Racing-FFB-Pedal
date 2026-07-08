@@ -1,0 +1,48 @@
+DIY Sim Racing FFB Pedal — Attribution & Modification Notice
+============================================================
+
+This repository is a modified fork of an upstream project licensed under the
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License
+(CC BY-NC-SA 4.0). Under §3(a) of that license, the following attribution and
+notice of modification is provided.
+
+Upstream source
+---------------
+Project:   DIY-Sim-Racing-FFB-Pedal
+Author(s): ChrGri, tjfenwick, tcfshcrw, MichaelJFr, and contributors
+Source:    https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal
+License:   CC BY-NC-SA 4.0 (http://creativecommons.org/licenses/by-nc-sa/4.0/)
+
+Fork point
+----------
+This fork branched from upstream at:
+  Commit:  5ffcd58d10724d51846c3650141b29ea7fdeed31
+  Date:    2024-09-27
+  Subject: Merge pull request #39 from ChrGri/develop
+
+Modifications
+-------------
+Changes have been made from the original. This fork is maintained by
+CK-AT (https://github.com/CK-AT) and adds, among other things:
+
+  - Native flight-sim support (Microsoft Flight Simulator via SimConnect,
+    X-Plane via DataRefs), including helicopter and aircraft force models.
+  - A node-based signal-processing graph engine in the SimHub plugin.
+  - Tiered Hardware -> Profile -> User configuration with per-function overrides.
+  - New subprojects not present upstream: XPlanePlugin/,
+    GripController/.
+  - ESP32/ESP32-S3 firmware reworked with multi-axis CAN sync, A6 servo protocol
+    work, sensorless homing and Wi-Fi OTA.
+
+The full history of modifications is recorded in this repository's Git log.
+
+License of this work
+--------------------
+Because parts of this project (notably the ESP32 firmware) are derivative works
+of the CC BY-NC-SA-licensed upstream, the ShareAlike term requires the combined
+work to remain under CC BY-NC-SA 4.0. See the LICENSE file for the full text.
+
+Copyright
+---------
+  (c) ChrGri, tjfenwick and the original contributors — original work.
+  (c) CK-AT — modifications and new subprojects in this fork.

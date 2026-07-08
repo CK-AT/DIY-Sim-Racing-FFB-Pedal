@@ -54,7 +54,8 @@ namespace DiyFfb.GraphTest
                         Op = node.Op,
                         Func = node.Func ?? string.Empty,
                         Src = node.Src ?? string.Empty,
-                        Path = node.Path ?? string.Empty
+                        Path = node.Path ?? string.Empty,
+                        Expr = node.Expr ?? string.Empty
                     };
                     if (node.Args != null)
                     {
@@ -116,7 +117,8 @@ namespace DiyFfb.GraphTest
                         Op = node.Op,
                         Func = node.Func ?? string.Empty,
                         Src = node.Src ?? string.Empty,
-                        Path = node.Path ?? string.Empty
+                        Path = node.Path ?? string.Empty,
+                        Expr = node.Expr ?? string.Empty
                     };
                     if (node.Args != null)
                     {
@@ -167,7 +169,12 @@ namespace DiyFfb.GraphTest
             "qhat_eff",
             "torque_norm",
             "rpm_norm",
-            "assist_loss"
+            "assist_loss",
+            "buffet",
+            "accumulator",
+            "sample_hold",
+            "edge_detect",
+            "lag_asym"
         };
 
         private static readonly Dictionary<OpType, int> OpArgCounts = new Dictionary<OpType, int>
@@ -181,7 +188,10 @@ namespace DiyFfb.GraphTest
             { OpType.Abs, 1 },
             { OpType.Neg, 1 },
             { OpType.Clamp, 3 },
-            { OpType.Lerp, 3 }
+            { OpType.Lerp, 3 },
+            { OpType.Exp, 1 },
+            { OpType.Sqrt, 1 },
+            { OpType.Pow, 2 }
         };
 
         private static readonly HashSet<OpType> VariadicOps = new HashSet<OpType>
@@ -270,6 +280,32 @@ namespace DiyFfb.GraphTest
                     !KnownFunctions.Contains(node.Func))
                 {
                     result.Errors.Add($"Func node '{node.Id}' uses unknown function '{node.Func}'.");
+                }
+                if (node.Type == NodeType.Expr)
+                {
+                    foreach (var mapping in node.InputMap)
+                    {
+                        if (!graph.Nodes.ContainsKey(mapping.Value))
+                        {
+                            result.Errors.Add($"Expr node '{node.Id}' inport '{mapping.Key}' references missing node '{mapping.Value}'.");
+                        }
+                    }
+
+                    var parsed = GraphExprSupport.TryParse(node.Expr, out string exprError);
+                    if (parsed == null)
+                    {
+                        result.Errors.Add($"Expr node '{node.Id}' has an invalid formula: {exprError}.");
+                    }
+                    else
+                    {
+                        foreach (var name in GraphExprSupport.CollectIdentifiers(parsed))
+                        {
+                            if (!GraphExprSupport.IsConstant(name) && !node.InputMap.ContainsKey(name))
+                            {
+                                result.Errors.Add($"Expr node '{node.Id}' formula references '{name}', which is not a wired inport (available: [{string.Join(", ", node.InputMap.Keys)}]).");
+                            }
+                        }
+                    }
                 }
                 if (node.Type == NodeType.Include && string.IsNullOrWhiteSpace(node.Path) && node.InlineGraph == null)
                 {
@@ -411,6 +447,7 @@ namespace DiyFfb.GraphTest
         public List<bool> ArgNegate { get; set; } = new List<bool>();
         public string Src { get; set; } = string.Empty;
         public string Path { get; set; } = string.Empty;
+        public string Expr { get; set; } = string.Empty;
         public Dictionary<string, string> Inputs { get; set; } = new Dictionary<string, string>();
         public Dictionary<string, string> Outputs { get; set; } = new Dictionary<string, string>();
         public GraphDefinitionDto Inline { get; set; }

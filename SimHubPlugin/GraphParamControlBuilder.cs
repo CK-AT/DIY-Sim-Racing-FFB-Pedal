@@ -15,6 +15,55 @@ namespace DiyFfb
     {
         private const double DefaultParamControlHeight = 20.0;
 
+        /// <summary>
+        /// Builds an optional mute checkbox for params whose GraphParamUi has
+        /// MuteValue set. Returns null when the param has no MuteValue (no UI).
+        /// The checkbox reflects <paramref name="initialMuted"/> and invokes
+        /// <paramref name="onMuteChanged"/> when toggled.
+        /// When <paramref name="onBulkMute"/> is supplied, a right-click context
+        /// menu offers mute/unmute all/others. Its arguments are
+        /// (muted, othersOnly): muted = target state, othersOnly = leave this
+        /// param untouched and act on every other mutable param.
+        /// </summary>
+        public static CheckBox BuildMuteCheckbox(
+            GraphParam param,
+            bool initialMuted,
+            Action<bool> onMuteChanged,
+            Action<bool, bool> onBulkMute = null)
+        {
+            if (param?.Ui?.MuteValue.HasValue != true) return null;
+            double muteValue = param.Ui.MuteValue.Value;
+            var check = new CheckBox
+            {
+                Foreground = Brushes.LightGray,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(6, 0, 0, 0),
+                IsChecked = initialMuted,
+                ToolTip = $"Mute (substitute {muteValue.ToString("0.###", CultureInfo.InvariantCulture)} during evaluation)"
+            };
+            check.Checked += (_, __) => onMuteChanged?.Invoke(true);
+            check.Unchecked += (_, __) => onMuteChanged?.Invoke(false);
+
+            if (onBulkMute != null)
+            {
+                var menu = new ContextMenu();
+                menu.Items.Add(BuildMuteMenuItem("Mute all", () => onBulkMute(true, false)));
+                menu.Items.Add(BuildMuteMenuItem("Mute others", () => onBulkMute(true, true)));
+                menu.Items.Add(BuildMuteMenuItem("Unmute all", () => onBulkMute(false, false)));
+                menu.Items.Add(BuildMuteMenuItem("Unmute others", () => onBulkMute(false, true)));
+                check.ContextMenu = menu;
+            }
+
+            return check;
+        }
+
+        private static MenuItem BuildMuteMenuItem(string header, Action onClick)
+        {
+            var item = new MenuItem { Header = header };
+            item.Click += (_, __) => onClick();
+            return item;
+        }
+
         public static FrameworkElement BuildControl(
             GraphParam param,
             Action<double> onValueChanged,

@@ -31,7 +31,8 @@ class CANManager : public ICommChannel {
         enum FFBFrameTypes {
             ABS = 0,
             FLIGHT_FFB = 1,
-            FLIGHT_FFB_LOAD = 2
+            FLIGHT_FFB_LOAD = 2,
+            FLIGHT_VIB = 3
         };
 
         struct ForceAndPosition {
@@ -59,8 +60,11 @@ class CANManager : public ICommChannel {
                 FlightFfbAction base;
                 float load_force;
                 float k_friction;
+                uint8_t vib_amps[5];   // 0.01 N/LSB
+                uint8_t vib2_amps[2];  // 0.01 N/LSB
                 bool has_base;
                 bool has_load;
+                bool has_vib;
         };
 
         struct IsotpState {
@@ -89,7 +93,8 @@ class CANManager : public ICommChannel {
         void process_isotp(void);
         /* Axis related */
         bool setup(AxisID axis_id, uint16_t baud_rate, int8_t tx_pin, int8_t rx_pin, OnGatewayPayload on_gateway_payload, OnFFBAction on_ffb_update,
-                   OnAxisPayload on_axis_payload, OnAxisStateChange on_axis_state_change, OnGatewayStateChange on_gateway_state_change);
+                   OnAxisPayload on_axis_payload, OnAxisStateChange on_axis_state_change, OnGatewayStateChange on_gateway_state_change,
+                   OnDdsSync on_dds_sync = nullptr);
         bool send_force_and_position(float &f_contact_point, float &x_contact_point) override;
         bool send_message_to_gateway(const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
         bool ready_to_receive_log_message(void) override;
@@ -106,6 +111,8 @@ class CANManager : public ICommChannel {
         };
         /* Gateway related */
         bool send_message_to_axis(AxisID axis_id, const Message &message, const uint8_t *raw_data, uint32_t len_raw_data) override;
+        bool send_dds_sync(float dds1_hz, float dds1_phase,
+                           float dds2_hz, float dds2_phase) override;
         void set_gateway_mode(bool enable) override {
             _is_gateway = enable;
         }
@@ -147,7 +154,13 @@ class CANManager : public ICommChannel {
         /* Axis related */
         bool try_process_gateway_isotp_can_frame(CanFrame &rx_frame);
         bool try_process_ffb_update_frame(CanFrame &rx_frame);
+        bool try_process_dds_sync_frame(CanFrame &rx_frame, uint32_t now);
         bool try_process_ping_frame(CanFrame &rx_frame, uint32_t now);
+        // Mark gateway as online and update last-seen timestamp.
+        // Called from both 0x7FE (legacy ping) and 0x0F0 (DDS sync) receivers.
+        // The DDS sync path is a forward-compat fallback so 0x7FE can be retired
+        // in a future firmware version without a coordinated upgrade.
+        void mark_gateway_alive(uint32_t now);
         bool send_payload_to_gateway(const uint8_t *data, uint32_t len);
         void broadcast_state_updates(void);
         void broadcast_state_updates(uint32_t now);
@@ -157,6 +170,7 @@ class CANManager : public ICommChannel {
         IsotpStateOutboundLogging outbound_logging_isotp_state;
         OnGatewayPayload on_gateway_payload = nullptr;
         OnFFBAction on_ffb_action = nullptr;
+        OnDdsSync on_dds_sync = nullptr;
         float _x_contact_point_min = 0.0f;
         float _x_contact_point_max = 0.0f;
         FunctionID _function_id = FunctionID_FUNCTION_ID_UNDEFINED;

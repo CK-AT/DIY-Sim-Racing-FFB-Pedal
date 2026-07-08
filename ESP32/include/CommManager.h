@@ -5,13 +5,15 @@
 #include "CANManager.h"
 #include "CommManager.fwd.h"
 #include "ConfigManager.fwd.h"
+#include "GripReader.h"
 #include "ICommChannel.h"
+#include "MasterDds.h"
 #include "SerialManager.h"
 #include "ESP32OTAPull.h"
 
 class CommManager {
     public:
-        static constexpr uint8_t JOYSTICK_BUTTON_COUNT = 32;
+        static constexpr uint8_t JOYSTICK_BUTTON_COUNT = 48;
         struct CANConfig {
             uint16_t baud_rate;
             int8_t tx_pin;
@@ -21,7 +23,9 @@ class CommManager {
         typedef std::function<void(const FFBAction &ffb_action)> OnFFBAction;
         typedef std::function<void(const AxisAction &axis_action, CommChannel comm_channel)> OnAxisAction;
         typedef std::function<void(bool ota_active)> OnOtaStateChange;
-        void setup(Stream *serial, CANConfig &can_config, ConfigManager *config_manager, OnFFBAction on_ffb_action, OnAxisAction on_axis_action);
+        typedef std::function<void(uint8_t dds_index, float phase, float hz)> OnDdsSync;
+        void setup(Stream *serial, CANConfig &can_config, ConfigManager *config_manager, OnFFBAction on_ffb_action, OnAxisAction on_axis_action,
+                   OnDdsSync on_dds_sync = nullptr, GripReader *grip_reader = nullptr);
         void set_ota_state_callback(OnOtaStateChange on_ota_state_change) {
             _on_ota_state_change = on_ota_state_change;
         }
@@ -133,6 +137,8 @@ class CommManager {
 
         SerialManager serial_manager;
         CANManager can_manager;
+        MasterDds _master_dds;
+        uint32_t _ti_last_dds_sync = 0;
         ConfigManager *_config_manager;
         float _f_contact_point_own = 0.0f;
         float _x_contact_point_own = 0.0f;
@@ -140,6 +146,7 @@ class CommManager {
         uint32_t ti_last_joystick_update = 0;
         OnFFBAction _on_ffb_action;
         OnAxisAction _on_axis_action;
+        OnDdsSync _on_dds_sync;
         OnOtaStateChange _on_ota_state_change;
         Message log_msg = Message_init_zero;
         Message _state_message = Message_init_default;
@@ -160,6 +167,7 @@ class CommManager {
         uint8_t _force_pos_tick = 0;
         float controller_axis_values[_ControllerAxis_MAX] = {};
         uint8_t controller_button_values[JOYSTICK_BUTTON_COUNT] = {};
+        GripReader *_grip_reader = nullptr;
         ESP32OTAPull ota = {};
         OtaState _ota_state = OtaState::OTA_IDLE;
         uint32_t _ti_ota_state;

@@ -1,4 +1,4 @@
-using Google.Protobuf;
+﻿using Google.Protobuf;
 using Newtonsoft.Json;
 using ProtbufTest;
 using System;
@@ -21,6 +21,7 @@ using System.Windows.Media;
 using DiyFfb.Controls;
 using DiyFfb.GraphEditor;
 using DiyFfb.ProfileBrowser;
+using DiyFfb.TieredConfig;
 using System.Windows.Data;
 using vJoyInterfaceWrap;
 using Windows.UI.Notifications;
@@ -76,7 +77,7 @@ namespace DiyFfb
 
         private const int UiLogMaxEntries = 200;
         private const int MaxWifiCredentialLength = 63;
-        private const string OtaInfoUrlDefault = "https://github.com/CK-AT/DIY-Sim-Racing-FFB-Pedal/raw/refs/heads/main/OTA/update_info.json";
+        private const string OtaInfoUrlDefault = "https://github.com/CK-AT/DIY-FFB/raw/refs/heads/main/OTA/update_info.json";
 
         private LocalOtaServer otaServer;
 
@@ -85,6 +86,7 @@ namespace DiyFfb
         private AxisRequestQueue axisRequestQueue;
         private GraphEditorWindow graphEditorWindow;
         private string lastGraphEditorPath;
+        private bool suppressUserProfileSelectionChange;
 
         private enum UiLogLevel
         {
@@ -160,12 +162,14 @@ namespace DiyFfb
             uc_function_config.DebugMessage += OnDebugMessage;
             uc_axis_config.DebugMessage += OnDebugMessage;
             uc_axis_config.KinematicParametersChanged += OnKinematicParametersChanged;
+            uc_axis_config.OverrideChanged += RefreshAxisFunctionSelector;
             uc_function_config.SetGui(this, plugin);
             uc_axis_config.SetGui(this, plugin);
 
             for (FunctionID id = FunctionID.BrakePedal; id <= FunctionID.FlightStickCollective; id++)
             {
                 Function function = new Function(id);
+                // Config will be populated later in PopulateFunctionConfigsFromBaselines() after manager is initialized
                 function.Config = FunctionConfigControl.GetDefaultConfig(id);
                 functions[id] = function;
             }
@@ -191,7 +195,10 @@ namespace DiyFfb
             {
                 plugin.ActiveGraphChanged += OnActiveGraphChanged_UI;
                 plugin.GraphParamChanged += OnGraphParamChanged_Vehicle;
+                plugin.ParamMutesCleared += OnParamMutesCleared_Vehicle;
                 plugin.ParamMigrationDetected += OnParamMigrationDetected;
+                plugin.FunctionConfigManager.FunctionConfigChanged += OnMergedFunctionConfigChanged;
+                plugin.AxisConfigManager.AxisConfigChanged += OnMergedAxisConfigChanged;
             }
             UpdateVehicleTabHeader();
             RefreshVehicleParams();
@@ -203,19 +210,75 @@ namespace DiyFfb
                 ConnectToPort(Plugin.Settings.ESPNow_port);
             }
 
+            // Populate configs from stored baselines BEFORE selecting initial tabs,
+            // so SwitchFunction/axis displays merged values instead of defaults
+            PopulateFunctionConfigsFromBaselines();
+            PopulateAxisConfigsFromBaselines();
+
             SetInitialSelections();
 
+            // Initialize vehicle label from plugin state (UI may be created after vehicle was detected)
+            string initCarId = Plugin.GetActiveCarId();
+            if (!string.IsNullOrWhiteSpace(initCarId))
+            {
+                UpdateActiveAircraftLabel(Plugin.GetActiveCarName(), initCarId, Plugin.GetActiveGameId());
+            }
+
             InitializeVjoyIfEnabled();
+        }
+
+        /// <summary>
+        /// Populate Function.Config from stored baselines in the manager.
+        /// Called after InitializeManagerFromSettings() has loaded baselines.
+        /// </summary>
+        public void PopulateFunctionConfigsFromBaselines()
+        {
+            if (Plugin == null)
+                return;
+
+            foreach (var kvp in functions)
+            {
+                var functionId = (int)kvp.Key;
+                var function = kvp.Value;
+
+                // Get baseline + overrides from manager
+                var config = Plugin.ConfigOrchestrator.GetInitialFunctionConfig(functionId);
+                if (config != null)
+                {
+                    function.Config = config;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Populate Axis.Config from stored baselines in the manager.
+        /// Called after InitializeManagerFromSettings() has loaded baselines.
+        /// </summary>
+        public void PopulateAxisConfigsFromBaselines()
+        {
+            if (Plugin == null)
+                return;
+
+            foreach (var kvp in axes)
+            {
+                var axisId = (int)kvp.Key;
+                var axis = kvp.Value;
+
+                var config = Plugin.ConfigOrchestrator.GetInitialAxisConfig(axisId);
+                if (config != null)
+                {
+                    axis.Config = config;
+                    axis.HasAxisConfig = true;
+                }
+            }
         }
 
         public KinematicParameters GetKinematicParameters(AxisID axis_id)
         {
             if (axes.TryGetValue(axis_id, out Axis axis))
             {
-                if (!axis.HasAxisConfig)
-                {
-                    return null;
-                }
+                // Return KP whether from ESP32 config or local axis tab computation.
+                // Callers filter out degenerate (zero) values.
                 return axis.Config?.KinematicParameters;
             }
             return null;
@@ -408,9 +471,10 @@ namespace DiyFfb
                 }
             }
 
-            UpdateActiveAircraftLabel(null, null);
+            UpdateActiveAircraftLabel(Plugin.GetActiveCarName(), Plugin.GetActiveCarId(), Plugin.GetActiveGameId());
             RefreshGraphSelectionUI();
             RefreshXPlaneUdpSettings();
+            RefreshUserProfileUi();
         }
 
         public void RefreshGraphSelection()
@@ -435,6 +499,77 @@ namespace DiyFfb
                 TextBox_XPlanePort.Text = Plugin.Settings.XPlaneUdpPort.ToString();
             }
             updatingXPlaneUdp = false;
+        }
+
+        private void RefreshUserProfileUi()
+        {
+            if (Plugin == null || ComboBox_UserProfile == null)
+            {
+                return;
+            }
+
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (Plugin.Settings.UserPreferencesProfiles != null)
+            {
+                foreach (var key in Plugin.Settings.UserPreferencesProfiles.Keys)
+                {
+                    if (!string.IsNullOrWhiteSpace(key))
+                    {
+                        names.Add(key);
+                    }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(Plugin.Settings.CurrentUserProfile))
+            {
+                names.Add(Plugin.Settings.CurrentUserProfile);
+            }
+
+            var windowsUser = System.Environment.UserName;
+            if (!string.IsNullOrWhiteSpace(windowsUser))
+            {
+                names.Add(windowsUser);
+            }
+
+            var ordered = names.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+            suppressUserProfileSelectionChange = true;
+            ComboBox_UserProfile.ItemsSource = ordered;
+            if (!string.IsNullOrWhiteSpace(Plugin.Settings.CurrentUserProfile))
+            {
+                ComboBox_UserProfile.SelectedItem = Plugin.Settings.CurrentUserProfile;
+            }
+            else if (ordered.Count > 0)
+            {
+                ComboBox_UserProfile.SelectedIndex = 0;
+            }
+
+            if (ComboBox_UserProfileHeader != null)
+            {
+                ComboBox_UserProfileHeader.ItemsSource = ordered;
+                ComboBox_UserProfileHeader.SelectedItem = ComboBox_UserProfile.SelectedItem;
+            }
+            suppressUserProfileSelectionChange = false;
+
+            if (TextBlock_UserProfileInfo != null)
+            {
+                TextBlock_UserProfileInfo.Text = $"Profiles: {ordered.Count}";
+            }
+        }
+
+        private void SetCurrentUserProfile(string userProfile)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            Plugin.ConfigOrchestrator.SetCurrentUserProfile(userProfile);
+            Plugin.ResetGraphState();
+            RefreshUserProfileUi();
+            RefreshVehicleParams();
+
+            // Re-render the currently selected function so sliders/labels show new user's values
+            UpdateFunctionSelection();
         }
 
         private void RefreshGraphSelectionUI()
@@ -770,6 +905,14 @@ namespace DiyFfb
                             AppDomain.CurrentDomain.BaseDirectory);
                     }
 
+                    // "Use Tuning Only" — keep current graph, apply only the source's
+                    // tuning. ApplyProfileFromBrowser treats null/empty graphPath as
+                    // "don't change graph".
+                    if (!dialog.UseSourceGraph)
+                    {
+                        graphPath = null;
+                    }
+
                     Plugin.ApplyProfileFromBrowser(graphPath, entry.Profile, dialog.UseTuning);
                     RefreshGraphSelection();
                 }
@@ -877,6 +1020,114 @@ namespace DiyFfb
             }
 
             Plugin.ApplyXPlaneUdpSettings(enabled, port);
+        }
+
+        private void ComboBox_UserProfile_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (suppressUserProfileSelectionChange)
+            {
+                return;
+            }
+
+            if (ComboBox_UserProfile.SelectedItem is string profileName)
+            {
+                SetCurrentUserProfile(profileName);
+            }
+        }
+
+        private void ComboBox_UserProfileHeader_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (suppressUserProfileSelectionChange)
+            {
+                return;
+            }
+
+            if (ComboBox_UserProfileHeader.SelectedItem is string profileName)
+            {
+                SetCurrentUserProfile(profileName);
+            }
+        }
+
+        private void OnReviewOverridesClick(object sender, RoutedEventArgs e)
+        {
+            var dialog = new OverrideReviewDialog(Plugin.ConfigOrchestrator);
+            dialog.Owner = Window.GetWindow(this);
+            dialog.ShowDialog();
+        }
+
+        private void btn_user_profile_refresh_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshUserProfileUi();
+        }
+
+        private void btn_user_profile_create_Click(object sender, RoutedEventArgs e)
+        {
+            if (TextBox_UserProfileName == null)
+            {
+                return;
+            }
+
+            var profileName = TextBox_UserProfileName.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(profileName))
+            {
+                ThemedMessageBox.Show("Enter a user profile name first.", "User Profiles", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            SetCurrentUserProfile(profileName);
+            TextBox_UserProfileName.Text = string.Empty;
+        }
+
+        private void TextBox_UserProfileName_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter)
+            {
+                return;
+            }
+
+            btn_user_profile_create_Click(sender, e);
+            e.Handled = true;
+        }
+
+        private void btn_user_profile_delete_Click(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null)
+            {
+                return;
+            }
+
+            var profileName = ComboBox_UserProfile?.SelectedItem as string;
+            if (string.IsNullOrWhiteSpace(profileName))
+            {
+                return;
+            }
+
+            var result = ThemedMessageBox.Show(
+                $"Delete user profile '{profileName}'? This removes stored user preference overrides.",
+                "User Profiles",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            if (Plugin.Settings.UserPreferencesProfiles != null)
+            {
+                Plugin.Settings.UserPreferencesProfiles.Remove(profileName);
+            }
+
+            var fallback = System.Environment.UserName;
+            if (string.Equals(Plugin.Settings.CurrentUserProfile, profileName, StringComparison.OrdinalIgnoreCase))
+            {
+                SetCurrentUserProfile(fallback);
+            }
+            else
+            {
+                RefreshUserProfileUi();
+                RefreshVehicleParams();
+            }
         }
 
         private void textbox_SSID_TextChanged(object sender, TextChangedEventArgs e)
@@ -1240,6 +1491,7 @@ namespace DiyFfb
                 Width = 520,
                 Height = 220,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Topmost = true,
                 ResizeMode = ResizeMode.NoResize,
                 Background = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x25)),
                 Foreground = Brushes.White,
@@ -1718,6 +1970,12 @@ namespace DiyFfb
             UpdateFunctionSelection();
         }
 
+        /// <summary>
+        /// Per-axis memory of which function was last selected in the axis function selector.
+        /// -1 means baseline. Persists across axis tab switches within the session.
+        /// </summary>
+        private readonly Dictionary<AxisID, int> _lastSelectedFunctionPerAxis = new Dictionary<AxisID, int>();
+
         private void UpdateAxisSelection()
         {
             if (tc_axis_selection == null)
@@ -1727,12 +1985,30 @@ namespace DiyFfb
 
             if (tc_axis_selection.SelectedItem is KeyValuePair<AxisID, Axis> axisEntry)
             {
+                // Save the outgoing axis's function selection
+                if (selected_axis_id != AxisID.AxisUndefined)
+                {
+                    _lastSelectedFunctionPerAxis[selected_axis_id] = uc_axis_config.SelectedFunctionId;
+                }
+
                 selected_axis_id = axisEntry.Key;
                 if (Plugin != null)
                 {
                     Plugin.Settings.axis_tab_selected = (uint)Math.Max(0, (int)selected_axis_id - 1);
                 }
                 uc_axis_config.UpdateConfig(axisEntry.Value.Config);
+
+                // Restore the incoming axis's last function selection
+                if (_lastSelectedFunctionPerAxis.TryGetValue(selected_axis_id, out int funcId)
+                    && funcId >= 0 && AxisFunctionSelector?.ItemsSource != null)
+                {
+                    var items = AxisFunctionSelector.ItemsSource as List<FunctionSelectorItem>;
+                    var match = items?.FirstOrDefault(i => i.FunctionId == funcId);
+                    if (match != null)
+                    {
+                        AxisFunctionSelector.SelectedItem = match;
+                    }
+                }
             }
         }
 
@@ -1926,6 +2202,42 @@ namespace DiyFfb
 
         private void OnKinematicParametersChanged(KinematicParameters parameters)
         {
+            // This event fires from the axis tab's GeneralKinematicsControl, which
+            // computes KP for whichever axis is currently selected in the axis tab.
+            // Only forward to the function control if that axis is actually linked
+            // to the currently selected function — otherwise we'd apply wrong bounds.
+            if (selected_function_id == FunctionID.Undefined ||
+                !functions.TryGetValue(selected_function_id, out Function function))
+                return;
+
+            FunctionConfig cfg = function.Config;
+            bool axisLinked = false;
+            if (cfg?.Base != null)
+            {
+                foreach (var axis in cfg.Base.LinkedAxes)
+                {
+                    if ((axis & AxisID.Mask) == selected_axis_id)
+                    {
+                        axisLinked = true;
+                        break;
+                    }
+                }
+            }
+            if (!axisLinked && cfg?.AuxFunction != null)
+            {
+                foreach (var axis in cfg.AuxFunction.LinkedAxes)
+                {
+                    if ((axis & AxisID.Mask) == selected_axis_id)
+                    {
+                        axisLinked = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!axisLinked)
+                return;
+
             uc_function_config.OnKinematicParametersChanged(parameters);
         }
 
@@ -1951,6 +2263,51 @@ namespace DiyFfb
             if (new_online_state && axis_id != AxisID.AxisUndefined && seenAxisSources.Add(axis_id))
             {
                 AddLogSourceFilter(UiLogSourceKind.Axis, (int)axis_id, $"Axis {(int)axis_id}");
+            }
+
+            // A reconnecting axis (after an axis or gateway restart) comes back with
+            // its persisted/default config — graph-derived (ConfigOut) and other
+            // non-stored fields are lost. Proactively re-push the full merged config
+            // we already hold so the axis is restored to exactly its prior state,
+            // rather than relying on the device-report + baseline-gated push-back.
+            if (new_online_state && axis_id != AxisID.AxisUndefined)
+            {
+                RepushActiveConfigsForAxis(axis_id);
+            }
+        }
+
+        // Re-uploads the current merged config (baseline + profile + user + ConfigOut)
+        // for every active function bound to the given axis. Used on axis reconnect to
+        // restore state the device drops on restart, including ConfigOut-derived fields.
+        private void RepushActiveConfigsForAxis(AxisID axisId)
+        {
+            if (axisId == AxisID.AxisUndefined)
+            {
+                return;
+            }
+
+            foreach (var funcId in functions.Keys)
+            {
+                int id = (int)funcId;
+                if (!Plugin.ConfigOrchestrator.IsFunctionActive(id))
+                {
+                    continue;
+                }
+
+                FunctionConfig merged = Plugin.FunctionConfigManager.GetCurrentConfig(id);
+                if (merged == null)
+                {
+                    continue;
+                }
+
+                bool linksThisAxis = merged.Base.LinkedAxes.Any(a => (a & AxisID.Mask) == axisId);
+                if (!linksThisAxis)
+                {
+                    continue;
+                }
+
+                EnqueueFunctionConfigUpload(merged, store: false, verify: true);
+                Plugin.FunctionConfigManager.MarkAsSent(id, merged);
             }
         }
 
@@ -1991,10 +2348,10 @@ namespace DiyFfb
                     break;
                 case Message.PayloadOneofCase.AxisConfig:
                     RegisterAxisChannel(msg.AxisConfig.AxisId, port);
-                    OnAxisConfigUpdate(msg.AxisConfig);
+                    OnAxisConfigUpdate(msg.AxisConfig, fromEsp32: true);
                     break;
                 case Message.PayloadOneofCase.FunctionConfig:
-                    OnFunctionConfigUpdate(msg.FunctionConfig);
+                    OnFunctionConfigUpdate(msg.FunctionConfig, fromEsp32: true);
                     break;
                 case Message.PayloadOneofCase.AxisLogMessage:
                     int? axisSourceId = msg.AxisLogMessage.AxisId != AxisID.AxisUndefined ? (int)msg.AxisLogMessage.AxisId : (int?)null;
@@ -2035,6 +2392,7 @@ namespace DiyFfb
             uc_function_config.OnAxisStateUpdate(axisState);
             uc_axis_config.OnAxisStateUpdate(axisState);
             UpdateVjoy(axisState);
+            Plugin?.UpdateAxisPosition(axisState.AxisId, axisState.Position);
         }
 
         public void RequestStaticBalanceCalibration(AxisID axisId)
@@ -2108,7 +2466,8 @@ namespace DiyFfb
             return false;
         }
 
-        private void EnqueueAxisConfigUpload(AxisID axisId, AxisConfig axisConfig, bool store)
+        private void EnqueueAxisConfigUpload(AxisID axisId, AxisConfig axisConfig, bool store,
+            bool verify = false)
         {
             if (axisId == AxisID.AxisUndefined)
             {
@@ -2117,15 +2476,19 @@ namespace DiyFfb
             AxisConfig configToSend = axisConfig.Clone();
             configToSend.Store = store;
             Message msg = new Message { AxisConfig = configToSend };
-            axisRequestQueue?.Enqueue(axisId, AxisRequestType.AxisConfigUpload, msg);
+            axisRequestQueue?.Enqueue(axisId, AxisRequestType.AxisConfigUpload, msg,
+                verifyAfterSend: verify);
         }
 
-        private void EnqueueFunctionConfigUpload(FunctionConfig functionConfig, bool store)
+        private void EnqueueFunctionConfigUpload(FunctionConfig functionConfig, bool store,
+            bool verify = false)
         {
             FunctionConfig configToSend = functionConfig.Clone();
             configToSend.Base.Store = store;
             Message msg = new Message { FunctionConfig = configToSend };
             bool broadcastRequired = false;
+            bool verifiedOne = false;
+            AxisID firstLinkedAxis = AxisID.AxisUndefined;
             HashSet<AxisID> queuedAxes = new HashSet<AxisID>();
             foreach (var linkedAxisId in configToSend.Base.LinkedAxes)
             {
@@ -2133,6 +2496,10 @@ namespace DiyFfb
                 if (axisId == AxisID.AxisUndefined)
                 {
                     continue;
+                }
+                if (firstLinkedAxis == AxisID.AxisUndefined)
+                {
+                    firstLinkedAxis = axisId;
                 }
                 if (!axes.TryGetValue(axisId, out Axis axis))
                 {
@@ -2143,7 +2510,11 @@ namespace DiyFfb
                 {
                     if (queuedAxes.Add(axisId))
                     {
-                        axisRequestQueue?.Enqueue(axisId, AxisRequestType.FunctionConfigUpload, msg);
+                        // Verify on the first per-axis upload only
+                        bool verifyThis = verify && !verifiedOne;
+                        axisRequestQueue?.Enqueue(axisId, AxisRequestType.FunctionConfigUpload,
+                            msg, verifyAfterSend: verifyThis);
+                        if (verifyThis) verifiedOne = true;
                     }
                 }
                 else
@@ -2155,6 +2526,14 @@ namespace DiyFfb
             if (broadcastRequired)
             {
                 axisRequestQueue?.Enqueue(AxisID.AxisUndefined, AxisRequestType.FunctionConfigUpload, msg);
+            }
+
+            // Broadcast uploads can't self-verify (AxisUndefined won't match any ESP32 node).
+            // Enqueue a separate verification query targeting the first known linked axis.
+            if (verify && !verifiedOne && broadcastRequired
+                && firstLinkedAxis != AxisID.AxisUndefined)
+            {
+                axisRequestQueue?.Enqueue(firstLinkedAxis, AxisRequestType.FunctionConfig);
             }
         }
 
@@ -2299,7 +2678,7 @@ namespace DiyFfb
             }
 
             FunctionConfig functionConfig = functions[selected_function_id].Config;
-            EnqueueFunctionConfigUpload(functionConfig, PersistConfig);
+            EnqueueFunctionConfigUpload(functionConfig, PersistConfig, verify: true);
         }
 
         private void OnDownloadFunctionConfigClicked(object sender, RoutedEventArgs e)
@@ -2350,10 +2729,10 @@ namespace DiyFfb
 
         private void UploadFunctionConfig(FunctionConfig functionConfig, bool store)
         {
-            EnqueueFunctionConfigUpload(functionConfig, store);
+            EnqueueFunctionConfigUpload(functionConfig, store, verify: true);
         }
 
-        private void OnFunctionConfigUpdate(FunctionConfig newFunctionConfig)
+        private void OnFunctionConfigUpdate(FunctionConfig newFunctionConfig, bool fromEsp32 = false)
         {
             FunctionID newFunctionId = newFunctionConfig.Base.FunctionId;
             if (newFunctionId == FunctionID.Undefined)
@@ -2362,59 +2741,177 @@ namespace DiyFfb
                 return;
             }
 
-            functions[newFunctionId].Config = newFunctionConfig;
+            int funcId = (int)newFunctionId;
+
+            var (authorityOverride, resultConfig) =
+                Plugin.ConfigOrchestrator.HandleIncomingFunctionConfig(funcId, newFunctionConfig, fromEsp32);
+
+            if (authorityOverride)
+            {
+                SetDebugOutput($"Config mismatch for function {funcId}, re-uploading",
+                    UiLogLevel.Warning);
+                EnqueueFunctionConfigUpload(resultConfig, store: false);
+                Plugin.FunctionConfigManager.MarkAsSent(funcId, resultConfig);
+                return;
+            }
+
+            // Update UI working copy from manager's authoritative merged config
+            functions[newFunctionId].Config = resultConfig;
+
             if (newFunctionId == selected_function_id)
             {
                 uc_function_config.SwitchFunction(functions[newFunctionId]);
             }
         }
 
-        private void OnAxisConfigUpdate(AxisConfig newAxisConfig)
+        private void OnAxisConfigUpdate(AxisConfig newAxisConfig, bool fromEsp32 = false)
         {
             AxisID newAxisId = newAxisConfig.AxisId;
             if (newAxisId != AxisID.AxisUndefined && newAxisId <= AxisID._8)
             {
-                axes[newAxisId].Config = newAxisConfig;
+                int axisIdInt = (int)newAxisId;
+
+                var (authorityOverride, resultConfig) =
+                    Plugin.ConfigOrchestrator.HandleIncomingAxisConfig(axisIdInt, newAxisConfig, fromEsp32);
+
+                // Update UI state from result
+                axes[newAxisId].Config = resultConfig;
                 axes[newAxisId].HasAxisConfig = true;
                 if (newAxisId == selected_axis_id)
+                    uc_axis_config.UpdateConfig(resultConfig);
+                RefreshKinematicParametersIfAffected(newAxisId, resultConfig);
+
+                if (authorityOverride)
                 {
-                    uc_axis_config.UpdateConfig(axes[newAxisId].Config);
-                }
-                if (selected_function_id != FunctionID.Undefined && functions.TryGetValue(selected_function_id, out Function function))
-                {
-                    FunctionConfig cfg = function.Config;
-                    bool affectsSelected = false;
-                    if (cfg?.Base != null)
-                    {
-                        foreach (var axis in cfg.Base.LinkedAxes)
-                        {
-                            if ((axis & AxisID.Mask) == newAxisId)
-                            {
-                                affectsSelected = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!affectsSelected && cfg?.AuxFunction != null)
-                    {
-                        foreach (var axis in cfg.AuxFunction.LinkedAxes)
-                        {
-                            if ((axis & AxisID.Mask) == newAxisId)
-                            {
-                                affectsSelected = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (affectsSelected)
-                    {
-                        uc_function_config.OnKinematicParametersChanged(newAxisConfig.KinematicParameters);
-                    }
+                    SetDebugOutput($"Config mismatch for axis {newAxisId}, re-uploading",
+                        UiLogLevel.Warning);
+                    EnqueueAxisConfigUpload(newAxisId, resultConfig, store: false);
+                    Plugin.AxisConfigManager.MarkAsSent(axisIdInt, resultConfig);
                 }
             }
             else
             {
                 SetDebugOutput($"Invalid axis ID ({(int)newAxisId})", UiLogLevel.Warning);
+            }
+        }
+
+        /// <summary>
+        /// Refresh kinematic parameters in the function config UI if the given axis
+        /// is linked to the currently selected function.
+        /// </summary>
+        private void RefreshKinematicParametersIfAffected(AxisID axisId, AxisConfig axisConfig)
+        {
+            if (selected_function_id == FunctionID.Undefined ||
+                !functions.TryGetValue(selected_function_id, out Function function))
+                return;
+
+            FunctionConfig cfg = function.Config;
+            bool affectsSelected = false;
+            if (cfg?.Base != null)
+            {
+                foreach (var axis in cfg.Base.LinkedAxes)
+                {
+                    if ((axis & AxisID.Mask) == axisId)
+                    {
+                        affectsSelected = true;
+                        break;
+                    }
+                }
+            }
+            if (!affectsSelected && cfg?.AuxFunction != null)
+            {
+                foreach (var axis in cfg.AuxFunction.LinkedAxes)
+                {
+                    if ((axis & AxisID.Mask) == axisId)
+                    {
+                        affectsSelected = true;
+                        break;
+                    }
+                }
+            }
+            if (affectsSelected)
+            {
+                uc_function_config.OnKinematicParametersChanged(axisConfig.KinematicParameters);
+            }
+        }
+
+        /// <summary>
+        /// Called when FunctionConfigManager fires after merging profile/user overrides.
+        /// Sends the merged config to ESP32 and updates UI.
+        /// </summary>
+        private void OnMergedFunctionConfigChanged(object sender, FunctionConfigChangedEventArgs e)
+        {
+            FunctionID funcId = (FunctionID)e.FunctionId;
+            if (funcId == FunctionID.Undefined || !functions.ContainsKey(funcId))
+                return;
+
+            bool isActive = Plugin.ConfigOrchestrator.IsFunctionActive(e.FunctionId);
+
+            // Update UI working copy with merged config so SwitchFunction shows correct values.
+            // The merged config = base (full ESP32 config) + profile/user overrides, so all fields
+            // are present. Non-override-tracked fields come from the base config unchanged.
+            functions[funcId].Config = e.NewConfig;
+
+            // Only upload to ESP32 if the function is checked/active for the current profile.
+            // Non-active functions still get their internal state updated but don't push to ESP32.
+            if (isActive)
+            {
+                EnqueueFunctionConfigUpload(e.NewConfig, store: false, verify: true);
+                Plugin.FunctionConfigManager.MarkAsSent(e.FunctionId, e.NewConfig);
+            }
+            else
+            {
+                // Broadcast cleared config so gateway clears its lookup table entry.
+                // Zero both controller_output_axis and linked_axes — keeping linked_axes
+                // would associate those axes with this disabled function, blocking other
+                // functions that share the same physical axes.
+                var clearedConfig = e.NewConfig.Clone();
+                clearedConfig.Base.ControllerOutputAxis = ControllerAxis.Undefined;
+                clearedConfig.Base.LinkedAxes.Clear();
+                clearedConfig.Base.LinkedAxes.AddRange(new[] {
+                    AxisID.AxisUndefined, AxisID.AxisUndefined,
+                    AxisID.AxisUndefined, AxisID.AxisUndefined });
+                clearedConfig.Base.Store = false;
+                var msg = new Message { FunctionConfig = clearedConfig };
+                axisRequestQueue?.Enqueue(AxisID.AxisUndefined, AxisRequestType.FunctionConfigUpload, msg);
+                Plugin.FunctionConfigManager.InvalidateLastSent(e.FunctionId);
+            }
+
+            // Update UI if this is the selected function
+            if (funcId == selected_function_id)
+            {
+                var func = functions[funcId];
+                this.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    uc_function_config.SwitchFunction(func);
+                }));
+            }
+        }
+
+        /// <summary>
+        /// Called when AxisConfigManager fires after applying function overrides.
+        /// Sends the merged config to ESP32 and updates UI.
+        /// </summary>
+        private void OnMergedAxisConfigChanged(object sender, AxisConfigChangedEventArgs e)
+        {
+            AxisID axisId = (AxisID)e.AxisId;
+            if (axisId == AxisID.AxisUndefined || !axes.ContainsKey(axisId))
+                return;
+
+            // Update local cache with merged config
+            axes[axisId].Config = e.NewConfig;
+
+            // Send to ESP32 (don't store to EEPROM - these are runtime overrides)
+            EnqueueAxisConfigUpload(axisId, e.NewConfig, store: false, verify: true);
+
+            // Update UI if this is the selected axis
+            if (axisId == selected_axis_id)
+            {
+                var config = axes[axisId].Config;
+                this.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    uc_axis_config.UpdateConfig(config);
+                }));
             }
         }
 
@@ -2431,6 +2928,8 @@ namespace DiyFfb
                 try
                 {
                     var content = File.ReadAllText(openFileDialog.FileName);
+                    // Migrate old flight stick field names in imported files
+                    content = DiyFfb.TieredConfig.TieredConfigOrchestrator.MigrateFlightStickJson(content);
                     var jsonParser = new JsonParser(JsonParser.Settings.Default);
                     ConfigItemsList msg = (ConfigItemsList)jsonParser.Parse(content, ConfigItemsList.Descriptor);
                     Dictionary<AxisID, AxisConfig> axisConfigs = new Dictionary<AxisID, AxisConfig>();
@@ -2481,15 +2980,28 @@ namespace DiyFfb
                 return;
             }
 
+            // Check if the axis tab is editing a function override
+            bool axisInOverrideMode = uc_axis_config.EditingMode == AxisEditingMode.FunctionOverride
+                                      && uc_axis_config.SelectedFunctionId >= 0;
+
             foreach (var axis in axes.Values)
             {
                 if (loadSelectionDialog.LoadRequested && axis.SelectedToLoad && loadSelectionDialog.axis_configs.TryGetValue(axis.ID, out AxisConfig cfg))
                 {
-                    OnAxisConfigUpdate(cfg);
+                    // If the selected axis is in function override mode, store imported
+                    // config as that function's axis override instead of updating baseline
+                    if (axisInOverrideMode && axis.ID == selected_axis_id)
+                    {
+                        ImportAxisConfigAsOverride(cfg, uc_axis_config.SelectedFunctionId);
+                    }
+                    else
+                    {
+                        OnAxisConfigUpdate(cfg);
+                    }
                 }
                 if (loadSelectionDialog.UploadRequested && axis.SelectedToLoad && loadSelectionDialog.axis_configs.TryGetValue(axis.ID, out AxisConfig uploadCfg))
                 {
-                    EnqueueAxisConfigUpload(axis.ID, uploadCfg, false);
+                    EnqueueAxisConfigUpload(axis.ID, uploadCfg, false, verify: true);
                 }
                 axis.SelectedToLoad = false;
                 axis.SelectableToLoad = false;
@@ -2502,7 +3014,7 @@ namespace DiyFfb
                 }
                 if (loadSelectionDialog.UploadRequested && function.SelectedToLoad && loadSelectionDialog.function_configs.TryGetValue(function.ID, out FunctionConfig uploadCfg))
                 {
-                    EnqueueFunctionConfigUpload(uploadCfg, false);
+                    EnqueueFunctionConfigUpload(uploadCfg, false, verify: true);
                 }
                 function.SelectedToLoad = false;
                 function.SelectableToLoad = false;
@@ -2511,6 +3023,38 @@ namespace DiyFfb
             btn_load_function_config_from_file.IsEnabled = true;
             btn_store_function_config_to_file.IsEnabled = true;
             btn_store_axis_config_to_file.IsEnabled = true;
+        }
+
+        /// <summary>
+        /// Import an axis config as a function override for the selected axis.
+        /// Extracts kinematics, geometry, and static balance from the imported config
+        /// and stores them as the function's axis parameter overrides.
+        /// </summary>
+        private void ImportAxisConfigAsOverride(AxisConfig importedConfig, int functionId)
+        {
+            int axisId = (int)importedConfig.AxisId;
+            var formatter = new Google.Protobuf.JsonFormatter(Google.Protobuf.JsonFormatter.Settings.Default);
+
+            Plugin.ConfigOrchestrator.UpdateAxisParameterOverride(functionId, axisId, overrides =>
+            {
+                if (importedConfig.KinematicParameters != null)
+                    overrides.Kinematics = importedConfig.KinematicParameters.Clone();
+
+                if (importedConfig.GeneralKinematic != null)
+                {
+                    try { overrides.GeometryJson = formatter.Format(importedConfig.GeneralKinematic); }
+                    catch { /* best-effort */ }
+                }
+
+                if (importedConfig.StaticBalanceConfig != null)
+                    overrides.StaticBalance = importedConfig.StaticBalanceConfig.Clone();
+            });
+
+            // Update UI to show the imported override
+            axes[importedConfig.AxisId].Config = Plugin.AxisConfigManager.GetCurrentConfig(axisId)
+                                                 ?? axes[importedConfig.AxisId].Config;
+            uc_axis_config.SwitchToFunction(functionId);
+            RefreshAxisFunctionSelector();
         }
 
         private void OnSaveSelectionClosed(object sender, EventArgs e)
@@ -2571,6 +3115,226 @@ namespace DiyFfb
             }
         }
 
+        private void OnSaveFunctionBaselineClicked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || !functions.TryGetValue(selected_function_id, out var function) || function == null)
+            {
+                return;
+            }
+
+            // Use function.Config which has ALL current edits (override-tracked + direct edits)
+            // The manager's merged config only includes override-tracked fields, losing direct edits to non-wrapped fields
+            var configToSave = function.Config?.Clone();
+
+            if (configToSave != null)
+            {
+                var result = ThemedMessageBox.Show(
+                    $"Save {function.Name} configuration as hardware baseline?\n\nAll overrides will be baked into the baseline and cleared.",
+                    "Save as Baseline",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+                if (result != MessageBoxResult.Yes)
+                    return;
+
+                // Save as baseline (this "bakes" all overrides AND direct edits into the new baseline)
+                Plugin.ConfigOrchestrator.SetFunctionBaseline((int)function.ID, configToSave);
+
+                // Clear all overrides since they're now part of the baseline
+                Plugin.ConfigOrchestrator.ClearAllFunctionOverrides((int)function.ID);
+
+                // Update manager with new baseline (no overrides)
+                Plugin.FunctionConfigManager.SetBaseConfig((int)function.ID, configToSave);
+                Plugin.ConfigOrchestrator.ApplyProfileOverridesToFunction((int)function.ID);
+
+                // Refresh badges to remove [U] badge after clearing overrides
+                Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    uc_function_config.RefreshAllBadges();
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+        }
+
+        private void OnClearFunctionBaselineClicked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || !functions.TryGetValue(selected_function_id, out var function) || function == null)
+                return;
+
+            int funcId = (int)function.ID;
+            if (!Plugin.ConfigOrchestrator.HasFunctionBaseline(funcId))
+                return;
+
+            var result = ThemedMessageBox.Show(
+                $"Clear stored baseline for {function.Name}?\n\nThe next ESP32 upload, import, or manual edit will establish a new baseline.\nOverrides are preserved.",
+                "Clear Baseline",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            Plugin.ConfigOrchestrator.ClearFunctionBaseline(funcId);
+
+            Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                uc_function_config.RefreshAllBadges();
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        #region Axis Function Selector
+
+        private bool _updatingAxisFunctionSelector = false;
+
+        /// <summary>
+        /// Refresh the axis function selector dropdown with functions linking to the selected axis.
+        /// </summary>
+        private void RefreshAxisFunctionSelector()
+        {
+            if (AxisFunctionSelector == null || Plugin == null || selected_axis_id == AxisID.AxisUndefined)
+                return;
+
+            _updatingAxisFunctionSelector = true;
+            try
+            {
+                var items = new List<FunctionSelectorItem>();
+                int axisId = (int)selected_axis_id;
+
+                items.Add(new FunctionSelectorItem
+                {
+                    FunctionId = -1,
+                    DisplayName = "Baseline",
+                    HasOverride = false,
+                    IsAxisBase = true
+                });
+
+                var linkedFunctions = Plugin.ConfigOrchestrator.GetFunctionsLinkingToAxis(axisId);
+                foreach (var func in linkedFunctions)
+                {
+                    items.Add(new FunctionSelectorItem
+                    {
+                        FunctionId = func.FunctionId,
+                        DisplayName = func.FunctionName,
+                        HasOverride = func.HasOverride,
+                        IsAxisBase = false
+                    });
+                }
+
+                AxisFunctionSelector.ItemsSource = items;
+
+                // Restore selection to match AxisConfigControl's current state
+                var mode = uc_axis_config.EditingMode;
+                var funcId = uc_axis_config.SelectedFunctionId;
+                if (mode == AxisEditingMode.AxisBase || funcId < 0)
+                {
+                    AxisFunctionSelector.SelectedIndex = 0;
+                }
+                else
+                {
+                    var match = items.FirstOrDefault(i => i.FunctionId == funcId);
+                    if (match != null)
+                        AxisFunctionSelector.SelectedItem = match;
+                    else
+                        AxisFunctionSelector.SelectedIndex = 0;
+                }
+
+                // Show/hide clear button based on current override state
+                bool hasOverride = mode == AxisEditingMode.FunctionOverride
+                    && Plugin.ConfigOrchestrator.GetAxisParameterOverride(funcId, axisId) != null;
+                BtnClearAxisOverride.IsEnabled = hasOverride;
+            }
+            finally
+            {
+                _updatingAxisFunctionSelector = false;
+            }
+        }
+
+        private void AxisFunctionSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_updatingAxisFunctionSelector || AxisFunctionSelector.SelectedItem == null)
+                return;
+
+            var selectedItem = AxisFunctionSelector.SelectedItem as FunctionSelectorItem;
+            if (selectedItem == null)
+                return;
+
+            if (selectedItem.IsAxisBase)
+            {
+                uc_axis_config.SwitchToBaseline();
+                BtnClearAxisOverride.IsEnabled = false;
+            }
+            else
+            {
+                bool hasOverride = uc_axis_config.SwitchToFunction(selectedItem.FunctionId);
+                BtnClearAxisOverride.IsEnabled = hasOverride;
+            }
+        }
+
+        private void OnClearAxisOverrideClicked(object sender, RoutedEventArgs e)
+        {
+            uc_axis_config.ClearCurrentOverride();
+            BtnClearAxisOverride.IsEnabled = false;
+            RefreshAxisFunctionSelector();
+        }
+
+        private void OnSaveAxisBaselineClicked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || selected_axis_id == AxisID.AxisUndefined)
+                return;
+
+            if (!axes.TryGetValue(selected_axis_id, out var axis) || axis.Config == null)
+                return;
+
+            int axisIdInt = (int)selected_axis_id;
+
+            var result = Controls.ThemedMessageBox.Show(
+                $"Save Axis {axisIdInt} configuration as hardware baseline?\n\nAxis overrides for this axis will be cleared.",
+                "Save as Baseline",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            var configToSave = axis.Config.Clone();
+            Plugin.ConfigOrchestrator.SetAxisBaseline(axisIdInt, configToSave);
+
+            // Clear axis overrides for this axis across all functions
+            if (Plugin.Settings?.FunctionAxisOverrides != null)
+            {
+                var functionIds = Plugin.Settings.FunctionAxisOverrides.Keys.ToList();
+                foreach (var funcId in functionIds)
+                {
+                    Plugin.ConfigOrchestrator.ClearAxisParameterOverride(funcId, axisIdInt);
+                }
+            }
+
+            uc_axis_config.UpdateConfig(axis.Config);
+            RefreshAxisFunctionSelector();
+        }
+
+        private void OnClearAxisBaselineClicked(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || selected_axis_id == AxisID.AxisUndefined)
+                return;
+
+            int axisIdInt = (int)selected_axis_id;
+            if (!Plugin.ConfigOrchestrator.HasAxisBaseline(axisIdInt))
+                return;
+
+            var result = Controls.ThemedMessageBox.Show(
+                $"Clear stored baseline for Axis {axisIdInt}?\n\nThe next ESP32 upload or import will establish a new baseline.\nOverrides are preserved.",
+                "Clear Baseline",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            Plugin.ConfigOrchestrator.ClearAxisBaseline(axisIdInt);
+
+            if (axes.TryGetValue(selected_axis_id, out var axis) && axis.Config != null)
+                uc_axis_config.UpdateConfig(axis.Config);
+            RefreshAxisFunctionSelector();
+        }
+
+        #endregion
+
         private void OnOpenGraphEditorClicked(object sender, RoutedEventArgs e)
         {
             if (graphEditorWindow == null)
@@ -2578,6 +3342,7 @@ namespace DiyFfb
                 graphEditorWindow = new GraphEditorWindow();
                 graphEditorWindow.SetPlugin(Plugin);
                 graphEditorWindow.SetLiveInputProvider(() => Plugin != null ? Plugin.GetLiveGraphInputs() : null);
+                graphEditorWindow.SetMsfsFailedVarProvider(() => Plugin != null ? Plugin.GetMsfsFailedVars() : null);
                 string activeGraphPath = Plugin?.GetActiveGraphPath();
                 if (!string.IsNullOrWhiteSpace(activeGraphPath))
                 {
@@ -2591,6 +3356,7 @@ namespace DiyFfb
             {
                 graphEditorWindow.SetPlugin(Plugin);
                 graphEditorWindow.SetLiveInputProvider(() => Plugin != null ? Plugin.GetLiveGraphInputs() : null);
+                graphEditorWindow.SetMsfsFailedVarProvider(() => Plugin != null ? Plugin.GetMsfsFailedVars() : null);
                 string activeGraphPath = Plugin?.GetActiveGraphPath();
                 if (!string.IsNullOrWhiteSpace(activeGraphPath))
                 {
@@ -2609,7 +3375,22 @@ namespace DiyFfb
                 return;
             }
 
-            EnqueueAxisConfigUpload(selected_axis_id, axes[selected_axis_id].Config, PersistConfig);
+            var configToUpload = axes[selected_axis_id].Config;
+
+            // In AxisBase mode the user is tuning the canonical axis baseline (not a
+            // per-function override). Persist the working copy as the new baseline
+            // before sending so the verify-readback's authority check sees consistent
+            // state. Otherwise fields that aren't tracked in AxisParameterOverrides
+            // (e.g. OscillationGuard) get reverted because the merged config returned
+            // by HandleIncomingAxisConfig is built from the stale baseline only.
+            if (uc_axis_config?.EditingMode == AxisEditingMode.AxisBase &&
+                Plugin?.ConfigOrchestrator != null)
+            {
+                Plugin.ConfigOrchestrator.SetAxisBaseline((int)selected_axis_id, configToUpload.Clone());
+            }
+
+            EnqueueAxisConfigUpload(selected_axis_id, configToUpload, PersistConfig,
+                verify: true);
         }
 
         private void OnDownloadAxisConfigClicked(object sender, RoutedEventArgs e)
@@ -2859,6 +3640,7 @@ namespace DiyFfb
             Dispatcher.Invoke(() =>
             {
                 UpdateVehicleTabHeader();
+                RefreshGraphSelectionUI();
                 RefreshVehicleParams();
             });
         }
@@ -2948,7 +3730,7 @@ namespace DiyFfb
             return true;
         }
 
-        private void RefreshVehicleParams()
+        public void RefreshVehicleParams()
         {
             VehicleParamsContainer.Children.Clear();
             vehicleParamControls.Clear();
@@ -2959,10 +3741,20 @@ namespace DiyFfb
                 return;
             }
 
+            // Add Active Functions section at the top
+            var activeFunctionsExpander = CreateActiveFunctionsExpander();
+            if (activeFunctionsExpander != null)
+            {
+                VehicleParamsContainer.Children.Add(activeFunctionsExpander);
+            }
+
             var allParams = Plugin.GetActiveGraphParams();
             if (allParams == null || allParams.Count == 0)
             {
-                ShowVehicleEmptyState();
+                if (activeFunctionsExpander == null)
+                {
+                    ShowVehicleEmptyState();
+                }
                 return;
             }
 
@@ -2973,7 +3765,10 @@ namespace DiyFfb
 
             if (vehicleParams.Count == 0)
             {
-                ShowVehicleEmptyState();
+                if (activeFunctionsExpander == null)
+                {
+                    ShowVehicleEmptyState();
+                }
                 return;
             }
 
@@ -2989,6 +3784,197 @@ namespace DiyFfb
                 var orderedParams = OrderParamsByGraph(orderedNames, group);
                 var expander = CreateVehicleGroupExpander(group.Key, orderedParams);
                 VehicleParamsContainer.Children.Add(expander);
+            }
+        }
+
+        private Expander CreateActiveFunctionsExpander()
+        {
+            // Only show if we have known functions
+            if (functions.Count == 0)
+                return null;
+
+            var expander = new Expander
+            {
+                Header = "Active Functions",
+                IsExpanded = false,
+                Foreground = Brushes.White,
+                FontFamily = new FontFamily("Arial Black"),
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 0, 5)
+            };
+
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x7F, 0x4E, 0x4E, 0x4E)),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(10)
+            };
+
+            var panel = new StackPanel { Orientation = Orientation.Vertical };
+
+            // Add description
+            var description = new TextBlock
+            {
+                Text = "Select which functions should use profile-specific overrides for this vehicle.",
+                Foreground = Brushes.Gray,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 10,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            panel.Children.Add(description);
+
+            // Add a checkbox for each known function (skip Undefined)
+            foreach (var kvp in functions)
+            {
+                if (kvp.Key == FunctionID.Undefined)
+                    continue;
+
+                var functionPanel = CreateActiveFunctionRow(kvp.Key, kvp.Value);
+                panel.Children.Add(functionPanel);
+            }
+
+            border.Child = panel;
+            expander.Content = border;
+            return expander;
+        }
+
+        private StackPanel CreateActiveFunctionRow(FunctionID functionId, Function function)
+        {
+            var container = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Height = 24
+            };
+
+            bool isActive = Plugin.ConfigOrchestrator.IsFunctionActive((int)functionId);
+
+            var checkbox = new CheckBox
+            {
+                IsChecked = isActive,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            checkbox.Tag = functionId;
+            checkbox.Checked += OnActiveFunctionChecked;
+            checkbox.Unchecked += OnActiveFunctionUnchecked;
+
+            var nameLabel = new TextBlock
+            {
+                Text = function.Name,
+                Foreground = Brushes.White,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 140
+            };
+
+            var statusLabel = new TextBlock
+            {
+                Text = function.IsOnline ? "(online)" : "(offline)",
+                Foreground = function.IsOnline ? Brushes.LightGreen : Brushes.Gray,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 10,
+                FontStyle = FontStyles.Italic,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(5, 0, 0, 0)
+            };
+
+            // Add override indicator badge (always create, update visibility dynamically)
+            var badge = new TextBlock
+            {
+                Tag = $"functionBadge_{(int)functionId}",
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(5, 0, 0, 0)
+            };
+            UpdateFunctionLevelBadge(badge, functionId);
+
+            row.Children.Add(checkbox);
+            row.Children.Add(nameLabel);
+            row.Children.Add(badge);
+            row.Children.Add(statusLabel);
+
+            container.Children.Add(row);
+
+            return container;
+        }
+
+        /// <summary>
+        /// Update the function-level badge that shows [U] or [P] next to the function name.
+        /// Shows [U] if any field has User override, [P] if any field has Profile override, hidden otherwise.
+        /// </summary>
+        private void UpdateFunctionLevelBadge(TextBlock badge, FunctionID functionId)
+        {
+            var userOverrides = Plugin.ConfigOrchestrator.GetUserFunctionOverrides((int)functionId);
+            var profileOverrides = Plugin.ConfigOrchestrator.GetFunctionOverrides((int)functionId);
+            bool hasUserOverrides = userOverrides != null && !userOverrides.IsEmpty;
+            bool hasProfileOverrides = profileOverrides != null && !profileOverrides.IsEmpty;
+            bool isActive = Plugin.ConfigOrchestrator.IsFunctionActive((int)functionId);
+
+            if (hasUserOverrides && isActive)
+            {
+                badge.Text = "[U]";
+                badge.Foreground = new SolidColorBrush(Color.FromRgb(0x64, 0xB5, 0xF6));
+                badge.ToolTip = "Has user preference overrides";
+                badge.Visibility = Visibility.Visible;
+            }
+            else if (hasProfileOverrides && isActive)
+            {
+                badge.Text = "[P]";
+                badge.Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
+                badge.ToolTip = "Has vehicle profile overrides";
+                badge.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                badge.Text = "";
+                badge.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// Find a UI element by its Tag value within a container.
+        /// </summary>
+        private T FindElementByTag<T>(DependencyObject parent, string tag) where T : FrameworkElement
+        {
+            if (parent == null) return null;
+
+            int childCount = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childCount; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T element && element.Tag?.ToString() == tag)
+                    return element;
+
+                var result = FindElementByTag<T>(child, tag);
+                if (result != null)
+                    return result;
+            }
+            return null;
+        }
+
+        private void OnActiveFunctionChecked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkbox && checkbox.Tag is FunctionID functionId)
+            {
+                Plugin.ConfigOrchestrator.SetFunctionActive((int)functionId, true);
+            }
+        }
+
+        private void OnActiveFunctionUnchecked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkbox && checkbox.Tag is FunctionID functionId)
+            {
+                Plugin.ConfigOrchestrator.SetFunctionActive((int)functionId, false);
             }
         }
 
@@ -3071,8 +4057,8 @@ namespace DiyFfb
             var panel = new StackPanel
             {
                 Width = 400,
-                Height = 40,
-                Orientation = Orientation.Vertical
+                Orientation = Orientation.Vertical,
+                Margin = new Thickness(0, 0, 0, 6)
             };
 
             // Get current value (GetGraphParamValue now does full three-tier resolution)
@@ -3086,6 +4072,13 @@ namespace DiyFfb
                 Content = FormatVehicleParamLabel(param, currentValue),
                 Padding = new Thickness(0, 0, 0, 8)
             };
+            var muteCheckbox = GraphParamControlBuilder.BuildMuteCheckbox(
+                param,
+                Plugin.IsParamMuted(param.Name),
+                muted => Plugin.SetParamMuted(param.Name, muted),
+                (muted, othersOnly) => Plugin.SetAllParamMutes(muted, othersOnly ? param.Name : null));
+
+            double controlWidth = muteCheckbox != null ? 370.0 : 400.0;
             var control = GraphParamControlBuilder.BuildControl(
                 param,
                 value =>
@@ -3100,17 +4093,38 @@ namespace DiyFfb
                         }
                     }
                 },
-                width: 400,
+                width: controlWidth,
                 initialValue: currentValue
             );
 
             panel.Children.Add(label);
-            panel.Children.Add(control);
+            if (muteCheckbox != null)
+            {
+                var row = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Left
+                };
+                row.Children.Add(control);
+                row.Children.Add(muteCheckbox);
+                panel.Children.Add(row);
+            }
+            else
+            {
+                panel.Children.Add(control);
+            }
 
             vehicleParamControls[param.Name] = control;
             vehicleParamLabels[param.Name] = label;
 
             return panel;
+        }
+
+        private void OnParamMutesCleared_Vehicle(object sender, EventArgs e)
+        {
+            // Vehicle-profile switch cleared all mutes; rebuild the panel so
+            // checkbox state mirrors the cleared plugin state.
+            Dispatcher.BeginInvoke(new Action(RefreshVehicleParams));
         }
 
         private void OnGraphParamChanged_Vehicle(object sender, GraphParamChangedEventArgs e)
@@ -3143,6 +4157,20 @@ namespace DiyFfb
                         {
                             checkBox.IsChecked = e.Value > 0.5;
                         }
+                        else if (control is ComboBox comboBox)
+                        {
+                            foreach (var item in comboBox.Items)
+                            {
+                                if (item is GraphParamOption opt
+                                    && double.TryParse(opt.Value, System.Globalization.NumberStyles.Float,
+                                        System.Globalization.CultureInfo.InvariantCulture, out var optVal)
+                                    && Math.Abs(optVal - e.Value) < 1e-6)
+                                {
+                                    comboBox.SelectedItem = item;
+                                    break;
+                                }
+                            }
+                        }
                     }
 
                     // Update label with new value
@@ -3165,20 +4193,48 @@ namespace DiyFfb
         private string FormatVehicleParamLabel(GraphParam param, double currentValue)
         {
             string label = param.Ui?.Label ?? param.Name;
+            string widget = (param.Ui?.Widget ?? "").Trim().ToLowerInvariant();
 
-            // Format value with appropriate precision
-            int precision = param.Ui?.Precision ?? 3;
-            string valueStr = currentValue.ToString($"F{precision}");
+            string valueStr;
+            if (widget == "enum")
+            {
+                valueStr = FormatEnumValue(param.Ui, currentValue);
+            }
+            else if (widget == "checkbox")
+            {
+                valueStr = currentValue > 0.5 ? "On" : "Off";
+            }
+            else
+            {
+                int precision = param.Ui?.Precision ?? 3;
+                valueStr = currentValue.ToString($"F{precision}");
+            }
 
-            // Build label as: <name>: <value><unit>
             if (!string.IsNullOrWhiteSpace(param.Ui?.Units))
             {
                 return $"{label}: {valueStr}{param.Ui.Units}";
             }
-            else
+            return $"{label}: {valueStr}";
+        }
+
+        private static string FormatEnumValue(GraphParamUi ui, double currentValue)
+        {
+            if (ui?.Options == null || ui.Options.Count == 0)
             {
-                return $"{label}: {valueStr}";
+                return currentValue.ToString("F3");
             }
+
+            foreach (var option in ui.Options)
+            {
+                if (double.TryParse(option.Value, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var optVal)
+                    && Math.Abs(optVal - currentValue) < 1e-6)
+                {
+                    return option.Label ?? option.Value;
+                }
+            }
+
+            return currentValue.ToString("F3");
         }
 
         #endregion
