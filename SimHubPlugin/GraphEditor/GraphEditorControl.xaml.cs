@@ -2507,6 +2507,15 @@ namespace DiyFfb.GraphEditor
                 }
             }
 
+            // MsfsVarOut / MsfsVarDef aliases must be unique across the graph, so a
+            // pasted node (which keeps the source's alias) would collide. Give the
+            // pasted aliases a unique "_N" suffix and repoint the pasted node's own
+            // links so wiring survives the rename. (MsfsVarOut alias = input
+            // port.Name; MsfsVarDef alias = output port.SignalSuffix, mirrored to
+            // Name.) Only renames on an actual collision — pasting into a fresh
+            // graph keeps the original alias.
+            UniquifyAliases(clipboardData.Nodes, clipboardData.Links);
+
             // Merge params (don't overwrite existing params with same name)
             if (clipboardData.Params != null)
             {
@@ -2532,6 +2541,76 @@ namespace DiyFfb.GraphEditor
             }
             _selectedNode = _selectedNodes.Count == 1 ? _selectedNodes.First() : null;
             UpdateSelectionVisuals();
+        }
+
+        // Give newly added MsfsVarOut/MsfsVarDef nodes unique aliases when they
+        // collide with an alias already in the graph, repointing the new nodes' own
+        // links (if any) so the rename doesn't break wiring copied alongside them.
+        // Shared by paste (multi-node + links) and Duplicate (single node, no links).
+        private void UniquifyAliases(ICollection<GraphNode> newNodes, IList<GraphLink> links)
+        {
+            if (newNodes == null || newNodes.Count == 0) return;
+
+            var pastedIds = new HashSet<string>(newNodes.Select(n => n.Id), StringComparer.Ordinal);
+
+            // Collision set: aliases already used by NON-pasted nodes in the graph.
+            var used = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var n in _graph.Nodes)
+            {
+                if (n == null || pastedIds.Contains(n.Id) || n.Ports == null) continue;
+                if (n.Kind == GraphNodeKind.MsfsVarOut)
+                {
+                    foreach (var p in n.Ports)
+                        if (p.Kind == GraphPortKind.Input && !string.IsNullOrEmpty(p.Name)) used.Add(p.Name);
+                }
+                else if (n.Kind == GraphNodeKind.MsfsVarDef)
+                {
+                    foreach (var p in n.Ports)
+                        if (p.Kind == GraphPortKind.Output && !string.IsNullOrEmpty(p.SignalSuffix)) used.Add(p.SignalSuffix);
+                }
+            }
+
+            foreach (var node in newNodes)
+            {
+                bool isOut = node.Kind == GraphNodeKind.MsfsVarOut;
+                bool isDef = node.Kind == GraphNodeKind.MsfsVarDef;
+                if ((!isOut && !isDef) || node.Ports == null) continue;
+                var wantKind = isOut ? GraphPortKind.Input : GraphPortKind.Output;
+
+                foreach (var port in node.Ports)
+                {
+                    if (port.Kind != wantKind) continue;
+                    string alias = isOut ? port.Name : port.SignalSuffix;
+                    if (string.IsNullOrEmpty(alias)) continue;
+
+                    if (!used.Contains(alias)) { used.Add(alias); continue; }
+
+                    string candidate;
+                    int n = 2;
+                    do { candidate = alias + "_" + n++; } while (used.Contains(candidate));
+                    used.Add(candidate);
+
+                    // Repoint the new node's own links (MsfsVarOut = input/ToPort,
+                    // MsfsVarDef = source/FromPort) so wiring survives the rename.
+                    if (links != null)
+                    {
+                        foreach (var l in links)
+                        {
+                            if (isOut)
+                            {
+                                if (l.ToNodeId == node.Id && l.ToPort == alias) l.ToPort = candidate;
+                            }
+                            else
+                            {
+                                if (l.FromNodeId == node.Id && l.FromPort == alias) l.FromPort = candidate;
+                            }
+                        }
+                    }
+
+                    port.Name = candidate;
+                    if (isDef) port.SignalSuffix = candidate;
+                }
+            }
         }
 
         private void CutSelectedToClipboard()
@@ -2584,7 +2663,18 @@ namespace DiyFfb.GraphEditor
                     Name = port.Name,
                     Kind = port.Kind,
                     SignalSuffix = port.SignalSuffix,
-                    Negate = port.Negate
+                    Negate = port.Negate,
+                    // Copy the remaining port metadata so a copied node keeps its
+                    // parameters: ConfigOut field, bus name, and the MsfsVarDef/
+                    // MsfsVarOut registration + range-map fields.
+                    ConfigField = port.ConfigField,
+                    BusName = port.BusName,
+                    SimVar = port.SimVar,
+                    Unit = port.Unit,
+                    InMin = port.InMin,
+                    InMax = port.InMax,
+                    OutMin = port.OutMin,
+                    OutMax = port.OutMax
                 });
             }
 
@@ -7267,29 +7357,16 @@ namespace DiyFfb.GraphEditor
                 return;
             }
 
-            var copy = new GraphNode
-            {
-                Title = node.Title,
-                Kind = node.Kind,
-                X = node.X + 20,
-                Y = node.Y + 20,
-                Op = node.Op,
-                Func = node.Func,
-                IncludePath = node.IncludePath,
-                ConstValue = node.ConstValue,
-                SignalGroup = node.SignalGroup
-            };
-            foreach (var port in node.Ports)
-            {
-                copy.Ports.Add(new GraphPort
-                {
-                    Name = port.Name,
-                    Kind = port.Kind,
-                    SignalSuffix = port.SignalSuffix,
-                    Negate = port.Negate
-                });
-            }
+            // Reuse CloneNode so all port metadata (SimVar/Unit/range-map,
+            // ConfigField, bus name) is carried over; assign a fresh id and offset.
+            var copy = CloneNode(node);
+            copy.Id = Guid.NewGuid().ToString("N");
+            copy.X = node.X + 20;
+            copy.Y = node.Y + 20;
             _graph.Nodes.Add(copy);
+            // Unique the alias if this is an MsfsVarOut/MsfsVarDef colliding with an
+            // existing one (no links to repoint — Duplicate copies a lone node).
+            UniquifyAliases(new[] { copy }, null);
             RebuildSurface();
         }
 
