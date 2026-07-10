@@ -100,7 +100,7 @@ namespace DiyFfb.GraphEditor
         private const int PreviewRefreshThrottleMs = 500;
         private bool _isInspectorUpdating;
         private readonly string[] _opChoices = { "add", "sub", "mul", "div", "min", "max", "abs", "neg", "clamp", "lerp", "select", "eq", "gt", "exp", "sqrt", "pow" };
-        private readonly string[] _funcChoices = { "qhat_eff", "torque_norm", "rpm_norm", "assist_loss", "buffet", "accumulator", "sample_hold", "edge_detect" };
+        private readonly string[] _funcChoices = { "normalize", "qhat_eff", "torque_norm", "rpm_norm", "assist_loss", "buffet", "accumulator", "sample_hold", "edge_detect" };
         private readonly string[] _paramWidgetChoices = { "slider", "knob", "checkbox", "enum", "text" };
         private double _curveTension = 0.5;
         private const double HandleSize = 10.0;
@@ -5280,6 +5280,8 @@ namespace DiyFfb.GraphEditor
         {
             switch (func)
             {
+                case "normalize":
+                    return new[] { "in", "in_min", "in_max", "out_min", "out_max" };
                 case "qhat_eff":
                     return new[] { "ias_kts", "vref_kts" };
                 case "torque_norm":

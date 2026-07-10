@@ -166,6 +166,7 @@ namespace DiyFfb.GraphTest
     {
         private static readonly HashSet<string> KnownFunctions = new HashSet<string>
         {
+            "normalize",
             "qhat_eff",
             "torque_norm",
             "rpm_norm",

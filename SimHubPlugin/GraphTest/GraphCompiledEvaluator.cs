@@ -620,6 +620,22 @@ namespace DiyFfb.GraphTest
         {
             switch (node.Node.Func)
             {
+                case "normalize":
+                {
+                    // Linear remap in[in_min,in_max] → out[out_min,out_max], clamped
+                    // to the output range. Identity defaults (0..1 → 0..1). Guards
+                    // in_max == in_min. Mirrors GraphEvaluator.normalize exactly.
+                    double x      = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;
+                    double inMin  = node.ArgIndices.Length > 1 ? Resolve(node.ArgIndices[1], node.ArgIsExtra[1]) : 0.0;
+                    double inMax  = node.ArgIndices.Length > 2 ? Resolve(node.ArgIndices[2], node.ArgIsExtra[2]) : 1.0;
+                    double outMin = node.ArgIndices.Length > 3 ? Resolve(node.ArgIndices[3], node.ArgIsExtra[3]) : 0.0;
+                    double outMax = node.ArgIndices.Length > 4 ? Resolve(node.ArgIndices[4], node.ArgIsExtra[4]) : 1.0;
+                    double span = inMax - inMin;
+                    double t = Math.Abs(span) < 1e-12 ? 0.0 : (x - inMin) / span;
+                    double outv = outMin + t * (outMax - outMin);
+                    double lo = Math.Min(outMin, outMax), hi = Math.Max(outMin, outMax);
+                    return outv < lo ? lo : (outv > hi ? hi : outv);
+                }
                 case "qhat_eff":
                 {
                     double iasKts = node.ArgIndices.Length > 0 ? Resolve(node.ArgIndices[0], node.ArgIsExtra[0]) : 0.0;

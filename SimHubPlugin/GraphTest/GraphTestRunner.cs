@@ -87,6 +87,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("MsfsVarDef multi-port resolution + roundtrip", TestMsfsVarDefMultiPort));
             results.Add(TestRunner.RunTest("Op input negate conversion", TestOpInputNegateConversion));
             results.Add(TestRunner.RunTest("Op input negate validation", TestOpInputNegateValidation));
+            results.Add(TestRunner.RunTest("normalize Func: compiled == interpreter, clamp/invert/degenerate", TestFunc_NormalizeCompiledMatchesInterpreter));
 
             // Param conversion tests
             results.Add(TestRunner.RunTest("Param ConstValue from graph.Params", TestParamConstValueFromGraphParams));
@@ -4914,6 +4915,52 @@ namespace DiyFfb.GraphTest
             double interp = new GraphEvaluator(def).Evaluate(inputs, null)["result"];
             double compiled = new GraphCompiledEvaluator(def).Evaluate(inputs, null)["result"];
             return Math.Abs(interp - compiled) < 1e-9 && Math.Abs(compiled - 9.5) < 1e-9;
+        }
+
+        // normalize(in, in_min, in_max, out_min, out_max): a Func node fed by five
+        // Input ports (in Args order). Regression guard so the interpreter and the
+        // compiled hot-path evaluator can't drift on the range-map math.
+        private static GraphDefinition BuildNormalizeGraphDef()
+        {
+            var graph = new GraphDefinition();
+            var fn = new GraphNode { Id = "fn", Type = NodeType.Func, Func = "normalize" };
+            foreach (var p in new[] { "in", "in_min", "in_max", "out_min", "out_max" })
+            {
+                graph.Nodes[p] = new GraphNode { Id = p, Type = NodeType.Input, Name = p };
+                fn.Args.Add(p);
+            }
+            graph.Nodes["fn"] = fn;
+            graph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "fn" };
+            return graph;
+        }
+
+        private static bool TestFunc_NormalizeCompiledMatchesInterpreter()
+        {
+            var def = BuildNormalizeGraphDef();
+            // in, in_min, in_max, out_min, out_max, expected
+            var cases = new[]
+            {
+                new[] {  0.5,  0.0, 1.0,    0.0,     1.0,        0.5 },     // identity midpoint
+                new[] {  0.5,  0.0, 1.0, -100.0,   100.0,        0.0 },     // scale to +/-100
+                new[] { -1.0, -1.0, 1.0,    0.0, 16383.0,        0.0 },     // low end
+                new[] {  1.0, -1.0, 1.0,    0.0, 16383.0,    16383.0 },     // high end
+                new[] {  2.0,  0.0, 1.0,    0.0,     1.0,        1.0 },     // clamp high (in past max)
+                new[] { -5.0,  0.0, 1.0,    0.0,     1.0,        0.0 },     // clamp low
+                new[] { 0.25,  0.0, 1.0,    1.0,     0.0,       0.75 },     // inverted output range
+                new[] {  0.5,  2.0, 2.0,    3.0,     9.0,        3.0 },     // degenerate in_max==in_min -> out_min
+            };
+            foreach (var c in cases)
+            {
+                var inputs = new Dictionary<string, double>
+                {
+                    ["in"] = c[0], ["in_min"] = c[1], ["in_max"] = c[2], ["out_min"] = c[3], ["out_max"] = c[4]
+                };
+                double interp = new GraphEvaluator(def).Evaluate(inputs, null)["result"];
+                double compiled = new GraphCompiledEvaluator(def).Evaluate(inputs, null)["result"];
+                if (Math.Abs(interp - compiled) > 1e-9) return false;   // evaluators must agree
+                if (Math.Abs(compiled - c[5]) > 1e-6) return false;     // and match the expected map
+            }
+            return true;
         }
 
         private static bool TestExpr_NonInportRejected()

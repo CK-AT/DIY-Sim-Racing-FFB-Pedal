@@ -351,6 +351,22 @@ namespace DiyFfb.GraphTest
         {
             switch (node.Func)
             {
+                case "normalize":
+                {
+                    // Linear remap in[in_min,in_max] → out[out_min,out_max], clamped
+                    // to the output range. Identity defaults (0..1 → 0..1) so an
+                    // unwired port is a passthrough. Guards in_max == in_min.
+                    double x      = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
+                    double inMin  = node.Args.Count > 1 ? Resolve(node.Args[1]) : 0.0;
+                    double inMax  = node.Args.Count > 2 ? Resolve(node.Args[2]) : 1.0;
+                    double outMin = node.Args.Count > 3 ? Resolve(node.Args[3]) : 0.0;
+                    double outMax = node.Args.Count > 4 ? Resolve(node.Args[4]) : 1.0;
+                    double span = inMax - inMin;
+                    double t = Math.Abs(span) < 1e-12 ? 0.0 : (x - inMin) / span;
+                    double outv = outMin + t * (outMax - outMin);
+                    double lo = Math.Min(outMin, outMax), hi = Math.Max(outMin, outMax);
+                    return outv < lo ? lo : (outv > hi ? hi : outv);
+                }
                 case "qhat_eff":
                 {
                     double iasKts = node.Args.Count > 0 ? Resolve(node.Args[0]) : 0.0;
