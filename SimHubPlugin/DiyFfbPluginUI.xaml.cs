@@ -2392,7 +2392,7 @@ namespace DiyFfb
             uc_function_config.OnAxisStateUpdate(axisState);
             uc_axis_config.OnAxisStateUpdate(axisState);
             UpdateVjoy(axisState);
-            Plugin?.UpdateAxisPosition(axisState.AxisId, axisState.Position);
+            Plugin?.UpdateAxisState(axisState.AxisId, axisState.Position, axisState.Force);
         }
 
         public void RequestStaticBalanceCalibration(AxisID axisId)

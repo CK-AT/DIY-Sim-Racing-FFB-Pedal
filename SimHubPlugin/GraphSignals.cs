@@ -174,15 +174,23 @@ namespace DiyFfb
             if (plugin == null || inputs == null) return;
             // Position is in mm (contact point position from ESP32).
             // Center is (pos_min + pos_max) / 2 from the function's config.
-            // Both resolved via function → linked axis / config mapping.
+            // Force is in N (load-cell measured force from AxisState). Single-axis
+            // functions use the primary linked axis; the flight pedals span multiple
+            // axes, so force is split by direction (subtractive=left, additive=right)
+            // while position stays single (the two pedals are mirrored).
             inputs["Axis.FlightStickPitch.Position"] = plugin.GetFunctionPosition(FunctionID.FlightStickPitch);
             inputs["Axis.FlightStickPitch.Center"] = plugin.GetFunctionCenter(FunctionID.FlightStickPitch);
+            inputs["Axis.FlightStickPitch.Force"] = plugin.GetFunctionForce(FunctionID.FlightStickPitch);
             inputs["Axis.FlightStickRoll.Position"] = plugin.GetFunctionPosition(FunctionID.FlightStickRoll);
             inputs["Axis.FlightStickRoll.Center"] = plugin.GetFunctionCenter(FunctionID.FlightStickRoll);
+            inputs["Axis.FlightStickRoll.Force"] = plugin.GetFunctionForce(FunctionID.FlightStickRoll);
             inputs["Axis.FlightPedals.Position"] = plugin.GetFunctionPosition(FunctionID.FlightPedals);
             inputs["Axis.FlightPedals.Center"] = plugin.GetFunctionCenter(FunctionID.FlightPedals);
+            inputs["Axis.FlightPedals.Left.Force"] = plugin.GetPedalForce(FunctionID.FlightPedals, left: true);
+            inputs["Axis.FlightPedals.Right.Force"] = plugin.GetPedalForce(FunctionID.FlightPedals, left: false);
             inputs["Axis.FlightStickCollective.Position"] = plugin.GetFunctionPosition(FunctionID.FlightStickCollective);
             inputs["Axis.FlightStickCollective.Center"] = plugin.GetFunctionCenter(FunctionID.FlightStickCollective);
+            inputs["Axis.FlightStickCollective.Force"] = plugin.GetFunctionForce(FunctionID.FlightStickCollective);
         }
     }
 }

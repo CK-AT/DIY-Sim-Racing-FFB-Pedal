@@ -2691,16 +2691,19 @@ namespace DiyFfb
             _pendingStateRestore = null;
         }
 
-        // --- Axis position tracking for graph inputs ---
+        // --- Axis position/force tracking for graph inputs ---
+        // Keyed by the PHYSICAL AxisID (AxisState.AxisId, no direction flags).
         private readonly Dictionary<AxisID, float> _lastAxisPositions = new Dictionary<AxisID, float>();
+        private readonly Dictionary<AxisID, float> _lastAxisForces = new Dictionary<AxisID, float>();
 
         /// <summary>
-        /// Called from UI layer when AxisState message is received.
-        /// Caches position for use as graph input.
+        /// Called from UI layer when an AxisState message is received.
+        /// Caches position (mm) + force (N) for use as graph inputs.
         /// </summary>
-        internal void UpdateAxisPosition(AxisID axisId, float position)
+        internal void UpdateAxisState(AxisID axisId, float position, float force)
         {
             _lastAxisPositions[axisId] = position;
+            _lastAxisForces[axisId] = force;
         }
 
         /// <summary>
@@ -2709,6 +2712,14 @@ namespace DiyFfb
         internal double GetLastAxisPosition(AxisID axisId)
         {
             return _lastAxisPositions.TryGetValue(axisId, out var pos) ? pos : 0.0;
+        }
+
+        /// <summary>
+        /// Returns the last known force (N) for the given axis, or 0 if unknown.
+        /// </summary>
+        internal double GetLastAxisForce(AxisID axisId)
+        {
+            return _lastAxisForces.TryGetValue(axisId, out var f) ? f : 0.0;
         }
 
         /// <summary>
@@ -2725,6 +2736,45 @@ namespace DiyFfb
                 return 0.0;
             return GetLastAxisPosition(axisId);
         }
+
+        /// <summary>
+        /// Sums the cached force (N) of every assigned linked axis whose raw
+        /// LinkedAxes entry satisfies <paramref name="match"/> (null = all). The
+        /// physical AxisID (the force-cache key) is recovered by masking off the
+        /// direction flags; unassigned (AxisUndefined) slots are skipped.
+        /// </summary>
+        private double SumLinkedAxisForce(FunctionID functionId, Func<AxisID, bool> match)
+        {
+            var config = _functionConfigManager.GetCurrentConfig((int)functionId);
+            if (config?.Base == null) return 0.0;
+            double sum = 0.0;
+            foreach (var linked in config.Base.LinkedAxes)
+            {
+                var physical = linked & AxisID.Mask;
+                if (physical == AxisID.AxisUndefined) continue;
+                if (match == null || match(linked)) sum += GetLastAxisForce(physical);
+            }
+            return sum;
+        }
+
+        /// <summary>
+        /// Returns the force (N) for the given function, summed across ALL its
+        /// assigned linked axes. Single-axis functions (stick pitch/roll,
+        /// collective) reduce to that one axis today; summing generalizes cleanly
+        /// to future multi-axis setups (e.g. copilot axes) without changing callers.
+        /// </summary>
+        internal double GetFunctionForce(FunctionID functionId) =>
+            SumLinkedAxisForce(functionId, null);
+
+        /// <summary>
+        /// Returns the summed force (N) of the flight-pedals axes on one side.
+        /// Direction is encoded by the AxisSubtractive flag — subtractive = LEFT,
+        /// additive = RIGHT. When more than one axis matches the side (e.g. pilot +
+        /// copilot left pedals), their forces are ADDED. Positions are mirrored, so
+        /// only force needs the per-side split.
+        /// </summary>
+        internal double GetPedalForce(FunctionID functionId, bool left) =>
+            SumLinkedAxisForce(functionId, linked => ((linked & AxisID.AxisSubtractive) != 0) == left);
 
         /// <summary>
         /// Returns the center position (mm) for the given function, computed from its
