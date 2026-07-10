@@ -58,7 +58,20 @@ namespace DiyFfb.GraphEditor
         /// dynamic registration list; the runtime converter emits the ports as
         /// ordinary MSFS input signals (raw name/unit are registration-only).
         /// </summary>
-        MsfsVarDef
+        MsfsVarDef,
+
+        /// <summary>
+        /// Plan 24: writes graph values back to MSFS (write-side mirror of
+        /// MsfsVarDef). Each INPUT port names a target via SimVar — prefix selects
+        /// the transport (A:/L: over SetDataOnSimObject, B: over the Input Event
+        /// API) — plus a Unit and an integrated linear range map
+        /// (InMin/InMax → OutMin/OutMax) applied at the write boundary. Ports are
+        /// input sinks (like ConfigOut): they resolve their value by wiring and
+        /// feed the eval result's MsfsVarOutputs channel keyed by SignalSuffix
+        /// (alias). Top-level graphs only. Registration/map metadata never enters
+        /// the runtime graph.
+        /// </summary>
+        MsfsVarOut
     }
 
     public enum GraphPortKind
@@ -271,6 +284,17 @@ namespace DiyFfb.GraphEditor
         /// other kinds.
         /// </summary>
         public string Unit { get; set; } = "";
+
+        /// <summary>
+        /// Plan 24: integrated linear range map for MsfsVarOut input ports. The
+        /// incoming graph value is mapped InMin/InMax → OutMin/OutMax and always
+        /// clamped to the output range at the write boundary (never in graph
+        /// eval). Identity default (0..1 → 0..1) = passthrough. Metadata only.
+        /// </summary>
+        public double InMin { get; set; } = 0.0;
+        public double InMax { get; set; } = 1.0;
+        public double OutMin { get; set; } = 0.0;
+        public double OutMax { get; set; } = 1.0;
     }
 
     /// <summary>

@@ -149,6 +149,26 @@ namespace DiyFfb
         private readonly Dictionary<string, bool> _gripHeld = new Dictionary<string, bool>();
         private DiyFfb.GraphTest.GraphEvaluationResult lastGraphEvaluation;
         private readonly Dictionary<string, double> _lastConfigOutValues = new Dictionary<string, double>();
+
+        // Plan 24: MsfsVarOut write dispatch state. _lastMsfsVarOutValues holds the
+        // last MAPPED value sent per alias (change-detection, 1e-6 like ConfigOut).
+        // _msfsVarOutMaps is the alias→range-map/prefix lookup, published as an
+        // atomic immutable snapshot (built on the scan thread, read on the eval
+        // thread — see UpdateMsfsWritableVars). _lastSeenWriteGeneration tracks the
+        // client's WriteGeneration to force a full re-push on reconnect/re-register.
+        private readonly Dictionary<string, double> _lastMsfsVarOutValues = new Dictionary<string, double>();
+        private volatile Dictionary<string, MsfsVarOutMap> _msfsVarOutMaps =
+            new Dictionary<string, MsfsVarOutMap>(StringComparer.Ordinal);
+        private int _lastSeenWriteGeneration;
+
+        // Per-port range map + transport prefix for one MsfsVarOut alias.
+        private sealed class MsfsVarOutMap
+        {
+            public double InMin, InMax, OutMin, OutMax;
+            // B: input events and K: key/sim events are actuations, not idempotent
+            // state assignments — exempt from the forced re-push on reconnect (RD6).
+            public bool IsActuation;
+        }
         private static Func<GameData, string> gameIdGetter;
         private DiyFfbPluginSettings.AircraftFfbProfile pendingFfbProfile;
         private bool hasPendingFfbProfile;
@@ -1197,6 +1217,7 @@ namespace DiyFfb
             // Feed any already-loaded graph's custom vars (graph may load before
             // the client starts during Init).
             UpdateMsfsCustomVars();
+            UpdateMsfsWritableVars();
             SimHub.Logging.Current?.Info("[MsfsSimConnect] in-process client started.");
         }
 
@@ -1232,6 +1253,114 @@ namespace DiyFfb
                 }
             }
             client.SetCustomVars(list);
+        }
+
+        // Plan 24: scan the active graph's MsfsVarOut nodes → the write-target
+        // registration list + the alias→range-map/prefix lookup. Sibling of
+        // UpdateMsfsCustomVars; called from the same sites. The lookup is
+        // published as a NEW immutable dict via a single volatile assignment
+        // (built here on the scan thread, read by CheckMsfsVarOutChanges on the
+        // eval thread) — never mutated in place. No-op if the client isn't running.
+        private void UpdateMsfsWritableVars()
+        {
+            var client = _msfsClient;
+            if (client == null) return;
+
+            var list = new List<DiyFfb.Msfs.MsfsCustomVar>();
+            var maps = new Dictionary<string, MsfsVarOutMap>(StringComparer.Ordinal);
+            var graph = activeVehicleGraph;
+            if (graph != null && graph.Nodes != null)
+            {
+                foreach (var node in graph.Nodes)
+                {
+                    if (node == null || node.Kind != GraphNodeKind.MsfsVarOut || node.Ports == null)
+                        continue;
+                    foreach (var port in node.Ports)
+                    {
+                        if (port == null || port.Kind != GraphPortKind.Input) continue;
+                        string alias = port.Name?.Trim() ?? "";
+                        string name = port.SimVar?.Trim() ?? "";
+                        if (alias.Length == 0 || name.Length == 0) continue;
+                        if (maps.ContainsKey(alias)) continue; // duplicate alias — first wins
+                        list.Add(new DiyFfb.Msfs.MsfsCustomVar(alias, name, port.Unit?.Trim() ?? ""));
+                        maps[alias] = new MsfsVarOutMap
+                        {
+                            InMin = port.InMin,
+                            InMax = port.InMax,
+                            OutMin = port.OutMin,
+                            OutMax = port.OutMax,
+                            IsActuation = name.StartsWith("B:", StringComparison.Ordinal)
+                                       || name.StartsWith("K:", StringComparison.Ordinal)
+                        };
+                    }
+                }
+            }
+            _msfsVarOutMaps = maps; // atomic publish
+            client.SetWritableVars(list);
+        }
+
+        // Plan 24: dispatch changed MsfsVarOut values to the sim. Mirror of
+        // CheckConfigOutChanges — apply the per-port linear range map + clamp,
+        // change-detect on the MAPPED value (1e-6), and WriteValue only on change.
+        // On a write-set (re)registration / reconnect (WriteGeneration bumped) the
+        // A:/L: cache is cleared to force a full re-push of held values; B: aliases
+        // are exempt (re-firing a toggle/preset on reconnect is a spurious
+        // actuation), so they keep their last-sent value across the re-push.
+        private void CheckMsfsVarOutChanges()
+        {
+            var client = _msfsClient;
+            if (client == null) return;
+
+            var maps = _msfsVarOutMaps; // snapshot the atomic reference
+
+            int gen = client.WriteGeneration;
+            if (gen != _lastSeenWriteGeneration)
+            {
+                _lastSeenWriteGeneration = gen;
+                // Force re-push of A:/L: state; keep B: last-sent values so they
+                // don't re-fire. Remove only non-B: aliases from the cache.
+                var toClear = new List<string>();
+                foreach (var kvp in _lastMsfsVarOutValues)
+                {
+                    if (!(maps.TryGetValue(kvp.Key, out var m) && m.IsActuation))
+                        toClear.Add(kvp.Key);
+                }
+                foreach (var k in toClear) _lastMsfsVarOutValues.Remove(k);
+            }
+
+            var outputs = lastGraphEvaluation?.MsfsVarOutputs;
+            if (outputs == null || outputs.Count == 0) return;
+
+            foreach (var kvp in outputs)
+            {
+                string alias = kvp.Key;
+                double raw = kvp.Value;
+
+                double mapped;
+                if (maps.TryGetValue(alias, out var map))
+                {
+                    double span = map.InMax - map.InMin;
+                    double t = Math.Abs(span) < 1e-12 ? 0.0 : (raw - map.InMin) / span;
+                    mapped = map.OutMin + t * (map.OutMax - map.OutMin);
+                    double lo = Math.Min(map.OutMin, map.OutMax);
+                    double hi = Math.Max(map.OutMin, map.OutMax);
+                    if (mapped < lo) mapped = lo;
+                    else if (mapped > hi) mapped = hi;
+                }
+                else
+                {
+                    // No map (port removed between scan and eval) — passthrough.
+                    mapped = raw;
+                }
+
+                if (_lastMsfsVarOutValues.TryGetValue(alias, out double last) &&
+                    Math.Abs(mapped - last) < 1e-6)
+                {
+                    continue;
+                }
+                _lastMsfsVarOutValues[alias] = mapped;
+                client.WriteValue(alias, mapped);
+            }
         }
 
         private void StopMsfsClient()
@@ -2306,6 +2435,7 @@ namespace DiyFfb
             activeIncludeContextCache = null;
             lastGraphEvaluation = null;
             _lastConfigOutValues.Clear();
+            _lastMsfsVarOutValues.Clear(); // plan 24: don't leak writes across graph switches
             ConfigOrchestrator?.ClearConfigOutOverrides();
 
             bool autoAssigned = false;
@@ -2378,8 +2508,9 @@ namespace DiyFfb
                     // Notify UI that graph has changed
                     ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
 
-                    // Plan 23: re-register MSFS custom vars for the new graph.
+                    // Plan 23/24: re-register MSFS custom vars + write targets.
                     UpdateMsfsCustomVars();
+                    UpdateMsfsWritableVars();
 
                     // Check for param migration needs
                     CheckParamMigration(resolvedPath, gameId, carId);
@@ -2504,6 +2635,9 @@ namespace DiyFfb
                 // These are graph-derived static config (harm ratios, phase, etc.) computed
                 // from params + math nodes — they don't depend on telemetry freshness.
                 CheckConfigOutChanges();
+
+                // Plan 24: dispatch changed MsfsVarOut values to the sim (write path).
+                CheckMsfsVarOutChanges();
             }
             catch
             {
@@ -2680,6 +2814,18 @@ namespace DiyFfb
                 }
             }
             return map;
+        }
+
+        // Plan 24: MsfsVarOut write targets the client couldn't deliver — a
+        // non-settable/unknown A: that raised, or a B: input event unresolved on
+        // this aircraft (code 0). Keyed alias -> exception code; used by the editor
+        // to flag the offending write ports.
+        internal IReadOnlyDictionary<string, uint> GetMsfsWriteFailedVars()
+        {
+            var client = _msfsClient;
+            return client != null
+                ? client.WriteFailedVars
+                : new Dictionary<string, uint>(StringComparer.Ordinal);
         }
 
         private void BuildGraphParams()
@@ -3746,8 +3892,9 @@ namespace DiyFfb
 
             ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
 
-            // Plan 23: re-register MSFS custom vars for the applied graph.
+            // Plan 23/24: re-register MSFS custom vars + write targets.
             UpdateMsfsCustomVars();
+            UpdateMsfsWritableVars();
         }
 
         public void SetVehicleGraphPath(string gameId, string carId, string path)

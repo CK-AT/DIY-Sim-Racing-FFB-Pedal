@@ -159,6 +159,30 @@ namespace DiyFfb.GraphEditor
                     }
                     continue;
                 }
+                else if (node.Kind == GraphNodeKind.MsfsVarOut)
+                {
+                    // Plan 24: MsfsVarOut input ports are write sinks (mirror of
+                    // ConfigOut). Each wired port feeds the eval result's
+                    // MsfsVarOutputs channel keyed by its alias (port.Name). The
+                    // raw target name / unit / range map are registration+dispatch
+                    // metadata scanned plugin-side and never enter the runtime.
+                    foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
+                    {
+                        if (!string.IsNullOrEmpty(port.Name) &&
+                            TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
+                        {
+                            var varOutNode = new DiyFfb.GraphTest.GraphNode
+                            {
+                                Id = BuildPortId(node.Id, port.Name),
+                                Name = port.Name,
+                                Type = NodeType.MsfsVarOut,
+                                Src = source
+                            };
+                            runtime.Nodes[varOutNode.Id] = varOutNode;
+                        }
+                    }
+                    continue;
+                }
                 else if (node.Kind == GraphNodeKind.Include)
                 {
                     // Embedded sub-graph: recursively convert the inline definition.
@@ -347,6 +371,7 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.ConfigIn: return NodeType.ConfigIn;
                 case GraphNodeKind.Expr: return NodeType.Expr;
                 case GraphNodeKind.MsfsVarDef: return NodeType.Input; // emits MSFS.<alias>
+                case GraphNodeKind.MsfsVarOut: return NodeType.MsfsVarOut; // write sink
                 // LocalSend / LocalReceive collapse away at convert time and
                 // never reach the runtime; MapNodeType shouldn't be called on
                 // them, but if it is just return Const (harmless).

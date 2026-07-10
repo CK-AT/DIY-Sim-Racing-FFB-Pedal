@@ -100,6 +100,80 @@ namespace DiyFfb.Msfs
         private List<MsfsFailedVar> _failed = new List<MsfsFailedVar>();
         private bool _customSampleLogged;
 
+        // ---------- Plan 24: write path ----------
+        // Desired write set (set by SetWritableVars, consumed by the worker). A
+        // changed write set forces a Reconfigure via _writablesDirty, independent
+        // of _customsDirty — a graph with writes but no reads must still rebuild.
+        private List<MsfsCustomVar> _pendingWritables = new List<MsfsCustomVar>();
+        private volatile bool _writablesDirty;
+
+        // alias -> write define id, built in Configure for A:/L: writable vars.
+        // Worker-owned; drain reads it on the worker thread only.
+        private Dictionary<string, uint> _writeDefineByAlias =
+            new Dictionary<string, uint>(StringComparer.Ordinal);
+
+        // Plan 24 Phase 2: alias -> resolved input-event hash for B: targets,
+        // built by ResolveInputEvents during Configure. Worker-owned.
+        private Dictionary<string, ulong> _hashByAlias =
+            new Dictionary<string, ulong>(StringComparer.Ordinal);
+
+        // Plan 24: alias -> client-event id for K: key/sim events, built in
+        // ConfigureWritables via MapClientEventToSimEvent. Worker-owned. The id
+        // is a SIMCONNECT_CLIENT_EVENT_ID (its own namespace) from this band.
+        private Dictionary<string, uint> _eventIdByAlias =
+            new Dictionary<string, uint>(StringComparer.Ordinal);
+        private const uint KeyEventIdBase = 3000;
+
+        // Plan 24 Phase 4: alias -> exception code for write targets that failed
+        // (unresolved B: hash → 0; a write that raised RecvIdException → its code).
+        // Guarded by _writeLock; snapshot exposed to the editor via WriteFailedVars.
+        private Dictionary<string, uint> _writeFailed =
+            new Dictionary<string, uint>(StringComparer.Ordinal);
+        private const uint InputEventRequestId = 1001;
+        private const int  EnumerateTimeoutMs  = 500;
+        private const int  MaxEnumeratePages   = 256;
+
+        // Plan 24 Phase 2 circuit-breaker. The enumerate function id is UNVALIDATED;
+        // if MSFS rejects the packet it can drop the whole pipe (taking reads down
+        // too). If we attempt the enumerate this many times and NEVER get a reply,
+        // stop sending it for the rest of the session so the read stream + A:/L:
+        // writes stay healthy. B: targets stay pending. Worker-owned.
+        private const int EnumerateMaxAttemptsNoReply = 3;
+        private int  _enumerateAttempts;
+        private bool _enumerateEverReplied;
+        private bool _enumerateDisabled;
+
+        // Coalesced pending writes (latest-value-wins between drains). Guarded by
+        // _writeLock; the worker snapshots + clears at the top of each ReadLoop
+        // iteration. The caller (WriteValue) never touches the pipe.
+        private readonly object _writeLock = new object();
+        private Dictionary<string, double> _pendingWrites =
+            new Dictionary<string, double>(StringComparer.Ordinal);
+        private volatile bool _writesDirty;
+
+        // Aliases already logged as "no route" since the last Configure, so an
+        // unresolved target is logged once, not every frame. Worker-owned.
+        private readonly HashSet<string> _droppedLogged =
+            new HashSet<string>(StringComparer.Ordinal);
+
+        // Bounded sendId -> alias attribution for write exceptions. A live axis
+        // mints a fresh sendId per frame, so this is an LRU capped at
+        // SendIdMapCap entries — never an unbounded map.
+        private const int SendIdMapCap = 512;
+        private readonly Dictionary<uint, string> _sendIdToAlias =
+            new Dictionary<uint, string>();
+        private readonly Queue<uint> _sendIdOrder = new Queue<uint>();
+
+        // Bumped once at the end of every Configure (write-define rebuild /
+        // reconnect / re-enumerate). The plugin snapshots this each eval and
+        // forces a full re-push of A:/L: writes when it changes (plan 24 §4.3).
+        private int _writeGeneration;
+        public int WriteGeneration => Volatile.Read(ref _writeGeneration);
+
+        // Write define id-space: a dedicated band, one define per writable var,
+        // independent of the streaming define (1) and probe define (1000).
+        private const uint WriteDefineBase = 2000;
+
         // Reused buffers. _rxBuffer holds one inbound packet; ~500 FLOAT64 slots
         // incl. header, ample for 36 defaults + up to MaxCustomVars customs.
         private readonly byte[] _rxBuffer = new byte[4096];
@@ -123,6 +197,13 @@ namespace DiyFfb.Msfs
             get { lock (_stateLock) return _failed.ToArray(); }
         }
 
+        // Plan 24: snapshot of write targets that failed (alias -> exception code;
+        // 0 = an unresolved B: input event). Consumed by the editor warning surface.
+        public IReadOnlyDictionary<string, uint> WriteFailedVars
+        {
+            get { lock (_writeLock) return new Dictionary<string, uint>(_writeFailed, StringComparer.Ordinal); }
+        }
+
         // Replace the desired custom-var list. Worker-thread ownership: this only
         // stores the pending list and flags it; the worker re-registers at a safe
         // point. Never writes to the pipe from the caller's thread. Excess vars
@@ -142,6 +223,46 @@ namespace DiyFfb.Msfs
             lock (_stateLock) { _pendingCustoms = copy; }
             _customsDirty = true;
         }
+
+        // Plan 24: declare the full set of writable targets (A:/L: vars and, in
+        // Phase 2, B: input events). Worker-thread ownership, exactly like
+        // SetCustomVars: store + flag; the worker rebuilds the write defines at a
+        // safe point. _writablesDirty is a SEPARATE reconfigure input from
+        // _customsDirty — a graph with writes but no reads has no read-side dirty.
+        public void SetWritableVars(IReadOnlyList<MsfsCustomVar> writables)
+        {
+            var copy = new List<MsfsCustomVar>();
+            if (writables != null)
+            {
+                foreach (var w in writables)
+                {
+                    if (w == null || string.IsNullOrEmpty(w.Name) || string.IsNullOrEmpty(w.Alias))
+                        continue;
+                    copy.Add(w);
+                }
+            }
+            lock (_stateLock) { _pendingWritables = copy; }
+            _writablesDirty = true;
+        }
+
+        // Plan 24: queue a value to write to the target registered under `alias`.
+        // Thread-safe and coalesced (latest-value-wins between drains); never
+        // touches the pipe. The worker routes each alias by how it registered.
+        public void WriteValue(string alias, double value)
+        {
+            if (string.IsNullOrEmpty(alias)) return;
+            lock (_writeLock) { _pendingWrites[alias] = value; }
+            _writesDirty = true;
+        }
+
+        // A B:-prefixed target is an Input Event, not a data-definition datum.
+        private static bool IsInputEventName(string name) =>
+            name != null && name.StartsWith("B:", StringComparison.Ordinal);
+
+        // A K:-prefixed target is a key/sim event (MapClientEventToSimEvent +
+        // TransmitClientEvent), not a data-definition datum or an input event.
+        private static bool IsKeyEventName(string name) =>
+            name != null && name.StartsWith("K:", StringComparison.Ordinal);
 
         public void Start()
         {
@@ -223,6 +344,7 @@ namespace DiyFfb.Msfs
                         // doesn't exist yet); re-registrations do.
                         LoopResult result = LoopResult.Reconfigure;
                         bool firstConfigure = true;
+                        DateTime connectedAt = DateTime.UtcNow;
                         while (result == LoopResult.Reconfigure && !ct.IsCancellationRequested)
                         {
                             Configure(pipe, clearFirst: !firstConfigure);
@@ -230,6 +352,8 @@ namespace DiyFfb.Msfs
                             _connected = true;
                             result = ReadLoop(pipe, ct);
                         }
+                        if (result == LoopResult.Disconnected && !ct.IsCancellationRequested)
+                            _log($"[MsfsSimConnect] pipe closed after {(DateTime.UtcNow - connectedAt).TotalMilliseconds:0} ms up (reconnecting).");
                     }
                 }
                 catch (Exception ex) when (
@@ -237,6 +361,8 @@ namespace DiyFfb.Msfs
                     ex is EndOfStreamException || ex is UnauthorizedAccessException)
                 {
                     // Expected: pipe broke, MSFS quit, or we got Stop()'d.
+                    if (!ct.IsCancellationRequested)
+                        _log($"[MsfsSimConnect] pipe I/O ended ({ex.GetType().Name}); reconnecting.");
                 }
                 catch (Exception ex)
                 {
@@ -300,6 +426,7 @@ namespace DiyFfb.Msfs
         private void Configure(NamedPipeClientStream pipe, bool clearFirst)
         {
             _customsDirty = false;
+            _writablesDirty = false;
 
             List<MsfsCustomVar> customs;
             lock (_stateLock) { customs = _pendingCustoms; }
@@ -365,6 +492,212 @@ namespace DiyFfb.Msfs
 
             Subscribe(pipe);
             _log($"[MsfsSimConnect] connected, streaming SIM_FRAME: {DefaultCount} defaults + {survivors.Count} custom ({failed.Count} rejected).");
+
+            ConfigureWritables(pipe, clearFirst);
+        }
+
+        // Plan 24: (re)build the A:/L: write defines — one define per writable var
+        // in the WriteDefineBase band, each holding a single FLOAT64. Each define
+        // is Cleared before re-adding: AddToDataDefinition APPENDS, and a rebuild
+        // reassigns defineIds, so skipping the clear would leave a stale datum and
+        // the single-FLOAT64 write would target the wrong one (plan 24 §4.2).
+        // B: entries are handled by the Input Event resolver (Phase 2), not here.
+        // Bumps WriteGeneration so the plugin forces a full re-push.
+        private void ConfigureWritables(NamedPipeClientStream pipe, bool clearFirst)
+        {
+            List<MsfsCustomVar> writables;
+            lock (_stateLock) { writables = _pendingWritables; }
+
+            var defineByAlias = new Dictionary<string, uint>(StringComparer.Ordinal);
+            uint next = WriteDefineBase;
+            int added = 0;
+
+            if (writables != null)
+            {
+                foreach (var w in writables)
+                {
+                    if (added >= MaxCustomVars)
+                    {
+                        _log($"[MsfsSimConnect] writable cap ({MaxCustomVars}) reached; '{w.Name}' and any after it were skipped.");
+                        break;
+                    }
+                    if (IsInputEventName(w.Name)) continue;   // B: → Input Event resolver
+                    if (IsKeyEventName(w.Name)) continue;     // K: → key-event mapping below
+                    if (defineByAlias.ContainsKey(w.Alias)) continue; // dup alias, first wins
+
+                    uint defineId = next++;
+                    // A reconfigure may reuse this defineId for a different var —
+                    // clear it before adding so no stale datum lingers.
+                    WriteAndFlush(pipe, SimConnectProtocol.WriteClearDataDefinition(
+                        _txBuffer, Protocol, defineId, NextSendId()));
+                    AddToDefinition(pipe, defineId, w.Name, w.Units, datumId: 0);
+                    WriteFlush(pipe);
+                    defineByAlias[w.Alias] = defineId;
+                    added++;
+                }
+            }
+
+            _writeDefineByAlias = defineByAlias;
+            _droppedLogged.Clear();
+            lock (_writeLock)
+            {
+                _sendIdToAlias.Clear();
+                _sendIdOrder.Clear();
+                _writeFailed.Clear();
+            }
+
+            // Plan 24: map K: key/sim events (stable transport). Assign each a
+            // client-event id and register the name — fire-and-forget; a bad name
+            // yields an async exception but never closes the pipe.
+            var eventIdByAlias = new Dictionary<string, uint>(StringComparer.Ordinal);
+            if (writables != null)
+            {
+                uint nextEvent = KeyEventIdBase;
+                foreach (var w in writables)
+                {
+                    if (!IsKeyEventName(w.Name)) continue;
+                    if (eventIdByAlias.ContainsKey(w.Alias)) continue;
+                    uint eventId = nextEvent++;
+                    WriteAndFlush(pipe, SimConnectProtocol.WriteMapClientEventToSimEvent(
+                        _txBuffer, Protocol, eventId, w.Name.Substring(2), NextSendId()));
+                    eventIdByAlias[w.Alias] = eventId;
+                }
+            }
+            _eventIdByAlias = eventIdByAlias;
+
+            // Plan 24 Phase 2: resolve B: input-event hashes for this aircraft.
+            _hashByAlias = ResolveInputEvents(pipe, writables);
+
+            // Record B: targets that never resolved on this aircraft (pending /
+            // absent) as write failures (code 0) so the editor can flag them.
+            if (writables != null)
+            {
+                lock (_writeLock)
+                {
+                    foreach (var w in writables)
+                    {
+                        if (IsInputEventName(w.Name) && !_hashByAlias.ContainsKey(w.Alias))
+                            _writeFailed[w.Alias] = 0;
+                    }
+                }
+            }
+
+            unchecked { Volatile.Write(ref _writeGeneration, _writeGeneration + 1); }
+            if (added > 0 || _hashByAlias.Count > 0 || _eventIdByAlias.Count > 0)
+                _log($"[MsfsSimConnect] writables registered: {added} var define(s), {_eventIdByAlias.Count} key event(s), {_hashByAlias.Count} input event(s).");
+        }
+
+        // Plan 24 Phase 2: enumerate the current aircraft's input events and build
+        // alias -> hash for the declared B: targets. FAILS OPEN (plan §4.5): a
+        // timed-out / empty / garbled enumerate returns whatever resolved so far
+        // (possibly nothing) and lets Configure finish normally — unresolved B:
+        // aliases stay pending (dropped-and-logged) until a later re-register.
+        // The drain is bounded on BOTH a wall-clock deadline and a page cap, so no
+        // reply shape can spin or block. UNVALIDATED wire format.
+        private Dictionary<string, ulong> ResolveInputEvents(
+            NamedPipeClientStream pipe, List<MsfsCustomVar> writables)
+        {
+            var hashByAlias = new Dictionary<string, ulong>(StringComparer.Ordinal);
+
+            // Pending B: targets. Match case-INSENSITIVELY against BOTH the
+            // B:-stripped name and the full "B:NAME" form — MSFS input-event names
+            // are conventionally all-caps and the enumeration form is unvalidated,
+            // so accept either. Normalized key (upper) -> alias.
+            var wanted = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (writables != null)
+            {
+                foreach (var w in writables)
+                {
+                    if (!IsInputEventName(w.Name)) continue;
+                    string full = w.Name.Trim();
+                    string stripped = full.Substring(2); // drop "B:"
+                    if (stripped.Length == 0) continue;
+                    if (!wanted.ContainsKey(stripped)) wanted[stripped] = w.Alias;
+                    if (!wanted.ContainsKey(full)) wanted[full] = w.Alias;
+                }
+            }
+            if (wanted.Count == 0) return hashByAlias;
+
+            // Circuit-breaker: a prior run proved the enumerate never replies (and
+            // may be dropping the pipe). Skip it — B: targets stay pending, reads
+            // and A:/L: writes are unaffected. Restart SimHub to re-arm.
+            if (_enumerateDisabled)
+            {
+                int pendingCount = new HashSet<string>(wanted.Values, StringComparer.Ordinal).Count;
+                _log($"[MsfsSimConnect] input-event enumeration disabled this session; {pendingCount} B: target(s) stay pending.");
+                return hashByAlias;
+            }
+
+            _enumerateAttempts++;
+            WriteAndFlush(pipe, SimConnectProtocol.WriteEnumerateInputEvents(
+                _txBuffer, Protocol, InputEventRequestId, NextSendId()));
+
+            var page = new List<SimConnectProtocol.InputEventRecord>();
+            var allNames = new List<string>();      // diagnostic: every enumerated name
+            uint totalExpected = uint.MaxValue;      // until first page tells us dwOutOf
+            int received = 0;
+            int pages = 0;
+            DateTime deadline = DateTime.UtcNow.AddMilliseconds(EnumerateTimeoutMs);
+
+            while (DateTime.UtcNow < deadline && pages < MaxEnumeratePages)
+            {
+                if (!TryReadPacketBeforeDeadline(pipe, deadline, out int totalSize))
+                    break; // nothing more before the deadline — give up (fail open)
+                if (!SimConnectProtocol.TryReadHeader(_rxBuffer, totalSize,
+                        out _, out _, out uint recvId))
+                    continue;
+                if (recvId != SimConnectProtocol.RecvIdEnumerateInputEvents)
+                    continue; // ignore anything else arriving mid-enumerate
+
+                page.Clear();
+                if (!SimConnectProtocol.TryReadEnumerateInputEvents(_rxBuffer, totalSize,
+                        out uint rid, out _, out _, out uint outOf, page))
+                    break;
+                if (rid != InputEventRequestId) continue;
+
+                pages++;
+                totalExpected = outOf;
+                foreach (var rec in page)
+                {
+                    received++;
+                    if (allNames.Count < 400) allNames.Add(rec.Name);
+                    if (wanted.TryGetValue(rec.Name?.Trim() ?? "", out string alias))
+                        hashByAlias[alias] = rec.Hash;
+                }
+
+                if (totalExpected != uint.MaxValue && received >= (int)totalExpected)
+                    break; // all pages accumulated
+            }
+
+            // One-shot diagnostic (UNVALIDATED wire format): dump what the enumerate
+            // actually returned so a "confirmed name but unresolved" can be pinned
+            // to a parser-offset bug (garbage names) vs. a name/form mismatch (sane
+            // names, different string). Distinct aliases resolved counts too.
+            if (received > 0) _enumerateEverReplied = true;
+            int distinctResolved = new HashSet<string>(hashByAlias.Keys, StringComparer.Ordinal).Count;
+            _log($"[MsfsSimConnect] EnumerateInputEvents: attempt={_enumerateAttempts} pages={pages} received={received} outOf={(totalExpected == uint.MaxValue ? -1 : (int)totalExpected)} resolved={distinctResolved}.");
+
+            // Trip the circuit-breaker: never a single reply across N attempts →
+            // the enumerate is almost certainly the wrong function id for this MSFS
+            // build and is destabilising the pipe. Stop sending it.
+            if (!_enumerateEverReplied && _enumerateAttempts >= EnumerateMaxAttemptsNoReply)
+            {
+                _enumerateDisabled = true;
+                _log($"[MsfsSimConnect] EnumerateInputEvents produced no reply in {_enumerateAttempts} attempts — DISABLING input-event resolution for this session to protect the connection. B: targets stay pending; reads and A:/L: writes are unaffected. (UNVALIDATED protocol id — see plan 24 §4.5.)");
+            }
+            if (received > 0)
+            {
+                int dump = Math.Min(allNames.Count, 80);
+                var sb = new System.Text.StringBuilder("[MsfsSimConnect] input event names:");
+                for (int i = 0; i < dump; i++) sb.Append(' ').Append('\'').Append(allNames[i]).Append('\'');
+                if (allNames.Count > dump) sb.Append($" …(+{received - dump} more)");
+                _log(sb.ToString());
+            }
+
+            int unresolved = new HashSet<string>(wanted.Values, StringComparer.Ordinal).Count - distinctResolved;
+            if (unresolved > 0)
+                _log($"[MsfsSimConnect] {unresolved} B: input event(s) unresolved on this aircraft (pending).");
+            return hashByAlias;
         }
 
         // Validate one custom var in a scratch definition. Returns true if the
@@ -474,12 +807,19 @@ namespace DiyFfb.Msfs
         {
             while (!ct.IsCancellationRequested)
             {
-                // Custom vars changed — stop the stream and re-register.
-                if (_customsDirty)
+                // Custom vars OR the write set changed — stop the stream and
+                // re-register. The two dirty flags are independent inputs to the
+                // same reconfigure gate (plan 24 §4.2).
+                if (_customsDirty || _writablesDirty)
                 {
                     StopStream(pipe);
                     return LoopResult.Reconfigure;
                 }
+
+                // Flush any pending writes. Latency = one loop iteration; a write
+                // is not sent until the next inbound packet unblocks ReadOnePacket
+                // (acceptable — writes only matter in-flight while data flows).
+                if (_writesDirty) DrainWrites(pipe);
 
                 if (!ReadOnePacket(pipe, out int totalSize)) return LoopResult.Disconnected;
                 if (!SimConnectProtocol.TryReadHeader(_rxBuffer, totalSize,
@@ -499,7 +839,14 @@ namespace DiyFfb.Msfs
                     if (SimConnectProtocol.TryReadException(_rxBuffer, totalSize,
                             out uint code, out uint sendId, out _))
                     {
-                        _log($"[MsfsSimConnect] exception={code} sendId={sendId}");
+                        string alias = LookupSendAlias(sendId);
+                        if (alias != null)
+                        {
+                            lock (_writeLock) { _writeFailed[alias] = code; }
+                            _log($"[MsfsSimConnect] write failed: alias '{alias}' exception={code} sendId={sendId}");
+                        }
+                        else
+                            _log($"[MsfsSimConnect] exception={code} sendId={sendId}");
                     }
                 }
             }
@@ -569,6 +916,86 @@ namespace DiyFfb.Msfs
 
         private static readonly IReadOnlyDictionary<string, double> EmptyCustoms =
             new Dictionary<string, double>(0);
+
+        // -----------------------------------------------------------------
+        //  Plan 24: write drain + exception attribution
+        // -----------------------------------------------------------------
+
+        // Snapshot + clear the coalesced pending writes, then send one write per
+        // entry via its routed transport. An alias with no route (define not
+        // built, or a B: hash unresolved) is dropped and logged once. Worker
+        // thread only. No re-diff — change-detection already ran plugin-side.
+        private void DrainWrites(NamedPipeClientStream pipe)
+        {
+            KeyValuePair<string, double>[] pending;
+            lock (_writeLock)
+            {
+                _writesDirty = false;
+                if (_pendingWrites.Count == 0) return;
+                pending = new KeyValuePair<string, double>[_pendingWrites.Count];
+                int i = 0;
+                foreach (var kvp in _pendingWrites) pending[i++] = kvp;
+                _pendingWrites.Clear();
+            }
+
+            foreach (var kvp in pending)
+            {
+                if (_writeDefineByAlias.TryGetValue(kvp.Key, out uint defineId))
+                {
+                    uint sendId = NextSendId();
+                    RecordSendAlias(sendId, kvp.Key);
+                    WriteAndFlush(pipe, SimConnectProtocol.WriteSetDataOnSimObjectFloat64(
+                        _txBuffer, Protocol, defineId,
+                        SimConnectProtocol.ObjectIdUser, kvp.Value, sendId));
+                }
+                else if (_eventIdByAlias.TryGetValue(kvp.Key, out uint eventId))
+                {
+                    // K: key/sim event — DWORD value (two's-complement for signed
+                    // axis SET events, e.g. -16383..16383).
+                    uint data = unchecked((uint)(int)Math.Round(kvp.Value));
+                    uint sendId = NextSendId();
+                    RecordSendAlias(sendId, kvp.Key);
+                    WriteAndFlush(pipe, SimConnectProtocol.WriteTransmitClientEvent(
+                        _txBuffer, Protocol, SimConnectProtocol.ObjectIdUser, eventId, data,
+                        SimConnectProtocol.GroupPriorityHighest,
+                        SimConnectProtocol.EventFlagGroupIdIsPriority, sendId));
+                }
+                else if (_hashByAlias.TryGetValue(kvp.Key, out ulong hash))
+                {
+                    uint sendId = NextSendId();
+                    RecordSendAlias(sendId, kvp.Key);
+                    WriteAndFlush(pipe, SimConnectProtocol.WriteSetInputEventFloat64(
+                        _txBuffer, Protocol, hash, kvp.Value, sendId));
+                }
+                else if (_droppedLogged.Add(kvp.Key))
+                {
+                    _log($"[MsfsSimConnect] write dropped: alias '{kvp.Key}' has no resolved target (yet).");
+                }
+            }
+        }
+
+        private void RecordSendAlias(uint sendId, string alias)
+        {
+            lock (_writeLock)
+            {
+                if (_sendIdToAlias.ContainsKey(sendId)) return;
+                _sendIdToAlias[sendId] = alias;
+                _sendIdOrder.Enqueue(sendId);
+                while (_sendIdOrder.Count > SendIdMapCap)
+                {
+                    uint old = _sendIdOrder.Dequeue();
+                    _sendIdToAlias.Remove(old);
+                }
+            }
+        }
+
+        private string LookupSendAlias(uint sendId)
+        {
+            lock (_writeLock)
+            {
+                return _sendIdToAlias.TryGetValue(sendId, out string alias) ? alias : null;
+            }
+        }
 
         // -----------------------------------------------------------------
         //  Pipe I/O

@@ -45,6 +45,8 @@ namespace DiyFfb.GraphTest
         private readonly string[] _outputNames;
         private readonly int[] _configOutIndices;
         private readonly string[] _configOutNames;
+        private readonly int[] _msfsVarOutIndices;
+        private readonly string[] _msfsVarOutNames;
         private readonly string[] _configInKeys;
         private readonly double[] _values;
         private readonly double[] _extraValues;
@@ -139,6 +141,22 @@ namespace DiyFfb.GraphTest
             _configOutIndices = configOutIndices.ToArray();
             _configOutNames = configOutNames.ToArray();
 
+            var msfsVarOutIndices = new List<int>();
+            var msfsVarOutNames = new List<string>();
+            foreach (var node in _order)
+            {
+                if (node.Node.Type != NodeType.MsfsVarOut)
+                {
+                    continue;
+                }
+
+                msfsVarOutIndices.Add(node.Index);
+                msfsVarOutNames.Add(node.Node.Name ?? "");
+            }
+
+            _msfsVarOutIndices = msfsVarOutIndices.ToArray();
+            _msfsVarOutNames = msfsVarOutNames.ToArray();
+
             var configInKeys = new List<string>();
             foreach (var node in _order)
             {
@@ -222,6 +240,9 @@ namespace DiyFfb.GraphTest
                     case NodeType.ConfigOut:
                         _values[compiled.Index] = Resolve(compiled.SrcIndex, compiled.SrcIsExtra);
                         break;
+                    case NodeType.MsfsVarOut:
+                        _values[compiled.Index] = Resolve(compiled.SrcIndex, compiled.SrcIsExtra);
+                        break;
                 }
             }
 
@@ -249,6 +270,10 @@ namespace DiyFfb.GraphTest
             for (int i = 0; i < _configOutIndices.Length; i++)
             {
                 result.ConfigOutputs[_configOutNames[i]] = _values[_configOutIndices[i]];
+            }
+            for (int i = 0; i < _msfsVarOutIndices.Length; i++)
+            {
+                result.MsfsVarOutputs[_msfsVarOutNames[i]] = _values[_msfsVarOutIndices[i]];
             }
             foreach (var w in warnings)
             {

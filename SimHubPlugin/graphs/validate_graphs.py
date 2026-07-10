@@ -152,6 +152,36 @@ def validate_graph(g, base_dir, fname):
             else:
                 msfs_alias_seen[alias] = nid
 
+    # Plan 24: MsfsVarOut input ports need a non-empty alias (Name) and target
+    # (SimVar); aliases unique across all MsfsVarOut nodes; a single-letter target
+    # prefix must be A:/L:/B: (bare names are allowed = A:); the range map must
+    # not be degenerate (InMax != InMin).
+    msfs_out_alias_seen = {}
+    for nid, n in nodes.items():
+        if n.get("Kind") != "MsfsVarOut":
+            continue
+        for p in n.get("Ports", []):
+            if p.get("Kind") != "Input":
+                continue
+            alias = (p.get("Name") or "").strip()
+            target = (p.get("SimVar") or "").strip()
+            if not alias:
+                errors.append(f"{fname}: MsfsVarOut {nid} has an input port with an empty alias")
+                continue
+            if not target:
+                errors.append(f"{fname}: MsfsVarOut {nid} alias '{alias}' has an empty target (A:/L:/B:/K: name)")
+            elif len(target) > 1 and target[1] == ":" and target[0] not in ("A", "L", "B", "K"):
+                errors.append(f"{fname}: MsfsVarOut {nid} alias '{alias}' has an unknown target prefix '{target[0]}:'")
+            in_min = p.get("InMin", 0.0)
+            in_max = p.get("InMax", 1.0)
+            if in_min == in_max:
+                errors.append(f"{fname}: MsfsVarOut {nid} alias '{alias}' has a degenerate range map (InMax == InMin)")
+            if alias in msfs_out_alias_seen:
+                errors.append(f"{fname}: duplicate MsfsVarOut alias '{alias}' "
+                              f"(nodes {msfs_out_alias_seen[alias]} and {nid})")
+            else:
+                msfs_out_alias_seen[alias] = nid
+
     # links wired into Input-kind ports more than once
     seen = {}
     for l in g.get("Links", []):

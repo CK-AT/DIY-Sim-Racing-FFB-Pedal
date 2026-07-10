@@ -779,6 +779,11 @@ namespace DiyFfb.GraphEditor
         // Plan 23: MsfsVarDef port registration metadata (raw datum name + unit).
         public string SimVar { get; set; } = "";
         public string Unit { get; set; } = "";
+        // Plan 24: MsfsVarOut per-port range map (identity default = passthrough).
+        public double InMin { get; set; } = 0.0;
+        public double InMax { get; set; } = 1.0;
+        public double OutMin { get; set; } = 0.0;
+        public double OutMax { get; set; } = 1.0;
 
         // Conditional serialization: Name for non-signal ports, SignalSuffix for signal ports
         public bool ShouldSerializeName() => string.IsNullOrEmpty(SignalSuffix);
@@ -788,6 +793,12 @@ namespace DiyFfb.GraphEditor
         public bool ShouldSerializeNegate() => Negate;
         public bool ShouldSerializeSimVar() => !string.IsNullOrEmpty(SimVar);
         public bool ShouldSerializeUnit() => !string.IsNullOrEmpty(Unit);
+        // Range-map fields round-trip explicitly; only serialize when non-default
+        // so identity (passthrough) ports stay clean in the JSON.
+        public bool ShouldSerializeInMin() => InMin != 0.0;
+        public bool ShouldSerializeInMax() => InMax != 1.0;
+        public bool ShouldSerializeOutMin() => OutMin != 0.0;
+        public bool ShouldSerializeOutMax() => OutMax != 1.0;
 
         public static GraphPortDto FromModel(GraphPort port, bool isSignalNode)
         {
@@ -806,6 +817,10 @@ namespace DiyFfb.GraphEditor
             dto.BusName = port.BusName;
             dto.SimVar = port.SimVar;
             dto.Unit = port.Unit;
+            dto.InMin = port.InMin;
+            dto.InMax = port.InMax;
+            dto.OutMin = port.OutMin;
+            dto.OutMax = port.OutMax;
             return dto;
         }
 
@@ -832,6 +847,10 @@ namespace DiyFfb.GraphEditor
             port.BusName = BusName ?? "";
             port.SimVar = SimVar ?? "";
             port.Unit = Unit ?? "";
+            port.InMin = InMin;
+            port.InMax = InMax;
+            port.OutMin = OutMin;
+            port.OutMax = OutMax;
             return port;
         }
     }

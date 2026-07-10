@@ -3343,6 +3343,7 @@ namespace DiyFfb
                 graphEditorWindow.SetPlugin(Plugin);
                 graphEditorWindow.SetLiveInputProvider(() => Plugin != null ? Plugin.GetLiveGraphInputs() : null);
                 graphEditorWindow.SetMsfsFailedVarProvider(() => Plugin != null ? Plugin.GetMsfsFailedVars() : null);
+                graphEditorWindow.SetMsfsWriteFailedVarProvider(() => Plugin != null ? Plugin.GetMsfsWriteFailedVars() : null);
                 string activeGraphPath = Plugin?.GetActiveGraphPath();
                 if (!string.IsNullOrWhiteSpace(activeGraphPath))
                 {
@@ -3357,6 +3358,7 @@ namespace DiyFfb
                 graphEditorWindow.SetPlugin(Plugin);
                 graphEditorWindow.SetLiveInputProvider(() => Plugin != null ? Plugin.GetLiveGraphInputs() : null);
                 graphEditorWindow.SetMsfsFailedVarProvider(() => Plugin != null ? Plugin.GetMsfsFailedVars() : null);
+                graphEditorWindow.SetMsfsWriteFailedVarProvider(() => Plugin != null ? Plugin.GetMsfsWriteFailedVars() : null);
                 string activeGraphPath = Plugin?.GetActiveGraphPath();
                 if (!string.IsNullOrWhiteSpace(activeGraphPath))
                 {

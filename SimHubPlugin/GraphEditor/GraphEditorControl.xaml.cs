@@ -41,6 +41,7 @@ namespace DiyFfb.GraphEditor
         private readonly ObservableCollection<PortEditEntry> _portEntries = new ObservableCollection<PortEditEntry>();
         private readonly ObservableCollection<BusPortEntry> _busPortEntries = new ObservableCollection<BusPortEntry>();
         private readonly ObservableCollection<MsfsVarPortEntry> _msfsVarPortEntries = new ObservableCollection<MsfsVarPortEntry>();
+        private readonly ObservableCollection<MsfsVarOutPortEntry> _msfsVarOutPortEntries = new ObservableCollection<MsfsVarOutPortEntry>();
         private readonly Dictionary<string, IReadOnlyList<string>> _configFieldOptionsCache = new Dictionary<string, IReadOnlyList<string>>();
         private bool _isPanning;
         private bool _panWasDragged;
@@ -126,6 +127,7 @@ namespace DiyFfb.GraphEditor
         public ObservableCollection<PortEditEntry> PortEntries => _portEntries;
         public ObservableCollection<BusPortEntry> BusPortEntries => _busPortEntries;
         public ObservableCollection<MsfsVarPortEntry> MsfsVarPortEntries => _msfsVarPortEntries;
+        public ObservableCollection<MsfsVarOutPortEntry> MsfsVarOutPortEntries => _msfsVarOutPortEntries;
 
         // Plan 23: SimConnect unit presets offered in the MsfsVarDef inspector
         // (freeform override allowed). "number" is the safe default for L: vars.
@@ -293,6 +295,9 @@ namespace DiyFfb.GraphEditor
         // failed to register (bad A: name / absent). Polled on the live tick to
         // flag the offending MsfsVarDef rows.
         public Func<IReadOnlyDictionary<string, uint>> MsfsFailedVarProvider { get; set; }
+        // Plan 24: alias -> exception code for MsfsVarOut write targets that were
+        // rejected (non-settable A: / unresolved B: hash). Overlaid on the rows.
+        public Func<IReadOnlyDictionary<string, uint>> MsfsWriteFailedVarProvider { get; set; }
         public Func<Dictionary<string, double[]>> LiveStateProvider { get; set; }
         public Action<string, double> ParamValueChanged { get; set; }
 
@@ -1642,6 +1647,7 @@ namespace DiyFfb.GraphEditor
             if (_graph?.IsLibraryGraph != true)
             {
                 menu.Items.Add(BuildMenuItem("Add MSFS Vars", () => AddNode(GraphNodeKind.MsfsVarDef, position)));
+                menu.Items.Add(BuildMenuItem("Add MSFS Vars Out", () => AddNode(GraphNodeKind.MsfsVarOut, position)));
             }
             menu.Items.Add(new Separator());
             menu.Items.Add(BuildMenuItem("Zoom to Fit", ZoomToFit));
@@ -1765,6 +1771,21 @@ namespace DiyFfb.GraphEditor
                     Kind = GraphPortKind.Output,
                     SignalSuffix = "Custom.Var1",
                     Name = "Custom.Var1",
+                    SimVar = "",
+                    Unit = "number"
+                });
+            }
+            else if (kind == GraphNodeKind.MsfsVarOut)
+            {
+                // Plan 24: writes graph values back to MSFS. Non-signal input
+                // sinks (like ConfigOut): port.Name is the freeform alias; SimVar
+                // is the raw target (prefix picks the transport), Unit + range map
+                // are metadata. Wire a source into each port.
+                node.Title = "MSFS Vars Out";
+                node.Ports.Add(new GraphPort
+                {
+                    Kind = GraphPortKind.Input,
+                    Name = "Out.Var1",
                     SimVar = "",
                     Unit = "number"
                 });
@@ -2145,6 +2166,10 @@ namespace DiyFfb.GraphEditor
             if (UsesTemplateInspector(node) && node.Kind == GraphNodeKind.MsfsVarDef)
             {
                 SyncMsfsVarPortEntries(node);
+            }
+            if (UsesTemplateInspector(node) && node.Kind == GraphNodeKind.MsfsVarOut)
+            {
+                SyncMsfsVarOutPortEntries(node);
             }
         }
 
@@ -3863,6 +3888,9 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.ConfigIn:
                     label = string.IsNullOrWhiteSpace(node.Title) ? "ConfigIn" : $"ConfigIn ({node.Title})";
                     break;
+                case GraphNodeKind.MsfsVarOut:
+                    label = "MSFS Vars Out"; // Title (if any) appended by the tail below
+                    break;
                 default:
                     label = node.Kind.ToString();
                     break;
@@ -3927,7 +3955,8 @@ namespace DiyFfb.GraphEditor
                    || node.Kind == GraphNodeKind.Include
                    || node.Kind == GraphNodeKind.LocalSend
                    || node.Kind == GraphNodeKind.LocalReceive
-                   || node.Kind == GraphNodeKind.MsfsVarDef;
+                   || node.Kind == GraphNodeKind.MsfsVarDef
+                   || node.Kind == GraphNodeKind.MsfsVarOut;
         }
 
 
@@ -4851,6 +4880,242 @@ namespace DiyFfb.GraphEditor
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Unit)));
                     _onChanged?.Invoke();
                 }
+            }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+        }
+
+        // ---- Plan 24: MsfsVarOut inspector port grid (alias / target / unit / range map) ----
+
+        private void SyncMsfsVarOutPortEntries(GraphNode node)
+        {
+            _msfsVarOutPortEntries.Clear();
+            if (node == null || node.Kind != GraphNodeKind.MsfsVarOut) return;
+            foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
+            {
+                _msfsVarOutPortEntries.Add(new MsfsVarOutPortEntry(
+                    port, MsfsUnitPresets, OnMsfsVarOutAliasChanged, OnMsfsVarOutPortChanged));
+            }
+            ValidateMsfsVarOutEntries();
+        }
+
+        // Edit-time validation for MsfsVarOut rows: empty alias/target, duplicate
+        // alias (across ALL MsfsVarOut nodes), degenerate range map (InMax==InMin),
+        // and unknown target prefix. Runtime write-rejections are overlaid when the
+        // plugin reports them (Phase 4).
+        private void ValidateMsfsVarOutEntries()
+        {
+            if (_msfsVarOutPortEntries.Count == 0) return;
+
+            var aliasCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            if (_graph?.Nodes != null)
+            {
+                foreach (var n in _graph.Nodes)
+                {
+                    if (n.Kind != GraphNodeKind.MsfsVarOut || n.Ports == null) continue;
+                    foreach (var p in n.Ports)
+                    {
+                        if (p.Kind != GraphPortKind.Input) continue;
+                        string a = (p.Name ?? "").Trim();
+                        if (a.Length == 0) continue;
+                        aliasCounts[a] = aliasCounts.TryGetValue(a, out int c) ? c + 1 : 1;
+                    }
+                }
+            }
+
+            IReadOnlyDictionary<string, uint> failed = null;
+            try { failed = MsfsWriteFailedVarProvider?.Invoke(); } catch { }
+
+            foreach (var entry in _msfsVarOutPortEntries)
+            {
+                string alias = (entry.Alias ?? "").Trim();
+                string target = (entry.SimVar ?? "").Trim();
+                string error = "";
+                if (alias.Length == 0) error = "Alias is required.";
+                else if (target.Length == 0) error = "Target (A: / L: / B: / K: name) is required.";
+                else if (aliasCounts.TryGetValue(alias, out int c) && c > 1) error = "Duplicate alias (must be unique across all MSFS Vars Out nodes).";
+                else if (entry.InMax == entry.InMin) error = "Degenerate range map: InMax must differ from InMin.";
+                else if (failed != null && failed.TryGetValue(alias, out uint code))
+                    error = $"Rejected by MSFS (exception {code}) — non-settable/unknown target or absent on this aircraft.";
+                entry.Error = error;
+            }
+        }
+
+        private void OnMsfsVarOutAliasChanged(GraphPort port, string oldName, string newName)
+        {
+            if (_selectedNode == null || port == null) return;
+            RenamePort(_selectedNode.Node, oldName, newName);
+            port.Name = newName;
+        }
+
+        private void OnMsfsVarOutPortChanged()
+        {
+            if (_selectedNode != null)
+            {
+                RebuildNodeVisual(_selectedNode.Node);
+                UpdateSelectionVisuals();
+            }
+            ValidateMsfsVarOutEntries();
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        private void ButtonAddMsfsVarOut_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null) return;
+            var node = _selectedNode.Node;
+            if (node.Kind != GraphNodeKind.MsfsVarOut) return;
+
+            int idx = node.Ports.Count(p => p.Kind == GraphPortKind.Input) + 1;
+            string alias = $"Out.Var{idx}";
+            while (node.Ports.Any(p => p.Name == alias)) { idx++; alias = $"Out.Var{idx}"; }
+            node.Ports.Add(new GraphPort
+            {
+                Kind = GraphPortKind.Input,
+                Name = alias,
+                SimVar = "",
+                Unit = "number"
+            });
+
+            RebuildSurface();
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+            SyncMsfsVarOutPortEntries(node);
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        private void ButtonRemoveMsfsVarOut_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedNode == null || !(sender is Button button)) return;
+            if (!(button.DataContext is MsfsVarOutPortEntry entry)) return;
+            var node = _selectedNode.Node;
+            if (node.Kind != GraphNodeKind.MsfsVarOut) return;
+            if (node.Ports.Count(p => p.Kind == GraphPortKind.Input) <= 1) return; // keep at least one
+
+            RemovePort(node, entry.Port);
+            RebuildSurface();
+            if (_nodeVisuals.TryGetValue(node.Id, out var visual))
+            {
+                _selectedNode = visual;
+                _selectedNodes.Clear();
+                _selectedNodes.Add(visual);
+            }
+            UpdateSelectionVisuals();
+            SyncMsfsVarOutPortEntries(node);
+            RefreshPreview();
+            _pendingUndoDebounce = true;
+            GraphChanged?.Invoke();
+        }
+
+        // Plan 24: inspector view-model for one MsfsVarOut input port. Alias is the
+        // freeform port.Name (wiring identity + MsfsVarOutputs key); SimVar is the
+        // raw write target; Unit + InMin/InMax/OutMin/OutMax are the range map.
+        public sealed class MsfsVarOutPortEntry : INotifyPropertyChanged
+        {
+            private readonly GraphPort _port;
+            private readonly Action<GraphPort, string, string> _onAliasChanged;
+            private readonly Action _onChanged;
+
+            public MsfsVarOutPortEntry(GraphPort port, IEnumerable<string> unitOptions,
+                Action<GraphPort, string, string> onAliasChanged, Action onChanged)
+            {
+                _port = port;
+                UnitOptions = new ObservableCollection<string>(unitOptions ?? Enumerable.Empty<string>());
+                _onAliasChanged = onAliasChanged;
+                _onChanged = onChanged;
+            }
+
+            public GraphPort Port => _port;
+            public ObservableCollection<string> UnitOptions { get; }
+
+            private string _error = "";
+            public string Error
+            {
+                get => _error;
+                set
+                {
+                    string v = value ?? "";
+                    if (_error == v) return;
+                    _error = v;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Error)));
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasError)));
+                }
+            }
+            public bool HasError => !string.IsNullOrEmpty(_error);
+
+            public string Alias
+            {
+                get => _port.Name ?? "";
+                set
+                {
+                    string newValue = value ?? "";
+                    string old = _port.Name ?? "";
+                    if (old == newValue) return;
+                    _onAliasChanged?.Invoke(_port, old, newValue);
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Alias)));
+                    _onChanged?.Invoke();
+                }
+            }
+
+            public string SimVar
+            {
+                get => _port.SimVar ?? "";
+                set
+                {
+                    string newValue = value ?? "";
+                    if ((_port.SimVar ?? "") == newValue) return;
+                    _port.SimVar = newValue;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SimVar)));
+                    _onChanged?.Invoke();
+                }
+            }
+
+            public string Unit
+            {
+                get => _port.Unit ?? "";
+                set
+                {
+                    string newValue = value ?? "";
+                    if ((_port.Unit ?? "") == newValue) return;
+                    _port.Unit = newValue;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Unit)));
+                    _onChanged?.Invoke();
+                }
+            }
+
+            public double InMin
+            {
+                get => _port.InMin;
+                set { if (_port.InMin == value) return; _port.InMin = value; Raise(nameof(InMin)); }
+            }
+            public double InMax
+            {
+                get => _port.InMax;
+                set { if (_port.InMax == value) return; _port.InMax = value; Raise(nameof(InMax)); }
+            }
+            public double OutMin
+            {
+                get => _port.OutMin;
+                set { if (_port.OutMin == value) return; _port.OutMin = value; Raise(nameof(OutMin)); }
+            }
+            public double OutMax
+            {
+                get => _port.OutMax;
+                set { if (_port.OutMax == value) return; _port.OutMax = value; Raise(nameof(OutMax)); }
+            }
+
+            private void Raise(string prop)
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+                _onChanged?.Invoke();
             }
 
             public event PropertyChangedEventHandler PropertyChanged;
@@ -6119,6 +6384,7 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.LocalSend: return TitleBarLocalSend;
                 case GraphNodeKind.LocalReceive: return TitleBarLocalReceive;
                 case GraphNodeKind.MsfsVarDef: return TitleBarMsfsVar;
+                case GraphNodeKind.MsfsVarOut: return TitleBarMsfsVar;
                 default: return TitleBarConst;
             }
         }
@@ -6321,7 +6587,8 @@ namespace DiyFfb.GraphEditor
                 node.Kind == GraphNodeKind.ConfigIn ||
                 node.Kind == GraphNodeKind.Input ||
                 node.Kind == GraphNodeKind.Param ||
-                node.Kind == GraphNodeKind.MsfsVarDef)
+                node.Kind == GraphNodeKind.MsfsVarDef ||
+                node.Kind == GraphNodeKind.MsfsVarOut)
             {
                 return $"{node.Id}:{portName}";
             }
@@ -7686,6 +7953,7 @@ namespace DiyFfb.GraphEditor
         public DataTemplate ConfigInTemplate { get; set; }
         public DataTemplate LocalBusTemplate { get; set; }
         public DataTemplate MsfsVarTemplate { get; set; }
+        public DataTemplate MsfsVarOutTemplate { get; set; }
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
@@ -7718,6 +7986,8 @@ namespace DiyFfb.GraphEditor
                         return LocalBusTemplate;
                     case GraphNodeKind.MsfsVarDef:
                         return MsfsVarTemplate;
+                    case GraphNodeKind.MsfsVarOut:
+                        return MsfsVarOutTemplate;
                 }
             }
 

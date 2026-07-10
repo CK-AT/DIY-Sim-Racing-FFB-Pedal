@@ -15,7 +15,10 @@ namespace DiyFfb.GraphTest
         Output,
         ConfigOut,
         ConfigIn,
-        Expr
+        Expr,
+        // Plan 24: write-side sink. Resolves Src like ConfigOut/Output and feeds
+        // the result's MsfsVarOutputs channel keyed by Name (the alias).
+        MsfsVarOut
     }
 
     public enum OpType
@@ -66,6 +69,9 @@ namespace DiyFfb.GraphTest
     {
         public Dictionary<string, double> Outputs { get; } = new Dictionary<string, double>();
         public Dictionary<string, double> ConfigOutputs { get; } = new Dictionary<string, double>();
+        // Plan 24: raw (pre-range-map) graph values feeding MsfsVarOut ports,
+        // keyed by alias. The plugin applies the per-port range map + clamp.
+        public Dictionary<string, double> MsfsVarOutputs { get; } = new Dictionary<string, double>();
         public Dictionary<string, double> NodeValues { get; } = new Dictionary<string, double>();
         public List<string> Warnings { get; } = new List<string>();
     }
@@ -150,6 +156,9 @@ namespace DiyFfb.GraphTest
                     case NodeType.ConfigOut:
                         _values[node.Id] = Resolve(node.Src);
                         break;
+                    case NodeType.MsfsVarOut:
+                        _values[node.Id] = Resolve(node.Src);
+                        break;
                 }
             }
 
@@ -167,6 +176,11 @@ namespace DiyFfb.GraphTest
             foreach (var node in _order.Where(n => n.Type == NodeType.ConfigOut))
             {
                 result.ConfigOutputs[node.Name] = _values[node.Id];
+            }
+
+            foreach (var node in _order.Where(n => n.Type == NodeType.MsfsVarOut))
+            {
+                result.MsfsVarOutputs[node.Name] = _values[node.Id];
             }
 
             return result;
