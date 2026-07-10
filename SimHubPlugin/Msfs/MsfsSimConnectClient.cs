@@ -174,9 +174,13 @@ namespace DiyFfb.Msfs
         // independent of the streaming define (1) and probe define (1000).
         private const uint WriteDefineBase = 2000;
 
-        // Reused buffers. _rxBuffer holds one inbound packet; ~500 FLOAT64 slots
-        // incl. header, ample for 36 defaults + up to MaxCustomVars customs.
-        private readonly byte[] _rxBuffer = new byte[4096];
+        // Reused buffers. _rxBuffer holds one inbound packet; starts at 4096
+        // (ample for 36 defaults + customs) but GROWS to fit a larger packet —
+        // e.g. RECV_ENUMERATE_INPUT_EVENTS lists hundreds of 76-byte entries in
+        // one packet, well over 4 KB. Growable, not readonly. Capped so a garbage
+        // size field can't trigger a huge allocation.
+        private byte[] _rxBuffer = new byte[4096];
+        private const int MaxInboundPacketBytes = 1 << 20; // 1 MiB hard ceiling
         private readonly byte[] _txBuffer = new byte[SimConnectProtocol.MaxOutboundPacketBytes];
         private double[] _sampleBuffer = new double[MsfsSimVarTable.SampleCount];
 
@@ -1020,9 +1024,17 @@ namespace DiyFfb.Msfs
                 | ((uint)_rxBuffer[1] <<  8)
                 | ((uint)_rxBuffer[2] << 16)
                 | ((uint)_rxBuffer[3] << 24));
-            if (size < SimConnectProtocol.InboundHeaderSize || size > _rxBuffer.Length)
+            if (size < SimConnectProtocol.InboundHeaderSize || size > MaxInboundPacketBytes)
             {
                 return false;
+            }
+            if (size > _rxBuffer.Length)
+            {
+                // Grow to fit a large packet (e.g. a RECV_ENUMERATE_INPUT_EVENTS
+                // list). Preserve the 4 size bytes already read. Capped above.
+                var bigger = new byte[size];
+                Buffer.BlockCopy(_rxBuffer, 0, bigger, 0, 4);
+                _rxBuffer = bigger;
             }
             if (!ReadFully(pipe, _rxBuffer, 4, size - 4)) return false;
             totalSize = size;
@@ -1055,10 +1067,10 @@ namespace DiyFfb.Msfs
                         | ((uint)_peek4[1] <<  8)
                         | ((uint)_peek4[2] << 16)
                         | ((uint)_peek4[3] << 24));
-                    if (size < SimConnectProtocol.InboundHeaderSize || size > _rxBuffer.Length)
+                    if (size < SimConnectProtocol.InboundHeaderSize || size > MaxInboundPacketBytes)
                         return false; // garbage frame
                     if (avail >= (uint)size)
-                        return ReadOnePacket(pipe, out totalSize); // whole packet buffered
+                        return ReadOnePacket(pipe, out totalSize); // whole packet buffered (ReadOnePacket grows _rxBuffer if needed)
                 }
                 Thread.Sleep(2);
             }
