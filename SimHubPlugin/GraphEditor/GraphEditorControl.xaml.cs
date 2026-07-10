@@ -291,6 +291,10 @@ namespace DiyFfb.GraphEditor
             }
         }
         public Func<IDictionary<string, double>> LiveInputProvider { get; set; }
+        // Supplies ConfigIn values (Scope:FieldPath -> merged config value) so the
+        // preview feeds config-dependent nodes real PosMin/PosMax etc., matching
+        // runtime. Without it those default to 0 (broke un-guarded Expr divisions).
+        public Func<IReadOnlyDictionary<string, double>> ConfigInProvider { get; set; }
         // Plan 23: alias -> SimConnect exception code for custom vars the plugin
         // failed to register (bad A: name / absent). Polled on the live tick to
         // flag the offending MsfsVarDef rows.
@@ -3379,6 +3383,22 @@ namespace DiyFfb.GraphEditor
                     {
                         _previewEvaluator.SetStateSnapshot(LiveStateProvider());
                     }
+                }
+
+                // Overlay real ConfigIn values (PosMin/PosMax, etc.) so preview
+                // matches runtime; ConfigIn keys are "Scope:FieldPath" and never
+                // collide with Input-node names, so this is a safe additive merge.
+                if (ConfigInProvider != null && inputs != null)
+                {
+                    try
+                    {
+                        var cfg = ConfigInProvider();
+                        if (cfg != null)
+                        {
+                            foreach (var kv in cfg) inputs[kv.Key] = kv.Value;
+                        }
+                    }
+                    catch { }
                 }
 
                 var result = _previewEvaluator.Evaluate(_graph, inputs, parameters);

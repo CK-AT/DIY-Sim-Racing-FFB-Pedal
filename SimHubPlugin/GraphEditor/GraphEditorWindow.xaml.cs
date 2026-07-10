@@ -57,6 +57,7 @@ namespace DiyFfb.GraphEditor
         private Func<IDictionary<string, double>> liveInputProvider;
         private Func<IReadOnlyDictionary<string, uint>> msfsFailedVarProvider;
         private Func<IReadOnlyDictionary<string, uint>> msfsWriteFailedVarProvider;
+        private Func<IReadOnlyDictionary<string, double>> configInProvider;
         private readonly System.Windows.Threading.DispatcherTimer _globalLiveTimer;
         private bool _globalLiveInputsEnabled = true;  // Enabled by default
         private GraphEditorControl _lastEditor;
@@ -133,6 +134,15 @@ namespace DiyFfb.GraphEditor
             foreach (var tab in tabManager.Tabs)
             {
                 tab.EditorControl.MsfsWriteFailedVarProvider = provider;
+            }
+        }
+
+        public void SetConfigInProvider(Func<IReadOnlyDictionary<string, double>> provider)
+        {
+            configInProvider = provider;
+            foreach (var tab in tabManager.Tabs)
+            {
+                tab.EditorControl.ConfigInProvider = provider;
             }
         }
 
@@ -366,6 +376,10 @@ namespace DiyFfb.GraphEditor
             if (msfsWriteFailedVarProvider != null)
             {
                 tab.EditorControl.MsfsWriteFailedVarProvider = msfsWriteFailedVarProvider;
+            }
+            if (configInProvider != null)
+            {
+                tab.EditorControl.ConfigInProvider = configInProvider;
             }
 
             // Provide runtime state snapshot for active graph tabs (top-level state sync)

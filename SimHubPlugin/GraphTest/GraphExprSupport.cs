@@ -92,16 +92,20 @@ namespace DiyFfb.GraphTest
         public static double ToDouble(object value)
         {
             if (value == null) return 0.0;
-            if (value is double d) return d;
-            if (value is bool b) return b ? 1.0 : 0.0;
-            try
+            double result;
+            if (value is double d) result = d;
+            else if (value is bool b) result = b ? 1.0 : 0.0;
+            else
             {
-                return Convert.ToDouble(value, Culture);
+                try { result = Convert.ToDouble(value, Culture); }
+                catch { return 0.0; }
             }
-            catch
-            {
-                return 0.0;
-            }
+            // A non-finite Expr result — NCalc division by zero yields ±Infinity
+            // (e.g. an Expr dividing by (max-min) when a ConfigIn like PosMin/PosMax
+            // isn't fed, as in the editor preview) — is never a valid graph value.
+            // Collapse to 0, matching the Op 'div' guard. Keeps preview finite and
+            // hardens runtime against an edge-case /0.
+            return (double.IsNaN(result) || double.IsInfinity(result)) ? 0.0 : result;
         }
 
         /// <summary>

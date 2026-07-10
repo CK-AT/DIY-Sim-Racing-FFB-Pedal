@@ -2781,6 +2781,18 @@ namespace DiyFfb
             }
         }
 
+        // Editor-preview support: resolve the active graph's ConfigIn values
+        // (Scope:FieldPath -> merged config value, e.g. real PosMin/PosMax) so the
+        // preview evaluator can feed ConfigIn nodes actual values instead of 0.
+        // Without this, config-dependent Expr math (e.g. /(max-min)) read 0/0 in
+        // preview -> ±Infinity, even though runtime was correct.
+        internal IReadOnlyDictionary<string, double> GetConfigInInputs()
+        {
+            var d = new Dictionary<string, double>();
+            try { BuildConfigInInputs(d); } catch { }
+            return d;
+        }
+
         internal Dictionary<string, double> GetLiveGraphInputs()
         {
             var inputs = new Dictionary<string, double>();
