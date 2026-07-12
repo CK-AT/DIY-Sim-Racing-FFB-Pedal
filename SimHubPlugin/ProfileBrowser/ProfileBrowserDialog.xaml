@@ -47,6 +47,14 @@
                          Foreground="White"
                          Margin="0,0,16,0"
                          VerticalContentAlignment="Center"/>
+            <RadioButton x:Name="RadioCustom"
+                         Content="Custom"
+                         GroupName="TabGroup"
+                         Checked="OnTabChanged"
+                         Foreground="White"
+                         Margin="0,0,16,0"
+                         VerticalContentAlignment="Center"
+                         ToolTip="Graph files you've copied into the plugin's custom library."/>
             <Button x:Name="ButtonImport"
                     Content="Import..."
                     Click="OnImportClick"
@@ -65,22 +73,34 @@
                     ToolTip="Assign an arbitrary graph .json file to the current vehicle."/>
         </StackPanel>
 
-        <!-- Game filter (My Vehicles tab only) -->
-        <StackPanel x:Name="PanelGameFilter"
-                    Grid.Row="2"
-                    Orientation="Horizontal"
-                    Margin="0,0,0,8"
-                    Visibility="Collapsed">
-            <TextBlock Text="Game:"
+        <!-- Filter row: game filter (My Vehicles only) + always-visible search -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+            <StackPanel x:Name="PanelGameFilter"
+                        Orientation="Horizontal"
+                        Margin="0,0,16,0"
+                        Visibility="Collapsed">
+                <TextBlock Text="Game:"
+                           Foreground="#AAAAAA"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"/>
+                <ComboBox x:Name="ComboGameFilter"
+                          Width="200"
+                          Background="#2A2A2A"
+                          Foreground="White"
+                          BorderBrush="#4A4A4A"
+                          SelectionChanged="OnGameFilterChanged"/>
+            </StackPanel>
+            <TextBlock Text="Search:"
                        Foreground="#AAAAAA"
                        VerticalAlignment="Center"
                        Margin="0,0,8,0"/>
-            <ComboBox x:Name="ComboGameFilter"
-                      Width="200"
-                      Background="#2A2A2A"
-                      Foreground="White"
-                      BorderBrush="#4A4A4A"
-                      SelectionChanged="OnGameFilterChanged"/>
+            <TextBox x:Name="SearchBox"
+                     Width="220"
+                     Background="#2A2A2A"
+                     Foreground="White"
+                     BorderBrush="#4A4A4A"
+                     VerticalContentAlignment="Center"
+                     TextChanged="OnSearchChanged"/>
         </StackPanel>
 
         <!-- Apply target (pinned above the list). Fixed height so the list does

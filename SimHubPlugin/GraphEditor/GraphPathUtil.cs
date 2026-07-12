@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace DiyFfb.GraphEditor
 {
@@ -62,6 +64,20 @@ namespace DiyFfb.GraphEditor
 
             File.Copy(sourcePath, candidate);
             return candidate;
+        }
+
+        /// <summary>
+        /// Full paths of the graph files in the managed custom-graph library
+        /// (&lt;baseDir&gt;/graphs/custom), sorted by name. Empty if the folder does
+        /// not exist yet.
+        /// </summary>
+        public static IEnumerable<string> EnumerateCustomLibrary(string baseDir)
+        {
+            string dir = Path.Combine(baseDir ?? "",
+                CustomLibraryFolder.Replace('/', Path.DirectorySeparatorChar));
+            if (!Directory.Exists(dir))
+                return Enumerable.Empty<string>();
+            return Directory.GetFiles(dir, "*.json").OrderBy(f => f, StringComparer.OrdinalIgnoreCase);
         }
     }
 }

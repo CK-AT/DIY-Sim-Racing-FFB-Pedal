@@ -69,10 +69,11 @@ It is a **UX/polish** plan. The result contract the dialog returns (`SelectedEnt
 - **Destination list** = `Settings.AircraftFfbProfiles` keys, formatted like the browser entries; always include the active vehicle even if it has no stored profile yet.
 
 ### Phase 2 — Information architecture
-- **Unify starting points.** Present `Templates` / `My Vehicles` / **`Custom`** as a left-hand segmented list/category rail rather than radio tabs, so all sources are one glance apart. Add the new **Custom** category listing graphs under `graphs/custom/` (from Plan 33's library) so copied customs are browsable, re-selectable, and deletable.
-- **Persistent search box** filtering by name/game across the active category.
-- **Consistent filtering**: expose (or remove) the implicit template game filter so both categories behave the same.
-- **Direct import.** Make `Import...` land straight into the library (with the existing dup-overwrite prompt), eliminating the staged `<Imports>` pseudo-filter and the hidden second step. (If staging is worth keeping, surface a clear "N imported profiles not yet saved" banner instead.)
+- **Custom category** *(done)* — added as a third tab listing graphs under `graphs/custom/` (Plan 33's library) as graph-only sources, selectable like templates. Delegates to `GraphPathUtil.EnumerateCustomLibrary`.
+- **Persistent search box** *(done)* — always-visible; filters the active category by name / game / graph filename via `PassesSearch`, routed through a unified `RefreshCurrentTab`.
+- **Unify starting points as a left-hand rail** *(deferred → Phase 4 visual)* — kept `Templates` / `My Vehicles` / `Custom` as radio tabs for now; a third tab delivers the "all sources visible" goal at far lower risk than rebuilding the layout as a rail. Deleting custom graph *files* from the Custom tab is also deferred (risky — a referenced profile would break).
+- **Consistent filtering** *(deferred)* — templates still use the implicit game filter; search now spans both, which mostly covers the gap.
+- **Direct import** *(deferred)* — `Import...` still stages into the `<Imports>` pseudo-filter + `Save to Library`. Reworking to land-directly is a behavior change best done with runtime verification.
 
 ### Phase 3 — Details / preview pane
 - Replace the 3-line strip with a richer right-hand pane: friendly source label, **graph filename** (full path on tooltip), a **"file missing" warning** when the referenced graph doesn't resolve on disk, tuning summary, and the target vehicle for the action.

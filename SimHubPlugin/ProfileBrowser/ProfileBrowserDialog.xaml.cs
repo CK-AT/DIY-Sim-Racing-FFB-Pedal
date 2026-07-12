@@ -51,6 +51,8 @@ namespace DiyFfb.ProfileBrowser
         // Valid apply destinations: the active vehicle, plus (in Manage mode) every
         // stored vehicle profile — so a profile can be configured before it is active.
         private List<DestinationOption> _destinationOptions = new List<DestinationOption>();
+        // Current search query; filters the active category by name/game/graph.
+        private string _searchText = "";
         private bool _isInitialized;
 
         /// <summary>A vehicle profile the apply action can write to.</summary>
@@ -112,27 +114,66 @@ namespace DiyFfb.ProfileBrowser
 
         private void LoadInitialTab()
         {
-            if (RadioTemplates.IsChecked == true)
-                LoadTemplates();
-            else if (RadioMyVehicles.IsChecked == true)
-                LoadStoredProfiles();
+            RefreshCurrentTab();
         }
 
         private void OnTabChanged(object sender, RoutedEventArgs e)
         {
             if (!_isInitialized)
                 return;
+            RefreshCurrentTab();
+        }
 
-            if (RadioTemplates.IsChecked == true)
-            {
-                PanelGameFilter.Visibility = Visibility.Collapsed;
-                LoadTemplates();
-            }
+        // Loads the category matching the checked tab. Each loader sets the game-filter
+        // visibility and applies the current search, so both tab and search route here.
+        private void RefreshCurrentTab()
+        {
+            if (RadioCustom.IsChecked == true)
+                LoadCustom();
             else if (RadioMyVehicles.IsChecked == true)
-            {
-                PanelGameFilter.Visibility = Visibility.Visible;
                 LoadStoredProfiles();
+            else
+                LoadTemplates();
+        }
+
+        private void OnSearchChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            if (!_isInitialized)
+                return;
+            _searchText = SearchBox.Text?.Trim() ?? "";
+            RefreshCurrentTab();
+        }
+
+        private bool PassesSearch(ProfileBrowserEntry entry)
+        {
+            if (string.IsNullOrEmpty(_searchText))
+                return true;
+
+            bool Contains(string s) =>
+                !string.IsNullOrEmpty(s) && s.IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
+
+            return Contains(entry.Name) || Contains(entry.GameId) || Contains(entry.GraphName);
+        }
+
+        // Custom category: graph files the user copied into the managed library
+        // (graphs/custom). Each is a graph-only source selectable like a template.
+        private void LoadCustom()
+        {
+            PanelGameFilter.Visibility = Visibility.Collapsed;
+            Items.Clear();
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            foreach (var path in GraphPathUtil.EnumerateCustomLibrary(baseDir))
+            {
+                var entry = ProfileBrowserEntry.FromCustomFile(GraphPathUtil.MakeRelative(path, baseDir));
+                if (PassesSearch(entry))
+                    Items.Add(entry);
             }
+
+            if (Items.Count > 0)
+                ListItems.SelectedIndex = 0;
+
+            UpdateApplyTarget();
+            UpdateButtonStates();
         }
 
         private void LoadTemplates()
@@ -144,7 +185,9 @@ namespace DiyFfb.ProfileBrowser
 
             foreach (var t in templates)
             {
-                Items.Add(ProfileBrowserEntry.FromTemplate(t));
+                var entry = ProfileBrowserEntry.FromTemplate(t);
+                if (PassesSearch(entry))
+                    Items.Add(entry);
             }
 
             if (Items.Count > 0)
@@ -264,7 +307,8 @@ namespace DiyFfb.ProfileBrowser
 
             foreach (var entry in filtered)
             {
-                Items.Add(entry);
+                if (PassesSearch(entry))
+                    Items.Add(entry);
             }
 
             if (Items.Count > 0)
