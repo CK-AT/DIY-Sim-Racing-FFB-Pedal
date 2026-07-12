@@ -84,6 +84,7 @@ namespace DiyFfb.GraphEditor
         private static readonly SolidColorBrush TitleBarLocalSend = new SolidColorBrush(Color.FromRgb(190, 110, 60));   // Burnt-orange (sink, like Output but warmer)
         private static readonly SolidColorBrush TitleBarLocalReceive = new SolidColorBrush(Color.FromRgb(70, 170, 130));// Mint-green (source on the bus side)
         private static readonly SolidColorBrush TitleBarMsfsVar = new SolidColorBrush(Color.FromRgb(90, 110, 210));    // Indigo (plan 23: custom MSFS var declarations)
+        private static readonly SolidColorBrush TitleBarDelay = new SolidColorBrush(Color.FromRgb(150, 130, 60));      // Ochre (unit_delay / z^-1, mirrored ports)
 
         private static readonly FontFamily NodeFontFamily = new FontFamily("Segoe UI");
         private const double TitleFontSize = 11.0;
@@ -100,7 +101,7 @@ namespace DiyFfb.GraphEditor
         private const int PreviewRefreshThrottleMs = 500;
         private bool _isInspectorUpdating;
         private readonly string[] _opChoices = { "add", "sub", "mul", "div", "min", "max", "abs", "neg", "clamp", "lerp", "select", "eq", "gt", "exp", "sqrt", "pow" };
-        private readonly string[] _funcChoices = { "normalize", "qhat_eff", "torque_norm", "rpm_norm", "assist_loss", "buffet", "accumulator", "sample_hold", "edge_detect", "lag_asym" };
+        private readonly string[] _funcChoices = { "normalize", "qhat_eff", "torque_norm", "rpm_norm", "assist_loss", "buffet", "accumulator", "sample_hold", "edge_detect", "lag_asym", "rs_latch" };  // unit_delay has a dedicated Delay node
         private readonly string[] _paramWidgetChoices = { "slider", "knob", "checkbox", "enum", "text" };
         private double _curveTension = 0.5;
         private const double HandleSize = 10.0;
@@ -332,7 +333,26 @@ namespace DiyFfb.GraphEditor
             _previewRefreshTimer.Tick += OnPreviewRefreshTimer;
             CanvasSurface.SizeChanged += (_, __) => UpdateCanvasExtent();
             GraphChanged += OnGraphChanged;
+            // Stop the (possibly free-running) preview timer when the control leaves
+            // the visual tree so an enabled DispatcherTimer can't keep the closed
+            // editor alive; resume the non-live free-run when it comes back.
+            Loaded += OnControlLoaded;
+            Unloaded += OnControlUnloaded;
             UpdatePreviewResolver();  // Ensure resolver exists even for unsaved graphs
+        }
+
+        private void OnControlLoaded(object sender, RoutedEventArgs e)
+        {
+            if (!_liveInputsEnabled && GraphIsStateful())
+            {
+                RequestPreviewRefresh();
+            }
+        }
+
+        private void OnControlUnloaded(object sender, RoutedEventArgs e)
+        {
+            _previewRefreshTimer.Stop();
+            _previewRefreshPending = false;
         }
 
         public void SetGraph(GraphDefinition graph)
@@ -820,7 +840,11 @@ namespace DiyFfb.GraphEditor
 
                 int portIndex = port.Kind == GraphPortKind.Input ? inputIndex : outputIndex;
                 double y = 34 + portIndex * PortRowSpacing;
-                double x = port.Kind == GraphPortKind.Input ? -5 : nodeCanvas.Width - 5;
+                // Delay nodes mirror their ports: input on the right, output on the
+                // left (see GraphNodeKind.Delay). portOnLeft drives every side-dependent
+                // placement below so non-mirrored nodes are unchanged.
+                bool portOnLeft = PortOnLeft(node, port.Kind);
+                double x = portOnLeft ? -5 : nodeCanvas.Width - 5;
                 Canvas.SetLeft(portEllipse, x);
                 Canvas.SetTop(portEllipse, y);
                 nodeCanvas.Children.Add(portEllipse);
@@ -836,7 +860,7 @@ namespace DiyFfb.GraphEditor
                 };
                 double labelWidth = MeasureTextWidth(portLabel, PortFontSize);
                 double labelX;
-                if (port.Kind == GraphPortKind.Input)
+                if (portOnLeft)
                 {
                     labelX = PortLabelPadding;
                 }
@@ -877,7 +901,9 @@ namespace DiyFfb.GraphEditor
                         TextTrimming = TextTrimming.CharacterEllipsis,
                         Tag = portVisual
                     };
-                    Canvas.SetLeft(valueLabel, width + 6);
+                    // Live-value label sits just outside the output port; on a mirrored
+                    // (Delay) node the output is on the left, so place it left of the node.
+                    Canvas.SetLeft(valueLabel, portOnLeft ? -(60.0 + 6.0) : width + 6);
                     Canvas.SetTop(valueLabel, y - 2);
                     nodeCanvas.Children.Add(valueLabel);
                     outputValueLabels.Add(new PortValueVisual(port.Name, valueLabel));
@@ -1225,20 +1251,46 @@ namespace DiyFfb.GraphEditor
 
                 Point from = GetPortAnchor(fromNode, linkVisual.Link.FromPort, GraphPortKind.Output);
                 Point to = GetPortAnchor(toNode, linkVisual.Link.ToPort, GraphPortKind.Input);
-                linkVisual.Path.Data = BuildLinkGeometry(from, to, linkVisual);
+                linkVisual.Path.Data = BuildLinkGeometry(from, to, linkVisual,
+                    PortDirX(fromNode.Node, GraphPortKind.Output), PortDirX(toNode.Node, GraphPortKind.Input));
                 UpdateHandlePosition(linkVisual, from, to);
             }
         }
+
+        /// <summary>
+        /// True if this node draws its ports mirrored (input right, output left).
+        /// Delay (z^-1) nodes do, so their feedback wire reads right-to-left.
+        /// </summary>
+        private static bool NodePortsMirrored(GraphNode node) =>
+            node != null && node.Kind == GraphNodeKind.Delay;
+
+        /// <summary>
+        /// Which horizontal edge a port renders on: true = left edge, false = right
+        /// edge. Normal nodes put inputs left / outputs right; mirrored (Delay) nodes
+        /// invert that. All port dot/label/anchor placement must go through this so
+        /// the interactive hit-targets and the drawn geometry stay in agreement.
+        /// </summary>
+        private static bool PortOnLeft(GraphNode node, GraphPortKind kind) =>
+            (kind == GraphPortKind.Input) ^ NodePortsMirrored(node);
+
+        /// <summary>
+        /// Horizontal direction a link's control point extends from this port:
+        /// -1 (leftward) for left-edge ports, +1 (rightward) for right-edge ports.
+        /// Keeps the spline exiting/entering away from the node body when mirrored.
+        /// </summary>
+        private static double PortDirX(GraphNode node, GraphPortKind kind) =>
+            PortOnLeft(node, kind) ? -1.0 : 1.0;
 
         private Point GetPortAnchor(NodeVisual nodeVisual, string portName, GraphPortKind kind)
         {
             var node = nodeVisual.Node;
             int index = 0;
+            bool portOnLeft = PortOnLeft(node, kind);
             foreach (var port in node.Ports)
             {
                 if (port.Kind == kind && port.Name == portName)
                 {
-                    double x = node.X + (kind == GraphPortKind.Input ? 0 : nodeVisual.Container.Width);
+                    double x = node.X + (portOnLeft ? 0 : nodeVisual.Container.Width);
                     double y = node.Y + 34 + index * PortRowSpacing + 5;
                     return new Point(x, y);
                 }
@@ -1633,6 +1685,7 @@ namespace DiyFfb.GraphEditor
             menu.Items.Add(BuildMenuItem("Add Const", () => AddNode(GraphNodeKind.Const, position)));
             menu.Items.Add(BuildMenuItem("Add Op", () => AddNode(GraphNodeKind.Op, position)));
             menu.Items.Add(BuildMenuItem("Add Func", () => AddNode(GraphNodeKind.Func, position)));
+            menu.Items.Add(BuildMenuItem("Add Delay (z⁻¹)", () => AddNode(GraphNodeKind.Delay, position)));
             menu.Items.Add(BuildMenuItem("Add Expr", () => AddNode(GraphNodeKind.Expr, position)));
             menu.Items.Add(BuildMenuItem("Add Include", () => AddNode(GraphNodeKind.Include, position)));
             menu.Items.Add(BuildMenuItem("Add Embedded Sub-Graph", () => AddEmbeddedSubgraph(position)));
@@ -1721,6 +1774,14 @@ namespace DiyFfb.GraphEditor
             }
             else if (kind == GraphNodeKind.Const)
             {
+                node.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
+            }
+            else if (kind == GraphNodeKind.Delay)
+            {
+                // One-tick delay (z^-1). Ports render mirrored (input right, output
+                // left); output is prior-tick input, so the loop wires back leftward.
+                node.Title = "Delay z⁻¹";
+                node.Ports.Add(new GraphPort { Name = "in", Kind = GraphPortKind.Input });
                 node.Ports.Add(new GraphPort { Name = "out", Kind = GraphPortKind.Output });
             }
             else if (kind == GraphNodeKind.Expr)
@@ -2956,12 +3017,16 @@ namespace DiyFfb.GraphEditor
             }
         }
 
-        private Geometry BuildLinkGeometry(Point from, Point to, LinkVisual link)
+        // fromDirX/toDirX give the horizontal direction each end's control point
+        // extends: +1 = rightward, -1 = leftward. Defaults match a normal link
+        // (output exits right, input enters from the left). Mirrored (Delay) ports
+        // flip their sign so the curve leaves/enters away from the node body.
+        private Geometry BuildLinkGeometry(Point from, Point to, LinkVisual link, double fromDirX = 1.0, double toDirX = -1.0)
         {
             double dx = Math.Max(40.0, Math.Abs(to.X - from.X) * 0.5);
             double scaled = dx * _curveTension;
-            var control1 = link != null && link.HasManualControls ? link.Control1 : new Point(from.X + scaled, from.Y);
-            var control2 = link != null && link.HasManualControls ? link.Control2 : new Point(to.X - scaled, to.Y);
+            var control1 = link != null && link.HasManualControls ? link.Control1 : new Point(from.X + fromDirX * scaled, from.Y);
+            var control2 = link != null && link.HasManualControls ? link.Control2 : new Point(to.X + toDirX * scaled, to.Y);
 
             var figure = new PathFigure { StartPoint = from, IsClosed = false };
             figure.Segments.Add(new BezierSegment(control1, control2, to, true));
@@ -3381,6 +3446,34 @@ namespace DiyFfb.GraphEditor
             }
         }
 
+        // Funcs that carry persistent state across evaluations (mirror of the
+        // runtime's GetStateSlotsNeeded). A graph containing any of these — or a
+        // Delay node, which converts to unit_delay — needs multiple ticks to reach
+        // a meaningful preview value.
+        private static readonly HashSet<string> StatefulFuncs = new HashSet<string>
+        {
+            "accumulator", "sample_hold", "edge_detect", "lag_asym", "rs_latch", "unit_delay"
+        };
+
+        /// <summary>
+        /// True if the graph (including embedded sub-graphs) contains any stateful
+        /// node. Used to decide whether the non-live preview must free-run so
+        /// feedback loops / integrators / filters iterate instead of freezing.
+        /// </summary>
+        private bool GraphIsStateful() => _graph != null && GraphContainsStateful(_graph);
+
+        private static bool GraphContainsStateful(GraphDefinition graph)
+        {
+            if (graph == null) return false;
+            foreach (var n in graph.Nodes)
+            {
+                if (n.Kind == GraphNodeKind.Delay) return true;
+                if (n.Kind == GraphNodeKind.Func && StatefulFuncs.Contains(n.Func)) return true;
+                if (n.InlineGraph != null && GraphContainsStateful(n.InlineGraph)) return true;
+            }
+            return false;
+        }
+
         private void RefreshPreview()
         {
             try
@@ -3468,8 +3561,12 @@ namespace DiyFfb.GraphEditor
                         parameters[entry.Name] = entry.Value;
                     }
 
-                    // Sync stateful nodes from runtime for top-level graph
-                    if (LiveStateProvider != null)
+                    // Sync stateful nodes from the runtime — only in live mode. In
+                    // non-live mode the preview is a self-contained simulation that
+                    // owns and evolves its own state (see the free-run re-request at
+                    // the end of this method); restoring a frozen runtime snapshot
+                    // each tick would clobber it and freeze feedback loops.
+                    if (_liveInputsEnabled && LiveStateProvider != null)
                     {
                         _previewEvaluator.SetStateSnapshot(LiveStateProvider());
                     }
@@ -3500,6 +3597,16 @@ namespace DiyFfb.GraphEditor
                 else
                 {
                     SetPreviewStatusText("");
+                }
+
+                // Non-live mode has no live-tick driver, so a stateful graph (feedback
+                // loop, integrator, filter) would freeze after one tick. Self-schedule
+                // the next refresh so it iterates using real elapsed dt. Live mode is
+                // driven by the global live timer instead. The throttle in
+                // RequestPreviewRefresh caps this to one eval per interval.
+                if (!_liveInputsEnabled && GraphIsStateful())
+                {
+                    RequestPreviewRefresh();
                 }
             }
             catch (Exception ex)
@@ -3575,6 +3682,12 @@ namespace DiyFfb.GraphEditor
             if (_liveInputsEnabled)
             {
                 ApplyLiveInputs();
+            }
+            else if (GraphIsStateful())
+            {
+                // Bootstrap the non-live free-run so a stateful graph starts iterating
+                // immediately on switching to manual mode, not only on the next edit.
+                RequestPreviewRefresh();
             }
         }
 
@@ -5410,6 +5523,10 @@ namespace DiyFfb.GraphEditor
                     return new[] { "input" };
                 case "lag_asym":
                     return new[] { "input", "tau_up_sec", "tau_down_sec" };
+                case "rs_latch":
+                    return new[] { "set", "reset" };
+                case "unit_delay":
+                    return new[] { "input" };
                 default:
                     return new[] { "a", "b" };
             }
@@ -6497,6 +6614,7 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.LocalReceive: return TitleBarLocalReceive;
                 case GraphNodeKind.MsfsVarDef: return TitleBarMsfsVar;
                 case GraphNodeKind.MsfsVarOut: return TitleBarMsfsVar;
+                case GraphNodeKind.Delay: return TitleBarDelay;
                 default: return TitleBarConst;
             }
         }
@@ -6587,9 +6705,9 @@ namespace DiyFfb.GraphEditor
             foreach (var child in visual.InnerCanvas.Children)
             {
                 var ellipse = child as Ellipse;
-                if (ellipse?.Tag is PortVisual port && port.Kind == GraphPortKind.Output)
+                if (ellipse?.Tag is PortVisual port)
                 {
-                    Canvas.SetLeft(ellipse, width - 5);
+                    Canvas.SetLeft(ellipse, PortOnLeft(visual.Node, port.Kind) ? -5 : width - 5);
                 }
 
                 var label = child as TextBlock;
@@ -6597,7 +6715,7 @@ namespace DiyFfb.GraphEditor
                 {
                     double labelWidth = MeasureTextWidth(label.Text ?? labelPort.PortName, PortFontSize);
                     double x;
-                    if (labelPort.Kind == GraphPortKind.Input)
+                    if (PortOnLeft(visual.Node, labelPort.Kind))
                     {
                         x = PortLabelPadding;
                     }
@@ -6672,7 +6790,9 @@ namespace DiyFfb.GraphEditor
             {
                 int outputIndex = GetOutputPortIndex(visual.Node, output.PortName);
                 double y = 26 + outputIndex * PortRowSpacing;
-                Canvas.SetLeft(output.Label, width + 6);
+                // Mirrored (Delay) outputs sit on the left, so their live-value label
+                // goes left of the node instead of right.
+                Canvas.SetLeft(output.Label, PortOnLeft(visual.Node, GraphPortKind.Output) ? -(60.0 + 6.0) : width + 6);
                 Canvas.SetTop(output.Label, y - 2);
             }
         }
@@ -6775,10 +6895,10 @@ namespace DiyFfb.GraphEditor
                 if (ellipse?.Tag is PortVisual port)
                 {
                     ellipse.Visibility = forceVisible || selected || hovered ? Visibility.Visible : Visibility.Collapsed;
-                    if (port.Kind == GraphPortKind.Output)
-                    {
-                        Canvas.SetLeft(ellipse, node.InnerCanvas.Width - 5);
-                    }
+                    // Keep the dot pinned to its edge as node width changes. Must honor
+                    // mirroring — otherwise the Delay's output would be dragged back onto
+                    // the right edge, overlapping (and stealing clicks from) its input.
+                    Canvas.SetLeft(ellipse, PortOnLeft(node.Node, port.Kind) ? -5 : node.InnerCanvas.Width - 5);
                 }
             }
         }
@@ -7262,7 +7382,8 @@ namespace DiyFfb.GraphEditor
                 }
 
                 Point to = GetPortAnchor(toNode, _edgeDragLink.Link.ToPort, GraphPortKind.Input);
-                _edgePreview.Data = BuildLinkGeometry(currentPoint, to, null);
+                _edgePreview.Data = BuildLinkGeometry(currentPoint, to, null,
+                    1.0, PortDirX(toNode.Node, GraphPortKind.Input));
             }
             else
             {
@@ -7275,7 +7396,8 @@ namespace DiyFfb.GraphEditor
                 }
 
                 Point from = GetPortAnchor(fromNode, fromPort, fromKind);
-                _edgePreview.Data = BuildLinkGeometry(from, currentPoint, null);
+                _edgePreview.Data = BuildLinkGeometry(from, currentPoint, null,
+                    PortDirX(fromNode.Node, fromKind), -1.0);
             }
             _edgePreview.Visibility = Visibility.Visible;
         }

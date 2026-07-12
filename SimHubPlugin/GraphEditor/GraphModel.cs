@@ -17,6 +17,18 @@ namespace DiyFfb.GraphEditor
         ConfigOut,
 
         /// <summary>
+        /// One-tick delay (z^-1). A dedicated stateful node whose ports are drawn
+        /// mirrored — INPUT on the right, OUTPUT on the left — because its output
+        /// is the PREVIOUS tick's input, so a downstream value typically feeds
+        /// back leftward into it. It breaks feedback cycles: the input is not a
+        /// topological dependency (the runtime samples it at end-of-tick). The
+        /// editor→runtime converter collapses it to a Func node with
+        /// Func="unit_delay" (like the LocalSend/LocalReceive sugar). One input
+        /// port ("in") and one output port ("out").
+        /// </summary>
+        Delay,
+
+        /// <summary>
         /// Reads a config field value INTO the graph as a source (mirror of
         /// ConfigOut). Has one or more output ports, each bound to an
         /// OverrideFieldRegistry field path via ConfigField. The value is the

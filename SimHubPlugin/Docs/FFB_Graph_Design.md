@@ -11,7 +11,7 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 - Keep everything in a single SimHub plugin DLL.
 
 ## Non-goals
-- Full visual scripting language with imperative control flow — loops, or branching that changes *which* nodes run (the graph always evaluates the whole DAG). (Note: value-level conditionals *do* exist — the `select` op is a ternary `cond > 0.5 ? a : b` with `eq`/`gt` as predicates — and a small set of stateful funcs has shipped; see the Op list and the accumulator/sample_hold/edge_detect/lag_asym functions below.)
+- Full visual scripting language with imperative control flow — loops, or branching that changes *which* nodes run (the graph always evaluates the whole DAG). (Note: value-level conditionals *do* exist — the `select` op is a ternary `cond > 0.5 ? a : b` with `eq`/`gt` as predicates — and a small set of stateful funcs has shipped; see the Op list and the accumulator/sample_hold/edge_detect/lag_asym/rs_latch/unit_delay functions below. Value-level *feedback* is also possible: `unit_delay` breaks a cycle so a downstream value can feed back into an earlier node — see Evaluation.)
 - Real-time collaborative editing.
 - GPU-accelerated evaluation or live graph profiling.
 
@@ -24,7 +24,7 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
   - Param: pulls a tunable parameter.
   - Const: constant numeric value.
   - Op: arithmetic/logic operations (add/sub/mul/div/min/max/abs/neg/clamp/lerp/select/eq/gt/exp/sqrt/pow) with output ports labeled by formula; add/mul/min/max accept variable input counts and expand the output label to match (e.g., "a+b+c"). Add/mul inputs can be negated per-port and the output label reflects negation (e.g., "a+b-c", "a*b*-c").
-  - Func: known functions — stateless (qhat_eff, torque_norm, rpm_norm, assist_loss, buffet) and stateful (accumulator, sample_hold, edge_detect, lag_asym; see Evaluation).
+  - Func: known functions — stateless (qhat_eff, torque_norm, rpm_norm, assist_loss, buffet) and stateful (accumulator, sample_hold, edge_detect, lag_asym, rs_latch, unit_delay; see Evaluation).
   - Include: references a sub-graph, either **file-backed** (by `IncludePath`) or **embedded** (an inline sub-graph definition stored in the parent node — no path). The two forms are mutually exclusive; a node is embedded iff it carries an inline graph and has no path.
   - Output: exposes a named output.
   - ConfigOut: writes a graph value out to a config field (bound to an `OverrideFieldRegistry` field path), scoped via the parent Include's `FunctionScope`.
@@ -38,7 +38,9 @@ Scope: Graph runtime model, UI editor behaviors, storage format, and integration
 
 ### Evaluation
 - Graphs are compiled into a fast evaluation plan (topo order + node ops).
-- Most nodes are stateless and side-effect-free. A small set of stateful Func nodes (accumulator, sample_hold, edge_detect, lag_asym) carry persistent state across evaluations, stored in a flat per-evaluator state array. State is snapshotted per-vehicle (see below) so it survives vehicle/profile switches and can be reset via `ResetState()`.
+- Most nodes are stateless and side-effect-free. A small set of stateful Func nodes (accumulator, sample_hold, edge_detect, lag_asym, rs_latch, unit_delay) carry persistent state across evaluations, stored in a flat per-evaluator state array. State is snapshotted per-vehicle (see below) so it survives vehicle/profile switches and can be reset via `ResetState()`.
+- **Feedback loops via `unit_delay`**: the graph is otherwise a strict DAG, but `unit_delay` breaks cycles. Its output is prior-tick state, so `TopoSort` does **not** treat its input as a dependency edge — a downstream value may be routed back into the delay's input without tripping cycle detection. The delay's input is sampled in a deferred end-of-tick pass (`_deferredCaptures`), after the whole graph (including the feedback path) has evaluated; that sample becomes the output on the next tick. This enables IIR filters, integrators, and other recurrences (e.g. `y[n] = y[n-1] + x[n]`).
+- **Delay node (editor)**: `unit_delay` has a dedicated editor node kind (`GraphNodeKind.Delay`, "Add Delay (z⁻¹)") rather than living in the Func dropdown. It is drawn **mirrored** — INPUT on the right, OUTPUT on the left — so the feedback wire reads right-to-left, making the recurrence visually obvious. It is pure editor sugar: `GraphRuntimeConverter` collapses it to a runtime Func node with `Func="unit_delay"` (like `LocalSend`/`LocalReceive`), so nothing downstream of the converter needs to know about it. Mirroring is cosmetic only (`NodePortsMirrored` flips port dot/label/anchor sides); wiring still keys on `GraphPortKind`.
 - The runtime and editor preview share one evaluator, `GraphCompiledEvaluator` (compiled to a flat node plan). A second, tree-walking interpreter, `GraphEvaluator` (in GraphTest), is used by the GraphTest CLI and unit tests as a parity oracle to validate the compiled evaluator.
 - Stateful-node state is captured/restored via `GetStateSnapshot()` / `RestoreStateSnapshot()` and persisted per-vehicle in the plugin (`GraphStateSnapshots[vehicleKey]`), recursing into cached Include sub-evaluators.
 - Missing inputs default to 0.0.
@@ -241,7 +243,7 @@ When switching vehicles with unsaved param changes:
 
 ## Resolved
 
-- **Stateful nodes** (integrator/delay-style): shipped. Implemented as stateful Func nodes — `accumulator` (rate integrator with min/max clamp + reset), `sample_hold` (capture on falling edge), `edge_detect` (one-tick rising-edge pulse), and `lag_asym` (first-order lag with asymmetric rise/fall time constants). State lives in a per-evaluator array and is snapshotted per-vehicle (see Evaluation).
+- **Stateful nodes** (integrator/delay-style): shipped. Implemented as stateful Func nodes — `accumulator` (rate integrator with min/max clamp + reset), `sample_hold` (capture on falling edge), `edge_detect` (one-tick rising-edge pulse), `lag_asym` (first-order lag with asymmetric rise/fall time constants), `rs_latch` (RS flip-flop; set latches to 1, reset latches to 0, reset dominant), and `unit_delay` (one-tick delay / z^-1; returns the previous evaluation's input). State lives in a per-evaluator array and is snapshotted per-vehicle (see Evaluation).
 
 ## Risks and Mitigations
 - Param UI schema complexity: start with slider/knob/checkbox, add advanced widgets later.

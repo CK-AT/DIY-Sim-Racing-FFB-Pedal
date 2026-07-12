@@ -100,8 +100,14 @@ namespace DiyFfb.GraphEditor
                         }
                     }
                 }
-                else if (node.Kind == GraphNodeKind.Func)
+                else if (node.Kind == GraphNodeKind.Func || node.Kind == GraphNodeKind.Delay)
                 {
+                    // Delay is editor sugar for the unit_delay stateful func (mirrored
+                    // ports). Force the func name; a plain Func node keeps its own.
+                    if (node.Kind == GraphNodeKind.Delay)
+                    {
+                        runtimeNode.Func = "unit_delay";
+                    }
                     foreach (var port in node.Ports.Where(p => p.Kind == GraphPortKind.Input))
                     {
                         if (TryGetInputSource(nodes, graph.Links, localBusReceiveMap, node.Id, port.Name, out var source))
@@ -365,6 +371,7 @@ namespace DiyFfb.GraphEditor
                 case GraphNodeKind.Const: return NodeType.Const;
                 case GraphNodeKind.Op: return NodeType.Op;
                 case GraphNodeKind.Func: return NodeType.Func;
+                case GraphNodeKind.Delay: return NodeType.Func; // unit_delay stateful func
                 case GraphNodeKind.Include: return NodeType.Include;
                 case GraphNodeKind.Output: return NodeType.Output;
                 case GraphNodeKind.ConfigOut: return NodeType.ConfigOut;

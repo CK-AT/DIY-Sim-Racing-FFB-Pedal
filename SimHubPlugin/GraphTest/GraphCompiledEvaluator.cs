@@ -51,6 +51,9 @@ namespace DiyFfb.GraphTest
         private readonly double[] _values;
         private readonly double[] _extraValues;
         private readonly double[] _state;  // persists across evaluations for stateful Func nodes
+        // unit_delay nodes: their input is sampled AFTER the main pass (deferred capture)
+        // so feedback loops routing output back through the delay resolve correctly.
+        private readonly List<CompiledNode> _deferredCaptures = new List<CompiledNode>();
         private double _dt;  // seconds since last evaluation, set each cycle for stateful funcs
 
         public GraphCompiledEvaluator(GraphDefinition graph, IGraphResolver resolver = null)
@@ -102,6 +105,12 @@ namespace DiyFfb.GraphTest
                 {
                     compiled.StateBaseIndex = stateSlotCount;
                     stateSlotCount += slotsNeeded;
+                }
+
+                // unit_delay samples its input at end-of-tick (see _deferredCaptures).
+                if (node.Type == NodeType.Func && node.Func == "unit_delay")
+                {
+                    _deferredCaptures.Add(compiled);
                 }
 
                 _order.Add(compiled);
@@ -244,6 +253,15 @@ namespace DiyFfb.GraphTest
                         _values[compiled.Index] = Resolve(compiled.SrcIndex, compiled.SrcIsExtra);
                         break;
                 }
+            }
+
+            // Deferred capture: sample each unit_delay's input now that the whole graph
+            // (including any feedback path routed back through the delay) has evaluated.
+            // The value stored here becomes the delay's output on the NEXT evaluation.
+            foreach (var delay in _deferredCaptures)
+            {
+                int si = delay.StateBaseIndex;
+                _state[si] = delay.ArgIndices.Length > 0 ? ResolveArg(delay, 0) : 0.0;
             }
 
             var result = new GraphEvaluationResult();
@@ -752,6 +770,40 @@ namespace DiyFfb.GraphTest
                     _state[si] = output;
                     return output;
                 }
+
+                // rs_latch(set, reset)
+                // RS flip-flop. set > 0.5 latches output to 1; reset > 0.5 latches to 0.
+                // Reset dominates when both are asserted. Holds otherwise.
+                // State slot 0: current output (0 or 1).
+                case "rs_latch":
+                {
+                    int si = node.StateBaseIndex;
+                    double set = node.ArgIndices.Length > 0 ? ResolveArg(node, 0) : 0.0;
+                    double reset = node.ArgIndices.Length > 1 ? ResolveArg(node, 1) : 0.0;
+                    if (reset > 0.5)
+                    {
+                        _state[si] = 0.0;
+                    }
+                    else if (set > 0.5)
+                    {
+                        _state[si] = 1.0;
+                    }
+                    return _state[si];
+                }
+
+                // unit_delay(input)
+                // Returns the input value from the previous evaluation (one-tick delay, z^-1).
+                // On the first evaluation returns 0 (initial state).
+                // The input is NOT read here: it is sampled after the full pass (see
+                // _deferredCaptures) so the delay can break a feedback cycle — its output
+                // depends only on prior state, not on this tick's input. This lets the
+                // graph route a downstream value back into the delay's input without the
+                // topo sort seeing a cycle (see TopoSort).
+                // State slot 0: previous input (captured at end of last tick).
+                case "unit_delay":
+                {
+                    return _state[node.StateBaseIndex];
+                }
             }
 
             return 0.0;
@@ -769,6 +821,8 @@ namespace DiyFfb.GraphTest
                 case "sample_hold":  return 2;  // previous trigger + held value
                 case "edge_detect":  return 1;  // previous input value
                 case "lag_asym":     return 1;  // previous output
+                case "rs_latch":     return 1;  // current output
+                case "unit_delay":   return 1;  // previous input
                 default: return 0;
             }
         }
@@ -1134,9 +1188,18 @@ namespace DiyFfb.GraphTest
 
                 if (graph.Nodes.TryGetValue(id, out var node))
                 {
-                    foreach (var dep in node.Args ?? Enumerable.Empty<string>())
+                    // unit_delay outputs prior-tick state, so its input is NOT a
+                    // dependency: skipping the edge lets a feedback loop routed back
+                    // through the delay pass cycle detection. The input node is still
+                    // ordered (reached via the top-level Visit sweep) and sampled at
+                    // end-of-tick (see _deferredCaptures).
+                    bool breaksCycle = node.Type == NodeType.Func && node.Func == "unit_delay";
+                    if (!breaksCycle)
                     {
-                        Visit(dep);
+                        foreach (var dep in node.Args ?? Enumerable.Empty<string>())
+                        {
+                            Visit(dep);
+                        }
                     }
                     if (!string.IsNullOrEmpty(node.Src))
                     {

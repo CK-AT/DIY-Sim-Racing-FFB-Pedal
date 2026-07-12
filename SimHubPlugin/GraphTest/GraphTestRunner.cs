@@ -179,6 +179,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Converter: output node", TestConvert_OutputNode));
             results.Add(TestRunner.RunTest("Converter: op node args", TestConvert_OpNode_Args));
             results.Add(TestRunner.RunTest("Converter: op negate for add/mul", TestConvert_OpNode_Negate));
+            results.Add(TestRunner.RunTest("Converter: Delay node feedback loop", TestConvert_DelayNode_FeedbackLoop));
             results.Add(TestRunner.RunTest("Converter: include input map", TestConvert_IncludeNode_InputMap));
             results.Add(TestRunner.RunTest("Converter: include output map", TestConvert_IncludeNode_OutputMap));
             results.Add(TestRunner.RunTest("Converter: signal group builds full name", TestConvert_SignalGroup));
@@ -232,6 +233,10 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("SampleHold: hold during trigger high", TestSampleHold_HoldDuringHigh));
             results.Add(TestRunner.RunTest("EdgeDetect: rising edge pulse", TestEdgeDetect_RisingEdge));
             results.Add(TestRunner.RunTest("EdgeDetect: no pulse on sustained", TestEdgeDetect_NoPulseOnSustained));
+            results.Add(TestRunner.RunTest("RsLatch: set/reset/hold", TestRsLatch_SetResetHold));
+            results.Add(TestRunner.RunTest("RsLatch: reset dominant", TestRsLatch_ResetDominant));
+            results.Add(TestRunner.RunTest("UnitDelay: one-tick delay", TestUnitDelay_OneTickDelay));
+            results.Add(TestRunner.RunTest("UnitDelay: feedback loop", TestUnitDelay_FeedbackLoop));
             results.Add(TestRunner.RunTest("ResetState: clears accumulator", TestResetState_ClearsAccumulator));
 
             // Expr node tests
@@ -4494,6 +4499,47 @@ namespace DiyFfb.GraphTest
                    rOp.Args[2] == "c";
         }
 
+        private static bool TestConvert_DelayNode_FeedbackLoop()
+        {
+            // A Delay editor node must convert to a unit_delay Func node and support
+            // a feedback loop: sum(add) -> delay -> back into sum. y[n] = y[n-1] + 1.
+            var graph = new GraphEditor.GraphDefinition();
+
+            var one = new GraphEditor.GraphNode { Id = "one", Kind = GraphEditor.GraphNodeKind.Const, ConstValue = 1.0 };
+            graph.Nodes.Add(one);
+
+            var sum = new GraphEditor.GraphNode { Id = "sum", Kind = GraphEditor.GraphNodeKind.Op, Op = "add" };
+            sum.Ports.Add(new GraphEditor.GraphPort { Name = "a", Kind = GraphEditor.GraphPortKind.Input });
+            sum.Ports.Add(new GraphEditor.GraphPort { Name = "b", Kind = GraphEditor.GraphPortKind.Input });
+            sum.Ports.Add(new GraphEditor.GraphPort { Name = "s", Kind = GraphEditor.GraphPortKind.Output });
+            graph.Nodes.Add(sum);
+
+            var delay = new GraphEditor.GraphNode { Id = "d", Kind = GraphEditor.GraphNodeKind.Delay };
+            delay.Ports.Add(new GraphEditor.GraphPort { Name = "in", Kind = GraphEditor.GraphPortKind.Input });
+            delay.Ports.Add(new GraphEditor.GraphPort { Name = "out", Kind = GraphEditor.GraphPortKind.Output });
+            graph.Nodes.Add(delay);
+
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "one", ToNodeId = "sum", ToPort = "a" });
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "d", FromPort = "out", ToNodeId = "sum", ToPort = "b" });
+            graph.Links.Add(new GraphEditor.GraphLink { FromNodeId = "sum", FromPort = "s", ToNodeId = "d", ToPort = "in" });
+
+            var runtime = GraphEditor.GraphRuntimeConverter.Convert(graph);
+
+            // Delay converts to a unit_delay Func node wired from the adder. (Type is
+            // compared via ToString to avoid the duplicate-NodeType ambiguity between
+            // the plugin DLL and this project's local runtime copy.)
+            if (!runtime.Nodes.TryGetValue("d", out var rDelay)) return false;
+            if (rDelay.Type.ToString() != "Func" || rDelay.Func != "unit_delay") return false;
+            if (rDelay.Args.Count != 1 || rDelay.Args[0] != "sum") return false;
+
+            // The adder consumes the delay output, closing the loop. Runtime feedback
+            // evaluation itself is covered by TestUnitDelay_FeedbackLoop.
+            return runtime.Nodes.TryGetValue("sum", out var rSum)
+                && rSum.Args.Count == 2
+                && rSum.Args.Contains("one")
+                && rSum.Args.Contains("d");
+        }
+
         private static bool TestConvert_OpNode_Negate()
         {
             // Test that Negate flags are set correctly only for Add/Mul
@@ -5178,6 +5224,89 @@ namespace DiyFfb.GraphTest
             return Math.Abs(v1 - 1.0) < 1e-9
                 && Math.Abs(v2) < 1e-9
                 && Math.Abs(v3) < 1e-9;
+        }
+
+        private static bool TestRsLatch_SetResetHold()
+        {
+            // rs_latch(set, reset) — set→1, reset→0, holds otherwise
+            var eval = BuildStatefulGraph("rs_latch", new[] { "set", "reset" });
+
+            double v1 = Eval(eval, new Dictionary<string, double> { ["set"] = 0.0, ["reset"] = 0.0 });  // initial → 0
+            double v2 = Eval(eval, new Dictionary<string, double> { ["set"] = 1.0, ["reset"] = 0.0 });  // set → 1
+            double v3 = Eval(eval, new Dictionary<string, double> { ["set"] = 0.0, ["reset"] = 0.0 });  // hold → 1
+            double v4 = Eval(eval, new Dictionary<string, double> { ["set"] = 0.0, ["reset"] = 1.0 });  // reset → 0
+            double v5 = Eval(eval, new Dictionary<string, double> { ["set"] = 0.0, ["reset"] = 0.0 });  // hold → 0
+
+            return Math.Abs(v1) < 1e-9
+                && Math.Abs(v2 - 1.0) < 1e-9
+                && Math.Abs(v3 - 1.0) < 1e-9
+                && Math.Abs(v4) < 1e-9
+                && Math.Abs(v5) < 1e-9;
+        }
+
+        private static bool TestRsLatch_ResetDominant()
+        {
+            // When set and reset are both asserted, reset wins.
+            var eval = BuildStatefulGraph("rs_latch", new[] { "set", "reset" });
+
+            double v1 = Eval(eval, new Dictionary<string, double> { ["set"] = 1.0, ["reset"] = 0.0 });  // set → 1
+            double v2 = Eval(eval, new Dictionary<string, double> { ["set"] = 1.0, ["reset"] = 1.0 });  // both → 0
+
+            return Math.Abs(v1 - 1.0) < 1e-9 && Math.Abs(v2) < 1e-9;
+        }
+
+        private static bool TestUnitDelay_OneTickDelay()
+        {
+            // unit_delay(input) — returns previous evaluation's input; 0 on first tick
+            var eval = BuildStatefulGraph("unit_delay", new[] { "input" });
+
+            double v1 = Eval(eval, new Dictionary<string, double> { ["input"] = 5.0 });   // first → 0
+            double v2 = Eval(eval, new Dictionary<string, double> { ["input"] = 7.0 });   // → 5
+            double v3 = Eval(eval, new Dictionary<string, double> { ["input"] = -2.0 });  // → 7
+            double v4 = Eval(eval, new Dictionary<string, double> { ["input"] = -2.0 });  // → -2
+
+            return Math.Abs(v1) < 1e-9
+                && Math.Abs(v2 - 5.0) < 1e-9
+                && Math.Abs(v3 - 7.0) < 1e-9
+                && Math.Abs(v4 - (-2.0)) < 1e-9;
+        }
+
+        private static bool TestUnitDelay_FeedbackLoop()
+        {
+            // Running accumulator y[n] = y[n-1] + x[n], built as a genuine cycle:
+            //   sum(add) -> delay -> back into sum. The delay breaks the cycle so the
+            //   topo sort accepts it; delay's input is captured at end-of-tick.
+            var graph = new GraphDefinition();
+            graph.Nodes["x"] = new GraphNode { Id = "x", Type = NodeType.Input, Name = "x" };
+            graph.Nodes["delay"] = new GraphNode
+            {
+                Id = "delay",
+                Type = NodeType.Func,
+                Func = "unit_delay",
+                Args = { "sum" }   // feedback edge: delay's input is the adder output
+            };
+            graph.Nodes["sum"] = new GraphNode
+            {
+                Id = "sum",
+                Type = NodeType.Op,
+                Op = OpType.Add,
+                Args = { "x", "delay" }
+            };
+            graph.Nodes["out"] = new GraphNode { Id = "out", Type = NodeType.Output, Name = "result", Src = "sum" };
+
+            // Construction must not throw "Graph has a cycle."
+            var eval = new GraphCompiledEvaluator(graph);
+
+            var one = new Dictionary<string, double> { ["x"] = 1.0 };
+            double v1 = Eval(eval, one);  // 0 + 1 = 1
+            double v2 = Eval(eval, one);  // 1 + 1 = 2
+            double v3 = Eval(eval, one);  // 2 + 1 = 3
+            double v4 = Eval(eval, new Dictionary<string, double> { ["x"] = 10.0 });  // 3 + 10 = 13
+
+            return Math.Abs(v1 - 1.0) < 1e-9
+                && Math.Abs(v2 - 2.0) < 1e-9
+                && Math.Abs(v3 - 3.0) < 1e-9
+                && Math.Abs(v4 - 13.0) < 1e-9;
         }
 
         private static bool TestResetState_ClearsAccumulator()

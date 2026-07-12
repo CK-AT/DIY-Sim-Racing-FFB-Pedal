@@ -175,7 +175,9 @@ namespace DiyFfb.GraphTest
             "accumulator",
             "sample_hold",
             "edge_detect",
-            "lag_asym"
+            "lag_asym",
+            "rs_latch",
+            "unit_delay"
         };
 
         private static readonly Dictionary<OpType, int> OpArgCounts = new Dictionary<OpType, int>
