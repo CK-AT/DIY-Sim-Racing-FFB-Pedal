@@ -75,9 +75,12 @@ It is a **UX/polish** plan. The result contract the dialog returns (`SelectedEnt
 - **Consistent filtering** *(deferred)* — templates still use the implicit game filter; search now spans both, which mostly covers the gap.
 - **Direct import** *(deferred)* — `Import...` still stages into the `<Imports>` pseudo-filter + `Save to Library`. Reworking to land-directly is a behavior change best done with runtime verification.
 
-### Phase 3 — Details / preview pane
-- Replace the 3-line strip with a richer right-hand pane: friendly source label, **graph filename** (full path on tooltip), a **"file missing" warning** when the referenced graph doesn't resolve on disk, tuning summary, and the target vehicle for the action.
-- *Stretch:* a small read-only graph preview (reuse `GraphPreviewEvaluator`/thumbnail) or the tuned-param list.
+### Phase 3 — Details / preview
+The old 3-line strip was already folded into the apply-target card in Phase 1, so Phase 3 enriches that card rather than adding a separate pane.
+- **Source detail** *(done)* — the card shows `source · graph · tuning`, the destination, and now a **full graph path on tooltip** (`TextApplyInfo.ToolTip`).
+- **Missing-graph warning** *(done)* — resolves the selected source's graph (`ResolveGraphForExistence`) and shows an amber "⚠ Graph file not found" line when the referenced file doesn't resolve on disk. Non-blocking (apply is still allowed).
+- **Per-row missing indicator** *(deferred → Phase 4)* — would need a `File.Exists` per row on every load/search; card-level covers the selected item for now.
+- *Stretch (deferred):* a small read-only graph preview / tuned-param list in the card.
 
 ### Phase 4 — Visual polish
 - Source-type icons; responsive widths (drop the `731` magic number); column headers or fold the columns into the details pane; friendly empty states; consistent button styling with the rest of the plugin.

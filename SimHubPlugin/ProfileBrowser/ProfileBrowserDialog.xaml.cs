@@ -524,6 +524,16 @@ namespace DiyFfb.ProfileBrowser
                 TextApplyInfo.Text = $"{source} · {graph} · {tuning}";
                 TextApplyDestination.Text = "→ " + _applyDestinationLabel;
 
+                // Resolve the source graph; tooltip = full path, warn if the file is
+                // gone (a referenced graph moved/deleted → the profile would be broken).
+                string resolvedGraph = ResolveGraphForExistence(entry);
+                TextApplyInfo.ToolTip = string.IsNullOrEmpty(resolvedGraph) ? null : resolvedGraph;
+                bool graphMissing = !string.IsNullOrEmpty(entry.GraphPath)
+                    && (string.IsNullOrEmpty(resolvedGraph) || !File.Exists(resolvedGraph));
+                TextGraphMissing.Visibility = graphMissing ? Visibility.Visible : Visibility.Collapsed;
+                if (graphMissing)
+                    TextGraphMissing.Text = $"⚠ Graph file not found: {entry.GraphName}";
+
                 // Toggle availability follows what the source offers; a template
                 // has a graph but no tuning, a graph-less profile only tuning.
                 bool hasGraph = !string.IsNullOrEmpty(entry.GraphPath);
@@ -756,6 +766,18 @@ namespace DiyFfb.ProfileBrowser
                 return GraphTemplateRegistry.ResolveTemplatePath(
                     entry.TemplateEntry.TemplatePath, AppDomain.CurrentDomain.BaseDirectory);
             return entry.GraphPath;
+        }
+
+        // Absolute path used only to test whether the source graph file exists.
+        // Templates resolve via the registry; everything else against the base dir.
+        private static string ResolveGraphForExistence(ProfileBrowserEntry entry)
+        {
+            if (string.IsNullOrEmpty(entry.GraphPath))
+                return null;
+            if (entry.TemplateEntry != null)
+                return GraphTemplateRegistry.ResolveTemplatePath(
+                    entry.TemplateEntry.TemplatePath, AppDomain.CurrentDomain.BaseDirectory);
+            return DiyFfbPlugin.ResolveGraphFilePath(entry.GraphPath);
         }
 
         private static void SplitKey(string key, out string gameId, out string carId)
