@@ -129,11 +129,24 @@
                                 <ColumnDefinition Width="28" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Orientation="Vertical">
-                                <TextBlock Text="{Binding Name}"
-                                           FontWeight="SemiBold"
-                                           FontSize="13"
-                                           Foreground="White"
-                                           Margin="0,0,0,2" />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                    <TextBlock Text="{Binding Name}"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="White"
+                                               VerticalAlignment="Center" />
+                                    <Border Background="#3A6A3A"
+                                            CornerRadius="3"
+                                            Padding="5,1"
+                                            Margin="8,0,0,0"
+                                            VerticalAlignment="Center"
+                                            Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="Current"
+                                                   FontSize="9"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#DFF5DF" />
+                                    </Border>
+                                </StackPanel>
                                 <TextBlock Text="{Binding GameId}"
                                            FontSize="10"
                                            Foreground="#888888"

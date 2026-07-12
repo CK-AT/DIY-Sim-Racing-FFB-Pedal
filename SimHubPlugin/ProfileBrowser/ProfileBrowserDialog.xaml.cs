@@ -143,17 +143,29 @@ namespace DiyFfb.ProfileBrowser
                 return;
             }
 
+            // Identify the currently active vehicle so its entry can be flagged.
+            string currentKey = _plugin?.GetActiveProfileKey();
+
             // Build full list of profiles with game ID extracted
             foreach (var kvp in profiles)
             {
                 string graphPath = kvp.Value?.GraphPath ?? "";
                 var entry = ProfileBrowserEntry.FromProfile(kvp.Key, kvp.Value, graphPath);
                 entry.GameId = ExtractGameId(kvp.Key);
+                entry.IsCurrent = !string.IsNullOrEmpty(currentKey)
+                    && string.Equals(kvp.Key, currentKey, StringComparison.Ordinal);
                 _allStoredProfiles.Add(entry);
             }
 
             PopulateGameFilter();
             ApplyGameFilter();
+
+            // Bring the active vehicle's profile into view (if it survived filtering).
+            var current = Items.FirstOrDefault(e => e.IsCurrent);
+            if (current != null)
+            {
+                ListItems.ScrollIntoView(current);
+            }
         }
 
         private string ExtractGameId(string profileKey)

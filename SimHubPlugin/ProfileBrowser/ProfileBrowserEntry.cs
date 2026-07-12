@@ -48,6 +48,12 @@ namespace DiyFfb.ProfileBrowser
         // Template data (for templates)
         public GraphTemplateEntry TemplateEntry { get; set; }
 
+        /// <summary>
+        /// True for the stored profile matching the currently active vehicle.
+        /// Set at load time; drives the "Current" badge in the browser.
+        /// </summary>
+        public bool IsCurrent { get; set; }
+
         // UI state
         private bool _isSelected;
         public bool IsSelected
