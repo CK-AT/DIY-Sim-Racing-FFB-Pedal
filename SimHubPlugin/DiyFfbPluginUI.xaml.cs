@@ -919,8 +919,8 @@ namespace DiyFfb
             }
             catch (Exception ex)
             {
-                ThemedMessageBox.Show($"Error opening Profile Browser:\n\n{ex.Message}\n\n{ex.StackTrace}",
-                    "Profile Browser Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ThemedMessageBox.Show($"Error opening Profile Manager:\n\n{ex.Message}\n\n{ex.StackTrace}",
+                    "Profile Manager Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

@@ -232,6 +232,10 @@
     </Compile>
     <Compile Include="ProfileBrowser\ProfileBrowserEntry.cs" />
     <Compile Include="ProfileBrowser\ProfileBrowserMode.cs" />
+    <Compile Include="ProfileBrowser\GraphStorageModeDialog.xaml.cs">
+      <DependentUpon>GraphStorageModeDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="GraphEditor\GraphPathUtil.cs" />
     <Compile Include="GraphEditor\GraphPreviewEvaluator.cs" />
     <Compile Include="GraphEditor\GraphRuntimeConverter.cs" />
     <Compile Include="GraphEditor\GraphSerializer.cs" />
@@ -388,6 +392,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="ProfileBrowser\ProfileBrowserDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="ProfileBrowser\GraphStorageModeDialog.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

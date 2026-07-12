@@ -16,7 +16,10 @@ namespace DiyFfb.ProfileBrowser
         StoredProfile,
 
         /// <summary>Loaded from an external file via Import.</summary>
-        ImportedFile
+        ImportedFile,
+
+        /// <summary>A user-picked custom graph file (referenced or copied into the library).</summary>
+        CustomFile
     }
 
     /// <summary>
@@ -145,6 +148,22 @@ namespace DiyFfb.ProfileBrowser
                 HasTuning = paramCount > 0,
                 TunedParamCount = paramCount,
                 Description = $"Exported: {exported?.ExportedAt ?? "unknown"}"
+            };
+        }
+
+        /// <summary>
+        /// Creates a transient entry for a user-picked custom graph file. Carries only
+        /// the graph path (no tuning); assigns the graph to the current vehicle.
+        /// </summary>
+        public static ProfileBrowserEntry FromCustomFile(string graphPath)
+        {
+            return new ProfileBrowserEntry
+            {
+                Source = ProfileEntrySource.CustomFile,
+                Name = Path.GetFileNameWithoutExtension(graphPath ?? ""),
+                GraphPath = graphPath,
+                HasTuning = false,
+                TunedParamCount = 0
             };
         }
 

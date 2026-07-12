@@ -180,6 +180,7 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Converter: op node args", TestConvert_OpNode_Args));
             results.Add(TestRunner.RunTest("Converter: op negate for add/mul", TestConvert_OpNode_Negate));
             results.Add(TestRunner.RunTest("Converter: Delay node feedback loop", TestConvert_DelayNode_FeedbackLoop));
+            results.Add(TestRunner.RunTest("GraphPathUtil: MakeRelative", TestGraphPathUtil_MakeRelative));
             results.Add(TestRunner.RunTest("Converter: include input map", TestConvert_IncludeNode_InputMap));
             results.Add(TestRunner.RunTest("Converter: include output map", TestConvert_IncludeNode_OutputMap));
             results.Add(TestRunner.RunTest("Converter: signal group builds full name", TestConvert_SignalGroup));
@@ -4538,6 +4539,29 @@ namespace DiyFfb.GraphTest
                 && rSum.Args.Count == 2
                 && rSum.Args.Contains("one")
                 && rSum.Args.Contains("d");
+        }
+
+        private static bool TestGraphPathUtil_MakeRelative()
+        {
+            const string baseDir = @"C:\Plugins\SimHub\";
+
+            // Under base dir → relative, forward-slashed.
+            bool underBase = GraphEditor.GraphPathUtil.MakeRelative(
+                @"C:\Plugins\SimHub\graphs\custom\my.json", baseDir) == "graphs/custom/my.json";
+
+            // Outside base dir → unchanged absolute path.
+            bool outside = GraphEditor.GraphPathUtil.MakeRelative(
+                @"D:\Other\my.json", baseDir) == @"D:\Other\my.json";
+
+            // Base match is case-insensitive.
+            bool caseInsensitive = GraphEditor.GraphPathUtil.MakeRelative(
+                @"c:\plugins\simhub\g.json", baseDir) == "g.json";
+
+            // Null/empty pass through unchanged.
+            bool passthrough = GraphEditor.GraphPathUtil.MakeRelative(null, baseDir) == null
+                && GraphEditor.GraphPathUtil.MakeRelative("", baseDir) == "";
+
+            return underBase && outside && caseInsensitive && passthrough;
         }
 
         private static bool TestConvert_OpNode_Negate()

@@ -3490,62 +3490,76 @@ namespace DiyFfb
         }
 
         /// <summary>
-        /// Applies a profile selected from the Profile Browser to the current vehicle.
+        /// Applies a profile selected from the Profile Manager to the current vehicle.
+        /// Thin wrapper over <see cref="ApplyProfileToVehicle"/> for the active vehicle.
         /// </summary>
-        /// <param name="graphPath">The graph path to use.</param>
-        /// <param name="profile">The profile to copy (can be null for templates).</param>
-        /// <param name="useTuning">If true, copies GraphParamValues from the source profile.</param>
         public void ApplyProfileFromBrowser(string graphPath, DiyFfbPluginSettings.AircraftFfbProfile profile, bool useTuning)
         {
-            if (string.IsNullOrWhiteSpace(activeCarId))
+            ApplyProfileToVehicle(activeGameId, activeCarId, graphPath, profile, useTuning);
+        }
+
+        /// <summary>
+        /// Applies a graph and/or tuning to a specific vehicle profile. When the target
+        /// is the active vehicle the runtime graph is reloaded immediately; otherwise the
+        /// change is persisted to that profile and takes effect when it next activates.
+        /// </summary>
+        /// <param name="gameId">Destination game id.</param>
+        /// <param name="carId">Destination car/vehicle id.</param>
+        /// <param name="graphPath">Graph path to assign, or null/empty to keep the destination's current graph (tuning-only).</param>
+        /// <param name="sourceProfile">Profile to copy tuning from (null for templates / graph-only).</param>
+        /// <param name="useTuning">If true, copies GraphParamValues (+ rotor index) from the source profile.</param>
+        public void ApplyProfileToVehicle(string gameId, string carId, string graphPath,
+            DiyFfbPluginSettings.AircraftFfbProfile sourceProfile, bool useTuning)
+        {
+            if (Settings == null || string.IsNullOrWhiteSpace(carId))
                 return;
 
-            // Mute state is per-vehicle-profile: loading a different saved
-            // profile resets any tuning-session mutes.
-            ClearAllParamMutes();
+            string destKey = BuildProfileKey(gameId, carId);
+            if (string.IsNullOrWhiteSpace(destKey))
+                return;
 
-            // 1. Set graph path for current vehicle if provided
+            bool isActive = !string.IsNullOrWhiteSpace(activeCarId)
+                && destKey == BuildProfileKey(activeGameId, activeCarId);
+
+            if (Settings.AircraftFfbProfiles == null)
+                Settings.AircraftFfbProfiles = new Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
+
+            if (!Settings.AircraftFfbProfiles.TryGetValue(destKey, out var destProfile) || destProfile == null)
+            {
+                destProfile = new DiyFfbPluginSettings.AircraftFfbProfile();
+                Settings.AircraftFfbProfiles[destKey] = destProfile;
+            }
+
+            // 1. Graph (skip when null/empty → keep the destination's current graph).
             if (!string.IsNullOrWhiteSpace(graphPath))
+                destProfile.GraphPath = graphPath;
+
+            // 2. Tuning params from the source profile.
+            if (useTuning && sourceProfile?.GraphParamValues != null && sourceProfile.GraphParamValues.Count > 0)
             {
-                SetVehicleGraphPath(activeGameId, activeCarId, graphPath);
+                if (destProfile.GraphParamValues == null)
+                    destProfile.GraphParamValues = new Dictionary<string, double>();
+                foreach (var kvp in sourceProfile.GraphParamValues)
+                    destProfile.GraphParamValues[kvp.Key] = kvp.Value;
+                destProfile.XPlaneRotorIndex = sourceProfile.XPlaneRotorIndex;
             }
 
-            // 2. Copy tuning params if requested and source has a profile
-            if (useTuning && profile?.GraphParamValues != null && profile.GraphParamValues.Count > 0)
+            // 3. Active target: reload the runtime graph now; non-active: persist only.
+            if (isActive)
             {
-                var currentProfile = GetCurrentAircraftProfile();
-                if (currentProfile == null)
+                // Mute state is per-vehicle-profile: a fresh source resets session mutes.
+                ClearAllParamMutes();
+                ResolveActiveGraph(activeGameId, activeCarId);
+                BuildGraphParams();
+                ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
+                ui?.Dispatcher?.BeginInvoke(new Action(() =>
                 {
-                    currentProfile = new DiyFfbPluginSettings.AircraftFfbProfile();
-                    string currentKey = BuildProfileKey(activeGameId, activeCarId);
-                    if (Settings.AircraftFfbProfiles == null)
-                        Settings.AircraftFfbProfiles = new Dictionary<string, DiyFfbPluginSettings.AircraftFfbProfile>();
-                    Settings.AircraftFfbProfiles[currentKey] = currentProfile;
-                }
-
-                // Copy param values
-                if (currentProfile.GraphParamValues == null)
-                    currentProfile.GraphParamValues = new Dictionary<string, double>();
-
-                foreach (var kvp in profile.GraphParamValues)
-                {
-                    currentProfile.GraphParamValues[kvp.Key] = kvp.Value;
-                }
-
-                // Copy other settings
-                currentProfile.XPlaneRotorIndex = profile.XPlaneRotorIndex;
+                    ui.RefreshGraphSelection();
+                }));
             }
 
-            // 3. Reload graph for current vehicle
-            ResolveActiveGraph(activeGameId, activeCarId);
-            BuildGraphParams();
-
-            // 4. Notify UI
-            ActiveGraphChanged?.Invoke(this, EventArgs.Empty);
-            ui?.Dispatcher?.BeginInvoke(new Action(() =>
-            {
-                ui.RefreshGraphSelection();
-            }));
+            // Persist (important for non-active targets, which have no reload side effect).
+            this.SaveCommonSettings("GeneralSettings", Settings);
         }
 
         /// <summary>

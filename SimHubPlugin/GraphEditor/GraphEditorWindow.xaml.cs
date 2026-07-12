@@ -757,22 +757,12 @@ namespace DiyFfb.GraphEditor
 
         /// <summary>
         /// Makes a graph path relative to the app base directory if possible.
+        /// Delegates to <see cref="GraphPathUtil.MakeRelative"/> so the editor and
+        /// the Profile Browser store custom-graph paths identically.
         /// </summary>
         private string MakeRelativeGraphPath(string fullPath)
         {
-            if (string.IsNullOrEmpty(fullPath))
-                return fullPath;
-
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            if (fullPath.StartsWith(baseDir, StringComparison.OrdinalIgnoreCase))
-            {
-                string relative = fullPath.Substring(baseDir.Length);
-                // Normalize to forward slashes for consistency
-                return relative.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                               .Replace(Path.DirectorySeparatorChar, '/');
-            }
-
-            return fullPath;
+            return GraphPathUtil.MakeRelative(fullPath, AppDomain.CurrentDomain.BaseDirectory);
         }
 
         /// <summary>

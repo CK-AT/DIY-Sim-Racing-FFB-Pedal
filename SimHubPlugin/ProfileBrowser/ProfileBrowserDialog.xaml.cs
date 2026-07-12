@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using Newtonsoft.Json;
 using DiyFfb.Controls;
 using DiyFfb.GraphEditor;
@@ -14,6 +15,12 @@ namespace DiyFfb.ProfileBrowser
 {
     public partial class ProfileBrowserDialog : Window
     {
+        // Apply-target card border: green = ready to apply, amber = no active vehicle.
+        private static readonly Brush ApplyBorderReady =
+            new SolidColorBrush(Color.FromRgb(0x3A, 0x6A, 0x3A));
+        private static readonly Brush ApplyBorderUnavailable =
+            new SolidColorBrush(Color.FromRgb(0x8A, 0x6A, 0x30));
+
         private const string AllGamesFilter = "<All Games>";
         private const string ImportsFilter = "<Imports>";
 
@@ -39,7 +46,21 @@ namespace DiyFfb.ProfileBrowser
         private readonly DiyFfbPlugin _plugin;
         private readonly string _currentGameId;
         private readonly string _currentCarId;
+        // Friendly name of the active vehicle (active destination label / option).
+        private readonly string _applyDestinationLabel;
+        // Valid apply destinations: the active vehicle, plus (in Manage mode) every
+        // stored vehicle profile — so a profile can be configured before it is active.
+        private List<DestinationOption> _destinationOptions = new List<DestinationOption>();
         private bool _isInitialized;
+
+        /// <summary>A vehicle profile the apply action can write to.</summary>
+        private sealed class DestinationOption
+        {
+            public string Label { get; set; }
+            public string GameId { get; set; }
+            public string CarId { get; set; }
+            public bool IsActive { get; set; }
+        }
 
         public ProfileBrowserDialog(
             DiyFfbPlugin plugin,
@@ -52,11 +73,16 @@ namespace DiyFfb.ProfileBrowser
             _currentGameId = gameId;
             _currentCarId = carId;
 
+            string carName = plugin?.GetActiveCarName();
+            _applyDestinationLabel = string.IsNullOrWhiteSpace(carName) ? "current vehicle" : carName;
+
             InitializeComponent();
             SourceInitialized += (s, e) => DarkTitleBar.Enable(this);
 
             ListItems.ItemsSource = Items;
             ConfigureForMode();
+            BuildDestinationOptions();
+            InitDestinationUi();
             _isInitialized = true;
             LoadInitialTab();
         }
@@ -71,7 +97,7 @@ namespace DiyFfb.ProfileBrowser
                     ButtonExport.Visibility = Visibility.Collapsed;
                     break;
                 case ProfileBrowserMode.ManageProfiles:
-                    TextTitle.Text = "Profile Browser";
+                    TextTitle.Text = "Profile Manager";
                     RadioMyVehicles.IsChecked = true;
                     break;
                 case ProfileBrowserMode.CopyFromVehicle:
@@ -124,7 +150,7 @@ namespace DiyFfb.ProfileBrowser
             if (Items.Count > 0)
                 ListItems.SelectedIndex = 0;
 
-            UpdateDetailsPanel();
+            UpdateApplyTarget();
             UpdateButtonStates();
         }
 
@@ -138,7 +164,7 @@ namespace DiyFfb.ProfileBrowser
             if (profiles == null)
             {
                 PopulateGameFilter();
-                UpdateDetailsPanel();
+                UpdateApplyTarget();
                 UpdateButtonStates();
                 return;
             }
@@ -244,7 +270,7 @@ namespace DiyFfb.ProfileBrowser
             if (Items.Count > 0)
                 ListItems.SelectedIndex = 0;
 
-            UpdateDetailsPanel();
+            UpdateApplyTarget();
             UpdateButtonStates();
         }
 
@@ -319,6 +345,75 @@ namespace DiyFfb.ProfileBrowser
             }
         }
 
+        private void OnBrowseCustomGraphClick(object sender, RoutedEventArgs e)
+        {
+            var picker = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "Graph JSON (*.json)|*.json|All files (*.*)|*.*",
+                DefaultExt = "json",
+                Title = "Select Custom Graph"
+            };
+            if (picker.ShowDialog() != true || string.IsNullOrEmpty(picker.FileName))
+                return;
+
+            string picked = picker.FileName;
+
+            // Validate before assigning so a broken file can't be attached.
+            try
+            {
+                string json = File.ReadAllText(picked);
+                GraphSerializer.Deserialize(json, out var validation);
+                if (validation == null || !validation.IsValid)
+                {
+                    string errors = validation?.Errors != null && validation.Errors.Count > 0
+                        ? string.Join("\n", validation.Errors.Take(8))
+                        : "Unknown error.";
+                    ThemedMessageBox.Show(this,
+                        $"This file is not a valid graph:\n\n{errors}",
+                        "Invalid Graph", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                ThemedMessageBox.Show(this,
+                    $"Could not read graph file:\n\n{ex.Message}",
+                    "Invalid Graph", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Ask how to store it: reference in place vs copy into the library.
+            var modeDialog = new GraphStorageModeDialog { Owner = this };
+            modeDialog.ShowDialog();
+            if (modeDialog.Result == GraphStorageMode.Cancel)
+                return;
+
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string resolved;
+            try
+            {
+                resolved = modeDialog.Result == GraphStorageMode.Copy
+                    ? GraphPathUtil.CopyIntoCustomLibrary(picked, baseDir)
+                    : picked;
+            }
+            catch (Exception ex)
+            {
+                ThemedMessageBox.Show(this,
+                    $"Could not copy the graph into the library:\n\n{ex.Message}",
+                    "Copy Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            string stored = GraphPathUtil.MakeRelative(resolved, baseDir);
+
+            // Assign to the current vehicle (graph only, no tuning) and close.
+            SelectedEntry = ProfileBrowserEntry.FromCustomFile(stored);
+            UseSourceGraph = true;
+            UseGraphOnly = true;
+            UseTuning = false;
+            DialogResult = true;
+        }
+
         private ProfileBrowserEntry ImportSingleFile(string filePath)
         {
             string json = File.ReadAllText(filePath);
@@ -348,48 +443,121 @@ namespace DiyFfb.ProfileBrowser
 
         private void OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            UpdateDetailsPanel();
+            UpdateApplyTarget();
             UpdateButtonStates();
         }
 
-        private void UpdateDetailsPanel()
+        // Populates the pinned apply-target card. Active only when exactly one
+        // profile is selected (single-item "apply"); collapses to a hint otherwise
+        // (zero, or many = a multi-item "manage" selection for Delete/Export).
+        private void UpdateApplyTarget()
         {
-            if (ListItems.SelectedItem is ProfileBrowserEntry entry)
+            // No valid destination (no active vehicle and nothing to configure) → apply
+            // is impossible; show the notice and leave the list/Delete/Export usable.
+            if (_destinationOptions.Count == 0)
             {
-                TextSelectedName.Text = entry.Name;
-                TextSelectedGraph.Text = string.IsNullOrEmpty(entry.GraphPath) ? "(none)" : entry.GraphPath;
+                PanelApplyActive.Visibility = Visibility.Collapsed;
+                TextApplyHint.Visibility = Visibility.Collapsed;
+                PanelApplyNoVehicle.Visibility = Visibility.Visible;
+                BorderApplyTarget.BorderBrush = ApplyBorderUnavailable;
+                return;
+            }
 
-                if (entry.Source == ProfileEntrySource.Template)
-                {
-                    TextSelectedTuning.Text = "Template (no tuning)";
-                }
-                else if (entry.HasTuning)
-                {
-                    TextSelectedTuning.Text = $"{entry.TunedParamCount} parameter(s) customized";
-                }
-                else
-                {
-                    TextSelectedTuning.Text = "No customizations";
-                }
+            PanelApplyNoVehicle.Visibility = Visibility.Collapsed;
+            BorderApplyTarget.BorderBrush = ApplyBorderReady;
+
+            var selected = ListItems.SelectedItems.Cast<ProfileBrowserEntry>().ToList();
+            if (selected.Count == 1)
+            {
+                var entry = selected[0];
+                TextApplyName.Text = entry.Name;
+
+                string source = SourceLabel(entry.Source);
+                string graph = string.IsNullOrEmpty(entry.GraphName) ? "no graph" : entry.GraphName;
+                string tuning = entry.Source == ProfileEntrySource.Template
+                    ? "template"
+                    : entry.HasTuning ? $"{entry.TunedParamCount} param(s)" : "no tuning";
+                TextApplyInfo.Text = $"{source} · {graph} · {tuning}";
+                TextApplyDestination.Text = "→ " + _applyDestinationLabel;
+
+                // Toggle availability follows what the source offers; a template
+                // has a graph but no tuning, a graph-less profile only tuning.
+                bool hasGraph = !string.IsNullOrEmpty(entry.GraphPath);
+                CheckUseGraph.IsEnabled = hasGraph;
+                CheckUseGraph.IsChecked = hasGraph;
+                CheckCopyTuning.IsEnabled = entry.HasTuning;
+                CheckCopyTuning.IsChecked = entry.HasTuning;
+
+                PanelApplyActive.Visibility = Visibility.Visible;
+                TextApplyHint.Visibility = Visibility.Collapsed;
+                UpdateApplyEnabled();
             }
             else
             {
-                TextSelectedName.Text = "-";
-                TextSelectedGraph.Text = "-";
-                TextSelectedTuning.Text = "-";
+                PanelApplyActive.Visibility = Visibility.Collapsed;
+                TextApplyHint.Visibility = Visibility.Visible;
+                TextApplyHint.Text = selected.Count == 0
+                    ? "Select a profile to apply, or profiles to delete / export."
+                    : $"{selected.Count} selected — use Delete or Export below, or select one to apply.";
+            }
+        }
+
+        private void UpdateApplyEnabled()
+        {
+            bool anyToggle = CheckUseGraph.IsChecked == true || CheckCopyTuning.IsChecked == true;
+            bool sameVehicle = IsSourceSameAsDestination();
+            TextApplyWarning.Visibility = sameVehicle ? Visibility.Visible : Visibility.Collapsed;
+            ButtonApply.IsEnabled = anyToggle && !sameVehicle;
+        }
+
+        private void OnApplyToggleChanged(object sender, RoutedEventArgs e)
+        {
+            UpdateApplyEnabled();
+        }
+
+        private void OnDestinationChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            // Changing the destination can make it match (or stop matching) the source.
+            UpdateApplyEnabled();
+        }
+
+        // True when the selected source is a stored vehicle profile whose vehicle is the
+        // chosen destination — applying a profile onto itself is a no-op.
+        private bool IsSourceSameAsDestination()
+        {
+            var entry = ListItems.SelectedItems.Count == 1
+                ? ListItems.SelectedItems[0] as ProfileBrowserEntry
+                : null;
+            if (entry == null || entry.Source != ProfileEntrySource.StoredProfile)
+                return false;
+
+            var dest = CurrentDestination();
+            if (dest == null)
+                return false;
+
+            SplitKey(entry.ProfileKey, out string g, out string c);
+            return string.Equals(g ?? "", dest.GameId ?? "") && string.Equals(c ?? "", dest.CarId ?? "");
+        }
+
+        private static string SourceLabel(ProfileEntrySource source)
+        {
+            switch (source)
+            {
+                case ProfileEntrySource.Template: return "Template";
+                case ProfileEntrySource.StoredProfile: return "My Vehicle";
+                case ProfileEntrySource.ImportedFile: return "Imported";
+                case ProfileEntrySource.CustomFile: return "Custom graph";
+                default: return "";
             }
         }
 
         private void UpdateButtonStates()
         {
             var selectedItems = ListItems.SelectedItems.Cast<ProfileBrowserEntry>().ToList();
-            int count = selectedItems.Count;
-            bool hasSelection = count > 0;
-            bool singleSelection = count == 1;
-            var entry = singleSelection ? selectedItems[0] : null;
 
             bool hasAnyStaged = selectedItems.Any(e => e.Source == ProfileEntrySource.ImportedFile);
             bool hasAnyDeletable = selectedItems.Any(e => e.CanDelete);
+            bool hasAnyExportable = selectedItems.Any(e => e.CanExport);
 
             // Save to Library: visible when viewing imports, enabled when staged items selected
             bool showingImports = (ComboGameFilter.SelectedItem as string) == ImportsFilter;
@@ -401,122 +569,180 @@ namespace DiyFfb.ProfileBrowser
             ButtonDeleteSelected.Visibility = showingMyVehicles ? Visibility.Visible : Visibility.Collapsed;
             ButtonDeleteSelected.IsEnabled = hasAnyDeletable;
 
-            // Graph Only / Graph+Tuning: only for single selection
-            ButtonUseGraphOnly.IsEnabled = singleSelection;
-            ButtonUseGraphTuning.IsEnabled = singleSelection && entry != null &&
-                (entry.HasTuning || entry.Source != ProfileEntrySource.Template);
-            // Use Tuning Only: source must have tuning, and current vehicle
-            // must already have a graph assigned (otherwise "tuning only" has
-            // no graph to apply against).
-            bool currentVehicleHasGraph = !string.IsNullOrWhiteSpace(_plugin?.GetActiveGraphPath());
-            ButtonUseTuningOnly.IsEnabled = singleSelection && entry != null &&
-                entry.HasTuning && currentVehicleHasGraph;
+            // Export: any number of exportable items (batch-capable, like Delete).
+            ButtonExport.IsEnabled = hasAnyExportable;
 
-            // Export: only for single selection of exportable item
-            ButtonExport.IsEnabled = singleSelection && entry?.CanExport == true;
-
-            // Hide "Use Graph + Tuning" and "Use Tuning Only" for templates
-            // (templates have no stored tuning to copy).
-            if (entry != null && entry.Source == ProfileEntrySource.Template)
-            {
-                ButtonUseGraphTuning.Visibility = Visibility.Collapsed;
-                ButtonUseTuningOnly.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                ButtonUseGraphTuning.Visibility = Visibility.Visible;
-                ButtonUseTuningOnly.Visibility = Visibility.Visible;
-            }
+            // Note: the single-item "Apply" action lives in the pinned target card
+            // (see UpdateApplyTarget); it is not a button in this bar.
         }
 
         private void OnItemDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (ListItems.SelectedItem is ProfileBrowserEntry entry)
-            {
-                SelectedEntry = entry;
-                UseGraphOnly = entry.Source == ProfileEntrySource.Template;
-                UseTuning = !UseGraphOnly;
-                DialogResult = true;
-            }
+            ApplySelected();
         }
 
-        private void OnUseGraphOnlyClick(object sender, RoutedEventArgs e)
+        private void OnApplyClick(object sender, RoutedEventArgs e)
         {
-            if (ListItems.SelectedItem is ProfileBrowserEntry entry)
-            {
-                SelectedEntry = entry;
-                UseSourceGraph = true;
-                UseGraphOnly = true;
-                UseTuning = false;
-                DialogResult = true;
-            }
+            ApplySelected();
         }
 
-        private void OnUseGraphTuningClick(object sender, RoutedEventArgs e)
+        // Applies the single selected profile to the current vehicle per the
+        // Use graph / Copy tuning toggles. No-op unless exactly one is selected
+        // and at least one toggle is on. Sets the result flags consumed by
+        // ApplyProfileFromBrowser / PromptForGraphTemplate and closes the dialog.
+        private void ApplySelected()
         {
-            if (ListItems.SelectedItem is ProfileBrowserEntry entry)
-            {
-                SelectedEntry = entry;
-                UseSourceGraph = true;
-                UseGraphOnly = false;
-                UseTuning = true;
-                DialogResult = true;
-            }
-        }
-
-        private void OnUseTuningOnlyClick(object sender, RoutedEventArgs e)
-        {
-            if (ListItems.SelectedItem is ProfileBrowserEntry entry)
-            {
-                SelectedEntry = entry;
-                UseSourceGraph = false;
-                UseGraphOnly = false;
-                UseTuning = true;
-                DialogResult = true;
-            }
-        }
-
-        private void OnDeleteClick(object sender, RoutedEventArgs e)
-        {
-            if (!(((System.Windows.Controls.Button)sender).DataContext is ProfileBrowserEntry entry))
+            var dest = CurrentDestination();
+            if (dest == null)
                 return;
 
-            if (entry.Source == ProfileEntrySource.StoredProfile)
-            {
-                var result = ThemedMessageBox.Show(this,
-                    $"Delete profile for '{entry.Name}'?\n\nThis will remove all saved tuning for this vehicle.",
-                    "Confirm Delete",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
+            var selected = ListItems.SelectedItems.Cast<ProfileBrowserEntry>().ToList();
+            if (selected.Count != 1)
+                return;
 
-                if (result == MessageBoxResult.Yes)
+            bool useGraph = CheckUseGraph.IsChecked == true;
+            bool useTuning = CheckCopyTuning.IsChecked == true;
+            if (!useGraph && !useTuning)
+                return;
+
+            // Applying a stored profile onto its own vehicle is a no-op (also guards
+            // double-click, which bypasses the disabled Apply button).
+            if (IsSourceSameAsDestination())
+                return;
+
+            var entry = selected[0];
+            if (dest.IsActive)
+            {
+                // Active vehicle: return to the caller, which applies and reloads the
+                // runtime graph (ApplyProfileFromBrowser / PromptForGraphTemplate).
+                SelectedEntry = entry;
+                UseSourceGraph = useGraph;
+                UseTuning = useTuning;
+                UseGraphOnly = useGraph && !useTuning;
+                DialogResult = true;
+                return;
+            }
+
+            // Non-active destination: apply directly (persist only). Leave SelectedEntry
+            // null so the caller does not also apply to the active vehicle.
+            string graphPath = useGraph ? ResolveEntryGraphPath(entry) : null;
+            _plugin?.ApplyProfileToVehicle(dest.GameId, dest.CarId, graphPath, entry.Profile, useTuning);
+            ThemedMessageBox.Show(this,
+                $"Applied to '{dest.Label}'.\n\nIt takes effect when that vehicle is next active.",
+                "Applied", MessageBoxButton.OK, MessageBoxImage.Information);
+            DialogResult = true;
+        }
+
+        // Builds the set of vehicle profiles the apply action may target: the active
+        // vehicle (if any), plus — in Manage mode — every stored profile, so a profile
+        // can be configured before it becomes active.
+        private void BuildDestinationOptions()
+        {
+            _destinationOptions = new List<DestinationOption>();
+
+            string activeGame = _plugin?.GetActiveGameId();
+            string activeCar = _plugin?.GetActiveCarId();
+            bool hasActive = !string.IsNullOrWhiteSpace(activeCar);
+            if (hasActive)
+            {
+                _destinationOptions.Add(new DestinationOption
                 {
-                    _plugin?.Settings?.AircraftFfbProfiles?.Remove(entry.ProfileKey);
-                    _allStoredProfiles.Remove(entry);
-                    Items.Remove(entry);
-                    UpdateDetailsPanel();
-                    UpdateButtonStates();
+                    Label = _applyDestinationLabel,
+                    GameId = activeGame,
+                    CarId = activeCar,
+                    IsActive = true
+                });
+            }
+
+            if (_mode == ProfileBrowserMode.ManageProfiles && _plugin?.Settings?.AircraftFfbProfiles != null)
+            {
+                foreach (var key in _plugin.Settings.AircraftFfbProfiles.Keys.OrderBy(k => k))
+                {
+                    SplitKey(key, out string g, out string c);
+                    if (string.IsNullOrEmpty(c))
+                        continue;
+                    // Skip the active vehicle — already added as the active option.
+                    if (hasActive && string.Equals(g ?? "", activeGame ?? "") && string.Equals(c, activeCar))
+                        continue;
+                    _destinationOptions.Add(new DestinationOption
+                    {
+                        Label = FormatKeyLabel(key),
+                        GameId = g,
+                        CarId = c,
+                        IsActive = false
+                    });
                 }
             }
-            else if (entry.Source == ProfileEntrySource.ImportedFile)
+        }
+
+        // Shows the destination combo when there is a real choice (Manage mode with
+        // more than one option); otherwise shows the single destination as static text.
+        private void InitDestinationUi()
+        {
+            if (_destinationOptions.Count == 0)
+                return; // amber "nothing to apply to" state handles this
+
+            bool useCombo = _mode == ProfileBrowserMode.ManageProfiles && _destinationOptions.Count > 1;
+            if (useCombo)
             {
-                // Remove staged import without confirmation
-                _stagedImports.Remove(entry);
-                Items.Remove(entry);
+                ComboDestination.ItemsSource = _destinationOptions;
+                ComboDestination.SelectedItem = _destinationOptions.FirstOrDefault(o => o.IsActive)
+                    ?? _destinationOptions[0];
+                PanelDestinationCombo.Visibility = Visibility.Visible;
+                TextApplyDestination.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                PanelDestinationCombo.Visibility = Visibility.Collapsed;
+                TextApplyDestination.Visibility = Visibility.Visible;
+                TextApplyDestination.Text = "→ " + _destinationOptions[0].Label;
+            }
+        }
 
-                // If no more staged imports, rebuild filter to remove <Imports> option
-                if (_stagedImports.Count == 0)
-                {
-                    PopulateGameFilter();
-                    // Switch away from Imports filter since it's now empty
-                    if ((ComboGameFilter.SelectedItem as string) == ImportsFilter)
-                    {
-                        ComboGameFilter.SelectedItem = AllGamesFilter;
-                    }
-                }
+        private DestinationOption CurrentDestination()
+        {
+            if (PanelDestinationCombo.Visibility == Visibility.Visible)
+                return ComboDestination.SelectedItem as DestinationOption;
+            return _destinationOptions.FirstOrDefault();
+        }
 
-                UpdateDetailsPanel();
-                UpdateButtonStates();
+        private static string ResolveEntryGraphPath(ProfileBrowserEntry entry)
+        {
+            if (entry.TemplateEntry != null)
+                return GraphTemplateRegistry.ResolveTemplatePath(
+                    entry.TemplateEntry.TemplatePath, AppDomain.CurrentDomain.BaseDirectory);
+            return entry.GraphPath;
+        }
+
+        private static void SplitKey(string key, out string gameId, out string carId)
+        {
+            int sep = key?.IndexOf("::") ?? -1;
+            if (sep > 0)
+            {
+                gameId = key.Substring(0, sep);
+                carId = key.Substring(sep + 2);
+            }
+            else
+            {
+                gameId = null;
+                carId = key; // legacy bare carId
+            }
+        }
+
+        private static string FormatKeyLabel(string key)
+        {
+            SplitKey(key, out string g, out string c);
+            string car = (c ?? "").Replace('_', ' ');
+            return string.IsNullOrEmpty(g) ? car : $"{car} ({g})";
+        }
+
+        private void OnListKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete && ButtonDeleteSelected.IsEnabled &&
+                ButtonDeleteSelected.Visibility == Visibility.Visible)
+            {
+                OnDeleteSelectedClick(sender, e);
+                e.Handled = true;
             }
         }
 
@@ -567,21 +793,66 @@ namespace DiyFfb.ProfileBrowser
                 ComboGameFilter.SelectedItem = AllGamesFilter;
             }
 
-            UpdateDetailsPanel();
+            UpdateApplyTarget();
             UpdateButtonStates();
         }
 
         private void OnExportClick(object sender, RoutedEventArgs e)
         {
-            if (!(ListItems.SelectedItem is ProfileBrowserEntry entry) || !entry.CanExport)
+            var items = ListItems.SelectedItems.Cast<ProfileBrowserEntry>()
+                .Where(x => x.CanExport)
+                .ToList();
+            if (items.Count == 0)
                 return;
 
-            string suggestedName = (entry.Name ?? "profile").Replace(' ', '_').Replace(':', '_');
+            if (items.Count == 1)
+            {
+                ExportSingle(items[0]);
+                return;
+            }
+
+            // Multiple: pick one destination folder, write one file per profile.
+            using (var folder = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Export selected profiles to folder"
+            })
+            {
+                if (folder.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                    return;
+
+                int exported = 0;
+                var failed = new List<string>();
+                foreach (var entry in items)
+                {
+                    try
+                    {
+                        string path = Path.Combine(folder.SelectedPath, ExportFileName(entry));
+                        File.WriteAllText(path, SerializeExport(entry));
+                        exported++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failed.Add($"{entry.Name}: {ex.Message}");
+                    }
+                }
+
+                string message = $"Exported {exported} profile(s) to:\n{folder.SelectedPath}";
+                if (failed.Count > 0)
+                    message += $"\n\nFailed:\n{string.Join("\n", failed.Take(5))}";
+                ThemedMessageBox.Show(this, message,
+                    failed.Count > 0 ? "Export Warning" : "Export Complete",
+                    MessageBoxButton.OK,
+                    failed.Count > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
+            }
+        }
+
+        private void ExportSingle(ProfileBrowserEntry entry)
+        {
             var saveDialog = new Microsoft.Win32.SaveFileDialog
             {
                 Filter = "JSON files (*.json)|*.json",
                 DefaultExt = "json",
-                FileName = $"{suggestedName}_ffb.json",
+                FileName = ExportFileName(entry),
                 Title = "Export Profile"
             };
 
@@ -590,18 +861,7 @@ namespace DiyFfb.ProfileBrowser
 
             try
             {
-                var exported = new DiyFfbPluginSettings.ExportedProfile
-                {
-                    Version = 1,
-                    ProfileKey = entry.ProfileKey,
-                    GraphPath = entry.GraphPath,
-                    ExportedAt = DateTime.UtcNow.ToString("o"),
-                    Profile = entry.Profile
-                };
-
-                string json = JsonConvert.SerializeObject(exported, Formatting.Indented);
-                File.WriteAllText(saveDialog.FileName, json);
-
+                File.WriteAllText(saveDialog.FileName, SerializeExport(entry));
                 ThemedMessageBox.Show(this, $"Profile exported to:\n{saveDialog.FileName}", "Export Complete",
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -610,6 +870,25 @@ namespace DiyFfb.ProfileBrowser
                 ThemedMessageBox.Show(this, $"Error exporting profile: {ex.Message}", "Export Failed",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private static string ExportFileName(ProfileBrowserEntry entry)
+        {
+            string name = (entry.Name ?? "profile").Replace(' ', '_').Replace(':', '_');
+            return $"{name}_ffb.json";
+        }
+
+        private static string SerializeExport(ProfileBrowserEntry entry)
+        {
+            var exported = new DiyFfbPluginSettings.ExportedProfile
+            {
+                Version = 1,
+                ProfileKey = entry.ProfileKey,
+                GraphPath = entry.GraphPath,
+                ExportedAt = DateTime.UtcNow.ToString("o"),
+                Profile = entry.Profile
+            };
+            return JsonConvert.SerializeObject(exported, Formatting.Indented);
         }
 
         private void OnSaveToLibraryClick(object sender, RoutedEventArgs e)
