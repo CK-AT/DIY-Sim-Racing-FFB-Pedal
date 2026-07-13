@@ -85,6 +85,8 @@ namespace DiyFfb.GraphTest
             results.Add(TestRunner.RunTest("Node serialization preserves SignalGroup", TestNodeSignalGroupPreservation));
             results.Add(TestRunner.RunTest("Port serialization preserves SignalSuffix", TestPortSignalSuffixPreservation));
             results.Add(TestRunner.RunTest("MsfsVarDef multi-port resolution + roundtrip", TestMsfsVarDefMultiPort));
+            results.Add(TestRunner.RunTest("Plan 34: MSFS binding overlay resolution", TestMsfsBindingOverlayResolution));
+            results.Add(TestRunner.RunTest("Plan 34: MSFS read range normalization", TestMsfsReadNormalization));
             results.Add(TestRunner.RunTest("Op input negate conversion", TestOpInputNegateConversion));
             results.Add(TestRunner.RunTest("Op input negate validation", TestOpInputNegateValidation));
             results.Add(TestRunner.RunTest("normalize Func: compiled == interpreter, clamp/invert/degenerate", TestFunc_NormalizeCompiledMatchesInterpreter));
@@ -2584,6 +2586,85 @@ namespace DiyFfb.GraphTest
 
             return port1 != null && port1.SignalSuffix == "IAS_kts" &&
                    port2 != null && port2.SignalSuffix == "Alpha_deg";
+        }
+
+        private static bool TestMsfsBindingOverlayResolution()
+        {
+            // Plan 34: the per-profile overlay resolver — Baseline (graph node) vs
+            // Profile (override), first non-null wins, per field independently.
+            const string defSimVar = "L:HELI_COLL_TRIM_TGT";
+            const string defUnit = "number";
+            const double dIn0 = 0.0, dIn1 = 1.0, dOut0 = 0.0, dOut1 = 100.0;
+
+            // (1) Baseline only — null override yields graph defaults verbatim.
+            var b = MsfsBindingResolver.Resolve(defSimVar, defUnit, dIn0, dIn1, dOut0, dOut1, null);
+            if (b.SimVar != defSimVar || b.Unit != defUnit) return false;
+            if (b.InMin != dIn0 || b.InMax != dIn1 || b.OutMin != dOut0 || b.OutMax != dOut1) return false;
+
+            // (2) Empty override == baseline (IsEmpty true, all fields inherit).
+            var empty = new MsfsVarBindingOverride();
+            if (!empty.IsEmpty) return false;
+            var e = MsfsBindingResolver.Resolve(defSimVar, defUnit, dIn0, dIn1, dOut0, dOut1, empty);
+            if (e.SimVar != defSimVar || e.Unit != defUnit) return false;
+            if (e.InMin != dIn0 || e.InMax != dIn1 || e.OutMin != dOut0 || e.OutMax != dOut1) return false;
+
+            // (3) Override name only — SimVar overridden, everything else inherited.
+            var nameOnly = new MsfsVarBindingOverride { SimVar = "L:OTHER_HELI_VAR" };
+            if (nameOnly.IsEmpty) return false;
+            var n = MsfsBindingResolver.Resolve(defSimVar, defUnit, dIn0, dIn1, dOut0, dOut1, nameOnly);
+            if (n.SimVar != "L:OTHER_HELI_VAR" || n.Unit != defUnit) return false;
+            if (n.InMin != dIn0 || n.OutMax != dOut1) return false;
+
+            // (4) Full override — every field replaced, including a transport prefix
+            // change (L: → B:) that reroutes the write at scan time.
+            var full = new MsfsVarBindingOverride
+            {
+                SimVar = "B:COLLECTIVE_SET",
+                Unit = "percent",
+                InMin = -1.0,
+                InMax = 2.0,
+                OutMin = 10.0,
+                OutMax = 90.0,
+            };
+            var f = MsfsBindingResolver.Resolve(defSimVar, defUnit, dIn0, dIn1, dOut0, dOut1, full);
+            if (f.SimVar != "B:COLLECTIVE_SET" || f.Unit != "percent") return false;
+            if (f.InMin != -1.0 || f.InMax != 2.0 || f.OutMin != 10.0 || f.OutMax != 90.0) return false;
+
+            // (5) A zero-valued range override is honoured (not confused with inherit).
+            var zero = new MsfsVarBindingOverride { OutMin = 0.0, OutMax = 0.0 };
+            if (zero.IsEmpty) return false; // HasValue, even though value == 0
+            var z = MsfsBindingResolver.Resolve(defSimVar, defUnit, dIn0, dIn1, dOut0, dOut1, zero);
+            if (z.OutMin != 0.0 || z.OutMax != 0.0) return false;
+            if (z.SimVar != defSimVar) return false; // untouched fields still inherit
+
+            return true;
+        }
+
+        private static bool TestMsfsReadNormalization()
+        {
+            // Plan 34 (read range map): identity default (0..1 → 0..1) must be a true
+            // passthrough — a raw-unit read port (RPM=2000) is NOT clamped into 0..1.
+            if (MsfsBindingResolver.NormalizeRead(2000.0, 0, 1, 0, 1) != 2000.0) return false;
+            if (MsfsBindingResolver.NormalizeRead(-5.0, 0, 1, 0, 1) != -5.0) return false;
+
+            // A configured non-identity map normalizes and clamps to the graph side.
+            // 0..16383 → 0..1: midpoint maps to ~0.5.
+            double mid = MsfsBindingResolver.NormalizeRead(8191.5, 0, 16383, 0, 1);
+            if (System.Math.Abs(mid - 0.5) > 1e-9) return false;
+
+            // Over/under range clamps to the output bounds.
+            if (MsfsBindingResolver.NormalizeRead(20000.0, 0, 16383, 0, 1) != 1.0) return false;
+            if (MsfsBindingResolver.NormalizeRead(-100.0, 0, 16383, 0, 1) != 0.0) return false;
+
+            // Degenerate span (inMin == inMax) yields the low output bound, not NaN.
+            double deg = MsfsBindingResolver.NormalizeRead(5.0, 3, 3, 0, 1);
+            if (deg != 0.0) return false;
+
+            // Inverted output range clamps correctly (min/max swapped).
+            double inv = MsfsBindingResolver.NormalizeRead(0.5, 0, 1, 1, 0);
+            if (System.Math.Abs(inv - 0.5) > 1e-9) return false;
+
+            return true;
         }
 
         private static bool TestMsfsVarDefMultiPort()

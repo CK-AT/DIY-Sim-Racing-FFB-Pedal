@@ -408,6 +408,35 @@
                             </ControlTemplate>
                         </ComboBox.Template>
                     </ComboBox>
+                    <TextBlock Text="Range map: Raw [min → max]  ⇒  Norm [min → max]  (0..1 → 0..1 = passthrough)" Foreground="#BBBBBB" FontSize="10" Margin="0,4,0,0" />
+                    <Grid Margin="0,2,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Margin="0,0,2,0"
+                                 Background="#1E1E1E" Foreground="White"
+                                 BorderBrush="#4A4A4A" BorderThickness="1" Padding="3,2,3,2"
+                                 Text="{Binding InMin, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Raw min (sim-side; per-vehicle overridable in the MSFS Bindings panel)" />
+                        <TextBox Grid.Column="1" Margin="2,0,2,0"
+                                 Background="#1E1E1E" Foreground="White"
+                                 BorderBrush="#4A4A4A" BorderThickness="1" Padding="3,2,3,2"
+                                 Text="{Binding InMax, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Raw max (sim-side; per-vehicle overridable)" />
+                        <TextBox Grid.Column="2" Margin="2,0,2,0"
+                                 Background="#1E1E1E" Foreground="White"
+                                 BorderBrush="#4A4A4A" BorderThickness="1" Padding="3,2,3,2"
+                                 Text="{Binding OutMin, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Normalized min (graph-side)" />
+                        <TextBox Grid.Column="3" Margin="2,0,0,0"
+                                 Background="#1E1E1E" Foreground="White"
+                                 BorderBrush="#4A4A4A" BorderThickness="1" Padding="3,2,3,2"
+                                 Text="{Binding OutMax, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Normalized max (graph-side)" />
+                    </Grid>
                     <TextBlock Text="{Binding Error}"
                                Foreground="#E06666" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"
                                Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}" />

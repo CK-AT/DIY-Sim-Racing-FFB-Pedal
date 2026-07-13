@@ -19,6 +19,38 @@ Because these bindings are graph-scoped, **two aircraft cannot share one FFB gra
 - Edit in a **dedicated per-vehicle panel** in the plugin UI (parallel to per-vehicle tuning params).
 - Resolution is two layers: **Baseline = graph node value**, **Profile = override** (first non-null wins). No separate User layer for now.
 
+## Revision — range map & read normalization (implementation feedback)
+
+The initial cut applied a range map to **writes only** (`MsfsVarOut`) and let the
+per-vehicle panel override all four range fields. Review changed this:
+
+- **Reads (`MsfsVarDef`) now carry a range map too.** The raw SimConnect value is
+  normalized `In[min..max] → Out[min..max]` (clamped) before entering the graph as
+  `MSFS.<alias>`. This lets two aircraft feed differently-scaled raw vars into one
+  shared graph. Applied in `GraphSignalCatalog.BuildMsfsInputs` via
+  `plugin.NormalizeMsfsReadValue(alias, raw)`; the per-alias map is published
+  atomically by `UpdateMsfsCustomVars` (`_msfsVarInMaps`).
+- **Identity default = passthrough.** A `0..1 → 0..1` map is treated as a no-op on
+  reads (`MsfsBindingResolver.IsIdentityRange`) so existing read ports carrying raw
+  units (RPM, altitude, …) are **never** clamped into `0..1`. Normalization only
+  engages once a non-identity range is configured. (Writes always apply the map, as
+  before — graph output is expected in `0..1`.)
+- **Sim side is overridable; graph side is intrinsic.** The range map's *sim side* is
+  per-aircraft (editable in the panel); the *graph side* is graph-authored (inherited,
+  shown read-only). Because reads and writes put the sim value on opposite ends of the
+  map, the editable pair differs by direction:
+  - **Read:** sim value is the map **input** → `In*` (Raw) is overridable; `Out*` (Norm) is fixed.
+  - **Write:** sim value is the map **output** → `Out*` (Sim) is overridable; `In*` (Graph) is fixed.
+  So `MsfsVarBindingOverride.In*`/`Out*` are **not** both write-only (see below) —
+  reads override `In*`, writes override `Out*`. `SetMsfsReadBinding` writes only `In*`;
+  `SetMsfsWriteBinding` writes only `Out*`; the untouched pair stays null → inherits.
+- **Graph editor:** the `MsfsVarDef` node inspector gained the same `In/Out` range-map
+  grid the `MsfsVarOut` inspector already had, so graph authors set the read defaults
+  (raw range + normalized target) per port.
+- The linear-map math (`MapLinearClamped`, `IsIdentityRange`, `NormalizeRead`) lives in
+  `MsfsBindingResolver` so it is unit-testable without SimConnect and shared by both
+  the read and write paths.
+
 ## Design
 
 ### Data model (`DiyFfbPluginSettings.cs`)
@@ -30,8 +62,8 @@ public sealed class MsfsVarBindingOverride
 {
     public string SimVar;          // null = inherit graph node
     public string Unit;            // null = inherit
-    public double? InMin, InMax;   // write-only; null = inherit
-    public double? OutMin, OutMax; // write-only; null = inherit
+    public double? InMin, InMax;   // read overrides these (raw side); null = inherit
+    public double? OutMin, OutMax; // write overrides these (sim side); null = inherit
     public bool IsEmpty => SimVar == null && Unit == null
         && !InMin.HasValue && !InMax.HasValue && !OutMin.HasValue && !OutMax.HasValue;
 }

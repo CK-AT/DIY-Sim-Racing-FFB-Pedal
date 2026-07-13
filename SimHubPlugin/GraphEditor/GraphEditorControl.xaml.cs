@@ -5105,6 +5105,32 @@ namespace DiyFfb.GraphEditor
                 }
             }
 
+            // Plan 34: read range map. Raw sim value (In*) is normalized to the
+            // graph-side range (Out*). Identity default (0..1 → 0..1) = passthrough,
+            // so raw-unit ports (RPM, altitude) are unaffected until a range is set.
+            public double InMin
+            {
+                get => _port.InMin;
+                set { if (_port.InMin == value) return; _port.InMin = value; Raise(nameof(InMin)); _onChanged?.Invoke(); }
+            }
+            public double InMax
+            {
+                get => _port.InMax;
+                set { if (_port.InMax == value) return; _port.InMax = value; Raise(nameof(InMax)); _onChanged?.Invoke(); }
+            }
+            public double OutMin
+            {
+                get => _port.OutMin;
+                set { if (_port.OutMin == value) return; _port.OutMin = value; Raise(nameof(OutMin)); _onChanged?.Invoke(); }
+            }
+            public double OutMax
+            {
+                get => _port.OutMax;
+                set { if (_port.OutMax == value) return; _port.OutMax = value; Raise(nameof(OutMax)); _onChanged?.Invoke(); }
+            }
+
+            private void Raise(string prop) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+
             public event PropertyChangedEventHandler PropertyChanged;
         }
 

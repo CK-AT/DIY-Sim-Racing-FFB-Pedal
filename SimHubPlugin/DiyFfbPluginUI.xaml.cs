@@ -3752,10 +3752,18 @@ namespace DiyFfb
                 VehicleParamsContainer.Children.Add(activeFunctionsExpander);
             }
 
+            // Plan 34: per-vehicle MSFS var binding overrides (only when the active
+            // graph declares MsfsVarDef/MsfsVarOut nodes).
+            var msfsBindingsExpander = CreateMsfsBindingsExpander();
+            if (msfsBindingsExpander != null)
+            {
+                VehicleParamsContainer.Children.Add(msfsBindingsExpander);
+            }
+
             var allParams = Plugin.GetActiveGraphParams();
             if (allParams == null || allParams.Count == 0)
             {
-                if (activeFunctionsExpander == null)
+                if (activeFunctionsExpander == null && msfsBindingsExpander == null)
                 {
                     ShowVehicleEmptyState();
                 }
@@ -4123,6 +4131,306 @@ namespace DiyFfb
 
             return panel;
         }
+
+        // ---- Plan 34: MSFS var binding overrides panel -------------------------
+
+        private Expander CreateMsfsBindingsExpander()
+        {
+            var cat = Plugin?.EnumerateMsfsBindings();
+            if (cat == null || (cat.Reads.Count == 0 && cat.Writes.Count == 0))
+                return null;
+
+            var expander = new Expander
+            {
+                Header = "MSFS Bindings",
+                IsExpanded = false,
+                Foreground = Brushes.White,
+                FontFamily = new FontFamily("Arial Black"),
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 0, 5)
+            };
+
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x7F, 0x4E, 0x4E, 0x4E)),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(10)
+            };
+
+            var panel = new StackPanel { Orientation = Orientation.Vertical };
+
+            panel.Children.Add(new TextBlock
+            {
+                Text = "Override the SimConnect variables this graph reads/writes for this vehicle. "
+                     + "Only the sim-side range is editable (Reads: raw→normalized; Writes: graph→sim); "
+                     + "the graph-side range is fixed. Leave a field blank to inherit the graph default.",
+                Foreground = Brushes.Gray,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 10,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+
+            if (cat.Reads.Count > 0)
+            {
+                panel.Children.Add(CreateMsfsSectionHeader("Read (from sim)"));
+                foreach (var info in cat.Reads)
+                    panel.Children.Add(CreateMsfsReadRow(info));
+            }
+
+            if (cat.Writes.Count > 0)
+            {
+                panel.Children.Add(CreateMsfsSectionHeader("Write (to sim)"));
+                foreach (var info in cat.Writes)
+                    panel.Children.Add(CreateMsfsWriteRow(info));
+            }
+
+            border.Child = panel;
+            expander.Content = border;
+            return expander;
+        }
+
+        private static TextBlock CreateMsfsSectionHeader(string text) => new TextBlock
+        {
+            Text = text,
+            Foreground = Brushes.White,
+            FontFamily = new FontFamily("Arial"),
+            FontWeight = FontWeights.Bold,
+            FontSize = 11,
+            Margin = new Thickness(0, 4, 0, 4)
+        };
+
+        // A text box that commits on Enter or lost focus. Empty text = inherit.
+        private static TextBox CreateMsfsBindingBox(string initial, string defaultHint, double width, Action commit)
+        {
+            var box = new TextBox
+            {
+                Text = initial ?? "",
+                Width = width,
+                Height = 22,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 10,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 4, 0),
+                ToolTip = string.IsNullOrEmpty(defaultHint) ? "(no graph default)" : $"Default: {defaultHint}"
+            };
+            box.LostFocus += (s, e) => commit();
+            box.KeyDown += (s, e) => { if (e.Key == Key.Enter) commit(); };
+            return box;
+        }
+
+        private static string NullToEmpty(string s) => s ?? "";
+
+        private Border CreateMsfsReadRow(MsfsBindingInfo info)
+        {
+            var ov = Plugin.GetMsfsReadOverride(info.Alias);
+
+            TextBox simVarBox = null, unitBox = null, inMinBox = null, inMaxBox = null;
+            // Reads: the raw sim value is the map INPUT, so In* is the overridable
+            // sim-side pair; Out* is the graph-side range (inherited, shown fixed).
+            Action commit = () => Plugin.SetMsfsReadBinding(
+                info.Alias,
+                simVarBox.Text,
+                unitBox.Text,
+                ParseNullableDouble(inMinBox.Text),
+                ParseNullableDouble(inMaxBox.Text));
+
+            simVarBox = CreateMsfsBindingBox(NullToEmpty(ov?.SimVar), info.DefaultSimVar, 260, () => commit());
+            unitBox = CreateMsfsBindingBox(NullToEmpty(ov?.Unit), info.DefaultUnit, 120, () => commit());
+            inMinBox = CreateMsfsBindingBox(FormatNullable(ov?.InMin), FormatDouble(info.DefaultInMin), 58, () => commit());
+            inMaxBox = CreateMsfsBindingBox(FormatNullable(ov?.InMax), FormatDouble(info.DefaultInMax), 58, () => commit());
+
+            // raw [min → max]  ⇒  norm (graph-side, fixed)
+            var range = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            range.Children.Add(inMinBox);
+            range.Children.Add(CreateMsfsGlyph("→"));
+            range.Children.Add(inMaxBox);
+            range.Children.Add(CreateMsfsFixedRange("⇒ norm", info.DefaultOutMin, info.DefaultOutMax));
+
+            return CreateMsfsCard(info, simVarBox, unitBox, range, () =>
+            {
+                Plugin.ResetMsfsReadBinding(info.Alias);
+                RefreshVehicleParams();
+            });
+        }
+
+        private Border CreateMsfsWriteRow(MsfsBindingInfo info)
+        {
+            var ov = Plugin.GetMsfsWriteOverride(info.Alias);
+
+            TextBox simVarBox = null, unitBox = null, outMinBox = null, outMaxBox = null;
+            // Writes: the sim value is the map OUTPUT, so Out* is the overridable
+            // sim-side pair; In* is the graph-side range (inherited, shown fixed).
+            Action commit = () => Plugin.SetMsfsWriteBinding(
+                info.Alias,
+                simVarBox.Text,
+                unitBox.Text,
+                ParseNullableDouble(outMinBox.Text),
+                ParseNullableDouble(outMaxBox.Text));
+
+            simVarBox = CreateMsfsBindingBox(NullToEmpty(ov?.SimVar), info.DefaultSimVar, 260, () => commit());
+            unitBox = CreateMsfsBindingBox(NullToEmpty(ov?.Unit), info.DefaultUnit, 120, () => commit());
+            outMinBox = CreateMsfsBindingBox(FormatNullable(ov?.OutMin), FormatDouble(info.DefaultOutMin), 58, () => commit());
+            outMaxBox = CreateMsfsBindingBox(FormatNullable(ov?.OutMax), FormatDouble(info.DefaultOutMax), 58, () => commit());
+
+            // graph (graph-side, fixed)  ⇒  sim [min → max]
+            var range = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            range.Children.Add(CreateMsfsFixedRange("graph", info.DefaultInMin, info.DefaultInMax));
+            range.Children.Add(CreateMsfsGlyph("⇒ sim"));
+            range.Children.Add(outMinBox);
+            range.Children.Add(CreateMsfsGlyph("→"));
+            range.Children.Add(outMaxBox);
+
+            return CreateMsfsCard(info, simVarBox, unitBox, range, () =>
+            {
+                Plugin.ResetMsfsWriteBinding(info.Alias);
+                RefreshVehicleParams();
+            });
+        }
+
+        // A per-alias card: header (alias + default SimVar + Reset) over a 2-column
+        // grid of aligned SimVar / Unit / Range rows.
+        private Border CreateMsfsCard(MsfsBindingInfo info, TextBox simVarBox, TextBox unitBox,
+            UIElement rangeRow, Action onReset)
+        {
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var header = CreateMsfsHeader(info, onReset);
+            Grid.SetRow(header, 0);
+            Grid.SetColumn(header, 0);
+            Grid.SetColumnSpan(header, 2);
+            grid.Children.Add(header);
+
+            AddMsfsFieldRow(grid, "SimVar", simVarBox);
+            AddMsfsFieldRow(grid, "Unit", unitBox);
+            AddMsfsFieldRow(grid, "Range", rangeRow);
+
+            return new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x59, 0x2B, 0x2B, 0x2B)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(8, 5, 8, 7),
+                Margin = new Thickness(0, 0, 0, 6),
+                Child = grid
+            };
+        }
+
+        private DockPanel CreateMsfsHeader(MsfsBindingInfo info, Action onReset)
+        {
+            var dock = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 3) };
+
+            var resetBtn = CreateMsfsResetButton(onReset);
+            DockPanel.SetDock(resetBtn, Dock.Right);
+            dock.Children.Add(resetBtn);
+
+            var wrap = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            wrap.Children.Add(new TextBlock
+            {
+                Text = info.Alias,
+                Foreground = Brushes.White,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            if (!string.IsNullOrEmpty(info.DefaultSimVar))
+            {
+                wrap.Children.Add(new TextBlock
+                {
+                    Text = "   " + info.DefaultSimVar,
+                    Foreground = Brushes.Gray,
+                    FontFamily = new FontFamily("Arial"),
+                    FontSize = 9,
+                    FontStyle = FontStyles.Italic,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    ToolTip = "Graph-default SimConnect target for this alias"
+                });
+            }
+            dock.Children.Add(wrap);
+            return dock;
+        }
+
+        // Append one "label : content" row to a card body grid, aligned on column 0.
+        private void AddMsfsFieldRow(Grid grid, string label, UIElement content)
+        {
+            int r = grid.RowDefinitions.Count;
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var lbl = new TextBlock
+            {
+                Text = label,
+                Foreground = Brushes.Gray,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 3, 6, 0)
+            };
+            Grid.SetRow(lbl, r);
+            Grid.SetColumn(lbl, 0);
+            grid.Children.Add(lbl);
+
+            if (content is FrameworkElement fe) fe.Margin = new Thickness(0, 3, 0, 0);
+            Grid.SetRow(content, r);
+            Grid.SetColumn(content, 1);
+            grid.Children.Add(content);
+        }
+
+        private static TextBlock CreateMsfsGlyph(string text) => new TextBlock
+        {
+            Text = text,
+            Foreground = Brushes.Gray,
+            FontFamily = new FontFamily("Arial"),
+            FontSize = 10,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(4, 0, 4, 0)
+        };
+
+        // Read-only display of an inherited (graph-side) range the user can't override.
+        private static TextBlock CreateMsfsFixedRange(string label, double min, double max) => new TextBlock
+        {
+            Text = $"{label} {FormatDouble(min)}..{FormatDouble(max)}",
+            Foreground = Brushes.DimGray,
+            FontFamily = new FontFamily("Arial"),
+            FontSize = 10,
+            FontStyle = FontStyles.Italic,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(4, 0, 2, 0),
+            ToolTip = "Graph-side range (inherited from the graph node; not per-vehicle)"
+        };
+
+        private static Button CreateMsfsResetButton(Action onReset)
+        {
+            var btn = new Button
+            {
+                Content = "Reset",
+                Width = 50,
+                Height = 22,
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 9,
+                Margin = new Thickness(6, 0, 0, 0),
+                ToolTip = "Clear this override (inherit the graph default)"
+            };
+            btn.Click += (s, e) => onReset();
+            return btn;
+        }
+
+        private static double? ParseNullableDouble(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            return double.TryParse(s.Trim(), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var d) ? (double?)d : null;
+        }
+
+        private static string FormatNullable(double? v) =>
+            v.HasValue ? v.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
+
+        private static string FormatDouble(double v) =>
+            v.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         private void OnParamMutesCleared_Vehicle(object sender, EventArgs e)
         {

@@ -130,11 +130,13 @@ namespace DiyFfb
             inputs["MSFS.OnGround"] = packet.OnGround ? 1.0 : 0.0;
 
             // Plan 23: graph-declared custom vars (MsfsVarDef), keyed by alias.
+            // Plan 34: normalize each raw value by its per-alias read range map
+            // (passthrough unless a non-identity range is configured).
             if (packet.Custom != null)
             {
                 foreach (var kv in packet.Custom)
                 {
-                    inputs["MSFS." + kv.Key] = kv.Value;
+                    inputs["MSFS." + kv.Key] = plugin.NormalizeMsfsReadValue(kv.Key, kv.Value);
                 }
             }
         }

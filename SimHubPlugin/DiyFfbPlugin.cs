@@ -161,6 +161,14 @@ namespace DiyFfb
             new Dictionary<string, MsfsVarOutMap>(StringComparer.Ordinal);
         private int _lastSeenWriteGeneration;
 
+        // Plan 34: per-alias read (MsfsVarDef) range map, published atomically by
+        // UpdateMsfsCustomVars and read on the eval thread by NormalizeMsfsReadValue.
+        // The raw sim value (In*) is normalized to the graph-side range (Out*). An
+        // identity map (0..1 → 0..1) is treated as passthrough so existing read ports
+        // that carry raw units (RPM, altitude, …) are never clamped.
+        private volatile Dictionary<string, MsfsVarInMap> _msfsVarInMaps =
+            new Dictionary<string, MsfsVarInMap>(StringComparer.Ordinal);
+
         // Per-port range map + transport prefix for one MsfsVarOut alias.
         private sealed class MsfsVarOutMap
         {
@@ -168,6 +176,26 @@ namespace DiyFfb
             // B: input events and K: key/sim events are actuations, not idempotent
             // state assignments — exempt from the forced re-push on reconnect (RD6).
             public bool IsActuation;
+        }
+
+        // Per-port range map for one MsfsVarDef read alias.
+        private sealed class MsfsVarInMap
+        {
+            public double InMin, InMax, OutMin, OutMax;
+        }
+
+        // Plan 34: normalize one incoming MsfsVarDef read value by its per-alias range
+        // map. Passthrough when no map is registered or the map is the identity default
+        // (protects raw-unit read ports from being clamped into 0..1). Math lives in
+        // MsfsBindingResolver so it is unit-testable without SimConnect.
+        internal double NormalizeMsfsReadValue(string alias, double raw)
+        {
+            var maps = _msfsVarInMaps;
+            if (maps != null && alias != null && maps.TryGetValue(alias, out var m))
+            {
+                return MsfsBindingResolver.NormalizeRead(raw, m.InMin, m.InMax, m.OutMin, m.OutMax);
+            }
+            return raw;
         }
         private static Func<GameData, string> gameIdGetter;
         private DiyFfbPluginSettings.AircraftFfbProfile pendingFfbProfile;
@@ -1233,7 +1261,11 @@ namespace DiyFfb
             if (client == null) return;
 
             var list = new List<DiyFfb.Msfs.MsfsCustomVar>();
+            var inMaps = new Dictionary<string, MsfsVarInMap>(StringComparer.Ordinal);
             var graph = activeVehicleGraph;
+            // Plan 34: overlay the active profile's per-alias read-binding overrides
+            // onto the graph node defaults (overlay only — the graph stays untouched).
+            var readOverrides = GetCurrentAircraftProfile()?.MsfsReadVarOverrides;
             if (graph != null && graph.Nodes != null)
             {
                 var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -1245,13 +1277,26 @@ namespace DiyFfb
                     {
                         if (port == null || port.Kind != GraphPortKind.Output) continue;
                         string alias = port.SignalSuffix?.Trim() ?? "";
-                        string name = port.SimVar?.Trim() ?? "";
-                        if (alias.Length == 0 || name.Length == 0) continue;
+                        if (alias.Length == 0) continue;
+                        MsfsVarBindingOverride ov = null;
+                        readOverrides?.TryGetValue(alias, out ov);
+                        var r = MsfsBindingResolver.Resolve(
+                            port.SimVar, port.Unit, port.InMin, port.InMax, port.OutMin, port.OutMax, ov);
+                        string name = r.SimVar?.Trim() ?? "";
+                        if (name.Length == 0) continue;
                         if (!seen.Add(alias)) continue; // duplicate alias — first wins
-                        list.Add(new DiyFfb.Msfs.MsfsCustomVar(alias, name, port.Unit?.Trim() ?? ""));
+                        list.Add(new DiyFfb.Msfs.MsfsCustomVar(alias, name, r.Unit?.Trim() ?? ""));
+                        inMaps[alias] = new MsfsVarInMap
+                        {
+                            InMin = r.InMin,
+                            InMax = r.InMax,
+                            OutMin = r.OutMin,
+                            OutMax = r.OutMax,
+                        };
                     }
                 }
             }
+            _msfsVarInMaps = inMaps; // atomic publish
             client.SetCustomVars(list);
         }
 
@@ -1269,6 +1314,9 @@ namespace DiyFfb
             var list = new List<DiyFfb.Msfs.MsfsCustomVar>();
             var maps = new Dictionary<string, MsfsVarOutMap>(StringComparer.Ordinal);
             var graph = activeVehicleGraph;
+            // Plan 34: overlay the active profile's per-alias write-binding overrides
+            // (SimVar + Unit + range map) onto the graph node defaults.
+            var writeOverrides = GetCurrentAircraftProfile()?.MsfsWriteVarOverrides;
             if (graph != null && graph.Nodes != null)
             {
                 foreach (var node in graph.Nodes)
@@ -1279,16 +1327,21 @@ namespace DiyFfb
                     {
                         if (port == null || port.Kind != GraphPortKind.Input) continue;
                         string alias = port.Name?.Trim() ?? "";
-                        string name = port.SimVar?.Trim() ?? "";
-                        if (alias.Length == 0 || name.Length == 0) continue;
+                        if (alias.Length == 0) continue;
+                        MsfsVarBindingOverride ov = null;
+                        writeOverrides?.TryGetValue(alias, out ov);
+                        var r = MsfsBindingResolver.Resolve(
+                            port.SimVar, port.Unit, port.InMin, port.InMax, port.OutMin, port.OutMax, ov);
+                        string name = r.SimVar?.Trim() ?? "";
+                        if (name.Length == 0) continue;
                         if (maps.ContainsKey(alias)) continue; // duplicate alias — first wins
-                        list.Add(new DiyFfb.Msfs.MsfsCustomVar(alias, name, port.Unit?.Trim() ?? ""));
+                        list.Add(new DiyFfb.Msfs.MsfsCustomVar(alias, name, r.Unit?.Trim() ?? ""));
                         maps[alias] = new MsfsVarOutMap
                         {
-                            InMin = port.InMin,
-                            InMax = port.InMax,
-                            OutMin = port.OutMin,
-                            OutMax = port.OutMax,
+                            InMin = r.InMin,
+                            InMax = r.InMax,
+                            OutMin = r.OutMin,
+                            OutMax = r.OutMax,
                             IsActuation = name.StartsWith("B:", StringComparison.Ordinal)
                                        || name.StartsWith("K:", StringComparison.Ordinal)
                         };
@@ -1339,13 +1392,7 @@ namespace DiyFfb
                 double mapped;
                 if (maps.TryGetValue(alias, out var map))
                 {
-                    double span = map.InMax - map.InMin;
-                    double t = Math.Abs(span) < 1e-12 ? 0.0 : (raw - map.InMin) / span;
-                    mapped = map.OutMin + t * (map.OutMax - map.OutMin);
-                    double lo = Math.Min(map.OutMin, map.OutMax);
-                    double hi = Math.Max(map.OutMin, map.OutMax);
-                    if (mapped < lo) mapped = lo;
-                    else if (mapped > hi) mapped = hi;
+                    mapped = MsfsBindingResolver.MapLinearClamped(raw, map.InMin, map.InMax, map.OutMin, map.OutMax);
                 }
                 else
                 {
@@ -1361,6 +1408,176 @@ namespace DiyFfb
                 _lastMsfsVarOutValues[alias] = mapped;
                 client.WriteValue(alias, mapped);
             }
+        }
+
+        // Plan 34: re-run both MSFS var scans so per-profile binding overrides are
+        // re-overlaid and re-registered. UpdateMsfsWritableVars → SetWritableVars
+        // flags the client's write set dirty, so ConfigureWritables re-runs and bumps
+        // WriteGeneration — that forces a full re-push of A:/L: held state (B:/K:
+        // actuations stay exempt in CheckMsfsVarOutChanges), and handles a transport
+        // prefix change on a write override (e.g. L: → B:) re-registering correctly.
+        // No-op when the client isn't running (each scan checks internally).
+        public void ApplyMsfsVarOverrides()
+        {
+            UpdateMsfsCustomVars();
+            UpdateMsfsWritableVars();
+        }
+
+        /// <summary>
+        /// Plan 34: enumerate the MSFS var bindings declared by the active graph,
+        /// grouped Read (MsfsVarDef) / Write (MsfsVarOut), each with the graph-default
+        /// SimVar/Unit/range for the UI to show as placeholder baseline. Dedups aliases
+        /// (first wins), matching the scan behaviour in UpdateMsfsCustomVars/WritableVars.
+        /// </summary>
+        public MsfsBindingCatalog EnumerateMsfsBindings()
+        {
+            var cat = new MsfsBindingCatalog();
+            var graph = activeVehicleGraph;
+            if (graph?.Nodes == null) return cat;
+
+            var seenRead = new HashSet<string>(StringComparer.Ordinal);
+            var seenWrite = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var node in graph.Nodes)
+            {
+                if (node?.Ports == null) continue;
+                if (node.Kind == GraphNodeKind.MsfsVarDef)
+                {
+                    foreach (var port in node.Ports)
+                    {
+                        if (port == null || port.Kind != GraphPortKind.Output) continue;
+                        string alias = port.SignalSuffix?.Trim() ?? "";
+                        if (alias.Length == 0 || !seenRead.Add(alias)) continue;
+                        cat.Reads.Add(new MsfsBindingInfo
+                        {
+                            Alias = alias,
+                            IsWrite = false,
+                            DefaultSimVar = port.SimVar?.Trim() ?? "",
+                            DefaultUnit = port.Unit?.Trim() ?? "",
+                            DefaultInMin = port.InMin,
+                            DefaultInMax = port.InMax,
+                            DefaultOutMin = port.OutMin,
+                            DefaultOutMax = port.OutMax,
+                        });
+                    }
+                }
+                else if (node.Kind == GraphNodeKind.MsfsVarOut)
+                {
+                    foreach (var port in node.Ports)
+                    {
+                        if (port == null || port.Kind != GraphPortKind.Input) continue;
+                        string alias = port.Name?.Trim() ?? "";
+                        if (alias.Length == 0 || !seenWrite.Add(alias)) continue;
+                        cat.Writes.Add(new MsfsBindingInfo
+                        {
+                            Alias = alias,
+                            IsWrite = true,
+                            DefaultSimVar = port.SimVar?.Trim() ?? "",
+                            DefaultUnit = port.Unit?.Trim() ?? "",
+                            DefaultInMin = port.InMin,
+                            DefaultInMax = port.InMax,
+                            DefaultOutMin = port.OutMin,
+                            DefaultOutMax = port.OutMax,
+                        });
+                    }
+                }
+            }
+            return cat;
+        }
+
+        /// <summary>True if the active graph declares any MSFS read/write var binding.</summary>
+        public bool HasMsfsBindings()
+        {
+            var cat = EnumerateMsfsBindings();
+            return cat.Reads.Count > 0 || cat.Writes.Count > 0;
+        }
+
+        /// <summary>Current profile's read-binding override for an alias, or null.</summary>
+        public MsfsVarBindingOverride GetMsfsReadOverride(string alias)
+        {
+            var d = GetCurrentAircraftProfile()?.MsfsReadVarOverrides;
+            if (d != null && alias != null && d.TryGetValue(alias, out var ov)) return ov;
+            return null;
+        }
+
+        /// <summary>Current profile's write-binding override for an alias, or null.</summary>
+        public MsfsVarBindingOverride GetMsfsWriteOverride(string alias)
+        {
+            var d = GetCurrentAircraftProfile()?.MsfsWriteVarOverrides;
+            if (d != null && alias != null && d.TryGetValue(alias, out var ov)) return ov;
+            return null;
+        }
+
+        // The range map's sim side is per-aircraft (overridable); the graph side is
+        // graph-intrinsic (inherited, never overridden). For READS the sim value is
+        // the INPUT, so In* is the overridable pair; for WRITES the sim value is the
+        // OUTPUT, so Out* is the overridable pair. The other pair is left null so the
+        // resolver always inherits the graph default.
+        public void SetMsfsReadBinding(string alias, string simVar, string unit,
+            double? inMin, double? inMax)
+        {
+            EditMsfsOverride(isWrite: false, alias: alias, mutate: ov =>
+            {
+                ov.SimVar = NullIfBlank(simVar);
+                ov.Unit = NullIfBlank(unit);
+                ov.InMin = inMin;
+                ov.InMax = inMax;
+            });
+        }
+
+        public void SetMsfsWriteBinding(string alias, string simVar, string unit,
+            double? outMin, double? outMax)
+        {
+            EditMsfsOverride(isWrite: true, alias: alias, mutate: ov =>
+            {
+                ov.SimVar = NullIfBlank(simVar);
+                ov.Unit = NullIfBlank(unit);
+                ov.OutMin = outMin;
+                ov.OutMax = outMax;
+            });
+        }
+
+        public void ResetMsfsReadBinding(string alias)
+            => EditMsfsOverride(isWrite: false, alias: alias, mutate: ov =>
+            {
+                ov.SimVar = null; ov.Unit = null;
+                ov.InMin = null; ov.InMax = null;
+            });
+
+        public void ResetMsfsWriteBinding(string alias)
+            => EditMsfsOverride(isWrite: true, alias: alias, mutate: ov =>
+            {
+                ov.SimVar = null; ov.Unit = null;
+                ov.OutMin = null; ov.OutMax = null;
+            });
+
+        private static string NullIfBlank(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+        // Read-modify-write one alias's override in the active profile, prune the
+        // entry if it becomes empty, mark dirty, then re-apply so the change reaches
+        // the sim immediately. No-op when there is no active profile.
+        private void EditMsfsOverride(bool isWrite, string alias, Action<MsfsVarBindingOverride> mutate)
+        {
+            if (string.IsNullOrWhiteSpace(alias)) return;
+            var profile = GetCurrentAircraftProfile();
+            if (profile == null) return;
+            alias = alias.Trim();
+
+            Dictionary<string, MsfsVarBindingOverride> dict;
+            if (isWrite)
+                dict = profile.MsfsWriteVarOverrides ?? (profile.MsfsWriteVarOverrides = new Dictionary<string, MsfsVarBindingOverride>(StringComparer.Ordinal));
+            else
+                dict = profile.MsfsReadVarOverrides ?? (profile.MsfsReadVarOverrides = new Dictionary<string, MsfsVarBindingOverride>(StringComparer.Ordinal));
+
+            MarkProfileDirty();
+
+            if (!dict.TryGetValue(alias, out var ov) || ov == null)
+                ov = new MsfsVarBindingOverride();
+            mutate(ov);
+
+            if (ov.IsEmpty) dict.Remove(alias);
+            else dict[alias] = ov;
+
+            ApplyMsfsVarOverrides();
         }
 
         private void StopMsfsClient()
@@ -3251,6 +3468,8 @@ namespace DiyFfb
                     profile.FunctionOverrides = new Dictionary<int, FunctionConfigOverrides>(currentProfile.FunctionOverrides);
                 if (currentProfile.ActiveFunctionIds != null)
                     profile.ActiveFunctionIds = new HashSet<int>(currentProfile.ActiveFunctionIds);
+                profile.MsfsReadVarOverrides = CloneMsfsOverrides(currentProfile.MsfsReadVarOverrides);
+                profile.MsfsWriteVarOverrides = CloneMsfsOverrides(currentProfile.MsfsWriteVarOverrides);
             }
 
             return profile;
@@ -3296,7 +3515,46 @@ namespace DiyFfb
                    left.XPlaneRotorIndex == right.XPlaneRotorIndex &&
                    AreGraphParamValuesEqual(left.GraphParamValues, right.GraphParamValues) &&
                    AreFunctionOverridesEqual(left.FunctionOverrides, right.FunctionOverrides) &&
-                   AreActiveFunctionIdsEqual(left.ActiveFunctionIds, right.ActiveFunctionIds);
+                   AreActiveFunctionIdsEqual(left.ActiveFunctionIds, right.ActiveFunctionIds) &&
+                   AreMsfsOverridesEqual(left.MsfsReadVarOverrides, right.MsfsReadVarOverrides) &&
+                   AreMsfsOverridesEqual(left.MsfsWriteVarOverrides, right.MsfsWriteVarOverrides);
+        }
+
+        // Plan 34: deep-clone a per-alias override dict (never null; overrides are
+        // mutated in place, so the profile snapshot must own its own copies).
+        private static Dictionary<string, MsfsVarBindingOverride> CloneMsfsOverrides(
+            Dictionary<string, MsfsVarBindingOverride> src)
+        {
+            var copy = new Dictionary<string, MsfsVarBindingOverride>(StringComparer.Ordinal);
+            if (src != null)
+            {
+                foreach (var kvp in src)
+                {
+                    if (kvp.Value == null || kvp.Value.IsEmpty) continue;
+                    copy[kvp.Key] = kvp.Value.Clone();
+                }
+            }
+            return copy;
+        }
+
+        // Empty/null entries are treated as absent (like AreFunctionOverridesEqual).
+        private static bool AreMsfsOverridesEqual(
+            Dictionary<string, MsfsVarBindingOverride> left,
+            Dictionary<string, MsfsVarBindingOverride> right)
+        {
+            var l = CloneMsfsOverrides(left);
+            var r = CloneMsfsOverrides(right);
+            if (l.Count != r.Count) return false;
+            foreach (var kvp in l)
+            {
+                if (!r.TryGetValue(kvp.Key, out var ro)) return false;
+                var lo = kvp.Value;
+                if (!string.Equals(lo.SimVar, ro.SimVar, StringComparison.Ordinal)) return false;
+                if (!string.Equals(lo.Unit, ro.Unit, StringComparison.Ordinal)) return false;
+                if (lo.InMin != ro.InMin || lo.InMax != ro.InMax) return false;
+                if (lo.OutMin != ro.OutMin || lo.OutMax != ro.OutMax) return false;
+            }
+            return true;
         }
 
         private bool AreGraphParamValuesEqual(Dictionary<string, double> left, Dictionary<string, double> right)
@@ -3854,6 +4112,10 @@ namespace DiyFfb
 
         private bool hasDirtyGraphParams = false;
         private Dictionary<string, double> _graphParamValuesSnapshot = null;
+        // Plan 34: captured alongside the param snapshot so discarding on a vehicle
+        // switch restores MSFS binding overrides too (edits mutate them in place).
+        private Dictionary<string, MsfsVarBindingOverride> _msfsReadOverridesSnapshot = null;
+        private Dictionary<string, MsfsVarBindingOverride> _msfsWriteOverridesSnapshot = null;
 
         private void MarkProfileDirty()
         {
@@ -3869,6 +4131,8 @@ namespace DiyFfb
                 {
                     _graphParamValuesSnapshot = new Dictionary<string, double>();
                 }
+                _msfsReadOverridesSnapshot = CloneMsfsOverrides(profile?.MsfsReadVarOverrides);
+                _msfsWriteOverridesSnapshot = CloneMsfsOverrides(profile?.MsfsWriteVarOverrides);
             }
             hasDirtyGraphParams = true;
         }
@@ -3889,20 +4153,27 @@ namespace DiyFfb
             {
                 // Restore from snapshot
                 profile.GraphParamValues = new Dictionary<string, double>(_graphParamValuesSnapshot);
+                profile.MsfsReadVarOverrides = CloneMsfsOverrides(_msfsReadOverridesSnapshot);
+                profile.MsfsWriteVarOverrides = CloneMsfsOverrides(_msfsWriteOverridesSnapshot);
             }
 
             // Clear dirty state and snapshot
             hasDirtyGraphParams = false;
             _graphParamValuesSnapshot = null;
+            _msfsReadOverridesSnapshot = null;
+            _msfsWriteOverridesSnapshot = null;
 
-            // Rebuild runtime params from restored profile
+            // Rebuild runtime params from restored profile; re-overlay MSFS bindings
             BuildGraphParams();
+            ApplyMsfsVarOverrides();
         }
 
         private void ClearDirtyState()
         {
             hasDirtyGraphParams = false;
             _graphParamValuesSnapshot = null;
+            _msfsReadOverridesSnapshot = null;
+            _msfsWriteOverridesSnapshot = null;
         }
 
         public event EventHandler ActiveGraphChanged;

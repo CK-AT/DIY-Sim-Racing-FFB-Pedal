@@ -9,6 +9,113 @@ namespace DiyFfb
     /// Settings class, make sure it can be correctly serialized using JSON.net
     /// </summary>
 
+    /// <summary>
+    /// Plan 34: per-profile override of a single MSFS SimConnect variable binding.
+    /// Each field is nullable/optional; null means "inherit the graph node's value".
+    /// Read bindings only use SimVar/Unit; write bindings also use the range map.
+    /// Keyed by alias in AircraftFfbProfile.MsfsReadVarOverrides / MsfsWriteVarOverrides.
+    /// </summary>
+    public sealed class MsfsVarBindingOverride
+    {
+        public string SimVar;          // null = inherit graph node's SimVar
+        public string Unit;            // null = inherit
+        public double? InMin, InMax;   // write-only; null = inherit
+        public double? OutMin, OutMax; // write-only; null = inherit
+
+        public bool IsEmpty => SimVar == null && Unit == null
+            && !InMin.HasValue && !InMax.HasValue && !OutMin.HasValue && !OutMax.HasValue;
+
+        public MsfsVarBindingOverride Clone() => new MsfsVarBindingOverride
+        {
+            SimVar = SimVar,
+            Unit = Unit,
+            InMin = InMin,
+            InMax = InMax,
+            OutMin = OutMin,
+            OutMax = OutMax,
+        };
+    }
+
+    /// <summary>
+    /// Plan 34: the resolved MSFS binding after overlaying a profile override on the
+    /// graph node defaults (first non-null wins). Pure value type — no SimConnect.
+    /// </summary>
+    public struct ResolvedMsfsBinding
+    {
+        public string SimVar;
+        public string Unit;
+        public double InMin, InMax, OutMin, OutMax;
+    }
+
+    /// <summary>
+    /// Plan 34: pure overlay resolver (Baseline = graph node value, Profile = override).
+    /// Factored out so it is unit-testable without SimConnect (see GraphTestRunner).
+    /// </summary>
+    public static class MsfsBindingResolver
+    {
+        public static ResolvedMsfsBinding Resolve(
+            string defSimVar, string defUnit,
+            double defInMin, double defInMax, double defOutMin, double defOutMax,
+            MsfsVarBindingOverride ov)
+        {
+            return new ResolvedMsfsBinding
+            {
+                SimVar = ov?.SimVar ?? defSimVar,
+                Unit = ov?.Unit ?? defUnit,
+                InMin = ov?.InMin ?? defInMin,
+                InMax = ov?.InMax ?? defInMax,
+                OutMin = ov?.OutMin ?? defOutMin,
+                OutMax = ov?.OutMax ?? defOutMax,
+            };
+        }
+
+        /// <summary>Linear map In*→Out* with clamp to the output range.</summary>
+        public static double MapLinearClamped(double raw, double inMin, double inMax, double outMin, double outMax)
+        {
+            double span = inMax - inMin;
+            double t = System.Math.Abs(span) < 1e-12 ? 0.0 : (raw - inMin) / span;
+            double mapped = outMin + t * (outMax - outMin);
+            double lo = System.Math.Min(outMin, outMax);
+            double hi = System.Math.Max(outMin, outMax);
+            if (mapped < lo) mapped = lo;
+            else if (mapped > hi) mapped = hi;
+            return mapped;
+        }
+
+        /// <summary>The default 0..1 → 0..1 map, treated as passthrough on reads.</summary>
+        public static bool IsIdentityRange(double inMin, double inMax, double outMin, double outMax)
+            => inMin == 0.0 && inMax == 1.0 && outMin == 0.0 && outMax == 1.0;
+
+        /// <summary>
+        /// Normalize a raw read value by its range map. Passthrough when the map is the
+        /// identity default so raw-unit read ports (RPM, altitude, …) are never clamped.
+        /// </summary>
+        public static double NormalizeRead(double raw, double inMin, double inMax, double outMin, double outMax)
+            => IsIdentityRange(inMin, inMax, outMin, outMax)
+                ? raw
+                : MapLinearClamped(raw, inMin, inMax, outMin, outMax);
+    }
+
+    /// <summary>
+    /// Plan 34: one enumerated MSFS var binding as declared by the active graph,
+    /// with the graph-default values the UI shows as greyed placeholder baseline.
+    /// </summary>
+    public sealed class MsfsBindingInfo
+    {
+        public string Alias;          // read: port SignalSuffix; write: port Name
+        public bool IsWrite;
+        public string DefaultSimVar;
+        public string DefaultUnit;
+        public double DefaultInMin, DefaultInMax, DefaultOutMin, DefaultOutMax;
+    }
+
+    /// <summary>Plan 34: enumerated MSFS bindings grouped by direction.</summary>
+    public sealed class MsfsBindingCatalog
+    {
+        public List<MsfsBindingInfo> Reads = new List<MsfsBindingInfo>();
+        public List<MsfsBindingInfo> Writes = new List<MsfsBindingInfo>();
+    }
+
     public class DiyFfbPluginSettings
     {
         /// <summary>
@@ -51,6 +158,20 @@ namespace DiyFfb
             /// On profile load, only these functions have their overrides applied.
             /// </summary>
             public HashSet<int> ActiveFunctionIds = new HashSet<int>();
+
+            /// <summary>
+            /// Plan 34: per-profile MSFS read-variable (MsfsVarDef) binding overrides.
+            /// Keyed by alias (port SignalSuffix). Null/absent entry = inherit graph node.
+            /// Kept separate from writes so a read alias and a write alias that share a
+            /// string never collide.
+            /// </summary>
+            public Dictionary<string, MsfsVarBindingOverride> MsfsReadVarOverrides = new Dictionary<string, MsfsVarBindingOverride>();
+
+            /// <summary>
+            /// Plan 34: per-profile MSFS write-variable (MsfsVarOut) binding overrides.
+            /// Keyed by alias (port Name). Overrides SimVar, Unit, and the In/Out range map.
+            /// </summary>
+            public Dictionary<string, MsfsVarBindingOverride> MsfsWriteVarOverrides = new Dictionary<string, MsfsVarBindingOverride>();
         }
 
         /// <summary>
