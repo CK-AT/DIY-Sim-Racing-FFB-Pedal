@@ -1100,11 +1100,15 @@ namespace DiyFfb.GraphEditor
                 // Track this param as explicitly updated (for context preview overlay)
                 _explicitlyUpdatedParams.Add(name);
 
-                // Update graph param
-                if (_graph.Params.TryGetValue(name, out var param))
-                {
-                    param.DefaultValue = value;
-                }
+                // Reflect the incoming (plugin/profile-resolved) value in the preview and
+                // on-screen controls ONLY. NEVER write it into param.DefaultValue: that is
+                // the graph's persisted baseline, and copying the active aircraft profile's
+                // resolved value into it silently bakes that aircraft's tuning into the
+                // shared graph the next time the graph is saved (defaults poisoned for every
+                // vehicle using the graph). The live value is still visible via the evaluated
+                // node-output overlay and the preview panel, both of which read
+                // _previewParamEntries — not DefaultValue.
+                _graph.Params.TryGetValue(name, out var param);
 
                 // Update preview entry
                 if (_previewParamLookup.TryGetValue(name, out var entry))
