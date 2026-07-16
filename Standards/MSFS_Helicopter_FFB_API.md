@@ -77,7 +77,7 @@ For each control whose flag is `1`, the aircraft:
   **0** so the sim's virtual control does not fight the physical one. More
   generally: suppress internal trim application and let the rig own that control; this removes the need to manipulate the control input to "compensate" for the internal trim depending on TR/fly-through state.
 - **Publishes** the read-group LVARs (§3.4) for that control's axes every frame.
-- **Restores** normal behavior when the flag returns to `0` (optional, switching back from FFB controls mid-session is not really a use case).
+- **Restores** normal behavior when the flag returns to `0`, resuming its own trim/feel. This path is **required** so that disabling a control — or a rig disconnect — cleanly returns it to normal mode; a user re-arming mid-session for feel reasons is not an expected use case, but the restore path must exist.
 
 ### 3.3 rig → aircraft (signals the rig writes)
 
@@ -116,7 +116,7 @@ Per control (cyclic trim can only be unclutched for both axes simultaneously):
 ## 4. Lifecycle (rig side)
 
 A worked sequence for the FFB software. Steps 1–3 run once per aircraft load;
-step 4 is the per-frame loop; step 5 is teardown.
+step 4 is the per-frame loop; step 5 is the exit.
 
 1. **Detect.** Read `L:FFB_API_VERSION`. If it is `0`/absent or below the rig's
    minimum supported revision, treat the aircraft as unsupported and stay in
@@ -134,3 +134,6 @@ step 4 is the per-frame loop; step 5 is teardown.
    - *Update effects:* spring toward `_TRIM` — **unless** that control's
      `FFB_FEATURES` trim bit is `0` (then no trim spring); update friction/damping based on `_HYD_ASSIST_LOSS`; drop the trim spring while
      `_TR_ON == 1` so the control is free to reposition.
+5. **Exit.** When a control's FFB ends — the user disables it, the rig
+   disconnects, or the aircraft unloads — write `L:FFB_<CONTROL>_ENABLED = 0`.
+   The aircraft restores normal trim/feel (§3.2).
